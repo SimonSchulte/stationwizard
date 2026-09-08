@@ -29,6 +29,7 @@ import { MatDatepickerModule, MatDatepickerInputEvent } from '@angular/material/
 import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
 import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
 import { PlanungStoreService } from '../../services/planung-store.service';
+import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { SaveLoadService } from '../../services/save-load.service';
 import { AppModeService } from '../../services/app-mode.service';
 import { EfsApiService } from '../../services/efs-api.service';
@@ -100,6 +101,10 @@ export class PlanningEditor {
   private readonly store = inject(PlanungStoreService);
   private readonly router = inject(Router);
   private readonly saveLoad = inject(SaveLoadService);
+  private readonly cloud = inject(PlanungCloudService);
+  readonly cloudSpeichert = signal(false);
+  readonly cloudStatus = signal('');
+  readonly cloudFehler = signal('');
   private readonly dialog = inject(MatDialog);
   readonly appMode = inject(AppModeService);
   private readonly efsApi = inject(EfsApiService);
@@ -325,8 +330,16 @@ export class PlanningEditor {
   }
 
   async importTemplate(): Promise<void> {
+    const zielId = this.planung()?.id;
     const result = await this.saveLoad.load();
-    if (!result) return;
+    if (!result || this.planung()?.id !== zielId) return;
+    if (
+      result.versionWarning &&
+      !window.confirm(
+        'Versionswarnung: Die Vorlage wurde mit einer anderen Dateiversion gespeichert. Trotzdem importieren?',
+      )
+    )
+      return;
     this.store.applyTemplate(result.planung);
   }
 
@@ -334,6 +347,22 @@ export class PlanningEditor {
     const p = this.planung();
     if (!p) return;
     this.pdfExport.export(p);
+  }
+
+  async cloudSpeichern(): Promise<void> {
+    const planung = this.planung();
+    if (!planung || this.cloudSpeichert()) return;
+    this.cloudSpeichert.set(true);
+    this.cloudStatus.set('');
+    this.cloudFehler.set('');
+    try {
+      await this.cloud.speichern(planung);
+      this.cloudStatus.set('Die Einsatzplanung wurde in Nextcloud gespeichert.');
+    } catch (fehler) {
+      this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
+    } finally {
+      this.cloudSpeichert.set(false);
+    }
   }
 
   save(): void {

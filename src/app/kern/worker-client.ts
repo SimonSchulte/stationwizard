@@ -46,7 +46,7 @@ export class WorkerClient {
       if (!antwort.ok) {
         const meldung =
           antwort.status === 412
-            ? 'Die Datei wurde zwischenzeitlich geändert. Bitte neu laden und Änderungen zusammenführen.'
+            ? 'Die Datei wurde zwischenzeitlich geändert. Bitte zuerst eine lokale Kopie herunterladen, dann neu laden und die Änderungen zusammenführen.'
             : antwort.status === 503
               ? 'Die Verbindung ist noch nicht vollständig eingerichtet.'
               : `Die Anfrage konnte nicht ausgeführt werden (HTTP ${antwort.status}).`;

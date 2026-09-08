@@ -19,6 +19,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { PlanungStoreService } from '../../services/planung-store.service';
+import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { SaveLoadService } from '../../services/save-load.service';
 import { AppModeService } from '../../services/app-mode.service';
 import { EfsApiService } from '../../services/efs-api.service';
@@ -54,6 +55,9 @@ export class PlanningList implements OnInit {
   private readonly importService = inject(ImportService);
 
   readonly planungen = this.store.planungen;
+  readonly cloud = inject(PlanungCloudService);
+  readonly cloudLadeId = signal<string | null>(null);
+  readonly cloudFehler = signal('');
 
   readonly efsEinsaetze = signal<EfsEinsatz[]>([]);
   readonly efsLoading = signal(false);
@@ -80,8 +84,51 @@ export class PlanningList implements OnInit {
   readonly einsatzColumns = ['titel', 'datum_von', 'datum_bis', 'ort'];
 
   ngOnInit(): void {
+    void this.cloud.listeLaden();
     if (this.appMode.mode() === 'connected-to-efs-api') {
       this.loadEfsEinsaetze();
+    }
+  }
+
+  async cloudPlanungLaden(id: string): Promise<void> {
+    if (this.cloudLadeId()) return;
+    const lokal = this.planungen().find((planung) => planung.id === id);
+    const vorherigerStand = lokal ? JSON.stringify(lokal) : null;
+    if (
+      lokal &&
+      this.cloud.hatLokaleAenderungen(lokal) &&
+      !window.confirm(
+        'Diese Planung enthält lokale Änderungen. Den gespeicherten Stand laden und die lokalen Änderungen ersetzen? Zur Sicherung kannst du zuerst im Editor JSON herunterladen.',
+      )
+    )
+      return;
+    this.cloudLadeId.set(id);
+    this.cloudFehler.set('');
+    try {
+      const ergebnis = await this.cloud.laden(id);
+      const jetzt = this.planungen().find((planung) => planung.id === id);
+      if (
+        (jetzt ? JSON.stringify(jetzt) : null) !== vorherigerStand &&
+        !window.confirm(
+          'Die lokale Planung wurde während des Ladens geändert. Trotzdem durch den gespeicherten Stand ersetzen?',
+        )
+      )
+        return;
+      if (
+        ergebnis.versionWarning &&
+        !window.confirm(
+          'Versionswarnung: Der Einsatzplan wurde mit einer anderen Dateiversion gespeichert. Trotzdem laden?',
+        )
+      )
+        return;
+      this.store.importPlanung(ergebnis.planung);
+      this.store.openPlanung(ergebnis.planung.id);
+      this.cloud.uebernahmeMerken(ergebnis);
+      await this.router.navigate(['/einsatz/editor']);
+    } catch (fehler) {
+      this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
+    } finally {
+      this.cloudLadeId.set(null);
     }
   }
 

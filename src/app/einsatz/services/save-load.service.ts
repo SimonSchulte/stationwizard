@@ -1,24 +1,15 @@
 import { Injectable } from '@angular/core';
-import { Planung, PepFile } from '../models/planung.model';
+import { Planung } from '../models/planung.model';
 import { formatTaktischeZeit } from '../utils/taktische-zeit';
 import { dateiHerunterladen } from '../../kern/storage/datei-storage';
 import { JsonDateiStorage } from './json-datei-storage';
 
-const CURRENT_VERSION = '1.0';
+import { lesePepDatei, serialisierePepDatei } from './pep-datei';
 
 @Injectable({ providedIn: 'root' })
 export class SaveLoadService {
   save(planung: Planung): void {
-    const pepFile: PepFile = {
-      version: CURRENT_VERSION,
-      meta: {
-        exportedAt: new Date().toISOString(),
-        taktischeZeit: formatTaktischeZeit(new Date()),
-        locale: 'de-DE',
-      },
-      planung,
-    };
-    const json = JSON.stringify(pepFile, null, 2);
+    const json = serialisierePepDatei(planung);
     dateiHerunterladen(
       json,
       `${planung.name}_${formatTaktischeZeit(new Date())}.pep.json`,
@@ -39,10 +30,11 @@ export class SaveLoadService {
         }
         try {
           const inhalt = await new JsonDateiStorage(file).laden();
-          const pepFile: PepFile = JSON.parse(new TextDecoder().decode(inhalt.daten));
-          const versionWarning = pepFile.version !== CURRENT_VERSION;
-          resolve({ planung: pepFile.planung, versionWarning });
-        } catch {
+          resolve(lesePepDatei(new TextDecoder().decode(inhalt.daten)));
+        } catch (fehler) {
+          window.alert(
+            fehler instanceof Error ? fehler.message : 'Die Datei konnte nicht gelesen werden.',
+          );
           resolve(null);
         }
       };

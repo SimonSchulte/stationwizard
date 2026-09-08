@@ -27,6 +27,47 @@
 </mat-toolbar>
 
 <div class="list-content">
+  <section class="cloud-planungen" aria-labelledby="cloud-planungen-titel">
+    <div class="section-header">
+      <h2 id="cloud-planungen-titel">Gespeicherte Einsatzpläne</h2>
+      <button mat-stroked-button (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
+        <mat-icon>refresh</mat-icon> Aktualisieren
+      </button>
+    </div>
+    @if (cloud.listeLaedt()) {
+      <p role="status">Gespeicherte Einsatzpläne werden geladen…</p>
+    }
+    @if (cloud.listenFehler()) {
+      <p class="error-hint" role="alert">{{ cloud.listenFehler() }}</p>
+      <button mat-button (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
+        Erneut versuchen
+      </button>
+    } @else if (!cloud.listeLaedt() && cloud.dateien().length === 0) {
+      <p class="empty-hint">
+        Noch keine Einsatzpläne gespeichert. Öffne eine Planung und wähle „In Nextcloud speichern“.
+      </p>
+    }
+    @if (cloudFehler()) {
+      <p class="error-hint" role="alert">
+        {{ cloudFehler() }} Deine lokalen Planungen bleiben erhalten.
+      </p>
+    }
+    <ul class="cloud-dateien">
+      @for (datei of cloud.dateien(); track datei.id) {
+        <li>
+          <span>{{ cloud.namen()[datei.id] || datei.id }}</span>
+          <button
+            mat-stroked-button
+            (click)="cloudPlanungLaden(datei.id)"
+            [disabled]="cloudLadeId() !== null"
+          >
+            {{ cloudLadeId() === datei.id ? 'Wird geladen…' : 'Laden' }}
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+
   @if (appMode.mode() === 'connected-to-efs-api') {
     <div class="section-header">
       <h2>Veranstaltungen (HiOrg-Server)</h2>

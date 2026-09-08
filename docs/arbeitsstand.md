@@ -34,3 +34,19 @@ archivieren, bevor der Ersatz abgenommen ist.
   auch ohne Telemetrie/externe CF-Erkennung. Kein positiver Laufzeitnachweis.
   Hash-Routing bleibt daher bis erfolgreichem `npm run test:spa` erhalten.
 - Workers Builds/Access sind vorbereitet und dokumentiert, nicht im Konto eingerichtet.
+
+## AP3 – NextCloud für beide Dateiformate
+
+- `/api/nextcloud/arbeitsmappe`: bestehende Excel-Dateifreigabe, GET/PUT.
+- `/api/nextcloud/planungen`: separate Ordnerfreigabe, UUID-Dateien im bisherigen
+  `.pep.json`-Format; Liste, bewusstes Laden und Speichern, keine Löschroute.
+- If-Match / If-None-Match verhindern unbemerkte Überschreibkonflikte.
+- Direkte NextCloud-Konfiguration und Zugriffsschlüssel-Eingabe im Browser entfernt.
+- Größen- und Zeitlimits, geschlossene Pfade, bereinigte Upstream-Fehler,
+  keine Weitergabe von Auth-/Freigabedaten.
+- Verwaiste Einsatzleiterreferenz beim Ersetzen einer Helferliste behoben.
+- Geprüft: 84 Angular-Tests, 122 Worker-Tests, Gesamtbuild/TypeScript und Prettier grün.
+- Zusätzlicher Deployment-Trockenlauf in diesem Paket durch Umgebungsfreigabe
+  abgebrochen; AP2-Trockenlauf war erfolgreich. Live-NextCloud weiterhin ungeprüft.
+- Zusätzliches Runtime-Secret erforderlich: `NEXTCLOUD_PEP_SHARE_TOKEN` für
+  den neuen Ordner; optional `NEXTCLOUD_PEP_SHARE_PASSWORD`.

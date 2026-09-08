@@ -190,8 +190,22 @@
       <button mat-icon-button (click)="importTemplate()" matTooltip="Vorlage importieren">
         <mat-icon>file_upload</mat-icon>
       </button>
-      <button mat-icon-button matTooltip="Speichern" (click)="save()">
-        <mat-icon>save</mat-icon>
+      <button
+        mat-icon-button
+        matTooltip="In Nextcloud speichern"
+        aria-label="In Nextcloud speichern"
+        (click)="cloudSpeichern()"
+        [disabled]="cloudSpeichert()"
+      >
+        <mat-icon>cloud_upload</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        matTooltip="JSON herunterladen"
+        aria-label="JSON herunterladen"
+        (click)="save()"
+      >
+        <mat-icon>download</mat-icon>
       </button>
       <button mat-icon-button matTooltip="PDF exportieren" (click)="exportPdf()">
         <mat-icon>picture_as_pdf</mat-icon>
@@ -199,6 +213,25 @@
     </mat-toolbar>
 
     <!-- Description Sub-Bar -->
+    @if (cloudSpeichert()) {
+      <p class="cloud-status" role="status">Einsatzplanung wird in Nextcloud gespeichert…</p>
+    }
+    @if (cloudStatus()) {
+      <p class="cloud-status" role="status">{{ cloudStatus() }}</p>
+    }
+    @if (cloudFehler()) {
+      <div class="cloud-status cloud-status--fehler" role="alert">
+        <span
+          >{{ cloudFehler() }} Deine lokalen Änderungen bleiben erhalten. Bei einem Versionskonflikt
+          zuerst JSON herunterladen und die Änderungen mit dem neu geladenen Stand
+          zusammenführen.</span
+        >
+        <button mat-button (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
+          Erneut versuchen
+        </button>
+        <button mat-button (click)="save()">JSON herunterladen</button>
+      </div>
+    }
     <div class="editor-subbar">
       <mat-icon class="subbar-icon">notes</mat-icon>
       <input

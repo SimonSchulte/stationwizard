@@ -222,7 +222,15 @@ export class PlanungStoreService {
       return this.syncPostenfuehrerPhone(updated, merged);
     });
 
-    this.updateActive({ ...active, einsatzkraefte: merged, posten: newPosten });
+    this.updateActive({
+      ...active,
+      einsatzkraefte: merged,
+      posten: newPosten,
+      einsatzleiter:
+        active.einsatzleiter && removedIds.has(active.einsatzleiter.id)
+          ? null
+          : active.einsatzleiter,
+    });
     return { removedNames: removed.map((e) => e.name), affectedAssignments };
   }
 

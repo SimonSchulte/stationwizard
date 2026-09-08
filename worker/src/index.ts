@@ -1,7 +1,8 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 
-export interface Env extends AccessKonfiguration {
+export interface Env extends AccessKonfiguration, NextcloudKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -37,6 +38,10 @@ export default {
         });
       }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (url.pathname.startsWith('/api/nextcloud/')) {
+      return verarbeiteNextcloud(anfrage, umgebung);
     }
 
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {

@@ -85,16 +85,21 @@ beforeEach(() => {
 });
 
 describe('Access vor sämtlichen Assets und APIs', () => {
-  it.each(['/', '/ausbildung', '/einsatz/planung/test', '/main.js', '/api/status'])(
-    'sperrt %s ohne Anwendungstoken',
-    async (pfad) => {
-      const antwort = await anfragen(pfad);
-      expect(antwort.status).toBe(401);
-      expect(await antwort.json()).toMatchObject({ code: 'ACCESS_TOKEN_FEHLT' });
-      expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
-      expect(jwks.aufloesen).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    '/',
+    '/ausbildung',
+    '/einsatz/planung/test',
+    '/main.js',
+    '/api/status',
+    '/api/nextcloud/arbeitsmappe',
+    '/api/nextcloud/planungen',
+  ])('sperrt %s ohne Anwendungstoken', async (pfad) => {
+    const antwort = await anfragen(pfad);
+    expect(antwort.status).toBe(401);
+    expect(await antwort.json()).toMatchObject({ code: 'ACCESS_TOKEN_FEHLT' });
+    expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+    expect(jwks.aufloesen).not.toHaveBeenCalled();
+  });
 
   it('verifiziert echte Signaturen und liefert nur die bestätigte E-Mail-Adresse', async () => {
     const antwort = await anfragen('/api/benutzer', await tokenFuer());
@@ -232,7 +237,11 @@ describe('API-Routing und schreibende Anfragen', () => {
     async (pfad) => {
       const antwort = await anfragen(pfad, await tokenFuer());
       expect(antwort.status).toBe(404);
-      expect(await antwort.json()).toMatchObject({ code: 'API_NICHT_GEFUNDEN' });
+      expect(await antwort.json()).toMatchObject({
+        code: pfad.startsWith('/api/nextcloud/')
+          ? 'NEXTCLOUD_PFAD_UNGUELTIG'
+          : 'API_NICHT_GEFUNDEN',
+      });
       expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
     },
   );
