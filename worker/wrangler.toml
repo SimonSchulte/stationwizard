@@ -1,0 +1,22 @@
+name = "stationwizard"
+main = "src/index.ts"
+compatibility_date = "2026-09-08"
+
+# Nur Laufzeitvariablen aus dem Dashboard erhalten, keine Secrets verwalten.
+# Dieser Schlüssel muss vor allen TOML-Tabellen stehen.
+keep_vars = true
+
+# Access muss auch den direkten Worker und seine Vorschauen schützen.
+# Die zusätzliche JWT-Prüfung im Worker sperrt ohne Access-Konfiguration zu.
+workers_dev = true
+preview_urls = true
+
+[assets]
+directory = "../dist/stationwizard/browser"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# ACCESS_TEAM_DOMAIN und ACCESS_AUD als Laufzeitvariablen am Worker setzen.
+# Kein Platzhalter und kein Entwicklungsschalter im Produktionscode.
+# Custom Domain erst nach bestätigter Hostnamenwahl und aktivierter Zone ergänzen.

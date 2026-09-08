@@ -21,3 +21,16 @@ Lokale Builds und Tests ersetzen keine Produktionsabnahme. Google-Zugriffsliste,
 Hostname, DNS-/Mail-Bestand, Cloudflare-Team/AUD sowie echte Nextcloud-/EFS-Verbindungen
 sind vom Auftraggeber noch bereitzustellen bzw. zu prüfen. Keine Altrepositories
 archivieren, bevor der Ersatz abgenommen ist.
+
+## AP2 – Worker und Static Assets
+
+- Static Assets aus Angular-Build, Worker vor allen Assets (`run_worker_first = true`).
+- Access-JWT-Grundlage aus Sicherheitsgründen schon vor den Proxy-Paketen implementiert.
+- GET `/api/benutzer`, GET `/api/status`, unbekannte APIs liefern JSON/404.
+- Gemeinsamer WorkerClient: gleiche Origin, keine API-Schlüssel, Sitzungs-/Netzwerkfehler.
+- Geprüft: 64 Angular-Tests, 51 Worker-Tests, TypeScript und Wrangler dry-run.
+- Der tatsächliche SPA/workerd-Test wurde von der Umgebung beim Laufzeitstart mit
+  „network approval was cancelled before a decision was returned“ abgebrochen,
+  auch ohne Telemetrie/externe CF-Erkennung. Kein positiver Laufzeitnachweis.
+  Hash-Routing bleibt daher bis erfolgreichem `npm run test:spa` erhalten.
+- Workers Builds/Access sind vorbereitet und dokumentiert, nicht im Konto eingerichtet.
