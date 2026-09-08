@@ -1,0 +1,456 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kopfleiste {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 56px;
+  gap: var(--space-sm);
+  padding-block: 4px;
+  padding-inline: var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-primary);
+
+  // Bei zu wenig Platz umbrechen statt Beschriftungen zu quetschen.
+  flex-wrap: wrap;
+
+  > * {
+    flex-shrink: 0;
+  }
+}
+
+.marke {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 1rem;
+  font-weight: 500;
+
+  mat-icon {
+    color: var(--mat-sys-primary);
+  }
+}
+
+.jahr {
+  padding: 2px 10px;
+  border-radius: var(--radius-chip);
+  background: var(--surface-hover);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quelle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ungespeichert {
+  color: var(--status-warn);
+  font-size: 1.5rem;
+  line-height: 0;
+}
+
+.fueller {
+  flex: 1 1 auto;
+}
+
+.willkommen {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  text-align: center;
+
+  .gross {
+    width: 56px;
+    height: 56px;
+    font-size: 56px;
+    color: var(--border-medium);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.375rem;
+    font-weight: 400;
+  }
+
+  p {
+    max-width: 46ch;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+}
+
+.willkommen-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.arbeitsflaeche {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.plan {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.plan-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-primary);
+
+  h2 {
+    margin: 0 var(--space-sm) 0 0;
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+}
+
+.diensttags-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+
+  &.hat-luecken {
+    border-color: var(--luecke-rand);
+    background: var(--luecke-bg);
+    color: var(--luecke-text);
+    font-weight: 500;
+  }
+
+  &.aktiv {
+    outline: 2px solid var(--luecke-rand);
+    outline-offset: 1px;
+  }
+}
+
+.plan-suche {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+
+  input {
+    width: 170px;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.8125rem;
+    outline: none;
+  }
+
+  &:focus-within {
+    border-color: var(--mat-sys-primary);
+  }
+}
+
+// ---------------------------------------------------------------- Wochenraster
+
+.raster-bereich {
+  flex: 1 1 auto;
+  padding: 0 var(--space-lg) var(--space-xl);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wochenraster {
+  display: grid;
+  grid-template-columns: 64px repeat(7, minmax(88px, 1fr));
+  gap: 2px;
+  align-items: stretch;
+  padding-top: var(--space-md);
+}
+
+.kw-kopf,
+.wochentag-kopf {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 4px 0;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.monatsmarke {
+  grid-column: 1 / -1;
+  margin-top: var(--space-sm);
+  padding: 3px 2px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.kw-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-tertiary);
+  color: var(--text-secondary);
+  text-align: center;
+
+  .kw-nummer {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kw-bereich {
+    font-size: 0.5625rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+.tag-zelle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 1px;
+  border-radius: var(--radius-sm);
+
+  &.diensttag {
+    background: var(--surface-tertiary);
+  }
+
+  &.ausserhalb {
+    opacity: 0.45;
+  }
+}
+
+.tag-nummer-still {
+  padding: 5px 6px;
+  color: var(--text-disabled);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-slot {
+  min-width: 0;
+  border-radius: var(--radius-sm);
+  transition: box-shadow 120ms ease;
+
+  &.cdk-drop-list-receiving {
+    outline: 2px dashed var(--drop-target-border);
+    outline-offset: 1px;
+    background: var(--drop-target-bg);
+  }
+}
+
+app-termin-karte {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.leer {
+  grid-column: 1 / -1;
+  padding: var(--space-xl);
+  color: var(--text-disabled);
+  text-align: center;
+}
+
+// ------------------------------------------------------------------ Seitenleiste
+
+.seitenleiste {
+  display: flex;
+  flex: 0 0 clamp(340px, 32vw, 480px);
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border-light);
+  background: var(--surface-primary);
+}
+
+.reiter {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+
+  ::ng-deep .mat-mdc-tab-body-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  ::ng-deep .mat-mdc-tab-body-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  ::ng-deep .mat-mdc-tab-body-content > * {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
+.reiter-zahl {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-chip);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.menue-kopf {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-width: 240px;
+}
+
+// ------------------------------------------------------------------ Mobil-Nav
+
+.mobil-nav {
+  display: none;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-light);
+  background: var(--surface-primary);
+
+  button {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0 8px;
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.6875rem;
+
+    &.aktiv {
+      color: var(--mat-sys-primary);
+    }
+  }
+}
+
+.mobil-nav-zahl {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 22px);
+  padding: 0 5px;
+  border-radius: var(--radius-chip);
+  background: var(--ci-red);
+  color: #fff;
+  font-size: 0.625rem;
+  line-height: 1.4;
+}
+
+// ---------------------------------------------------------------------- Mobil
+
+@media (max-width: 780px) {
+  // Nur hier ist `[hidden]` gewollt – Plan und Seitenleiste teilen sich den
+  // Platz und blenden sich gegenseitig aus. `[hidden]` hat dieselbe Spezifität
+  // wie eine einzelne Klasse, deshalb sonst gewinnt `display: flex`.
+  .plan[hidden],
+  .seitenleiste[hidden] {
+    display: none;
+  }
+
+  .marke-text {
+    display: none;
+  }
+
+  .quelle {
+    max-width: 88px;
+  }
+
+  .knopf-text {
+    display: none;
+  }
+
+  .plan-kopf {
+    flex-wrap: wrap;
+    row-gap: var(--space-xs);
+
+    h2 {
+      flex: 1 1 100%;
+    }
+  }
+
+  .plan-suche {
+    flex: 1 1 auto;
+
+    input {
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  .wochenraster {
+    grid-template-columns: 44px repeat(7, minmax(64px, 1fr));
+  }
+
+  .seitenleiste {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    border-left: 0;
+  }
+
+  .mobil-nav {
+    display: flex;
+  }
+}

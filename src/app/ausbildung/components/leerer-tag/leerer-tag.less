@@ -1,0 +1,62 @@
+:host {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 2px 4px 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-disabled);
+  font-size: 0.75rem;
+}
+
+:host(.feiertag) {
+  background: var(--feiertag-bg);
+  color: var(--feiertag-text);
+}
+
+/* Die rote Lücke: ein Diensttag ohne Ausbildung und ohne Feiertag. */
+:host(.luecke) {
+  background: var(--luecke-bg);
+  color: var(--luecke-text);
+  font-weight: 500;
+}
+
+:host(.ausserhalb) {
+  opacity: 0.35;
+}
+
+.tag-nummer {
+  font-variant-numeric: tabular-nums;
+}
+
+.symbol {
+  font-size: 15px;
+}
+
+.fueller {
+  flex: 1 1 auto;
+}
+
+.anlegen {
+  --mat-icon-button-state-layer-size: 22px;
+
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+
+  ::ng-deep .mat-mdc-button-touch-target {
+    width: 22px;
+    height: 22px;
+  }
+
+  mat-icon {
+    font-size: 16px;
+  }
+}
+
+:host(:hover) .anlegen,
+.anlegen:focus-visible {
+  opacity: 1;
+}

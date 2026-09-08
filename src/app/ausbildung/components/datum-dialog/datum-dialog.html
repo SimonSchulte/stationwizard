@@ -1,0 +1,11 @@
+<h2 mat-dialog-title>{{ daten.titel }}</h2>
+<mat-dialog-content>
+  <mat-form-field appearance="outline" class="feld">
+    <mat-label>Datum</mat-label>
+    <input matInput type="date" [(ngModel)]="datum" />
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton="filled" [disabled]="!datum()" [mat-dialog-close]="datum()">Übernehmen</button>
+</mat-dialog-actions>

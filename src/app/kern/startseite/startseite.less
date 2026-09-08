@@ -1,0 +1,73 @@
+:host {
+  display: block;
+}
+.startseite {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+}
+.einordnung {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ci-blue);
+}
+h1 {
+  color: var(--ci-dark-blue);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  max-width: 700px;
+  margin: var(--space-md) 0;
+}
+.beschreibung {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.bereiche {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-xl);
+}
+.bereich {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  text-decoration: none;
+  color: var(--text-primary);
+}
+.bereich:hover {
+  border-color: var(--ci-blue);
+  box-shadow: var(--elevation-1);
+}
+.bereich mat-icon {
+  color: var(--ci-red);
+}
+h2 {
+  color: var(--ci-dark-blue);
+  font-size: 1.35rem;
+  margin: var(--space-sm) 0;
+}
+.bereich p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-lg);
+}
+.aktion {
+  margin-top: auto;
+  font-weight: 500;
+  color: var(--ci-blue);
+  display: flex;
+  justify-content: space-between;
+}
+@media (max-width: 780px) {
+  .bereiche {
+    grid-template-columns: 1fr;
+  }
+  .startseite {
+    padding: var(--space-lg) var(--space-md);
+  }
+}

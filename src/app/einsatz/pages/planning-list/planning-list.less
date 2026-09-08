@@ -1,0 +1,135 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.list-content {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 0;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.einsatz-table {
+  width: 100%;
+  margin-bottom: 24px;
+
+  &.past {
+    opacity: 0.7;
+  }
+}
+
+.einsatz-row {
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+}
+
+.past-header {
+  margin-top: 24px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.planung-card {
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.efs-link-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  margin: 4px 0 0;
+}
+
+.efs-icon {
+  font-size: 14px;
+  height: 14px;
+  width: 14px;
+}
+
+.empty-hint {
+  color: rgba(0, 0, 0, 0.6);
+  font-style: italic;
+}
+
+.error-hint {
+  color: var(--status-under);
+  padding: 8px 0;
+}
+
+/* M-1: Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  text-align: center;
+
+  .empty-state-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: rgba(0, 0, 0, 0.24);
+  }
+}
+
+.schichten-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-primary, #000548);
+  color: #fff;
+  vertical-align: middle;
+}
+
+/* M-4: Toolbar CSS classes */
+.toolbar-title {
+  margin-left: 8px;
+}
+.toolbar-btn {
+  margin-left: 8px;
+}
