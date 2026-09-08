@@ -43,6 +43,42 @@ main {
   min-height: 0;
   overflow: auto;
 }
+.benutzer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-left: auto;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.benutzer-adresse {
+  max-width: min(40vw, 24rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.benutzer a,
+.shell-meldung a {
+  text-decoration: underline;
+}
+.shell-meldung {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+.shell-meldung button {
+  padding: var(--space-xs) var(--space-sm);
+  color: inherit;
+  font: inherit;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-primary);
+  cursor: pointer;
+}
 .sprunglink {
   position: fixed;
   top: var(--space-sm);

@@ -62,3 +62,14 @@ archivieren, bevor der Ersatz abgenommen ist.
 - Drei Angular-Integrationstests instanziieren Jahresplan, Einsatzliste und Editor.
 - Geprüft: 116 Angular-Tests, 209 Worker-Tests, Gesamtbuild/TypeScript und Prettier grün.
 - Echte EFS-Antworten und visuelle Browserabnahme weiterhin ungeprüft.
+
+## AP5 – Access-Identität und Sitzung
+
+- Shell lädt nur die vom Worker geprüfte E-Mail-Adresse aus `/api/benutzer`.
+- Abmeldung über `/cdn-cgi/access/logout`, neue Anmeldung bei abgelaufener Sitzung.
+- Gemeinsame Ladeanzeige und wiederholbarer Benutzerabruf; keine Browser-Tokens.
+- JWT-Signatur, Team-Issuer, Audience und Ablauf werden bereits seit AP2 geprüft.
+- Geprüft: 120 Angular-Tests, 209 Worker-Tests, Gesamtbuild/TypeScript und Prettier grün.
+- Externe Google-/Access-Einrichtung, konkrete Zugriffsliste, Team/AUD und Domain
+  sind offen. Ohne diese Konfiguration liefert der Worker bewusst 503 statt Inhalte.
+- Kein eigener OIDC-Ersatz und keine ungeschützte Entwicklungs-Hintertür implementiert.

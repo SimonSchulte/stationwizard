@@ -12,5 +12,29 @@
       <mat-icon aria-hidden="true">groups</mat-icon> Einsatz
     </a>
   </nav>
+  <div class="benutzer">
+    @if (benutzer.email() && worker.zustand() !== 'sitzung-abgelaufen') {
+      <span class="benutzer-adresse" [title]="benutzer.email()">{{ benutzer.email() }}</span>
+      <a href="/cdn-cgi/access/logout">Abmelden</a>
+    } @else if (benutzer.laedt()) {
+      <span>Benutzer wird geladen …</span>
+    }
+  </div>
 </header>
+@if (worker.laufendeAnfragen() > 0) {
+  <mat-progress-bar mode="indeterminate" aria-label="Daten werden übertragen" />
+}
+@if (worker.zustand() === 'sitzung-abgelaufen') {
+  <div class="shell-meldung" role="alert">
+    <span>Sitzung abgelaufen. Ungespeicherte Änderungen vor der Anmeldung als Datei sichern.</span>
+    <a href="/">Erneut anmelden</a>
+  </div>
+} @else if (benutzer.fehler()) {
+  <div class="shell-meldung" role="alert">
+    <span>{{ benutzer.fehler() }}</span>
+    <button type="button" (click)="benutzer.laden()" [disabled]="benutzer.laedt()">
+      Erneut versuchen
+    </button>
+  </div>
+}
 <main id="inhalt" tabindex="-1"><router-outlet /></main>

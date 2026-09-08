@@ -16,6 +16,10 @@ yarn-error.log
 .wrangler/
 worker/.wrangler/
 worker/.dev.vars
+.dev.vars*
+**/.dev.vars*
+.env*
+**/.env*
 
 # IDEs and editors
 .idea/
