@@ -1,0 +1,10 @@
+<h2 mat-dialog-title>{{ daten.titel }}</h2>
+<mat-dialog-content>
+  <p class="nachricht">{{ daten.nachricht }}</p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (daten.abbrechenLabel) {
+    <button mat-button [mat-dialog-close]="false">{{ daten.abbrechenLabel }}</button>
+  }
+  <button mat-flat-button [mat-dialog-close]="true">{{ daten.bestaetigenLabel }}</button>
+</mat-dialog-actions>

@@ -76,21 +76,22 @@ export class MatchService {
     return this.matchLevel(position, einsatzkraft);
   }
 
+  /** Im Browser folgen Qualifikationsfarben dem gemeinsamen Designsystem. */
   taktischColor(tag: Taktisch): { bg: string; fg: string } {
     const i = TAKTISCH_ORDER.indexOf(tag);
-    if (i <= 1) return { bg: '#C7CCD9', fg: '#000548' };
-    if (i === 2) return { bg: '#4A6FB8', fg: '#FFFFFF' };
-    if (i <= 4) return { bg: '#EB003C', fg: '#FFFFFF' };
-    return { bg: '#FFFFFF', fg: '#000548' };
+    if (i <= 1) return { bg: 'var(--ci-light-grey)', fg: 'var(--ci-dark-blue)' };
+    if (i === 2) return { bg: 'var(--ci-blue)', fg: 'var(--ci-white)' };
+    if (i <= 4) return { bg: 'var(--ci-red)', fg: 'var(--ci-white)' };
+    return { bg: 'var(--ci-white)', fg: 'var(--ci-dark-blue)' };
   }
 
   medizinischColor(tag: Medizinisch): { bg: string; fg: string } {
     const i = MEDIZINISCH_ORDER.indexOf(tag);
-    if (i <= 2) return { bg: '#C7CCD9', fg: '#000548' };
-    if (i === 3) return { bg: '#2F8F68', fg: '#FFFFFF' };
-    if (i === 4) return { bg: '#DEE100', fg: '#000548' };
-    if (i <= 6) return { bg: '#EB003C', fg: '#FFFFFF' };
-    return { bg: '#4A6FB8', fg: '#FFFFFF' };
+    if (i <= 2) return { bg: 'var(--ci-light-grey)', fg: 'var(--ci-dark-blue)' };
+    if (i === 3) return { bg: 'var(--ci-green)', fg: 'var(--ci-white)' };
+    if (i === 4) return { bg: 'var(--ci-yellow)', fg: 'var(--ci-dark-blue)' };
+    if (i <= 6) return { bg: 'var(--ci-red)', fg: 'var(--ci-white)' };
+    return { bg: 'var(--ci-blue)', fg: 'var(--ci-white)' };
   }
 
   sollRole(t: Taktisch | null): 'fuhrer' | 'unterfuehrer' | 'helfer' {

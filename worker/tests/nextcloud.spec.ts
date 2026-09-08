@@ -147,6 +147,11 @@ describe('NextCloud-Proxy', () => {
     'https://nutzer:pass@cloud.example.test',
     'https://cloud.example.test/?target=x',
     'https://cloud.example.test/#x',
+    'https://cloud.example.test/?',
+    'https://cloud.example.test/#',
+    'https://@cloud.example.test',
+    'https://cloud.example.test\\nextcloud',
+    'https://cloud.example.test/next\ncloud',
     ' https://cloud.example.test',
     'keine-url',
   ])('lehnt ungültige Basis-URL %s ab', async (basis) => {

@@ -10,8 +10,10 @@ import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { erzeugeTestplanung } from '../../services/testing/pep-testdaten';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 
 describe('Asynchrone Editor-Aktionen', () => {
+  const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn().mockResolvedValue(undefined) };
   const api = { getVeranstaltungDetail: vi.fn(), fehler: signal(''), erreichbar: signal(true) };
   const cloud = {
     speichern: vi.fn(),
@@ -28,6 +30,7 @@ describe('Asynchrone Editor-Aktionen', () => {
         { provide: PlanungCloudService, useValue: cloud },
         { provide: PdfExportService, useValue: {} },
         { provide: MatDialog, useValue: {} },
+        { provide: DialogDienst, useValue: dialog },
         { provide: DomSanitizer, useValue: { bypassSecurityTrustUrl: (url: string) => url } },
         { provide: Router, useValue: { navigate: vi.fn() } },
       ],
@@ -89,5 +92,43 @@ describe('Asynchrone Editor-Aktionen', () => {
     fertig();
     await speichern;
     expect(editor.cloudStatus()).toBe('');
+  });
+
+  it('aktualisiert den Speicherhinweis auch bei Änderungen nach dem abgeschlossenen Speichern', async () => {
+    cloud.speichern.mockResolvedValue(undefined);
+    cloud.hatLokaleAenderungen.mockReturnValue(false);
+    const planung = erzeugeTestplanung();
+    store.importPlanung(planung);
+    await editor.cloudSpeichern();
+    expect(editor.cloudStatus()).toContain('wurde in Nextcloud gespeichert');
+    cloud.hatLokaleAenderungen.mockReturnValue(true);
+    store.updateActive({ ...planung, name: 'Später bearbeitet' });
+    expect(editor.cloudStatus()).toContain('noch ungespeichert');
+  });
+
+  it('löscht einen Posten bei abgebrochener Bestätigung nicht', async () => {
+    dialog.bestaetigen.mockResolvedValue(false);
+    const planung = erzeugeTestplanung();
+    store.importPlanung(planung);
+    await editor.deletePosten(planung.posten[0]);
+    expect(store.active()).toEqual(planung);
+  });
+
+  it('löscht nach einer Bestätigung keine inzwischen geänderten Zuteilungen', async () => {
+    let bestaetigen!: (entscheidung: boolean) => void;
+    dialog.bestaetigen.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          bestaetigen = resolve;
+        }),
+    );
+    const planung = erzeugeTestplanung();
+    store.importPlanung(planung);
+    const loeschen = editor.deletePosten(planung.posten[0]);
+    store.updatePostenLabel(planung.posten[0].id, 'Während des Dialogs geändert');
+    bestaetigen(true);
+    await loeschen;
+    expect(store.active()?.posten[0].label).toBe('Während des Dialogs geändert');
+    expect(dialog.hinweis).toHaveBeenCalled();
   });
 });

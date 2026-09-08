@@ -4,6 +4,7 @@ import { App } from './app';
 import { signal } from '@angular/core';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
+import { VerlassenSchutz } from './kern/verlassen-schutz';
 
 describe('Gemeinsame Anwendung', () => {
   beforeEach(async () => {
@@ -40,6 +41,19 @@ describe('Gemeinsame Anwendung', () => {
       '/cdn-cgi/access/logout',
     );
   });
+  it('verhindert Verlassen nur bei ungesicherten Fachdaten', () => {
+    const app = TestBed.createComponent(App).componentInstance;
+    const ereignis = {
+      preventDefault: vi.fn(),
+      returnValue: undefined,
+    } as unknown as BeforeUnloadEvent;
+    app.verlassenPruefen(ereignis);
+    expect(ereignis.preventDefault).not.toHaveBeenCalled();
+    TestBed.inject(VerlassenSchutz).registrieren(() => true);
+    app.verlassenPruefen(ereignis);
+    expect(ereignis.preventDefault).toHaveBeenCalledOnce();
+  });
+
   it('zeigt bei abgelaufener Sitzung eine neue Anmeldung und blendet die alte Identität aus', () => {
     TestBed.inject(WorkerClient).zustand.set('sitzung-abgelaufen');
     const ansicht = TestBed.createComponent(App);

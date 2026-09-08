@@ -1,4 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { VerlassenSchutz } from '../../kern/verlassen-schutz';
+import { PlanungCloudService } from './planung-cloud.service';
 import {
   Einsatzkraft,
   EfsEinsatz,
@@ -22,6 +24,13 @@ export class PlanungStoreService {
 
   readonly planungen = this._planungen.asReadonly();
   readonly active = this._active.asReadonly();
+
+  constructor() {
+    const cloud = inject(PlanungCloudService);
+    inject(VerlassenSchutz).registrieren(() =>
+      this._planungen().some((planung) => cloud.hatLokaleAenderungen(planung)),
+    );
+  }
 
   openPlanung(id: string): void {
     const found = this._planungen().find((p) => p.id === id) ?? null;

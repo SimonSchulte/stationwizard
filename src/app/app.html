@@ -1,4 +1,4 @@
-<a class="sprunglink" href="#inhalt">Zum Inhalt</a>
+<a class="sprunglink" href="#inhalt" (click)="zumInhalt($event, inhalt)">Zum Inhalt</a>
 <header class="shell-kopf">
   <a class="marke" routerLink="/" aria-label="stationwizard Startseite">
     <mat-icon aria-hidden="true">hub</mat-icon>
@@ -37,4 +37,4 @@
     </button>
   </div>
 }
-<main id="inhalt" tabindex="-1"><router-outlet /></main>
+<main #inhalt id="inhalt" tabindex="-1"><router-outlet /></main>

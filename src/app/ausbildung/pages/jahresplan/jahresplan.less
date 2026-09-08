@@ -11,7 +11,7 @@
   height: auto;
   min-height: 56px;
   gap: var(--space-sm);
-  padding-block: 4px;
+  padding-block: var(--space-xs);
   padding-inline: var(--space-md);
   border-bottom: 1px solid var(--border-light);
   background: var(--surface-primary);
@@ -37,7 +37,7 @@
 }
 
 .jahr {
-  padding: 2px 10px;
+  padding: var(--space-2xs) calc(var(--space-unit) * 10);
   border-radius: var(--radius-chip);
   background: var(--surface-hover);
   font-size: 0.8125rem;
@@ -47,7 +47,7 @@
 .quelle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-compact);
   max-width: 280px;
   overflow: hidden;
   color: var(--text-secondary);
@@ -135,8 +135,8 @@
 .diensttags-marke {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
+  gap: var(--space-compact);
+  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-chip);
   background: var(--surface-secondary);
@@ -158,15 +158,15 @@
 
   &.aktiv {
     outline: 2px solid var(--luecke-rand);
-    outline-offset: 1px;
+    outline-offset: var(--space-unit);
   }
 }
 
 .plan-suche {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: var(--space-compact);
+  padding: calc(var(--space-unit) * 5) calc(var(--space-unit) * 10);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-chip);
   background: var(--surface-secondary);
@@ -175,7 +175,7 @@
   input {
     width: 170px;
     border: 0;
-    background: transparent;
+    background: var(--surface-transparent);
     color: var(--text-primary);
     font: inherit;
     font-size: 0.8125rem;
@@ -199,7 +199,7 @@
 .wochenraster {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(88px, 1fr));
-  gap: 2px;
+  gap: var(--space-2xs);
   align-items: stretch;
   padding-top: var(--space-md);
 }
@@ -209,7 +209,7 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  padding: 4px 0;
+  padding: var(--space-xs) 0;
   background: var(--surface-secondary);
   color: var(--text-secondary);
   font-size: 0.6875rem;
@@ -222,7 +222,7 @@
 .monatsmarke {
   grid-column: 1 / -1;
   margin-top: var(--space-sm);
-  padding: 3px 2px;
+  padding: calc(var(--space-unit) * 3) var(--space-2xs);
   color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 600;
@@ -235,8 +235,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  padding: 2px;
+  gap: var(--space-unit);
+  padding: var(--space-2xs);
   border-radius: var(--radius-sm);
   background: var(--surface-tertiary);
   color: var(--text-secondary);
@@ -258,9 +258,9 @@
 .tag-zelle {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   min-width: 0;
-  padding: 1px;
+  padding: var(--space-unit);
   border-radius: var(--radius-sm);
 
   &.diensttag {
@@ -273,7 +273,7 @@
 }
 
 .tag-nummer-still {
-  padding: 5px 6px;
+  padding: calc(var(--space-unit) * 5) var(--space-compact);
   color: var(--text-disabled);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -286,7 +286,7 @@
 
   &.cdk-drop-list-receiving {
     outline: 2px dashed var(--drop-target-border);
-    outline-offset: 1px;
+    outline-offset: var(--space-unit);
     background: var(--drop-target-bg);
   }
 }
@@ -341,8 +341,8 @@ app-termin-karte {
 }
 
 .reiter-zahl {
-  margin-left: 6px;
-  padding: 0 6px;
+  margin-left: var(--space-compact);
+  padding: 0 var(--space-compact);
   border-radius: var(--radius-chip);
   background: var(--surface-hover);
   color: var(--text-secondary);
@@ -372,8 +372,8 @@ app-termin-karte {
     flex: 1 1 0;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 6px 0 8px;
+    gap: var(--space-2xs);
+    padding: var(--space-compact) 0 var(--space-sm);
     border: 0;
     background: none;
     color: var(--text-secondary);
@@ -388,12 +388,12 @@ app-termin-karte {
 
 .mobil-nav-zahl {
   position: absolute;
-  top: 2px;
-  right: calc(50% - 22px);
-  padding: 0 5px;
+  top: var(--space-2xs);
+  right: calc(50% - calc(var(--space-unit) * 22));
+  padding: 0 calc(var(--space-unit) * 5);
   border-radius: var(--radius-chip);
   background: var(--ci-red);
-  color: #fff;
+  color: var(--surface-primary);
   font-size: 0.625rem;
   line-height: 1.4;
 }

@@ -80,7 +80,21 @@ export async function verarbeiteEfs(
     return fehlerAntwort('EFS_INHALTSTYP_UNGUELTIG', 'JSON als Anfrageformat erforderlich.', 415);
   }
 
-  const gelesen = await leseJsonBegrenzt(anfrage, MAX_EFS_ANFRAGE_BYTES);
+  const uploadAbbruch = new AbortController();
+  const uploadZeitlimit = setTimeout(() => uploadAbbruch.abort(), 30_000);
+  let gelesen: LeseErgebnis;
+  try {
+    gelesen = await leseJsonBegrenzt(anfrage, MAX_EFS_ANFRAGE_BYTES, uploadAbbruch.signal);
+  } finally {
+    clearTimeout(uploadZeitlimit);
+  }
+  if (uploadAbbruch.signal.aborted) {
+    return fehlerAntwort(
+      'EFS_UPLOAD_ZEITLIMIT',
+      'Die Anfrage wurde nicht rechtzeitig übertragen.',
+      408,
+    );
+  }
   if (!gelesen.erfolg) {
     return gelesen.ursache === 'zu-gross'
       ? fehlerAntwort('EFS_ANFRAGE_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
@@ -283,7 +297,11 @@ async function verwerfeInhalt(quelle: Response): Promise<void> {
   }
 }
 
-async function leseJsonBegrenzt(quelle: Request | Response, grenze: number): Promise<LeseErgebnis> {
+async function leseJsonBegrenzt(
+  quelle: Request | Response,
+  grenze: number,
+  signal?: AbortSignal,
+): Promise<LeseErgebnis> {
   if (Number(quelle.headers.get('Content-Length')) > grenze) {
     try {
       await quelle.body?.cancel();
@@ -296,9 +314,13 @@ async function leseJsonBegrenzt(quelle: Request | Response, grenze: number): Pro
   const leser = quelle.body.getReader();
   const stuecke: Uint8Array[] = [];
   let groesse = 0;
+  const beiAbbruch = () => void leser.cancel().catch(() => undefined);
+  signal?.addEventListener('abort', beiAbbruch, { once: true });
   try {
+    if (signal?.aborted) throw new Error('Zeitlimit');
     for (;;) {
       const { done, value } = await leser.read();
+      if (signal?.aborted) throw new Error('Zeitlimit');
       if (done) break;
       groesse += value.byteLength;
       if (groesse > grenze) {
@@ -322,6 +344,7 @@ async function leseJsonBegrenzt(quelle: Request | Response, grenze: number): Pro
   } catch {
     return { erfolg: false, ursache: 'ungueltig' };
   } finally {
+    signal?.removeEventListener('abort', beiAbbruch);
     leser.releaseLock();
   }
 }

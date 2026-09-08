@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { DialogDienst } from '../../kern/dialog/dialog-dienst';
 import { Planung } from '../models/planung.model';
-import { formatTaktischeZeit } from '../utils/taktische-zeit';
+import { formatiereTaktischeZeit } from '../../kern/kalender/taktische-zeit';
 import { dateiHerunterladen } from '../../kern/storage/datei-storage';
 import { JsonDateiStorage } from './json-datei-storage';
 
@@ -8,11 +9,12 @@ import { lesePepDatei, serialisierePepDatei } from './pep-datei';
 
 @Injectable({ providedIn: 'root' })
 export class SaveLoadService {
+  private readonly dialogDienst = inject(DialogDienst);
   save(planung: Planung): void {
     const json = serialisierePepDatei(planung);
     dateiHerunterladen(
       json,
-      `${planung.name}_${formatTaktischeZeit(new Date())}.pep.json`,
+      `${planung.name}_${formatiereTaktischeZeit(new Date())}.pep.json`,
       'application/json',
     );
   }
@@ -32,7 +34,7 @@ export class SaveLoadService {
           const inhalt = await new JsonDateiStorage(file).laden();
           resolve(lesePepDatei(new TextDecoder().decode(inhalt.daten)));
         } catch (fehler) {
-          window.alert(
+          await this.dialogDienst.hinweis(
             fehler instanceof Error ? fehler.message : 'Die Datei konnte nicht gelesen werden.',
           );
           resolve(null);

@@ -12,8 +12,9 @@
   Der Quellstand bleibt erhalten; eine Änderung der fachlichen Rangfolge benötigt Klärung.
 - Browserprüfung versucht: Cloud-Browser blockiert beide lokalen Vorschauadressen
   mit ERR_BLOCKED_BY_CLIENT. Desktop/Mobil deshalb noch NICHT verifiziert.
-- Remote: GitHub-Verbindung stexeflex hat keine Schreibrechte auf
-  SimonSchulte/stationwizard; bisher keine PRs, kein Push, kein Deployment.
+- Beim ursprünglichen AP1-Abschluss bestand noch kein beschreibbarer Fork; deshalb
+  zunächst nur lokaler Commit. Den aktuellen GitHub-Übergabestand beschreibt der letzte
+  Abschnitt dieses Dokuments. Ein Deployment wurde noch nicht vorgenommen.
 
 ## Abnahmegrenzen
 
@@ -73,3 +74,46 @@ archivieren, bevor der Ersatz abgenommen ist.
 - Externe Google-/Access-Einrichtung, konkrete Zugriffsliste, Team/AUD und Domain
   sind offen. Ohne diese Konfiguration liefert der Worker bewusst 503 statt Inhalte.
 - Kein eigener OIDC-Ersatz und keine ungeschützte Entwicklungs-Hintertür implementiert.
+
+## AP6 – Konsistenz und Abschlussprüfung
+
+- Gemeinsame Material-Dialoge und konsolidierte Design-Tokens; alle verwendeten
+  CSS-Variablen sind definiert. Fachstyles enthalten keine festen Farbwerte mehr.
+- Umbrechende PEP-Bedienelemente, schmale Karten, scrollbare Tabellen und Arbeitsfläche.
+  Der Editor besitzt die beiden tatsächlich übernommenen Bereiche Helferpool und Posten.
+- PDF-Bibliothek und Fonts erst beim Export geladen; Fontregistrierung korrigiert.
+  Echte PDF-Bytes samt eingebetteten Schriften mit ausschließlich erfundenen Daten geprüft.
+- Editor-Lazy-Chunk 291,28 kB statt zuvor etwa 2,17 MB; Initialbundle 383,29 kB.
+- Taktische Zeit im gemeinsamen Kalenderkern, Berliner Sommerzeit und Jahreswechsel geprüft.
+- Gemeinsamer Verlassensschutz berücksichtigt beide Fachbereiche und inaktive Einsatzpläne.
+- Excel- und PEP-Speicherzustände beziehen sich auf den übertragenen Stand. Änderungen
+  während Laden, Speichern oder Bestätigungsdialogen werden nicht still verworfen.
+- Sicherheitsreview: rohe Nextcloud-URLs strenger geprüft; offene EFS-Uploadstreams
+  nach 30 Sekunden abgebrochen. Regressionstests sichern beide Fehlerfälle.
+- README, CLAUDE.md, Webeinrichtung, Abschlussbericht und sechs PR-Beschreibungen fertig.
+- Finaler Gesamtlauf: **150 Angular-Tests in 26 Dateien**, **216 Worker-Tests in 4 Dateien**,
+  Produktionsbuild, Worker-TypeScript und Prettier erfolgreich; `git diff --check` sauber.
+- Verbleibende Buildwarnungen: Editor-Styles 18,15 kB über 12-kB-Warnlimit, unter der
+  unveränderten 24-kB-Fehlergrenze; CommonJS bei pdfmake/Fonts und base64-js.
+- Desktop/Mobil, workerd-SPA, Cloudflare-Builds, Google-Login und echte Upstream-Aufrufe
+  bleiben wie oben beschrieben ungeprüft. Die Definition of Done ist damit noch offen.
+
+## GitHub-Übergabe
+
+Alle sechs AP-Stände liegen als Branches und Commits vor. Der vom Auftraggeber erstellte
+Fork [stexeflex/stationwizard](https://github.com/stexeflex/stationwizard) ist für die
+verbundene Identität beschreibbar und enthält die AP-Branches für die Übergabe. Der Upload
+über die GitHub-API erzeugt neue Remote-Commits; die früher angegebenen Kennungen bleiben
+lokale Prüfcommits. Für jeden AP ist die Übereinstimmung des Inhaltsbaums maßgeblich.
+
+Die anschließende PR-Erstellung im Original `SimonSchulte/stationwizard` wurde mit
+HTTP 403 (`Resource not accessible by integration`) abgewiesen. Es wurden noch keine
+Remote-PRs erstellt. Fehlende Schreibrechte am Original verhindern grundsätzlich keine
+Fork-Pull-Requests; die eingesetzte GitHub-Anbindung darf diese konkrete API-Aktion dort
+jedoch nicht ausführen. Die sechs PRs können über die
+[Vergleichslinks und Beschreibungen](pull-requests.md) mit dem persönlichen GitHub-Login
+im Browser erstellt werden.
+
+Ein Merge auf `main` und Infrastrukturänderungen wurden noch nicht vorgenommen.
+GitHub-Prüfungen und Review sind von den oben dokumentierten lokalen Prüfläufen zu
+unterscheiden.

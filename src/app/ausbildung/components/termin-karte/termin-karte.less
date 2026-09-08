@@ -1,7 +1,8 @@
 :host {
   position: relative;
   display: block;
-  padding: var(--space-sm) var(--space-sm) var(--space-sm) calc(var(--space-sm) + 6px);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm)
+    calc(var(--space-sm) + var(--space-compact));
   background: var(--surface-primary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
@@ -20,13 +21,13 @@
 
 /* Gitter-Modus im Wochenraster: schmale Spalte statt breiter Zeile. */
 :host(.kompakt) {
-  padding: 4px 6px 4px 10px;
+  padding: var(--space-xs) var(--space-compact) var(--space-xs) calc(var(--space-unit) * 10);
   border-radius: var(--radius-sm);
   box-shadow: none;
 }
 
 :host(.kompakt) .kopf {
-  gap: 4px;
+  gap: var(--space-xs);
   min-height: 18px;
 }
 
@@ -41,7 +42,7 @@
 }
 
 :host(.kompakt) .rolle-chip {
-  padding: 0 5px;
+  padding: 0 calc(var(--space-unit) * 5);
   font-size: 0.625rem;
 }
 
@@ -81,7 +82,7 @@
 .luecke-text {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
   color: var(--luecke-text);
   font-weight: 500;
 
@@ -93,8 +94,8 @@
 .feiertag-marke {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 1px 8px;
+  gap: var(--space-xs);
+  padding: var(--space-unit) var(--space-sm);
   border-radius: var(--radius-chip);
   background: var(--feiertag-bg);
   color: var(--feiertag-text);
@@ -122,7 +123,7 @@
 .datum {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-compact);
   font-variant-numeric: tabular-nums;
 
   .tag {
@@ -137,9 +138,9 @@
 }
 
 .rolle-chip {
-  padding: 1px 8px;
+  padding: var(--space-unit) var(--space-sm);
   border-radius: var(--radius-chip);
-  color: #fff;
+  color: var(--surface-primary);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -149,7 +150,7 @@
 .hinweis {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
   max-width: 40%;
   overflow: hidden;
   color: var(--text-secondary);
@@ -176,7 +177,7 @@
 }
 
 .titel {
-  margin-top: 2px;
+  margin-top: var(--space-2xs);
   font-size: 0.9375rem;
   line-height: 1.35;
   white-space: pre-line;
@@ -199,7 +200,7 @@
 .meta-eintrag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
   max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
@@ -226,7 +227,7 @@
 }
 
 .nachweis-chip {
-  padding: 1px 7px;
+  padding: var(--space-unit) calc(var(--space-unit) * 7);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-chip);
   color: var(--text-secondary);

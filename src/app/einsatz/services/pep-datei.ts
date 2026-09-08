@@ -9,7 +9,7 @@ import {
   Posten,
   TAKTISCH_ORDER,
 } from '../models/planung.model';
-import { formatTaktischeZeit } from '../utils/taktische-zeit';
+import { formatiereTaktischeZeit } from '../../kern/kalender/taktische-zeit';
 
 export const PEP_DATEIVERSION = '1.0';
 
@@ -178,7 +178,7 @@ export function serialisierePepDatei(planung: Planung, zeitpunkt = new Date()): 
     version: PEP_DATEIVERSION,
     meta: {
       exportedAt: zeitpunkt.toISOString(),
-      taktischeZeit: formatTaktischeZeit(zeitpunkt),
+      taktischeZeit: formatiereTaktischeZeit(zeitpunkt),
       locale: 'de-DE',
     },
     planung,

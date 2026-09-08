@@ -199,7 +199,15 @@ export async function verarbeiteNextcloud(
 }
 
 function pruefeBasisUrl(wert: string | undefined): string | undefined {
-  if (!wert || wert.trim() !== wert) return undefined;
+  // URL() verschluckt leere Query-/Fragmenttrenner sowie manche Steuerzeichen.
+  // Vor dem Anhängen des festen WebDAV-Pfads auch die Rohkonfiguration prüfen.
+  if (
+    !wert ||
+    wert.trim() !== wert ||
+    /[?#\\\u0000-\u0020\u007f]/.test(wert) ||
+    !/^https:\/\/[^/@]+(?:\/|$)/.test(wert)
+  )
+    return undefined;
   try {
     const url = new URL(wert);
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {

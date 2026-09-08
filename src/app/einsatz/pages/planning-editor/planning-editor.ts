@@ -10,6 +10,8 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { erzeugeTaktischesZeichen } from 'taktische-zeichen-core';
 import { MatDialog } from '@angular/material/dialog';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { MatchService } from '../../services/match.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -102,9 +104,20 @@ export class PlanningEditor {
   private readonly saveLoad = inject(SaveLoadService);
   private readonly cloud = inject(PlanungCloudService);
   readonly cloudSpeichert = signal(false);
-  readonly cloudStatus = signal('');
+  private readonly gespeicherterCloudStand = signal<{ id: string; inhalt: string } | null>(null);
+  readonly cloudStatus = computed(() => {
+    const gespeichert = this.gespeicherterCloudStand();
+    const aktuell = this.store.active();
+    if (!aktuell || aktuell.id !== gespeichert?.id) return '';
+    return gespeichert.inhalt === JSON.stringify(aktuell) &&
+      !this.cloud.hatLokaleAenderungen(aktuell)
+      ? 'Die Einsatzplanung wurde in Nextcloud gespeichert.'
+      : 'Der Stand wurde gespeichert. Weitere lokale Änderungen sind noch ungespeichert.';
+  });
   readonly cloudFehler = signal('');
   private readonly dialog = inject(MatDialog);
+  private readonly dialogDienst = inject(DialogDienst);
+  private readonly abgleich = inject(MatchService);
   readonly efsApi = inject(EfsApiService);
   private readonly importService = inject(ImportService);
   private readonly pdfExport = inject(PdfExportService);
@@ -328,41 +341,44 @@ export class PlanningEditor {
   }
 
   async importTemplate(): Promise<void> {
-    const zielId = this.planung()?.id;
+    const ziel = this.planung();
+    const zielId = ziel?.id;
     const result = await this.saveLoad.load();
     if (!result || this.planung()?.id !== zielId) return;
     if (
       result.versionWarning &&
-      !window.confirm(
+      !(await this.dialogDienst.bestaetigen(
         'Versionswarnung: Die Vorlage wurde mit einer anderen Dateiversion gespeichert. Trotzdem importieren?',
-      )
+      ))
     )
       return;
+    if (this.planung()?.id !== zielId) return;
+    if (this.planung() !== ziel) {
+      await this.dialogDienst.hinweis(
+        'Die Planung wurde inzwischen geändert. Bitte prüfe den aktuellen Stand vor dem Vorlagenimport.',
+      );
+      return;
+    }
     this.store.applyTemplate(result.planung);
   }
 
-  exportPdf(): void {
+  async exportPdf(): Promise<void> {
     const p = this.planung();
     if (!p) return;
-    this.pdfExport.export(p);
+    await this.pdfExport.exportieren(p);
   }
 
   async cloudSpeichern(): Promise<void> {
     const planung = this.planung();
     if (!planung || this.cloudSpeichert()) return;
     this.cloudSpeichert.set(true);
-    this.cloudStatus.set('');
+    this.gespeicherterCloudStand.set(null);
     this.cloudFehler.set('');
     try {
       await this.cloud.speichern(planung);
       const aktuell = this.planung();
       if (aktuell?.id !== planung.id) return;
-      this.cloudStatus.set(
-        JSON.stringify(aktuell) === JSON.stringify(planung) &&
-          !this.cloud.hatLokaleAenderungen(aktuell)
-          ? 'Die Einsatzplanung wurde in Nextcloud gespeichert.'
-          : 'Der Stand wurde gespeichert. Weitere lokale Änderungen sind noch ungespeichert.',
-      );
+      this.gespeicherterCloudStand.set({ id: planung.id, inhalt: JSON.stringify(planung) });
     } catch (fehler) {
       if (this.planung()?.id === planung.id) this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
     } finally {
@@ -428,24 +444,48 @@ export class PlanningEditor {
     this.store.addPosten();
   }
 
-  deletePosten(posten: Posten): void {
-    const msg = `Posten "${posten.label}" löschen? Diese Aktion kann nicht rückgängig gemacht werden.`;
-    if (window.confirm(msg)) {
-      this.store.deletePosten(posten.id);
+  async deletePosten(posten: Posten): Promise<void> {
+    const zielId = this.planung()?.id;
+    const stand = JSON.stringify(posten);
+    if (
+      !(await this.dialogDienst.bestaetigen(
+        `Posten „${posten.label}“ und alle seine Zuteilungen löschen? Du kannst die Aktion anschließend rückgängig machen.`,
+        'Posten löschen',
+        'Löschen',
+      ))
+    )
+      return;
+    if (this.planung()?.id !== zielId) return;
+    const aktuell = this.planung()?.posten.find((eintrag) => eintrag.id === posten.id);
+    if (JSON.stringify(aktuell) !== stand) {
+      await this.dialogDienst.hinweis(
+        'Der Posten wurde inzwischen geändert. Bitte prüfe ihn und starte die Aktion erneut.',
+      );
+      return;
     }
+    this.store.deletePosten(posten.id);
   }
 
-  clearPosten(posten: Posten): void {
-    const names = posten.positions
-      .filter((pos) => pos.assigned !== null)
-      .map((pos) => pos.assigned!.name)
+  async clearPosten(posten: Posten): Promise<void> {
+    const zielId = this.planung()?.id;
+    const stand = JSON.stringify(posten);
+    const namen = posten.positions
+      .filter((position) => position.assigned !== null)
+      .map((position) => position.assigned!.name)
       .join(', ');
-    const msg = names
-      ? `Alle Zuteilungen in "${posten.label}" aufheben?\nBetroffen: ${names}`
-      : `Alle Zuteilungen in "${posten.label}" aufheben?`;
-    if (window.confirm(msg)) {
-      this.store.clearPosten(posten.id);
+    const nachricht = namen
+      ? `Alle Zuteilungen in „${posten.label}“ aufheben?\nBetroffen: ${namen}`
+      : `Alle Zuteilungen in „${posten.label}“ aufheben?`;
+    if (!(await this.dialogDienst.bestaetigen(nachricht, 'Posten leeren', 'Leeren'))) return;
+    if (this.planung()?.id !== zielId) return;
+    const aktuell = this.planung()?.posten.find((eintrag) => eintrag.id === posten.id);
+    if (JSON.stringify(aktuell) !== stand) {
+      await this.dialogDienst.hinweis(
+        'Die Zuteilungen wurden inzwischen geändert. Bitte prüfe sie und starte die Aktion erneut.',
+      );
+      return;
     }
+    this.store.clearPosten(posten.id);
   }
 
   assignedCount(posten: Posten): number {
@@ -453,20 +493,11 @@ export class PlanningEditor {
   }
 
   taktischColor(tag: Taktisch): { bg: string; fg: string } {
-    const i = TAKTISCH_ORDER.indexOf(tag);
-    if (i <= 1) return { bg: '#C7CCD9', fg: '#000548' };
-    if (i === 2) return { bg: '#4A6FB8', fg: '#FFFFFF' };
-    if (i <= 4) return { bg: '#EB003C', fg: '#FFFFFF' };
-    return { bg: '#FFFFFF', fg: '#000548' };
+    return this.abgleich.taktischColor(tag);
   }
 
   medizinischColor(tag: Medizinisch): { bg: string; fg: string } {
-    const i = MEDIZINISCH_ORDER.indexOf(tag);
-    if (i <= 2) return { bg: '#C7CCD9', fg: '#000548' }; // EH, SSD, SanH
-    if (i === 3) return { bg: '#2F8F68', fg: '#FFFFFF' }; // RH
-    if (i === 4) return { bg: '#DEE100', fg: '#000548' }; // RS
-    if (i <= 6) return { bg: '#EB003C', fg: '#FFFFFF' }; // RA, NotSan
-    return { bg: '#4A6FB8', fg: '#FFFFFF' }; // A, NA
+    return this.abgleich.medizinischColor(tag);
   }
 
   positionMatchClass(position: Position, einsatzkraft?: Einsatzkraft | null): string {

@@ -7,6 +7,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { DatePipe, formatDate } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -43,6 +44,7 @@ import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
 export class PlanningList implements OnInit {
   private readonly store = inject(PlanungStoreService);
   private readonly router = inject(Router);
+  private readonly dialogDienst = inject(DialogDienst);
   private readonly saveLoad = inject(SaveLoadService);
   readonly efsApi = inject(EfsApiService);
   private readonly importService = inject(ImportService);
@@ -83,35 +85,61 @@ export class PlanningList implements OnInit {
 
   async cloudPlanungLaden(id: string): Promise<void> {
     if (this.cloudLadeId()) return;
-    const lokal = this.planungen().find((planung) => planung.id === id);
-    const vorherigerStand = lokal ? JSON.stringify(lokal) : null;
-    if (
-      lokal &&
-      this.cloud.hatLokaleAenderungen(lokal) &&
-      !window.confirm(
-        'Diese Planung enthält lokale Änderungen. Den gespeicherten Stand laden und die lokalen Änderungen ersetzen? Zur Sicherung kannst du zuerst im Editor JSON herunterladen.',
-      )
-    )
-      return;
+    const kontextId = this.store.active()?.id;
+    const lokalerStand = () => {
+      const planung = this.planungen().find((eintrag) => eintrag.id === id);
+      return planung ? JSON.stringify(planung) : null;
+    };
+    const kontextUnveraendert = () => this.store.active()?.id === kontextId;
+    let bestaetigterStand = lokalerStand();
     this.cloudLadeId.set(id);
     this.cloudFehler.set('');
     try {
+      const lokal = this.planungen().find((planung) => planung.id === id);
+      if (lokal && this.cloud.hatLokaleAenderungen(lokal)) {
+        if (
+          !(await this.dialogDienst.bestaetigen(
+            'Diese Planung enthält lokale Änderungen. Den gespeicherten Stand laden und die lokalen Änderungen ersetzen? Zur Sicherung kannst du zuerst im Editor JSON herunterladen.',
+            'Lokale Änderungen ersetzen',
+            'Gespeicherten Stand laden',
+          ))
+        )
+          return;
+        if (!kontextUnveraendert()) return;
+        if (lokalerStand() !== bestaetigterStand)
+          throw new Error(
+            'Die Planung wurde während der Bestätigung geändert. Bitte erneut laden.',
+          );
+      }
       const ergebnis = await this.cloud.laden(id);
-      const jetzt = this.planungen().find((planung) => planung.id === id);
-      if (
-        (jetzt ? JSON.stringify(jetzt) : null) !== vorherigerStand &&
-        !window.confirm(
-          'Die lokale Planung wurde während des Ladens geändert. Trotzdem durch den gespeicherten Stand ersetzen?',
+      if (!kontextUnveraendert()) return;
+      if (lokalerStand() !== bestaetigterStand) {
+        bestaetigterStand = lokalerStand();
+        if (
+          !(await this.dialogDienst.bestaetigen(
+            'Die lokale Planung wurde während des Ladens geändert. Trotzdem durch den gespeicherten Stand ersetzen?',
+            'Geänderte Planung ersetzen',
+            'Ersetzen',
+          ))
         )
-      )
-        return;
-      if (
-        ergebnis.versionWarning &&
-        !window.confirm(
-          'Versionswarnung: Der Einsatzplan wurde mit einer anderen Dateiversion gespeichert. Trotzdem laden?',
+          return;
+        if (!kontextUnveraendert()) return;
+        if (lokalerStand() !== bestaetigterStand)
+          throw new Error('Die Planung wurde erneut geändert. Bitte erneut laden.');
+      }
+      if (ergebnis.versionWarning) {
+        if (
+          !(await this.dialogDienst.bestaetigen(
+            'Der Einsatzplan wurde mit einer anderen Dateiversion gespeichert. Trotzdem laden?',
+            'Versionswarnung',
+            'Laden',
+          ))
         )
-      )
-        return;
+          return;
+      }
+      if (!kontextUnveraendert()) return;
+      if (lokalerStand() !== bestaetigterStand)
+        throw new Error('Die Planung wurde inzwischen geändert. Bitte erneut laden.');
       this.store.importPlanung(ergebnis.planung);
       this.store.openPlanung(ergebnis.planung.id);
       this.cloud.uebernahmeMerken(ergebnis);
@@ -187,13 +215,15 @@ export class PlanningList implements OnInit {
   }
 
   async loadFromFile(): Promise<void> {
+    const kontext = this.store.active();
     const result = await this.saveLoad.load();
-    if (!result) return;
+    if (!result || this.store.active() !== kontext) return;
     if (result.versionWarning) {
-      window.alert(
+      await this.dialogDienst.hinweis(
         'Versionswarnung: Die Datei wurde mit einer anderen Version gespeichert. Die Daten wurden trotzdem geladen, können aber unvollständig sein.',
       );
     }
+    if (this.store.active() !== kontext) return;
     this.store.importPlanung(result.planung);
     this.router.navigate(['/einsatz/editor']);
   }

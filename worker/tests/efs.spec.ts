@@ -40,6 +40,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('EFS-Proxy: bekannte Aktionen und serverseitige Zugangsdaten', () => {
@@ -214,6 +215,46 @@ describe('EFS-Konfiguration und Größenlimits', () => {
     );
     expect(antwort.status).toBe(413);
     expect(abrufen).not.toHaveBeenCalled();
+  });
+
+  it.each(['{', '{}'])('bricht einen offenen Upload nach 30 Sekunden ab: %s', async (anfang) => {
+    vi.useFakeTimers();
+    const abbrechen = vi.fn();
+    const inhalt = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(anfang));
+        // Auch ein bereits vollständiges JSON muss sein Übertragungsende erreichen.
+      },
+      cancel: abbrechen,
+    });
+    const anfrage = anfrageFuer('getveranstaltungen', {}, {
+      body: inhalt,
+      duplex: 'half',
+    } as RequestInit);
+    let abgeschlossen = false;
+    const laufend = verarbeiteEfs(anfrage, umgebung).then((antwort) => {
+      abgeschlossen = true;
+      return antwort;
+    });
+
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(abgeschlossen).toBe(false);
+    expect(abbrechen).not.toHaveBeenCalled();
+    expect(abrufen).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    const antwort = await laufend;
+    expect(antwort.status).toBe(408);
+    expect(await antwort.json()).toEqual({
+      code: 'EFS_UPLOAD_ZEITLIMIT',
+      nachricht: 'Die Anfrage wurde nicht rechtzeitig übertragen.',
+    });
+    expect(antwort.headers.get('Cache-Control')).toBe('no-store');
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('EFS_UPLOAD_ZEITLIMIT');
+    expect(abbrechen).toHaveBeenCalledOnce();
+    expect(inhalt.locked).toBe(false);
+    expect(abrufen).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('begrenzt angekündigte Antwortgrößen', async () => {

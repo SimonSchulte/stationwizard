@@ -6,6 +6,8 @@ import { PlanningList } from './planning-list';
 import { EfsApiService, EfsDetailResult } from '../../services/efs-api.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { erzeugeTestplanung } from '../../services/testing/pep-testdaten';
 
 describe('EFS-Details beim Planwechsel', () => {
   it('schreibt verzögert geladene Details nicht in einen inzwischen geöffneten anderen Plan', async () => {
@@ -18,7 +20,7 @@ describe('EFS-Details beim Planwechsel', () => {
       providers: [
         { provide: EfsApiService, useValue: api },
         { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
-        { provide: PlanungCloudService, useValue: {} },
+        { provide: PlanungCloudService, useValue: { hatLokaleAenderungen: () => false } },
       ],
     });
     const store = TestBed.inject(PlanungStoreService);
@@ -39,5 +41,29 @@ describe('EFS-Details beim Planwechsel', () => {
     expect(store.active()).toEqual(andererPlan);
     expect(store.active()?.einsatzkraefte).toEqual([]);
     expect(store.active()?.posten).toEqual([]);
+  });
+
+  it('lädt bei abgebrochener Ersetzungsbestätigung keine Cloud-Datei', async () => {
+    const cloud = {
+      laden: vi.fn(),
+      hatLokaleAenderungen: () => true,
+      fehlermeldung: (fehler: Error) => fehler.message,
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: EfsApiService, useValue: { fehler: signal('') } },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PlanungCloudService, useValue: cloud },
+        { provide: DialogDienst, useValue: { bestaetigen: vi.fn().mockResolvedValue(false) } },
+      ],
+    });
+    const store = TestBed.inject(PlanungStoreService);
+    const planung = erzeugeTestplanung();
+    store.importPlanung(planung);
+    const liste = TestBed.runInInjectionContext(() => new PlanningList());
+    await liste.cloudPlanungLaden(planung.id);
+    expect(cloud.laden).not.toHaveBeenCalled();
+    expect(store.active()).toEqual(planung);
+    expect(liste.cloudLadeId()).toBeNull();
   });
 });

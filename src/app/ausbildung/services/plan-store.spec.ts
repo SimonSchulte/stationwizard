@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PlanDocument, leererTermin, leeresDocument } from '../models/plan.model';
 import { PlanStore } from './plan-store';
+import { VerlassenSchutz } from '../../kern/verlassen-schutz';
 
 function dokument(): PlanDocument {
   return {
@@ -84,6 +85,18 @@ describe('PlanStore', () => {
 
     store.alsGespeichertMarkieren();
     expect(store.ungespeichert()).toBe(false);
+  });
+
+  it('meldet ungesicherte Ausbildungsdaten auch ohne geöffnete Jahresplanansicht an die Shell', () => {
+    const schutz = TestBed.inject(VerlassenSchutz);
+    expect(schutz.hatUngesicherteAenderungen()).toBe(false);
+    const stand = store.dokument();
+    store.setzeTitel('Noch nicht gesichert');
+    store.alsGespeichertMarkieren(stand);
+
+    expect(schutz.hatUngesicherteAenderungen()).toBe(true);
+    store.alsGespeichertMarkieren(store.dokument());
+    expect(schutz.hatUngesicherteAenderungen()).toBe(false);
   });
 });
 

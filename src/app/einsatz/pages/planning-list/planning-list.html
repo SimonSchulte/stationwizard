@@ -1,4 +1,4 @@
-<mat-toolbar color="primary">
+<mat-toolbar color="primary" class="listen-kopfleiste">
   <mat-icon>assignment</mat-icon>
   <span class="toolbar-title">Personaleinsatzplanung</span>
   <span class="spacer"></span>
@@ -90,78 +90,92 @@
     } @else {
       @if (upcomingGruppen().length > 0) {
         <h3>Anstehende Veranstaltungen</h3>
-        <table mat-table [dataSource]="upcomingGruppen()" class="einsatz-table">
-          <ng-container matColumnDef="titel">
-            <th mat-header-cell *matHeaderCellDef>Titel</th>
-            <td mat-cell *matCellDef="let g">
-              {{ g.titel }}
-              @if (g.schichten.length > 1) {
-                <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
-              }
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="datum_von">
-            <th mat-header-cell *matHeaderCellDef>Beginn</th>
-            <td mat-cell *matCellDef="let g">
-              {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="datum_bis">
-            <th mat-header-cell *matHeaderCellDef>Ende</th>
-            <td mat-cell *matCellDef="let g">
-              {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="ort">
-            <th mat-header-cell *matHeaderCellDef>Ort</th>
-            <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-          <tr
-            mat-row
-            *matRowDef="let g; columns: einsatzColumns"
-            class="einsatz-row"
-            (click)="openEfsGruppe(g)"
-          ></tr>
-        </table>
+        <div
+          class="tabellenbereich"
+          role="region"
+          aria-label="Anstehende Veranstaltungen"
+          tabindex="0"
+        >
+          <table mat-table [dataSource]="upcomingGruppen()" class="einsatz-table">
+            <ng-container matColumnDef="titel">
+              <th mat-header-cell *matHeaderCellDef>Titel</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.titel }}
+                @if (g.schichten.length > 1) {
+                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="datum_von">
+              <th mat-header-cell *matHeaderCellDef>Beginn</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="datum_bis">
+              <th mat-header-cell *matHeaderCellDef>Ende</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="ort">
+              <th mat-header-cell *matHeaderCellDef>Ort</th>
+              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
+            <tr
+              mat-row
+              *matRowDef="let g; columns: einsatzColumns"
+              class="einsatz-row"
+              (click)="openEfsGruppe(g)"
+            ></tr>
+          </table>
+        </div>
       }
 
       @if (pastGruppen().length > 0) {
         <h3 class="past-header">Vergangene Veranstaltungen</h3>
-        <table mat-table [dataSource]="pastGruppen()" class="einsatz-table past">
-          <ng-container matColumnDef="titel">
-            <th mat-header-cell *matHeaderCellDef>Titel</th>
-            <td mat-cell *matCellDef="let g">
-              {{ g.titel }}
-              @if (g.schichten.length > 1) {
-                <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
-              }
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="datum_von">
-            <th mat-header-cell *matHeaderCellDef>Beginn</th>
-            <td mat-cell *matCellDef="let g">
-              {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="datum_bis">
-            <th mat-header-cell *matHeaderCellDef>Ende</th>
-            <td mat-cell *matCellDef="let g">
-              {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="ort">
-            <th mat-header-cell *matHeaderCellDef>Ort</th>
-            <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-          <tr
-            mat-row
-            *matRowDef="let g; columns: einsatzColumns"
-            class="einsatz-row"
-            (click)="openEfsGruppe(g)"
-          ></tr>
-        </table>
+        <div
+          class="tabellenbereich"
+          role="region"
+          aria-label="Vergangene Veranstaltungen"
+          tabindex="0"
+        >
+          <table mat-table [dataSource]="pastGruppen()" class="einsatz-table past">
+            <ng-container matColumnDef="titel">
+              <th mat-header-cell *matHeaderCellDef>Titel</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.titel }}
+                @if (g.schichten.length > 1) {
+                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="datum_von">
+              <th mat-header-cell *matHeaderCellDef>Beginn</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="datum_bis">
+              <th mat-header-cell *matHeaderCellDef>Ende</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="ort">
+              <th mat-header-cell *matHeaderCellDef>Ort</th>
+              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
+            <tr
+              mat-row
+              *matRowDef="let g; columns: einsatzColumns"
+              class="einsatz-row"
+              (click)="openEfsGruppe(g)"
+            ></tr>
+          </table>
+        </div>
       }
 
       @if (upcomingGruppen().length === 0 && pastGruppen().length === 0) {
@@ -172,7 +186,7 @@
       }
     }
 
-    <mat-divider style="margin: 32px 0"></mat-divider>
+    <mat-divider class="abschnitt-trenner"></mat-divider>
   </section>
 
   <h2>Lokale Planungen</h2>
