@@ -9,7 +9,7 @@
 - Ergebnis: Produktionsbuild erfolgreich, Vitest 9 Dateien / 60 Tests bestanden.
 - Reale Fahrzeugstammdaten nicht übernommen; freie Eingabe bleibt möglich.
 - Quelle enthält nur 9 medizinische Enumwerte, entgegen 12 Werten im Auftrag.
-  AP1 bewahrt den Quellstand; gezielte Angleichung im Fachtest folgt.
+  Der Quellstand bleibt erhalten; eine Änderung der fachlichen Rangfolge benötigt Klärung.
 - Browserprüfung versucht: Cloud-Browser blockiert beide lokalen Vorschauadressen
   mit ERR_BLOCKED_BY_CLIENT. Desktop/Mobil deshalb noch NICHT verifiziert.
 - Remote: GitHub-Verbindung stexeflex hat keine Schreibrechte auf
@@ -50,3 +50,15 @@ archivieren, bevor der Ersatz abgenommen ist.
   abgebrochen; AP2-Trockenlauf war erfolgreich. Live-NextCloud weiterhin ungeprüft.
 - Zusätzliches Runtime-Secret erforderlich: `NEXTCLOUD_PEP_SHARE_TOKEN` für
   den neuen Ordner; optional `NEXTCLOUD_PEP_SHARE_PASSWORD`.
+
+## AP4 – EFS dauerhaft über den Worker
+
+- Drei bekannte POST-Aktionen, Formularkodierung und Zugangsdaten ausschließlich serverseitig.
+- API-Key-Dialog und optionaler App-Modus entfernt; Verbindungsstatus und Wiederholen ergänzt.
+- Bestehendes Qualifikationsmapping übernommen; Notarzt aus `bes_ausbild` ebenfalls erkannt.
+- Fahrzeugfunkrufe können aus dem jeweiligen Live-Einsatz übernommen werden.
+- Planwechsel und Bearbeitung während asynchronem Laden/Speichern abgesichert.
+- Alte Zugangsdaten-Schlüssel werden beim Start auf derselben Origin entfernt.
+- Drei Angular-Integrationstests instanziieren Jahresplan, Einsatzliste und Editor.
+- Geprüft: 116 Angular-Tests, 209 Worker-Tests, Gesamtbuild/TypeScript und Prettier grün.
+- Echte EFS-Antworten und visuelle Browserabnahme weiterhin ungeprüft.

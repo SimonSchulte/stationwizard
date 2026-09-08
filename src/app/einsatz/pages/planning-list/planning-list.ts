@@ -10,8 +10,6 @@ import { Router } from '@angular/router';
 import { DatePipe, formatDate } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatDialog } from '@angular/material/dialog';
-import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -21,10 +19,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { SaveLoadService } from '../../services/save-load.service';
-import { AppModeService } from '../../services/app-mode.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
-import { ApiKeyDialog } from '../../components/api-key-dialog/api-key-dialog';
 import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
 
 @Component({
@@ -34,7 +30,6 @@ import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
     DatePipe,
     MatButtonModule,
     MatCardModule,
-    MatDialogModule,
     MatDividerModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -49,9 +44,7 @@ export class PlanningList implements OnInit {
   private readonly store = inject(PlanungStoreService);
   private readonly router = inject(Router);
   private readonly saveLoad = inject(SaveLoadService);
-  private readonly dialog = inject(MatDialog);
-  readonly appMode = inject(AppModeService);
-  private readonly efsApi = inject(EfsApiService);
+  readonly efsApi = inject(EfsApiService);
   private readonly importService = inject(ImportService);
 
   readonly planungen = this.store.planungen;
@@ -85,9 +78,7 @@ export class PlanningList implements OnInit {
 
   ngOnInit(): void {
     void this.cloud.listeLaden();
-    if (this.appMode.mode() === 'connected-to-efs-api') {
-      this.loadEfsEinsaetze();
-    }
+    void this.loadEfsEinsaetze();
   }
 
   async cloudPlanungLaden(id: string): Promise<void> {
@@ -138,9 +129,11 @@ export class PlanningList implements OnInit {
     try {
       const einsaetze = await this.efsApi.getVeranstaltungen();
       this.efsEinsaetze.set(einsaetze);
-    } catch {
+    } catch (fehler) {
       this.efsError.set(
-        'Fehler beim Laden der Veranstaltungen. Bitte API-Key prüfen und erneut versuchen.',
+        fehler instanceof Error
+          ? fehler.message
+          : 'Die Veranstaltungen konnten nicht geladen werden.',
       );
     } finally {
       this.efsLoading.set(false);
@@ -148,7 +141,7 @@ export class PlanningList implements OnInit {
   }
 
   async openEfsGruppe(gruppe: EfsEinsatzGruppe): Promise<void> {
-    this.store.openEfsGruppe(gruppe);
+    const zielId = this.store.openEfsGruppe(gruppe).id;
     this.router.navigate(['/einsatz/editor']);
 
     // Load details per Schicht in the background
@@ -156,6 +149,7 @@ export class PlanningList implements OnInit {
       const results = await Promise.all(
         gruppe.schichten.map((s) => this.efsApi.getVeranstaltungDetail(s.id)),
       );
+      if (this.store.active()?.id !== zielId) return;
       for (let i = 0; i < gruppe.schichten.length; i++) {
         const schicht = gruppe.schichten[i];
         const detail = results[i];
@@ -169,8 +163,12 @@ export class PlanningList implements OnInit {
         const mapped = detail.einsatzkraefte.map((ek) => this.importService.mapEfsEinsatzkraft(ek));
         this.store.mergeEfsEinsatzkraefte(mapped);
       }
-    } catch {
-      // Non-critical
+    } catch (fehler) {
+      this.efsApi.fehler.set(
+        fehler instanceof Error
+          ? fehler.message
+          : 'Einsatzdetails konnten nicht geladen werden. Bitte im Editor erneut aktualisieren.',
+      );
     }
   }
 
@@ -204,16 +202,5 @@ export class PlanningList implements OnInit {
     const name = `Neue Planung ${formatDate(new Date(), 'dd.MM.yyyy', 'de-DE')}`;
     this.store.createPlanung(name);
     this.router.navigate(['/einsatz/editor']);
-  }
-
-  openApiKeyDialog(): void {
-    const ref = this.dialog.open(ApiKeyDialog, { width: '460px' });
-    ref.afterClosed().subscribe(() => {
-      if (this.appMode.mode() === 'connected-to-efs-api') {
-        this.loadEfsEinsaetze();
-      } else {
-        this.efsEinsaetze.set([]);
-      }
-    });
   }
 }

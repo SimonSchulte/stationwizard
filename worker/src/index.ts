@@ -1,8 +1,9 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 
-export interface Env extends AccessKonfiguration, NextcloudKonfiguration {
+export interface Env extends AccessKonfiguration, NextcloudKonfiguration, EfsKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -38,6 +39,10 @@ export default {
         });
       }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (url.pathname.startsWith('/api/efs/')) {
+      return verarbeiteEfs(anfrage, umgebung);
     }
 
     if (url.pathname.startsWith('/api/nextcloud/')) {

@@ -18,6 +18,10 @@ interface BekannterStand {
   inhalt: string;
 }
 
+function starkerEtag(wert: string | null): string | null {
+  return wert && /^"[^"\r\n]*"$/.test(wert) ? wert : null;
+}
+
 function istDateiliste(wert: unknown): wert is { dateien: GespeichertePlanung[] } {
   if (
     typeof wert !== 'object' ||
@@ -71,13 +75,13 @@ export class PlanungCloudService {
       throw new Error(
         'Die Kennung in der Einsatzplandatei stimmt nicht mit dem Dateinamen überein.',
       );
-    return { ...ergebnis, etag: antwort.headers.get('ETag') };
+    return { ...ergebnis, etag: starkerEtag(antwort.headers.get('ETag')) };
   }
 
   /** Erst nach bestätigter Übernahme als Grundlage für spätere Updates merken. */
   uebernahmeMerken(ergebnis: CloudLadeErgebnis): void {
     this.bekannteStaende.set(ergebnis.planung.id, {
-      etag: ergebnis.etag,
+      etag: starkerEtag(ergebnis.etag),
       inhalt: JSON.stringify(ergebnis.planung),
     });
     this.namen.update((namen) => ({ ...namen, [ergebnis.planung.id]: ergebnis.planung.name }));
@@ -94,7 +98,7 @@ export class PlanungCloudService {
     const bekannterStand = this.bekannteStaende.get(planung.id);
     if (bekannterStand && !bekannterStand.etag) {
       throw new Error(
-        'Für diesen Einsatzplan fehlt die Dateiversion. Bitte lokal als JSON sichern und den gespeicherten Plan erneut laden.',
+        'Für diesen Einsatzplan fehlt eine verlässlich vergleichbare Dateiversion (starker ETag). Bitte lokal als JSON sichern und den gespeicherten Plan erneut laden.',
       );
     }
     const headers = new Headers({ 'Content-Type': 'application/json' });
@@ -105,7 +109,7 @@ export class PlanungCloudService {
       headers,
       body: inhalt,
     });
-    const etag = antwort.headers.get('ETag');
+    const etag = starkerEtag(antwort.headers.get('ETag'));
     this.bekannteStaende.set(planung.id, { etag, inhalt: planungsstand });
     this.namen.update((namen) => ({ ...namen, [planung.id]: planung.name }));
     this.dateien.update((dateien) => [

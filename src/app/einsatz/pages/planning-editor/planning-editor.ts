@@ -31,7 +31,6 @@ import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-dro
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { SaveLoadService } from '../../services/save-load.service';
-import { AppModeService } from '../../services/app-mode.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
 import { PdfExportService } from '../../services/pdf-export.service';
@@ -106,8 +105,7 @@ export class PlanningEditor {
   readonly cloudStatus = signal('');
   readonly cloudFehler = signal('');
   private readonly dialog = inject(MatDialog);
-  readonly appMode = inject(AppModeService);
-  private readonly efsApi = inject(EfsApiService);
+  readonly efsApi = inject(EfsApiService);
   private readonly importService = inject(ImportService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly sanitizer = inject(DomSanitizer);
@@ -119,7 +117,7 @@ export class PlanningEditor {
   readonly canUndo = this.store.canUndo;
   readonly efsUpdating = signal(false);
   readonly isEfsLocked = computed(
-    () => this.appMode.mode() === 'connected-to-efs-api' && !!this.store.active()?.hiorg_einsatz_id,
+    () => this.efsApi.erreichbar() && !!this.store.active()?.hiorg_einsatz_id,
   );
 
   toggleAssignedList(): void {
@@ -357,9 +355,16 @@ export class PlanningEditor {
     this.cloudFehler.set('');
     try {
       await this.cloud.speichern(planung);
-      this.cloudStatus.set('Die Einsatzplanung wurde in Nextcloud gespeichert.');
+      const aktuell = this.planung();
+      if (aktuell?.id !== planung.id) return;
+      this.cloudStatus.set(
+        JSON.stringify(aktuell) === JSON.stringify(planung) &&
+          !this.cloud.hatLokaleAenderungen(aktuell)
+          ? 'Die Einsatzplanung wurde in Nextcloud gespeichert.'
+          : 'Der Stand wurde gespeichert. Weitere lokale Änderungen sind noch ungespeichert.',
+      );
     } catch (fehler) {
-      this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
+      if (this.planung()?.id === planung.id) this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
     } finally {
       this.cloudSpeichert.set(false);
     }
@@ -376,7 +381,7 @@ export class PlanningEditor {
   }
 
   async updateFromEfs(p: Planung): Promise<void> {
-    if (!p.hiorg_einsatz_id) return;
+    if (!p.hiorg_einsatz_id || this.efsUpdating() || this.planung()?.id !== p.id) return;
     this.efsUpdating.set(true);
     try {
       const schichtIds = p.posten
@@ -384,18 +389,17 @@ export class PlanningEditor {
         .filter((id): id is string => !!id);
       const ids = schichtIds.length > 0 ? schichtIds : [p.hiorg_einsatz_id];
       const results = await Promise.all(ids.map((id) => this.efsApi.getVeranstaltungDetail(id)));
-      const anyOk = results.some((r) => r !== null);
-      if (!anyOk) {
-        window.alert('EFS-Aktualisierung fehlgeschlagen. Bitte API-Key prüfen.');
-        return;
-      }
+      if (this.planung()?.id !== p.id) return;
       for (const detail of results) {
         if (!detail) continue;
         const mapped = detail.einsatzkraefte.map((ek) => this.importService.mapEfsEinsatzkraft(ek));
         this.store.mergeEfsEinsatzkraefte(mapped);
       }
-    } catch {
-      window.alert('Fehler beim Laden der Einsatzkräfte aus der EFS-API.');
+    } catch (fehler) {
+      if (this.planung()?.id === p.id)
+        this.efsApi.fehler.set(
+          fehler instanceof Error ? fehler.message : 'Einsatzkräfte konnten nicht geladen werden.',
+        );
     } finally {
       this.efsUpdating.set(false);
     }

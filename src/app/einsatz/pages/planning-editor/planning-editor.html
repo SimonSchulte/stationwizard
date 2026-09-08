@@ -175,7 +175,7 @@
         <mat-icon>undo</mat-icon>
       </button>
       <span class="spacer"></span>
-      @if (appMode.mode() === 'connected-to-efs-api' && p.hiorg_einsatz_id) {
+      @if (p.hiorg_einsatz_id) {
         <button
           mat-icon-button
           [matTooltip]="
@@ -213,6 +213,14 @@
     </mat-toolbar>
 
     <!-- Description Sub-Bar -->
+    @if (p.hiorg_einsatz_id && efsApi.fehler()) {
+      <div class="cloud-status cloud-status--fehler" role="alert">
+        <span>{{ efsApi.fehler() }}</span>
+        <button mat-button (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
+          Erneut versuchen
+        </button>
+      </div>
+    }
     @if (cloudSpeichert()) {
       <p class="cloud-status" role="status">Einsatzplanung wird in Nextcloud gespeichert…</p>
     }
@@ -257,7 +265,7 @@
               >
             }
           </span>
-          @if (appMode.mode() === 'connected-to-efs-api' && p.hiorg_einsatz_id) {
+          @if (p.hiorg_einsatz_id) {
             <button
               mat-icon-button
               [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"

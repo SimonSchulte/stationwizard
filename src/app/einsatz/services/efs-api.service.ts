@@ -1,7 +1,5 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { AppModeService } from './app-mode.service';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { WorkerClient } from '../../kern/worker-client';
 import {
   EfsEinsatz,
   EfsEinsatzGruppe,
@@ -11,20 +9,18 @@ import {
 } from '../models/planung.model';
 import { FAHRZEUGE } from '../data/fahrzeuge';
 
-const EFS_API_URL = 'https://www.hiorg-server.de/api/efs/';
-
 // Raw response shapes from the HiOrg EFS-API
 interface EfsApiEnvelope {
   status: string;
   fehler?: string;
 }
 
-interface EfsCheckApiKeyResponse extends EfsApiEnvelope {
+interface EfsVerbindungsAntwort extends EfsApiEnvelope {
   orga?: string;
   hiorg_org_id?: string;
 }
 
-export interface EfsCheckApiKeyResult {
+export interface EfsVerbindungsErgebnis {
   orga: string;
   hiorg_org_id: string;
 }
@@ -82,58 +78,74 @@ export interface EfsDetailResult {
 
 @Injectable({ providedIn: 'root' })
 export class EfsApiService {
-  private readonly http = inject(HttpClient);
-  private readonly appMode = inject(AppModeService);
+  readonly worker = inject(WorkerClient);
+  readonly verbindung = signal<'ungeprueft' | 'verbunden' | 'gestoert'>('ungeprueft');
+  readonly fehler = signal('');
+  readonly erreichbar = computed(
+    () => this.worker.zustand() === 'erreichbar' && this.verbindung() === 'verbunden',
+  );
 
-  private get headers(): HttpHeaders {
-    return new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' });
-  }
-
-  private buildBody(action: string, extra: Record<string, string> = {}): string {
-    return new URLSearchParams({
-      apikey: this.appMode.apiKey() ?? '',
-      version: '2',
-      action,
-      ...extra,
-    }).toString();
-  }
-
-  async checkApiKey(key: string): Promise<EfsCheckApiKeyResult> {
-    const body = new URLSearchParams({
-      apikey: key,
-      version: '2',
-      action: 'checkapikey',
-    }).toString();
-    const response = await firstValueFrom(
-      this.http.post<EfsCheckApiKeyResponse>(EFS_API_URL, body, { headers: this.headers }),
-    );
-    if (response.status !== 'OK' || !response.orga || !response.hiorg_org_id) {
-      throw new Error(response.fehler ?? 'Ungültiger API-Key');
+  private async anfragen<T extends EfsApiEnvelope>(
+    aktion: 'checkapikey' | 'getveranstaltungen' | 'getveranstaltung',
+    daten: { id?: string } = {},
+  ): Promise<T> {
+    try {
+      const antwort = await this.worker.json<T>(`/api/efs/${aktion}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(daten),
+      });
+      if (!antwort || antwort.status !== 'OK') {
+        throw new Error(
+          antwort?.fehler || 'HiOrg-Server hat die Anfrage nicht erfolgreich beantwortet.',
+        );
+      }
+      this.verbindung.set('verbunden');
+      this.fehler.set('');
+      return antwort;
+    } catch (fehler) {
+      this.verbindung.set('gestoert');
+      this.fehler.set(
+        fehler instanceof Error
+          ? fehler.message
+          : 'Die Verbindung zu HiOrg-Server ist fehlgeschlagen.',
+      );
+      throw fehler;
     }
-    return { orga: response.orga, hiorg_org_id: response.hiorg_org_id };
+  }
+
+  async pruefeVerbindung(): Promise<EfsVerbindungsErgebnis> {
+    const antwort = await this.anfragen<EfsVerbindungsAntwort>('checkapikey');
+    if (!antwort.orga || !antwort.hiorg_org_id) {
+      throw this.ungueltigeAntwort(
+        'HiOrg-Server hat keine gültige Organisationsinformation geliefert.',
+      );
+    }
+    return { orga: antwort.orga, hiorg_org_id: antwort.hiorg_org_id };
   }
 
   async getVeranstaltungen(): Promise<EfsEinsatz[]> {
-    const response = await firstValueFrom(
-      this.http.post<EfsApiVeranstaltungenResponse>(
-        EFS_API_URL,
-        this.buildBody('getveranstaltungen'),
-        { headers: this.headers },
-      ),
-    );
-    if (response.status !== 'OK' || !response.einsaetze) return [];
-    return response.einsaetze.map((e) => this.mapEinsatz(e));
+    const antwort = await this.anfragen<EfsApiVeranstaltungenResponse>('getveranstaltungen');
+    if (!Array.isArray(antwort.einsaetze))
+      throw this.ungueltigeAntwort('HiOrg-Server hat keine gültige Veranstaltungsliste geliefert.');
+    return antwort.einsaetze.map((einsatz) => this.mapEinsatz(einsatz));
   }
 
-  async getVeranstaltungDetail(id: string): Promise<EfsDetailResult | null> {
-    const response = await firstValueFrom(
-      this.http.post<EfsApiDetailResponse>(
-        EFS_API_URL,
-        this.buildBody('getveranstaltung', { id }),
-        { headers: this.headers },
-      ),
-    );
-    if (response.status !== 'OK') return null;
+  async getVeranstaltungDetail(id: string): Promise<EfsDetailResult> {
+    const response = await this.anfragen<EfsApiDetailResponse>('getveranstaltung', { id });
+    if (
+      response.einsatzkraefte_imeinsatz != null &&
+      (typeof response.einsatzkraefte_imeinsatz !== 'object' ||
+        Array.isArray(response.einsatzkraefte_imeinsatz))
+    ) {
+      throw this.ungueltigeAntwort('HiOrg-Server hat eine ungültige Einsatzkräfteliste geliefert.');
+    }
+    if (
+      response.einsatzmittel_imeinsatz != null &&
+      !Array.isArray(response.einsatzmittel_imeinsatz)
+    ) {
+      throw this.ungueltigeAntwort('HiOrg-Server hat eine ungültige Einsatzmittelliste geliefert.');
+    }
     const einsatz =
       response.titel || response.stichwort || response.datum_von
         ? this.mapEinsatz({
@@ -156,6 +168,12 @@ export class EfsApiService {
       einsatzmittel: (response.einsatzmittel_imeinsatz ?? []).map((e) => this.mapEinsatzmittel(e)),
       zeitraum_bemerk: response.zeitraum_bemerk,
     };
+  }
+
+  private ungueltigeAntwort(meldung: string): Error {
+    this.verbindung.set('gestoert');
+    this.fehler.set(meldung);
+    return new Error(meldung);
   }
 
   private mapEinsatz(e: EfsApiEinsatz): EfsEinsatz {
@@ -227,7 +245,7 @@ export class EfsApiService {
     if (e.med_qual) result.push(medMap[e.med_qual] ?? e.med_qual);
     if (e.fuehr_qual) result.push(taktMap[e.fuehr_qual] ?? e.fuehr_qual);
     if (e.fw_qual) result.push(e.fw_qual);
-    if (e.bes_ausbild) result.push(e.bes_ausbild);
+    if (e.bes_ausbild) result.push(medMap[e.bes_ausbild] ?? e.bes_ausbild);
     return result.filter(Boolean);
   }
 
@@ -241,13 +259,13 @@ export class EfsApiService {
   }
 
   matchFahrzeug(em: EfsEinsatzmittel): FahrzeugRef | null {
-    if (!em.fugcode) return null;
-    const code = em.fugcode.toLowerCase();
+    const code = em.fugcode?.toLowerCase();
     const f =
       FAHRZEUGE.find((v) => v.hiorgId === em.fugcode) ??
       FAHRZEUGE.find((v) => v.funkruf.toLowerCase() === code) ??
       FAHRZEUGE.find((v) => v.seriennummer.toLowerCase() === code);
-    if (!f) return null;
-    return { seriennummer: f.seriennummer, funkruf: f.funkruf, hiorgId: f.hiorgId };
+    if (f) return { seriennummer: f.seriennummer, funkruf: f.funkruf, hiorgId: f.hiorgId };
+    const funkruf = em.funkruf?.trim();
+    return funkruf ? { seriennummer: null, funkruf, hiorgId: em.id || null } : null;
   }
 }

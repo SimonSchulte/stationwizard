@@ -40,3 +40,13 @@ secret_name = "NEXTCLOUD_PEP_SHARE_TOKEN"
 # Optionale Passwörter nur für passwortgeschützte Freigaben als klassische
 # Laufzeit-Secrets setzen: NEXTCLOUD_SHARE_PASSWORD / NEXTCLOUD_PEP_SHARE_PASSWORD.
 # Ohne Passwort die Bindings vollständig weglassen (keine Platzhalterwerte).
+
+[[secrets_store_secrets]]
+binding = "HIORGSERVER_BASE_URL"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORGSERVER_BASE_URL"
+
+[[secrets_store_secrets]]
+binding = "HIORGSERVER_EFS_API_TOKEN"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORGSERVER_EFS_API_TOKEN"

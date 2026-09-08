@@ -63,6 +63,13 @@ describe('PlanungCloudService', () => {
     expect(worker.anfragen).not.toHaveBeenCalled();
   });
 
+  it('verwendet schwache ETags nicht als Schreibfreigabe', async () => {
+    const planung = erzeugeTestplanung();
+    service.uebernahmeMerken({ planung, versionWarning: false, etag: 'W/"alt"' });
+    await expect(service.speichern(planung)).rejects.toThrow('starker ETag');
+    expect(worker.anfragen).not.toHaveBeenCalled();
+  });
+
   it('weist eine fremde Dateikennung zurück und zeigt Listenfehler an', async () => {
     const planung = erzeugeTestplanung();
     worker.anfragen.mockResolvedValue(new Response(serialisierePepDatei(planung)));

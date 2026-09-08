@@ -93,6 +93,7 @@ describe('Access vor sämtlichen Assets und APIs', () => {
     '/api/status',
     '/api/nextcloud/arbeitsmappe',
     '/api/nextcloud/planungen',
+    '/api/efs/getveranstaltungen',
   ])('sperrt %s ohne Anwendungstoken', async (pfad) => {
     const antwort = await anfragen(pfad);
     expect(antwort.status).toBe(401);
@@ -232,7 +233,7 @@ describe('API-Routing und schreibende Anfragen', () => {
     expect(antwort.headers.get('Cache-Control')).toBe('no-store');
   });
 
-  it.each(['/api', '/api/unbekannt', '/api/efs/getveranstaltungen', '/api/nextcloud/datei'])(
+  it.each(['/api', '/api/unbekannt', '/api/efs/unbekannt', '/api/nextcloud/datei'])(
     'liefert für %s JSON 404 statt der SPA',
     async (pfad) => {
       const antwort = await anfragen(pfad, await tokenFuer());

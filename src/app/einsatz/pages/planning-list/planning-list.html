@@ -2,20 +2,18 @@
   <mat-icon>assignment</mat-icon>
   <span class="toolbar-title">Personaleinsatzplanung</span>
   <span class="spacer"></span>
-  <button
-    mat-icon-button
+  <span
+    class="verbindungsstatus"
     [matTooltip]="
-      appMode.mode() === 'connected-to-efs-api'
-        ? 'HiOrg-Server verbunden'
-        : 'HiOrg-Server verbinden'
+      efsApi.fehler() ||
+      (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
     "
-    (click)="openApiKeyDialog()"
-    class="toolbar-btn"
   >
-    <mat-icon>{{
-      appMode.mode() === 'connected-to-efs-api' ? 'cloud_done' : 'cloud_off'
-    }}</mat-icon>
-  </button>
+    <mat-icon>{{ efsApi.erreichbar() ? 'cloud_done' : 'cloud_off' }}</mat-icon>
+    <span>{{
+      efsApi.erreichbar() ? 'HiOrg-Server verbunden' : 'HiOrg-Server nicht verbunden'
+    }}</span>
+  </span>
   <button mat-stroked-button (click)="loadFromFile()" class="toolbar-btn">
     <mat-icon>folder_open</mat-icon>
     Datei öffnen
@@ -68,7 +66,7 @@
     </ul>
   </section>
 
-  @if (appMode.mode() === 'connected-to-efs-api') {
+  <section aria-label="HiOrg-Veranstaltungen">
     <div class="section-header">
       <h2>Veranstaltungen (HiOrg-Server)</h2>
       <button
@@ -87,7 +85,8 @@
         <span>Veranstaltungen werden geladen…</span>
       </div>
     } @else if (efsError()) {
-      <p class="error-hint">{{ efsError() }}</p>
+      <p class="error-hint" role="alert">{{ efsError() }}</p>
+      <button mat-button (click)="loadEfsEinsaetze()">Erneut versuchen</button>
     } @else {
       @if (upcomingGruppen().length > 0) {
         <h3>Anstehende Veranstaltungen</h3>
@@ -167,14 +166,14 @@
 
       @if (upcomingGruppen().length === 0 && pastGruppen().length === 0) {
         <p class="empty-hint">
-          Keine Veranstaltungen gefunden. Stelle sicher, dass dein API-Key korrekt ist und die
-          Veranstaltungen für den EFS-Abruf freigegeben sind.
+          Keine Veranstaltungen gefunden. Die Veranstaltungen müssen in HiOrg-Server für den
+          EFS-Abruf freigegeben sein.
         </p>
       }
     }
 
     <mat-divider style="margin: 32px 0"></mat-divider>
-  }
+  </section>
 
   <h2>Lokale Planungen</h2>
 
