@@ -1,0 +1,39 @@
+<h2 mat-dialog-title>Einsatzkräfte importieren</h2>
+
+<mat-dialog-content>
+  <mat-form-field class="full-width">
+    <mat-label>Einsatzkräfte einfügen</mat-label>
+    <textarea
+      matInput
+      cdkTextareaAutosize
+      cdkAutosizeMinRows="6"
+      cdkAutosizeMaxRows="16"
+      placeholder="Meyer Anna (SanH|H)&#10;Schmidt Peter (A|GF)"
+      [value]="inputText()"
+      (input)="inputText.set($any($event.target).value)"
+    ></textarea>
+    <mat-hint>Format: Nachname Vorname (Tag|Tag)</mat-hint>
+  </mat-form-field>
+
+  <div class="options-row">
+    <mat-slide-toggle [checked]="mergeMode()" (change)="mergeMode.set($event.checked)">
+      Zusammenführen (bestehende behalten)
+    </mat-slide-toggle>
+  </div>
+
+  <p class="preview-count">{{ parseCount() }} Person(en) erkannt</p>
+
+  @if (!mergeMode() && removedNames().length > 0) {
+    <p class="warning">
+      <strong>Achtung:</strong> {{ removedNames().length }} Person(en) werden entfernt:
+      {{ removedNames().join(', ') }}
+    </p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="dialogRef.close()">Abbrechen</button>
+  <button mat-raised-button color="primary" [disabled]="parseCount() === 0" (click)="doImport()">
+    Importieren
+  </button>
+</mat-dialog-actions>

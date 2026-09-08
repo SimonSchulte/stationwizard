@@ -1,0 +1,848 @@
+<p class="mobil-hinweis" role="note">
+  Der Planungseditor ist für große Bildschirme optimiert. Die drei Spalten benötigen mindestens 1024
+  Pixel Breite.
+</p>
+@if (planung(); as p) {
+  <div class="editor-shell">
+    <!-- Invisible context menu trigger positioned at cursor -->
+    <div
+      [style.left.px]="contextMenuPos().x"
+      [style.top.px]="contextMenuPos().y"
+      style="position: fixed; visibility: hidden; pointer-events: none"
+      [matMenuTriggerFor]="ekContextMenu"
+      #contextMenuTrigger="matMenuTrigger"
+    ></div>
+
+    <!-- Invisible position context menu trigger positioned at cursor -->
+    <div
+      [style.left.px]="positionContextMenuCoords().x"
+      [style.top.px]="positionContextMenuCoords().y"
+      style="position: fixed; visibility: hidden; pointer-events: none"
+      [matMenuTriggerFor]="positionContextMenu"
+      #positionContextMenuTrigger="matMenuTrigger"
+    ></div>
+
+    <mat-menu #positionContextMenu class="position-context-menu">
+      <div
+        class="ctx-search-wrap"
+        (click)="$event.stopPropagation()"
+        (keydown)="$event.stopPropagation()"
+      >
+        <input
+          class="ctx-search-input"
+          placeholder="Suchen…"
+          [value]="positionMenuSearch()"
+          (input)="positionMenuSearch.set($any($event.target).value)"
+          autofocus
+        />
+      </div>
+      @for (ek of allEksFiltered(); track ek.id) {
+        <button mat-menu-item (click)="assignFromPositionMenu(ek.id)">
+          <span class="ctx-ek-name">{{ ek.name }}</span>
+          <span class="ctx-chips">
+            @for (tag of ek.tags.taktisch ?? []; track tag) {
+              <span
+                class="tag-chip tag-chip--sm"
+                [style.background]="taktischColor(tag).bg"
+                [style.color]="taktischColor(tag).fg"
+                >{{ tag }}</span
+              >
+            }
+            @for (tag of ek.tags.medizinisch ?? []; track tag) {
+              <span
+                class="tag-chip tag-chip--sm"
+                [style.background]="medizinischColor(tag).bg"
+                [style.color]="medizinischColor(tag).fg"
+                >{{ tag }}</span
+              >
+            }
+          </span>
+        </button>
+      }
+    </mat-menu>
+
+    <mat-menu #ekContextMenu class="ek-context-menu">
+      @for (posten of planung()?.posten ?? []; track posten.id) {
+        @let freePos = freePositions(posten);
+        @if (freePos.length > 0) {
+          <div class="context-menu-group-header">{{ posten.label }}</div>
+          @for (pos of freePos; track pos.id) {
+            <button mat-menu-item (click)="assignFromContextMenu(posten.id, pos.id)">
+              <span class="ctx-pos-label">{{ pos.label }}</span>
+              <span class="ctx-chips">
+                @if (pos.requirements.taktisch) {
+                  <span
+                    class="tag-chip tag-chip--sm"
+                    [style.background]="taktischColor(pos.requirements.taktisch).bg"
+                    [style.color]="taktischColor(pos.requirements.taktisch).fg"
+                    >{{ pos.requirements.taktisch }}</span
+                  >
+                }
+                @if (pos.requirements.medizinisch) {
+                  <span
+                    class="tag-chip tag-chip--sm"
+                    [style.background]="medizinischColor(pos.requirements.medizinisch).bg"
+                    [style.color]="medizinischColor(pos.requirements.medizinisch).fg"
+                    >{{ pos.requirements.medizinisch }}</span
+                  >
+                }
+              </span>
+            </button>
+          }
+        }
+      }
+    </mat-menu>
+    <!-- Top Bar -->
+    <mat-toolbar color="primary" class="editor-toolbar">
+      <button mat-icon-button (click)="goBack()" matTooltip="Zurück zur Übersicht">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <input
+        class="planung-name-input"
+        [value]="p.name"
+        (blur)="updateName($any($event.target).value)"
+        aria-label="Planungsname"
+        [readOnly]="isEfsLocked()"
+        [class.toolbar-field--locked]="isEfsLocked()"
+      />
+      <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+        <input
+          matInput
+          [matDatepicker]="startPicker"
+          [value]="getDateFromIso(p.start)"
+          (dateChange)="updateStartDate($event)"
+          aria-label="Startdatum"
+          placeholder="TT.MM.JJJJ"
+          [disabled]="isEfsLocked()"
+        />
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="startPicker"
+          [disabled]="isEfsLocked()"
+        ></mat-datepicker-toggle>
+        <mat-datepicker #startPicker></mat-datepicker>
+      </mat-form-field>
+      <input
+        type="time"
+        class="time-input"
+        [value]="getTimeFromIso(p.start)"
+        (change)="updateStartTime($any($event.target).value)"
+        aria-label="Startzeit"
+        [readOnly]="isEfsLocked()"
+        [class.toolbar-field--locked]="isEfsLocked()"
+      />
+      <span class="date-sep">–</span>
+      <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+        <input
+          matInput
+          [matDatepicker]="endPicker"
+          [value]="getDateFromIso(p.end)"
+          (dateChange)="updateEndDate($event)"
+          aria-label="Enddatum"
+          placeholder="TT.MM.JJJJ"
+          [disabled]="isEfsLocked()"
+        />
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="endPicker"
+          [disabled]="isEfsLocked()"
+        ></mat-datepicker-toggle>
+        <mat-datepicker #endPicker></mat-datepicker>
+      </mat-form-field>
+      <input
+        type="time"
+        class="time-input"
+        [value]="getTimeFromIso(p.end)"
+        (change)="updateEndTime($any($event.target).value)"
+        aria-label="Endzeit"
+        [readOnly]="isEfsLocked()"
+        [class.toolbar-field--locked]="isEfsLocked()"
+      />
+      <div class="einsatzleiter-field">
+        <span class="einsatzleiter-label">EinsatzleiterIn</span>
+        <mat-select
+          class="einsatzleiter-select"
+          [value]="p.einsatzleiter?.id ?? null"
+          (selectionChange)="setEinsatzleiter($event.value)"
+        >
+          <mat-option [value]="null">– Keine –</mat-option>
+          @for (ek of p.einsatzkraefte; track ek.id) {
+            <mat-option [value]="ek.id">{{ ek.name }}</mat-option>
+          }
+        </mat-select>
+      </div>
+      <button mat-icon-button matTooltip="Rückgängig" [disabled]="!canUndo()" (click)="undo()">
+        <mat-icon>undo</mat-icon>
+      </button>
+      <span class="spacer"></span>
+      @if (appMode.mode() === 'connected-to-efs-api' && p.hiorg_einsatz_id) {
+        <button
+          mat-icon-button
+          [matTooltip]="
+            efsUpdating() ? 'Wird aktualisiert…' : 'Einsatzkräfte aus EFS aktualisieren'
+          "
+          [disabled]="efsUpdating()"
+          (click)="updateFromEfs(p)"
+        >
+          <mat-icon>sync</mat-icon>
+        </button>
+      }
+      <button mat-icon-button (click)="importTemplate()" matTooltip="Vorlage importieren">
+        <mat-icon>file_upload</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="Speichern" (click)="save()">
+        <mat-icon>save</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="PDF exportieren" (click)="exportPdf()">
+        <mat-icon>picture_as_pdf</mat-icon>
+      </button>
+    </mat-toolbar>
+
+    <!-- Description Sub-Bar -->
+    <div class="editor-subbar">
+      <mat-icon class="subbar-icon">notes</mat-icon>
+      <input
+        class="subbar-input"
+        placeholder="Einsatzort, Lage, Anmerkungen …"
+        [value]="planung()?.beschreibung ?? ''"
+        (blur)="updateBeschreibung($any($event.target).value)"
+        aria-label="Beschreibung / Lage"
+      />
+    </div>
+
+    <!-- Three-pane layout -->
+    <div class="editor-body" cdkDropListGroup>
+      <!-- LEFT: Roster -->
+      <aside class="pane pane-roster" [class.pane-roster--collapsed]="rosterCollapsed()">
+        <div class="pane-header">
+          <mat-icon>groups</mat-icon>
+          <span class="roster-header-text">
+            Einsatzkräfte
+            @if (rosterProgress(); as prog) {
+              <span class="roster-progress-count"
+                >{{ prog.assigned }}/{{ prog.total }} zugewiesen</span
+              >
+            }
+          </span>
+          @if (appMode.mode() === 'connected-to-efs-api' && p.hiorg_einsatz_id) {
+            <button
+              mat-icon-button
+              [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"
+              [disabled]="efsUpdating()"
+              (click)="updateFromEfs(p)"
+            >
+              <mat-icon>sync</mat-icon>
+            </button>
+          }
+          <button
+            mat-icon-button
+            matTooltip="Einsatzkräfte importieren"
+            (click)="openImportDialog()"
+          >
+            <mat-icon>upload_file</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            (click)="toggleRoster()"
+            [matTooltip]="rosterCollapsed() ? 'Roster einblenden' : 'Roster ausblenden'"
+          >
+            <mat-icon>{{ rosterCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+          </button>
+        </div>
+        @if (rosterProgress(); as prog) {
+          <div
+            class="roster-progress-bar-wrap"
+            [matTooltip]="prog.assigned + ' von ' + prog.soll + ' Positionen besetzt'"
+          >
+            <div
+              class="roster-progress-bar-fill"
+              [style.width.%]="prog.soll > 0 ? (prog.assigned / prog.soll) * 100 : 0"
+              [class.roster-progress-bar-fill--complete]="prog.assigned >= prog.soll"
+            ></div>
+          </div>
+        }
+        <div
+          class="roster-list"
+          cdkDropList
+          cdkDropListSortingDisabled
+          (cdkDropListDropped)="onDropToRoster($event)"
+        >
+          <div class="roster-search-bar">
+            <input
+              class="roster-search-input"
+              placeholder="Suchen…"
+              [value]="rosterSearch()"
+              (input)="rosterSearch.set($any($event.target).value)"
+              aria-label="Einsatzkräfte suchen"
+            />
+          </div>
+          @if (
+            rosterAvailableTags().taktisch.length > 0 ||
+            rosterAvailableTags().medizinisch.length > 0
+          ) {
+            <div class="roster-tag-filters">
+              @for (tag of rosterAvailableTags().taktisch; track tag) {
+                <button
+                  class="filter-chip"
+                  [class.filter-chip--active]="rosterTagFilter() === tag"
+                  [style.background]="rosterTagFilter() === tag ? taktischColor(tag).bg : ''"
+                  [style.color]="rosterTagFilter() === tag ? taktischColor(tag).fg : ''"
+                  [matTooltip]="TAKTISCH_LABEL[tag]"
+                  (click)="toggleRosterTagFilter(tag)"
+                >
+                  {{ tag }}
+                </button>
+              }
+              @for (tag of rosterAvailableTags().medizinisch; track tag) {
+                <button
+                  class="filter-chip"
+                  [class.filter-chip--active]="rosterTagFilter() === tag"
+                  [style.background]="rosterTagFilter() === tag ? medizinischColor(tag).bg : ''"
+                  [style.color]="rosterTagFilter() === tag ? medizinischColor(tag).fg : ''"
+                  [matTooltip]="MEDIZINISCH_LABEL[tag]"
+                  (click)="toggleRosterTagFilter(tag)"
+                >
+                  {{ tag }}
+                </button>
+              }
+            </div>
+          }
+          @for (person of filteredRoster(); track person.id) {
+            <div
+              class="einsatzkraft-card available"
+              cdkDrag
+              [cdkDragData]="{
+                einsatzkraftId: person.id,
+                fromPostenId: null,
+                fromPositionId: null,
+              }"
+              (cdkDragStarted)="onDragStarted($event)"
+              (cdkDragEnded)="onDragEnded()"
+              (contextmenu)="onContextMenu($event, person)"
+            >
+              <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
+              <div class="ek-body">
+                <span class="ek-name">{{ person.name }}</span>
+                <div class="ek-chips">
+                  @for (tag of person.tags.taktisch ?? []; track tag) {
+                    <span
+                      class="tag-chip"
+                      [style.background]="taktischColor(tag).bg"
+                      [style.color]="taktischColor(tag).fg"
+                      [style.border]="tag === 'VF' ? '1px solid #000548' : 'none'"
+                      [matTooltip]="TAKTISCH_LABEL[tag]"
+                      >{{ tag }}</span
+                    >
+                  }
+                  @for (tag of person.tags.medizinisch ?? []; track tag) {
+                    <span
+                      class="tag-chip"
+                      [style.background]="medizinischColor(tag).bg"
+                      [style.color]="medizinischColor(tag).fg"
+                      [matTooltip]="MEDIZINISCH_LABEL[tag]"
+                      >{{ tag }}</span
+                    >
+                  }
+                  @for (tag of person.tags.zusatz ?? []; track tag) {
+                    <span class="tag-chip tag-zusatz">{{ tag }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+          @if (filteredRoster().length === 0) {
+            @if (p.einsatzkraefte.length === 0) {
+              <p class="empty-hint">Noch keine Einsatzkräfte vorhanden.</p>
+              <button
+                mat-stroked-button
+                color="secondary"
+                (click)="openImportDialog()"
+                style="margin: 4px 0"
+              >
+                <mat-icon>group_add</mat-icon> Roster importieren
+              </button>
+            } @else {
+              <p class="empty-hint">Alle Einsatzkräfte sind eingeteilt.</p>
+            }
+          }
+
+          <mat-divider style="margin: 12px 0"></mat-divider>
+          <div class="pane-subheader pane-subheader--toggle" (click)="toggleAssignedList()">
+            <span>Zugewiesene Einsatzkräfte</span>
+            <mat-icon class="subheader-toggle-icon">{{
+              assignedListCollapsed() ? 'expand_more' : 'expand_less'
+            }}</mat-icon>
+          </div>
+          @if (!assignedListCollapsed()) {
+            @for (person of p.einsatzkraefte; track person.id) {
+              <div class="einsatzkraft-card">
+                <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
+                <div class="ek-body">
+                  <span class="ek-name">{{ person.name }}</span>
+                  <div class="ek-chips">
+                    @for (tag of person.tags.taktisch ?? []; track tag) {
+                      <span
+                        class="tag-chip"
+                        [style.background]="taktischColor(tag).bg"
+                        [style.color]="taktischColor(tag).fg"
+                        [style.border]="tag === 'VF' ? '1px solid #000548' : 'none'"
+                        >{{ tag }}</span
+                      >
+                    }
+                    @for (tag of person.tags.medizinisch ?? []; track tag) {
+                      <span
+                        class="tag-chip"
+                        [style.background]="medizinischColor(tag).bg"
+                        [style.color]="medizinischColor(tag).fg"
+                        >{{ tag }}</span
+                      >
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </aside>
+
+      <!-- CENTER: Posten/Position Tree -->
+      <main class="pane pane-tree">
+        <div class="pane-header">
+          <mat-icon>grid_view</mat-icon>
+          <span>Einsatzplan</span>
+          <span class="spacer"></span>
+          <div class="staerke-block" role="grid" aria-label="Gesamtstärke">
+            <div class="staerke-row soll" role="row">
+              <span class="staerke-label" role="gridcell">Soll</span>
+              <span class="staerke-num" role="gridcell">{{ planungSoll(p).fuhrer }}</span>
+              <span class="staerke-sep" role="gridcell">/</span>
+              <span class="staerke-num" role="gridcell">{{ planungSoll(p).unterfuehrer }}</span>
+              <span class="staerke-sep" role="gridcell">/</span>
+              <span class="staerke-num" role="gridcell">{{ planungSoll(p).helfer }}</span>
+              <span class="staerke-sep" role="gridcell">/</span>
+              <span class="staerke-num" role="gridcell"
+                ><span class="gesamt-num">{{ planungSoll(p).gesamt }}</span></span
+              >
+            </div>
+            <div class="staerke-row ist" role="row">
+              <span class="staerke-label" role="gridcell">Ist</span>
+              <span
+                class="staerke-num"
+                role="gridcell"
+                [class]="staerkeStatus(planungIst(p).fuhrer, planungSoll(p).fuhrer)"
+                >{{ planungIst(p).fuhrer }}</span
+              >
+              <span class="staerke-sep" role="gridcell">/</span>
+              <span
+                class="staerke-num"
+                role="gridcell"
+                [class]="staerkeStatus(planungIst(p).unterfuehrer, planungSoll(p).unterfuehrer)"
+                >{{ planungIst(p).unterfuehrer }}</span
+              >
+              <span class="staerke-sep" role="gridcell">/</span>
+              <span
+                class="staerke-num"
+                role="gridcell"
+                [class]="staerkeStatus(planungIst(p).helfer, planungSoll(p).helfer)"
+                >{{ planungIst(p).helfer }}</span
+              >
+              <span class="staerke-sep" role="gridcell">/</span>
+              <span
+                class="staerke-num"
+                role="gridcell"
+                [class]="staerkeStatus(planungIst(p).gesamt, planungSoll(p).gesamt)"
+                ><span class="gesamt-num">{{ planungIst(p).gesamt }}</span></span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="tree-scroll">
+          <mat-accordion multi class="posten-accordion">
+            @for (posten of p.posten; track posten.id) {
+              <mat-expansion-panel #panel expanded hideToggle>
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <input
+                      class="posten-label-input"
+                      [value]="posten.label"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="$event.stopPropagation()"
+                      (blur)="updatePostenLabel(posten.id, $any($event.target).value)"
+                    />
+                    <div class="posten-fahrzeug-inline" (click)="$event.stopPropagation()">
+                      <mat-icon class="fahrzeug-icon">local_shipping</mat-icon>
+                      <input
+                        class="fahrzeug-inline-input"
+                        [value]="fahrzeugInputValue(posten)"
+                        [matAutocomplete]="fahrzeugAuto"
+                        (focus)="updateFahrzeugFilter(posten.id, '')"
+                        (input)="updateFahrzeugFilter(posten.id, $any($event.target).value)"
+                        (blur)="updateFahrzeugFilter(posten.id, null)"
+                        placeholder="Fahrzeug…"
+                      />
+                      <mat-autocomplete
+                        #fahrzeugAuto
+                        panelWidth="auto"
+                        (optionSelected)="onFahrzeugSelected(posten.id, $event.option.value)"
+                      >
+                        @for (f of filteredFahrzeuge(posten.id); track f.seriennummer) {
+                          <mat-option [value]="f"
+                            >{{ f.funkruf }} ({{ f.seriennummer }})</mat-option
+                          >
+                        }
+                        @if (posten.fahrzeug) {
+                          <mat-option [value]="null">— Kein Fahrzeug —</mat-option>
+                        }
+                      </mat-autocomplete>
+                    </div>
+                    @if (posten.telefonnummer) {
+                      <div class="posten-telefon-inline" (click)="$event.stopPropagation()">
+                        <mat-icon class="telefon-icon">phone</mat-icon>
+                        <span>{{ posten.telefonnummer }}</span>
+                      </div>
+                    }
+                  </mat-panel-title>
+                  <mat-panel-description (click)="$event.stopPropagation()">
+                    <div
+                      class="staerke-block compact description-spacer"
+                      role="grid"
+                      [attr.aria-label]="'Stärke ' + posten.label"
+                    >
+                      <div class="staerke-row soll" role="row">
+                        <span class="staerke-label" role="gridcell">Soll</span>
+                        <span class="staerke-num" role="gridcell">{{
+                          postenSoll(posten).fuhrer
+                        }}</span>
+                        <span class="staerke-sep" role="gridcell">/</span>
+                        <span class="staerke-num" role="gridcell">{{
+                          postenSoll(posten).unterfuehrer
+                        }}</span>
+                        <span class="staerke-sep" role="gridcell">/</span>
+                        <span class="staerke-num" role="gridcell">{{
+                          postenSoll(posten).helfer
+                        }}</span>
+                        <span class="staerke-sep" role="gridcell">/</span>
+                        <span class="staerke-num" role="gridcell"
+                          ><span class="gesamt-num">{{ postenSoll(posten).gesamt }}</span></span
+                        >
+                      </div>
+                      <div class="staerke-row ist" role="row">
+                        <span class="staerke-label" role="gridcell">Ist</span>
+                        <span
+                          class="staerke-num"
+                          role="gridcell"
+                          [class]="
+                            staerkeStatus(postenIst(posten).fuhrer, postenSoll(posten).fuhrer)
+                          "
+                          >{{ postenIst(posten).fuhrer }}</span
+                        >
+                        <span class="staerke-sep" role="gridcell">/</span>
+                        <span
+                          class="staerke-num"
+                          role="gridcell"
+                          [class]="
+                            staerkeStatus(
+                              postenIst(posten).unterfuehrer,
+                              postenSoll(posten).unterfuehrer
+                            )
+                          "
+                          >{{ postenIst(posten).unterfuehrer }}</span
+                        >
+                        <span class="staerke-sep" role="gridcell">/</span>
+                        <span
+                          class="staerke-num"
+                          role="gridcell"
+                          [class]="
+                            staerkeStatus(postenIst(posten).helfer, postenSoll(posten).helfer)
+                          "
+                          >{{ postenIst(posten).helfer }}</span
+                        >
+                        <span class="staerke-sep" role="gridcell">/</span>
+                        <span
+                          class="staerke-num"
+                          role="gridcell"
+                          [class]="
+                            staerkeStatus(postenIst(posten).gesamt, postenSoll(posten).gesamt)
+                          "
+                          ><span class="gesamt-num">{{ postenIst(posten).gesamt }}</span></span
+                        >
+                      </div>
+                    </div>
+                    <button
+                      mat-icon-button
+                      class="posten-action-btn"
+                      matTooltip="Leeren"
+                      (click)="clearPosten(posten)"
+                    >
+                      <mat-icon>cleaning_services</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      class="posten-action-btn posten-action-btn--danger"
+                      matTooltip="Posten löschen"
+                      (click)="deletePosten(posten)"
+                    >
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      class="posten-action-btn"
+                      [matTooltip]="panel.expanded ? 'Einklappen' : 'Ausklappen'"
+                      (click)="panel.toggle()"
+                    >
+                      <mat-icon>{{ panel.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    </button>
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+
+                <div class="position-list">
+                  @for (position of posten.positions; track position.id) {
+                    <div
+                      class="position-row"
+                      (contextmenu)="onPositionContextMenu($event, posten.id, position.id)"
+                    >
+                      <div class="position-label-cell">
+                        <button
+                          mat-icon-button
+                          class="postenfuehrer-btn"
+                          [class.postenfuehrer-btn--active]="position.isPostenfuehrer"
+                          matTooltip="Postenführer"
+                          (click)="
+                            togglePostenfuehrer(posten.id, position.id, !!position.isPostenfuehrer);
+                            $event.stopPropagation()
+                          "
+                        >
+                          <img
+                            [src]="postenfuehrerIconUrl"
+                            class="postenfuehrer-tz-icon"
+                            alt="Postenführer"
+                          />
+                        </button>
+                        <input
+                          class="position-label-input"
+                          [value]="position.label"
+                          (click)="$event.stopPropagation()"
+                          (blur)="
+                            updatePositionLabel(posten.id, position.id, $any($event.target).value)
+                          "
+                        />
+                      </div>
+                      <div class="position-reqs">
+                        <button
+                          class="req-chip-btn"
+                          [matMenuTriggerFor]="taktischMenu"
+                          (click)="$event.stopPropagation()"
+                        >
+                          @if (position.requirements.taktisch) {
+                            <span
+                              class="tag-chip"
+                              [style.background]="taktischColor(position.requirements.taktisch).bg"
+                              [style.color]="taktischColor(position.requirements.taktisch).fg"
+                              [style.border]="
+                                position.requirements.taktisch === 'VF'
+                                  ? '1px solid #000548'
+                                  : 'none'
+                              "
+                            >
+                              {{ position.requirements.taktisch }}
+                            </span>
+                          } @else {
+                            <span class="tag-chip req-any">–</span>
+                          }
+                          <mat-icon class="req-arrow">arrow_drop_down</mat-icon>
+                        </button>
+                        <mat-menu #taktischMenu>
+                          <button
+                            mat-menu-item
+                            (click)="updatePositionTaktisch(posten.id, position.id, null)"
+                          >
+                            <span class="tag-chip req-any">– Keine –</span>
+                          </button>
+                          @for (opt of TAKTISCH_OPTIONS; track opt) {
+                            @if (opt) {
+                              <button
+                                mat-menu-item
+                                (click)="updatePositionTaktisch(posten.id, position.id, opt)"
+                              >
+                                <span
+                                  class="tag-chip"
+                                  [style.background]="taktischColor(opt).bg"
+                                  [style.color]="taktischColor(opt).fg"
+                                  [style.border]="opt === 'VF' ? '1px solid #000548' : 'none'"
+                                  >{{ opt }}</span
+                                >
+                              </button>
+                            }
+                          }
+                        </mat-menu>
+                        <button
+                          class="req-chip-btn"
+                          [matMenuTriggerFor]="medizinischMenu"
+                          (click)="$event.stopPropagation()"
+                        >
+                          @if (position.requirements.medizinisch) {
+                            <span
+                              class="tag-chip"
+                              [style.background]="
+                                medizinischColor(position.requirements.medizinisch).bg
+                              "
+                              [style.color]="medizinischColor(position.requirements.medizinisch).fg"
+                            >
+                              {{ position.requirements.medizinisch }}
+                            </span>
+                          } @else {
+                            <span class="tag-chip req-any">–</span>
+                          }
+                          <mat-icon class="req-arrow">arrow_drop_down</mat-icon>
+                        </button>
+                        <mat-menu #medizinischMenu>
+                          <button
+                            mat-menu-item
+                            (click)="updatePositionMedizinisch(posten.id, position.id, null)"
+                          >
+                            <span class="tag-chip req-any">– Keine –</span>
+                          </button>
+                          @for (opt of MEDIZINISCH_OPTIONS; track opt) {
+                            @if (opt) {
+                              <button
+                                mat-menu-item
+                                (click)="updatePositionMedizinisch(posten.id, position.id, opt)"
+                              >
+                                <span
+                                  class="tag-chip"
+                                  [style.background]="medizinischColor(opt).bg"
+                                  [style.color]="medizinischColor(opt).fg"
+                                  >{{ opt }}</span
+                                >
+                              </button>
+                            }
+                          }
+                        </mat-menu>
+                      </div>
+                      <div
+                        class="position-assigned"
+                        cdkDropList
+                        cdkDropListSortingDisabled
+                        [cdkDropListData]="{ postenId: posten.id, positionId: position.id }"
+                        [class]="
+                          'match-' +
+                          positionMatchClass(
+                            position,
+                            draggingEinsatzkraft() ?? assignedPerson(position)
+                          )
+                        "
+                        (cdkDropListDropped)="onDropToPosition($event)"
+                      >
+                        @let matchCls = positionMatchClass(position, assignedPerson(position));
+                        <mat-icon
+                          class="match-status-icon"
+                          [class.match-status-icon--full]="matchCls === 'full'"
+                          [class.match-status-icon--partial]="matchCls === 'partial'"
+                          [class.match-status-icon--mismatch]="matchCls === 'mismatch'"
+                          [class.match-status-icon--empty]="!position.assigned"
+                        >
+                          {{
+                            matchCls === 'full'
+                              ? 'check_circle'
+                              : matchCls === 'partial'
+                                ? 'warning'
+                                : matchCls === 'mismatch'
+                                  ? 'cancel'
+                                  : 'radio_button_unchecked'
+                          }}
+                        </mat-icon>
+                        @if (position.assigned) {
+                          <div
+                            cdkDrag
+                            [cdkDragData]="{
+                              einsatzkraftId: position.assigned.id,
+                              fromPostenId: posten.id,
+                              fromPositionId: position.id,
+                            }"
+                            (cdkDragStarted)="onDragStarted($event)"
+                            (cdkDragEnded)="onDragEnded()"
+                            class="assigned-drag-item"
+                          >
+                            <mat-icon class="assign-icon">person</mat-icon>
+                            <div class="assigned-name-block">
+                              <span>{{ position.assigned.name }}</span>
+                              @if (assignedPerson(position); as person) {
+                                <div class="assigned-chips">
+                                  @for (tag of person.tags.taktisch ?? []; track tag) {
+                                    <span
+                                      class="tag-chip tag-chip--sm"
+                                      [style.background]="taktischColor(tag).bg"
+                                      [style.color]="taktischColor(tag).fg"
+                                      [matTooltip]="TAKTISCH_LABEL[tag]"
+                                      >{{ tag }}</span
+                                    >
+                                  }
+                                  @for (tag of person.tags.medizinisch ?? []; track tag) {
+                                    <span
+                                      class="tag-chip tag-chip--sm"
+                                      [style.background]="medizinischColor(tag).bg"
+                                      [style.color]="medizinischColor(tag).fg"
+                                      [matTooltip]="MEDIZINISCH_LABEL[tag]"
+                                      >{{ tag }}</span
+                                    >
+                                  }
+                                  @for (tag of person.tags.zusatz ?? []; track tag) {
+                                    <span
+                                      class="tag-chip tag-chip--sm tag-zusatz"
+                                      [matTooltip]="tag"
+                                      >{{ tag }}</span
+                                    >
+                                  }
+                                </div>
+                              }
+                            </div>
+                          </div>
+                          <button
+                            mat-icon-button
+                            class="unassign-btn"
+                            matTooltip="Zuteilung aufheben"
+                            (click)="
+                              unassignFromPosition(posten.id, position.id); $event.stopPropagation()
+                            "
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        } @else {
+                          <mat-icon class="assign-icon unassigned">person_add</mat-icon>
+                          <span class="unassigned-label">Nicht besetzt</span>
+                        }
+                      </div>
+                    </div>
+                  }
+                  <div class="add-position-row">
+                    <button mat-stroked-button color="secondary" (click)="addPosition(posten.id)">
+                      <mat-icon>add</mat-icon> Neue Position
+                    </button>
+                  </div>
+                </div>
+              </mat-expansion-panel>
+            }
+          </mat-accordion>
+          <div class="add-posten-row">
+            <button mat-stroked-button color="secondary" (click)="addPosten()">
+              <mat-icon>add</mat-icon> Neuer Posten
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+} @else {
+  <div class="editor-shell no-planung-shell">
+    <mat-toolbar color="primary" class="editor-toolbar">
+      <button mat-icon-button (click)="goBack()" matTooltip="Zurück zur Übersicht">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <span style="margin-left: 8px">Personaleinsatzplanung</span>
+    </mat-toolbar>
+    <div class="no-planung">
+      <p>Keine Planung geöffnet.</p>
+      <button mat-raised-button color="primary" (click)="goBack()">Zur Übersicht</button>
+    </div>
+  </div>
+}

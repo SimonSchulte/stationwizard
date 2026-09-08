@@ -1,0 +1,235 @@
+:host {
+  position: relative;
+  display: block;
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) calc(var(--space-sm) + 6px);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+  overflow: hidden;
+}
+
+:host(.ereignis) {
+  background: var(--surface-tertiary);
+  border-style: dashed;
+}
+
+:host(.frei) .titel {
+  color: var(--text-disabled);
+}
+
+/* Gitter-Modus im Wochenraster: schmale Spalte statt breiter Zeile. */
+:host(.kompakt) {
+  padding: 4px 6px 4px 10px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+:host(.kompakt) .kopf {
+  gap: 4px;
+  min-height: 18px;
+}
+
+:host(.kompakt) .titel {
+  margin-top: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+:host(.kompakt) .rolle-chip {
+  padding: 0 5px;
+  font-size: 0.625rem;
+}
+
+:host(.kompakt) .menue-knopf {
+  --mat-icon-button-state-layer-size: 22px;
+
+  width: 22px;
+  height: 22px;
+  padding: 0;
+
+  ::ng-deep .mat-mdc-button-touch-target {
+    width: 22px;
+    height: 22px;
+  }
+
+  mat-icon {
+    font-size: 16px;
+  }
+}
+
+.feiertag-symbol,
+.hinweis-symbol {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.feiertag-symbol {
+  color: var(--feiertag-text);
+}
+
+/* Montag ohne Ausbildung – dieselbe rote Sprache wie ein ganz leerer Tag. */
+:host(.luecke) {
+  border: 1px solid var(--luecke-rand);
+  background: var(--luecke-bg);
+}
+
+.luecke-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--luecke-text);
+  font-weight: 500;
+
+  mat-icon {
+    font-size: 17px;
+  }
+}
+
+.feiertag-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-chip);
+  background: var(--feiertag-bg);
+  color: var(--feiertag-text);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 14px;
+  }
+}
+
+.rolle-streifen {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+}
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 28px;
+}
+
+.datum {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+
+  .tag {
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .tagdatum {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+}
+
+.rolle-chip {
+  padding: 1px 8px;
+  border-radius: var(--radius-chip);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.hinweis {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fueller {
+  flex: 1 1 auto;
+}
+
+.menue-knopf {
+  --mat-icon-button-state-layer-size: 30px;
+
+  flex: 0 0 auto;
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+
+:host(:hover) .menue-knopf,
+.menue-knopf:focus-visible {
+  opacity: 1;
+}
+
+.titel {
+  margin-top: 2px;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.platzhalter {
+  font-style: italic;
+  color: var(--text-disabled);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.meta-eintrag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  mat-icon {
+    font-size: 15px;
+  }
+}
+
+.kats {
+  color: var(--text-disabled);
+
+  &.verknuepft {
+    color: var(--ci-blue);
+  }
+}
+
+.nachweise {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.nachweis-chip {
+  padding: 1px 7px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-chip);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}

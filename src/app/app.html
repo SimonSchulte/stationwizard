@@ -1,0 +1,16 @@
+<a class="sprunglink" href="#inhalt">Zum Inhalt</a>
+<header class="shell-kopf">
+  <a class="marke" routerLink="/" aria-label="stationwizard Startseite">
+    <mat-icon aria-hidden="true">hub</mat-icon>
+    <span>stationwizard</span>
+  </a>
+  <nav aria-label="Hauptnavigation">
+    <a routerLink="/ausbildung" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
+      <mat-icon aria-hidden="true">calendar_month</mat-icon> Ausbildung
+    </a>
+    <a routerLink="/einsatz" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
+      <mat-icon aria-hidden="true">groups</mat-icon> Einsatz
+    </a>
+  </nav>
+</header>
+<main id="inhalt" tabindex="-1"><router-outlet /></main>

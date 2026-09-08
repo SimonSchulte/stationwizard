@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>EFS-API Verbindung</h2>
+
+<mat-dialog-content>
+  <p class="hint">
+    Gib deinen HiOrg-Server EFS-API-Key ein, um Veranstaltungen und Einsatzkräfte direkt zu laden.
+    Der Key wird lokal im Browser gespeichert.
+  </p>
+
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>API-Key</mat-label>
+    <input matInput [(ngModel)]="apiKey" placeholder="dein-api-key" [disabled]="validating()" />
+    <mat-icon matSuffix>vpn_key</mat-icon>
+  </mat-form-field>
+
+  @if (validating()) {
+    <p class="status-hint validating">
+      <mat-spinner diameter="16" />
+      Key wird überprüft…
+    </p>
+  }
+  @if (validationError()) {
+    <p class="status-hint error">
+      <mat-icon>error_outline</mat-icon>
+      {{ validationError() }}
+    </p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (appMode.apiKey()) {
+    <button mat-button color="warn" (click)="remove()" [disabled]="validating()">
+      <mat-icon>link_off</mat-icon>
+      Verbindung trennen
+    </button>
+  }
+  <button mat-button (click)="cancel()" [disabled]="validating()">Abbrechen</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="!apiKey() || validating()">
+    Speichern
+  </button>
+</mat-dialog-actions>
