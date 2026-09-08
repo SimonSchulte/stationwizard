@@ -1,27 +1,20 @@
-import { Injectable } from '@angular/core';
-import { Planung, PepFile } from '../models/planung.model';
-import { formatTaktischeZeit } from '../utils/taktische-zeit';
+import { Injectable, inject } from '@angular/core';
+import { DialogDienst } from '../../kern/dialog/dialog-dienst';
+import { Planung } from '../models/planung.model';
+import { formatiereTaktischeZeit } from '../../kern/kalender/taktische-zeit';
 import { dateiHerunterladen } from '../../kern/storage/datei-storage';
 import { JsonDateiStorage } from './json-datei-storage';
 
-const CURRENT_VERSION = '1.0';
+import { lesePepDatei, serialisierePepDatei } from './pep-datei';
 
 @Injectable({ providedIn: 'root' })
 export class SaveLoadService {
+  private readonly dialogDienst = inject(DialogDienst);
   save(planung: Planung): void {
-    const pepFile: PepFile = {
-      version: CURRENT_VERSION,
-      meta: {
-        exportedAt: new Date().toISOString(),
-        taktischeZeit: formatTaktischeZeit(new Date()),
-        locale: 'de-DE',
-      },
-      planung,
-    };
-    const json = JSON.stringify(pepFile, null, 2);
+    const json = serialisierePepDatei(planung);
     dateiHerunterladen(
       json,
-      `${planung.name}_${formatTaktischeZeit(new Date())}.pep.json`,
+      `${planung.name}_${formatiereTaktischeZeit(new Date())}.pep.json`,
       'application/json',
     );
   }
@@ -39,10 +32,11 @@ export class SaveLoadService {
         }
         try {
           const inhalt = await new JsonDateiStorage(file).laden();
-          const pepFile: PepFile = JSON.parse(new TextDecoder().decode(inhalt.daten));
-          const versionWarning = pepFile.version !== CURRENT_VERSION;
-          resolve({ planung: pepFile.planung, versionWarning });
-        } catch {
+          resolve(lesePepDatei(new TextDecoder().decode(inhalt.daten)));
+        } catch (fehler) {
+          await this.dialogDienst.hinweis(
+            fehler instanceof Error ? fehler.message : 'Die Datei konnte nicht gelesen werden.',
+          );
           resolve(null);
         }
       };

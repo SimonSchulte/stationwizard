@@ -9,16 +9,17 @@
 }
 
 .list-content {
-  padding: 24px;
-  max-width: 1200px;
+  padding: var(--space-lg);
+  max-width: var(--content-width);
   margin: 0 auto;
   width: 100%;
 }
 
 .section-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 
   h2 {
     margin: 0;
@@ -28,18 +29,24 @@
 .loading-container {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 24px 0;
-  color: rgba(0, 0, 0, 0.6);
+  gap: var(--space-md);
+  padding: var(--space-lg) 0;
+  color: var(--text-secondary);
 }
 
 .einsatz-table {
   width: 100%;
-  margin-bottom: 24px;
+  min-width: var(--planung-table-width);
+  margin-bottom: var(--space-lg);
 
   &.past {
     opacity: 0.7;
   }
+}
+
+.tabellenbereich {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .einsatz-row {
@@ -47,38 +54,40 @@
   transition: background 0.15s;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.04);
+    background: var(--surface-hover);
   }
 }
 
 .past-header {
-  margin-top: 24px;
-  color: rgba(0, 0, 0, 0.6);
+  margin-top: var(--space-lg);
+  color: var(--text-secondary);
 }
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--planung-card-width)), 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
 }
 
 .planung-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition: box-shadow 0.2s;
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--elevation-2);
   }
 }
 
 .efs-link-hint {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  margin: 4px 0 0;
+  color: var(--text-secondary);
+  margin: var(--space-xs) 0 0;
 }
 
 .efs-icon {
@@ -88,13 +97,13 @@
 }
 
 .empty-hint {
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--text-secondary);
   font-style: italic;
 }
 
 .error-hint {
   color: var(--status-under);
-  padding: 8px 0;
+  padding: var(--space-sm) 0;
 }
 
 /* M-1: Empty state */
@@ -102,34 +111,96 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 48px 0;
+  gap: var(--space-base);
+  padding: var(--space-2xl) 0;
   text-align: center;
 
   .empty-state-icon {
     font-size: 48px;
     width: 48px;
     height: 48px;
-    color: rgba(0, 0, 0, 0.24);
+    color: var(--text-disabled);
   }
 }
 
 .schichten-badge {
   display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 12px;
+  margin-left: var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-chip);
   font-size: 11px;
   font-weight: 600;
-  background: var(--color-primary, #000548);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--surface-primary);
   vertical-align: middle;
 }
 
 /* M-4: Toolbar CSS classes */
 .toolbar-title {
-  margin-left: 8px;
+  margin-left: var(--space-sm);
+  white-space: normal;
 }
-.toolbar-btn {
-  margin-left: 8px;
+
+.listen-kopfleiste {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: calc(var(--space-sm) * 7);
+  padding-block: var(--space-sm);
+  gap: var(--space-sm);
+  white-space: normal;
+}
+
+.abschnitt-trenner {
+  margin: var(--space-xl) 0;
+}
+
+.cloud-planungen {
+  margin-block-end: var(--space-xl);
+}
+
+.cloud-dateien {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-sm);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  span {
+    overflow-wrap: anywhere;
+  }
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.verbindungsstatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  margin-inline: var(--space-sm);
+}
+
+@media (max-width: 780px) {
+  .list-content {
+    padding: var(--space-md);
+  }
+
+  .listen-kopfleiste .spacer {
+    display: none;
+  }
+
+  .verbindungsstatus {
+    flex-basis: 100%;
+    margin-inline: 0;
+  }
 }

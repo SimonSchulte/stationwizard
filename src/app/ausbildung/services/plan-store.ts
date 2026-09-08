@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   KatsThema,
   PlanDocument,
@@ -9,6 +9,7 @@ import {
 } from '../models/plan.model';
 import { STANDARD_DIENSTTAG } from '../../kern/kalender/wochentage';
 import { Wochentag, wochentageImJahr } from '../../kern/kalender/datum';
+import { VerlassenSchutz } from '../../kern/verlassen-schutz';
 
 const MAX_HISTORIE = 100;
 
@@ -38,6 +39,10 @@ export class PlanStore {
 
   readonly katsThemaNachId = computed(() => new Map(this.katsThemen().map((t) => [t.id, t])));
 
+  constructor() {
+    inject(VerlassenSchutz).registrieren(() => this.ungespeichert());
+  }
+
   terminNachId(id: string): Termin | undefined {
     return this.termine().find((t) => t.id === id) ?? this.backlog().find((t) => t.id === id);
   }
@@ -51,8 +56,11 @@ export class PlanStore {
     this.ungespeichert.set(false);
   }
 
-  alsGespeichertMarkieren(): void {
-    this.ungespeichert.set(false);
+  /** Ein asynchron gespeicherter Stand darf spätere Bearbeitungen nicht quittieren. */
+  alsGespeichertMarkieren(stand: PlanDocument = this.zustand()): void {
+    if (stand === this.zustand()) {
+      this.ungespeichert.set(false);
+    }
   }
 
   setzeJahr(jahr: number): void {

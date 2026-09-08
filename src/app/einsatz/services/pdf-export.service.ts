@@ -1,23 +1,88 @@
-import { Injectable } from '@angular/core';
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import { Injectable, inject } from '@angular/core';
 import type { Content, ContentText, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { Planung, Posten, Taktisch, Medizinisch, TAKTISCH_ORDER } from '../models/planung.model';
-import { formatTaktischeZeit, formatTaktischeZeitDisplay } from '../utils/taktische-zeit';
+import { DialogDienst } from '../../kern/dialog/dialog-dienst';
+import { dateiHerunterladen } from '../../kern/storage/datei-storage';
+import {
+  formatiereTaktischeZeit,
+  formatiereTaktischeZeitAnzeige,
+} from '../../kern/kalender/taktische-zeit';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(pdfMake as any).vfs = (pdfFonts as any).vfs;
+/** PDF unterstützt keine CSS-Variablen; dieselben Designfarben werden hier konkret geführt. */
+const PDF_FARBEN = {
+  dunkelblau: '#000548',
+  blau: '#4A6FB8',
+  rot: '#EB003C',
+  hellgrau: '#C7CCD9',
+  alternierendeZeile: '#F5F6FA',
+  weiss: '#FFFFFF',
+  schwarz: '#000000',
+  sekundaer: '#666666',
+  beschriftung: '#444444',
+  text: '#333333',
+  platzhalter: '#AAAAAA',
+  gruen: '#2F8F68',
+  gelb: '#DEE100',
+  neutral: '#E8E8E8',
+  neutralText: '#424242',
+} as const;
 
-const CI_NAVY = '#000548';
-const CI_BLUE = '#4A6FB8';
-const CI_RED = '#EB003C';
-const CI_LIGHT_GRAY = '#C7CCD9';
-const CI_ROW_ALT = '#F5F6FA';
+let geladeneBibliothek: ReturnType<typeof importierePdfBibliothek> | null = null;
+
+async function importierePdfBibliothek() {
+  const [pdfModul, schriftModul] = await Promise.all([
+    import('pdfmake/build/pdfmake'),
+    import('pdfmake/build/vfs_fonts'),
+  ]);
+  // pdfmake 0.3 exportiert die Dateiname/Base64-Map selbst, keinen .vfs-Unterknoten.
+  // https://pdfmake.github.io/docs/0.3/getting-started/client-side/
+  pdfModul.default.addVirtualFileSystem(schriftModul.default);
+  return pdfModul.default;
+}
+
+async function ladePdfBibliothek() {
+  geladeneBibliothek ??= importierePdfBibliothek();
+  try {
+    return await geladeneBibliothek;
+  } catch (ursache) {
+    geladeneBibliothek = null;
+    throw ursache;
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class PdfExportService {
-  export(planung: Planung): void {
-    const fmt = new Intl.DateTimeFormat('de-DE', {
+  private readonly dialog = inject(DialogDienst);
+
+  async exportieren(planung: Planung): Promise<void> {
+    try {
+      const zeitpunkt = new Date();
+      const daten = await this.erzeugePdf(planung, zeitpunkt);
+      const name =
+        planung.name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').trim() || 'Einsatzplanung';
+      dateiHerunterladen(
+        daten,
+        `${name}_${formatiereTaktischeZeit(zeitpunkt)}.pep.pdf`,
+        'application/pdf',
+      );
+    } catch {
+      await this.dialog.hinweis(
+        'Das PDF konnte nicht erstellt werden. Bitte prüfe die Datumsangaben und versuche es erneut.',
+        'PDF-Export fehlgeschlagen',
+      );
+    }
+  }
+
+  /** Erzeugt echte PDF-Bytes; Bibliothek und Schriften werden erst hier geladen. */
+  async erzeugePdf(planung: Planung, zeitpunkt = new Date()): Promise<Uint8Array<ArrayBuffer>> {
+    const dokument = this.baueDokument(planung, zeitpunkt);
+    const pdfMake = await ladePdfBibliothek();
+    const daten = await pdfMake.createPdf(dokument).getBuffer();
+    return Uint8Array.from(daten);
+  }
+
+  private baueDokument(planung: Planung, zeitpunkt: Date): TDocumentDefinitions {
+    const formatierer = new Intl.DateTimeFormat('de-DE', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -25,16 +90,15 @@ export class PdfExportService {
       minute: '2-digit',
       timeZone: 'Europe/Berlin',
     });
-    const nowDate = new Date();
-    const now = formatTaktischeZeit(nowDate);
-    const nowDisplay = formatTaktischeZeitDisplay(nowDate);
-    const start = fmt.format(this.parseDate(planung.start));
-    const dateRangeText = planung.end
-      ? `${start} – ${fmt.format(this.parseDate(planung.end))}`
+    const taktischeZeit = formatiereTaktischeZeit(zeitpunkt);
+    const zeitAnzeige = formatiereTaktischeZeitAnzeige(zeitpunkt);
+    const start = formatierer.format(this.leseDatum(planung.start));
+    const zeitraum = planung.end
+      ? `${start} – ${formatierer.format(this.leseDatum(planung.end))}`
       : start;
 
-    const content: Content[] = [
-      // CI-Navy header bar
+    const inhalt: Content[] = [
+      // Kopfzeile in der gemeinsamen Hauptfarbe.
       {
         table: {
           widths: ['*'],
@@ -42,10 +106,10 @@ export class PdfExportService {
             [
               {
                 text: planung.name,
-                color: '#FFFFFF',
+                color: PDF_FARBEN.weiss,
                 bold: true,
                 fontSize: 18,
-                fillColor: CI_NAVY,
+                fillColor: PDF_FARBEN.dunkelblau,
                 margin: [8, 8, 8, 8],
               },
             ],
@@ -54,16 +118,16 @@ export class PdfExportService {
         layout: 'noBorders',
         margin: [0, 0, 0, 4],
       } as Content,
-      { text: dateRangeText, style: 'dateRange', margin: [0, 0, 0, 4] },
+      { text: zeitraum, style: 'zeitraum', margin: [0, 0, 0, 4] },
     ];
 
     if (planung.einsatzleiter) {
-      content.push({
+      inhalt.push({
         table: {
           widths: [4, '*'],
           body: [
             [
-              { text: '', fillColor: CI_RED, border: [false, false, false, false] },
+              { text: '', fillColor: PDF_FARBEN.rot, border: [false, false, false, false] },
               {
                 text: `Einsatzleiter: ${planung.einsatzleiter.name}`,
                 style: 'einsatzleiter',
@@ -77,161 +141,166 @@ export class PdfExportService {
         margin: [0, 0, 0, 12],
       } as Content);
     } else {
-      content.push({ text: '', margin: [0, 0, 0, 12] });
+      inhalt.push({ text: '', margin: [0, 0, 0, 12] });
     }
 
     if (planung.beschreibung) {
-      content.push({
+      inhalt.push({
         text: planung.beschreibung,
         style: 'beschreibung',
         margin: [0, 0, 0, 8],
       });
     }
 
-    content.push({
-      text: `Taktische Zeit: ${now}  (${nowDisplay})`,
+    inhalt.push({
+      text: `Taktische Zeit: ${taktischeZeit}  (${zeitAnzeige})`,
       style: 'taktischeZeit',
       margin: [0, 0, 0, 12],
     });
 
     for (const posten of planung.posten) {
-      content.push(...this.buildPostenBlock(posten, planung));
+      inhalt.push(...this.bauePostenBlock(posten, planung));
     }
 
-    const docDef: TDocumentDefinitions = {
+    const dokument: TDocumentDefinitions = {
       pageSize: 'A4',
       pageMargins: [40, 60, 40, 50],
       header: () => ({ text: '', margin: [40, 20] }),
-      footer: (_page: number, _pages: number) => ({
-        text: `Exportiert am: ${now}  (${nowDisplay})`,
+      footer: () => ({
+        text: `Exportiert am: ${taktischeZeit}  (${zeitAnzeige})`,
         alignment: 'right',
         fontSize: 8,
-        color: '#666666',
+        color: PDF_FARBEN.sekundaer,
         margin: [40, 10],
       }),
-      content,
+      content: inhalt,
       styles: {
-        dateRange: { fontSize: 11, color: '#444444' },
+        zeitraum: { fontSize: 11, color: PDF_FARBEN.beschriftung },
         einsatzleiter: { fontSize: 11, italics: true },
-        beschreibung: { fontSize: 11, color: '#333333' },
-        taktischeZeit: { fontSize: 12, bold: true, color: '#000000' },
-        tableHeader: { bold: true, fontSize: 9, color: '#FFFFFF', fillColor: CI_BLUE },
+        beschreibung: { fontSize: 11, color: PDF_FARBEN.text },
+        taktischeZeit: { fontSize: 12, bold: true, color: PDF_FARBEN.schwarz },
+        tabellenKopf: {
+          bold: true,
+          fontSize: 9,
+          color: PDF_FARBEN.weiss,
+          fillColor: PDF_FARBEN.blau,
+        },
       },
       defaultStyle: { fontSize: 10 },
     };
 
-    const filename = `${planung.name}_${now}.pep.pdf`;
-    pdfMake.createPdf(docDef).download(filename);
+    return dokument;
   }
 
-  private buildPostenBlock(posten: Posten, planung: Planung): Content[] {
-    // CI-Navy Posten header
-    const headerCells: Content[] = [
+  private bauePostenBlock(posten: Posten, planung: Planung): Content[] {
+    // Postenkopf mit Fahrzeug und Kontakt.
+    const kopfZellen: Content[] = [
       {
         text: posten.label,
-        color: '#FFFFFF',
+        color: PDF_FARBEN.weiss,
         bold: true,
         fontSize: 12,
-        fillColor: CI_NAVY,
+        fillColor: PDF_FARBEN.dunkelblau,
         margin: [6, 4, 4, 4],
         border: [false, false, false, false],
       } as Content,
     ];
 
-    const headerWidths: (string | number)[] = ['*'];
+    const kopfBreiten: (string | number)[] = ['*'];
 
     if (posten.fahrzeug) {
-      headerCells.push({
+      kopfZellen.push({
         text: posten.fahrzeug.funkruf,
-        color: CI_LIGHT_GRAY,
+        color: PDF_FARBEN.hellgrau,
         bold: false,
         fontSize: 12,
-        fillColor: CI_NAVY,
+        fillColor: PDF_FARBEN.dunkelblau,
         margin: [0, 4, 6, 4],
         border: [false, false, false, false],
       } as Content);
-      headerWidths.push('auto');
+      kopfBreiten.push('auto');
     }
 
     if (posten.telefonnummer) {
-      headerCells.push({
+      kopfZellen.push({
         text: `\u260E ${posten.telefonnummer}`,
-        color: CI_LIGHT_GRAY,
+        color: PDF_FARBEN.hellgrau,
         bold: false,
         fontSize: 11,
-        fillColor: CI_NAVY,
+        fillColor: PDF_FARBEN.dunkelblau,
         margin: [0, 4, 6, 4],
         border: [false, false, false, false],
       } as Content);
-      headerWidths.push('auto');
+      kopfBreiten.push('auto');
     }
 
-    const postenHeader: Content = {
+    const postenKopf: Content = {
       table: {
-        widths: headerWidths,
-        body: [headerCells],
+        widths: kopfBreiten,
+        body: [kopfZellen],
       },
       layout: 'noBorders',
       margin: [0, 12, 0, 4],
     } as Content;
 
-    const tableBody: Content[][] = [
+    const tabellenZeilen: Content[][] = [
       [
-        { text: 'Position', style: 'tableHeader' },
-        { text: 'Taktisch', style: 'tableHeader' },
-        { text: 'Medizinisch', style: 'tableHeader' },
-        { text: 'Zusatz', style: 'tableHeader' },
-        { text: 'Einsatzkraft', style: 'tableHeader' },
+        { text: 'Position', style: 'tabellenKopf' },
+        { text: 'Taktisch', style: 'tabellenKopf' },
+        { text: 'Medizinisch', style: 'tabellenKopf' },
+        { text: 'Zusatz', style: 'tabellenKopf' },
+        { text: 'Einsatzkraft', style: 'tabellenKopf' },
       ],
     ];
 
-    posten.positions.forEach((pos, idx) => {
-      const person = pos.assigned
-        ? (planung.einsatzkraefte.find((e) => e.id === pos.assigned!.id) ?? null)
+    posten.positions.forEach((position, index) => {
+      const einsatzkraft = position.assigned
+        ? (planung.einsatzkraefte.find((e) => e.id === position.assigned!.id) ?? null)
         : null;
 
-      const rowFill = idx % 2 === 0 ? '#FFFFFF' : CI_ROW_ALT;
+      const zeilenFarbe = index % 2 === 0 ? PDF_FARBEN.weiss : PDF_FARBEN.alternierendeZeile;
 
-      const tStyle = this.taktischStyle(pos.requirements.taktisch);
-      const mStyle = this.medizinischStyle(pos.requirements.medizinisch);
+      const taktikStil = this.taktischerStil(position.requirements.taktisch);
+      const medizinStil = this.medizinischerStil(position.requirements.medizinisch);
 
-      const tCell: ContentText = pos.requirements.taktisch
+      const taktikZelle: ContentText = position.requirements.taktisch
         ? {
-            text: pos.requirements.taktisch,
-            fillColor: tStyle.fillColor,
-            color: tStyle.color,
+            text: position.requirements.taktisch,
+            fillColor: taktikStil.fillColor,
+            color: taktikStil.color,
             alignment: 'center',
           }
-        : { text: '–', color: '#AAAAAA', alignment: 'center', fillColor: rowFill };
+        : { text: '–', color: PDF_FARBEN.platzhalter, alignment: 'center', fillColor: zeilenFarbe };
 
-      const mCell: ContentText = pos.requirements.medizinisch
+      const medizinZelle: ContentText = position.requirements.medizinisch
         ? {
-            text: pos.requirements.medizinisch,
-            fillColor: mStyle.fillColor,
-            color: mStyle.color,
+            text: position.requirements.medizinisch,
+            fillColor: medizinStil.fillColor,
+            color: medizinStil.color,
             alignment: 'center',
           }
-        : { text: '–', color: '#AAAAAA', alignment: 'center', fillColor: rowFill };
+        : { text: '–', color: PDF_FARBEN.platzhalter, alignment: 'center', fillColor: zeilenFarbe };
 
-      const zusatzText = pos.requirements.zusatz ?? person?.tags.zusatz?.join(', ') ?? '–';
-      const assignedName = pos.assigned ? pos.assigned.name : '—';
+      const zusatzText =
+        position.requirements.zusatz ?? einsatzkraft?.tags.zusatz?.join(', ') ?? '–';
+      const zugewiesenerName = position.assigned ? position.assigned.name : '—';
 
-      tableBody.push([
-        { text: pos.label, fillColor: rowFill },
-        tCell,
-        mCell,
-        { text: zusatzText || '–', fillColor: rowFill },
-        { text: assignedName, fillColor: rowFill },
+      tabellenZeilen.push([
+        { text: position.label, fillColor: zeilenFarbe },
+        taktikZelle,
+        medizinZelle,
+        { text: zusatzText || '–', fillColor: zeilenFarbe },
+        { text: zugewiesenerName, fillColor: zeilenFarbe },
       ]);
     });
 
     return [
-      postenHeader,
+      postenKopf,
       {
         table: {
           headerRows: 1,
           widths: ['*', 'auto', 'auto', 'auto', '*'],
-          body: tableBody,
+          body: tabellenZeilen,
         },
         layout: 'lightHorizontalLines',
         margin: [0, 0, 0, 8],
@@ -239,48 +308,57 @@ export class PdfExportService {
     ];
   }
 
-  private parseDate(str: string): Date {
-    const d = new Date(str);
-    if (!isNaN(d.getTime())) return d;
-    // German format: DD.MM.YYYY or DD.MM.YYYY HH:MM
-    const m = str.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
-    if (m) {
-      const [, dd, mm, yyyy, hh = '0', min = '0'] = m;
-      return new Date(+yyyy, +mm - 1, +dd, +hh, +min);
+  private leseDatum(wert: string): Date {
+    const datum = new Date(wert);
+    if (!Number.isNaN(datum.getTime())) return datum;
+    // Bestehende PEP-Dateien können das deutsche Format DD.MM.YYYY HH:MM enthalten.
+    const treffer = /^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?$/.exec(wert);
+    if (treffer) {
+      const [, tag, monat, jahr, stunde = '0', minute = '0'] = treffer;
+      const deutsch = new Date(+jahr, +monat - 1, +tag, +stunde, +minute);
+      if (
+        deutsch.getFullYear() === +jahr &&
+        deutsch.getMonth() === +monat - 1 &&
+        deutsch.getDate() === +tag
+      ) {
+        return deutsch;
+      }
     }
-    console.warn('PdfExportService: cannot parse date:', str);
-    return new Date(0);
+    throw new Error('Die Planung enthält ein ungültiges Datum.');
   }
 
-  private taktischStyle(tag: Taktisch | null): { fillColor: string; color: string } {
-    if (!tag) return { fillColor: '#FFFFFF', color: '#000000' };
-    const i = TAKTISCH_ORDER.indexOf(tag);
-    if (i <= 1) return { fillColor: CI_LIGHT_GRAY, color: CI_NAVY };
-    if (i === 2) return { fillColor: CI_BLUE, color: '#FFFFFF' };
-    if (i <= 4) return { fillColor: CI_RED, color: '#FFFFFF' };
-    return { fillColor: '#FFFFFF', color: CI_NAVY };
+  private taktischerStil(qualifikation: Taktisch | null): { fillColor: string; color: string } {
+    if (!qualifikation) return { fillColor: PDF_FARBEN.weiss, color: PDF_FARBEN.schwarz };
+    const rang = TAKTISCH_ORDER.indexOf(qualifikation);
+    if (rang <= 1) return { fillColor: PDF_FARBEN.hellgrau, color: PDF_FARBEN.dunkelblau };
+    if (rang === 2) return { fillColor: PDF_FARBEN.blau, color: PDF_FARBEN.weiss };
+    if (rang <= 4) return { fillColor: PDF_FARBEN.rot, color: PDF_FARBEN.weiss };
+    return { fillColor: PDF_FARBEN.weiss, color: PDF_FARBEN.dunkelblau };
   }
 
-  private medizinischStyle(tag: Medizinisch | null): { fillColor: string; color: string } {
-    if (!tag) return { fillColor: '#FFFFFF', color: '#000000' };
-    // Tag-based mapping per spec.md
-    switch (tag) {
+  private medizinischerStil(qualifikation: Medizinisch | null): {
+    fillColor: string;
+    color: string;
+  } {
+    if (!qualifikation) return { fillColor: PDF_FARBEN.weiss, color: PDF_FARBEN.schwarz };
+    // Zuordnung der Qualifikationsfarben gemäß Fachspezifikation.
+    switch (qualifikation) {
       case 'EH':
       case 'SSD':
       case 'SanH':
-        return { fillColor: CI_LIGHT_GRAY, color: CI_NAVY };
+        return { fillColor: PDF_FARBEN.hellgrau, color: PDF_FARBEN.dunkelblau };
       case 'RH':
-        return { fillColor: '#2F8F68', color: '#FFFFFF' };
+        return { fillColor: PDF_FARBEN.gruen, color: PDF_FARBEN.weiss };
       case 'RS':
-        return { fillColor: '#DEE100', color: CI_NAVY };
+        return { fillColor: PDF_FARBEN.gelb, color: PDF_FARBEN.dunkelblau };
       case 'RA':
       case 'NotSan':
-        return { fillColor: CI_RED, color: '#FFFFFF' };
+        return { fillColor: PDF_FARBEN.rot, color: PDF_FARBEN.weiss };
       case 'A':
       case 'NA':
-        return { fillColor: CI_BLUE, color: '#FFFFFF' };
+        return { fillColor: PDF_FARBEN.blau, color: PDF_FARBEN.weiss };
       default:
-        return { fillColor: '#E8E8E8', color: '#424242' };
+        return { fillColor: PDF_FARBEN.neutral, color: PDF_FARBEN.neutralText };
     }
   }
 }

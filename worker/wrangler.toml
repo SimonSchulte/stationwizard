@@ -1,0 +1,52 @@
+name = "stationwizard"
+main = "src/index.ts"
+compatibility_date = "2026-09-08"
+
+# Nur Laufzeitvariablen aus dem Dashboard erhalten, keine Secrets verwalten.
+# Dieser Schlüssel muss vor allen TOML-Tabellen stehen.
+keep_vars = true
+
+# Access muss auch den direkten Worker und seine Vorschauen schützen.
+# Die zusätzliche JWT-Prüfung im Worker sperrt ohne Access-Konfiguration zu.
+workers_dev = true
+preview_urls = true
+
+[assets]
+directory = "../dist/stationwizard/browser"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# ACCESS_TEAM_DOMAIN und ACCESS_AUD als Laufzeitvariablen am Worker setzen.
+# Kein Platzhalter und kein Entwicklungsschalter im Produktionscode.
+# Custom Domain erst nach bestätigter Hostnamenwahl und aktivierter Zone ergänzen.
+
+# Die Excel-Dateifreigabe und der PEP-Ordner sind getrennte Schreibziele.
+[[secrets_store_secrets]]
+binding = "NEXTCLOUD_BASE_URL"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "NEXTCLOUD_BASE_URL"
+
+[[secrets_store_secrets]]
+binding = "NEXTCLOUD_SHARE_TOKEN"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "NEXTCLOUD_SHARE_TOKEN"
+
+[[secrets_store_secrets]]
+binding = "NEXTCLOUD_PEP_SHARE_TOKEN"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "NEXTCLOUD_PEP_SHARE_TOKEN"
+
+# Optionale Passwörter nur für passwortgeschützte Freigaben als klassische
+# Laufzeit-Secrets setzen: NEXTCLOUD_SHARE_PASSWORD / NEXTCLOUD_PEP_SHARE_PASSWORD.
+# Ohne Passwort die Bindings vollständig weglassen (keine Platzhalterwerte).
+
+[[secrets_store_secrets]]
+binding = "HIORGSERVER_BASE_URL"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORGSERVER_BASE_URL"
+
+[[secrets_store_secrets]]
+binding = "HIORGSERVER_EFS_API_TOKEN"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORGSERVER_EFS_API_TOKEN"

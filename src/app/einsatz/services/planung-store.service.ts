@@ -1,4 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { VerlassenSchutz } from '../../kern/verlassen-schutz';
+import { PlanungCloudService } from './planung-cloud.service';
 import {
   Einsatzkraft,
   EfsEinsatz,
@@ -22,6 +24,13 @@ export class PlanungStoreService {
 
   readonly planungen = this._planungen.asReadonly();
   readonly active = this._active.asReadonly();
+
+  constructor() {
+    const cloud = inject(PlanungCloudService);
+    inject(VerlassenSchutz).registrieren(() =>
+      this._planungen().some((planung) => cloud.hatLokaleAenderungen(planung)),
+    );
+  }
 
   openPlanung(id: string): void {
     const found = this._planungen().find((p) => p.id === id) ?? null;
@@ -222,7 +231,15 @@ export class PlanungStoreService {
       return this.syncPostenfuehrerPhone(updated, merged);
     });
 
-    this.updateActive({ ...active, einsatzkraefte: merged, posten: newPosten });
+    this.updateActive({
+      ...active,
+      einsatzkraefte: merged,
+      posten: newPosten,
+      einsatzleiter:
+        active.einsatzleiter && removedIds.has(active.einsatzleiter.id)
+          ? null
+          : active.einsatzleiter,
+    });
     return { removedNames: removed.map((e) => e.name), affectedAssignments };
   }
 

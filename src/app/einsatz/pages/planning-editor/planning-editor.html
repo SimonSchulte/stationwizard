@@ -1,6 +1,7 @@
 <p class="mobil-hinweis" role="note">
-  Der Planungseditor ist für große Bildschirme optimiert. Die drei Spalten benötigen mindestens 1024
-  Pixel Breite.
+  Der Planungseditor ist für große Bildschirme optimiert. Auf kleinen Bildschirmen kannst du
+  Helferpool und Postenbereich seitlich scrollen. Für umfangreiche Zuordnungen empfehlen wir einen
+  Computer.
 </p>
 @if (planung(); as p) {
   <div class="editor-shell">
@@ -8,7 +9,7 @@
     <div
       [style.left.px]="contextMenuPos().x"
       [style.top.px]="contextMenuPos().y"
-      style="position: fixed; visibility: hidden; pointer-events: none"
+      class="kontextmenu-anker"
       [matMenuTriggerFor]="ekContextMenu"
       #contextMenuTrigger="matMenuTrigger"
     ></div>
@@ -17,7 +18,7 @@
     <div
       [style.left.px]="positionContextMenuCoords().x"
       [style.top.px]="positionContextMenuCoords().y"
-      style="position: fixed; visibility: hidden; pointer-events: none"
+      class="kontextmenu-anker"
       [matMenuTriggerFor]="positionContextMenu"
       #positionContextMenuTrigger="matMenuTrigger"
     ></div>
@@ -105,59 +106,63 @@
         [readOnly]="isEfsLocked()"
         [class.toolbar-field--locked]="isEfsLocked()"
       />
-      <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+      <div class="zeitraum-feld">
+        <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+          <input
+            matInput
+            [matDatepicker]="startPicker"
+            [value]="getDateFromIso(p.start)"
+            (dateChange)="updateStartDate($event)"
+            aria-label="Startdatum"
+            placeholder="TT.MM.JJJJ"
+            [disabled]="isEfsLocked()"
+          />
+          <mat-datepicker-toggle
+            matSuffix
+            [for]="startPicker"
+            [disabled]="isEfsLocked()"
+          ></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
         <input
-          matInput
-          [matDatepicker]="startPicker"
-          [value]="getDateFromIso(p.start)"
-          (dateChange)="updateStartDate($event)"
-          aria-label="Startdatum"
-          placeholder="TT.MM.JJJJ"
-          [disabled]="isEfsLocked()"
+          type="time"
+          class="time-input"
+          [value]="getTimeFromIso(p.start)"
+          (change)="updateStartTime($any($event.target).value)"
+          aria-label="Startzeit"
+          [readOnly]="isEfsLocked()"
+          [class.toolbar-field--locked]="isEfsLocked()"
         />
-        <mat-datepicker-toggle
-          matSuffix
-          [for]="startPicker"
-          [disabled]="isEfsLocked()"
-        ></mat-datepicker-toggle>
-        <mat-datepicker #startPicker></mat-datepicker>
-      </mat-form-field>
-      <input
-        type="time"
-        class="time-input"
-        [value]="getTimeFromIso(p.start)"
-        (change)="updateStartTime($any($event.target).value)"
-        aria-label="Startzeit"
-        [readOnly]="isEfsLocked()"
-        [class.toolbar-field--locked]="isEfsLocked()"
-      />
+      </div>
       <span class="date-sep">–</span>
-      <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+      <div class="zeitraum-feld">
+        <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+          <input
+            matInput
+            [matDatepicker]="endPicker"
+            [value]="getDateFromIso(p.end)"
+            (dateChange)="updateEndDate($event)"
+            aria-label="Enddatum"
+            placeholder="TT.MM.JJJJ"
+            [disabled]="isEfsLocked()"
+          />
+          <mat-datepicker-toggle
+            matSuffix
+            [for]="endPicker"
+            [disabled]="isEfsLocked()"
+          ></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
         <input
-          matInput
-          [matDatepicker]="endPicker"
-          [value]="getDateFromIso(p.end)"
-          (dateChange)="updateEndDate($event)"
-          aria-label="Enddatum"
-          placeholder="TT.MM.JJJJ"
-          [disabled]="isEfsLocked()"
+          type="time"
+          class="time-input"
+          [value]="getTimeFromIso(p.end)"
+          (change)="updateEndTime($any($event.target).value)"
+          aria-label="Endzeit"
+          [readOnly]="isEfsLocked()"
+          [class.toolbar-field--locked]="isEfsLocked()"
         />
-        <mat-datepicker-toggle
-          matSuffix
-          [for]="endPicker"
-          [disabled]="isEfsLocked()"
-        ></mat-datepicker-toggle>
-        <mat-datepicker #endPicker></mat-datepicker>
-      </mat-form-field>
-      <input
-        type="time"
-        class="time-input"
-        [value]="getTimeFromIso(p.end)"
-        (change)="updateEndTime($any($event.target).value)"
-        aria-label="Endzeit"
-        [readOnly]="isEfsLocked()"
-        [class.toolbar-field--locked]="isEfsLocked()"
-      />
+      </div>
       <div class="einsatzleiter-field">
         <span class="einsatzleiter-label">EinsatzleiterIn</span>
         <mat-select
@@ -175,7 +180,7 @@
         <mat-icon>undo</mat-icon>
       </button>
       <span class="spacer"></span>
-      @if (appMode.mode() === 'connected-to-efs-api' && p.hiorg_einsatz_id) {
+      @if (p.hiorg_einsatz_id) {
         <button
           mat-icon-button
           [matTooltip]="
@@ -190,8 +195,22 @@
       <button mat-icon-button (click)="importTemplate()" matTooltip="Vorlage importieren">
         <mat-icon>file_upload</mat-icon>
       </button>
-      <button mat-icon-button matTooltip="Speichern" (click)="save()">
-        <mat-icon>save</mat-icon>
+      <button
+        mat-icon-button
+        matTooltip="In Nextcloud speichern"
+        aria-label="In Nextcloud speichern"
+        (click)="cloudSpeichern()"
+        [disabled]="cloudSpeichert()"
+      >
+        <mat-icon>cloud_upload</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        matTooltip="JSON herunterladen"
+        aria-label="JSON herunterladen"
+        (click)="save()"
+      >
+        <mat-icon>download</mat-icon>
       </button>
       <button mat-icon-button matTooltip="PDF exportieren" (click)="exportPdf()">
         <mat-icon>picture_as_pdf</mat-icon>
@@ -199,6 +218,33 @@
     </mat-toolbar>
 
     <!-- Description Sub-Bar -->
+    @if (p.hiorg_einsatz_id && efsApi.fehler()) {
+      <div class="cloud-status cloud-status--fehler" role="alert">
+        <span>{{ efsApi.fehler() }}</span>
+        <button mat-button (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
+          Erneut versuchen
+        </button>
+      </div>
+    }
+    @if (cloudSpeichert()) {
+      <p class="cloud-status" role="status">Einsatzplanung wird in Nextcloud gespeichert…</p>
+    }
+    @if (cloudStatus()) {
+      <p class="cloud-status" role="status">{{ cloudStatus() }}</p>
+    }
+    @if (cloudFehler()) {
+      <div class="cloud-status cloud-status--fehler" role="alert">
+        <span
+          >{{ cloudFehler() }} Deine lokalen Änderungen bleiben erhalten. Bei einem Versionskonflikt
+          zuerst JSON herunterladen und die Änderungen mit dem neu geladenen Stand
+          zusammenführen.</span
+        >
+        <button mat-button (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
+          Erneut versuchen
+        </button>
+        <button mat-button (click)="save()">JSON herunterladen</button>
+      </div>
+    }
     <div class="editor-subbar">
       <mat-icon class="subbar-icon">notes</mat-icon>
       <input
@@ -210,7 +256,7 @@
       />
     </div>
 
-    <!-- Three-pane layout -->
+    <!-- Helferpool und Postenbereich -->
     <div class="editor-body" cdkDropListGroup>
       <!-- LEFT: Roster -->
       <aside class="pane pane-roster" [class.pane-roster--collapsed]="rosterCollapsed()">
@@ -224,7 +270,7 @@
               >
             }
           </span>
-          @if (appMode.mode() === 'connected-to-efs-api' && p.hiorg_einsatz_id) {
+          @if (p.hiorg_einsatz_id) {
             <button
               mat-icon-button
               [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"
@@ -268,6 +314,7 @@
           (cdkDropListDropped)="onDropToRoster($event)"
         >
           <div class="roster-search-bar">
+            <mat-icon class="roster-suchsymbol" aria-hidden="true">search</mat-icon>
             <input
               class="roster-search-input"
               placeholder="Suchen…"
@@ -329,7 +376,7 @@
                       class="tag-chip"
                       [style.background]="taktischColor(tag).bg"
                       [style.color]="taktischColor(tag).fg"
-                      [style.border]="tag === 'VF' ? '1px solid #000548' : 'none'"
+                      [style.border]="tag === 'VF' ? '1px solid var(--ci-dark-blue)' : 'none'"
                       [matTooltip]="TAKTISCH_LABEL[tag]"
                       >{{ tag }}</span
                     >
@@ -357,7 +404,7 @@
                 mat-stroked-button
                 color="secondary"
                 (click)="openImportDialog()"
-                style="margin: 4px 0"
+                class="helfer-trenner"
               >
                 <mat-icon>group_add</mat-icon> Roster importieren
               </button>
@@ -366,7 +413,7 @@
             }
           }
 
-          <mat-divider style="margin: 12px 0"></mat-divider>
+          <mat-divider class="bereich-trenner"></mat-divider>
           <div class="pane-subheader pane-subheader--toggle" (click)="toggleAssignedList()">
             <span>Zugewiesene Einsatzkräfte</span>
             <mat-icon class="subheader-toggle-icon">{{
@@ -385,7 +432,7 @@
                         class="tag-chip"
                         [style.background]="taktischColor(tag).bg"
                         [style.color]="taktischColor(tag).fg"
-                        [style.border]="tag === 'VF' ? '1px solid #000548' : 'none'"
+                        [style.border]="tag === 'VF' ? '1px solid var(--ci-dark-blue)' : 'none'"
                         >{{ tag }}</span
                       >
                     }
@@ -640,7 +687,7 @@
                               [style.color]="taktischColor(position.requirements.taktisch).fg"
                               [style.border]="
                                 position.requirements.taktisch === 'VF'
-                                  ? '1px solid #000548'
+                                  ? '1px solid var(--ci-dark-blue)'
                                   : 'none'
                               "
                             >
@@ -668,7 +715,9 @@
                                   class="tag-chip"
                                   [style.background]="taktischColor(opt).bg"
                                   [style.color]="taktischColor(opt).fg"
-                                  [style.border]="opt === 'VF' ? '1px solid #000548' : 'none'"
+                                  [style.border]="
+                                    opt === 'VF' ? '1px solid var(--ci-dark-blue)' : 'none'
+                                  "
                                   >{{ opt }}</span
                                 >
                               </button>
@@ -838,7 +887,7 @@
       <button mat-icon-button (click)="goBack()" matTooltip="Zurück zur Übersicht">
         <mat-icon>arrow_back</mat-icon>
       </button>
-      <span style="margin-left: 8px">Personaleinsatzplanung</span>
+      <span class="planung-name">Personaleinsatzplanung</span>
     </mat-toolbar>
     <div class="no-planung">
       <p>Keine Planung geöffnet.</p>

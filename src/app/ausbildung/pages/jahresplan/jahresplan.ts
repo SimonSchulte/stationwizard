@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -73,6 +74,7 @@ import {
 })
 export class Jahresplan {
   private readonly dialog = inject(MatDialog);
+  private readonly dialogDienst = inject(DialogDienst);
   private readonly snackBar = inject(MatSnackBar);
   readonly store = inject(PlanStore);
   readonly workbook = inject(WorkbookService);
@@ -271,8 +273,21 @@ export class Jahresplan {
       });
   }
 
-  neuerPlan(): void {
-    if (this.store.ungespeichert() && !confirm('Ungespeicherte Änderungen verwerfen?')) {
+  async neuerPlan(): Promise<void> {
+    const stand = this.store.dokument();
+    if (
+      this.store.ungespeichert() &&
+      !(await this.dialogDienst.bestaetigen(
+        'Ungespeicherte Änderungen verwerfen?',
+        'Neuen Ausbildungsplan beginnen',
+        'Verwerfen',
+      ))
+    )
+      return;
+    if (this.store.dokument() !== stand) {
+      await this.dialogDienst.hinweis(
+        'Der Ausbildungsplan wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
+      );
       return;
     }
     this.workbook.neuesDokument(leeresDocument());
@@ -286,9 +301,11 @@ export class Jahresplan {
     try {
       await this.workbook.speichern();
       this.melde(
-        this.direktesSpeichern()
-          ? 'Gespeichert.'
-          : 'Arbeitsmappe heruntergeladen – bitte am Ablageort ersetzen.',
+        this.store.ungespeichert()
+          ? 'Übertragener Stand gespeichert; weitere Änderungen sind noch ungespeichert.'
+          : this.direktesSpeichern()
+            ? 'Gespeichert.'
+            : 'Arbeitsmappe heruntergeladen – bitte am Ablageort ersetzen.',
       );
     } catch (ursache) {
       this.melde(fehlertext(ursache), 10000, true);
@@ -296,13 +313,26 @@ export class Jahresplan {
   }
 
   async herunterladen(): Promise<void> {
-    const { daten, dateiname } = await this.workbook.exportieren();
+    const { daten, dateiname, stand } = await this.workbook.exportieren();
     herunterladen(daten, dateiname);
-    this.store.alsGespeichertMarkieren();
+    this.store.alsGespeichertMarkieren(stand);
   }
 
   async neuLaden(): Promise<void> {
-    if (this.store.ungespeichert() && !confirm('Ungespeicherte Änderungen verwerfen?')) {
+    const stand = this.store.dokument();
+    if (
+      this.store.ungespeichert() &&
+      !(await this.dialogDienst.bestaetigen(
+        'Ungespeicherte Änderungen verwerfen?',
+        'Ausbildungsplan neu laden',
+        'Neu laden',
+      ))
+    )
+      return;
+    if (this.store.dokument() !== stand) {
+      await this.dialogDienst.hinweis(
+        'Der Ausbildungsplan wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
+      );
       return;
     }
     try {
