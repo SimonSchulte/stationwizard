@@ -51,7 +51,7 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `NEXTCLOUD_BASE_URL`        | HTTPS-Basis der Nextcloud-Installation, gegebenenfalls mit Installationsunterverzeichnis; ohne Freigabelink oder WebDAV-Suffix |
 | `NEXTCLOUD_SHARE_TOKEN`     | Token der Excel-**Dateifreigabe**, nur der Teil hinter `/s/`                                                                   |
 | `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
-| `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang                                                         |
+| `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                            |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
@@ -61,6 +61,14 @@ zeigen. Eine vorhandene Build-Variable genügt nicht.
 Die Nextcloud-Basis und die EFS-Ziel-URL dürfen keine eingebetteten Zugangsdaten,
 Query-Parameter oder Fragmente enthalten. Der EFS-Endpunkt wird nicht im Quellcode
 festgelegt; er stammt ausschließlich aus `HIORGSERVER_BASE_URL`.
+
+Bei `hiorg-server.de` liefert die HTTPS-URL ohne abschließenden `/` (z. B.
+`https://www.hiorg-server.de/api/efs`) serverseitig einen `301` auf eine unverschlüsselte
+`http://…:1080/…`-Adresse. `redirect: 'error'` folgt dieser Weiterleitung bewusst nicht,
+das Ergebnis ist `EFS_NICHT_ERREICHBAR`. Die URL braucht deshalb zwingend den
+abschließenden Slash (`https://www.hiorg-server.de/api/efs/`), der ohne Redirect direkt
+antwortet. Bei einer neuen Einrichtung diese Endpunkt-Variante immer zuerst mit
+`curl -Is <URL>` gegenprüfen.
 
 ### Optionale Freigabepasswörter
 
