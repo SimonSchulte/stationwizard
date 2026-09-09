@@ -1,0 +1,117 @@
+<div class="kopf">
+  <span class="quelle-marke" [matTooltip]="artText() + ' aus dem HiOrg-Server'">
+    <mat-icon inline>cloud_download</mat-icon>
+    HiOrg
+  </span>
+
+  @if (tagesFortschritt()) {
+    <span class="tag-marke" [matTooltip]="'Mehrtägig: ' + zeitraumText()">
+      {{ tagesFortschritt() }}
+    </span>
+  }
+
+  @if (abweichungen().length) {
+    <mat-icon
+      inline
+      class="warn-symbol"
+      [matTooltip]="warnhinweis()"
+      aria-label="Name weicht vom Jahresdienstplan ab"
+      >warning</mat-icon
+    >
+  }
+
+  <span class="fueller"></span>
+
+  <button
+    matIconButton
+    class="menue-knopf"
+    [matMenuTriggerFor]="menue"
+    aria-label="Aktionen für diesen HiOrg-Termin"
+    (click)="$event.stopPropagation()"
+  >
+    <mat-icon>more_vert</mat-icon>
+  </button>
+</div>
+
+<div class="name" [matTooltip]="kompakt() ? eintrag().name : ''">{{ eintrag().name }}</div>
+
+@if (abweichungen().length) {
+  <div class="warnung" role="status">
+    <div class="warn-kopf" [matTooltip]="kompakt() ? warnhinweis() : ''">
+      <mat-icon inline>warning</mat-icon>
+      <span>{{ kompakt() ? 'Name weicht ab' : 'Name weicht vom Jahresdienstplan ab' }}</span>
+    </div>
+
+    @if (!kompakt()) {
+      @for (abweichung of abweichungen(); track abweichung.terminId) {
+        <p class="gegenueberstellung">
+          <span class="gegenueber-zeile"
+            ><span class="etikett">Plan</span>{{ abweichung.terminThema }}</span
+          >
+          <span class="gegenueber-zeile"
+            ><span class="etikett">HiOrg</span>{{ eintrag().name }}</span
+          >
+        </p>
+      }
+    }
+
+    <div class="warn-aktionen">
+      @for (abweichung of abweichungen(); track abweichung.terminId) {
+        <button
+          matButton="tonal"
+          class="uebernehmen"
+          [matTooltip]="'Thema im Jahresdienstplan auf „' + eintrag().name + '“ setzen'"
+          (click)="nameUebernehmen.emit(abweichung)"
+        >
+          <mat-icon>sync_alt</mat-icon>
+          <span class="knopf-text">Namen übernehmen</span>
+        </button>
+      }
+
+      @if (eintrag().url) {
+        <a
+          matButton
+          class="hiorg-link"
+          [href]="eintrag().url"
+          target="_blank"
+          rel="noopener noreferrer"
+          matTooltip="Termin im HiOrg-Server öffnen, um den Titel dort zu ändern"
+        >
+          <mat-icon>open_in_new</mat-icon>
+          <span class="knopf-text">In HiOrg öffnen</span>
+        </a>
+      }
+    </div>
+  </div>
+}
+
+@if (ohneGegenstueck() && !kompakt()) {
+  <div class="lueckenhinweis">Kein Ausbildungsthema im Jahresdienstplan an diesem Tag.</div>
+}
+
+<mat-menu #menue="matMenu">
+  <div class="menue-kopf" (click)="$event.stopPropagation()">
+    {{ artText() }} · {{ zeitraumText() }}
+  </div>
+
+  @for (abweichung of abweichungen(); track abweichung.terminId) {
+    <button mat-menu-item (click)="nameUebernehmen.emit(abweichung)">
+      <mat-icon>sync_alt</mat-icon>
+      <span>Namen für „{{ abweichung.terminThema }}“ übernehmen</span>
+    </button>
+  }
+
+  @if (ohneGegenstueck()) {
+    <button mat-menu-item (click)="terminAnlegen.emit(eintrag())">
+      <mat-icon>event_available</mat-icon>
+      <span>Als Termin in den Jahresplan</span>
+    </button>
+  }
+
+  @if (eintrag().url) {
+    <a mat-menu-item [href]="eintrag().url" target="_blank" rel="noopener noreferrer">
+      <mat-icon>open_in_new</mat-icon>
+      <span>In HiOrg öffnen</span>
+    </a>
+  }
+</mat-menu>

@@ -20,6 +20,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuswertungPanel } from '../../components/auswertung-panel/auswertung-panel';
 import { BacklogPanel } from '../../components/backlog-panel/backlog-panel';
 import { DatumDialog, DatumDialogDaten } from '../../components/datum-dialog/datum-dialog';
+import { HiorgEintragKarte } from '../../components/hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { KatsPanel } from '../../components/kats-panel/kats-panel';
 import { LeererTag } from '../../components/leerer-tag/leerer-tag';
 import { QuelleDialog } from '../../components/quelle-dialog/quelle-dialog';
@@ -27,8 +28,15 @@ import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/
 import { TerminKarte } from '../../components/termin-karte/termin-karte';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
-import { Termin, leeresDocument } from '../../models/plan.model';
+import { HiorgEintrag } from '../../models/hiorg-kalender.model';
+import { Termin, leererTermin, leeresDocument } from '../../models/plan.model';
 import { DiensttagService } from '../../services/diensttag.service';
+import {
+  HiorgAbweichung,
+  HiorgTagesAbgleich,
+  baueHiorgAbgleich,
+} from '../../services/hiorg-abgleich';
+import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import { FeiertagService } from '../../services/feiertage.service';
 import { PlanSlot, WochenZeile, baueWochenraster } from '../../services/plan-raster';
 import { PlanStore } from '../../services/plan-store';
@@ -54,6 +62,7 @@ import {
     CdkDrag,
     CdkDropList,
     CdkDropListGroup,
+    HiorgEintragKarte,
     KatsPanel,
     LeererTag,
     MatButtonModule,
@@ -80,6 +89,7 @@ export class Jahresplan {
   readonly workbook = inject(WorkbookService);
   readonly feiertage = inject(FeiertagService);
   readonly diensttagService = inject(DiensttagService);
+  readonly hiorg = inject(HiorgKalenderService);
 
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
@@ -89,6 +99,8 @@ export class Jahresplan {
 
   readonly suche = signal('');
   readonly nurLuecken = signal(false);
+  /** Zeigt nur Wochen mit einer HiOrg-Namensabweichung. */
+  readonly nurAbweichungen = signal(false);
   /** Nur auf schmalen Bildschirmen relevant: Plan und Seitenleiste teilen sich dort den Platz. */
   readonly mobilAnsicht = signal<'plan' | 'liste'>('plan');
 
@@ -120,23 +132,46 @@ export class Jahresplan {
   readonly luecken = computed(() => this.diensttagSlots().filter((s) => s.luecke));
   readonly belegteDiensttage = computed(() => this.diensttagSlots().length - this.luecken().length);
 
+  /**
+   * HiOrg-Termine neben den Plan-Terminen desselben Tages. Rein abgeleitet – die
+   * Excel-Mappe bleibt unberührt, der Feed wird nirgends hineingeschrieben.
+   */
+  readonly hiorgAbgleich = computed(() =>
+    baueHiorgAbgleich(this.hiorg.eintraege(), this.store.termine(), this.store.jahr()),
+  );
+
   readonly sichtbareWochen = computed<WochenZeile[]>(() => {
     const suche = this.suche().trim().toLowerCase();
     const nurLuecken = this.nurLuecken();
+    const nurAbweichungen = this.nurAbweichungen();
+    const abgleich = this.hiorgAbgleich();
     return this.wochen().filter((woche) => {
       if (nurLuecken && woche.luecken === 0) {
+        return false;
+      }
+      if (
+        nurAbweichungen &&
+        !woche.tage.some((slot) => abgleich.tageMitAbweichung.has(slot.datum))
+      ) {
         return false;
       }
       if (!suche) {
         return true;
       }
-      return woche.tage.some((slot) =>
-        slot.termine.some((t) =>
-          [t.thema, t.hinweis, t.ausbilder, t.katsTitel, t.kategorie]
-            .join(' ')
-            .toLowerCase()
-            .includes(suche),
-        ),
+      return woche.tage.some(
+        (slot) =>
+          slot.termine.some((t) =>
+            [t.thema, t.hinweis, t.ausbilder, t.katsTitel, t.kategorie]
+              .join(' ')
+              .toLowerCase()
+              .includes(suche),
+          ) ||
+          // Auch die eingeblendete HiOrg-Ebene muss auffindbar sein, sonst
+          // widersprechen sich Suche und Anzeige.
+          (this.hiorg.anzeigen() &&
+            (abgleich.nachDatum.get(slot.datum)?.eintraege ?? []).some((e) =>
+              e.name.toLowerCase().includes(suche),
+            )),
       );
     });
   });
@@ -147,6 +182,81 @@ export class Jahresplan {
       this.feiertage.bundesland();
       void this.feiertage.lade(this.store.jahr());
     });
+
+    // Der Feed ist jahresunabhängig; der Abruf hängt allein an der Sichtbarkeit.
+    effect(() => {
+      if (this.hiorg.anzeigen()) {
+        void this.hiorg.lade();
+      }
+    });
+  }
+
+  /** HiOrg-Einträge dieses Tages – `null`, solange die Ebene ausgeblendet ist. */
+  hiorgTag(datum: string): HiorgTagesAbgleich | null {
+    return this.hiorg.anzeigen() ? (this.hiorgAbgleich().nachDatum.get(datum) ?? null) : null;
+  }
+
+  abweichungenFuer(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): HiorgAbweichung[] {
+    return tag.abweichungen.filter((a) => a.hiorg.schluessel === eintrag.schluessel);
+  }
+
+  istOhneGegenstueck(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): boolean {
+    return tag.ohneGegenstueck.some((e) => e.schluessel === eintrag.schluessel);
+  }
+
+  schalteHiorg(): void {
+    this.hiorg.setzeAnzeigen(!this.hiorg.anzeigen());
+    if (!this.hiorg.anzeigen()) {
+      this.nurAbweichungen.set(false);
+    }
+  }
+
+  async hiorgNeuLaden(): Promise<void> {
+    await this.hiorg.lade(true);
+    this.melde(
+      this.hiorg.zustand() === 'geladen'
+        ? `${this.hiorg.eintraege().length} HiOrg-Termine geladen.`
+        : this.hiorg.fehler() || 'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet.',
+      6000,
+      this.hiorg.zustand() === 'fehler',
+    );
+  }
+
+  /**
+   * Werkzeug (a): Das Thema im Jahresdienstplan auf die HiOrg-Bezeichnung setzen.
+   * Läuft über `aktualisiereTermin`, ist damit rückgängig zu machen und markiert
+   * die Mappe als ungespeichert.
+   */
+  async uebernimmHiorgNamen(abweichung: HiorgAbweichung): Promise<void> {
+    const stand = this.store.dokument();
+    if (
+      abweichung.terminThema.trim() &&
+      !(await this.dialogDienst.bestaetigen(
+        `Das Thema „${abweichung.terminThema}“ wird durch „${abweichung.hiorg.name}“ ersetzt.`,
+        'Namen aus HiOrg übernehmen',
+        'Übernehmen',
+      ))
+    ) {
+      return;
+    }
+    if (this.store.dokument() !== stand) {
+      await this.dialogDienst.hinweis(
+        'Der Ausbildungsplan wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
+      );
+      return;
+    }
+    this.store.aktualisiereTermin(abweichung.terminId, { thema: abweichung.hiorg.name });
+    this.melde('Thema aus HiOrg übernommen – rückgängig mit Strg+Z.');
+  }
+
+  /** Werkzeug (c): Aus einem HiOrg-Termin ohne Gegenstück einen Plantermin machen. */
+  legeTerminAusHiorgAn(eintrag: HiorgEintrag, datum: string): void {
+    const terminId = this.store.fuegeTerminEin({
+      ...leererTermin(datum),
+      thema: eintrag.name,
+    });
+    this.melde(`„${kurz(eintrag.name)}“ als Termin übernommen – bitte fachlich ergänzen.`);
+    this.oeffneDialog({ terminId });
   }
 
   katsThema(termin: Termin) {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  epochSekundenZuIsoDatum,
   isoWochennummer,
   isoZuSerial,
   jahrVon,
   serialZuIso,
+  tageVonBis,
   versetzeTage,
   wochenbeginn,
   wochenImJahr,
@@ -103,5 +105,58 @@ describe('Excel-Seriennummern', () => {
   it('berechnet den Wochentag korrekt', () => {
     expect(wochentag('2026-01-05')).toBe('Mo');
     expect(wochentag('2026-03-21')).toBe('Sa');
+  });
+});
+
+describe('Unix-Zeitpunkte als Berliner Kalendertag', () => {
+  // Zur Kontrolle: 2026-01-15T23:30:00Z ist in Berlin bereits der 16. Januar.
+  // Genau diese Verschiebung würde eine reine UTC-Umrechnung falsch machen.
+  it.each([
+    ['Winterzeit, UTC+1', Date.UTC(2026, 0, 15, 12, 0, 0), '2026-01-15'],
+    ['Sommerzeit, UTC+2', Date.UTC(2026, 6, 15, 12, 0, 0), '2026-07-15'],
+    [
+      'spät abends UTC ist in Berlin schon der Folgetag',
+      Date.UTC(2026, 0, 15, 23, 30, 0),
+      '2026-01-16',
+    ],
+    [
+      'kurz vor Mitternacht Berlin bleibt derselbe Tag',
+      Date.UTC(2026, 0, 15, 22, 59, 0),
+      '2026-01-15',
+    ],
+    ['Umstellungsnacht auf Sommerzeit', Date.UTC(2026, 2, 29, 1, 30, 0), '2026-03-29'],
+    ['Umstellungsnacht auf Winterzeit', Date.UTC(2026, 9, 25, 0, 30, 0), '2026-10-25'],
+  ])('%s', (_fall, millisekunden, erwartet) => {
+    expect(epochSekundenZuIsoDatum(millisekunden / 1000)).toBe(erwartet);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'liefert für den unbrauchbaren Wert %s null',
+    (wert) => {
+      expect(epochSekundenZuIsoDatum(wert)).toBeNull();
+    },
+  );
+});
+
+describe('Tagesspannen', () => {
+  it('liefert bei gleichem Anfang und Ende genau einen Tag', () => {
+    expect(tageVonBis('2026-05-04', '2026-05-04')).toEqual(['2026-05-04']);
+  });
+
+  it('zählt über Monatsgrenzen hinweg', () => {
+    expect(tageVonBis('2026-04-29', '2026-05-02')).toEqual([
+      '2026-04-29',
+      '2026-04-30',
+      '2026-05-01',
+      '2026-05-02',
+    ]);
+  });
+
+  it('liefert bei umgekehrter Reihenfolge nichts', () => {
+    expect(tageVonBis('2026-05-04', '2026-05-01')).toEqual([]);
+  });
+
+  it('deckelt absurde Spannen aus einer Fremdquelle', () => {
+    expect(tageVonBis('2026-01-01', '2029-01-01', 5)).toHaveLength(5);
   });
 });

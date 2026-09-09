@@ -121,6 +121,7 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/nextcloud/arbeitsmappe`     | GET / PUT | Konfigurierte Excel-Dateifreigabe |
 | `/api/nextcloud/planungen`        | GET       | Liste aus UUID und ETag           |
 | `/api/nextcloud/planungen/<UUID>` | GET / PUT | Einzelne versionierte PEP-Datei   |
+| `/api/hiorg/kalender`             | GET       | HiOrg-Kalenderfeed, nur lesend    |
 
 EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt serverseitig
 `apikey`, `version=2` und `action` als Formulardaten. Ziel aus
@@ -128,6 +129,13 @@ EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt s
 zuerst einen Nachweis durch die echte API und deren offizielle Dokumentation. Die
 Nextcloud-Routen sind kein generischer WebDAV-Proxy; keine frei wählbaren Pfade oder
 Löschmethoden ergänzen.
+
+Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
+das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig
+im Worker, wird in Fehlern und Logs redigiert und darf weder als Anfrageparameter wählbar
+noch aus dem Client heraus setzbar sein. Der Feed ist reine Anzeige- und Abgleichquelle;
+er wird nicht in die Excel-Mappe geschrieben und nicht im Browser persistiert. Die
+Schreibweise „CALENDER" ist bewusst übernommen und wird nicht korrigiert.
 
 ### Konflikte und unklare Speicherergebnisse
 

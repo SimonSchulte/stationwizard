@@ -98,6 +98,61 @@ archivieren, bevor der Ersatz abgenommen ist.
 - Desktop/Mobil, workerd-SPA, Cloudflare-Builds, Google-Login und echte Upstream-Aufrufe
   bleiben wie oben beschrieben ungeprüft. Die Definition of Done ist damit noch offen.
 
+## AP7 – HiOrg-Kalenderfeed im Jahresplan
+
+- Neuer Worker-Endpunkt `GET /api/hiorg/kalender` hinter demselben Access-Gate wie alle
+  übrigen APIs. Das Secret `HIORGSERVER_CALENDER_FEED` ist die vollständige Feed-URL; die
+  Zugangsdaten stehen als Query-Parameter darin. Der Query-String ist deshalb hier – anders
+  als beim EFS-Ziel – ausdrücklich erlaubt, das Ziel dafür fest an `hiorg-server.de`
+  gebunden. Feed-URL und Parameterwerte werden in Fehlern und im Betreiberlog redigiert;
+  vor dem Senden prüft der Worker die eigene Ausgabe gegen ein Spiegeln des Geheimnisses.
+- Weitergereicht werden nur `sortdate`, `enddate`, `verbez`, `typ`, `id` und die geprüfte
+  `url`. `ansprech` und `bemerkung` (Klarnamen, Freitext mit Zugangslinks), `verort`,
+  `treff`, `kursnr`, `max_meldungen` und die `personal_*`-Felder bleiben bewusst draußen.
+- `leseJsonBegrenzt`, `verwerfeInhalt`, `istObjekt` und `istKennung` liegen jetzt in
+  `worker/src/json-lesen.ts` statt privat in `efs.ts`. Die unveränderten EFS-Tests belegen,
+  dass die Extraktion das EFS-Verhalten nicht verändert.
+- Epoch-Sekunden werden über `Intl.DateTimeFormat` mit `timeZone: 'Europe/Berlin'` auf den
+  lokalen Kalendertag abgebildet, nie über UTC. Beide Umschaltnächte und ein Zeitpunkt, den
+  eine reine UTC-Rechnung um einen Tag verschöbe, sind abgesichert.
+- Der Abgleich ist eine reine Funktion: gleich heißt nach Entitäten-Dekodierung, NFC,
+  Whitespace-Normalisierung, Trim und Casefold identisch – keine Ähnlichkeitsstufe.
+  Mehrtägige Termine erscheinen an jedem Tag, jahresübergreifende werden auf das Planjahr
+  beschnitten. Ein Tag ohne benanntes Thema gilt als Lücke, nicht als Namensabweichung.
+- Der Feed wird **nicht** im Browser gespeichert; nur der Umschalter „HiOrg-Termine
+  anzeigen" liegt wie Diensttag und Bundesland im `localStorage`. Ein Abruffehler ist nie
+  blockierend. `plan-raster.ts` und das Excel-Schema blieben unverändert – es gibt bewusst
+  kein persistentes „geklärt"-Kennzeichen, weil das eine neue Spalte bräuchte.
+- Gesamtlauf: **221 Angular-Tests in 30 Dateien**, **273 Worker-Tests in 5 Dateien**,
+  `npm run build`, `npm run worker:check` und `npm run format:check` erfolgreich.
+  `npm run deploy:dry-run` listet alle sechs Secrets-Store-Bindings einschließlich
+  `HIORGSERVER_CALENDER_FEED`.
+- **Browserprüfung durchgeführt** (Chromium, echtes Produktionsbundle, lokaler Stub für
+  `/api/hiorg/kalender` mit ausschließlich erfundenen Terminen; kein echter Feed, weil das
+  Secret hier nicht vorliegt). Desktop 1440×900 und Mobil 390×844:
+  HiOrg-Karten sind durch Marke, Icon und gestrichelten Rahmen klar von Planterminen zu
+  unterscheiden; ein mehrtägiger Termin erscheint an allen drei Tagen; die Namensabweichung
+  zeigt Warnrahmen, Warntext und die Marke „1 Namensabweichung(en)" in der Kopfzeile; das
+  Kartenmenü bietet „Namen übernehmen" und „In HiOrg öffnen" mit korrektem Ziel;
+  die Übernahme setzt das Thema und lässt die Warnung verschwinden, Strg+Z stellt sie
+  wieder her. Der Seitenkörper scrollt in keiner Breite waagerecht, das Wochenraster
+  scrollt mobil in seinem eigenen Bereich, die untere Navigation bleibt erhalten.
+
+### Offene Abnahmegrenzen von AP7
+
+- Ein Abruf gegen den **echten** HiOrg-Feed hat nicht stattgefunden; das Secret liegt in
+  dieser Umgebung nicht vor. Ob HiOrg die Feldstruktur exakt so liefert, ist damit nur
+  gegen die vorliegende Beispielantwort geprüft, nicht gegen den Livedienst.
+- `npm run test:spa` schlägt weiterhin fehl, inzwischen aber mit einer **anderen** Ursache
+  als bisher dokumentiert: nicht mehr der abgebrochenen Netzfreigabe, sondern
+  `MiniflareCoreError [ERR_VALIDATION]` – `worker/tests/spa-routing.mjs` übergibt der
+  installierten Miniflare-Fassung kein `workers`-Array. Das ist ein Bestandsfehler des
+  Prüfskripts und unabhängig von AP7; das Gate wurde nicht abgeschwächt und das
+  Hash-Routing bleibt bestehen.
+- Die Browserprüfung lief gegen einen lokalen Stub ohne Cloudflare Access. Anmeldung,
+  Google-Zugriffsliste und das Zusammenspiel mit dem echten Worker sind unverändert offen.
+- Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.
+
 ## GitHub-Übergabe
 
 Alle sechs AP-Stände liegen als Branches und Commits vor. Der vom Auftraggeber erstellte

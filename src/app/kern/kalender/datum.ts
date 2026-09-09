@@ -174,3 +174,45 @@ export function heuteIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+/**
+ * Der lokale Kalendertag in Europe/Berlin – bewusst nicht über UTC gerechnet.
+ * Ein Termin um 01:30 Berliner Zeit gehört zum Berliner Tag, nicht zum
+ * UTC-Vortag; genau diese Verschiebung würde `new Date(...).toISOString()`
+ * erzeugen. `en-CA` liefert direkt das ISO-Format `YYYY-MM-DD`.
+ */
+const KALENDERTAG_FORMATIERER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Berlin',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/** Unix-Sekunden → lokaler Kalendertag (Europe/Berlin) als ISO-Datum. */
+export function epochSekundenZuIsoDatum(sekunden: number): string | null {
+  if (!Number.isFinite(sekunden) || sekunden <= 0) {
+    return null;
+  }
+  const zeitpunkt = new Date(sekunden * 1000);
+  if (Number.isNaN(zeitpunkt.getTime())) {
+    return null;
+  }
+  const iso = KALENDERTAG_FORMATIERER.format(zeitpunkt);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
+}
+
+/**
+ * Alle Kalendertage von `von` bis einschließlich `bis`. `maxTage` deckelt
+ * absurde Werte aus einer Fremdquelle, damit ein einzelner kaputter Datensatz
+ * nicht das ganze Raster flutet.
+ */
+export function tageVonBis(von: string, bis: string, maxTage = 60): string[] {
+  if (bis < von) {
+    return [];
+  }
+  const tage: string[] = [];
+  for (let tag = von; tag <= bis && tage.length < maxTage; tag = versetzeTage(tag, 1)) {
+    tage.push(tag);
+  }
+  return tage;
+}

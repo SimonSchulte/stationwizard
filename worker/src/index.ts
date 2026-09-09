@@ -1,9 +1,15 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
+import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 
-export interface Env extends AccessKonfiguration, NextcloudKonfiguration, EfsKonfiguration {
+export interface Env
+  extends
+    AccessKonfiguration,
+    NextcloudKonfiguration,
+    EfsKonfiguration,
+    HiorgKalenderKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -43,6 +49,10 @@ export default {
 
     if (url.pathname.startsWith('/api/efs/')) {
       return verarbeiteEfs(anfrage, umgebung);
+    }
+
+    if (url.pathname.startsWith('/api/hiorg/')) {
+      return verarbeiteHiorgKalender(anfrage, umgebung);
     }
 
     if (url.pathname.startsWith('/api/nextcloud/')) {

@@ -201,6 +201,16 @@ Der Worker verwendet ausschließlich `checkapikey`, `getveranstaltungen` und
 `getveranstaltung` mit `version=2`. Die URL stammt zur Laufzeit aus dem Secret. Google-Login
 und Cloudflare-Callback werden nicht bei HiOrg eingetragen.
 
+Zusätzlich liest der Ausbildungsplan den **HiOrg-Kalenderfeed**. Dessen vollständige URL
+kommt unverändert – einschließlich aller Query-Parameter – in `HIORGSERVER_CALENDER_FEED`.
+Diese URL ist selbst das Zugangsdatum: wer sie hat, kann den Kalender abrufen. Sie gehört
+deshalb wie ein Passwort behandelt und darf nicht in Tickets, Chatnachrichten, Screenshots
+oder Repositorys auftauchen. Der Worker akzeptiert nur `https://`-Adressen auf
+`hiorg-server.de` beziehungsweise dessen Subdomains. Die Schreibweise „CALENDER" ist
+bewusst so übernommen, weil das Secret im Store genau so heißt; sie wird nicht korrigiert.
+Wo genau HiOrg diese Feed-URL erzeugt, konnte hier nicht gegen die echte HiOrg-Verwaltung
+geprüft werden und wird deshalb nicht erfunden – die URL liefert der HiOrg-Verantwortliche.
+
 ## 4. Secrets Store befüllen
 
 Im richtigen Cloudflare-Konto **Secrets Store** öffnen. Der vorhandene Store muss die ID
@@ -209,7 +219,7 @@ fehlende über **Create secret** anlegen und als Permission scope **Workers** w�
 Nach dem Speichern zeigt die Oberfläche den Secret-Wert nicht mehr an.
 [Cloudflare: Secrets Store mit Workers verbinden](https://developers.cloudflare.com/secrets-store/integrations/workers/)
 
-Die ersten fünf Werte werden im Store angelegt. Die zwei optionalen Freigabepasswörter
+Die ersten sechs Werte werden im Store angelegt. Die zwei optionalen Freigabepasswörter
 werden später gemäß Abschnitt 7.3 als klassische Laufzeit-Secrets direkt am Worker gesetzt.
 
 | Name                           | Wert und Format                                                                                                                                       | Pflicht                              |
@@ -218,6 +228,7 @@ werden später gemäß Abschnitt 7.3 als klassische Laufzeit-Secrets direkt am W
 | `NEXTCLOUD_SHARE_TOKEN`        | Nur der Token der Excel-Dateifreigabe, ohne URL.                                                                                                      | Ja                                   |
 | `HIORGSERVER_BASE_URL`         | Vollständiger bisher funktionierender HTTPS-EFS-Endpunkt; siehe Abschnitt 3.3.                                                                        | Ja                                   |
 | `HIORGSERVER_EFS_API_TOKEN`    | Unveränderter EFS-API-Schlüssel; ohne `apikey=`, ohne Anführungszeichen.                                                                              | Ja                                   |
+| `HIORGSERVER_CALENDER_FEED`    | Vollständige HTTPS-URL des HiOrg-Kalenderfeeds inklusive Query-Parameter; siehe Abschnitt 3.3. Name mit „CALENDER" bewusst so.                        | Ja, für den HiOrg-Terminabgleich     |
 | `NEXTCLOUD_PEP_SHARE_TOKEN`    | Nur der Token des gesonderten Einsatzplanordners.                                                                                                     | Ja, für Einsatzpläne laden/speichern |
 | `NEXTCLOUD_SHARE_PASSWORD`     | Exaktes Passwort der Excel-Freigabe.                                                                                                                  | Nur bei gesetztem Freigabepasswort   |
 | `NEXTCLOUD_PEP_SHARE_PASSWORD` | Exaktes Passwort der Ordnerfreigabe.                                                                                                                  | Nur bei gesetztem Freigabepasswort   |
@@ -231,7 +242,7 @@ entfernen, wenn der alte Worker stillgelegt ist und kein anderer Verbraucher ihn
 Google Client ID und Client Secret werden später beim Cloudflare-Identitätsanbieter
 hinterlegt, nicht als Worker-Secrets.
 
-**Prüfung:** Die fünf Pflichtnamen sind im richtigen Store vorhanden und für Workers
+**Prüfung:** Die sechs Pflichtnamen sind im richtigen Store vorhanden und für Workers
 freigegeben. Optional vorhandene Passwörter entsprechen der jeweiligen Freigabe.
 
 ## 5. Zero Trust und Google als Identitätsanbieter
@@ -437,6 +448,8 @@ workerd-Laufzeitstarts noch nicht erfolgreich nachgewiesen werden. Erst nach bes
 | Nicht erlaubte Adresse | Separates privates Fenster mit anderem Google-Konto. Access lehnt den Zugriff ab.                                                                                                                                 |
 | Worker erreichbar      | Angemeldet `/api/status` öffnen. JSON zeigt `status: erreichbar`. Das prüft den Worker, noch nicht Nextcloud oder HiOrg.                                                                                          |
 | Benutzerkontext        | Angemeldet `/api/benutzer` öffnen. JSON enthält die eigene E-Mail-Adresse.                                                                                                                                        |
+| HiOrg-Termine          | Im Jahresplan über das Menü „HiOrg-Termine anzeigen" einschalten. Termine erscheinen als eigene, mit „HiOrg" gekennzeichnete Karten. `/api/hiorg/kalender` enthält weder `ansprech` noch `bemerkung`.             |
+| Namensabweichung       | Einen Plantermin an einem Tag mit HiOrg-Termin abweichend benennen: Warnung erscheint, „Namen übernehmen" setzt das Thema (Strg+Z macht es rückgängig), „In HiOrg öffnen" führt in einem neuen Tab zum Termin.    |
 | Routen und Neuladen    | `/#/ausbildung` und `/#/einsatz` direkt öffnen und neu laden: App statt 404. `/#/einsatz/editor` ohne aktive Planung zeigt „Keine Planung geöffnet“; über „Zur Übersicht“ eine gespeicherte Planung erneut laden. |
 | Ausbildung lesen       | Quelle **Nextcloud** auswählen und **Arbeitsmappe laden**. Jahresplan, Ideen und KatS-A-Inhalte der Testmappe erscheinen.                                                                                         |
 | Ausbildung schreiben   | Eine erfundene Änderung speichern. Seite neu laden und Arbeitsmappe nochmals laden. Änderung ist erhalten; die Datei in Nextcloud bleibt eine lesbare Excel-Arbeitsmappe.                                         |
@@ -504,6 +517,9 @@ wird; für diese Abnahme sind sie nicht erforderlich.
 | `EFS_UMLEITUNG`                                                       | `HIORGSERVER_BASE_URL` antwortet mit einer Weiterleitung. Den abschließenden `/` ergänzen (`https://www.hiorg-server.de/api/efs/`) und mit `curl -Is <URL>` gegenprüfen. |
 | `EFS_NICHT_ERREICHBAR`                                                | Verbindung, DNS, TLS oder eine IP-Beschränkung gegenüber dem Cloudflare-Netz. Die redigierte Ursache steht im Worker-Log (`wrangler tail`).                              |
 | `EFS_ZEITLIMIT`                                                       | HiOrg hat innerhalb von 15 Sekunden nicht geantwortet. Später erneut versuchen; keine Schreibwirkung, da nur Leseaktionen.                                               |
+| `HIORG_KALENDER_KONFIGURATION_FEHLT`                                  | `HIORGSERVER_CALENDER_FEED` fehlt, ist keine `https://`-Adresse auf `hiorg-server.de` oder enthält ein Fragment. Feed-URL unverändert und vollständig eintragen.         |
+| `HIORG_KALENDER_ABRUF_FEHLGESCHLAGEN`                                 | HiOrg lehnt den Feed ab – meist eine abgelaufene oder zurückgezogene Feed-URL. Neue URL beim HiOrg-Verantwortlichen anfordern.                                           |
+| `HIORG_KALENDER_ANTWORT_UNGUELTIG`                                    | Der Feed liefert kein `success: true` oder keinen brauchbaren Termin. Feed-URL im Browser gegenprüfen (Vorsicht: sie ist geheim).                                        |
 | Geheimnis im Store vorhanden, Anwendung meldet fehlende Konfiguration | Unter **Bindings** kontrollieren, ob genau dieser Worker genau dieses Secret verwendet. Ein Eintrag unter **Build Variables and Secrets** genügt nicht.                  |
 | `redirect_uri_mismatch` beim Google-Login                             | Redirect URI in Google exakt mit `https://<teamname>.cloudflareaccess.com/cdn-cgi/access/callback` vergleichen.                                                          |
 
