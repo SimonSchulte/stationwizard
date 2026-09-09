@@ -108,6 +108,10 @@ export class Jahresplan {
   readonly kannSpeichern = computed(() => this.ziel() !== null);
   readonly direktesSpeichern = computed(() => this.ziel()?.faehigkeiten.direktesSpeichern ?? false);
   readonly diensttagLabel = computed(() => diensttagName(this.diensttagService.wochentag()));
+  readonly verfuegbareJahre = this.workbook.verfuegbareJahre;
+  readonly naechstesJahr = computed(
+    () => Math.max(this.store.jahr(), ...this.verfuegbareJahre()) + 1,
+  );
 
   /** Vollständiges Wochenraster: jede Kalenderwoche mit allen 7 Tagen. */
   readonly wochen = computed<WochenZeile[]>(() =>
@@ -401,6 +405,18 @@ export class Jahresplan {
       return;
     }
     this.workbook.neuesDokument(leeresDocument());
+  }
+
+  /** Wechselt innerhalb der geöffneten Arbeitsmappe zu einem bereits vorhandenen Jahresblatt. */
+  waehleJahr(jahr: number): void {
+    this.workbook.waehleJahr(jahr);
+  }
+
+  /** Legt in der geöffneten Arbeitsmappe ein neues Jahresblatt an und wechselt dorthin. */
+  neuesJahr(): void {
+    const jahr = this.naechstesJahr();
+    this.workbook.neuesJahr(jahr);
+    this.melde(`Neues Jahresblatt ${jahr} angelegt.`);
   }
 
   async speichern(): Promise<void> {

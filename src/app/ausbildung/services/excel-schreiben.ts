@@ -1,13 +1,13 @@
 import * as XLSX from '@e965/xlsx';
-import { KatsThema, PlanDocument, Termin } from '../models/plan.model';
+import { Arbeitsmappe, Jahresblatt, KatsThema, Termin } from '../models/plan.model';
 import { isoZuSerial, wochentag } from '../../kern/kalender/datum';
 import {
   BLATT_BACKLOG,
-  BLATT_KATS,
   SPALTEN_BREITEN,
   SPALTEN_UEBERSCHRIFTEN,
   SpaltenFeld,
   blattJahresplan,
+  blattKats,
 } from './excel-schema';
 
 const DATUMS_FORMAT = 'DD.MM.YYYY';
@@ -17,38 +17,46 @@ const BACKLOG_FELDER: SpaltenFeld[] = SPALTEN_UEBERSCHRIFTEN.map((s) => s.feld).
 );
 
 /**
- * Schreibt das Dokument als Excel-Arbeitsmappe.
- *
- * Jahresplan und "Offene Ideen" nutzen dieselbe Spaltenreihenfolge – das Ideen-Blatt
- * lässt lediglich Datum und Tag weg. Zusätzlich entsteht das Blatt "KatS-A-Plan"
- * mit der gepflegten Themenliste, über die quer referenziert wird.
+ * Schreibt die Arbeitsmappe: ein Jahresplan-Blatt (Blattname = Jahreszahl) samt
+ * eigenem KatS-A-Plan-Blatt je Jahr, dazu das jahresübergreifend geteilte
+ * "Offene Ideen"-Blatt. Nummern für die KatS-A-Plan-Verweise werden über alle
+ * Jahre hinweg aufgelöst, da Ideen ohne Datum keinem Jahr fest zugeordnet sind.
  */
-export function schreibeArbeitsmappe(dokument: PlanDocument): ArrayBuffer {
+export function schreibeArbeitsmappe(arbeitsmappe: Arbeitsmappe): ArrayBuffer {
   const wb = XLSX.utils.book_new();
-  const nummern = new Map(dokument.katsThemen.map((t) => [t.id, t.nummer]));
+  const jahre = [...arbeitsmappe.jahre].sort((a, b) => a.jahr - b.jahr);
+  const nummern = new Map(jahre.flatMap((j) => j.katsThemen).map((t) => [t.id, t.nummer]));
 
-  XLSX.utils.book_append_sheet(
-    wb,
-    jahresplanBlatt(dokument, nummern),
-    blattJahresplan(dokument.jahr),
-  );
-  XLSX.utils.book_append_sheet(wb, backlogBlatt(dokument.backlog, nummern), BLATT_BACKLOG);
-  XLSX.utils.book_append_sheet(wb, katsBlatt(dokument.katsThemen), BLATT_KATS);
+  for (const jahresblatt of jahre) {
+    XLSX.utils.book_append_sheet(
+      wb,
+      jahresplanBlatt(jahresblatt, nummern),
+      blattJahresplan(jahresblatt.jahr),
+    );
+  }
+  XLSX.utils.book_append_sheet(wb, backlogBlatt(arbeitsmappe.backlog, nummern), BLATT_BACKLOG);
+  for (const jahresblatt of jahre) {
+    XLSX.utils.book_append_sheet(
+      wb,
+      katsBlatt(jahresblatt.katsThemen),
+      blattKats(jahresblatt.jahr),
+    );
+  }
 
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
 }
 
-function jahresplanBlatt(dokument: PlanDocument, nummern: Map<string, string>): XLSX.WorkSheet {
+function jahresplanBlatt(jahresblatt: Jahresblatt, nummern: Map<string, string>): XLSX.WorkSheet {
   const felder = SPALTEN_UEBERSCHRIFTEN.map((s) => s.feld);
   const kopf = SPALTEN_UEBERSCHRIFTEN.map((s) => s.text);
-  const daten = [...dokument.termine]
+  const daten = [...jahresblatt.termine]
     .sort((a, b) => (a.datum ?? '').localeCompare(b.datum ?? ''))
     .map((termin) => felder.map((feld) => zelle(termin, feld, nummern)));
 
-  const ws = XLSX.utils.aoa_to_sheet([[dokument.titel], [], kopf, ...daten]);
+  const ws = XLSX.utils.aoa_to_sheet([[jahresblatt.titel], [], kopf, ...daten]);
   const datumSpalte = felder.indexOf('datum');
   daten.forEach((_, i) => {
-    const termin = sortiert(dokument.termine)[i];
+    const termin = sortiert(jahresblatt.termine)[i];
     if (termin.datum) {
       setzeDatum(ws, 3 + i, datumSpalte, termin.datum);
     }

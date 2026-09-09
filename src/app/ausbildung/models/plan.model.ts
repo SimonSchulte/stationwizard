@@ -74,6 +74,56 @@ export interface PlanDocument {
   katsThemen: KatsThema[];
 }
 
+/**
+ * Ein Jahresblatt der Arbeitsmappe: Blattname ist die Jahreszahl, eigene
+ * Termine und eine eigene KatS-A-Plan-Themenliste je Jahr.
+ */
+export interface Jahresblatt {
+  jahr: number;
+  titel: string;
+  termine: Termin[];
+  katsThemen: KatsThema[];
+}
+
+/**
+ * Gesamte Arbeitsmappe: ein Jahresblatt je Jahr, dazu das geteilte
+ * Ideen-Backlog ("Offene Ideen"), das jahresübergreifend ein einziges Mal existiert.
+ */
+export interface Arbeitsmappe {
+  jahre: Jahresblatt[];
+  backlog: Termin[];
+}
+
+export function leeresJahresblatt(jahr: number): Jahresblatt {
+  return { jahr, titel: `Jahresplan ${jahr}`, termine: [], katsThemen: [] };
+}
+
+/** Blendet das Backlog in ein Jahresblatt ein – die Sicht, mit der der Store arbeitet. */
+export function alsPlanDocument(blatt: Jahresblatt, backlog: Termin[]): PlanDocument {
+  return {
+    jahr: blatt.jahr,
+    titel: blatt.titel,
+    termine: blatt.termine,
+    katsThemen: blatt.katsThemen,
+    backlog,
+  };
+}
+
+/** Blendet das Backlog wieder aus – für die Ablage in der Arbeitsmappe. */
+export function alsJahresblatt(dokument: PlanDocument): Jahresblatt {
+  return {
+    jahr: dokument.jahr,
+    titel: dokument.titel,
+    termine: dokument.termine,
+    katsThemen: dokument.katsThemen,
+  };
+}
+
+/** Einzelnes Dokument als (Übergangs-)Arbeitsmappe mit nur einem Jahresblatt. */
+export function einJahrArbeitsmappe(dokument: PlanDocument): Arbeitsmappe {
+  return { jahre: [alsJahresblatt(dokument)], backlog: dokument.backlog };
+}
+
 export type TerminArt = 'ausbildung' | 'ereignis';
 
 /** Ein Eintrag ohne Thema und Rolle ist ein reiner Kalendereintrag (Veranstaltung, Feiertag). */
