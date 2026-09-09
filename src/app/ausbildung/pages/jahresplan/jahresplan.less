@@ -1,3 +1,5 @@
+@import '../../../kern/kopfleiste.less';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -7,21 +9,7 @@
 }
 
 .kopfleiste {
-  flex: 0 0 auto;
-  height: auto;
-  min-height: 56px;
-  gap: var(--space-sm);
-  padding-block: var(--space-xs);
-  padding-inline: var(--space-md);
-  border-bottom: 1px solid var(--border-light);
-  background: var(--surface-primary);
-
-  // Bei zu wenig Platz umbrechen statt Beschriftungen zu quetschen.
-  flex-wrap: wrap;
-
-  > * {
-    flex-shrink: 0;
-  }
+  .kopfleiste-basis();
 }
 
 .marke {

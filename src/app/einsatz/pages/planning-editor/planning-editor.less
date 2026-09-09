@@ -1,3 +1,5 @@
+@import '../../../kern/kopfleiste.less';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -34,13 +36,13 @@
   flex-direction: column;
   justify-content: center;
   gap: var(--space-unit);
-  border-left: 1px solid var(--border-on-dark);
+  border-left: 1px solid var(--border-light);
   padding-left: var(--space-md);
   margin-left: var(--space-sm);
 
   .einsatzleiter-label {
     font-size: 0.65rem;
-    color: var(--text-on-dark-secondary);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     line-height: 1;
@@ -49,17 +51,7 @@
   .einsatzleiter-select {
     width: 200px;
     font-size: 0.875rem;
-    color: var(--text-on-dark);
-
-    // Arrow icon color
-    .mat-mdc-select-arrow {
-      color: var(--text-on-dark-secondary);
-    }
-
-    // Value text color
-    .mat-mdc-select-value-text {
-      color: var(--text-on-dark);
-    }
+    color: var(--text-primary);
   }
 }
 
@@ -67,8 +59,8 @@
 .planung-name-input {
   background: var(--surface-transparent);
   border: none;
-  border-bottom: 1px solid var(--border-on-dark);
-  color: var(--text-on-dark);
+  border-bottom: 1px solid var(--border-medium);
+  color: var(--text-primary);
   font-size: 0.875rem;
   font-family: inherit;
   font-weight: 500;
@@ -78,7 +70,7 @@
   max-width: var(--planung-card-width);
 
   &:focus-visible {
-    outline: 1px solid var(--text-on-dark);
+    outline: 1px solid var(--mat-sys-primary);
     outline-offset: var(--space-unit);
   }
 }
@@ -92,65 +84,35 @@
 .time-input {
   background: var(--surface-transparent);
   border: none;
-  border-bottom: 1px solid var(--border-on-dark);
-  color: var(--text-on-dark);
+  border-bottom: 1px solid var(--border-medium);
+  color: var(--text-primary);
   font-size: 0.875rem;
   font-family: inherit;
   padding: var(--space-2xs) var(--space-xs);
-  color-scheme: dark;
   width: 80px;
 
   &:focus-visible {
-    outline: 1px solid var(--text-on-dark);
+    outline: 1px solid var(--mat-sys-primary);
     outline-offset: var(--space-unit);
   }
 }
 
 .date-sep {
-  color: var(--text-on-dark-secondary);
+  color: var(--text-secondary);
   margin: 0 var(--space-xs);
 }
 
 /* Compact Material date-field in toolbar */
 .date-field {
   width: 130px;
-
-  // Override Material M3 token for outlined field colors on dark background
-  --mdc-outlined-text-field-outline-color: var(--border-on-dark);
-  --mdc-outlined-text-field-hover-outline-color: var(--text-on-dark-secondary);
-  --mdc-outlined-text-field-focus-outline-color: var(--text-on-dark);
-  --mdc-outlined-text-field-input-text-color: var(--text-on-dark);
-  --mdc-outlined-text-field-label-text-color: var(--text-on-dark-secondary);
-  --mdc-outlined-text-field-focus-label-text-color: var(--text-on-dark);
-  --mat-form-field-trailing-icon-color: var(--text-on-dark-secondary);
-
-  .mat-mdc-text-field-wrapper {
-    background: var(--surface-on-dark-input);
-    border-radius: var(--radius-sm);
-  }
-
-  input {
-    color: var(--text-on-dark);
-    font-size: 0.8rem;
-  }
-
-  .mat-mdc-form-field-icon-suffix {
-    color: var(--text-on-dark-secondary);
-  }
 }
 
 .editor-toolbar {
-  flex-shrink: 0;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  height: auto;
-  min-height: calc(var(--space-sm) * 7);
-  padding-block: var(--space-sm);
-  white-space: normal;
+  .kopfleiste-basis();
 
-  > button {
-    flex-shrink: 0;
-  }
+  gap: var(--space-sm);
+  min-height: calc(var(--space-sm) * 7);
+  white-space: normal;
 
   .planung-name {
     font-weight: 500;

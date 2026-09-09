@@ -1,3 +1,5 @@
+@import '../../../kern/kopfleiste.less';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -141,14 +143,17 @@
   white-space: normal;
 }
 
+// Helle Werkzeugleiste statt vollflächiger Material-Toolbar-Farbe – dasselbe
+// Muster wie im Ausbildungsplaner (kern/kopfleiste.less), damit beide
+// Fachbereiche unter der dunkelblauen App-Kopfzeile gleich aussehen.
 .listen-kopfleiste {
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  height: auto;
-  min-height: calc(var(--space-sm) * 7);
-  padding-block: var(--space-sm);
-  gap: var(--space-sm);
+  .kopfleiste-basis();
+
   white-space: normal;
+}
+
+.kopfleiste-icon {
+  color: var(--mat-sys-primary);
 }
 
 .abschnitt-trenner {
@@ -188,6 +193,11 @@
   gap: var(--space-sm);
   font-size: var(--font-size-sm);
   margin-inline: var(--space-sm);
+  color: var(--text-secondary);
+
+  &.verbunden {
+    color: var(--status-ok);
+  }
 }
 
 @media (max-width: 780px) {

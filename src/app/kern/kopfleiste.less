@@ -1,0 +1,22 @@
+// Gemeinsames Kopfzeilen-Muster für die Werkzeugleisten der Fachbereiche
+// (Ausbildungsplaner, Personaleinsatzplanung). Eine helle Leiste mit rotem
+// Icon-Akzent statt vollflächiger Material-Toolbar-Farbe, damit beide
+// Fachbereiche unter der dunkelblauen App-Kopfzeile dieselbe Sprache
+// sprechen. Component-Styles rufen `.kopfleiste-basis();` in ihrer eigenen
+// Kopfzeilen-Klasse auf und ergänzen fachbereichsspezifische Regeln.
+.kopfleiste-basis() {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 56px;
+  gap: var(--space-sm);
+  padding-block: var(--space-xs);
+  padding-inline: var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  flex-wrap: wrap;
+
+  > * {
+    flex-shrink: 0;
+  }
+}
