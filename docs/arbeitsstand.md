@@ -18,10 +18,10 @@
 
 ## Abnahmegrenzen
 
-Lokale Builds und Tests ersetzen keine Produktionsabnahme. Google-Zugriffsliste,
-Hostname, DNS-/Mail-Bestand, Cloudflare-Team/AUD sowie echte Nextcloud-/EFS-Verbindungen
-sind vom Auftraggeber noch bereitzustellen bzw. zu prüfen. Keine Altrepositories
-archivieren, bevor der Ersatz abgenommen ist.
+Produktion, Google-Zugriffsliste, DNS/Hostname sowie Nextcloud-/EFS-Verbindungen sind
+eingerichtet; die App läuft. Weiterhin offen bleiben `npm run test:spa` und die daran
+gekoppelte Umstellung von Hash-Routing auf saubere Pfade (siehe AP7). Keine
+Altrepositories archivieren, bevor sie nicht mehr benötigt werden.
 
 ## AP2 – Worker und Static Assets
 
@@ -155,77 +155,17 @@ archivieren, bevor der Ersatz abgenommen ist.
 
 ## GitHub-Übergabe
 
-Alle sechs AP-Stände liegen als Branches und Commits vor. Der vom Auftraggeber erstellte
-Fork [stexeflex/stationwizard](https://github.com/stexeflex/stationwizard) ist für die
-verbundene Identität beschreibbar und enthält die AP-Branches für die Übergabe. Der Upload
-über die GitHub-API erzeugt neue Remote-Commits; die früher angegebenen Kennungen bleiben
-lokale Prüfcommits. Für jeden AP ist die Übereinstimmung des Inhaltsbaums maßgeblich.
+Die sechs AP-Branches (AP1 bis AP6) wurden über Pull Requests aus dem Fork
+[stexeflex/stationwizard](https://github.com/stexeflex/stationwizard) in Reihenfolge nach
+`main` übernommen. Die App ist seitdem eingerichtet und läuft produktiv; Details zur
+laufenden Konfiguration stehen in [Einrichtung](einrichtung.md) und im
+[Worker-README](../worker/README.md).
 
-Die anschließende PR-Erstellung im Original `SimonSchulte/stationwizard` wurde mit
-HTTP 403 (`Resource not accessible by integration`) abgewiesen. Es wurden noch keine
-Remote-PRs erstellt. Fehlende Schreibrechte am Original verhindern grundsätzlich keine
-Fork-Pull-Requests; die eingesetzte GitHub-Anbindung darf diese konkrete API-Aktion dort
-jedoch nicht ausführen. Die sechs PRs können über die
-[Vergleichslinks und Beschreibungen](pull-requests.md) mit dem persönlichen GitHub-Login
-im Browser erstellt werden.
+## EFS- und Nextcloud-Diagnose
 
-Ein Merge auf `main` und Infrastrukturänderungen wurden noch nicht vorgenommen.
-GitHub-Prüfungen und Review sind von den oben dokumentierten lokalen Prüfläufen zu
-unterscheiden.
-
-## EFS-Diagnose im Deployment (offen)
-
-Im Deployment lädt `GET /api/nextcloud/arbeitsmappe` erfolgreich, während die
-EFS-Aufrufe mit `X-Stationwizard-Diagnose: EFS_NICHT_ERREICHBAR` abbrechen. Der Code fasste
-im EFS-Pfad bisher drei Ursachen zusammen: eine nicht verfolgte Weiterleitung, ein
-überschrittenes Zeitlimit und einen echten Transportfehler. Der EFS-Pfad verwendet jetzt
-dieselbe Diagnosetrennung wie der Nextcloud-Pfad: Anfrage mit `redirect: 'manual'` ohne
-Folgen der Weiterleitung, eigener Code `EFS_UMLEITUNG` für `3xx`, eigener Code
-`EFS_ZEITLIMIT` (504) für das 15-Sekunden-Limit und ein redigierter Logeintrag des
-Betreibers für den verbleibenden Transportfehler. Ziel, Inhalt und Header der Weiterleitung
-werden verworfen. Der gemeinsame `WorkerClient` hängt den festen Diagnosecode an die
-Oberflächenmeldung an, damit der Fall ohne Entwicklerwerkzeuge ablesbar ist.
-
-Damit unterscheidet der nächste Aufrufversuch drei Fälle:
-
-- `EFS_UMLEITUNG`: `HIORGSERVER_BASE_URL` ist nicht die kanonische Endpunktadresse. Bei
-  `hiorg-server.de` fehlt dann typischerweise der abschließende `/`
-  (`https://www.hiorg-server.de/api/efs/`); siehe [Worker-README](../worker/README.md).
-- `EFS_ZEITLIMIT`: HiOrg antwortet nicht innerhalb von 15 Sekunden.
-- `EFS_NICHT_ERREICHBAR`: Verbindung, DNS, TLS oder eine Beschränkung gegenüber dem
-  Cloudflare-Netz; die redigierte Ursache steht im Worker-Log.
-
-Geprüft wurden `npm run worker:check`, `npm run worker:test`, `npm run build`, `npm test`
-und `npm run format:check`. Die Ursache im Deployment ist damit noch nicht bestimmt; sie
-ergibt sich erst aus dem nächsten Aufrufversuch gegen die echte HiOrg-Instanz. Ein eigener
-`curl`-Test gegen `hiorg-server.de` war aus dieser Arbeitsumgebung nicht möglich: der
-vorgeschaltete Proxy beantwortet beide Endpunktvarianten mit `403` und belegt damit weder
-die Erreichbarkeit noch die Weiterleitung.
-
-## Nextcloud-Diagnose im Deployment (offen)
-
-Im `main`-Deployment beantwortet `GET /api/nextcloud/arbeitsmappe` den Ladeversuch mit
-`X-Stationwizard-Diagnose: NEXTCLOUD_NICHT_ERREICHBAR`. Der Code fasste bisher zwei
-verschiedene Ursachen zusammen: eine nicht verfolgte Weiterleitung und einen echten
-Transportfehler. Der Worker fragt jetzt mit `redirect: 'manual'` an, folgt weiterhin
-keiner Weiterleitung und meldet `3xx`-Antworten getrennt als `NEXTCLOUD_UMLEITUNG`.
-Ziel, Inhalt und Header der Weiterleitung werden verworfen.
-
-Damit unterscheidet die nächste Deployment-Prüfung zwei Fälle:
-
-- `NEXTCLOUD_UMLEITUNG`: `NEXTCLOUD_BASE_URL` ist nicht die kanonische Adresse der
-  Installation. Prüf- und Korrekturschritte stehen im [Worker-README](../worker/README.md).
-- `NEXTCLOUD_NICHT_ERREICHBAR`: Verbindung, DNS, TLS oder eine IP-Beschränkung der
-  Nextcloud-Instanz gegenüber dem Cloudflare-Netz.
-
-Geprüft wurden `npm run worker:check`, `npm run worker:test`, `npm run build`, `npm test`
-und `npm run format:check`. Die eigentliche Ursache im Deployment ist damit noch nicht
-bestimmt; sie ergibt sich erst aus dem nächsten Ladeversuch gegen die echte Instanz.
-
-Erste Messung an der echten Instanz: `curl -Is` auf den öffentlichen WebDAV-Endpunkt
-antwortet mit `401` und `WWW-Authenticate: Basic realm="Nextcloud"`. Endpunkt, DNS und TLS
-sind von außen also in Ordnung, und es gibt dort keine Weiterleitung. App-Zone und
-Nextcloud-Zone sind verschieden, eine Same-Zone-Einschränkung scheidet damit aus. Der
-Fehler entsteht folglich erst im Subrequest aus dem Cloudflare-Netz. Damit dessen Ursache
-überhaupt sichtbar wird, protokolliert der Worker sie jetzt redigiert im eigenen Log.
-Die konkrete Ursache ist weiterhin offen und braucht einen Ladeversuch mit `wrangler tail`.
+Beide Proxy-Pfade fragen mit `redirect: 'manual'` an und trennen `3xx`-Antworten
+(`EFS_UMLEITUNG` / `NEXTCLOUD_UMLEITUNG`) von echten Transportfehlern
+(`EFS_NICHT_ERREICHBAR` / `NEXTCLOUD_NICHT_ERREICHBAR`) und, im EFS-Fall, vom
+15-Sekunden-Zeitlimit (`EFS_ZEITLIMIT`). Ziel, Inhalt und Header einer Weiterleitung werden
+verworfen; der Transportfehler wird redigiert im Worker-Log protokolliert. Der vollständige
+Fehlercode-Katalog steht im [Worker-README](../worker/README.md#schutzgrenzen-und-diagnose).
