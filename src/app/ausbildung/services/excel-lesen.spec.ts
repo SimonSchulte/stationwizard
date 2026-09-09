@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { leseArbeitsmappe } from './excel-lesen';
 import { schreibeArbeitsmappe } from './excel-schreiben';
 import { isoZuSerial } from '../../kern/kalender/datum';
+import { Jahresblatt } from '../models/plan.model';
+
+function jahresblatt(arbeitsmappe: { jahre: Jahresblatt[] }, jahr: number): Jahresblatt {
+  const blatt = arbeitsmappe.jahre.find((j) => j.jahr === jahr);
+  if (!blatt) {
+    throw new Error(`Kein Jahresblatt ${jahr} gefunden.`);
+  }
+  return blatt;
+}
 
 /**
  * Baut eine Mappe im Zustand der gewachsenen Vorlage nach: Titelzeile über der
@@ -159,13 +168,13 @@ function beispielMappe(): ArrayBuffer {
 
 describe('leseArbeitsmappe', () => {
   it('liest den Jahresplan inklusive Kopfzeile unterhalb der Überschrift', () => {
-    const { dokument } = leseArbeitsmappe(beispielMappe());
+    const { arbeitsmappe } = leseArbeitsmappe(beispielMappe());
+    const blatt = jahresblatt(arbeitsmappe, 2026);
 
-    expect(dokument.jahr).toBe(2026);
-    expect(dokument.titel).toBe('(Jahres)Dienstplan BI EE 04');
-    expect(dokument.termine).toHaveLength(3);
+    expect(blatt.titel).toBe('(Jahres)Dienstplan BI EE 04');
+    expect(blatt.termine).toHaveLength(3);
 
-    const ersterTermin = dokument.termine[0];
+    const ersterTermin = blatt.termine[0];
     expect(ersterTermin.datum).toBe('2026-01-05');
     expect(ersterTermin.kategorie).toBe('SAN');
     expect(ersterTermin.ausbilder).toBe('A. Beispiel');
@@ -174,8 +183,8 @@ describe('leseArbeitsmappe', () => {
   });
 
   it('behält reine Veranstaltungen als Kalendereinträge', () => {
-    const { dokument } = leseArbeitsmappe(beispielMappe());
-    const ereignis = dokument.termine.find((t) => t.datum === '2026-03-21');
+    const { arbeitsmappe } = leseArbeitsmappe(beispielMappe());
+    const ereignis = jahresblatt(arbeitsmappe, 2026).termine.find((t) => t.datum === '2026-03-21');
 
     expect(ereignis?.hinweis).toBe('Übung der Einheit');
     expect(ereignis?.thema).toBe('');
@@ -183,78 +192,85 @@ describe('leseArbeitsmappe', () => {
   });
 
   it('vereinheitlicht beide Alt-Layouts des Ideen-Blatts', () => {
-    const { dokument, meldungen } = leseArbeitsmappe(beispielMappe());
+    const { arbeitsmappe, meldungen } = leseArbeitsmappe(beispielMappe());
 
-    expect(dokument.backlog).toHaveLength(5);
+    expect(arbeitsmappe.backlog).toHaveLength(5);
     expect(meldungen.some((m) => m.includes('vereinheitlicht'))).toBe(true);
 
-    const kolonnenfahrt = dokument.backlog.find((i) => i.thema === 'Die Kolonnenfahrt');
+    const kolonnenfahrt = arbeitsmappe.backlog.find((i) => i.thema === 'Die Kolonnenfahrt');
     expect(kolonnenfahrt?.katsPflicht).toBe(true);
     expect(kolonnenfahrt?.datum).toBeNull();
 
-    const funk = dokument.backlog.find((i) => i.thema === 'Sprechfunkausbildung praktisch');
+    const funk = arbeitsmappe.backlog.find((i) => i.thema === 'Sprechfunkausbildung praktisch');
     expect(funk?.kategorie).toBe('TeSi/Iuk');
 
-    const betreuung = dokument.backlog.find((i) => i.thema.startsWith('Umgang mit Menschen'));
+    const betreuung = arbeitsmappe.backlog.find((i) => i.thema.startsWith('Umgang mit Menschen'));
     expect(betreuung?.kategorie).toBe('Bt/Vp');
 
     // Layout B: Rolle steht vorn, Thema in Spalte B.
-    const doku = dokument.backlog.find((i) => i.thema === 'Dokumentation im Sanitätsdienst');
+    const doku = arbeitsmappe.backlog.find((i) => i.thema === 'Dokumentation im Sanitätsdienst');
     expect(doku?.kategorie).toBe('SAN');
     expect(doku?.ausbilder).toBe('C. Muster');
     expect(doku?.material).toBe('Protokolle, MANV-Karten');
     expect(doku?.anforderungen).toBe('Aus der Übung');
 
-    const rallye = dokument.backlog.find((i) => i.thema === 'Fahrzeugkunde/Rallye');
+    const rallye = arbeitsmappe.backlog.find((i) => i.thema === 'Fahrzeugkunde/Rallye');
     expect(rallye?.katsPflicht).toBe(true);
     expect(rallye?.material).toBe('KTW-Land, GWSAN');
   });
 
   it('baut die KatS-A-Plan-Liste aus Plan und Pflicht-Ideen auf und verknüpft sie', () => {
-    const { dokument } = leseArbeitsmappe(beispielMappe());
+    const { arbeitsmappe } = leseArbeitsmappe(beispielMappe());
+    const blatt = jahresblatt(arbeitsmappe, 2026);
 
-    // Zwei Titel aus dem Jahresplan plus drei als Pflicht markierte Ideen.
-    expect(dokument.katsThemen).toHaveLength(5);
+    // Bei nur einem Jahresblatt zieht die Ableitung auch die Ideen heran: zwei Titel
+    // aus dem Jahresplan plus drei als Pflicht markierte Ideen.
+    expect(blatt.katsThemen).toHaveLength(5);
 
-    const verknuepft = dokument.termine.filter((t) => t.katsThemaId !== null);
+    const verknuepft = blatt.termine.filter((t) => t.katsThemaId !== null);
     expect(verknuepft).toHaveLength(2);
 
-    const thema = dokument.katsThemen.find((t) => t.id === verknuepft[0].katsThemaId);
+    const thema = blatt.katsThemen.find((t) => t.id === verknuepft[0].katsThemaId);
     expect(thema?.titel).toContain('Blaulicht');
     // Mehrzeilige Titel werden für die Liste zu einer Zeile normalisiert.
     expect(thema?.titel).not.toContain('\n');
     expect(thema?.pflicht).toBe(true);
 
-    const kolonnenfahrt = dokument.backlog.find((i) => i.thema === 'Die Kolonnenfahrt');
+    const kolonnenfahrt = arbeitsmappe.backlog.find((i) => i.thema === 'Die Kolonnenfahrt');
     expect(kolonnenfahrt?.katsThemaId).not.toBeNull();
   });
 });
 
 describe('schreibeArbeitsmappe', () => {
   it('erzeugt eine Mappe, die sich verlustfrei wieder einlesen lässt', () => {
-    const original = leseArbeitsmappe(beispielMappe()).dokument;
-    const wieder = leseArbeitsmappe(schreibeArbeitsmappe(original)).dokument;
+    const original = leseArbeitsmappe(beispielMappe()).arbeitsmappe;
+    const wieder = leseArbeitsmappe(schreibeArbeitsmappe(original)).arbeitsmappe;
+    const blattOriginal = jahresblatt(original, 2026);
+    const blattWieder = jahresblatt(wieder, 2026);
 
-    expect(wieder.jahr).toBe(original.jahr);
-    expect(wieder.titel).toBe(original.titel);
-    expect(wieder.termine.map((t) => t.datum)).toEqual(original.termine.map((t) => t.datum));
-    expect(wieder.termine.map((t) => t.thema)).toEqual(original.termine.map((t) => t.thema));
-    expect(wieder.termine.map((t) => t.nachweise)).toEqual(
-      original.termine.map((t) => t.nachweise),
+    expect(blattWieder.titel).toBe(blattOriginal.titel);
+    expect(blattWieder.termine.map((t) => t.datum)).toEqual(
+      blattOriginal.termine.map((t) => t.datum),
+    );
+    expect(blattWieder.termine.map((t) => t.thema)).toEqual(
+      blattOriginal.termine.map((t) => t.thema),
+    );
+    expect(blattWieder.termine.map((t) => t.nachweise)).toEqual(
+      blattOriginal.termine.map((t) => t.nachweise),
     );
     expect(wieder.backlog.map((i) => i.thema).sort()).toEqual(
       original.backlog.map((i) => i.thema).sort(),
     );
-    expect(wieder.katsThemen.map((t) => t.titel).sort()).toEqual(
-      original.katsThemen.map((t) => t.titel).sort(),
+    expect(blattWieder.katsThemen.map((t) => t.titel).sort()).toEqual(
+      blattOriginal.katsThemen.map((t) => t.titel).sort(),
     );
   });
 
-  it('legt das Ideen-Blatt im Schema des Jahresplans an', () => {
-    const original = leseArbeitsmappe(beispielMappe()).dokument;
+  it('legt Jahresplan- und KatS-A-Plan-Blatt unter der bloßen Jahreszahl an', () => {
+    const original = leseArbeitsmappe(beispielMappe()).arbeitsmappe;
     const wb = XLSX.read(new Uint8Array(schreibeArbeitsmappe(original)), { type: 'array' });
 
-    expect(wb.SheetNames).toEqual(['Jahresplan 2026', 'Offene Ideen', 'KatS-A-Plan']);
+    expect(wb.SheetNames).toEqual(['2026', 'Offene Ideen', 'KatS-A-Plan 2026']);
 
     const kopf = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['Offene Ideen'], {
       header: 1,

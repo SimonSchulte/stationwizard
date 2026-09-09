@@ -1,17 +1,40 @@
 import { NACHWEISE, NachweisKey } from '../models/plan.model';
 
-/** Blattnamen, die beim Lesen erkannt werden. */
+/**
+ * Blattnamen, die beim Lesen erkannt werden.
+ *
+ * Ein Jahresblatt heißt seit der Umstellung auf mehrjährige Arbeitsmappen schlicht
+ * wie die Jahreszahl (`2026`). Die alten Namen ("Jahresplan 2026", "Dienstplan …")
+ * werden beim Lesen weiterhin erkannt, damit noch nicht umbenannte Altdateien
+ * verlustfrei geöffnet werden können; geschrieben wird nur noch der bloße Jahresname.
+ */
 export const BLATT_MUSTER = {
-  jahresplan: /jahresplan|dienstplan|rahmenplan/i,
+  jahresplanAlt: /jahresplan|dienstplan|rahmenplan/i,
   backlog: /offene\s*ideen|ideen|backlog/i,
-  kats: /kats/i,
+  kats: /^kats/i,
 };
 
 export const BLATT_BACKLOG = 'Offene Ideen';
-export const BLATT_KATS = 'KatS-A-Plan';
+/** Altname des (damals jahresübergreifend einzigen) KatS-A-Plan-Blatts. */
+export const BLATT_KATS_ALT = 'KatS-A-Plan';
 
 export function blattJahresplan(jahr: number): string {
-  return `Jahresplan ${jahr}`;
+  return String(jahr);
+}
+
+export function blattKats(jahr: number): string {
+  return `KatS-A-Plan ${jahr}`;
+}
+
+/** Erkennt ein Jahresblatt an seinem Namen: entweder die bloße Jahreszahl oder ein Altname. */
+export function istJahresBlattname(name: string): boolean {
+  return /^20\d{2}$/.test(name.trim()) || BLATT_MUSTER.jahresplanAlt.test(name);
+}
+
+/** Extrahiert die Jahreszahl aus einem Blattnamen, falls eine enthalten ist. */
+export function jahrAusBlattname(name: string): number | null {
+  const treffer = /(20\d{2})/.exec(name);
+  return treffer ? Number(treffer[1]) : null;
 }
 
 /** Feldnamen, auf die eine Spaltenüberschrift abgebildet wird. */

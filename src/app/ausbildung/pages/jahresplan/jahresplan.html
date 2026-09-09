@@ -4,7 +4,28 @@
     <span class="marke-text">Ausbildungsplaner</span>
   </span>
 
-  <span class="jahr">{{ store.jahr() }}</span>
+  <button
+    matButton
+    class="jahr"
+    [matMenuTriggerFor]="jahrMenue"
+    [disabled]="!store.hatDaten()"
+    matTooltip="Jahr wechseln"
+  >
+    {{ store.jahr() }}
+    <mat-icon inline>arrow_drop_down</mat-icon>
+  </button>
+  <mat-menu #jahrMenue="matMenu">
+    @for (jahr of verfuegbareJahre(); track jahr) {
+      <button mat-menu-item (click)="waehleJahr(jahr)">
+        <mat-icon>{{ jahr === store.jahr() ? 'check' : '' }}</mat-icon>
+        <span>{{ jahr }}</span>
+      </button>
+    }
+    <button mat-menu-item (click)="neuesJahr()">
+      <mat-icon>add</mat-icon>
+      <span>Neues Jahr ({{ naechstesJahr() }})</span>
+    </button>
+  </mat-menu>
 
   <span class="quelle" [matTooltip]="quelleBeschreibung()">
     <mat-icon inline>{{ ziel()?.art === 'nextcloud' ? 'cloud' : 'description' }}</mat-icon>

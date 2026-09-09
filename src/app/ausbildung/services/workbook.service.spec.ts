@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { wochentageImJahr } from '../../kern/kalender/datum';
-import { leererTermin, leeresDocument, PlanDocument } from '../models/plan.model';
+import {
+  PlanDocument,
+  einJahrArbeitsmappe,
+  leererTermin,
+  leeresDocument,
+} from '../models/plan.model';
 import { WorkbookInhalt, WorkbookStorage } from '../storage/workbook-storage';
 import { leseArbeitsmappe } from './excel-lesen';
 import { schreibeArbeitsmappe } from './excel-schreiben';
@@ -16,13 +21,23 @@ function testDokument(titel = 'Fiktiver Ausbildungsplan'): PlanDocument {
   };
 }
 
+/** Liest genau das Jahresblatt 2026 der Testmappe als eigenständiges Dokument. */
+function leseTestDokument(daten: ArrayBuffer): PlanDocument {
+  const { arbeitsmappe } = leseArbeitsmappe(daten);
+  const blatt = arbeitsmappe.jahre.find((j) => j.jahr === 2026);
+  if (!blatt) {
+    throw new Error('Kein Jahresblatt 2026 in der Testmappe.');
+  }
+  return { ...blatt, backlog: arbeitsmappe.backlog };
+}
+
 function testQuelle() {
   return {
     art: 'nextcloud',
     bezeichnung: 'Fiktive_Arbeitsmappe.xlsx',
     faehigkeiten: { direktesSpeichern: true, neuLaden: true },
     laden: vi.fn<WorkbookStorage['laden']>().mockResolvedValue({
-      daten: schreibeArbeitsmappe(testDokument()),
+      daten: schreibeArbeitsmappe(einJahrArbeitsmappe(testDokument())),
       dateiname: 'Fiktive_Arbeitsmappe.xlsx',
     }),
     speichern: vi.fn<WorkbookStorage['speichern']>().mockResolvedValue(),
@@ -62,8 +77,8 @@ describe('WorkbookService schützt Bearbeitungen während asynchroner Vorgänge'
     // Auch Bearbeitungen während des dynamischen Excel-Imports gehören nicht zum Auftrag.
     store.setzeTitel('Spätere Bearbeitung');
     await geschrieben.ergebnis;
-    const datei = leseArbeitsmappe(quelle.speichern.mock.calls[0][0]);
-    expect(datei.dokument.titel).toBe('Stand beim Speichern');
+    const datei = leseTestDokument(quelle.speichern.mock.calls[0][0]);
+    expect(datei.titel).toBe('Stand beim Speichern');
     antwort.freigeben();
     await speichern;
 
@@ -109,7 +124,7 @@ describe('WorkbookService schützt Bearbeitungen während asynchroner Vorgänge'
     const laden = workbook.laden(quelle);
     store.setzeTitel('Während des Ladens bearbeitet');
     antwort.freigeben({
-      daten: schreibeArbeitsmappe(testDokument('Stand vom Server')),
+      daten: schreibeArbeitsmappe(einJahrArbeitsmappe(testDokument('Stand vom Server'))),
       dateiname: 'Server.xlsx',
     });
 
@@ -129,7 +144,7 @@ describe('WorkbookService schützt Bearbeitungen während asynchroner Vorgänge'
     const neuLaden = workbook.neuLaden();
     store.setzeTitel('Lokale Bearbeitung während Reload');
     antwort.freigeben({
-      daten: schreibeArbeitsmappe(testDokument('Neuer Serverstand')),
+      daten: schreibeArbeitsmappe(einJahrArbeitsmappe(testDokument('Neuer Serverstand'))),
       dateiname: 'Fiktive_Arbeitsmappe.xlsx',
     });
     await expect(neuLaden).rejects.toThrow('während des Ladens geändert');
@@ -156,7 +171,10 @@ describe('WorkbookService schützt Bearbeitungen während asynchroner Vorgänge'
     expect(zweiteQuelle.laden).not.toHaveBeenCalled();
     expect(zweiteQuelle.speichern).not.toHaveBeenCalled();
     expect(workbook.beschaeftigt()).toBe(true);
-    antwort.freigeben({ daten: schreibeArbeitsmappe(testDokument()), dateiname: 'Test.xlsx' });
+    antwort.freigeben({
+      daten: schreibeArbeitsmappe(einJahrArbeitsmappe(testDokument())),
+      dateiname: 'Test.xlsx',
+    });
     await laden;
     expect(workbook.beschaeftigt()).toBe(false);
   });
@@ -169,7 +187,7 @@ describe('WorkbookService schützt Bearbeitungen während asynchroner Vorgänge'
 
     workbook.neuesDokument(testDokument('Gewählter neuer Plan'));
     antwort.freigeben({
-      daten: schreibeArbeitsmappe(testDokument('Alter Plan')),
+      daten: schreibeArbeitsmappe(einJahrArbeitsmappe(testDokument('Alter Plan'))),
       dateiname: 'Alt.xlsx',
     });
 
@@ -189,7 +207,7 @@ describe('WorkbookService schützt Bearbeitungen während asynchroner Vorgänge'
     const { daten, dateiname, stand } = await exportieren;
     store.alsGespeichertMarkieren(stand);
 
-    expect(leseArbeitsmappe(daten).dokument.titel).toBe('Exportierter Stand');
+    expect(leseTestDokument(daten).titel).toBe('Exportierter Stand');
     expect(dateiname).toBe('Fiktive_Arbeitsmappe.xlsx');
     expect(store.ungespeichert()).toBe(true);
   });
