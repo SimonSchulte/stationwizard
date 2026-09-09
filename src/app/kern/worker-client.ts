@@ -13,6 +13,12 @@ export class WorkerFehler extends Error {
   }
 }
 
+/** Fester Diagnosecode des Workers; er enthält nie Zugangsdaten oder Upstream-Texte. */
+function diagnoseZusatz(antwort: Response): string {
+  const code = antwort.headers.get('X-Stationwizard-Diagnose') ?? '';
+  return /^[A-Z][A-Z0-9_]{2,63}$/.test(code) ? ` Diagnose: ${code}.` : '';
+}
+
 /** Gemeinsamer Client: ausschließlich API-Pfade derselben Origin, keine Zugangsdaten. */
 @Injectable({ providedIn: 'root' })
 export class WorkerClient {
@@ -50,7 +56,7 @@ export class WorkerClient {
             : antwort.status === 503
               ? 'Die Verbindung ist noch nicht vollständig eingerichtet.'
               : `Die Anfrage konnte nicht ausgeführt werden (HTTP ${antwort.status}).`;
-        throw new WorkerFehler(meldung, antwort.status);
+        throw new WorkerFehler(meldung + diagnoseZusatz(antwort), antwort.status);
       }
       this.fehler.set('');
       return antwort;

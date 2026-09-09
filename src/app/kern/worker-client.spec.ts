@@ -40,6 +40,43 @@ describe('WorkerClient', () => {
     await expect(TestBed.inject(WorkerClient).json('/api/status')).rejects.toThrow('API-Antwort');
   });
 
+  it('nennt den festen Diagnosecode des Workers, aber keine fremden Kopfzeilen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json(
+          { code: 'EFS_UMLEITUNG', nachricht: 'Weiterleitung' },
+          {
+            status: 502,
+            headers: {
+              'X-Stationwizard-Diagnose': 'EFS_UMLEITUNG',
+              Location: 'http://fremd.invalid:1080/',
+            },
+          },
+        ),
+      ),
+    );
+    const client = TestBed.inject(WorkerClient);
+    await expect(client.anfragen('/api/efs/checkapikey')).rejects.toThrow('EFS_UMLEITUNG');
+    expect(client.fehler()).toContain('HTTP 502');
+    expect(client.fehler()).not.toContain('fremd.invalid');
+  });
+
+  it('übernimmt keinen frei erfundenen Diagnosewert in die Meldung', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(null, {
+          status: 502,
+          headers: { 'X-Stationwizard-Diagnose': '<b>beliebiger Text</b>' },
+        }),
+      ),
+    );
+    const client = TestBed.inject(WorkerClient);
+    await expect(client.anfragen('/api/status')).rejects.toThrow('HTTP 502');
+    expect(client.fehler()).not.toContain('beliebiger Text');
+  });
+
   it('zeigt Netzwerkfehler ohne technische Rohdaten', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('interne Details')));
     const client = TestBed.inject(WorkerClient);

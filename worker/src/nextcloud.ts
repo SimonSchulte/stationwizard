@@ -1,5 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 export interface NextcloudKonfiguration {
@@ -223,34 +224,6 @@ export async function verarbeiteNextcloud(
   } finally {
     clearTimeout(zeitlimit);
   }
-}
-
-/** Fehlerklasse und Meldung der Laufzeit; keine Header, kein Antwortinhalt. */
-function ursachenText(ursache: unknown): string {
-  if (ursache instanceof Error) return `${ursache.name}: ${ursache.message}`;
-  return typeof ursache;
-}
-
-/** Konfigurierte Adresse und Zugangsdaten aus einem Diagnosetext entfernen. */
-function redigiere(text: string, geheim: (string | undefined)[]): string {
-  let ergebnis = text;
-  for (const wert of geheim) {
-    if (wert) ergebnis = ergebnis.split(wert).join('<redigiert>');
-  }
-  return ergebnis;
-}
-
-function hostname(basisUrl: string): string | undefined {
-  try {
-    return new URL(basisUrl).hostname;
-  } catch {
-    return undefined;
-  }
-}
-
-/** Mit redirect: 'manual' liefert die Laufzeit die Weiterleitung als echten 3xx-Status. */
-function istUmleitung(antwort: Response): boolean {
-  return antwort.status >= 300 && antwort.status <= 399;
 }
 
 function pruefeBasisUrl(wert: string | undefined): string | undefined {
