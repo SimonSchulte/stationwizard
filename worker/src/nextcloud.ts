@@ -140,12 +140,22 @@ export async function verarbeiteNextcloud(
               : {}),
         },
         body: liste ? PROPFIND_INHALT : inhalt,
-        redirect: 'error',
+        // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen Status sichtbar.
+        redirect: 'manual',
         signal: abbruch.signal,
       });
     } catch (fehler) {
-      // Redirects (redirect: 'error'), DNS-, TLS- und Verbindungsfehler landen hier.
+      // DNS-, TLS- und Verbindungsfehler landen hier; Weiterleitungen dagegen unten.
       throw abbruch.signal.aborted ? fehler : new VerbindungsFehler(undefined, { cause: fehler });
+    }
+    if (istUmleitung(antwort)) {
+      // Weiterleitung bewusst nicht folgen: Ziel, Inhalt und Header bleiben unveröffentlicht.
+      await verwerfeInhalt(antwort);
+      return fehlerAntwort(
+        'NEXTCLOUD_UMLEITUNG',
+        'NextCloud beantwortet die konfigurierte Adresse mit einer Weiterleitung.',
+        502,
+      );
     }
     if (!antwort.ok) {
       await verwerfeInhalt(antwort);
@@ -208,6 +218,11 @@ export async function verarbeiteNextcloud(
   } finally {
     clearTimeout(zeitlimit);
   }
+}
+
+/** Mit redirect: 'manual' liefert die Laufzeit die Weiterleitung als echten 3xx-Status. */
+function istUmleitung(antwort: Response): boolean {
+  return antwort.status >= 300 && antwort.status <= 399;
 }
 
 function pruefeBasisUrl(wert: string | undefined): string | undefined {

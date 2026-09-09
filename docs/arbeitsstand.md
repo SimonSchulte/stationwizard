@@ -117,3 +117,23 @@ im Browser erstellt werden.
 Ein Merge auf `main` und Infrastrukturänderungen wurden noch nicht vorgenommen.
 GitHub-Prüfungen und Review sind von den oben dokumentierten lokalen Prüfläufen zu
 unterscheiden.
+
+## Nextcloud-Diagnose im Deployment (offen)
+
+Im `main`-Deployment beantwortet `GET /api/nextcloud/arbeitsmappe` den Ladeversuch mit
+`X-Stationwizard-Diagnose: NEXTCLOUD_NICHT_ERREICHBAR`. Der Code fasste bisher zwei
+verschiedene Ursachen zusammen: eine nicht verfolgte Weiterleitung und einen echten
+Transportfehler. Der Worker fragt jetzt mit `redirect: 'manual'` an, folgt weiterhin
+keiner Weiterleitung und meldet `3xx`-Antworten getrennt als `NEXTCLOUD_UMLEITUNG`.
+Ziel, Inhalt und Header der Weiterleitung werden verworfen.
+
+Damit unterscheidet die nächste Deployment-Prüfung zwei Fälle:
+
+- `NEXTCLOUD_UMLEITUNG`: `NEXTCLOUD_BASE_URL` ist nicht die kanonische Adresse der
+  Installation. Prüf- und Korrekturschritte stehen im [Worker-README](../worker/README.md).
+- `NEXTCLOUD_NICHT_ERREICHBAR`: Verbindung, DNS, TLS oder eine IP-Beschränkung der
+  Nextcloud-Instanz gegenüber dem Cloudflare-Netz.
+
+Geprüft wurden `npm run worker:check`, `npm run worker:test`, `npm run build`, `npm test`
+und `npm run format:check`. Die eigentliche Ursache im Deployment ist damit noch nicht
+bestimmt; sie ergibt sich erst aus dem nächsten Ladeversuch gegen die echte Instanz.
