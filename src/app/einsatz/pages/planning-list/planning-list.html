@@ -1,9 +1,10 @@
-<mat-toolbar color="primary" class="listen-kopfleiste">
-  <mat-icon>assignment</mat-icon>
+<mat-toolbar class="listen-kopfleiste">
+  <mat-icon class="kopfleiste-icon">assignment</mat-icon>
   <span class="toolbar-title">Personaleinsatzplanung</span>
   <span class="spacer"></span>
   <span
     class="verbindungsstatus"
+    [class.verbunden]="efsApi.erreichbar()"
     [matTooltip]="
       efsApi.fehler() ||
       (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
@@ -18,7 +19,7 @@
     <mat-icon>folder_open</mat-icon>
     Datei öffnen
   </button>
-  <button mat-raised-button color="secondary" (click)="createNew()" class="toolbar-btn">
+  <button mat-raised-button color="primary" (click)="createNew()" class="toolbar-btn">
     <mat-icon>add</mat-icon>
     Neue Planung
   </button>
@@ -195,7 +196,7 @@
     <div class="empty-state">
       <mat-icon class="empty-state-icon">groups</mat-icon>
       <p class="empty-hint">Noch keine Planungen vorhanden.</p>
-      <button mat-raised-button color="secondary" (click)="createNew()">
+      <button mat-raised-button color="primary" (click)="createNew()">
         <mat-icon>add</mat-icon> Neue Planung erstellen
       </button>
     </div>
