@@ -17,6 +17,18 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
+# Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
+[observability]
+enabled = true
+
+  [observability.logs]
+  invocation_logs = true
+  head_sampling_rate = 1
+
+  [observability.traces]
+  enabled = false
+  head_sampling_rate = 1
+
 # ACCESS_TEAM_DOMAIN und ACCESS_AUD als Laufzeitvariablen am Worker setzen.
 # Kein Platzhalter und kein Entwicklungsschalter im Produktionscode.
 # Custom Domain erst nach bestätigter Hostnamenwahl und aktivierter Zone ergänzen.
