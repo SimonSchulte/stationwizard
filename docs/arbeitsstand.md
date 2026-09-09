@@ -118,6 +118,35 @@ Ein Merge auf `main` und Infrastrukturänderungen wurden noch nicht vorgenommen.
 GitHub-Prüfungen und Review sind von den oben dokumentierten lokalen Prüfläufen zu
 unterscheiden.
 
+## EFS-Diagnose im Deployment (offen)
+
+Im Deployment lädt `GET /api/nextcloud/arbeitsmappe` erfolgreich, während die
+EFS-Aufrufe mit `X-Stationwizard-Diagnose: EFS_NICHT_ERREICHBAR` abbrechen. Der Code fasste
+im EFS-Pfad bisher drei Ursachen zusammen: eine nicht verfolgte Weiterleitung, ein
+überschrittenes Zeitlimit und einen echten Transportfehler. Der EFS-Pfad verwendet jetzt
+dieselbe Diagnosetrennung wie der Nextcloud-Pfad: Anfrage mit `redirect: 'manual'` ohne
+Folgen der Weiterleitung, eigener Code `EFS_UMLEITUNG` für `3xx`, eigener Code
+`EFS_ZEITLIMIT` (504) für das 15-Sekunden-Limit und ein redigierter Logeintrag des
+Betreibers für den verbleibenden Transportfehler. Ziel, Inhalt und Header der Weiterleitung
+werden verworfen. Der gemeinsame `WorkerClient` hängt den festen Diagnosecode an die
+Oberflächenmeldung an, damit der Fall ohne Entwicklerwerkzeuge ablesbar ist.
+
+Damit unterscheidet der nächste Aufrufversuch drei Fälle:
+
+- `EFS_UMLEITUNG`: `HIORGSERVER_BASE_URL` ist nicht die kanonische Endpunktadresse. Bei
+  `hiorg-server.de` fehlt dann typischerweise der abschließende `/`
+  (`https://www.hiorg-server.de/api/efs/`); siehe [Worker-README](../worker/README.md).
+- `EFS_ZEITLIMIT`: HiOrg antwortet nicht innerhalb von 15 Sekunden.
+- `EFS_NICHT_ERREICHBAR`: Verbindung, DNS, TLS oder eine Beschränkung gegenüber dem
+  Cloudflare-Netz; die redigierte Ursache steht im Worker-Log.
+
+Geprüft wurden `npm run worker:check`, `npm run worker:test`, `npm run build`, `npm test`
+und `npm run format:check`. Die Ursache im Deployment ist damit noch nicht bestimmt; sie
+ergibt sich erst aus dem nächsten Aufrufversuch gegen die echte HiOrg-Instanz. Ein eigener
+`curl`-Test gegen `hiorg-server.de` war aus dieser Arbeitsumgebung nicht möglich: der
+vorgeschaltete Proxy beantwortet beide Endpunktvarianten mit `403` und belegt damit weder
+die Erreichbarkeit noch die Weiterleitung.
+
 ## Nextcloud-Diagnose im Deployment (offen)
 
 Im `main`-Deployment beantwortet `GET /api/nextcloud/arbeitsmappe` den Ladeversuch mit

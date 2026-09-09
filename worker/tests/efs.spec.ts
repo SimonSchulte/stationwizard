@@ -57,7 +57,7 @@ describe('EFS-Proxy: bekannte Aktionen und serverseitige Zugangsdaten', () => {
     expect(url).toBe(BASIS_URL);
     expect(optionen).toMatchObject({
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
@@ -410,7 +410,27 @@ describe('EFS-Antworten und unveränderte Fachdaten', () => {
     expect(antwort.headers.get('Cache-Control')).toBe('no-store');
   });
 
-  it.each([301, 302, 401, 403, 429, 500])(
+  it.each([301, 302, 303, 307, 308])(
+    'meldet die Weiterleitung %s als eigenen Diagnosecode, ohne ihr zu folgen',
+    async (status) => {
+      abrufen.mockResolvedValue(
+        new Response(`${BASIS_URL}: ${TOKEN}`, {
+          status,
+          headers: { Location: 'http://umleitungsziel.example.invalid:1080/' },
+        }),
+      );
+      const antwort = await verarbeiteEfs(anfrageFuer(), umgebung);
+      expect(abrufen).toHaveBeenCalledOnce();
+      expect(antwort.status).toBe(502);
+      expect(await antwort.json()).toEqual({
+        code: 'EFS_UMLEITUNG',
+        nachricht: 'HiOrg beantwortet die konfigurierte EFS-Adresse mit einer Weiterleitung.',
+      });
+      expect(antwort.headers.get('Location')).toBeNull();
+    },
+  );
+
+  it.each([401, 403, 429, 500])(
     'übersetzt HTTP %s in einen sicheren 502-Fehler',
     async (status) => {
       abrufen.mockResolvedValue(
@@ -429,13 +449,39 @@ describe('EFS-Antworten und unveränderte Fachdaten', () => {
     },
   );
 
-  it('filtert Netzwerk-, Timeout- und Redirectfehler', async () => {
-    abrufen.mockRejectedValue(new Error(`Redirect zu ${BASIS_URL} mit ${TOKEN}`));
+  it('filtert Netzwerkfehler und redigiert Ziel und Token im Betreiberlog', async () => {
+    const protokoll = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    abrufen.mockRejectedValue(new Error(`Verbindung zu ${BASIS_URL} mit ${TOKEN} fehlgeschlagen`));
     const antwort = await verarbeiteEfs(anfrageFuer(), umgebung);
     expect(antwort.status).toBe(502);
     expect(await antwort.json()).toEqual({
       code: 'EFS_NICHT_ERREICHBAR',
       nachricht: 'HiOrg ist derzeit nicht erreichbar.',
+    });
+    const protokolliert = protokoll.mock.calls.map((teile) => teile.join(' ')).join('\n');
+    expect(protokolliert).toContain('EFS_NICHT_ERREICHBAR');
+    expect(protokolliert).not.toContain(TOKEN);
+    expect(protokolliert).not.toContain(BASIS_URL);
+    expect(protokolliert).not.toContain('efs.example.invalid');
+    protokoll.mockRestore();
+  });
+
+  it('meldet ein überschrittenes Zeitlimit getrennt von Netzwerkfehlern', async () => {
+    abrufen.mockImplementation(
+      (_ziel, optionen) =>
+        new Promise((_erfuellen, ablehnen) => {
+          const signal = optionen?.signal;
+          signal?.addEventListener('abort', () => ablehnen(signal.reason as Error), { once: true });
+        }),
+    );
+    vi.useFakeTimers();
+    const laufend = verarbeiteEfs(anfrageFuer(), umgebung);
+    await vi.advanceTimersByTimeAsync(15000);
+    const antwort = await laufend;
+    expect(antwort.status).toBe(504);
+    expect(await antwort.json()).toEqual({
+      code: 'EFS_ZEITLIMIT',
+      nachricht: 'HiOrg antwortet nicht rechtzeitig.',
     });
   });
 

@@ -1,4 +1,5 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 export interface EfsKonfiguration {
@@ -137,42 +138,77 @@ export async function verarbeiteEfs(
     formulardaten.set('id', id as string);
   }
 
-  let antwort: Response;
+  const abbruch = new AbortController();
+  const zeitlimit = setTimeout(() => abbruch.abort(), 15_000);
   try {
-    antwort = await fetch(ziel, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      body: formulardaten.toString(),
-      redirect: 'error',
-      signal: AbortSignal.timeout(15000),
-    });
-  } catch {
-    return fehlerAntwort('EFS_NICHT_ERREICHBAR', 'HiOrg ist derzeit nicht erreichbar.', 502);
-  }
+    let antwort: Response;
+    try {
+      antwort = await fetch(ziel, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: formulardaten.toString(),
+        // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen Status sichtbar.
+        redirect: 'manual',
+        signal: abbruch.signal,
+      });
+    } catch (fehler) {
+      if (abbruch.signal.aborted) {
+        return fehlerAntwort('EFS_ZEITLIMIT', 'HiOrg antwortet nicht rechtzeitig.', 504);
+      }
+      // Nur ins Worker-Log des Betreibers, redigiert: die Antwort bleibt der feste Code.
+      console.error(
+        'EFS_NICHT_ERREICHBAR',
+        redigiere(ursachenText(fehler), [ziel, hostname(ziel), token]),
+      );
+      return fehlerAntwort('EFS_NICHT_ERREICHBAR', 'HiOrg ist derzeit nicht erreichbar.', 502);
+    }
 
-  if (!antwort.ok) {
-    await verwerfeInhalt(antwort);
-    return fehlerAntwort('EFS_ABRUF_FEHLGESCHLAGEN', 'HiOrg hat den Abruf abgelehnt.', 502);
-  }
-  const ergebnis = await leseJsonBegrenzt(antwort, MAX_EFS_ANTWORT_BYTES);
-  if (!ergebnis.erfolg) {
-    return ergebnis.ursache === 'zu-gross'
-      ? fehlerAntwort('EFS_ANTWORT_ZU_GROSS', 'Die HiOrg-Antwort ist zu groß.', 502)
-      : fehlerAntwort('EFS_ANTWORT_UNGUELTIG', 'HiOrg hat keine gültigen Daten geliefert.', 502);
-  }
-  if (!istObjekt(ergebnis.inhalt) || ergebnis.inhalt['status'] !== 'OK') {
-    return fehlerAntwort('EFS_ANTWORT_UNGUELTIG', 'HiOrg hat keine gültigen Daten geliefert.', 502);
-  }
+    if (istUmleitung(antwort)) {
+      // Weiterleitung bewusst nicht folgen: Ziel, Inhalt und Header bleiben unveröffentlicht.
+      await verwerfeInhalt(antwort);
+      return fehlerAntwort(
+        'EFS_UMLEITUNG',
+        'HiOrg beantwortet die konfigurierte EFS-Adresse mit einer Weiterleitung.',
+        502,
+      );
+    }
+    if (!antwort.ok) {
+      await verwerfeInhalt(antwort);
+      return fehlerAntwort('EFS_ABRUF_FEHLGESCHLAGEN', 'HiOrg hat den Abruf abgelehnt.', 502);
+    }
+    const ergebnis = await leseJsonBegrenzt(antwort, MAX_EFS_ANTWORT_BYTES, abbruch.signal);
+    if (abbruch.signal.aborted) {
+      return fehlerAntwort('EFS_ZEITLIMIT', 'HiOrg antwortet nicht rechtzeitig.', 504);
+    }
+    if (!ergebnis.erfolg) {
+      return ergebnis.ursache === 'zu-gross'
+        ? fehlerAntwort('EFS_ANTWORT_ZU_GROSS', 'Die HiOrg-Antwort ist zu groß.', 502)
+        : fehlerAntwort('EFS_ANTWORT_UNGUELTIG', 'HiOrg hat keine gültigen Daten geliefert.', 502);
+    }
+    if (!istObjekt(ergebnis.inhalt) || ergebnis.inhalt['status'] !== 'OK') {
+      return fehlerAntwort(
+        'EFS_ANTWORT_UNGUELTIG',
+        'HiOrg hat keine gültigen Daten geliefert.',
+        502,
+      );
+    }
 
-  const daten = filtereAntwort(aktion, ergebnis.inhalt);
-  // Auch ein fremder Server darf den API-Key nicht in einem erlaubten Textfeld spiegeln.
-  if (!daten || enthaeltZugangsdatum(daten, token)) {
-    return fehlerAntwort('EFS_ANTWORT_UNGUELTIG', 'HiOrg hat keine gültigen Daten geliefert.', 502);
+    const daten = filtereAntwort(aktion, ergebnis.inhalt);
+    // Auch ein fremder Server darf den API-Key nicht in einem erlaubten Textfeld spiegeln.
+    if (!daten || enthaeltZugangsdatum(daten, token)) {
+      return fehlerAntwort(
+        'EFS_ANTWORT_UNGUELTIG',
+        'HiOrg hat keine gültigen Daten geliefert.',
+        502,
+      );
+    }
+    return jsonAntwort(daten);
+  } finally {
+    clearTimeout(zeitlimit);
   }
-  return jsonAntwort(daten);
 }
 
 function pruefeZiel(wert: string | undefined): string | undefined {

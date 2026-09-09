@@ -64,8 +64,9 @@ festgelegt; er stammt ausschließlich aus `HIORGSERVER_BASE_URL`.
 
 Bei `hiorg-server.de` liefert die HTTPS-URL ohne abschließenden `/` (z. B.
 `https://www.hiorg-server.de/api/efs`) serverseitig einen `301` auf eine unverschlüsselte
-`http://…:1080/…`-Adresse. `redirect: 'error'` folgt dieser Weiterleitung bewusst nicht,
-das Ergebnis ist `EFS_NICHT_ERREICHBAR`. Die URL braucht deshalb zwingend den
+`http://…:1080/…`-Adresse. Der Worker fragt mit `redirect: 'manual'` an, folgt dieser
+Weiterleitung bewusst nicht und meldet sie als `EFS_UMLEITUNG`; Ziel, Inhalt und Header der
+Weiterleitung werden verworfen. Die URL braucht deshalb zwingend den
 abschließenden Slash (`https://www.hiorg-server.de/api/efs/`), der ohne Redirect direkt
 antwortet. Bei einer neuen Einrichtung diese Endpunkt-Variante immer zuerst mit
 `curl -Is <URL>` gegenprüfen.
@@ -267,7 +268,9 @@ im JSON sowie in `X-Stationwizard-Diagnose`:
 | `EFS_INHALTSTYP_UNGUELTIG`         | 415  | Browseranfrage muss JSON sein                               |
 | `EFS_ANFRAGE_ZU_GROSS`             | 413  | Anfrage überschreitet 8 KiB                                 |
 | `EFS_UPLOAD_ZEITLIMIT`             | 408  | EFS-JSON-Upload zum Worker zu langsam                       |
-| `EFS_NICHT_ERREICHBAR`             | 502  | HiOrg-Transport, Zeitlimit oder Redirect                    |
+| `EFS_ZEITLIMIT`                    | 504  | HiOrg-Upstream zu langsam                                   |
+| `EFS_NICHT_ERREICHBAR`             | 502  | DNS, TLS oder Verbindung zum EFS-Endpunkt prüfen            |
+| `EFS_UMLEITUNG`                    | 502  | EFS-Endpunkt antwortet mit 3xx; abschließenden `/` prüfen   |
 | `EFS_ABRUF_FEHLGESCHLAGEN`         | 502  | HiOrg lieferte einen nicht erfolgreichen HTTP-Status        |
 | `EFS_ANTWORT_UNGUELTIG`            | 502  | JSON-Status/Form unerwartet oder Zugangsdaten gespiegelt    |
 | `EFS_ANTWORT_ZU_GROSS`             | 502  | Antwort überschreitet 5 MiB                                 |
