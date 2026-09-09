@@ -92,7 +92,7 @@ describe('NextCloud-Proxy', () => {
       'https://cloud.example.test/nextcloud/public.php/webdav/',
       expect.objectContaining({
         method: 'GET',
-        redirect: 'error',
+        redirect: 'manual',
         signal: expect.any(AbortSignal),
         headers: expect.objectContaining({
           Authorization: `Basic ${btoa('test-excel-freigabe:test-passwort')}`,
@@ -330,7 +330,7 @@ describe('NextCloud-Proxy', () => {
     expect(await antwort.text()).toBe(inhalt);
   });
 
-  it.each([401, 403, 404, 412, 500, 302])('sanitisiert NextCloud-Fehler %s', async (status) => {
+  it.each([401, 403, 404, 412, 500])('sanitisiert NextCloud-Fehler %s', async (status) => {
     fetchMock.mockResolvedValue(
       new Response('https://privater-server.test Token=sehr-geheim', {
         status,
@@ -346,15 +346,52 @@ describe('NextCloud-Proxy', () => {
     expect(JSON.stringify(json)).not.toMatch(/geheim|privater-server/);
   });
 
-  it('reicht Fetch-Fehler samt Redirect-Ziel nicht weiter', async () => {
-    fetchMock.mockRejectedValue(new Error('Redirect zu https://secret.example/token'));
+  it('meldet Transportfehler als NEXTCLOUD_NICHT_ERREICHBAR ohne Ursachentext', async () => {
+    fetchMock.mockRejectedValue(new Error('TLS-Fehler bei https://secret.example/token'));
     const antwort = await verarbeiteNextcloud(anfrage(PFAD), konfiguration());
     expect(antwort.status).toBe(502);
     const text = await antwort.text();
     expect(text).not.toMatch(/secret|token/);
     expect((JSON.parse(text) as { code: string }).code).toBe('NEXTCLOUD_NICHT_ERREICHBAR');
-    expect(fetchMock.mock.calls[0]?.[1]?.redirect).toBe('error');
   });
+
+  it('protokolliert die Ursache eines Transportfehlers ohne Adresse und Zugangsdaten', async () => {
+    const protokoll = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    fetchMock.mockRejectedValue(
+      new TypeError(
+        'Fetch API cannot load: https://cloud.example.test/nextcloud/public.php/webdav/ (test-excel-freigabe:test-passwort)',
+      ),
+    );
+    const antwort = await verarbeiteNextcloud(anfrage(), konfiguration());
+    expect(antwort.status).toBe(502);
+    expect(protokoll).toHaveBeenCalledTimes(1);
+    const [code, text] = protokoll.mock.calls[0] as [string, string];
+    expect(code).toBe('NEXTCLOUD_NICHT_ERREICHBAR');
+    expect(text).toContain('TypeError');
+    expect(text).toContain('Fetch API cannot load');
+    expect(text).not.toMatch(/cloud\.example\.test|test-excel-freigabe|test-passwort/);
+    protokoll.mockRestore();
+  });
+
+  it.each([301, 302, 303, 307, 308])(
+    'meldet Weiterleitung %s als NEXTCLOUD_UMLEITUNG, ohne ihr zu folgen',
+    async (status) => {
+      fetchMock.mockResolvedValue(
+        new Response('Weiterleitungsseite', {
+          status,
+          headers: { Location: 'https://fremd.test/geheimes-ziel' },
+        }),
+      );
+      const antwort = await verarbeiteNextcloud(anfrage(PFAD), konfiguration());
+      expect(antwort.status).toBe(502);
+      expect(antwort.headers.has('Location')).toBe(false);
+      const text = await antwort.text();
+      expect(text).not.toMatch(/fremd|geheimes-ziel/);
+      expect((JSON.parse(text) as { code: string }).code).toBe('NEXTCLOUD_UMLEITUNG');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0]?.[1]?.redirect).toBe('manual');
+    },
+  );
 
   it('bricht langsame Upstream-Anfragen nach 30 Sekunden ab', async () => {
     vi.useFakeTimers();

@@ -143,6 +143,48 @@ Beide Freigaben nutzen die vorhandene WebDAV-Anbindung über
 und optionalem Passwort. Die Arbeitsmappe ist eine **Dateifreigabe**. Der PEP-Speicher ist
 ein eigener **Ordner** auf derselben Instanz mit Lesen, Bearbeiten und Hochladen.
 
+Weiterleitungen werden bewusst nicht verfolgt. Der Worker fragt mit `redirect: 'manual'`
+an und beantwortet jede `3xx`-Antwort mit `NEXTCLOUD_UMLEITUNG`; Ziel, Inhalt und Header
+der Weiterleitung werden verworfen. `NEXTCLOUD_NICHT_ERREICHBAR` bedeutet dagegen, dass
+schon die Verbindung selbst scheitert (DNS, TLS, Transport).
+
+Zur Eingrenzung ohne Zugangsdaten reicht ein Blick auf den nackten Endpunkt:
+
+```bash
+curl -Is "<NEXTCLOUD_BASE_URL>/public.php/webdav/"
+```
+
+- `401` mit `WWW-Authenticate: Basic` ist der Sollzustand; dann liegt der Fehler an
+  Freigabetoken, Passwort oder Freigaberechten (`NEXTCLOUD_ZUGANG_ABGELEHNT`).
+- `301`/`302` bedeutet, dass `NEXTCLOUD_BASE_URL` nicht die kanonische Adresse der
+  Installation ist. Häufige Ursachen: `www`-Variante, fehlendes oder überzähliges
+  Installationsunterverzeichnis, HTTP-nach-HTTPS-Umleitung eines vorgelagerten Proxys
+  oder ein von `overwrite.cli.url` abweichender Hostname. Die Zieladresse der
+  Weiterleitung als `NEXTCLOUD_BASE_URL` eintragen — ohne `/public.php/webdav/`.
+- Kein Verbindungsaufbau (DNS-Fehler, TLS-Fehler, Zeitüberschreitung) entspricht
+  `NEXTCLOUD_NICHT_ERREICHBAR`. Auch eine Zugriffsbeschränkung der Nextcloud-Instanz auf
+  bestimmte Quell-IP-Adressen fällt hierunter, weil der Worker aus dem
+  Cloudflare-Netz anfragt.
+- `404`/`405` deutet auf eine Installation ohne den öffentlichen WebDAV-Endpunkt hin; der
+  Endpunkt gilt in neueren Nextcloud-Fassungen als veraltet. Ein Wechsel des Endpunkts
+  wäre eine Vertragsänderung und braucht zuerst den Nachweis an der echten Instanz.
+
+Antwortet der Endpunkt von außen mit `401`, meldet der Worker aber weiterhin
+`NEXTCLOUD_NICHT_ERREICHBAR`, scheitert erst der Subrequest aus dem Cloudflare-Netz. Der
+Worker schreibt in diesem Fall Fehlerklasse und Meldung der Laufzeit ins eigene Log;
+Basisadresse, Hostname, Freigabetoken und Passwort werden vorher durch `<redigiert>`
+ersetzt. Die HTTP-Antwort an den Browser bleibt unverändert der feste Code. Mitlesen
+während eines Ladeversuchs:
+
+```bash
+npx wrangler tail stationwizard --config worker/wrangler.toml
+```
+
+Typische Ursachen dieser Klasse: DNS- oder TLS-Fehler gegenüber der Nextcloud-Adresse,
+eine Zugriffsbeschränkung der Instanz auf bestimmte Quell-IP-Adressen sowie
+Cloudflare-Einschränkungen für Subrequests (Fehler 1024 auf Cloudflare-eigene
+IP-Adressen, Fehler 1042 bei Zielen in derselben Zone wie der Worker).
+
 Die Ordnerliste entsteht serverseitig über `PROPFIND` mit `Depth: 1`. Nur UUID-Dateinamen
 mit Endung `.pep.json` werden übernommen; Inhalte werden erst beim bewussten Einzelabruf
 gelesen. Es gibt keine generischen WebDAV-Pfade und keine DELETE-Route.
@@ -217,7 +259,8 @@ im JSON sowie in `X-Stationwizard-Diagnose`:
 | `NEXTCLOUD_ANTWORT_ZU_GROSS`       | 502  | Nextcloud-Antwort überschreitet die Grenze                  |
 | `NEXTCLOUD_UPLOAD_ZEITLIMIT`       | 408  | Upload zum Worker zu langsam                                |
 | `NEXTCLOUD_ZEITLIMIT`              | 504  | Nextcloud-Upstream zu langsam                               |
-| `NEXTCLOUD_NICHT_ERREICHBAR`       | 502  | Transport, Redirect oder unlesbare Antwort prüfen           |
+| `NEXTCLOUD_NICHT_ERREICHBAR`       | 502  | DNS, TLS oder Verbindung zur Basisadresse prüfen            |
+| `NEXTCLOUD_UMLEITUNG`              | 502  | Basisadresse antwortet mit 3xx; kanonische URL eintragen    |
 | `NEXTCLOUD_ANTWORT_UNGUELTIG`      | 502  | Unerwarteter Status oder ungültiger Dateiinhalt             |
 | `EFS_KONFIGURATION_FEHLT`          | 503  | EFS-Ziel, Token und Laufzeit-Bindings prüfen                |
 | `EFS_ANFRAGE_UNGUELTIG`            | 400  | Anfragefelder, JSON oder Veranstaltungs-ID ungültig         |
