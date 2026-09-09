@@ -18,12 +18,12 @@ in [Einrichtung und Abnahme](docs/einrichtung.md).
 
 ## Fachbereiche
 
-| Bereich            | Funktionen                                                                                           | Aktuelle Route      |
-| ------------------ | ---------------------------------------------------------------------------------------------------- | ------------------- |
-| Startseite         | Einstieg in beide Planer, gemeinsamer Benutzer- und Verbindungsstatus                                | `/#/`               |
-| Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage und konfigurierbarer Diensttag | `/#/ausbildung`     |
-| Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                | `/#/einsatz`        |
-| Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                         | `/#/einsatz/editor` |
+| Bereich            | Funktionen                                                                                                                 | Aktuelle Route      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Startseite         | Einstieg in beide Planer, gemeinsamer Benutzer- und Verbindungsstatus                                                      | `/#/`               |
+| Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich | `/#/ausbildung`     |
+| Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                      | `/#/einsatz`        |
+| Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                               | `/#/einsatz/editor` |
 
 Hash-Routing bleibt vorerst bewusst erhalten. Der Worker ist bereits mit
 `not_found_handling = "single-page-application"` vorbereitet, aber der reale
@@ -98,6 +98,7 @@ Alle folgenden Endpunkte benötigen eine verifizierte Access-Anmeldung:
 | `/api/nextcloud/arbeitsmappe`     | GET / PUT | Die konfigurierte Excel-Dateifreigabe                                      |
 | `/api/nextcloud/planungen`        | GET       | `{ "dateien": [{ "id": "…", "etag": "…" }] }` mit UUIDs und Dateiversionen |
 | `/api/nextcloud/planungen/<UUID>` | GET / PUT | Genau eine `.pep.json` im gesonderten Ordner                               |
+| `/api/hiorg/kalender`             | GET       | `{ "status": "OK", "eintraege": [...] }`; HiOrg-Kalenderfeed, nur lesend   |
 
 EFS-Aufrufe setzt der Worker in `application/x-www-form-urlencoded` mit `apikey`,
 `version=2` und einer der drei bekannten Aktionen um. Die Ziel-URL stammt aus
@@ -122,6 +123,17 @@ Zugangsdaten werden nicht als Diagnose durchgereicht. Weitere Details:
 `@e965/xlsx` wird dynamisch geladen. `WorkbookStorage` baut auf dem gemeinsamen
 `DateiStorage`-Vertrag auf. Quellen sind eine lokale Datei oder die konfigurierte
 Nextcloud-Dateifreigabe über den Worker.
+
+**HiOrg-Termine im Jahresplan:** Der HiOrg-Kalenderfeed wird über den Worker gelesen und
+im Wochenraster **zusätzlich und deutlich als Fremdquelle gekennzeichnet** angezeigt; ein
+Umschalter im Menü blendet die Ebene aus. Steht an einem Tag mit Ausbildungsthema ein
+HiOrg-Termin, dessen Bezeichnung nach Entitäten-Dekodierung, Whitespace-Normalisierung und
+Groß-/Kleinschreibung nicht exakt übereinstimmt, erscheint eine deutliche Warnung mit zwei
+Wegen: den HiOrg-Namen in den Plan übernehmen (rückgängig über Strg+Z) oder den Termin im
+HiOrg-Server öffnen und den Titel dort ändern. HiOrg-Termine ohne Ausbildungsthema im Plan
+lassen sich als Termin übernehmen. Die Feed-Daten werden weder in die Excel-Mappe
+geschrieben noch im Browser gespeichert; es gibt bewusst **kein** dauerhaftes
+„geklärt"-Kennzeichen, weil das eine zusätzliche Spalte im Jahresplan-Blatt bräuchte.
 
 **Einsatz:** Eine `.pep.json` enthält weiterhin eine einzelne Planung mit `version`, `meta`
 und `planung`. Versionsabweichungen werden angezeigt. Lokaler Import/Download bleibt

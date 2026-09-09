@@ -62,3 +62,11 @@ secret_name = "HIORGSERVER_BASE_URL"
 binding = "HIORGSERVER_EFS_API_TOKEN"
 store_id = "36762a3b5aa547bea7f547b1d66c30ee"
 secret_name = "HIORGSERVER_EFS_API_TOKEN"
+
+# Öffentlicher HiOrg-Kalenderfeed: die vollständige URL ist selbst das Zugangsdatum,
+# weil die Anmeldedaten als Query-Parameter darin stecken. Die Schreibweise
+# "CALENDER" ist bewusst so übernommen – das Secret heißt im Store genau so.
+[[secrets_store_secrets]]
+binding = "HIORGSERVER_CALENDER_FEED"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORGSERVER_CALENDER_FEED"

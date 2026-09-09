@@ -258,6 +258,37 @@
   &.ausserhalb {
     opacity: 0.45;
   }
+
+  /* Eine abweichende HiOrg-Bezeichnung soll schon beim Überfliegen auffallen. */
+  &.hat-hiorg-abweichung {
+    outline: 2px solid var(--hiorg-abweichung-rand);
+    outline-offset: -1px;
+    background: var(--hiorg-abweichung-bg);
+  }
+}
+
+.abweichungs-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-compact);
+  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
+  border: 1px solid var(--hiorg-abweichung-rand);
+  border-radius: var(--radius-chip);
+  background: var(--hiorg-abweichung-bg);
+  color: var(--hiorg-abweichung-text);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+
+  &.aktiv {
+    background: var(--hiorg-abweichung-rand);
+    color: var(--text-on-dark);
+  }
 }
 
 .tag-nummer-still {
@@ -340,6 +371,15 @@ app-termin-karte {
 .menue-kopf {
   padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-width: 240px;
+}
+
+.menue-fuss {
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--border-light);
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.4;

@@ -1,5 +1,13 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
+import {
+  istKennung,
+  istObjekt,
+  leseJsonBegrenzt,
+  verwerfeInhalt,
+  type JsonObjekt,
+  type LeseErgebnis,
+} from './json-lesen';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 export interface EfsKonfiguration {
@@ -8,11 +16,8 @@ export interface EfsKonfiguration {
 }
 
 type EfsAktion = 'checkapikey' | 'getveranstaltungen' | 'getveranstaltung';
-type JsonObjekt = Record<string, unknown>;
 type FeldTyp = 'text' | 'kennung';
 type FeldSchema = Record<string, FeldTyp>;
-type LeseErgebnis =
-  { erfolg: true; inhalt: unknown } | { erfolg: false; ursache: 'zu-gross' | 'ungueltig' };
 
 export const MAX_EFS_ANFRAGE_BYTES = 8 * 1024;
 export const MAX_EFS_ANTWORT_BYTES = 5 * 1024 * 1024;
@@ -235,14 +240,6 @@ function pruefeZiel(wert: string | undefined): string | undefined {
   }
 }
 
-function istObjekt(wert: unknown): wert is JsonObjekt {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
-}
-
-function istKennung(wert: unknown): wert is string | number {
-  return typeof wert === 'string' || (typeof wert === 'number' && Number.isFinite(wert));
-}
-
 function filtereFelder(daten: JsonObjekt, schema: FeldSchema): JsonObjekt | undefined {
   const ausgabe: JsonObjekt = {};
   for (const [feld, typ] of Object.entries(schema)) {
@@ -323,64 +320,4 @@ function enthaeltZugangsdatum(daten: JsonObjekt, token: string): boolean {
     new URLSearchParams({ wert: token }).toString().slice('wert='.length),
   ];
   return varianten.some((variante) => text.includes(variante));
-}
-
-async function verwerfeInhalt(quelle: Response): Promise<void> {
-  try {
-    await quelle.body?.cancel();
-  } catch {
-    // Der feste Fehlercode genügt; Transportfehler werden nicht veröffentlicht.
-  }
-}
-
-async function leseJsonBegrenzt(
-  quelle: Request | Response,
-  grenze: number,
-  signal?: AbortSignal,
-): Promise<LeseErgebnis> {
-  if (Number(quelle.headers.get('Content-Length')) > grenze) {
-    try {
-      await quelle.body?.cancel();
-    } catch {
-      // Der Größenfehler bleibt maßgeblich.
-    }
-    return { erfolg: false, ursache: 'zu-gross' };
-  }
-  if (!quelle.body) return { erfolg: false, ursache: 'ungueltig' };
-  const leser = quelle.body.getReader();
-  const stuecke: Uint8Array[] = [];
-  let groesse = 0;
-  const beiAbbruch = () => void leser.cancel().catch(() => undefined);
-  signal?.addEventListener('abort', beiAbbruch, { once: true });
-  try {
-    if (signal?.aborted) throw new Error('Zeitlimit');
-    for (;;) {
-      const { done, value } = await leser.read();
-      if (signal?.aborted) throw new Error('Zeitlimit');
-      if (done) break;
-      groesse += value.byteLength;
-      if (groesse > grenze) {
-        await leser.cancel();
-        return { erfolg: false, ursache: 'zu-gross' };
-      }
-      stuecke.push(value);
-    }
-    const bytes = new Uint8Array(groesse);
-    let position = 0;
-    for (const stueck of stuecke) {
-      bytes.set(stueck, position);
-      position += stueck.byteLength;
-    }
-    return {
-      erfolg: true,
-      inhalt: JSON.parse(
-        new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes),
-      ) as unknown,
-    };
-  } catch {
-    return { erfolg: false, ursache: 'ungueltig' };
-  } finally {
-    signal?.removeEventListener('abort', beiAbbruch);
-    leser.releaseLock();
-  }
 }

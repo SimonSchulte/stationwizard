@@ -91,6 +91,31 @@
       <mat-icon>note_add</mat-icon>
       <span>Leeren Plan beginnen</span>
     </button>
+
+    <button mat-menu-item (click)="schalteHiorg()">
+      <mat-icon>{{ hiorg.anzeigen() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+      <span>HiOrg-Termine anzeigen</span>
+    </button>
+    <button mat-menu-item [disabled]="hiorg.laedt()" (click)="hiorgNeuLaden()">
+      <mat-icon>cloud_sync</mat-icon>
+      <span>HiOrg-Termine neu laden</span>
+    </button>
+    <div class="menue-fuss" (click)="$event.stopPropagation()">
+      @switch (hiorg.zustand()) {
+        @case ('geladen') {
+          {{ hiorg.eintraege().length }} HiOrg-Termine geladen
+        }
+        @case ('nicht-konfiguriert') {
+          HiOrg-Kalenderfeed noch nicht eingerichtet
+        }
+        @case ('fehler') {
+          HiOrg-Termine nicht abrufbar
+        }
+        @default {
+          HiOrg-Termine noch nicht abgerufen
+        }
+      }
+    </div>
   </mat-menu>
 </mat-toolbar>
 
@@ -139,6 +164,18 @@
           <mat-icon inline>{{ luecken().length ? 'error_outline' : 'check_circle' }}</mat-icon>
           {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
         </button>
+
+        @if (hiorg.anzeigen() && hiorgAbgleich().anzahlAbweichungen > 0) {
+          <button
+            class="abweichungs-marke"
+            [class.aktiv]="nurAbweichungen()"
+            matTooltip="Nur Wochen mit abweichender HiOrg-Bezeichnung anzeigen"
+            (click)="nurAbweichungen.set(!nurAbweichungen())"
+          >
+            <mat-icon inline>warning</mat-icon>
+            {{ hiorgAbgleich().anzahlAbweichungen }} Namensabweichung(en)
+          </button>
+        }
 
         <button
           matIconButton
@@ -200,6 +237,9 @@
                 class="tag-zelle"
                 [class.diensttag]="slot.istDiensttag"
                 [class.ausserhalb]="!slot.imJahr"
+                [class.hat-hiorg-abweichung]="
+                  hiorgAbgleich().tageMitAbweichung.has(slot.datum) && hiorg.anzeigen()
+                "
               >
                 @if (!slot.imJahr) {
                   <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
@@ -251,6 +291,21 @@
                   >
                     <app-leerer-tag [slot]="slot" (anlegen)="terminAnlegen(slot.datum)" />
                   </div>
+                }
+
+                <!-- HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert. -->
+                @if (slot.imJahr && hiorgTag(slot.datum); as hiorgTagesstand) {
+                  @for (eintrag of hiorgTagesstand.eintraege; track eintrag.schluessel) {
+                    <app-hiorg-eintrag-karte
+                      [eintrag]="eintrag"
+                      [datum]="slot.datum"
+                      [abweichungen]="abweichungenFuer(hiorgTagesstand, eintrag)"
+                      [ohneGegenstueck]="istOhneGegenstueck(hiorgTagesstand, eintrag)"
+                      [kompakt]="true"
+                      (nameUebernehmen)="uebernimmHiorgNamen($event)"
+                      (terminAnlegen)="legeTerminAusHiorgAn($event, slot.datum)"
+                    />
+                  }
                 }
               </div>
             }

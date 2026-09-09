@@ -94,6 +94,7 @@ describe('Access vor sämtlichen Assets und APIs', () => {
     '/api/nextcloud/arbeitsmappe',
     '/api/nextcloud/planungen',
     '/api/efs/getveranstaltungen',
+    '/api/hiorg/kalender',
   ])('sperrt %s ohne Anwendungstoken', async (pfad) => {
     const antwort = await anfragen(pfad);
     expect(antwort.status).toBe(401);
@@ -233,19 +234,20 @@ describe('API-Routing und schreibende Anfragen', () => {
     expect(antwort.headers.get('Cache-Control')).toBe('no-store');
   });
 
-  it.each(['/api', '/api/unbekannt', '/api/efs/unbekannt', '/api/nextcloud/datei'])(
-    'liefert für %s JSON 404 statt der SPA',
-    async (pfad) => {
-      const antwort = await anfragen(pfad, await tokenFuer());
-      expect(antwort.status).toBe(404);
-      expect(await antwort.json()).toMatchObject({
-        code: pfad.startsWith('/api/nextcloud/')
-          ? 'NEXTCLOUD_PFAD_UNGUELTIG'
-          : 'API_NICHT_GEFUNDEN',
-      });
-      expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    '/api',
+    '/api/unbekannt',
+    '/api/efs/unbekannt',
+    '/api/hiorg/unbekannt',
+    '/api/nextcloud/datei',
+  ])('liefert für %s JSON 404 statt der SPA', async (pfad) => {
+    const antwort = await anfragen(pfad, await tokenFuer());
+    expect(antwort.status).toBe(404);
+    expect(await antwort.json()).toMatchObject({
+      code: pfad.startsWith('/api/nextcloud/') ? 'NEXTCLOUD_PFAD_UNGUELTIG' : 'API_NICHT_GEFUNDEN',
+    });
+    expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
 
   it.each(['POST', 'PUT', 'PATCH', 'DELETE'])(
     'weist %s aus einer fremden Origin zurück',

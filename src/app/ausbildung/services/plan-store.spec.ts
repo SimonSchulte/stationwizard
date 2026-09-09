@@ -157,3 +157,21 @@ describe('PlanStore · fehlende Diensttage', () => {
     expect(store.terminNachId('t1')?.thema).toBe('Erste Ausbildung');
   });
 });
+
+describe('Thema aus HiOrg übernehmen', () => {
+  it('setzt das Thema, markiert ungespeichert und bleibt umkehrbar', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument(dokument());
+    store.alsGespeichertMarkieren(store.dokument());
+
+    store.aktualisiereTermin('t1', { thema: 'Bezeichnung aus HiOrg' });
+
+    expect(store.terminNachId('t1')?.thema).toBe('Bezeichnung aus HiOrg');
+    expect(store.terminNachId('t1')?.id).toBe('t1');
+    expect(store.ungespeichert()).toBe(true);
+
+    store.rueckgaengig();
+
+    expect(store.terminNachId('t1')?.thema).toBe('Erste Ausbildung');
+  });
+});

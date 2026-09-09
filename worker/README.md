@@ -41,7 +41,7 @@ settings**. Diese beiden Werte sind Konfiguration und keine Upstream-Geheimnisse
 `keep_vars = true` bewahrt Dashboard-Laufzeitvariablen bei Deployments. Der Schlüssel
 steht vor allen TOML-Tabellen und ersetzt keine Secrets oder Secret-Bindings.
 
-### Fünf verpflichtende Secrets-Store-Bindings
+### Sechs verpflichtende Secrets-Store-Bindings
 
 `wrangler.toml` referenziert den Store `36762a3b5aa547bea7f547b1d66c30ee`. Binding und
 Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht.
@@ -53,9 +53,10 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
 | `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
+| `HIORGSERVER_CALENDER_FEED` | Vollständige HTTPS-URL des HiOrg-Kalenderfeeds **einschließlich Query-Parameter**; die URL ist selbst das Zugangsdatum         |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
-Worker unter **Bindings** kontrollieren, ob genau diese fünf Namen auf den richtigen Store
+Worker unter **Bindings** kontrollieren, ob genau diese sechs Namen auf den richtigen Store
 zeigen. Eine vorhandene Build-Variable genügt nicht.
 
 Die Nextcloud-Basis und die EFS-Ziel-URL dürfen keine eingebetteten Zugangsdaten,
@@ -136,6 +137,34 @@ Alle Endpunkte benötigen die verifizierte Anmeldung:
 | `/api/nextcloud/arbeitsmappe`     | GET / PUT | Konfigurierte Excel-Datei                                                                    |
 | `/api/nextcloud/planungen`        | GET       | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
 | `/api/nextcloud/planungen/<UUID>` | GET / PUT | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
+| `/api/hiorg/kalender`             | GET       | Antwort `{ "status": "OK", "eintraege": [...] }`; keine Anfrageparameter                     |
+
+### HiOrg-Kalenderfeed
+
+`HIORGSERVER_CALENDER_FEED` ist die vollständige Feed-URL. Anders als bei allen anderen
+Zielen liegt das Zugangsdatum **in der URL selbst** (als Query-Parameter), deshalb ist der
+Query-String hier ausdrücklich erlaubt, während er beim EFS-Endpunkt abgelehnt wird. Die
+Schreibweise „CALENDER" ist bewusst übernommen – das Secret heißt im Store genau so.
+
+Der Worker bindet das Ziel fest an `hiorg-server.de` beziehungsweise dessen Subdomains.
+Ein versehentlich vertauschtes Secret kann den Worker damit nicht zu einem beliebigen
+fremden Ziel schicken.
+
+Weitergereicht wird pro Termin ausschließlich `sortdate`, `enddate`, `verbez`, `typ`, `id`
+und die geprüfte `url`. Bewusst **nicht** weitergereicht werden `ansprech` und `bemerkung`
+(Klarnamen und Freitext, teils mit Zugangslinks), `verort`, `treff`, `kursnr`,
+`max_meldungen` sowie die `personal_*`-Felder der Einsatzdisposition: für den
+Namensabgleich und den Link im Ausbildungsplan werden sie nicht gebraucht, und was nicht
+durchgereicht wird, landet auch nicht in Screenshots, Exporten oder Logs.
+
+Die Ereignis-URL liefert der Feed HTML-escaped (`&amp;` als Parametertrenner). Der Worker
+dekodiert sie, prüft sie gegen dieselbe Host-Bindung und lässt einen unbrauchbaren Link
+weg, statt den ganzen Termin zu verwerfen. Einzelne fehlerhafte Datensätze werden
+übersprungen; erst wenn ein nicht leerer Feed gar keinen brauchbaren Termin enthält, gilt
+die Antwort als ungültig. Vor dem Senden prüft der Worker die eigene Ausgabe darauf, dass
+weder die Feed-URL noch einer ihrer Parameterwerte darin gespiegelt ist.
+
+Grenzen: Antwort höchstens 1 MiB, Upstream-Zeitlimit 15 Sekunden, `redirect: 'manual'`.
 
 ### Nextcloud
 
@@ -242,38 +271,46 @@ JSON-/Datei-APIs und Fehler tragen `Cache-Control: no-store`. Schreibanfragen mi
 `Origin` oder `Sec-Fetch-Site: cross-site` werden abgewiesen. Fehler verwenden feste Codes
 im JSON sowie in `X-Stationwizard-Diagnose`:
 
-| Code                               | HTTP | Bedeutung / nächste Prüfung                                 |
-| ---------------------------------- | ---- | ----------------------------------------------------------- |
-| `ACCESS_KONFIGURATION_FEHLT`       | 503  | Teamdomain oder Audience fehlt beziehungsweise ist ungültig |
-| `ACCESS_TOKEN_FEHLT`               | 401  | Keine Access-Anmeldung auf diesem Zugangsweg                |
-| `ACCESS_TOKEN_UNGUELTIG`           | 401  | Signatur oder erforderliche Claims ungültig                 |
-| `ACCESS_TOKEN_ABGELAUFEN`          | 401  | Neu anmelden                                                |
-| `ACCESS_PRUEFUNG_NICHT_ERREICHBAR` | 503  | Öffentliche Schlüssel derzeit nicht prüfbar                 |
-| `ANFRAGE_URSPRUNG_UNGUELTIG`       | 403  | Fremder Ursprung bei einer Schreibanfrage                   |
-| `NEXTCLOUD_KONFIGURATION_FEHLT`    | 503  | Basis, Token oder Binding prüfen                            |
-| `NEXTCLOUD_ZUGANG_ABGELEHNT`       | 502  | Nextcloud lehnt Token, Passwort oder Freigaberechte ab      |
-| `NEXTCLOUD_VORBEDINGUNG_FEHLT`     | 428  | Geladene Dateiversion oder ausdrückliche Neuanlage fehlt    |
-| `NEXTCLOUD_VORBEDINGUNG_UNGUELTIG` | 400  | ETag beziehungsweise Schreibbedingung ungültig              |
-| `NEXTCLOUD_DATEI_GEAENDERT`        | 412  | Lokale Kopie sichern, neu laden und zusammenführen          |
-| `NEXTCLOUD_DATEI_NICHT_GEFUNDEN`   | 404  | Gewählte Datei/Freigabe prüfen                              |
-| `NEXTCLOUD_DATEI_ZU_GROSS`         | 413  | Upload überschreitet die Dateigrenze                        |
-| `NEXTCLOUD_ANTWORT_ZU_GROSS`       | 502  | Nextcloud-Antwort überschreitet die Grenze                  |
-| `NEXTCLOUD_UPLOAD_ZEITLIMIT`       | 408  | Upload zum Worker zu langsam                                |
-| `NEXTCLOUD_ZEITLIMIT`              | 504  | Nextcloud-Upstream zu langsam                               |
-| `NEXTCLOUD_NICHT_ERREICHBAR`       | 502  | DNS, TLS oder Verbindung zur Basisadresse prüfen            |
-| `NEXTCLOUD_UMLEITUNG`              | 502  | Basisadresse antwortet mit 3xx; kanonische URL eintragen    |
-| `NEXTCLOUD_ANTWORT_UNGUELTIG`      | 502  | Unerwarteter Status oder ungültiger Dateiinhalt             |
-| `EFS_KONFIGURATION_FEHLT`          | 503  | EFS-Ziel, Token und Laufzeit-Bindings prüfen                |
-| `EFS_ANFRAGE_UNGUELTIG`            | 400  | Anfragefelder, JSON oder Veranstaltungs-ID ungültig         |
-| `EFS_INHALTSTYP_UNGUELTIG`         | 415  | Browseranfrage muss JSON sein                               |
-| `EFS_ANFRAGE_ZU_GROSS`             | 413  | Anfrage überschreitet 8 KiB                                 |
-| `EFS_UPLOAD_ZEITLIMIT`             | 408  | EFS-JSON-Upload zum Worker zu langsam                       |
-| `EFS_ZEITLIMIT`                    | 504  | HiOrg-Upstream zu langsam                                   |
-| `EFS_NICHT_ERREICHBAR`             | 502  | DNS, TLS oder Verbindung zum EFS-Endpunkt prüfen            |
-| `EFS_UMLEITUNG`                    | 502  | EFS-Endpunkt antwortet mit 3xx; abschließenden `/` prüfen   |
-| `EFS_ABRUF_FEHLGESCHLAGEN`         | 502  | HiOrg lieferte einen nicht erfolgreichen HTTP-Status        |
-| `EFS_ANTWORT_UNGUELTIG`            | 502  | JSON-Status/Form unerwartet oder Zugangsdaten gespiegelt    |
-| `EFS_ANTWORT_ZU_GROSS`             | 502  | Antwort überschreitet 5 MiB                                 |
+| Code                                  | HTTP | Bedeutung / nächste Prüfung                                       |
+| ------------------------------------- | ---- | ----------------------------------------------------------------- |
+| `ACCESS_KONFIGURATION_FEHLT`          | 503  | Teamdomain oder Audience fehlt beziehungsweise ist ungültig       |
+| `ACCESS_TOKEN_FEHLT`                  | 401  | Keine Access-Anmeldung auf diesem Zugangsweg                      |
+| `ACCESS_TOKEN_UNGUELTIG`              | 401  | Signatur oder erforderliche Claims ungültig                       |
+| `ACCESS_TOKEN_ABGELAUFEN`             | 401  | Neu anmelden                                                      |
+| `ACCESS_PRUEFUNG_NICHT_ERREICHBAR`    | 503  | Öffentliche Schlüssel derzeit nicht prüfbar                       |
+| `ANFRAGE_URSPRUNG_UNGUELTIG`          | 403  | Fremder Ursprung bei einer Schreibanfrage                         |
+| `NEXTCLOUD_KONFIGURATION_FEHLT`       | 503  | Basis, Token oder Binding prüfen                                  |
+| `NEXTCLOUD_ZUGANG_ABGELEHNT`          | 502  | Nextcloud lehnt Token, Passwort oder Freigaberechte ab            |
+| `NEXTCLOUD_VORBEDINGUNG_FEHLT`        | 428  | Geladene Dateiversion oder ausdrückliche Neuanlage fehlt          |
+| `NEXTCLOUD_VORBEDINGUNG_UNGUELTIG`    | 400  | ETag beziehungsweise Schreibbedingung ungültig                    |
+| `NEXTCLOUD_DATEI_GEAENDERT`           | 412  | Lokale Kopie sichern, neu laden und zusammenführen                |
+| `NEXTCLOUD_DATEI_NICHT_GEFUNDEN`      | 404  | Gewählte Datei/Freigabe prüfen                                    |
+| `NEXTCLOUD_DATEI_ZU_GROSS`            | 413  | Upload überschreitet die Dateigrenze                              |
+| `NEXTCLOUD_ANTWORT_ZU_GROSS`          | 502  | Nextcloud-Antwort überschreitet die Grenze                        |
+| `NEXTCLOUD_UPLOAD_ZEITLIMIT`          | 408  | Upload zum Worker zu langsam                                      |
+| `NEXTCLOUD_ZEITLIMIT`                 | 504  | Nextcloud-Upstream zu langsam                                     |
+| `NEXTCLOUD_NICHT_ERREICHBAR`          | 502  | DNS, TLS oder Verbindung zur Basisadresse prüfen                  |
+| `NEXTCLOUD_UMLEITUNG`                 | 502  | Basisadresse antwortet mit 3xx; kanonische URL eintragen          |
+| `NEXTCLOUD_ANTWORT_UNGUELTIG`         | 502  | Unerwarteter Status oder ungültiger Dateiinhalt                   |
+| `EFS_KONFIGURATION_FEHLT`             | 503  | EFS-Ziel, Token und Laufzeit-Bindings prüfen                      |
+| `EFS_ANFRAGE_UNGUELTIG`               | 400  | Anfragefelder, JSON oder Veranstaltungs-ID ungültig               |
+| `EFS_INHALTSTYP_UNGUELTIG`            | 415  | Browseranfrage muss JSON sein                                     |
+| `EFS_ANFRAGE_ZU_GROSS`                | 413  | Anfrage überschreitet 8 KiB                                       |
+| `EFS_UPLOAD_ZEITLIMIT`                | 408  | EFS-JSON-Upload zum Worker zu langsam                             |
+| `EFS_ZEITLIMIT`                       | 504  | HiOrg-Upstream zu langsam                                         |
+| `EFS_NICHT_ERREICHBAR`                | 502  | DNS, TLS oder Verbindung zum EFS-Endpunkt prüfen                  |
+| `EFS_UMLEITUNG`                       | 502  | EFS-Endpunkt antwortet mit 3xx; abschließenden `/` prüfen         |
+| `EFS_ABRUF_FEHLGESCHLAGEN`            | 502  | HiOrg lieferte einen nicht erfolgreichen HTTP-Status              |
+| `EFS_ANTWORT_UNGUELTIG`               | 502  | JSON-Status/Form unerwartet oder Zugangsdaten gespiegelt          |
+| `EFS_ANTWORT_ZU_GROSS`                | 502  | Antwort überschreitet 5 MiB                                       |
+| `HIORG_KALENDER_KONFIGURATION_FEHLT`  | 503  | Feed-Secret fehlt, ist kein HTTPS-URL oder zeigt nicht auf HiOrg  |
+| `HIORG_KALENDER_ANFRAGE_UNGUELTIG`    | 400  | Der Endpunkt nimmt keine URL-Parameter entgegen                   |
+| `HIORG_KALENDER_ZEITLIMIT`            | 504  | HiOrg-Feed zu langsam                                             |
+| `HIORG_KALENDER_NICHT_ERREICHBAR`     | 502  | DNS, TLS oder Verbindung zum Feed prüfen                          |
+| `HIORG_KALENDER_UMLEITUNG`            | 502  | Feed antwortet mit 3xx; kanonische URL eintragen                  |
+| `HIORG_KALENDER_ABRUF_FEHLGESCHLAGEN` | 502  | HiOrg lieferte einen nicht erfolgreichen HTTP-Status              |
+| `HIORG_KALENDER_ANTWORT_ZU_GROSS`     | 502  | Feed-Antwort überschreitet 1 MiB                                  |
+| `HIORG_KALENDER_ANTWORT_UNGUELTIG`    | 502  | `success` fehlt, kein brauchbarer Termin oder Feed-URL gespiegelt |
 
 Keine Tokens, Secretlängen oder vollständigen Bindinglisten werden veröffentlicht.
 Der gemeinsame Client sendet `X-Requested-With: XMLHttpRequest`, damit Access eine
