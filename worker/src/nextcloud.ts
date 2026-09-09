@@ -20,6 +20,8 @@ const PROPFIND_INHALT = `<?xml version="1.0" encoding="UTF-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:resourcetype/></d:prop></d:propfind>`;
 
 class Groessenfehler extends Error {}
+/** Nur der fetch()-Aufruf selbst wirft dies; unterscheidet Transportfehler von Verarbeitungsfehlern. */
+class VerbindungsFehler extends Error {}
 
 /** Nur feste Freigaben und UUID-Dateinamen; Access-/Ursprungsprüfung erfolgt im Router. */
 export async function verarbeiteNextcloud(
@@ -123,22 +125,28 @@ export async function verarbeiteNextcloud(
   const abbruch = new AbortController();
   const zeitlimit = setTimeout(() => abbruch.abort(), 30_000);
   try {
-    const antwort = await fetch(ziel, {
-      method: liste ? 'PROPFIND' : anfrage.method,
-      headers: {
-        Authorization: `Basic ${kodiereBasic(`${token}:${passwort ?? ''}`)}`,
-        'X-Requested-With': 'XMLHttpRequest',
-        ...bedingungsHeader,
-        ...(liste
-          ? { Depth: '1', 'Content-Type': 'application/xml; charset=utf-8' }
-          : anfrage.method === 'PUT'
-            ? { 'Content-Type': arbeitsmappe ? XLSX_INHALTSTYP : 'application/json' }
-            : {}),
-      },
-      body: liste ? PROPFIND_INHALT : inhalt,
-      redirect: 'error',
-      signal: abbruch.signal,
-    });
+    let antwort: Response;
+    try {
+      antwort = await fetch(ziel, {
+        method: liste ? 'PROPFIND' : anfrage.method,
+        headers: {
+          Authorization: `Basic ${kodiereBasic(`${token}:${passwort ?? ''}`)}`,
+          'X-Requested-With': 'XMLHttpRequest',
+          ...bedingungsHeader,
+          ...(liste
+            ? { Depth: '1', 'Content-Type': 'application/xml; charset=utf-8' }
+            : anfrage.method === 'PUT'
+              ? { 'Content-Type': arbeitsmappe ? XLSX_INHALTSTYP : 'application/json' }
+              : {}),
+        },
+        body: liste ? PROPFIND_INHALT : inhalt,
+        redirect: 'error',
+        signal: abbruch.signal,
+      });
+    } catch (fehler) {
+      // Redirects (redirect: 'error'), DNS-, TLS- und Verbindungsfehler landen hier.
+      throw abbruch.signal.aborted ? fehler : new VerbindungsFehler(undefined, { cause: fehler });
+    }
     if (!antwort.ok) {
       await verwerfeInhalt(antwort);
       return upstreamFehler(antwort.status);
@@ -188,11 +196,15 @@ export async function verarbeiteNextcloud(
     if (fehler instanceof Groessenfehler) {
       return fehlerAntwort('NEXTCLOUD_ANTWORT_ZU_GROSS', 'Die NextCloud-Datei ist zu groß.', 502);
     }
-    return fehlerAntwort(
-      'NEXTCLOUD_NICHT_ERREICHBAR',
-      'NextCloud konnte nicht gelesen werden.',
-      502,
-    );
+    if (fehler instanceof VerbindungsFehler) {
+      return fehlerAntwort(
+        'NEXTCLOUD_NICHT_ERREICHBAR',
+        'NextCloud konnte nicht gelesen werden.',
+        502,
+      );
+    }
+    // Antwort kam an, war aber nicht verarbeitbar (z. B. ungültiges WebDAV-XML).
+    return fehlerAntwort('NEXTCLOUD_ANTWORT_UNGUELTIG', 'Ungültige NextCloud-Antwort.', 502);
   } finally {
     clearTimeout(zeitlimit);
   }

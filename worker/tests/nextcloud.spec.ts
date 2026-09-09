@@ -350,7 +350,9 @@ describe('NextCloud-Proxy', () => {
     fetchMock.mockRejectedValue(new Error('Redirect zu https://secret.example/token'));
     const antwort = await verarbeiteNextcloud(anfrage(PFAD), konfiguration());
     expect(antwort.status).toBe(502);
-    expect(await antwort.text()).not.toMatch(/secret|token/);
+    const text = await antwort.text();
+    expect(text).not.toMatch(/secret|token/);
+    expect((JSON.parse(text) as { code: string }).code).toBe('NEXTCLOUD_NICHT_ERREICHBAR');
     expect(fetchMock.mock.calls[0]?.[1]?.redirect).toBe('error');
   });
 
@@ -476,7 +478,10 @@ describe('NextCloud-Proxy', () => {
     fetchMock.mockResolvedValue(new Response(xml, { status: 207 }));
     const antwort = await verarbeiteNextcloud(anfrage('/api/nextcloud/planungen'), konfiguration());
     expect(antwort.status).toBe(502);
-    expect(await antwort.text()).not.toMatch(/passwd|secret|Interne Anmeldung/);
+    const text = await antwort.text();
+    expect(text).not.toMatch(/passwd|secret|Interne Anmeldung/);
+    // Die Verbindung stand; nur die Antwort war nicht verarbeitbar - nicht mit NICHT_ERREICHBAR verwechseln.
+    expect((JSON.parse(text) as { code: string }).code).toBe('NEXTCLOUD_ANTWORT_UNGUELTIG');
   });
 
   it('akzeptiert bei der Liste nur den WebDAV-Multistatus', async () => {
