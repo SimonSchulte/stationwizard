@@ -355,6 +355,24 @@ describe('NextCloud-Proxy', () => {
     expect((JSON.parse(text) as { code: string }).code).toBe('NEXTCLOUD_NICHT_ERREICHBAR');
   });
 
+  it('protokolliert die Ursache eines Transportfehlers ohne Adresse und Zugangsdaten', async () => {
+    const protokoll = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    fetchMock.mockRejectedValue(
+      new TypeError(
+        'Fetch API cannot load: https://cloud.example.test/nextcloud/public.php/webdav/ (test-excel-freigabe:test-passwort)',
+      ),
+    );
+    const antwort = await verarbeiteNextcloud(anfrage(), konfiguration());
+    expect(antwort.status).toBe(502);
+    expect(protokoll).toHaveBeenCalledTimes(1);
+    const [code, text] = protokoll.mock.calls[0] as [string, string];
+    expect(code).toBe('NEXTCLOUD_NICHT_ERREICHBAR');
+    expect(text).toContain('TypeError');
+    expect(text).toContain('Fetch API cannot load');
+    expect(text).not.toMatch(/cloud\.example\.test|test-excel-freigabe|test-passwort/);
+    protokoll.mockRestore();
+  });
+
   it.each([301, 302, 303, 307, 308])(
     'meldet Weiterleitung %s als NEXTCLOUD_UMLEITUNG, ohne ihr zu folgen',
     async (status) => {

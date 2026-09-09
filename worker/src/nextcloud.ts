@@ -207,6 +207,11 @@ export async function verarbeiteNextcloud(
       return fehlerAntwort('NEXTCLOUD_ANTWORT_ZU_GROSS', 'Die NextCloud-Datei ist zu groß.', 502);
     }
     if (fehler instanceof VerbindungsFehler) {
+      // Nur ins Worker-Log des Betreibers, redigiert: die Antwort bleibt der feste Code.
+      console.error(
+        'NEXTCLOUD_NICHT_ERREICHBAR',
+        redigiere(ursachenText(fehler.cause), [basisUrl, hostname(basisUrl), token, passwort]),
+      );
       return fehlerAntwort(
         'NEXTCLOUD_NICHT_ERREICHBAR',
         'NextCloud konnte nicht gelesen werden.',
@@ -217,6 +222,29 @@ export async function verarbeiteNextcloud(
     return fehlerAntwort('NEXTCLOUD_ANTWORT_UNGUELTIG', 'Ungültige NextCloud-Antwort.', 502);
   } finally {
     clearTimeout(zeitlimit);
+  }
+}
+
+/** Fehlerklasse und Meldung der Laufzeit; keine Header, kein Antwortinhalt. */
+function ursachenText(ursache: unknown): string {
+  if (ursache instanceof Error) return `${ursache.name}: ${ursache.message}`;
+  return typeof ursache;
+}
+
+/** Konfigurierte Adresse und Zugangsdaten aus einem Diagnosetext entfernen. */
+function redigiere(text: string, geheim: (string | undefined)[]): string {
+  let ergebnis = text;
+  for (const wert of geheim) {
+    if (wert) ergebnis = ergebnis.split(wert).join('<redigiert>');
+  }
+  return ergebnis;
+}
+
+function hostname(basisUrl: string): string | undefined {
+  try {
+    return new URL(basisUrl).hostname;
+  } catch {
+    return undefined;
   }
 }
 

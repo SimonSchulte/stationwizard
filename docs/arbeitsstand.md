@@ -137,3 +137,11 @@ Damit unterscheidet die nächste Deployment-Prüfung zwei Fälle:
 Geprüft wurden `npm run worker:check`, `npm run worker:test`, `npm run build`, `npm test`
 und `npm run format:check`. Die eigentliche Ursache im Deployment ist damit noch nicht
 bestimmt; sie ergibt sich erst aus dem nächsten Ladeversuch gegen die echte Instanz.
+
+Erste Messung an der echten Instanz: `curl -Is` auf den öffentlichen WebDAV-Endpunkt
+antwortet mit `401` und `WWW-Authenticate: Basic realm="Nextcloud"`. Endpunkt, DNS und TLS
+sind von außen also in Ordnung, und es gibt dort keine Weiterleitung. App-Zone und
+Nextcloud-Zone sind verschieden, eine Same-Zone-Einschränkung scheidet damit aus. Der
+Fehler entsteht folglich erst im Subrequest aus dem Cloudflare-Netz. Damit dessen Ursache
+überhaupt sichtbar wird, protokolliert der Worker sie jetzt redigiert im eigenen Log.
+Die konkrete Ursache ist weiterhin offen und braucht einen Ladeversuch mit `wrangler tail`.

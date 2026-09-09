@@ -169,6 +169,22 @@ curl -Is "<NEXTCLOUD_BASE_URL>/public.php/webdav/"
   Endpunkt gilt in neueren Nextcloud-Fassungen als veraltet. Ein Wechsel des Endpunkts
   wäre eine Vertragsänderung und braucht zuerst den Nachweis an der echten Instanz.
 
+Antwortet der Endpunkt von außen mit `401`, meldet der Worker aber weiterhin
+`NEXTCLOUD_NICHT_ERREICHBAR`, scheitert erst der Subrequest aus dem Cloudflare-Netz. Der
+Worker schreibt in diesem Fall Fehlerklasse und Meldung der Laufzeit ins eigene Log;
+Basisadresse, Hostname, Freigabetoken und Passwort werden vorher durch `<redigiert>`
+ersetzt. Die HTTP-Antwort an den Browser bleibt unverändert der feste Code. Mitlesen
+während eines Ladeversuchs:
+
+```bash
+npx wrangler tail stationwizard --config worker/wrangler.toml
+```
+
+Typische Ursachen dieser Klasse: DNS- oder TLS-Fehler gegenüber der Nextcloud-Adresse,
+eine Zugriffsbeschränkung der Instanz auf bestimmte Quell-IP-Adressen sowie
+Cloudflare-Einschränkungen für Subrequests (Fehler 1024 auf Cloudflare-eigene
+IP-Adressen, Fehler 1042 bei Zielen in derselben Zone wie der Worker).
+
 Die Ordnerliste entsteht serverseitig über `PROPFIND` mit `Depth: 1`. Nur UUID-Dateinamen
 mit Endung `.pep.json` werden übernommen; Inhalte werden erst beim bewussten Einzelabruf
 gelesen. Es gibt keine generischen WebDAV-Pfade und keine DELETE-Route.
