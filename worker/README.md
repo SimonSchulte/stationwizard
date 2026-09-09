@@ -51,7 +51,7 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `NEXTCLOUD_BASE_URL`        | HTTPS-Basis der Nextcloud-Installation, gegebenenfalls mit Installationsunterverzeichnis; ohne Freigabelink oder WebDAV-Suffix |
 | `NEXTCLOUD_SHARE_TOKEN`     | Token der Excel-**Dateifreigabe**, nur der Teil hinter `/s/`                                                                   |
 | `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
-| `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                            |
+| `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
