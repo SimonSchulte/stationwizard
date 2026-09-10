@@ -186,6 +186,15 @@ body {
 .mobile-unsupported {
   display: none;
 }
+
+@media (max-width: 780px) {
+  /* Der Jahresplan zeigt hier seine untere Mobil-Navigation. Der Snackbar-
+     Container hängt am globalen CDK-Overlay außerhalb der Komponentenkapselung
+     und würde sie sonst verdecken. */
+  .mat-mdc-snack-bar-container {
+    margin-bottom: calc(var(--space-2xl) + var(--space-md));
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
