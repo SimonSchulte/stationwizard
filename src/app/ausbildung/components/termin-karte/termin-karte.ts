@@ -14,7 +14,7 @@ import {
   typName,
 } from '../../models/plan.model';
 import { Segment } from '../../services/plan-raster';
-import type { HiorgEintrag } from '../../models/hiorg-kalender.model';
+import { hiorgServerLink, type HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 
 /** Darstellung eines Termins bzw. einer Idee – identisch in Plan und Backlog. */
@@ -56,6 +56,12 @@ export class TerminKarte {
   readonly bearbeiten = output<void>();
   readonly loeschen = output<void>();
   readonly verschieben = output<void>();
+
+  /** Direktlink auf die Detailseite im HiOrg-Server, falls dieser Termin verknüpft ist. */
+  readonly hiorgLink = computed(() => {
+    const hiorg = this.hiorgEintrag();
+    return hiorg ? hiorgServerLink(hiorg) : null;
+  });
 
   readonly art = computed(() => terminArt(this.termin()));
   readonly istFortsetzung = computed(() => this.segment() === 'mitte' || this.segment() === 'ende');

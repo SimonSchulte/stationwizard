@@ -28,20 +28,18 @@
 
   <span class="fueller"></span>
 
-  @if (eintrag().url) {
-    <a
-      matIconButton
-      class="oeffnen-knopf"
-      [href]="eintrag().url"
-      target="_blank"
-      rel="noopener noreferrer"
-      matTooltip="Termin im HiOrg-Server öffnen"
-      aria-label="Termin im HiOrg-Server öffnen"
-      (click)="$event.stopPropagation()"
-    >
-      <mat-icon>open_in_new</mat-icon>
-    </a>
-  }
+  <a
+    matIconButton
+    class="oeffnen-knopf"
+    [href]="link()"
+    target="_blank"
+    rel="noopener noreferrer"
+    matTooltip="Termin im HiOrg-Server öffnen"
+    aria-label="Termin im HiOrg-Server öffnen"
+    (click)="$event.stopPropagation()"
+  >
+    <mat-icon>open_in_new</mat-icon>
+  </a>
 
   <button
     matIconButton
@@ -89,19 +87,17 @@
         </button>
       }
 
-      @if (eintrag().url) {
-        <a
-          matButton
-          class="hiorg-link"
-          [href]="eintrag().url"
-          target="_blank"
-          rel="noopener noreferrer"
-          matTooltip="Termin im HiOrg-Server öffnen, um den Titel dort zu ändern"
-        >
-          <mat-icon>open_in_new</mat-icon>
-          <span class="knopf-text">In HiOrg öffnen</span>
-        </a>
-      }
+      <a
+        matButton
+        class="hiorg-link"
+        [href]="link()"
+        target="_blank"
+        rel="noopener noreferrer"
+        matTooltip="Termin im HiOrg-Server öffnen, um den Titel dort zu ändern"
+      >
+        <mat-icon>open_in_new</mat-icon>
+        <span class="knopf-text">In HiOrg öffnen</span>
+      </a>
     </div>
   </div>
 }
@@ -129,10 +125,8 @@
     </button>
   }
 
-  @if (eintrag().url) {
-    <a mat-menu-item [href]="eintrag().url" target="_blank" rel="noopener noreferrer">
-      <mat-icon>open_in_new</mat-icon>
-      <span>In HiOrg öffnen</span>
-    </a>
-  }
+  <a mat-menu-item [href]="link()" target="_blank" rel="noopener noreferrer">
+    <mat-icon>open_in_new</mat-icon>
+    <span>In HiOrg öffnen</span>
+  </a>
 </mat-menu>

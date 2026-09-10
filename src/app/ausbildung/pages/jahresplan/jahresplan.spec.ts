@@ -23,6 +23,7 @@ const HIORG_EINTRAG: HiorgEintrag = {
   name: 'Erfundene Ausbildung Verpflegung',
   art: 'termin',
   url: 'https://www.hiorg-server.de/formulare.php?ri=1000001',
+  id: '1000001',
 };
 
 describe('Bestätigungen im Ausbildungsplan', () => {

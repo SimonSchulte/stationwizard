@@ -264,6 +264,22 @@ Autolade-Versuch nur ohne bereits offene Quelle und ohne lokale Daten läuft. Ei
 Browserprüfung gegen eine echte NextCloud-Arbeitsmappe hat in dieser Umgebung nicht
 stattgefunden.
 
+## HiOrg-Link auf feste Detailseiten umgestellt
+
+Der Öffnen-Link einer HiOrg-Karte und die Verknüpfungsmarke am Plantermin nutzten bisher
+die vom Feed gelieferte `url` (führt teils auf `formulare.php` statt auf die Detailseite).
+`hiorgServerLink()` in `hiorg-kalender.model.ts` baut jetzt aus `art` und `id` fest
+`https://www.hiorg-server.de/termin.php?id=<id>` (Typ `termin`) beziehungsweise
+`https://www.hiorg-server.de/dienstform.php?action=show_existing&id=<id>` (Typ `dienst`).
+Die `id` kommt jetzt zusätzlich zum bestehenden `url`-Feld aus dem Parser. Der
+Kartenkontextmenüpunkt „In HiOrg öffnen" (`app-hiorg-eintrag-karte`) und der
+Verknüpfungs-Kopf sowie ein neuer Kontextmenüpunkt „Im HiOrg-Server öffnen" bei
+`app-termin-karte` nutzen jetzt beide diesen festen Link statt der Feed-`url`.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (248 Angular- und
+280 Worker-Tests) und `npm run format:check` – alle grün. Keine Browserprüfung in dieser
+Runde.
+
 ## EFS- und Nextcloud-Diagnose
 
 Beide Proxy-Pfade fragen mit `redirect: 'manual'` an und trennen `3xx`-Antworten

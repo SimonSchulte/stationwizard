@@ -32,6 +32,8 @@ export interface HiorgEintrag {
   readonly art: HiorgArt;
   /** Bereits im Worker geprüfter HiOrg-Link, sonst `null`. */
   readonly url: string | null;
+  /** `id` des Feeds, nicht eindeutig – siehe `schluessel`. Grundlage für `hiorgServerLink()`. */
+  readonly id: string;
 }
 
 export function istMehrtaegig(eintrag: HiorgEintrag): boolean {
@@ -40,4 +42,15 @@ export function istMehrtaegig(eintrag: HiorgEintrag): boolean {
 
 export function artName(art: HiorgArt): string {
   return typName(art);
+}
+
+/**
+ * Direktlink auf die Detailseite dieses Eintrags im HiOrg-Server – anders als
+ * `url` (Feed-Feld, kann fehlen oder auf ein Formular statt die Detailseite
+ * zeigen) fest aus `art` und `id` gebaut.
+ */
+export function hiorgServerLink(eintrag: HiorgEintrag): string {
+  return eintrag.art === 'termin'
+    ? `https://www.hiorg-server.de/termin.php?id=${eintrag.id}`
+    : `https://www.hiorg-server.de/dienstform.php?action=show_existing&id=${eintrag.id}`;
 }

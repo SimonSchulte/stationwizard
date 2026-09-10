@@ -99,6 +99,7 @@ function leseEintrag(roh: unknown): HiorgEintrag | null {
     name,
     art,
     url,
+    id: String(id),
   };
 }
 
