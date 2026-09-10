@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,7 +9,16 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { KATEGORIEN, NACHWEISE, NachweisKey, Termin, leererTermin } from '../../models/plan.model';
+import {
+  KATEGORIEN,
+  NACHWEISE,
+  NachweisKey,
+  TERMIN_TYPEN,
+  Termin,
+  TerminTyp,
+  leererTermin,
+  typName,
+} from '../../models/plan.model';
 import { PlanStore } from '../../services/plan-store';
 
 export interface TerminDialogDaten {
@@ -25,6 +35,7 @@ export interface TerminDialogDaten {
   imports: [
     FormsModule,
     MatButtonModule,
+    MatButtonToggleModule,
     MatCheckboxModule,
     MatDialogModule,
     MatFormFieldModule,
@@ -42,6 +53,8 @@ export class TerminDialog {
   private readonly daten = inject<TerminDialogDaten>(MAT_DIALOG_DATA);
 
   readonly kategorien = KATEGORIEN;
+  readonly terminTypen = TERMIN_TYPEN;
+  readonly typName = typName;
   readonly nachweise = NACHWEISE;
   readonly katsThemen = this.store.katsThemen;
 
@@ -54,6 +67,23 @@ export class TerminDialog {
     this.vorhanden ? structuredClone(this.vorhanden) : leererTermin(this.daten.datum ?? null),
   );
   readonly istIdee = computed(() => this.entwurf().datum === null);
+  /**
+   * Fehlerhafte Eingaben blockieren das Speichern, statt still einen
+   * unbrauchbaren Zeitraum in die Mappe zu schreiben.
+   */
+  readonly endeVorBeginn = computed(() => {
+    const e = this.entwurf();
+    return e.datum !== null && e.datumBis !== null && e.datumBis < e.datum;
+  });
+  readonly zeitVerdreht = computed(() => {
+    const e = this.entwurf();
+    // Nur bei eintägigen Terminen aussagekräftig: über Nacht darf „Bis" früher sein.
+    return (
+      e.datumBis === null && e.beginnZeit !== '' && e.endeZeit !== '' && e.endeZeit < e.beginnZeit
+    );
+  });
+  readonly kannSpeichern = computed(() => !this.endeVorBeginn());
+
   readonly kannAlsKatsThema = computed(() => {
     const e = this.entwurf();
     return !e.katsThemaId && (e.katsTitel.trim() || e.thema.trim()).length > 0;
@@ -95,7 +125,19 @@ export class TerminDialog {
     this.waehleKatsThema(id);
   }
 
+  setzeTyp(typ: TerminTyp): void {
+    this.setze('typ', typ);
+  }
+
+  /** Leeres Datumsfeld heißt „eintägig", nicht „ungültig". */
+  setzeDatumBis(wert: string): void {
+    this.setze('datumBis', wert || null);
+  }
+
   speichern(): void {
+    if (!this.kannSpeichern()) {
+      return;
+    }
     const entwurf = this.entwurf();
     if (this.istNeu) {
       this.store.fuegeTerminEin(entwurf);

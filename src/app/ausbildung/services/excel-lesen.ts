@@ -19,6 +19,9 @@ import {
   erkenneSpalte,
   istJahresBlattname,
   istWahr,
+  leseTyp,
+  leseZeit,
+  vergleicheTermine,
   jahrAusBlattname,
   normHeader,
 } from './excel-schema';
@@ -68,6 +71,7 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
   // Erster Durchgang: Termine je Jahresblatt einlesen, bevor Backlog und
   // KatS-A-Plan-Ableitung feststehen – beide hängen vom vollständigen Datenstand ab.
   const ohneDatumGesamt: Termin[] = [];
+  const verworfeneEnddaten: string[] = [];
   const roh = jahresBlaetter.map((blattRef) => {
     const planZeilen = zeilen(wb, blattRef.name);
     const kopf = findeKopfzeile(planZeilen);
@@ -83,7 +87,9 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
       if (istLeer(zeile)) {
         continue;
       }
-      const termin = leseTerminZeile(zeile, zuordnung);
+      const termin = leseTerminZeile(zeile, zuordnung, () =>
+        verworfeneEnddaten.push(blattRef.name),
+      );
       if (istInhaltslos(termin)) {
         continue;
       }
@@ -96,6 +102,12 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
     meldungen.push(
       `${ohneDatumGesamt.length} Zeile(n) aus Jahresblättern hatten kein Datum und ` +
         'wurden in die offenen Ideen übernommen.',
+    );
+  }
+  if (verworfeneEnddaten.length) {
+    meldungen.push(
+      `${verworfeneEnddaten.length} Zeile(n) hatten ein "Datum bis" ohne oder vor dem ` +
+        'Datum; diese Termine gelten als eintägig.',
     );
   }
   const backlog = [...backlogRoh, ...ohneDatumGesamt];
@@ -237,7 +249,12 @@ function spaltenZuordnung(kopfzeile: Zeile): Map<SpaltenFeld, number> {
   return zuordnung;
 }
 
-function leseTerminZeile(zeile: Zeile, zuordnung: Map<SpaltenFeld, number>): Termin {
+function leseTerminZeile(
+  zeile: Zeile,
+  zuordnung: Map<SpaltenFeld, number>,
+  /** Wird gerufen, wenn ein Enddatum in dieser Zeile nicht verwertbar war. */
+  melde: () => void = () => {},
+): Termin {
   const wert = (feld: SpaltenFeld): unknown => {
     const index = zuordnung.get(feld);
     return index === undefined ? null : zeile[index];
@@ -251,8 +268,23 @@ function leseTerminZeile(zeile: Zeile, zuordnung: Map<SpaltenFeld, number>): Ter
     }
   }
 
+  const datum = zuIsoDatum(wert('datum'));
+  const rohEnde = zuIsoDatum(wert('datumBis'));
+  // Ein Enddatum ohne Beginn oder vor dem Beginn ist nicht auflösbar; der
+  // Termin bleibt dann eintägig, statt eine erfundene Spanne zu erzeugen.
+  let datumBis: string | null = null;
+  if (rohEnde && datum && rohEnde > datum) {
+    datumBis = rohEnde;
+  } else if (rohEnde && (!datum || rohEnde < datum)) {
+    melde();
+  }
+
   return {
-    ...leererTermin(zuIsoDatum(wert('datum'))),
+    ...leererTermin(datum),
+    datumBis,
+    beginnZeit: leseZeit(wert('beginnZeit')),
+    endeZeit: leseZeit(wert('endeZeit')),
+    typ: leseTyp(wert('typ')),
     hinweis: text('hinweis'),
     kategorie: normalisiereKategorie(text('kategorie')),
     thema: text('thema'),
@@ -310,7 +342,7 @@ function leseBacklog(zeilen: Zeile[]): BacklogErgebnis {
     const eintraege = zeilen
       .slice(kopf + 1)
       .filter((z) => !istLeer(z))
-      .map((z) => ({ ...leseTerminZeile(z, zuordnung), datum: null }))
+      .map((z) => ({ ...leseTerminZeile(z, zuordnung), datum: null, datumBis: null }))
       .filter((t) => !istInhaltslos(t));
     return { eintraege, aufgeraeumt: 0 };
   }
@@ -437,5 +469,5 @@ function vergleichsSchluessel(text: string): string {
 }
 
 export function sortiereNachDatum(termine: Termin[]): Termin[] {
-  return [...termine].sort((a, b) => (a.datum ?? '').localeCompare(b.datum ?? ''));
+  return [...termine].sort(vergleicheTermine);
 }

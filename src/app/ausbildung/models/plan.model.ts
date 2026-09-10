@@ -6,6 +6,26 @@
  * KatS-Ausbildungsplan-Themenliste, über die quer referenziert wird.
  */
 
+import { tageVonBis } from '../../kern/kalender/datum';
+
+/**
+ * Feed-kompatible Unterscheidung eines Eintrags: ein regulärer Dienst
+ * (Dienstabend, Ausbildungsdienst) oder ein sonstiger Termin (Veranstaltung,
+ * Lehrgang, Besprechung). Die Werte entsprechen dem Feld `typ` des
+ * HiOrg-Kalenderfeeds, damit übernommene Einträge ihre Einordnung behalten.
+ *
+ * Nicht zu verwechseln mit `TerminArt` weiter unten: `typ` ist eine gepflegte
+ * Eigenschaft des Eintrags, `TerminArt` nur eine aus dem Inhalt abgeleitete
+ * Darstellungsfrage (mit oder ohne Ausbildungsthema).
+ */
+export const TERMIN_TYPEN = ['dienst', 'termin'] as const;
+
+export type TerminTyp = (typeof TERMIN_TYPEN)[number];
+
+export function typName(typ: TerminTyp): string {
+  return typ === 'dienst' ? 'Dienst' : 'Termin';
+}
+
 export const KATEGORIEN = ['SAN', 'Bt/Vp', 'TeSi/Iuk', 'UF', 'Führung', 'Sonstiges'] as const;
 
 export type Kategorie = (typeof KATEGORIEN)[number];
@@ -36,6 +56,16 @@ export interface Termin {
   id: string;
   /** ISO-Datum `YYYY-MM-DD`, oder `null` für Backlog-Einträge. */
   datum: string | null;
+  /**
+   * Letzter Kalendertag eines mehrtägigen Termins (einschließlich), sonst `null`.
+   * Immer entweder `null` oder `>= datum`; ein Backlog-Eintrag hat kein Enddatum.
+   */
+  datumBis: string | null;
+  /** Ortszeit `HH:MM`, leer wenn der Eintrag ohne Uhrzeit geführt wird. */
+  beginnZeit: string;
+  endeZeit: string;
+  /** Dienst oder sonstiger Termin – siehe `TerminTyp`. */
+  typ: TerminTyp;
   /** Freitext-Hinweis (Feiertag, Veranstaltung, Dienstabend-Bezug …). */
   hinweis: string;
   kategorie: Kategorie | '';
@@ -124,6 +154,11 @@ export function einJahrArbeitsmappe(dokument: PlanDocument): Arbeitsmappe {
   return { jahre: [alsJahresblatt(dokument)], backlog: dokument.backlog };
 }
 
+/**
+ * Abgeleitete Darstellungsform (nicht gespeichert): ein Eintrag ohne Thema und
+ * ohne Rolle ist ein reiner Kalendereintrag. Die gepflegte Einordnung Dienst /
+ * Termin steht dagegen in `Termin.typ`.
+ */
 export type TerminArt = 'ausbildung' | 'ereignis';
 
 /** Ein Eintrag ohne Thema und Rolle ist ein reiner Kalendereintrag (Veranstaltung, Feiertag). */
@@ -131,10 +166,32 @@ export function terminArt(termin: Termin): TerminArt {
   return termin.thema.trim() || termin.kategorie ? 'ausbildung' : 'ereignis';
 }
 
+/** Ein mehrtägiger Termin belegt mehr als einen Kalendertag. */
+export function istMehrtaegigerTermin(termin: Termin): boolean {
+  return termin.datum !== null && termin.datumBis !== null && termin.datumBis > termin.datum;
+}
+
+/**
+ * Alle Kalendertage, die der Termin belegt – ein Tag bei eintägigen Terminen,
+ * leer bei Backlog-Einträgen. Grundlage für Raster und Balkendarstellung.
+ */
+export function terminTage(termin: Termin): string[] {
+  if (!termin.datum) {
+    return [];
+  }
+  return istMehrtaegigerTermin(termin)
+    ? tageVonBis(termin.datum, termin.datumBis!)
+    : [termin.datum];
+}
+
 export function leererTermin(datum: string | null = null): Termin {
   return {
     id: neueId(),
     datum,
+    datumBis: null,
+    beginnZeit: '',
+    endeZeit: '',
+    typ: 'dienst',
     hinweis: '',
     kategorie: '',
     thema: '',

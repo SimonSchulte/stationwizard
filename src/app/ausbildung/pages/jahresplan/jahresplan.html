@@ -35,6 +35,17 @@
     }
   </span>
 
+  <button
+    matButton
+    class="hiorg-status"
+    [matTooltip]="hiorgStatus().tooltip"
+    [attr.aria-label]="hiorgStatus().tooltip"
+    (click)="hiorgNeuLaden()"
+  >
+    <mat-icon inline>{{ hiorgStatus().icon }}</mat-icon>
+    <span class="knopf-text">{{ hiorgStatus().text }}</span>
+  </button>
+
   <span class="fueller"></span>
 
   <button
@@ -113,10 +124,6 @@
       <span>Leeren Plan beginnen</span>
     </button>
 
-    <button mat-menu-item (click)="schalteHiorg()">
-      <mat-icon>{{ hiorg.anzeigen() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-      <span>HiOrg-Termine anzeigen</span>
-    </button>
     <button mat-menu-item [disabled]="hiorg.laedt()" (click)="hiorgNeuLaden()">
       <mat-icon>cloud_sync</mat-icon>
       <span>HiOrg-Termine neu laden</span>
@@ -164,6 +171,28 @@
         Leeren Plan beginnen
       </button>
     </div>
+
+    <!--
+      Der HiOrg-Kalender ist unabhängig vom Rahmenplan verfügbar – schon hier
+      eine reine Terminliste, ohne Wochenraster, Diensttage oder Abgleich, die
+      alle an einer geöffneten Arbeitsmappe hängen.
+    -->
+    @if (naechsteHiorgTermine().length) {
+      <div class="willkommen-hiorg">
+        <h2>Nächste HiOrg-Termine</h2>
+        <div class="willkommen-hiorg-liste">
+          @for (eintrag of naechsteHiorgTermine(); track eintrag.schluessel) {
+            <app-hiorg-eintrag-karte
+              [eintrag]="eintrag"
+              [datum]="eintrag.beginn"
+              [kompakt]="false"
+            />
+          }
+        </div>
+      </div>
+    } @else if (hiorg.zustand() === 'geladen') {
+      <p class="willkommen-hiorg-leer">Keine anstehenden HiOrg-Termine.</p>
+    }
   </div>
 } @else {
   <div class="arbeitsflaeche" cdkDropListGroup>
@@ -186,7 +215,7 @@
           {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
         </button>
 
-        @if (hiorg.anzeigen() && hiorgAbgleich().anzahlAbweichungen > 0) {
+        @if (hiorgAbgleich().anzahlAbweichungen > 0) {
           <button
             class="abweichungs-marke"
             [class.aktiv]="nurAbweichungen()"
@@ -197,6 +226,57 @@
             {{ hiorgAbgleich().anzahlAbweichungen }} Namensabweichung(en)
           </button>
         }
+
+        <span class="monats-navigation">
+          <button
+            matIconButton
+            [disabled]="monat() === null || monat() === 0"
+            matTooltip="Vorheriger Monat"
+            aria-label="Vorheriger Monat"
+            (click)="verschiebeMonat(-1)"
+          >
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button
+            matButton
+            class="monat"
+            [matMenuTriggerFor]="monatMenue"
+            matTooltip="Monat wählen"
+          >
+            {{ monatsTitel() }}
+            <mat-icon inline>arrow_drop_down</mat-icon>
+          </button>
+          <button
+            matIconButton
+            [disabled]="monat() === null || monat() === 11"
+            matTooltip="Nächster Monat"
+            aria-label="Nächster Monat"
+            (click)="verschiebeMonat(1)"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+          <button
+            matIconButton
+            [disabled]="imAktuellenMonat()"
+            matTooltip="Zum aktuellen Monat"
+            aria-label="Zum aktuellen Monat"
+            (click)="zumAktuellenMonat()"
+          >
+            <mat-icon>today</mat-icon>
+          </button>
+        </span>
+        <mat-menu #monatMenue="matMenu">
+          @for (name of monatsnamen; track name; let i = $index) {
+            <button mat-menu-item (click)="waehleMonat(i)">
+              <mat-icon>{{ i === monat() ? 'check' : '' }}</mat-icon>
+              <span>{{ name }}</span>
+            </button>
+          }
+          <button mat-menu-item (click)="waehleMonat(null)">
+            <mat-icon>{{ monat() === null ? 'check' : 'calendar_month' }}</mat-icon>
+            <span>Ganzes Jahr</span>
+          </button>
+        </mat-menu>
 
         <button
           matIconButton
@@ -258,51 +338,78 @@
                 class="tag-zelle"
                 [class.diensttag]="slot.istDiensttag"
                 [class.ausserhalb]="!slot.imJahr"
-                [class.hat-hiorg-abweichung]="
-                  hiorgAbgleich().tageMitAbweichung.has(slot.datum) && hiorg.anzeigen()
-                "
+                [class.luecke]="slot.luecke && slot.termine.length > 0"
+                [class.heute]="slot.datum === heute"
+                [class.hat-hiorg-abweichung]="hiorgAbgleich().tageMitAbweichung.has(slot.datum)"
               >
                 @if (!slot.imJahr) {
                   <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
                   @if (slot.termine.length) {
-                    @for (termin of slot.termine; track termin.id) {
+                    @for (eintrag of slot.termine; track eintrag.termin.id) {
                       <app-termin-karte
-                        [termin]="termin"
-                        [katsThema]="katsThema(termin)"
+                        [termin]="eintrag.termin"
+                        [segment]="eintrag.segment"
+                        [tagDatum]="slot.datum"
+                        [katsThema]="katsThema(eintrag.termin)"
+                        [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
                         [feiertag]="slot.feiertag"
                         [kompakt]="true"
-                        (bearbeiten)="bearbeiten(termin.id)"
-                        (verschieben)="zuBacklog(termin)"
-                        (loeschen)="loeschen(termin.id)"
-                        (dblclick)="bearbeiten(termin.id)"
+                        (bearbeiten)="bearbeiten(eintrag.termin.id)"
+                        (verschieben)="zuBacklog(eintrag.termin)"
+                        (loeschen)="loeschen(eintrag.termin.id)"
+                        (dblclick)="bearbeiten(eintrag.termin.id)"
                       />
                     }
                   } @else {
                     <span class="tag-nummer-still">{{ slot.datum.slice(8, 10) }}</span>
                   }
                 } @else if (slot.termine.length) {
-                  @for (termin of slot.termine; track termin.id) {
+                  @for (eintrag of slot.termine; track eintrag.termin.id) {
                     <div
                       class="mini-slot"
                       cdkDropList
                       cdkDropListSortingDisabled
-                      (cdkDropListDropped)="aufTerminAbgelegt($event, termin)"
+                      (cdkDropListDropped)="aufTerminAbgelegt($event, eintrag.termin)"
                     >
+                      <!--
+                        Mehrtägige Termine hängen an ihrem Beginn: nur dort lässt
+                        sich ziehen, sonst würde ein Zwischentag den Zeitraum
+                        zerreißen.
+                      -->
                       <app-termin-karte
                         cdkDrag
-                        [cdkDragData]="termin"
-                        [termin]="termin"
-                        [katsThema]="katsThema(termin)"
+                        [cdkDragDisabled]="
+                          eintrag.segment === 'mitte' || eintrag.segment === 'ende'
+                        "
+                        [cdkDragData]="eintrag.termin"
+                        [termin]="eintrag.termin"
+                        [segment]="eintrag.segment"
+                        [tagDatum]="slot.datum"
+                        [katsThema]="katsThema(eintrag.termin)"
+                        [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
                         [feiertag]="slot.feiertag"
-                        [luecke]="slot.luecke && $first"
                         [kompakt]="true"
-                        (bearbeiten)="bearbeiten(termin.id)"
-                        (verschieben)="zuBacklog(termin)"
-                        (loeschen)="loeschen(termin.id)"
-                        (dblclick)="bearbeiten(termin.id)"
+                        (bearbeiten)="bearbeiten(eintrag.termin.id)"
+                        (verschieben)="zuBacklog(eintrag.termin)"
+                        (loeschen)="loeschen(eintrag.termin.id)"
+                        (dblclick)="bearbeiten(eintrag.termin.id)"
                       />
                     </div>
                   }
+                  <!-- Ein Tag darf mehrere Termine tragen (z. B. Rookies vor dem Dienstabend). -->
+                  <button
+                    matIconButton
+                    class="weiterer-termin"
+                    [matTooltip]="
+                      'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
+                    "
+                    [attr.aria-label]="
+                      'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
+                    "
+                    (click)="terminAnlegen(slot.datum)"
+                  >
+                    <mat-icon>add</mat-icon>
+                  </button>
                 } @else {
                   <div
                     class="mini-slot leer"
@@ -324,7 +431,7 @@
                       [ohneGegenstueck]="istOhneGegenstueck(hiorgTagesstand, eintrag)"
                       [kompakt]="true"
                       (nameUebernehmen)="uebernimmHiorgNamen($event)"
-                      (terminAnlegen)="legeTerminAusHiorgAn($event, slot.datum)"
+                      (terminAnlegen)="legeTerminAusHiorgAn($event)"
                     />
                   }
                 }

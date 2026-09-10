@@ -153,6 +153,90 @@ Altrepositories archivieren, bevor sie nicht mehr benötigt werden.
   Google-Zugriffsliste und das Zusammenspiel mit dem echten Worker sind unverändert offen.
 - Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.
 
+## Zeiträume, Uhrzeiten, Typ und Monatsansicht im Rahmenplan
+
+Der Anschluss des HiOrg-Kalenderfeeds hat vier Lücken im Ausbildungsplan sichtbar gemacht;
+diese sind jetzt geschlossen.
+
+- **Excel-Mappe erweitert** (die Mappe wird nicht mehr für formatierte Exporte gebraucht):
+  vier neue Spalten `Datum bis`, `Von`, `Bis` und `Typ` auf den Jahresblättern; das Blatt
+  „Offene Ideen" führt `Von`, `Bis` und `Typ` mit, aber weiterhin kein Datum und kein
+  Enddatum. Blattnamen und alle bisherigen Spalten sind unverändert. Eine Mappe **ohne**
+  die neuen Spalten liest sich unverändert ein: eintägig, ohne Uhrzeit, Typ `Dienst`.
+  Ein `Datum bis` ohne oder vor dem Datum wird verworfen und dem Nutzer gemeldet.
+- **Mehrere Termine pro Tag**: In jeder belegten Tageszelle gibt es einen dezenten
+  „+"-Knopf; bisher ließ sich nur an leeren Tagen etwas anlegen. Innerhalb eines Tages
+  sortieren die Uhrzeiten (Termine ohne Uhrzeit stehen hinten), sodass ein Rookies-Termin
+  vor dem Dienstabend steht. Die Lückenmarkierung sitzt jetzt an der Tageszelle und
+  erscheint einmal je Tag statt an der ersten Karte.
+- **Mehrtägige Termine**: `Termin.datumBis` bildet den Zeitraum ab. Im Wochenraster steht
+  der Termin an jedem seiner Tage; der Beginn trägt die vollständige Karte, die Folgetage
+  flache Fortsetzungen mit „2/4". Die Segmente überbrücken Rasterlücke und Zellpolsterung
+  und wirken als durchgehender Balken, der am Wochenende umbricht. Mehrtägige Termine
+  stehen in jeder Tageszelle an erster Stelle, damit der Balken nicht gegen seine
+  Fortsetzung versetzt liegt. Gezogen wird nur am Beginn; Verschieben und Datumstausch
+  erhalten die Dauer. Ein Diensttag innerhalb eines Zeitraums gilt nicht mehr als Lücke.
+- **Monatsansicht**: Der Plan startet im laufenden Monat, mit Vor-/Zurück-Pfeilen,
+  Monatsmenü einschließlich „Ganzes Jahr" und einem Knopf „Zum aktuellen Monat". Eine
+  Suche hebt den Monatsfilter bewusst auf, sonst blieben Treffer anderer Monate
+  unsichtbar. Der heutige Tag ist im Raster markiert.
+- **Typ „Dienst" / „Termin"**: als `Termin.typ` gepflegt, in der Mappe gespeichert, im
+  Dialog umschaltbar und auf der Karte durch Symbol und Grundfläche unterschieden. Der
+  Wertebereich ist derselbe wie das Feld `typ` des Feeds; `HiorgArt` ist jetzt ein Alias.
+  Nicht zu verwechseln mit dem abgeleiteten `TerminArt` (`ausbildung`/`ereignis`), das nur
+  beschreibt, ob ein Eintrag ein Ausbildungsthema trägt.
+- **Uhrzeiten aus dem Feed**: Der Parser wertet die Tageszeit der bereits vorhandenen
+  Zeitstempel in Europe/Berlin aus; übernommene HiOrg-Termine bringen Zeitraum, Uhrzeit
+  und Typ mit. Der Worker-Vertrag und die erlaubte API-Oberfläche bleiben unverändert.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (241 Angular- und
+280 Worker-Tests) und `npm run format:check` – alle grün. Zusätzlich eine reale
+Browserprüfung mit Chromium gegen `ng serve` in Desktop- (1440×900) und Mobilbreite
+(390×844): Start im laufenden Monat, Monatswechsel und „Zum aktuellen Monat", zwei
+Termine an einem Tag in der richtigen Reihenfolge, ein viertägiger Termin als
+durchgehender Balken über einen Wochenwechsel und die Typ-Unterscheidung. Zwei
+Darstellungsfehler kamen dabei ans Licht und wurden behoben (versetzter Balken bei
+zusätzlicher Uhrzeit, abgeschnittener Fortschrittstext). Nicht geprüft: der echte
+HiOrg-Feed und ein Rundlauf gegen die produktive Nextcloud-Mappe; `npm run test:spa`
+bleibt unverändert am dokumentierten Bestandsfehler hängen und wurde nicht abgeschwächt.
+
+## HiOrg-Anbindung sichtbar und immer eingeblendet
+
+Beim Test gegen die echte Nextcloud-Mappe zeigte sich, dass die HiOrg-Anbindung selbst
+zu unauffällig war. Drei Ergänzungen und eine Vereinfachung:
+
+- Ein Plan-Termin, dessen Thema exakt zu einem HiOrg-Eintrag passt, zeigt jetzt ein
+  „link"-Symbol im Kartenkopf (mit Direktlink, wenn eine URL vorliegt).
+  `hiorg-abgleich.ts` erfasst dafür jetzt auch Treffer (`HiorgTagesAbgleich.treffer`,
+  `HiorgAbgleich.terminNachId`) statt sie wie bisher nur mit einem `continue` zu
+  verwerfen – nur Abweichungen und Einträge ohne Gegenstück waren vorher ausgewertet.
+- Der Verbindungsstatus zum Kalenderfeed steht als Chip in der Kopfleiste (verbunden,
+  lädt, nicht eingerichtet, Fehler), statt nur in der Fußzeile des Overflow-Menüs
+  lesbar zu sein.
+- Jede HiOrg-Karte hat jetzt einen immer sichtbaren Öffnen-Knopf zum
+  HiOrg-Server-Termin, nicht mehr nur bei einer Namensabweichung.
+- Die HiOrg-Ebene ist nicht mehr abschaltbar: `HiorgKalenderService` kennt kein
+  `anzeigen`-Signal und keine gespeicherte Ansichtsvorliebe mehr, der Feed wird beim
+  Öffnen des Jahresplans immer geladen und immer angezeigt. Der Menüpunkt „HiOrg-Termine
+  anzeigen" ist entfallen; „HiOrg-Termine neu laden" bleibt.
+
+Geprüft: `npm run build`, 245 Angular- und 280 Worker-Tests, `npm run format:check` –
+alle grün. Browserprüfung mit gemocktem Feed (der echte HiOrg-Feed ist hier nicht
+erreichbar) in Desktop- und Mobilbreite: alle Verbindungszustände, Link-Icon, Öffnen-
+Knopf, sowie dass die Ebene ohne weiteres Zutun sichtbar ist.
+
+Rückmeldung aus dem Test gegen die echte Vorschau-Umgebung: Der Statuschip in der
+Kopfleiste war zwar sofort verbunden, aber das Wochenraster selbst erscheint erst nach
+dem Öffnen einer Arbeitsmappe – der „Rahmenplan öffnen"-Bildschirm zeigte bis dahin gar
+keinen Kalender. Ergänzt: Der Willkommen-Bildschirm zeigt jetzt zusätzlich eine reine
+Terminliste „Nächste HiOrg-Termine" (`Jahresplan.naechsteHiorgTermine`, bis zu 20 laufende
+und künftige Einträge, nach Beginn sortiert, vergangene ausgeblendet) über
+`app-hiorg-eintrag-karte` – bewusst ohne Wochenraster, Diensttage oder Namensabgleich, die
+alle an einer geöffneten Arbeitsmappe hängen. Geprüft: build, 248 Angular- und
+280 Worker-Tests, format:check sowie eine Browserprüfung mit gemocktem Feed: ein
+vergangener Termin bleibt draußen, ein bereits laufender mehrtägiger Termin erscheint
+zuerst, Sortierung nach Beginn stimmt.
+
 ## GitHub-Übergabe
 
 Die sechs AP-Branches (AP1 bis AP6) wurden über Pull Requests aus dem Fork

@@ -3,17 +3,14 @@ import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import type { HiorgEintrag } from '../models/hiorg-kalender.model';
 import { leseHiorgAntwort } from './hiorg-kalender-parser';
 
-const SPEICHER_SCHLUESSEL = 'ausbildungsplaner.hiorgAnzeigen';
-
 export type HiorgZustand = 'ungeprueft' | 'geladen' | 'nicht-konfiguriert' | 'fehler';
 
 /**
  * Die HiOrg-Termine des Verbands, gelesen über den Worker.
  *
  * Der Feed ist eine reine Anzeige- und Abgleichquelle: er wird **nicht**
- * zwischengespeichert und nie in die Excel-Mappe geschrieben. Im Browser
- * gemerkt wird ausschließlich die Ansichtsvorliebe, ob die Ebene eingeblendet
- * ist – genau wie Diensttag und Bundesland.
+ * zwischengespeichert und nie in die Excel-Mappe geschrieben. Die Ebene ist
+ * immer eingeblendet, sobald ein Rahmenplan offen ist – keine Ansichtsvorliebe.
  *
  * Ein Fehlschlag ist nie blockierend: der Jahresplan arbeitet ohne die Ebene
  * unverändert weiter, wie bei der Feiertags-Rückfallebene.
@@ -28,16 +25,6 @@ export class HiorgKalenderService {
   readonly fehler = signal('');
   readonly verworfen = signal(0);
   readonly laedt = signal(false);
-  readonly anzeigen = signal(gespeicherteAnzeige());
-
-  setzeAnzeigen(an: boolean): void {
-    this.anzeigen.set(an);
-    try {
-      localStorage.setItem(SPEICHER_SCHLUESSEL, an ? 'ja' : 'nein');
-    } catch {
-      // Privater Modus o. Ä. – die Auswahl gilt dann nur für diese Sitzung.
-    }
-  }
 
   async lade(erzwingen = false): Promise<void> {
     if (!erzwingen && this.zustand() === 'geladen') {
@@ -72,13 +59,5 @@ export class HiorgKalenderService {
     } finally {
       this.laedt.set(false);
     }
-  }
-}
-
-function gespeicherteAnzeige(): boolean {
-  try {
-    return localStorage.getItem(SPEICHER_SCHLUESSEL) !== 'nein';
-  } catch {
-    return true;
   }
 }

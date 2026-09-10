@@ -52,6 +52,17 @@ export class HiorgEintragKarte {
     return index < 0 ? '' : `Tag ${index + 1}/${tage.length}`;
   });
 
+  /** „18:00–21:30", „ab 18:00" oder leer – der Feed nennt nicht immer beides. */
+  readonly zeitText = computed(() => {
+    const { beginnZeit, endeZeit } = this.eintrag();
+    if (!beginnZeit) {
+      return '';
+    }
+    // Bei mehrtägigen Einträgen gehört das Ende zu einem anderen Tag; dann nur
+    // den Beginn zeigen, statt eine falsche Tagesspanne zu behaupten.
+    return endeZeit && !istMehrtaegig(this.eintrag()) ? `${beginnZeit}–${endeZeit}` : beginnZeit;
+  });
+
   readonly zeitraumText = computed(() => {
     const eintrag = this.eintrag();
     return istMehrtaegig(eintrag)

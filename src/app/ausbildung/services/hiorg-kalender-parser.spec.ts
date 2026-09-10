@@ -130,3 +130,44 @@ describe('HiOrg-Antwort lesen', () => {
     expect(eintraege.map((e) => e.name)).toEqual(['Früher', 'Später']);
   });
 });
+
+describe('Uhrzeiten aus dem Feed', () => {
+  it('liest Beginn und Ende als Berliner Ortszeit', () => {
+    const { eintraege } = leseHiorgAntwort(antwort(rohEintrag()));
+
+    // 16:00 UTC im Mai ist 18:00 Berliner Sommerzeit.
+    expect(eintraege[0]).toMatchObject({ beginnZeit: '18:00', endeZeit: '22:00' });
+  });
+
+  it('rechnet auch in der Winterzeit auf Ortszeit um', () => {
+    const { eintraege } = leseHiorgAntwort(
+      antwort(
+        rohEintrag({
+          sortdate: Date.UTC(2026, 0, 12, 18, 30, 0) / 1000,
+          enddate: Date.UTC(2026, 0, 12, 20, 30, 0) / 1000,
+        }),
+      ),
+    );
+
+    // 18:30 UTC im Januar ist 19:30 Berliner Normalzeit.
+    expect(eintraege[0]).toMatchObject({ beginnZeit: '19:30', endeZeit: '21:30' });
+  });
+
+  it('lässt die Endzeit leer, wenn der Feed kein Ende nennt', () => {
+    const { eintraege } = leseHiorgAntwort(antwort(rohEintrag({ enddate: '' })));
+
+    expect(eintraege[0]?.beginnZeit).toBe('18:00');
+    expect(eintraege[0]?.endeZeit).toBe('');
+  });
+
+  it('sortiert Einträge desselben Tages nach Uhrzeit', () => {
+    const { eintraege } = leseHiorgAntwort(
+      antwort(
+        rohEintrag({ sortdate: Date.UTC(2026, 4, 4, 17, 30, 0) / 1000, verbez: 'Dienstabend' }),
+        rohEintrag({ sortdate: Date.UTC(2026, 4, 4, 16, 0, 0) / 1000, verbez: 'Rookies' }),
+      ),
+    );
+
+    expect(eintraege.map((e) => e.name)).toEqual(['Rookies', 'Dienstabend']);
+  });
+});

@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -28,7 +29,7 @@ import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/
 import { TerminKarte } from '../../components/termin-karte/termin-karte';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
-import { HiorgEintrag } from '../../models/hiorg-kalender.model';
+import { HiorgEintrag, istMehrtaegig } from '../../models/hiorg-kalender.model';
 import { Termin, leererTermin, leeresDocument } from '../../models/plan.model';
 import { DiensttagService } from '../../services/diensttag.service';
 import {
@@ -49,6 +50,7 @@ import {
   Wochentag,
   formatiereDatum,
   heuteIso,
+  jahrVon,
   monatIndex,
 } from '../../../kern/kalender/datum';
 
@@ -97,12 +99,86 @@ export class Jahresplan {
   readonly ziel = this.workbook.ziel;
   readonly beschaeftigt = this.workbook.beschaeftigt;
 
+  readonly monatsnamen = MONATSNAMEN;
+  readonly heute = heuteIso();
+
+  /**
+   * Angezeigter Monat (`0..11`) oder `null` für das ganze Jahr. Der Plan startet
+   * im laufenden Monat, statt den Nutzer jedes Mal aus dem Januar herausscrollen
+   * zu lassen.
+   */
+  readonly monat = signal<number | null>(monatIndex(heuteIso()));
+
   readonly suche = signal('');
   readonly nurLuecken = signal(false);
   /** Zeigt nur Wochen mit einer HiOrg-Namensabweichung. */
   readonly nurAbweichungen = signal(false);
   /** Nur auf schmalen Bildschirmen relevant: Plan und Seitenleiste teilen sich dort den Platz. */
   readonly mobilAnsicht = signal<'plan' | 'liste'>('plan');
+
+  readonly monatsTitel = computed(() => {
+    const monat = this.monat();
+    return monat === null ? 'Ganzes Jahr' : MONATSNAMEN[monat];
+  });
+  /** Zeigt der Plan gerade den laufenden Monat des laufenden Jahres? */
+  readonly imAktuellenMonat = computed(
+    () => this.store.jahr() === jahrVon(this.heute) && this.monat() === monatIndex(this.heute),
+  );
+
+  /**
+   * Anstehende HiOrg-Termine für den Willkommen-Bildschirm, bevor überhaupt eine
+   * Arbeitsmappe offen ist – ohne Wochenraster, Diensttage oder Abgleich, die alle
+   * an einem geöffneten Rahmenplan hängen. Nach Beginn sortiert, laufende und
+   * künftige Termine, auf eine überschaubare Anzahl gedeckelt.
+   */
+  readonly naechsteHiorgTermine = computed<HiorgEintrag[]>(() => {
+    const heute = this.heute;
+    return [...this.hiorg.eintraege()]
+      .filter((e) => e.ende >= heute)
+      .sort((a, b) => a.beginn.localeCompare(b.beginn) || a.beginnZeit.localeCompare(b.beginnZeit))
+      .slice(0, 20);
+  });
+
+  /**
+   * Kurzstatus der HiOrg-Verbindung für die Kopfleiste – deutlich sichtbar statt
+   * nur im Overflow-Menü lesbar. Die vier Zustände von `HiorgKalenderService`
+   * decken sich mit dem Fußzeilentext dort; hier kommt Symbol/„lädt"-Fall hinzu.
+   */
+  readonly hiorgStatus = computed(() => {
+    if (this.hiorg.laedt()) {
+      return {
+        icon: 'cloud_sync',
+        text: 'HiOrg wird geladen…',
+        tooltip: 'HiOrg-Termine werden gerade abgerufen',
+      };
+    }
+    switch (this.hiorg.zustand()) {
+      case 'geladen':
+        return {
+          icon: 'cloud_done',
+          text: `${this.hiorg.eintraege().length} HiOrg-Termine`,
+          tooltip: 'HiOrg-Kalenderfeed verbunden – zum Neuladen klicken',
+        };
+      case 'nicht-konfiguriert':
+        return {
+          icon: 'cloud_off',
+          text: 'HiOrg nicht eingerichtet',
+          tooltip: 'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet',
+        };
+      case 'fehler':
+        return {
+          icon: 'cloud_alert',
+          text: 'HiOrg-Fehler',
+          tooltip: this.hiorg.fehler() || 'HiOrg-Termine sind nicht abrufbar',
+        };
+      default:
+        return {
+          icon: 'cloud_queue',
+          text: 'HiOrg noch nicht abgerufen',
+          tooltip: 'HiOrg-Termine wurden noch nicht abgerufen – zum Laden klicken',
+        };
+    }
+  });
 
   readonly quelleBeschreibung = computed(() => this.ziel()?.bezeichnung ?? 'Keine Quelle geöffnet');
   readonly kannSpeichern = computed(() => this.ziel() !== null);
@@ -149,7 +225,13 @@ export class Jahresplan {
     const nurLuecken = this.nurLuecken();
     const nurAbweichungen = this.nurAbweichungen();
     const abgleich = this.hiorgAbgleich();
+    // Eine Suche greift bewusst über das ganze Jahr: sonst blieben Treffer in
+    // anderen Monaten unsichtbar, ohne dass das erkennbar wäre.
+    const monat = suche ? null : this.monat();
     return this.wochen().filter((woche) => {
+      if (monat !== null && !woche.tage.some((t) => t.imJahr && monatIndex(t.datum) === monat)) {
+        return false;
+      }
       if (nurLuecken && woche.luecken === 0) {
         return false;
       }
@@ -164,18 +246,16 @@ export class Jahresplan {
       }
       return woche.tage.some(
         (slot) =>
-          slot.termine.some((t) =>
+          slot.termine.some(({ termin: t }) =>
             [t.thema, t.hinweis, t.ausbilder, t.katsTitel, t.kategorie]
               .join(' ')
               .toLowerCase()
               .includes(suche),
           ) ||
-          // Auch die eingeblendete HiOrg-Ebene muss auffindbar sein, sonst
-          // widersprechen sich Suche und Anzeige.
-          (this.hiorg.anzeigen() &&
-            (abgleich.nachDatum.get(slot.datum)?.eintraege ?? []).some((e) =>
-              e.name.toLowerCase().includes(suche),
-            )),
+          // Die HiOrg-Ebene ist immer eingeblendet und muss darum auch auffindbar sein.
+          (abgleich.nachDatum.get(slot.datum)?.eintraege ?? []).some((e) =>
+            e.name.toLowerCase().includes(suche),
+          ),
       );
     });
   });
@@ -187,17 +267,24 @@ export class Jahresplan {
       void this.feiertage.lade(this.store.jahr());
     });
 
-    // Der Feed ist jahresunabhängig; der Abruf hängt allein an der Sichtbarkeit.
+    // Beim Wechsel des Jahresblatts den Monat mitführen: im laufenden Jahr der
+    // laufende Monat, sonst der Januar – nie ein leerer Ausschnitt.
     effect(() => {
-      if (this.hiorg.anzeigen()) {
-        void this.hiorg.lade();
-      }
+      const jahr = this.store.jahr();
+      untracked(() => {
+        if (this.monat() !== null) {
+          this.monat.set(jahr === jahrVon(this.heute) ? monatIndex(this.heute) : 0);
+        }
+      });
     });
+
+    // Der Feed ist jahresunabhängig; er wird immer geladen, sobald die Ansicht entsteht.
+    void this.hiorg.lade();
   }
 
-  /** HiOrg-Einträge dieses Tages – `null`, solange die Ebene ausgeblendet ist. */
+  /** HiOrg-Einträge dieses Tages, `null` ohne Treffer. */
   hiorgTag(datum: string): HiorgTagesAbgleich | null {
-    return this.hiorg.anzeigen() ? (this.hiorgAbgleich().nachDatum.get(datum) ?? null) : null;
+    return this.hiorgAbgleich().nachDatum.get(datum) ?? null;
   }
 
   abweichungenFuer(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): HiorgAbweichung[] {
@@ -208,11 +295,9 @@ export class Jahresplan {
     return tag.ohneGegenstueck.some((e) => e.schluessel === eintrag.schluessel);
   }
 
-  schalteHiorg(): void {
-    this.hiorg.setzeAnzeigen(!this.hiorg.anzeigen());
-    if (!this.hiorg.anzeigen()) {
-      this.nurAbweichungen.set(false);
-    }
+  /** HiOrg-Eintrag, dessen Name exakt zu diesem Termin passt – `null` ohne Treffer. */
+  hiorgTreffer(terminId: string): HiorgEintrag | null {
+    return this.hiorgAbgleich().terminNachId.get(terminId) ?? null;
   }
 
   async hiorgNeuLaden(): Promise<void> {
@@ -254,9 +339,13 @@ export class Jahresplan {
   }
 
   /** Werkzeug (c): Aus einem HiOrg-Termin ohne Gegenstück einen Plantermin machen. */
-  legeTerminAusHiorgAn(eintrag: HiorgEintrag, datum: string): void {
+  legeTerminAusHiorgAn(eintrag: HiorgEintrag): void {
     const terminId = this.store.fuegeTerminEin({
-      ...leererTermin(datum),
+      ...leererTermin(eintrag.beginn),
+      datumBis: istMehrtaegig(eintrag) ? eintrag.ende : null,
+      beginnZeit: eintrag.beginnZeit,
+      endeZeit: eintrag.endeZeit,
+      typ: eintrag.art,
       thema: eintrag.name,
     });
     this.melde(`„${kurz(eintrag.name)}“ als Termin übernommen – bitte fachlich ergänzen.`);
@@ -282,9 +371,35 @@ export class Jahresplan {
     }
   }
 
+  /** Volles Datum als Klartext – für Tooltips und Beschriftungen im Raster. */
+  formatiereDatumText(iso: string): string {
+    return formatiereDatum(iso);
+  }
+
   /** Kurzes Datum ohne Jahr, für die Wochenkopfzeile (z. B. „05.01.“). */
   formatKurz(iso: string): string {
     return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+  }
+
+  waehleMonat(monat: number | null): void {
+    this.monat.set(monat);
+  }
+
+  verschiebeMonat(schritt: number): void {
+    const monat = this.monat();
+    if (monat === null) {
+      return;
+    }
+    this.monat.set(Math.min(11, Math.max(0, monat + schritt)));
+  }
+
+  /** Zurück zum laufenden Monat – bei Bedarf samt Wechsel ins laufende Jahr. */
+  zumAktuellenMonat(): void {
+    const jahr = jahrVon(this.heute);
+    if (this.store.jahr() !== jahr && this.verfuegbareJahre().includes(jahr)) {
+      this.workbook.waehleJahr(jahr);
+    }
+    this.monat.set(monatIndex(this.heute));
   }
 
   monatsName(woche: WochenZeile): string {

@@ -89,13 +89,4 @@ describe('HiOrg-Kalenderdienst', () => {
 
     expect(schreiben).not.toHaveBeenCalled();
   });
-
-  it('merkt sich nur die Ansichtsvorliebe', () => {
-    const schreiben = vi.spyOn(Storage.prototype, 'setItem');
-
-    dienst.setzeAnzeigen(false);
-
-    expect(dienst.anzeigen()).toBe(false);
-    expect(schreiben).toHaveBeenCalledWith('ausbildungsplaner.hiorgAnzeigen', 'nein');
-  });
 });

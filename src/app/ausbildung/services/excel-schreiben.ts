@@ -1,5 +1,5 @@
 import * as XLSX from '@e965/xlsx';
-import { Arbeitsmappe, Jahresblatt, KatsThema, Termin } from '../models/plan.model';
+import { Arbeitsmappe, Jahresblatt, KatsThema, Termin, typName } from '../models/plan.model';
 import { isoZuSerial, wochentag } from '../../kern/kalender/datum';
 import {
   BLATT_BACKLOG,
@@ -8,12 +8,14 @@ import {
   SpaltenFeld,
   blattJahresplan,
   blattKats,
+  vergleicheTermine,
 } from './excel-schema';
 
 const DATUMS_FORMAT = 'DD.MM.YYYY';
 
+/** Ideen haben kein Datum – und damit auch keinen Wochentag und kein Enddatum. */
 const BACKLOG_FELDER: SpaltenFeld[] = SPALTEN_UEBERSCHRIFTEN.map((s) => s.feld).filter(
-  (feld) => feld !== 'datum' && feld !== 'tag',
+  (feld) => feld !== 'datum' && feld !== 'tag' && feld !== 'datumBis',
 );
 
 /**
@@ -49,16 +51,18 @@ export function schreibeArbeitsmappe(arbeitsmappe: Arbeitsmappe): ArrayBuffer {
 function jahresplanBlatt(jahresblatt: Jahresblatt, nummern: Map<string, string>): XLSX.WorkSheet {
   const felder = SPALTEN_UEBERSCHRIFTEN.map((s) => s.feld);
   const kopf = SPALTEN_UEBERSCHRIFTEN.map((s) => s.text);
-  const daten = [...jahresblatt.termine]
-    .sort((a, b) => (a.datum ?? '').localeCompare(b.datum ?? ''))
-    .map((termin) => felder.map((feld) => zelle(termin, feld, nummern)));
+  const termine = [...jahresblatt.termine].sort(vergleicheTermine);
+  const daten = termine.map((termin) => felder.map((feld) => zelle(termin, feld, nummern)));
 
   const ws = XLSX.utils.aoa_to_sheet([[jahresblatt.titel], [], kopf, ...daten]);
   const datumSpalte = felder.indexOf('datum');
-  daten.forEach((_, i) => {
-    const termin = sortiert(jahresblatt.termine)[i];
+  const endeSpalte = felder.indexOf('datumBis');
+  termine.forEach((termin, i) => {
     if (termin.datum) {
       setzeDatum(ws, 3 + i, datumSpalte, termin.datum);
+    }
+    if (termin.datumBis) {
+      setzeDatum(ws, 3 + i, endeSpalte, termin.datumBis);
     }
   });
   ws['!cols'] = felder.map((feld) => ({ wch: SPALTEN_BREITEN[feld] }));
@@ -87,10 +91,6 @@ function katsBlatt(themen: KatsThema[]): XLSX.WorkSheet {
   return ws;
 }
 
-function sortiert(termine: Termin[]): Termin[] {
-  return [...termine].sort((a, b) => (a.datum ?? '').localeCompare(b.datum ?? ''));
-}
-
 function zelle(termin: Termin, feld: SpaltenFeld, nummern: Map<string, string>): string {
   if (feld.startsWith('nachweis:')) {
     return termin.nachweise.includes(feld.slice('nachweis:'.length) as never) ? 'X' : '';
@@ -98,8 +98,16 @@ function zelle(termin: Termin, feld: SpaltenFeld, nummern: Map<string, string>):
   switch (feld) {
     case 'datum':
       return termin.datum ?? '';
+    case 'datumBis':
+      return termin.datumBis ?? '';
     case 'tag':
       return termin.datum ? wochentag(termin.datum) : '';
+    case 'beginnZeit':
+      return termin.beginnZeit;
+    case 'endeZeit':
+      return termin.endeZeit;
+    case 'typ':
+      return typName(termin.typ);
     case 'hinweis':
       return termin.hinweis;
     case 'kategorie':

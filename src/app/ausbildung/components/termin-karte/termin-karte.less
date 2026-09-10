@@ -10,6 +10,98 @@
   overflow: hidden;
 }
 
+/*
+ * Typ des Eintrags: ein Dienst ist der Regelfall und bleibt ruhig, ein
+ * sonstiger Termin bekommt einen erkennbar anderen Grund und Rahmen.
+ */
+:host(.typ-termin) {
+  background: var(--surface-secondary);
+  border-style: dashed;
+}
+
+.typ-symbol {
+  flex: 0 0 auto;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+/* Verknüpfungssymbol zum HiOrg-Server – nur ein Klickziel, wenn eine URL vorliegt. */
+.hiorg-link-symbol {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+
+  mat-icon {
+    font-size: 15px;
+  }
+}
+
+a.hiorg-link-symbol {
+  color: var(--ci-blue);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--ci-blue);
+    text-decoration: none;
+  }
+}
+
+.zeit,
+.fortschritt {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * Mehrtägige Termine: Der Balken wird nicht über die Gitterspalten gespannt,
+ * sondern je Tag als Segment gezeichnet. Fortsetzungen ziehen sich über Lücke
+ * und Zellpolsterung des Rasters hinweg und lassen die innenliegenden Ecken
+ * gerade – so wirkt die Reihe wie ein durchgehender Balken und bricht am
+ * Wochenende sauber um.
+ */
+@raster-bruecke: calc(var(--space-2xs) + var(--space-unit));
+
+:host([data-segment='beginn']) {
+  margin-inline-end: calc(-1 * @raster-bruecke);
+  border-inline-end: none;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+:host([data-segment='mitte']),
+:host([data-segment='ende']) {
+  margin-inline-start: calc(-1 * @raster-bruecke);
+  border-inline-start: none;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+:host([data-segment='mitte']) {
+  margin-inline-end: calc(-1 * @raster-bruecke);
+  border-inline-end: none;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* Fortsetzungen tragen weder Rollenstreifen noch Titel erneut. */
+:host(.fortsetzung) .rolle-streifen {
+  display: none;
+}
+
+:host(.fortsetzung.kompakt) {
+  padding-inline-start: var(--space-compact);
+}
+
+.fortsetzung-text {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 :host(.ereignis) {
   background: var(--surface-tertiary);
   border-style: dashed;

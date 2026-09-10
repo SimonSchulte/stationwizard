@@ -50,6 +50,15 @@
   line-height: 0;
 }
 
+/* Verbindungsstatus zum HiOrg-Kalenderfeed – deutlich in der Kopfleiste statt nur im Menü. */
+.hiorg-status {
+  flex: 0 0 auto;
+  gap: var(--space-compact);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 .fueller {
   flex: 1 1 auto;
 }
@@ -90,6 +99,33 @@
   display: flex;
   gap: var(--space-sm);
   margin-top: var(--space-md);
+}
+
+/* HiOrg-Vorschau auf dem Willkommen-Bildschirm – vor jeder geöffneten Mappe. */
+.willkommen-hiorg {
+  width: 100%;
+  max-width: 640px;
+  margin-top: var(--space-xl);
+  text-align: left;
+
+  h2 {
+    margin: 0 0 var(--space-sm);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+}
+
+.willkommen-hiorg-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.willkommen-hiorg-leer {
+  margin-top: var(--space-lg);
+  color: var(--text-disabled);
+  font-size: 0.875rem;
 }
 
 .arbeitsflaeche {
@@ -481,4 +517,48 @@ app-termin-karte {
   .mobil-nav {
     display: flex;
   }
+}
+
+/* Monatsnavigation der Plan-Kopfzeile: Pfeile, Monatsmenü und „heute". */
+.monats-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.monats-navigation .monat {
+  min-width: 8.5rem;
+}
+
+/* Ein Tag mit Terminen, an dem die Ausbildung fehlt – einmal je Tag, nicht je Karte. */
+.tag-zelle.luecke {
+  border: 1px solid var(--luecke-rand);
+  background: var(--luecke-bg);
+}
+
+/* Der heutige Tag bleibt auch im gefilterten Monat sofort auffindbar. */
+.tag-zelle.heute {
+  outline: 2px solid var(--ci-blue);
+  outline-offset: calc(-1 * var(--space-unit));
+}
+
+/* „+" an einem bereits belegten Tag: ruhig, bis der Tag berührt wird. */
+.weiterer-termin {
+  --mat-icon-button-state-layer-size: 22px;
+
+  align-self: flex-end;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+
+  mat-icon {
+    font-size: 16px;
+  }
+}
+
+.tag-zelle:hover .weiterer-termin,
+.weiterer-termin:focus-visible {
+  opacity: 0.75;
 }

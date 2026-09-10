@@ -1,7 +1,7 @@
 import { jahrVon, tageVonBis } from '../../kern/kalender/datum';
 import { dekodiereEntitaeten } from '../../kern/text/entitaeten';
 import type { HiorgEintrag } from '../models/hiorg-kalender.model';
-import type { Termin } from '../models/plan.model';
+import { type Termin, terminTage } from '../models/plan.model';
 
 /** Ein Plantermin, dessen Thema nicht exakt zum HiOrg-Eintrag desselben Tages passt. */
 export interface HiorgAbweichung {
@@ -18,6 +18,8 @@ export interface HiorgTagesAbgleich {
   readonly abweichungen: readonly HiorgAbweichung[];
   /** Einträge an einem Tag ganz ohne benanntes Ausbildungsthema. */
   readonly ohneGegenstueck: readonly HiorgEintrag[];
+  /** Termine dieses Tages, deren Thema exakt zu einem HiOrg-Eintrag passt. */
+  readonly treffer: ReadonlyMap<string, HiorgEintrag>;
 }
 
 export interface HiorgAbgleich {
@@ -25,12 +27,15 @@ export interface HiorgAbgleich {
   readonly anzahlAbweichungen: number;
   /** Datumswerte mit mindestens einer Abweichung – für den Filter im Raster. */
   readonly tageMitAbweichung: ReadonlySet<string>;
+  /** Jahresweite Zusammenfassung aller Treffer – für das Verknüpfungssymbol auf der Karte. */
+  readonly terminNachId: ReadonlyMap<string, HiorgEintrag>;
 }
 
 const LEERER_ABGLEICH: HiorgAbgleich = {
   nachDatum: new Map(),
   anzahlAbweichungen: 0,
   tageMitAbweichung: new Set(),
+  terminNachId: new Map(),
 };
 
 /**
@@ -63,6 +68,7 @@ export function baueHiorgAbgleich(
 
   const nachDatum = new Map<string, HiorgTagesAbgleich>();
   const tageMitAbweichung = new Set<string>();
+  const terminNachId = new Map<string, HiorgEintrag>();
   const themenNachDatum = indexiereThemen(termine);
   let anzahlAbweichungen = 0;
 
@@ -70,10 +76,16 @@ export function baueHiorgAbgleich(
     const themen = themenNachDatum.get(datum) ?? [];
     const abweichungen: HiorgAbweichung[] = [];
     const ohneGegenstueck: HiorgEintrag[] = [];
+    const treffer = new Map<string, HiorgEintrag>();
 
     for (const eintrag of tagesEintraege) {
       const gesucht = normalisiereName(eintrag.name);
-      if (themen.some((thema) => thema.normalisiert === gesucht)) {
+      const passendesThema = themen.find((thema) => thema.normalisiert === gesucht);
+      if (passendesThema) {
+        // Ein exakter Treffer ist keine Abweichung – aber sichtbar bleibt er
+        // trotzdem, als Verknüpfungssymbol auf der Termin-Karte.
+        treffer.set(passendesThema.terminId, eintrag);
+        terminNachId.set(passendesThema.terminId, eintrag);
         continue;
       }
       if (themen.length === 0) {
@@ -95,10 +107,16 @@ export function baueHiorgAbgleich(
       anzahlAbweichungen += abweichungen.length;
       tageMitAbweichung.add(datum);
     }
-    nachDatum.set(datum, { datum, eintraege: tagesEintraege, abweichungen, ohneGegenstueck });
+    nachDatum.set(datum, {
+      datum,
+      eintraege: tagesEintraege,
+      abweichungen,
+      ohneGegenstueck,
+      treffer,
+    });
   }
 
-  return { nachDatum, anzahlAbweichungen, tageMitAbweichung };
+  return { nachDatum, anzahlAbweichungen, tageMitAbweichung, terminNachId };
 }
 
 interface ThemaBezug {
@@ -119,11 +137,15 @@ function indexiereThemen(termine: readonly Termin[]): Map<string, ThemaBezug[]> 
       text: termin.thema,
       normalisiert: normalisiereName(termin.thema),
     };
-    const vorhanden = nachDatum.get(termin.datum);
-    if (vorhanden) {
-      vorhanden.push(bezug);
-    } else {
-      nachDatum.set(termin.datum, [bezug]);
+    // Das Thema eines mehrtägigen Termins gilt an jedem seiner Tage – sonst
+    // meldete der Abgleich am zweiten Lehrgangstag eine Lücke.
+    for (const tag of terminTage(termin)) {
+      const vorhanden = nachDatum.get(tag);
+      if (vorhanden) {
+        vorhanden.push(bezug);
+      } else {
+        nachDatum.set(tag, [bezug]);
+      }
     }
   }
   return nachDatum;

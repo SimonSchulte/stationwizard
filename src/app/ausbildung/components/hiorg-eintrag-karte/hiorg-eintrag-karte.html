@@ -4,6 +4,12 @@
     HiOrg
   </span>
 
+  @if (zeitText()) {
+    <span class="zeit-marke" [matTooltip]="'Uhrzeit laut HiOrg: ' + zeitText()">
+      {{ zeitText() }}
+    </span>
+  }
+
   @if (tagesFortschritt()) {
     <span class="tag-marke" [matTooltip]="'Mehrtägig: ' + zeitraumText()">
       {{ tagesFortschritt() }}
@@ -21,6 +27,21 @@
   }
 
   <span class="fueller"></span>
+
+  @if (eintrag().url) {
+    <a
+      matIconButton
+      class="oeffnen-knopf"
+      [href]="eintrag().url"
+      target="_blank"
+      rel="noopener noreferrer"
+      matTooltip="Termin im HiOrg-Server öffnen"
+      aria-label="Termin im HiOrg-Server öffnen"
+      (click)="$event.stopPropagation()"
+    >
+      <mat-icon>open_in_new</mat-icon>
+    </a>
+  }
 
   <button
     matIconButton
@@ -91,7 +112,7 @@
 
 <mat-menu #menue="matMenu">
   <div class="menue-kopf" (click)="$event.stopPropagation()">
-    {{ artText() }} · {{ zeitraumText() }}
+    {{ artText() }} · {{ zeitraumText() }}{{ zeitText() ? ' · ' + zeitText() : '' }}
   </div>
 
   @for (abweichung of abweichungen(); track abweichung.terminId) {
