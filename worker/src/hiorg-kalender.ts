@@ -123,17 +123,12 @@ export async function verarbeiteHiorgKalender(
             'Die HiOrg-Kalenderantwort ist zu groß.',
             502,
           )
-        : antwortUngueltig('JSON-Antwort nicht lesbar oder kein Body', geheimnisse);
+        : antwortUngueltig('JSON-Antwort nicht lesbar oder kein Body');
     }
 
-    const huelle = filtereEintraege(ergebnis.inhalt);
+    const huelle = filtereEintraege(ergebnis.inhalt, geheimnisse);
     if (!('eintraege' in huelle)) {
-      return antwortUngueltig(huelle.grund, geheimnisse);
-    }
-    // Auch ein fremder Server darf die geheime Feed-URL nicht in einem Feld spiegeln.
-    const spiegelGrund = gespiegeltesGeheimnis(huelle.eintraege, geheimnisse);
-    if (spiegelGrund) {
-      return antwortUngueltig(spiegelGrund, geheimnisse);
+      return antwortUngueltig(huelle.grund);
     }
     return jsonAntwort({ status: 'OK', eintraege: huelle.eintraege });
   } finally {
@@ -142,11 +137,14 @@ export async function verarbeiteHiorgKalender(
 }
 
 /**
- * Der Grund landet nur redigiert im Betreiberlog (`console.error`), nie in der
- * Browserantwort – die bleibt beim festen Code ohne Upstream-Details.
+ * Der Grund landet nur im Betreiberlog (`console.error`), nie in der
+ * Browserantwort – die bleibt beim festen Code ohne Upstream-Details. `grund`
+ * besteht ausschließlich aus fester eigener Vokabular und Zählwerten, nie aus
+ * rohem Upstream-Text: eine Redigierung ist hier nicht nötig und würde
+ * zufällig passende Ziffern (z. B. in Zähl- oder Indexangaben) unlesbar machen.
  */
-function antwortUngueltig(grund: string, geheimnisse: (string | undefined)[]): Response {
-  console.error('HIORG_KALENDER_ANTWORT_UNGUELTIG', redigiere(grund, geheimnisse));
+function antwortUngueltig(grund: string): Response {
+  console.error('HIORG_KALENDER_ANTWORT_UNGUELTIG', grund);
   return fehlerAntwort(
     'HIORG_KALENDER_ANTWORT_UNGUELTIG',
     'HiOrg hat keine gültigen Kalenderdaten geliefert.',
@@ -194,7 +192,7 @@ function queryWerte(ziel: string): string[] {
 
 type HuelleErgebnis = { eintraege: Eintrag[] } | { grund: string };
 
-function filtereEintraege(inhalt: unknown): HuelleErgebnis {
+function filtereEintraege(inhalt: unknown, geheimnisse: string[]): HuelleErgebnis {
   if (!istObjekt(inhalt)) {
     return { grund: 'Antwort ist kein JSON-Objekt' };
   }
@@ -208,7 +206,7 @@ function filtereEintraege(inhalt: unknown): HuelleErgebnis {
   const daten = inhalt['data'];
   const eintraege: Eintrag[] = [];
   for (const roh of daten) {
-    const eintrag = filtereEintrag(roh);
+    const eintrag = filtereEintrag(roh, geheimnisse);
     if (eintrag) eintraege.push(eintrag);
   }
   // Ein einzelner kaputter Datensatz darf den Jahresplan nicht blind machen –
@@ -225,8 +223,15 @@ function filtereEintraege(inhalt: unknown): HuelleErgebnis {
  * `treff`, `kursnr`, `max_meldungen` und die `personal_*`-Felder
  * (Einsatzdisposition). Für Namensabgleich und Link werden sie nicht gebraucht;
  * was nicht durchgereicht wird, landet auch nicht in Screenshots oder Logs.
+ *
+ * `verbez` und ein textuelles `id` können nicht bereinigt werden, ohne den
+ * Eintrag sinnentleert zu machen – enthalten sie ein konfiguriertes
+ * Zugangsdatum, entfällt deshalb der ganze Datensatz (wie bei jedem anderen
+ * kaputten Feld). Ein `url`-Link dagegen entfällt für sich allein, der
+ * restliche Eintrag bleibt erhalten – wie beim bereits bestehenden Wegfall
+ * eines Links mit fremdem Ziel.
  */
-function filtereEintrag(roh: unknown): Eintrag | undefined {
+function filtereEintrag(roh: unknown, geheimnisse: string[]): Eintrag | undefined {
   if (!istObjekt(roh)) return undefined;
 
   const sortdate = roh['sortdate'];
@@ -235,10 +240,12 @@ function filtereEintrag(roh: unknown): Eintrag | undefined {
   }
   const verbez = roh['verbez'];
   if (typeof verbez !== 'string' || verbez.trim() === '') return undefined;
+  if (enthaeltGeheimnis(verbez, geheimnisse)) return undefined;
   const typ = roh['typ'];
   if (typ !== 'termin' && typ !== 'dienst') return undefined;
   const id = roh['id'];
   if (!istKennung(id)) return undefined;
+  if (typeof id === 'string' && enthaeltGeheimnis(id, geheimnisse)) return undefined;
 
   const eintrag: Eintrag = { id, sortdate, verbez, typ };
 
@@ -250,7 +257,8 @@ function filtereEintrag(roh: unknown): Eintrag | undefined {
 
   const rohUrl = roh['url'];
   const url = typeof rohUrl === 'string' ? bereinigeEreignisUrl(rohUrl) : undefined;
-  if (url) eintrag.url = url;
+  // Auch ein fremder Server darf die geheime Feed-URL nicht in einem Feld spiegeln.
+  if (url && !enthaeltGeheimnis(url, geheimnisse)) eintrag.url = url;
 
   return eintrag;
 }
@@ -297,38 +305,16 @@ function varianten(geheim: string): string[] {
 }
 
 /**
- * Prüft ausschließlich die von HiOrg gelieferten Freitextfelder (`verbez`,
- * `url`, ein textuelles `id`) – nicht die von uns selbst erzeugte JSON-Hülle
- * (feste Schlüssel wie `status`, `id`, `url`, feste Werte wie `OK`, `typ`).
- * Eine frühere Fassung prüfte die gesamte serialisierte Antwort und schlug
- * deshalb auch dann an, wenn ein kurzer Query-Wert zufällig mit einem dieser
- * eigenen JSON-Bausteine übereinstimmte – unabhängig vom tatsächlichen
- * Feed-Inhalt. `sortdate`/`enddate` (geprüft numerisch) und `typ` (feste
- * Aufzählung) können kein beliebiges Zugangsdatum tragen und bleiben daher
- * außen vor.
+ * Prüft ein einzelnes, von HiOrg geliefertes Freitextfeld auf ein
+ * konfiguriertes Zugangsdatum (volle Feed-URL oder einer ihrer Query-Werte).
+ * Bewusst pro Feld statt über die gesamte serialisierte Antwort: eine frühere
+ * Fassung prüfte `JSON.stringify()` der kompletten eigenen Antworthülle und
+ * schlug deshalb auch dann an, wenn ein kurzer Query-Wert zufällig mit einem
+ * eigenen JSON-Baustein übereinstimmte (`"id"`, `"url"`, `"typ"`, `"OK"` …) –
+ * unabhängig vom tatsächlichen Feed-Inhalt.
  */
-function gespiegeltesGeheimnis(eintraege: Eintrag[], geheimnisse: string[]): string | undefined {
-  for (const [eintragIndex, eintrag] of eintraege.entries()) {
-    const felder: [string, unknown][] = [
-      ['verbez', eintrag.verbez],
-      ['url', eintrag.url],
-      ['id', eintrag.id],
-    ];
-    for (const [feld, wert] of felder) {
-      if (typeof wert !== 'string') continue;
-      const quelle = benenneGeheimnisquelle(wert, geheimnisse);
-      if (quelle) {
-        return `${quelle} im Feld '${feld}' von Eintrag ${eintragIndex + 1} gespiegelt`;
-      }
-    }
-  }
-  return undefined;
-}
-
-function benenneGeheimnisquelle(text: string, geheimnisse: string[]): string | undefined {
-  for (const [index, geheim] of geheimnisse.entries()) {
-    if (!geheim || !varianten(geheim).some((v) => v !== '' && text.includes(v))) continue;
-    return index === 0 ? 'vollständige Feed-URL' : `Query-Wert Nr. ${index}`;
-  }
-  return undefined;
+function enthaeltGeheimnis(text: string, geheimnisse: string[]): boolean {
+  return geheimnisse.some(
+    (geheim) => geheim !== '' && varianten(geheim).some((v) => v !== '' && text.includes(v)),
+  );
 }
