@@ -210,35 +210,51 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
   });
 
   it.each([
-    ['success: false', { success: false, data: [] }],
-    ['ohne data', { success: true }],
-    ['data kein Array', { success: true, data: {} }],
-    ['kein Objekt', []],
-  ])('verwirft eine unbrauchbare Hülle (%s)', async (_fall, inhalt) => {
-    abrufen.mockResolvedValue(Response.json(inhalt));
+    ['success: false', { success: false, data: [] }, 'success ist boolean statt true'],
+    ['ohne data', { success: true }, 'data ist kein Array'],
+    ['data kein Array', { success: true, data: {} }, 'data ist kein Array'],
+    ['kein Objekt', [], 'Antwort ist kein JSON-Objekt'],
+  ])(
+    'verwirft eine unbrauchbare Hülle (%s) und protokolliert den Grund',
+    async (_fall, inhalt, erwarteterGrund) => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      abrufen.mockResolvedValue(Response.json(inhalt));
 
-    const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
+      const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
 
-    expect(antwort.status).toBe(502);
-    expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
-  });
+      expect(antwort.status).toBe(502);
+      expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
+      expect(log).toHaveBeenCalledWith('HIORG_KALENDER_ANTWORT_UNGUELTIG', erwarteterGrund);
+    },
+  );
 
-  it('verwirft die Antwort, wenn kein einziger Eintrag brauchbar ist', async () => {
+  it('verwirft die Antwort, wenn kein einziger Eintrag brauchbar ist, und protokolliert die Anzahl', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     feed({ verbez: 'ohne Datum' }, { sortdate: 1789282800 });
 
     const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
 
     expect(antwort.status).toBe(502);
     expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
+    expect(log).toHaveBeenCalledWith(
+      'HIORG_KALENDER_ANTWORT_UNGUELTIG',
+      'kein Eintrag der 2 Datensätze war brauchbar',
+    );
   });
 
-  it('verwirft die Antwort, wenn der Feed den geheimen Parameterwert spiegelt', async () => {
+  it('verwirft die Antwort und protokolliert redigiert, wenn der Feed den geheimen Parameterwert spiegelt', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     feed(rohEintrag({ verbez: `Ausbildung ${GEHEIMER_PARAMETER}` }));
 
     const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
 
     expect(antwort.status).toBe(502);
     expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
+    expect(log).toHaveBeenCalledWith(
+      'HIORG_KALENDER_ANTWORT_UNGUELTIG',
+      'Feed spiegelt die geheime Zugangsadresse',
+    );
+    expect(log.mock.calls[0]?.join(' ')).not.toContain(GEHEIMER_PARAMETER);
   });
 });
 
