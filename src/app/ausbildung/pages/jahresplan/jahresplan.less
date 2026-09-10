@@ -63,69 +63,14 @@
   flex: 1 1 auto;
 }
 
-.willkommen {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
+/* Hinweis in der Plan-Kopfzeile, solange die Arbeitsmappe noch nicht (automatisch)
+   geladen ist – ersetzt den früheren separaten Willkommen-Bildschirm. */
+.keine-quelle {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-xl);
-  text-align: center;
-
-  .gross {
-    width: 56px;
-    height: 56px;
-    font-size: 56px;
-    color: var(--border-medium);
-  }
-
-  h1 {
-    margin: 0;
-    font-size: 1.375rem;
-    font-weight: 400;
-  }
-
-  p {
-    max-width: 46ch;
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.6;
-  }
-}
-
-.willkommen-aktionen {
-  display: flex;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
-}
-
-/* HiOrg-Vorschau auf dem Willkommen-Bildschirm – vor jeder geöffneten Mappe. */
-.willkommen-hiorg {
-  width: 100%;
-  max-width: 640px;
-  margin-top: var(--space-xl);
-  text-align: left;
-
-  h2 {
-    margin: 0 0 var(--space-sm);
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-}
-
-.willkommen-hiorg-liste {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.willkommen-hiorg-leer {
-  margin-top: var(--space-lg);
-  color: var(--text-disabled);
-  font-size: 0.875rem;
+  gap: var(--space-compact);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
 
 .arbeitsflaeche {
