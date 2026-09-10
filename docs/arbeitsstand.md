@@ -200,6 +200,31 @@ zusätzlicher Uhrzeit, abgeschnittener Fortschrittstext). Nicht geprüft: der ec
 HiOrg-Feed und ein Rundlauf gegen die produktive Nextcloud-Mappe; `npm run test:spa`
 bleibt unverändert am dokumentierten Bestandsfehler hängen und wurde nicht abgeschwächt.
 
+## HiOrg-Anbindung sichtbar und immer eingeblendet
+
+Beim Test gegen die echte Nextcloud-Mappe zeigte sich, dass die HiOrg-Anbindung selbst
+zu unauffällig war. Drei Ergänzungen und eine Vereinfachung:
+
+- Ein Plan-Termin, dessen Thema exakt zu einem HiOrg-Eintrag passt, zeigt jetzt ein
+  „link"-Symbol im Kartenkopf (mit Direktlink, wenn eine URL vorliegt).
+  `hiorg-abgleich.ts` erfasst dafür jetzt auch Treffer (`HiorgTagesAbgleich.treffer`,
+  `HiorgAbgleich.terminNachId`) statt sie wie bisher nur mit einem `continue` zu
+  verwerfen – nur Abweichungen und Einträge ohne Gegenstück waren vorher ausgewertet.
+- Der Verbindungsstatus zum Kalenderfeed steht als Chip in der Kopfleiste (verbunden,
+  lädt, nicht eingerichtet, Fehler), statt nur in der Fußzeile des Overflow-Menüs
+  lesbar zu sein.
+- Jede HiOrg-Karte hat jetzt einen immer sichtbaren Öffnen-Knopf zum
+  HiOrg-Server-Termin, nicht mehr nur bei einer Namensabweichung.
+- Die HiOrg-Ebene ist nicht mehr abschaltbar: `HiorgKalenderService` kennt kein
+  `anzeigen`-Signal und keine gespeicherte Ansichtsvorliebe mehr, der Feed wird beim
+  Öffnen des Jahresplans immer geladen und immer angezeigt. Der Menüpunkt „HiOrg-Termine
+  anzeigen" ist entfallen; „HiOrg-Termine neu laden" bleibt.
+
+Geprüft: `npm run build`, 245 Angular- und 280 Worker-Tests, `npm run format:check` –
+alle grün. Browserprüfung mit gemocktem Feed (der echte HiOrg-Feed ist hier nicht
+erreichbar) in Desktop- und Mobilbreite: alle Verbindungszustände, Link-Icon, Öffnen-
+Knopf, sowie dass die Ebene ohne weiteres Zutun sichtbar ist.
+
 ## GitHub-Übergabe
 
 Die sechs AP-Branches (AP1 bis AP6) wurden über Pull Requests aus dem Fork

@@ -128,17 +128,9 @@ export class Jahresplan {
   /**
    * Kurzstatus der HiOrg-Verbindung für die Kopfleiste – deutlich sichtbar statt
    * nur im Overflow-Menü lesbar. Die vier Zustände von `HiorgKalenderService`
-   * decken sich mit dem Fußzeilentext dort; hier kommen Symbol und die
-   * „ausgeblendet"/„lädt"-Fälle hinzu.
+   * decken sich mit dem Fußzeilentext dort; hier kommt Symbol/„lädt"-Fall hinzu.
    */
   readonly hiorgStatus = computed(() => {
-    if (!this.hiorg.anzeigen()) {
-      return {
-        icon: 'cloud_off',
-        text: 'HiOrg ausgeblendet',
-        tooltip: 'HiOrg-Termine sind ausgeblendet – zum Einblenden „Weitere Aktionen“ öffnen',
-      };
-    }
     if (this.hiorg.laedt()) {
       return {
         icon: 'cloud_sync',
@@ -246,12 +238,10 @@ export class Jahresplan {
               .toLowerCase()
               .includes(suche),
           ) ||
-          // Auch die eingeblendete HiOrg-Ebene muss auffindbar sein, sonst
-          // widersprechen sich Suche und Anzeige.
-          (this.hiorg.anzeigen() &&
-            (abgleich.nachDatum.get(slot.datum)?.eintraege ?? []).some((e) =>
-              e.name.toLowerCase().includes(suche),
-            )),
+          // Die HiOrg-Ebene ist immer eingeblendet und muss darum auch auffindbar sein.
+          (abgleich.nachDatum.get(slot.datum)?.eintraege ?? []).some((e) =>
+            e.name.toLowerCase().includes(suche),
+          ),
       );
     });
   });
@@ -274,17 +264,13 @@ export class Jahresplan {
       });
     });
 
-    // Der Feed ist jahresunabhängig; der Abruf hängt allein an der Sichtbarkeit.
-    effect(() => {
-      if (this.hiorg.anzeigen()) {
-        void this.hiorg.lade();
-      }
-    });
+    // Der Feed ist jahresunabhängig; er wird immer geladen, sobald die Ansicht entsteht.
+    void this.hiorg.lade();
   }
 
-  /** HiOrg-Einträge dieses Tages – `null`, solange die Ebene ausgeblendet ist. */
+  /** HiOrg-Einträge dieses Tages, `null` ohne Treffer. */
   hiorgTag(datum: string): HiorgTagesAbgleich | null {
-    return this.hiorg.anzeigen() ? (this.hiorgAbgleich().nachDatum.get(datum) ?? null) : null;
+    return this.hiorgAbgleich().nachDatum.get(datum) ?? null;
   }
 
   abweichungenFuer(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): HiorgAbweichung[] {
@@ -297,14 +283,7 @@ export class Jahresplan {
 
   /** HiOrg-Eintrag, dessen Name exakt zu diesem Termin passt – `null` ohne Treffer. */
   hiorgTreffer(terminId: string): HiorgEintrag | null {
-    return this.hiorg.anzeigen() ? (this.hiorgAbgleich().terminNachId.get(terminId) ?? null) : null;
-  }
-
-  schalteHiorg(): void {
-    this.hiorg.setzeAnzeigen(!this.hiorg.anzeigen());
-    if (!this.hiorg.anzeigen()) {
-      this.nurAbweichungen.set(false);
-    }
+    return this.hiorgAbgleich().terminNachId.get(terminId) ?? null;
   }
 
   async hiorgNeuLaden(): Promise<void> {

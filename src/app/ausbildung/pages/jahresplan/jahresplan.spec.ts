@@ -39,8 +39,6 @@ describe('Bestätigungen im Ausbildungsplan', () => {
     fehler: signal(''),
     verworfen: signal(0),
     laedt: signal(false),
-    anzeigen: signal(true),
-    setzeAnzeigen: vi.fn(),
     lade: vi.fn(),
   };
   let ansicht: Jahresplan;
@@ -62,7 +60,6 @@ describe('Bestätigungen im Ausbildungsplan', () => {
       ],
     });
     hiorg.eintraege.set([]);
-    hiorg.anzeigen.set(true);
     store = TestBed.inject(PlanStore);
     store.ungespeichert.set(true);
     ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
@@ -91,13 +88,6 @@ describe('Bestätigungen im Ausbildungsplan', () => {
     expect(workbook.neuesDokument).not.toHaveBeenCalled();
     expect(store.dokument()).toBe(inzwischen);
     expect(dialog.hinweis).toHaveBeenCalled();
-  });
-
-  it('blendet die HiOrg-Ebene aus, solange sie abgeschaltet ist', () => {
-    hiorg.eintraege.set([HIORG_EINTRAG]);
-    hiorg.anzeigen.set(false);
-
-    expect(ansicht.hiorgTag('2026-05-04')).toBeNull();
   });
 
   it('zeigt einen HiOrg-Termin ohne Plangegenstück als Lücke', () => {
@@ -172,8 +162,6 @@ describe('Monatsfilter im Jahresplan', () => {
     fehler: signal(''),
     verworfen: signal(0),
     laedt: signal(false),
-    anzeigen: signal(false),
-    setzeAnzeigen: vi.fn(),
     lade: vi.fn(),
   };
   let ansicht: Jahresplan;
@@ -277,8 +265,6 @@ describe('HiOrg-Statuschip', () => {
     fehler: signal(''),
     verworfen: signal(0),
     laedt: signal(false),
-    anzeigen: signal(true),
-    setzeAnzeigen: vi.fn(),
     lade: vi.fn(),
   };
   let ansicht: Jahresplan;
@@ -299,19 +285,10 @@ describe('HiOrg-Statuschip', () => {
       ],
     });
     hiorg.eintraege.set([]);
-    hiorg.anzeigen.set(true);
     hiorg.laedt.set(false);
     hiorg.fehler.set('');
     hiorg.zustand.set('ungeprueft');
     ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
-  });
-
-  it('zeigt "ausgeblendet", solange die HiOrg-Ebene abgeschaltet ist', () => {
-    hiorg.anzeigen.set(false);
-    hiorg.zustand.set('geladen');
-
-    expect(ansicht.hiorgStatus().icon).toBe('cloud_off');
-    expect(ansicht.hiorgStatus().text).toBe('HiOrg ausgeblendet');
   });
 
   it('zeigt den Ladezustand, solange ein Abruf läuft', () => {

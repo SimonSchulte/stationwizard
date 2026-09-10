@@ -124,10 +124,6 @@
       <span>Leeren Plan beginnen</span>
     </button>
 
-    <button mat-menu-item (click)="schalteHiorg()">
-      <mat-icon>{{ hiorg.anzeigen() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-      <span>HiOrg-Termine anzeigen</span>
-    </button>
     <button mat-menu-item [disabled]="hiorg.laedt()" (click)="hiorgNeuLaden()">
       <mat-icon>cloud_sync</mat-icon>
       <span>HiOrg-Termine neu laden</span>
@@ -197,7 +193,7 @@
           {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
         </button>
 
-        @if (hiorg.anzeigen() && hiorgAbgleich().anzahlAbweichungen > 0) {
+        @if (hiorgAbgleich().anzahlAbweichungen > 0) {
           <button
             class="abweichungs-marke"
             [class.aktiv]="nurAbweichungen()"
@@ -322,9 +318,7 @@
                 [class.ausserhalb]="!slot.imJahr"
                 [class.luecke]="slot.luecke && slot.termine.length > 0"
                 [class.heute]="slot.datum === heute"
-                [class.hat-hiorg-abweichung]="
-                  hiorgAbgleich().tageMitAbweichung.has(slot.datum) && hiorg.anzeigen()
-                "
+                [class.hat-hiorg-abweichung]="hiorgAbgleich().tageMitAbweichung.has(slot.datum)"
               >
                 @if (!slot.imJahr) {
                   <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
