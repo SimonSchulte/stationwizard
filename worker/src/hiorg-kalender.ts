@@ -139,7 +139,10 @@ export async function verarbeiteHiorgKalender(
     const ausgabe = { status: 'OK', eintraege: huelle.eintraege };
     // Auch ein fremder Server darf die geheime Feed-URL nicht in einem Feld spiegeln.
     if (enthaeltGeheimnis(ausgabe, geheimnisse)) {
-      return antwortUngueltig('Feed spiegelt die geheime Zugangsadresse', geheimnisse);
+      return antwortUngueltig(
+        beschreibeGespiegeltesGeheimnis(huelle.eintraege, geheimnisse),
+        geheimnisse,
+      );
     }
     return jsonAntwort(ausgabe);
   } finally {
@@ -293,14 +296,45 @@ export function bereinigeEreignisUrl(roh: string): string | undefined {
   }
 }
 
+function varianten(geheim: string): string[] {
+  return [
+    geheim,
+    JSON.stringify(geheim).slice(1, -1),
+    encodeURIComponent(geheim),
+    new URLSearchParams({ wert: geheim }).toString().slice('wert='.length),
+  ];
+}
+
 function enthaeltGeheimnis(daten: JsonObjekt, geheimnisse: readonly string[]): boolean {
   const text = JSON.stringify(daten);
-  return geheimnisse.some((geheim) =>
-    [
-      geheim,
-      JSON.stringify(geheim).slice(1, -1),
-      encodeURIComponent(geheim),
-      new URLSearchParams({ wert: geheim }).toString().slice('wert='.length),
-    ].some((variante) => variante !== '' && text.includes(variante)),
-  );
+  return geheimnisse.some((geheim) => varianten(geheim).some((v) => v !== '' && text.includes(v)));
+}
+
+/**
+ * Nur für das Betreiberlog: grenzt ein, welcher Teil des Zugangsdatums (volle
+ * Feed-URL oder der wievielte Query-Wert) in welchem Feld gespiegelt wurde –
+ * ohne den Wert selbst zu nennen. Der feste Fehlercode zur Browserantwort
+ * bleibt davon unberührt; findet sich keine genauere Fundstelle (z. B. Treffer
+ * nur außerhalb der bekannten Textfelder), bleibt es beim allgemeinen Hinweis.
+ */
+function beschreibeGespiegeltesGeheimnis(eintraege: Eintrag[], geheimnisse: string[]): string {
+  for (const [eintragIndex, eintrag] of eintraege.entries()) {
+    for (const feld of ['verbez', 'url'] as const) {
+      const wert = eintrag[feld];
+      if (typeof wert !== 'string') continue;
+      const quelle = benenneGeheimnisquelle(wert, geheimnisse);
+      if (quelle) {
+        return `${quelle} im Feld '${feld}' von Eintrag ${eintragIndex + 1} gespiegelt`;
+      }
+    }
+  }
+  return 'Feed spiegelt die geheime Zugangsadresse';
+}
+
+function benenneGeheimnisquelle(text: string, geheimnisse: string[]): string | undefined {
+  for (const [index, geheim] of geheimnisse.entries()) {
+    if (!geheim || !varianten(geheim).some((v) => v !== '' && text.includes(v))) continue;
+    return index === 0 ? 'vollständige Feed-URL' : `Query-Wert Nr. ${index}`;
+  }
+  return undefined;
 }
