@@ -392,18 +392,25 @@
                 </div>
               }
 
-              <!-- HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert. -->
+              <!--
+                  HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert.
+                  Ein exakter Treffer steckt schon als Verknüpfungssymbol auf der
+                  Termin-Karte oben – hier entfällt er, sonst stünde derselbe
+                  Termin doppelt im Tag.
+                -->
               @if (slot.imJahr && hiorgTag(slot.datum); as hiorgTagesstand) {
                 @for (eintrag of hiorgTagesstand.eintraege; track eintrag.schluessel) {
-                  <app-hiorg-eintrag-karte
-                    [eintrag]="eintrag"
-                    [datum]="slot.datum"
-                    [abweichungen]="abweichungenFuer(hiorgTagesstand, eintrag)"
-                    [ohneGegenstueck]="istOhneGegenstueck(hiorgTagesstand, eintrag)"
-                    [kompakt]="true"
-                    (nameUebernehmen)="uebernimmHiorgNamen($event)"
-                    (terminAnlegen)="legeTerminAusHiorgAn($event)"
-                  />
+                  @if (!istBereitsAufTerminKarte(hiorgTagesstand, eintrag)) {
+                    <app-hiorg-eintrag-karte
+                      [eintrag]="eintrag"
+                      [datum]="slot.datum"
+                      [abweichungen]="abweichungenFuer(hiorgTagesstand, eintrag)"
+                      [ohneGegenstueck]="istOhneGegenstueck(hiorgTagesstand, eintrag)"
+                      [kompakt]="true"
+                      (nameUebernehmen)="uebernimmHiorgNamen($event)"
+                      (terminAnlegen)="legeTerminAusHiorgAn($event)"
+                    />
+                  }
                 }
               }
             </div>

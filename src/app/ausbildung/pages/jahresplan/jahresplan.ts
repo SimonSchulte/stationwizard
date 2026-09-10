@@ -334,6 +334,19 @@ export class Jahresplan {
     return tag.ohneGegenstueck.some((e) => e.schluessel === eintrag.schluessel);
   }
 
+  /**
+   * Ein exakter Treffer erscheint bereits als Verknüpfungssymbol auf der
+   * Termin-Karte – die HiOrg-Karte daneben würde denselben Termin doppelt zeigen.
+   */
+  istBereitsAufTerminKarte(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): boolean {
+    for (const treffer of tag.treffer.values()) {
+      if (treffer.schluessel === eintrag.schluessel) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** HiOrg-Eintrag, dessen Name exakt zu diesem Termin passt – `null` ohne Treffer. */
   hiorgTreffer(terminId: string): HiorgEintrag | null {
     return this.hiorgAbgleich().terminNachId.get(terminId) ?? null;
