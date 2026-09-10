@@ -278,6 +278,18 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     );
     expect(log.mock.calls[0]?.join(' ')).not.toContain(GEHEIMER_PARAMETER);
   });
+
+  it.each(['id', 'url', 'typ', 'status', 'termin', 'OK'])(
+    'liefert die Einträge, auch wenn ein Query-Wert zufällig "%s" aus der eigenen JSON-Hülle trifft',
+    async (zufaelligerJsonBaustein) => {
+      const antwort = await verarbeiteHiorgKalender(anfrage(), {
+        HIORGSERVER_CALENDER_FEED: `https://www.hiorg-server.de/termine.json?lab=${zufaelligerJsonBaustein}`,
+      });
+
+      expect(antwort.status).toBe(200);
+      expect(await eintraegeVon(antwort)).toHaveLength(1);
+    },
+  );
 });
 
 describe('HiOrg-Kalender: Feldfilter', () => {

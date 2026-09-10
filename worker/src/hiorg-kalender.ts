@@ -1,12 +1,6 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { istUmleitung, redigiere, ursachenText } from './diagnose';
-import {
-  istKennung,
-  istObjekt,
-  leseJsonBegrenzt,
-  verwerfeInhalt,
-  type JsonObjekt,
-} from './json-lesen';
+import { istKennung, istObjekt, leseJsonBegrenzt, verwerfeInhalt } from './json-lesen';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 /**
@@ -136,15 +130,12 @@ export async function verarbeiteHiorgKalender(
     if (!('eintraege' in huelle)) {
       return antwortUngueltig(huelle.grund, geheimnisse);
     }
-    const ausgabe = { status: 'OK', eintraege: huelle.eintraege };
     // Auch ein fremder Server darf die geheime Feed-URL nicht in einem Feld spiegeln.
-    if (enthaeltGeheimnis(ausgabe, geheimnisse)) {
-      return antwortUngueltig(
-        beschreibeGespiegeltesGeheimnis(huelle.eintraege, geheimnisse),
-        geheimnisse,
-      );
+    const spiegelGrund = gespiegeltesGeheimnis(huelle.eintraege, geheimnisse);
+    if (spiegelGrund) {
+      return antwortUngueltig(spiegelGrund, geheimnisse);
     }
-    return jsonAntwort(ausgabe);
+    return jsonAntwort({ status: 'OK', eintraege: huelle.eintraege });
   } finally {
     clearTimeout(zeitlimit);
   }
@@ -305,22 +296,25 @@ function varianten(geheim: string): string[] {
   ];
 }
 
-function enthaeltGeheimnis(daten: JsonObjekt, geheimnisse: readonly string[]): boolean {
-  const text = JSON.stringify(daten);
-  return geheimnisse.some((geheim) => varianten(geheim).some((v) => v !== '' && text.includes(v)));
-}
-
 /**
- * Nur für das Betreiberlog: grenzt ein, welcher Teil des Zugangsdatums (volle
- * Feed-URL oder der wievielte Query-Wert) in welchem Feld gespiegelt wurde –
- * ohne den Wert selbst zu nennen. Der feste Fehlercode zur Browserantwort
- * bleibt davon unberührt; findet sich keine genauere Fundstelle (z. B. Treffer
- * nur außerhalb der bekannten Textfelder), bleibt es beim allgemeinen Hinweis.
+ * Prüft ausschließlich die von HiOrg gelieferten Freitextfelder (`verbez`,
+ * `url`, ein textuelles `id`) – nicht die von uns selbst erzeugte JSON-Hülle
+ * (feste Schlüssel wie `status`, `id`, `url`, feste Werte wie `OK`, `typ`).
+ * Eine frühere Fassung prüfte die gesamte serialisierte Antwort und schlug
+ * deshalb auch dann an, wenn ein kurzer Query-Wert zufällig mit einem dieser
+ * eigenen JSON-Bausteine übereinstimmte – unabhängig vom tatsächlichen
+ * Feed-Inhalt. `sortdate`/`enddate` (geprüft numerisch) und `typ` (feste
+ * Aufzählung) können kein beliebiges Zugangsdatum tragen und bleiben daher
+ * außen vor.
  */
-function beschreibeGespiegeltesGeheimnis(eintraege: Eintrag[], geheimnisse: string[]): string {
+function gespiegeltesGeheimnis(eintraege: Eintrag[], geheimnisse: string[]): string | undefined {
   for (const [eintragIndex, eintrag] of eintraege.entries()) {
-    for (const feld of ['verbez', 'url'] as const) {
-      const wert = eintrag[feld];
+    const felder: [string, unknown][] = [
+      ['verbez', eintrag.verbez],
+      ['url', eintrag.url],
+      ['id', eintrag.id],
+    ];
+    for (const [feld, wert] of felder) {
       if (typeof wert !== 'string') continue;
       const quelle = benenneGeheimnisquelle(wert, geheimnisse);
       if (quelle) {
@@ -328,7 +322,7 @@ function beschreibeGespiegeltesGeheimnis(eintraege: Eintrag[], geheimnisse: stri
       }
     }
   }
-  return 'Feed spiegelt die geheime Zugangsadresse';
+  return undefined;
 }
 
 function benenneGeheimnisquelle(text: string, geheimnisse: string[]): string | undefined {
