@@ -37,7 +37,7 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
 
   it('öffnet den Jahresplan samt Quelle-Auswahl über die Ausbildungsroute', async () => {
     const ansicht = await RouterTestingHarness.create('/ausbildung');
-    expect(ansicht.routeNativeElement?.textContent).toContain('Ausbildungsplan');
+    expect(ansicht.routeNativeElement?.textContent).toContain('Dienstplaner');
     expect(ansicht.routeNativeElement?.querySelector('button')).toBeTruthy();
   });
 

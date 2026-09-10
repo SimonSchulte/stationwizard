@@ -1,7 +1,7 @@
 <mat-toolbar class="kopfleiste">
   <span class="marke">
     <mat-icon>event_available</mat-icon>
-    <span class="marke-text">Ausbildungsplaner</span>
+    <span class="marke-text">Dienstplaner</span>
   </span>
 
   <button
@@ -27,17 +27,24 @@
     </button>
   </mat-menu>
 
-  <span class="quelle" [matTooltip]="quelleBeschreibung()">
-    <mat-icon inline>{{ ziel()?.art === 'nextcloud' ? 'cloud' : 'description' }}</mat-icon>
-    {{ quelleBeschreibung() }}
+  <button
+    matButton
+    class="quelle"
+    [class.verbunden]="quelleVerbunden()"
+    [matTooltip]="quelleBeschreibung() + ' – zum Wechseln/Aktualisieren klicken'"
+    (click)="oeffnen()"
+  >
+    <mat-icon inline>{{ ziel()?.art === 'nextcloud' ? 'cloud_done' : 'description' }}</mat-icon>
+    <span class="knopf-text">{{ quelleBeschreibung() }}</span>
     @if (store.ungespeichert()) {
       <span class="ungespeichert" matTooltip="Es gibt ungespeicherte Änderungen">•</span>
     }
-  </span>
+  </button>
 
   <button
     matButton
     class="hiorg-status"
+    [class.verbunden]="hiorg.zustand() === 'geladen'"
     [matTooltip]="hiorgStatus().tooltip"
     [attr.aria-label]="hiorgStatus().tooltip"
     (click)="hiorgNeuLaden()"
@@ -65,11 +72,6 @@
     <mat-icon>redo</mat-icon>
   </button>
 
-  <button matButton (click)="oeffnen()" matTooltip="Arbeitsmappe öffnen">
-    <mat-icon>folder_open</mat-icon>
-    <span class="knopf-text">Öffnen</span>
-  </button>
-
   <button
     matButton="filled"
     [disabled]="!store.hatDaten()"
@@ -83,14 +85,18 @@
   <button matIconButton [matMenuTriggerFor]="mehrMenue" aria-label="Weitere Aktionen">
     <mat-icon>more_vert</mat-icon>
   </button>
-  <button
-    matIconButton
-    [matMenuTriggerFor]="feiertagMenue"
-    [matTooltip]="'Feiertage: ' + feiertage.bundesland() + ' (' + feiertage.quelle() + ')'"
-    aria-label="Feiertage und Bundesland"
-  >
-    <mat-icon>flag</mat-icon>
-  </button>
+  <mat-menu #diensttagMenue="matMenu">
+    <div class="menue-kopf" (click)="$event.stopPropagation()">
+      Regulärer Ausbildungs-/Diensttag
+    </div>
+    @for (option of wochentagOptionen; track option.code) {
+      <button mat-menu-item (click)="setzeDiensttag(option.code)">
+        <mat-icon>{{ option.code === diensttagService.wochentag() ? 'check' : '' }}</mat-icon>
+        <span>{{ option.name }}</span>
+      </button>
+    }
+  </mat-menu>
+
   <mat-menu #feiertagMenue="matMenu">
     <div class="menue-kopf" (click)="$event.stopPropagation()">
       Feiertage aus
@@ -111,6 +117,17 @@
   </mat-menu>
 
   <mat-menu #mehrMenue="matMenu">
+    <button mat-menu-item [matMenuTriggerFor]="diensttagMenue">
+      <mat-icon>event_repeat</mat-icon>
+      <span>Diensttag: {{ diensttagLabel() }}</span>
+    </button>
+    <button mat-menu-item [matMenuTriggerFor]="feiertagMenue">
+      <mat-icon>flag</mat-icon>
+      <span>Feiertage: {{ feiertage.bundesland() }}</span>
+    </button>
+
+    <mat-divider />
+
     <button mat-menu-item [disabled]="!store.hatDaten()" (click)="herunterladen()">
       <mat-icon>download</mat-icon>
       <span>Als Excel-Datei herunterladen</span>
@@ -161,8 +178,6 @@
 <div class="arbeitsflaeche" cdkDropListGroup>
   <section class="plan" [hidden]="mobilAnsicht() !== 'plan'">
     <header class="plan-kopf">
-      <h2>{{ store.dokument().titel }}</h2>
-
       @if (!store.hatDaten() && !beschaeftigt()) {
         <span class="keine-quelle" matTooltip="Noch keine Arbeitsmappe geöffnet">
           <mat-icon inline>cloud_off</mat-icon>
@@ -253,26 +268,6 @@
             <mat-icon>{{ monat() === null ? 'check' : 'calendar_month' }}</mat-icon>
             <span>Ganzes Jahr</span>
           </button>
-        </mat-menu>
-
-        <button
-          matIconButton
-          [matMenuTriggerFor]="diensttagMenue"
-          [matTooltip]="'Diensttag wählen (aktuell ' + diensttagLabel() + ')'"
-          aria-label="Diensttag wählen"
-        >
-          <mat-icon>event_repeat</mat-icon>
-        </button>
-        <mat-menu #diensttagMenue="matMenu">
-          <div class="menue-kopf" (click)="$event.stopPropagation()">
-            Regulärer Ausbildungs-/Diensttag
-          </div>
-          @for (option of wochentagOptionen; track option.code) {
-            <button mat-menu-item (click)="setzeDiensttag(option.code)">
-              <mat-icon>{{ option.code === diensttagService.wochentag() ? 'check' : '' }}</mat-icon>
-              <span>{{ option.name }}</span>
-            </button>
-          }
         </mat-menu>
 
         <span class="fueller"></span>
@@ -426,7 +421,24 @@
     </div>
   </section>
 
-  <aside class="seitenleiste" [hidden]="mobilAnsicht() === 'plan'">
+  <aside
+    class="seitenleiste"
+    [class.eingeklappt]="seitenleisteEingeklappt()"
+    [hidden]="mobilAnsicht() === 'plan'"
+  >
+    <button
+      matIconButton
+      class="seitenleiste-umschalter"
+      [matTooltip]="
+        seitenleisteEingeklappt() ? 'Ideensammlung ausklappen' : 'Ideensammlung einklappen'
+      "
+      [attr.aria-label]="
+        seitenleisteEingeklappt() ? 'Ideensammlung ausklappen' : 'Ideensammlung einklappen'
+      "
+      (click)="seitenleisteUmschalten()"
+    >
+      <mat-icon>{{ seitenleisteEingeklappt() ? 'chevron_left' : 'chevron_right' }}</mat-icon>
+    </button>
     <mat-tab-group class="reiter" [preserveContent]="true">
       <mat-tab>
         <ng-template mat-tab-label>

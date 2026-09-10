@@ -2,6 +2,7 @@ import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup } from '@angular/cd
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -11,6 +12,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -70,6 +72,7 @@ import {
     KatsPanel,
     LeererTag,
     MatButtonModule,
+    MatDividerModule,
     MatIconModule,
     MatMenuModule,
     MatProgressBarModule,
@@ -95,6 +98,7 @@ export class Jahresplan {
   readonly diensttagService = inject(DiensttagService);
   readonly hiorg = inject(HiorgKalenderService);
   private readonly worker = inject(WorkerClient);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
@@ -118,6 +122,14 @@ export class Jahresplan {
   readonly nurAbweichungen = signal(false);
   /** Nur auf schmalen Bildschirmen relevant: Plan und Seitenleiste teilen sich dort den Platz. */
   readonly mobilAnsicht = signal<'plan' | 'liste'>('plan');
+
+  /**
+   * Ob die Ideensammlung (Offene Ideen/Auswertung/KatS-A-Plan) eingeklappt ist, um dem
+   * Wochenraster bei schmalerer Fensterbreite Platz zu machen. Startet passend zur
+   * aktuellen Fensterbreite und folgt danach nur noch dem manuellen Umschalten.
+   */
+  readonly seitenleisteEingeklappt = signal(schmalesFensterMedium()?.matches ?? false);
+  private seitenleisteManuellGesetzt = false;
 
   readonly monatsTitel = computed(() => {
     const monat = this.monat();
@@ -145,8 +157,8 @@ export class Jahresplan {
       case 'geladen':
         return {
           icon: 'cloud_done',
-          text: `${this.hiorg.eintraege().length} HiOrg-Termine`,
-          tooltip: 'HiOrg-Kalenderfeed verbunden – zum Neuladen klicken',
+          text: 'HiOrg verbunden',
+          tooltip: `HiOrg-Kalenderfeed verbunden, ${this.hiorg.eintraege().length} Termine geladen – zum Neuladen klicken`,
         };
       case 'nicht-konfiguriert':
         return {
@@ -170,6 +182,7 @@ export class Jahresplan {
   });
 
   readonly quelleBeschreibung = computed(() => this.ziel()?.bezeichnung ?? 'Keine Quelle geöffnet');
+  readonly quelleVerbunden = computed(() => this.ziel() !== null);
   readonly kannSpeichern = computed(() => this.ziel() !== null);
   readonly direktesSpeichern = computed(() => this.ziel()?.faehigkeiten.direktesSpeichern ?? false);
   readonly diensttagLabel = computed(() => diensttagName(this.diensttagService.wochentag()));
@@ -266,6 +279,20 @@ export class Jahresplan {
         }
       });
     });
+
+    // Ab einer gewissen Fensterbreite klappt die Ideensammlung automatisch zusammen,
+    // damit das Wochenraster genug Platz behält. Nach einem manuellen Umschalten
+    // überschreibt die Fensterbreite die Nutzerwahl nicht mehr.
+    const medium = schmalesFensterMedium();
+    if (medium) {
+      const anwenden = (): void => {
+        if (!this.seitenleisteManuellGesetzt) {
+          this.seitenleisteEingeklappt.set(medium.matches);
+        }
+      };
+      medium.addEventListener('change', anwenden);
+      this.destroyRef.onDestroy(() => medium.removeEventListener('change', anwenden));
+    }
 
     // Der Feed ist jahresunabhängig; er wird immer geladen, sobald die Ansicht entsteht.
     void this.hiorg.lade();
@@ -368,6 +395,11 @@ export class Jahresplan {
     return termin.katsThemaId
       ? (this.store.katsThemaNachId().get(termin.katsThemaId) ?? null)
       : null;
+  }
+
+  seitenleisteUmschalten(): void {
+    this.seitenleisteManuellGesetzt = true;
+    this.seitenleisteEingeklappt.update((wert) => !wert);
   }
 
   setzeBundesland(land: BundeslandCode): void {
@@ -636,4 +668,11 @@ function kurz(text: string): string {
 
 function fehlertext(ursache: unknown): string {
   return ursache instanceof Error ? ursache.message : String(ursache);
+}
+
+/** `null` in Testumgebungen ohne `window.matchMedia`, sonst die Medienabfrage für schmale Fenster. */
+function schmalesFensterMedium(): MediaQueryList | null {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(max-width: 1150px)')
+    : null;
 }

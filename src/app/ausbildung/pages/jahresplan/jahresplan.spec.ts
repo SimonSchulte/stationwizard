@@ -302,11 +302,12 @@ describe('HiOrg-Statuschip', () => {
     expect(ansicht.hiorgStatus().icon).toBe('cloud_sync');
   });
 
-  it('zeigt die Anzahl geladener Termine im verbundenen Zustand', () => {
+  it('zeigt die Anzahl geladener Termine im Tooltip des verbundenen Zustands', () => {
     hiorg.zustand.set('geladen');
     hiorg.eintraege.set([HIORG_EINTRAG, HIORG_EINTRAG]);
 
-    expect(ansicht.hiorgStatus()).toMatchObject({ icon: 'cloud_done', text: '2 HiOrg-Termine' });
+    expect(ansicht.hiorgStatus()).toMatchObject({ icon: 'cloud_done', text: 'HiOrg verbunden' });
+    expect(ansicht.hiorgStatus().tooltip).toContain('2 Termine');
   });
 
   it('zeigt, wenn der Feed nicht eingerichtet ist', () => {
