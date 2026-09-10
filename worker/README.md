@@ -5,11 +5,9 @@ EFS-Aktionen unter derselben Origin. Vor jeder API und jeder statischen Datei st
 serverseitige Access-JWT-Prüfung. Ohne vollständige Access-Konfiguration bleibt der Worker
 geschlossen.
 
-Die Einrichtung über Weboberflächen beschreibt
-[Einrichtung und Abnahme](../docs/einrichtung.md). Cloudflare-/Google-Konfiguration,
-Produktivdeployment und echte Upstream-Verbindungen sind noch nicht als erfolgreich
-abgenommen. Tatsächliche lokale Prüfergebnisse stehen im
-[Arbeitsstand](../docs/arbeitsstand.md).
+Die App läuft produktiv. Referenz für Secrets, Access-Konfiguration und eine erneute
+Einrichtung: [Einrichtung](../docs/einrichtung.md). Historie der Arbeitspakete und
+Prüfläufe: [Arbeitsstand](../docs/arbeitsstand.md).
 
 ## Static Assets und Routing
 

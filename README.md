@@ -5,16 +5,10 @@ Eine Angular-App bündelt den Jahres-Ausbildungsplan und die Einsatzplanung für
 Sanitätsdienste. Ein Cloudflare Worker liefert die App und ihre APIs unter derselben Origin
 aus; Cloudflare Access mit Google übernimmt die Anmeldung.
 
-**Einrichtung und Produktionsabnahme stehen noch aus.** Die sechs Arbeitspakete sind lokal
-umgesetzt und geprüft. Der Fork [stexeflex/stationwizard](https://github.com/stexeflex/stationwizard)
-enthält die AP-Branches für die Übergabe. Das Erstellen der Pull Requests im Original
-wurde von der GitHub-Anbindung mit HTTP 403 (`Resource not accessible by integration`)
-abgewiesen; es wurden noch keine PRs erstellt. Über die
-[vorbereiteten Vergleichslinks](docs/pull-requests.md) lassen sie sich mit dem persönlichen
-GitHub-Login im Browser erstellen. Dafür sind keine Schreibrechte am Zielrepository nötig.
-Ein Produktionsdeployment wurde noch nicht vorgenommen. Prüfungen und offene Punkte stehen in
-[Arbeitsstand](docs/arbeitsstand.md). Alle Schritte ohne lokalen Entwicklungsrechner stehen
-in [Einrichtung und Abnahme](docs/einrichtung.md).
+Die App ist eingerichtet und läuft produktiv. Betriebskonfiguration (Secrets, Access,
+API-Fehlercodes) steht im [Worker-README](worker/README.md); der Prüfstand der Arbeitspakete
+in [Arbeitsstand](docs/arbeitsstand.md). Für eine erneute Einrichtung oder den Wechsel von
+Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 
 ## Fachbereiche
 
@@ -205,11 +199,9 @@ Repository-Wurzel als Build-Verzeichnis. Die vorbereiteten Kommandos sind:
 | Produktion deployen    | `npm run deploy`                                                     |
 | Nichtproduktionsbranch | `npx wrangler versions upload --config worker/wrangler.toml`         |
 
-Nichtproduktionsbranches erzeugen eigene Vorschauversionen. Die Git-Integration ist noch
-nicht im Cloudflare-Konto eingerichtet. `stationwizard.altrophie.de` ist ein Vorschlag;
-Hostname, DNS-Umzug, Mailbestand und Google-Zugriffsliste sind noch abzustimmen. Die
-[Weboberflächen-Anleitung](docs/einrichtung.md) führt durch DNS, Secrets, Google, Access,
-Domainanbindung und Abnahme.
+Nichtproduktionsbranches erzeugen eigene Vorschauversionen und ändern die Produktion nicht.
+Details zu Secrets, Access-Richtlinie und Domainanbindung stehen im
+[Worker-README](worker/README.md) und in [Einrichtung](docs/einrichtung.md).
 
 ## Mobil und bekannte fachliche Abweichungen
 
@@ -217,8 +209,7 @@ Die Ausbildungsplanung behält `mobilAnsicht`, die Umschaltung zwischen Plan- un
 Listenansicht sowie die untere Navigation bis einschließlich 780 Pixel bei. Das breite
 Wochenraster kann horizontal gescrollt werden. Für den Einsatzplaner sind responsive
 Anpassungen vorbereitet; für umfangreiche Zuordnungen wird vorerst Desktopbedienung
-empfohlen. Die Cloud-Browser-Vorschau wurde mit `ERR_BLOCKED_BY_CLIENT` blockiert:
-**Desktop und Mobil wurden deshalb noch nicht visuell abgenommen.**
+empfohlen.
 
 Die gelesenen Quellprojekte weichen an zwei Stellen von der Auftragsbeschreibung ab:
 
