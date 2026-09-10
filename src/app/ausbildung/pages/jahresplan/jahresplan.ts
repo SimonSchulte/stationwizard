@@ -43,7 +43,9 @@ import { PlanSlot, WochenZeile, baueWochenraster } from '../../services/plan-ras
 import { PlanStore } from '../../services/plan-store';
 import { WorkbookService } from '../../services/workbook.service';
 import { herunterladen } from '../../storage/lokale-datei.storage';
+import { NextcloudWorkerStorage } from '../../storage/nextcloud-worker.storage';
 import { WorkbookStorage } from '../../storage/workbook-storage';
+import { WorkerClient, WorkerFehler } from '../../../kern/worker-client';
 import {
   MONATSNAMEN,
   WOCHENTAGE_ISO,
@@ -92,6 +94,7 @@ export class Jahresplan {
   readonly feiertage = inject(FeiertagService);
   readonly diensttagService = inject(DiensttagService);
   readonly hiorg = inject(HiorgKalenderService);
+  private readonly worker = inject(WorkerClient);
 
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
@@ -124,20 +127,6 @@ export class Jahresplan {
   readonly imAktuellenMonat = computed(
     () => this.store.jahr() === jahrVon(this.heute) && this.monat() === monatIndex(this.heute),
   );
-
-  /**
-   * Anstehende HiOrg-Termine für den Willkommen-Bildschirm, bevor überhaupt eine
-   * Arbeitsmappe offen ist – ohne Wochenraster, Diensttage oder Abgleich, die alle
-   * an einem geöffneten Rahmenplan hängen. Nach Beginn sortiert, laufende und
-   * künftige Termine, auf eine überschaubare Anzahl gedeckelt.
-   */
-  readonly naechsteHiorgTermine = computed<HiorgEintrag[]>(() => {
-    const heute = this.heute;
-    return [...this.hiorg.eintraege()]
-      .filter((e) => e.ende >= heute)
-      .sort((a, b) => a.beginn.localeCompare(b.beginn) || a.beginnZeit.localeCompare(b.beginnZeit))
-      .slice(0, 20);
-  });
 
   /**
    * Kurzstatus der HiOrg-Verbindung für die Kopfleiste – deutlich sichtbar statt
@@ -280,6 +269,29 @@ export class Jahresplan {
 
     // Der Feed ist jahresunabhängig; er wird immer geladen, sobald die Ansicht entsteht.
     void this.hiorg.lade();
+
+    // Wie der HiOrg-Feed wird auch die zentrale Arbeitsmappe direkt geladen, ohne dass
+    // der Nutzer erst "Öffnen" antippen muss. Nur wenn noch keine Quelle offen ist und
+    // noch keine lokalen Daten bestehen (z. B. ein frisch begonnener leerer Plan).
+    if (this.workbook.ziel() === null && !this.store.hatDaten()) {
+      void this.autoOeffnen();
+    }
+  }
+
+  /**
+   * Versucht die zentrale NextCloud-Arbeitsmappe automatisch zu laden. Ein Fehlschlag
+   * ist nie blockierend – wie beim HiOrg-Feed bleibt der Knopf "Arbeitsmappe öffnen"
+   * als Rettungsweg, etwa wenn die Verbindung noch nicht eingerichtet ist.
+   */
+  private async autoOeffnen(): Promise<void> {
+    try {
+      await this.workbook.laden(new NextcloudWorkerStorage(this.worker));
+    } catch (ursache) {
+      if (ursache instanceof WorkerFehler && ursache.status === 503) {
+        return;
+      }
+      this.melde(fehlertext(ursache), 10000, true);
+    }
   }
 
   /** HiOrg-Einträge dieses Tages, `null` ohne Treffer. */

@@ -245,6 +245,25 @@ Die sechs AP-Branches (AP1 bis AP6) wurden über Pull Requests aus dem Fork
 laufenden Konfiguration stehen in [Einrichtung](einrichtung.md) und im
 [Worker-README](../worker/README.md).
 
+## Arbeitsmappe und HiOrg-Vorschau vereinheitlicht
+
+Die separate Terminliste „Nächste HiOrg-Termine" auf dem früheren Willkommen-Bildschirm
+ist entfallen. Das Wochenraster wird jetzt immer angezeigt – auch ohne geöffnete
+Arbeitsmappe –, sodass die HiOrg-Ebene direkt in der Kalenderform erscheint statt in
+einer eigenen Liste. Passend dazu lädt `Jahresplan` die zentrale NextCloud-Arbeitsmappe
+jetzt wie den HiOrg-Feed automatisch beim Öffnen der Ansicht, statt erst auf den
+„Öffnen"-Knopf zu warten (`autoOeffnen()`, nur wenn weder eine Quelle offen noch lokale
+Daten vorhanden sind). Ein Fehlschlag ist nie blockierend: fehlt die NextCloud-
+Konfiguration (503 `NEXTCLOUD_KONFIGURATION_FEHLT`), bleibt die Ansicht wie zuvor
+nutzbar, und die Plan-Kopfzeile zeigt „Keine Arbeitsmappe geöffnet" mit den bisherigen
+Knöpfen „Arbeitsmappe öffnen" und „Leeren Plan beginnen" als Rettungsweg.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (248 Angular- und
+280 Worker-Tests) und `npm run format:check` – alle grün. Neue Tests sichern, dass der
+Autolade-Versuch nur ohne bereits offene Quelle und ohne lokale Daten läuft. Eine reale
+Browserprüfung gegen eine echte NextCloud-Arbeitsmappe hat in dieser Umgebung nicht
+stattgefunden.
+
 ## EFS- und Nextcloud-Diagnose
 
 Beide Proxy-Pfade fragen mit `redirect: 'manual'` an und trennen `3xx`-Antworten

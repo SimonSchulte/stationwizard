@@ -11,6 +11,8 @@ import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import type { HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { Jahresplan } from './jahresplan';
 import { leererTermin, leeresDocument } from '../../models/plan.model';
+import { NextcloudWorkerStorage } from '../../storage/nextcloud-worker.storage';
+import { WorkerClient } from '../../../kern/worker-client';
 
 const HIORG_EINTRAG: HiorgEintrag = {
   schluessel: 'test|2026-05-04|Erfundene Ausbildung',
@@ -28,6 +30,7 @@ describe('Bestätigungen im Ausbildungsplan', () => {
   const workbook = {
     ziel: signal(null),
     beschaeftigt: signal(false),
+    laden: vi.fn(),
     neuLaden: vi.fn(),
     neuesDokument: vi.fn(),
     waehleJahr: vi.fn(),
@@ -151,6 +154,7 @@ describe('Monatsfilter im Jahresplan', () => {
   const workbook = {
     ziel: signal(null),
     beschaeftigt: signal(false),
+    laden: vi.fn(),
     neuLaden: vi.fn(),
     neuesDokument: vi.fn(),
     waehleJahr: vi.fn(),
@@ -254,6 +258,7 @@ describe('HiOrg-Statuschip', () => {
   const workbook = {
     ziel: signal(null),
     beschaeftigt: signal(false),
+    laden: vi.fn(),
     neuLaden: vi.fn(),
     neuesDokument: vi.fn(),
     waehleJahr: vi.fn(),
@@ -330,28 +335,18 @@ describe('HiOrg-Statuschip', () => {
   });
 });
 
-describe('HiOrg-Vorschau auf dem Willkommen-Bildschirm', () => {
+describe('Automatisches Laden der Arbeitsmappe', () => {
   const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
-  const workbook = {
-    ziel: signal(null),
-    beschaeftigt: signal(false),
-    neuLaden: vi.fn(),
-    neuesDokument: vi.fn(),
-    waehleJahr: vi.fn(),
-    verfuegbareJahre: signal<number[]>([2026]),
-  };
   const hiorg = {
     eintraege: signal<readonly HiorgEintrag[]>([]),
-    zustand: signal<'ungeprueft' | 'geladen' | 'nicht-konfiguriert' | 'fehler'>('geladen'),
+    zustand: signal('geladen'),
     fehler: signal(''),
     verworfen: signal(0),
     laedt: signal(false),
     lade: vi.fn(),
   };
-  let ansicht: Jahresplan;
 
-  beforeEach(() => {
-    vi.resetAllMocks();
+  function konfiguriere(workbook: Partial<WorkbookService>): PlanStore {
     TestBed.configureTestingModule({
       providers: [
         { provide: DialogDienst, useValue: dialog },
@@ -365,42 +360,67 @@ describe('HiOrg-Vorschau auf dem Willkommen-Bildschirm', () => {
         { provide: HiorgKalenderService, useValue: hiorg },
       ],
     });
-    hiorg.eintraege.set([]);
-    hiorg.zustand.set('geladen');
-    ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
-  });
-
-  function eintrag(zusatz: Partial<HiorgEintrag> & { beginn: string }): HiorgEintrag {
-    return {
-      ...HIORG_EINTRAG,
-      ende: zusatz.beginn,
-      schluessel: `s-${zusatz.beginn}-${zusatz.name}`,
-      ...zusatz,
-    };
+    return TestBed.inject(PlanStore);
   }
 
-  it('zeigt vergangene Termine nicht an', () => {
-    hiorg.eintraege.set([eintrag({ beginn: '2000-01-01', ende: '2000-01-01', name: 'Alt' })]);
-
-    expect(ansicht.naechsteHiorgTermine()).toHaveLength(0);
+  beforeEach(() => {
+    vi.resetAllMocks();
+    hiorg.eintraege.set([]);
   });
 
-  it('zeigt laufende und künftige Termine, nach Beginn sortiert', () => {
-    hiorg.eintraege.set([
-      eintrag({ beginn: '2099-01-05', ende: '2099-01-05', name: 'Später' }),
-      eintrag({ beginn: '2099-01-01', ende: '2099-01-01', name: 'Früher' }),
-    ]);
+  it('lädt die zentrale NextCloud-Arbeitsmappe automatisch, wenn noch keine Quelle offen ist', () => {
+    const workbook = {
+      ziel: signal(null),
+      beschaeftigt: signal(false),
+      laden: vi.fn().mockResolvedValue({ meldungen: [] }),
+      neuLaden: vi.fn(),
+      neuesDokument: vi.fn(),
+      waehleJahr: vi.fn(),
+      verfuegbareJahre: signal<number[]>([2026]),
+    };
+    konfiguriere(workbook);
 
-    expect(ansicht.naechsteHiorgTermine().map((e) => e.name)).toEqual(['Früher', 'Später']);
+    TestBed.runInInjectionContext(() => new Jahresplan());
+
+    expect(workbook.laden).toHaveBeenCalledTimes(1);
+    expect(workbook.laden.mock.calls[0]![0]).toBeInstanceOf(NextcloudWorkerStorage);
   });
 
-  it('deckelt die Liste auf 20 Einträge', () => {
-    hiorg.eintraege.set(
-      Array.from({ length: 25 }, (_, i) =>
-        eintrag({ beginn: `2099-02-${String(i + 1).padStart(2, '0')}`, name: `Termin ${i}` }),
-      ),
-    );
+  it('lädt nicht automatisch, wenn bereits eine Quelle geöffnet ist', () => {
+    const workbook = {
+      ziel: signal(new NextcloudWorkerStorage({} as WorkerClient)),
+      beschaeftigt: signal(false),
+      laden: vi.fn(),
+      neuLaden: vi.fn(),
+      neuesDokument: vi.fn(),
+      waehleJahr: vi.fn(),
+      verfuegbareJahre: signal<number[]>([2026]),
+    };
+    konfiguriere(workbook);
 
-    expect(ansicht.naechsteHiorgTermine()).toHaveLength(20);
+    TestBed.runInInjectionContext(() => new Jahresplan());
+
+    expect(workbook.laden).not.toHaveBeenCalled();
+  });
+
+  it('lädt nicht automatisch, wenn schon lokale Daten bestehen', () => {
+    const workbook = {
+      ziel: signal(null),
+      beschaeftigt: signal(false),
+      laden: vi.fn(),
+      neuLaden: vi.fn(),
+      neuesDokument: vi.fn(),
+      waehleJahr: vi.fn(),
+      verfuegbareJahre: signal<number[]>([2026]),
+    };
+    const store = konfiguriere(workbook);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [{ ...leererTermin('2026-05-04'), id: 't1' }],
+    });
+
+    TestBed.runInInjectionContext(() => new Jahresplan());
+
+    expect(workbook.laden).not.toHaveBeenCalled();
   });
 });
