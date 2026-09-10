@@ -14,6 +14,7 @@ import {
   typName,
 } from '../../models/plan.model';
 import { Segment } from '../../services/plan-raster';
+import type { HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 
 /** Darstellung eines Termins bzw. einer Idee – identisch in Plan und Backlog. */
@@ -36,6 +37,8 @@ import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 export class TerminKarte {
   readonly termin = input.required<Termin>();
   readonly katsThema = input<KatsThema | null>(null);
+  /** Der HiOrg-Eintrag, dessen Name exakt zu diesem Termin passt, falls vorhanden. */
+  readonly hiorgEintrag = input<HiorgEintrag | null>(null);
   /** Gitter-Modus für den Wochenraster: schmale Spalte, Datum/Tag entfallen. */
   readonly kompakt = input(false);
   /** Name des Feiertags an diesem Datum, falls vorhanden. */

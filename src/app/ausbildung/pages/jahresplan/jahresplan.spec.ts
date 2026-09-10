@@ -260,3 +260,95 @@ describe('Monatsfilter im Jahresplan', () => {
     expect(ansicht.monat()).toBe(11);
   });
 });
+
+describe('HiOrg-Statuschip', () => {
+  const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
+  const workbook = {
+    ziel: signal(null),
+    beschaeftigt: signal(false),
+    neuLaden: vi.fn(),
+    neuesDokument: vi.fn(),
+    waehleJahr: vi.fn(),
+    verfuegbareJahre: signal<number[]>([2026]),
+  };
+  const hiorg = {
+    eintraege: signal<readonly HiorgEintrag[]>([]),
+    zustand: signal<'ungeprueft' | 'geladen' | 'nicht-konfiguriert' | 'fehler'>('ungeprueft'),
+    fehler: signal(''),
+    verworfen: signal(0),
+    laedt: signal(false),
+    anzeigen: signal(true),
+    setzeAnzeigen: vi.fn(),
+    lade: vi.fn(),
+  };
+  let ansicht: Jahresplan;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DialogDienst, useValue: dialog },
+        { provide: MatDialog, useValue: {} },
+        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: WorkbookService, useValue: workbook },
+        {
+          provide: FeiertagService,
+          useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
+        },
+        { provide: HiorgKalenderService, useValue: hiorg },
+      ],
+    });
+    hiorg.eintraege.set([]);
+    hiorg.anzeigen.set(true);
+    hiorg.laedt.set(false);
+    hiorg.fehler.set('');
+    hiorg.zustand.set('ungeprueft');
+    ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
+  });
+
+  it('zeigt "ausgeblendet", solange die HiOrg-Ebene abgeschaltet ist', () => {
+    hiorg.anzeigen.set(false);
+    hiorg.zustand.set('geladen');
+
+    expect(ansicht.hiorgStatus().icon).toBe('cloud_off');
+    expect(ansicht.hiorgStatus().text).toBe('HiOrg ausgeblendet');
+  });
+
+  it('zeigt den Ladezustand, solange ein Abruf läuft', () => {
+    hiorg.laedt.set(true);
+
+    expect(ansicht.hiorgStatus().icon).toBe('cloud_sync');
+  });
+
+  it('zeigt die Anzahl geladener Termine im verbundenen Zustand', () => {
+    hiorg.zustand.set('geladen');
+    hiorg.eintraege.set([HIORG_EINTRAG, HIORG_EINTRAG]);
+
+    expect(ansicht.hiorgStatus()).toMatchObject({ icon: 'cloud_done', text: '2 HiOrg-Termine' });
+  });
+
+  it('zeigt, wenn der Feed nicht eingerichtet ist', () => {
+    hiorg.zustand.set('nicht-konfiguriert');
+
+    expect(ansicht.hiorgStatus()).toMatchObject({
+      icon: 'cloud_off',
+      text: 'HiOrg nicht eingerichtet',
+    });
+  });
+
+  it('zeigt einen Fehler mit der Fehlermeldung als Tooltip', () => {
+    hiorg.zustand.set('fehler');
+    hiorg.fehler.set('Erfundener Verbindungsfehler');
+
+    const status = ansicht.hiorgStatus();
+    expect(status.icon).toBe('cloud_alert');
+    expect(status.tooltip).toBe('Erfundener Verbindungsfehler');
+  });
+
+  it('zeigt den unberührten Zustand vor dem ersten Abruf', () => {
+    expect(ansicht.hiorgStatus()).toMatchObject({
+      icon: 'cloud_queue',
+      text: 'HiOrg noch nicht abgerufen',
+    });
+  });
+});

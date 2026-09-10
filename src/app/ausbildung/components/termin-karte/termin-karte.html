@@ -4,6 +4,31 @@
   <mat-icon inline class="typ-symbol" [matTooltip]="typText()" [attr.aria-label]="typText()">{{
     typSymbol()
   }}</mat-icon>
+  @if (hiorgEintrag(); as hiorg) {
+    @if (hiorg.url) {
+      <a
+        class="hiorg-link-symbol"
+        [href]="hiorg.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        [matTooltip]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“ – im HiOrg-Server öffnen'"
+        [attr.aria-label]="
+          'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“ – im HiOrg-Server öffnen'
+        "
+        (click)="$event.stopPropagation()"
+      >
+        <mat-icon inline>link</mat-icon>
+      </a>
+    } @else {
+      <mat-icon
+        inline
+        class="hiorg-link-symbol"
+        [matTooltip]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“'"
+        [attr.aria-label]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“'"
+        >link</mat-icon
+      >
+    }
+  }
   @if (!kompakt() && termin().datum) {
     <div class="datum">
       <span class="tag">{{ tagText() }}</span>

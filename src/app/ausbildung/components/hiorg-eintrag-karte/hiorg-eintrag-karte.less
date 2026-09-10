@@ -54,6 +54,8 @@
   flex: 1 1 auto;
 }
 
+/* Immer sichtbarer Direktlink zum HiOrg-Server, unabhängig von Abweichungen. */
+.oeffnen-knopf,
 .menue-knopf {
   flex: 0 0 auto;
   width: 24px;
@@ -61,10 +63,23 @@
   line-height: 24px;
 }
 
+.oeffnen-knopf mat-icon,
 .menue-knopf mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
+}
+
+.oeffnen-knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--ci-blue);
+  }
 }
 
 .name {

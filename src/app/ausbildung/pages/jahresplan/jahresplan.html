@@ -35,6 +35,17 @@
     }
   </span>
 
+  <button
+    matButton
+    class="hiorg-status"
+    [matTooltip]="hiorgStatus().tooltip"
+    [attr.aria-label]="hiorgStatus().tooltip"
+    (click)="hiorgNeuLaden()"
+  >
+    <mat-icon inline>{{ hiorgStatus().icon }}</mat-icon>
+    <span class="knopf-text">{{ hiorgStatus().text }}</span>
+  </button>
+
   <span class="fueller"></span>
 
   <button
@@ -324,6 +335,7 @@
                         [segment]="eintrag.segment"
                         [tagDatum]="slot.datum"
                         [katsThema]="katsThema(eintrag.termin)"
+                        [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
                         [feiertag]="slot.feiertag"
                         [kompakt]="true"
                         (bearbeiten)="bearbeiten(eintrag.termin.id)"
@@ -358,6 +370,7 @@
                         [segment]="eintrag.segment"
                         [tagDatum]="slot.datum"
                         [katsThema]="katsThema(eintrag.termin)"
+                        [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
                         [feiertag]="slot.feiertag"
                         [kompakt]="true"
                         (bearbeiten)="bearbeiten(eintrag.termin.id)"

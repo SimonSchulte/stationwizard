@@ -28,6 +28,21 @@
 
   <span class="fueller"></span>
 
+  @if (eintrag().url) {
+    <a
+      matIconButton
+      class="oeffnen-knopf"
+      [href]="eintrag().url"
+      target="_blank"
+      rel="noopener noreferrer"
+      matTooltip="Termin im HiOrg-Server öffnen"
+      aria-label="Termin im HiOrg-Server öffnen"
+      (click)="$event.stopPropagation()"
+    >
+      <mat-icon>open_in_new</mat-icon>
+    </a>
+  }
+
   <button
     matIconButton
     class="menue-knopf"

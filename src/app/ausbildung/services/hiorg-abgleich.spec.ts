@@ -49,6 +49,20 @@ describe('Abgleich zwischen Jahresplan und HiOrg', () => {
     expect(abgleich.nachDatum.get('2026-05-04')?.eintraege).toHaveLength(1);
   });
 
+  it('erfasst einen exakten Treffer statt ihn zu verwerfen', () => {
+    const hiorgEintrag = eintrag({ name: 'Sprechfunkausbildung' });
+    const abgleich = baueHiorgAbgleich(
+      [hiorgEintrag],
+      [termin('2026-05-04', 'Sprechfunkausbildung', 't1')],
+      2026,
+    );
+
+    expect(abgleich.terminNachId.get('t1')).toEqual(hiorgEintrag);
+    expect(abgleich.nachDatum.get('2026-05-04')?.treffer.get('t1')).toEqual(hiorgEintrag);
+    expect(abgleich.nachDatum.get('2026-05-04')?.abweichungen).toHaveLength(0);
+    expect(abgleich.nachDatum.get('2026-05-04')?.ohneGegenstueck).toHaveLength(0);
+  });
+
   it.each([
     ['Groß-/Kleinschreibung', 'SPRECHFUNK AUSBILDUNG'],
     ['führende und doppelte Leerzeichen', '  Sprechfunk   ausbildung  '],

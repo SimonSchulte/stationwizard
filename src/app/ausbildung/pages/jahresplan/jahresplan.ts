@@ -125,6 +125,55 @@ export class Jahresplan {
     () => this.store.jahr() === jahrVon(this.heute) && this.monat() === monatIndex(this.heute),
   );
 
+  /**
+   * Kurzstatus der HiOrg-Verbindung für die Kopfleiste – deutlich sichtbar statt
+   * nur im Overflow-Menü lesbar. Die vier Zustände von `HiorgKalenderService`
+   * decken sich mit dem Fußzeilentext dort; hier kommen Symbol und die
+   * „ausgeblendet"/„lädt"-Fälle hinzu.
+   */
+  readonly hiorgStatus = computed(() => {
+    if (!this.hiorg.anzeigen()) {
+      return {
+        icon: 'cloud_off',
+        text: 'HiOrg ausgeblendet',
+        tooltip: 'HiOrg-Termine sind ausgeblendet – zum Einblenden „Weitere Aktionen“ öffnen',
+      };
+    }
+    if (this.hiorg.laedt()) {
+      return {
+        icon: 'cloud_sync',
+        text: 'HiOrg wird geladen…',
+        tooltip: 'HiOrg-Termine werden gerade abgerufen',
+      };
+    }
+    switch (this.hiorg.zustand()) {
+      case 'geladen':
+        return {
+          icon: 'cloud_done',
+          text: `${this.hiorg.eintraege().length} HiOrg-Termine`,
+          tooltip: 'HiOrg-Kalenderfeed verbunden – zum Neuladen klicken',
+        };
+      case 'nicht-konfiguriert':
+        return {
+          icon: 'cloud_off',
+          text: 'HiOrg nicht eingerichtet',
+          tooltip: 'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet',
+        };
+      case 'fehler':
+        return {
+          icon: 'cloud_alert',
+          text: 'HiOrg-Fehler',
+          tooltip: this.hiorg.fehler() || 'HiOrg-Termine sind nicht abrufbar',
+        };
+      default:
+        return {
+          icon: 'cloud_queue',
+          text: 'HiOrg noch nicht abgerufen',
+          tooltip: 'HiOrg-Termine wurden noch nicht abgerufen – zum Laden klicken',
+        };
+    }
+  });
+
   readonly quelleBeschreibung = computed(() => this.ziel()?.bezeichnung ?? 'Keine Quelle geöffnet');
   readonly kannSpeichern = computed(() => this.ziel() !== null);
   readonly direktesSpeichern = computed(() => this.ziel()?.faehigkeiten.direktesSpeichern ?? false);
@@ -244,6 +293,11 @@ export class Jahresplan {
 
   istOhneGegenstueck(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): boolean {
     return tag.ohneGegenstueck.some((e) => e.schluessel === eintrag.schluessel);
+  }
+
+  /** HiOrg-Eintrag, dessen Name exakt zu diesem Termin passt – `null` ohne Treffer. */
+  hiorgTreffer(terminId: string): HiorgEintrag | null {
+    return this.hiorg.anzeigen() ? (this.hiorgAbgleich().terminNachId.get(terminId) ?? null) : null;
   }
 
   schalteHiorg(): void {

@@ -25,6 +25,29 @@
   color: var(--text-secondary);
 }
 
+/* Verknüpfungssymbol zum HiOrg-Server – nur ein Klickziel, wenn eine URL vorliegt. */
+.hiorg-link-symbol {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+
+  mat-icon {
+    font-size: 15px;
+  }
+}
+
+a.hiorg-link-symbol {
+  color: var(--ci-blue);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--ci-blue);
+    text-decoration: none;
+  }
+}
+
 .zeit,
 .fortschritt {
   flex: 0 0 auto;
