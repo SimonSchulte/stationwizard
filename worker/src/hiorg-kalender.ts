@@ -129,17 +129,17 @@ export async function verarbeiteHiorgKalender(
             'Die HiOrg-Kalenderantwort ist zu groß.',
             502,
           )
-        : antwortUngueltig();
+        : antwortUngueltig('JSON-Antwort nicht lesbar oder kein Body', geheimnisse);
     }
 
-    const eintraege = filtereEintraege(ergebnis.inhalt);
-    if (!eintraege) {
-      return antwortUngueltig();
+    const huelle = filtereEintraege(ergebnis.inhalt);
+    if (!('eintraege' in huelle)) {
+      return antwortUngueltig(huelle.grund, geheimnisse);
     }
-    const ausgabe = { status: 'OK', eintraege };
+    const ausgabe = { status: 'OK', eintraege: huelle.eintraege };
     // Auch ein fremder Server darf die geheime Feed-URL nicht in einem Feld spiegeln.
     if (enthaeltGeheimnis(ausgabe, geheimnisse)) {
-      return antwortUngueltig();
+      return antwortUngueltig('Feed spiegelt die geheime Zugangsadresse', geheimnisse);
     }
     return jsonAntwort(ausgabe);
   } finally {
@@ -147,7 +147,12 @@ export async function verarbeiteHiorgKalender(
   }
 }
 
-function antwortUngueltig(): Response {
+/**
+ * Der Grund landet nur redigiert im Betreiberlog (`console.error`), nie in der
+ * Browserantwort – die bleibt beim festen Code ohne Upstream-Details.
+ */
+function antwortUngueltig(grund: string, geheimnisse: (string | undefined)[]): Response {
+  console.error('HIORG_KALENDER_ANTWORT_UNGUELTIG', redigiere(grund, geheimnisse));
   return fehlerAntwort(
     'HIORG_KALENDER_ANTWORT_UNGUELTIG',
     'HiOrg hat keine gültigen Kalenderdaten geliefert.',
@@ -193,10 +198,18 @@ function queryWerte(ziel: string): string[] {
   }
 }
 
-function filtereEintraege(inhalt: unknown): Eintrag[] | undefined {
+type HuelleErgebnis = { eintraege: Eintrag[] } | { grund: string };
+
+function filtereEintraege(inhalt: unknown): HuelleErgebnis {
+  if (!istObjekt(inhalt)) {
+    return { grund: 'Antwort ist kein JSON-Objekt' };
+  }
   // `status` liefert der Feed als String ("200"); `success` ist das belastbare Signal.
-  if (!istObjekt(inhalt) || inhalt['success'] !== true || !Array.isArray(inhalt['data'])) {
-    return undefined;
+  if (inhalt['success'] !== true) {
+    return { grund: `success ist ${typeof inhalt['success']} statt true` };
+  }
+  if (!Array.isArray(inhalt['data'])) {
+    return { grund: 'data ist kein Array' };
   }
   const daten = inhalt['data'];
   const eintraege: Eintrag[] = [];
@@ -206,7 +219,10 @@ function filtereEintraege(inhalt: unknown): Eintrag[] | undefined {
   }
   // Ein einzelner kaputter Datensatz darf den Jahresplan nicht blind machen –
   // gar kein brauchbarer Eintrag bei nicht leerem Feed dagegen schon.
-  return daten.length > 0 && eintraege.length === 0 ? undefined : eintraege;
+  if (daten.length > 0 && eintraege.length === 0) {
+    return { grund: `kein Eintrag der ${daten.length} Datensätze war brauchbar` };
+  }
+  return { eintraege };
 }
 
 /**
