@@ -105,6 +105,19 @@ describe('Bestätigungen im Ausbildungsplan', () => {
     expect(ansicht.hiorgAbgleich().anzahlAbweichungen).toBe(0);
   });
 
+  it('blendet die HiOrg-Karte bei exaktem Treffer aus, da die Termin-Karte ihn schon zeigt', () => {
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [{ ...leererTermin('2026-05-04'), id: 't1', thema: HIORG_EINTRAG.name }],
+    });
+    hiorg.eintraege.set([HIORG_EINTRAG]);
+
+    const tag = ansicht.hiorgTag('2026-05-04')!;
+
+    expect(ansicht.hiorgTreffer('t1')).toEqual(HIORG_EINTRAG);
+    expect(ansicht.istBereitsAufTerminKarte(tag, HIORG_EINTRAG)).toBe(true);
+  });
+
   it('warnt, wenn der Plan an diesem Tag anders heißt', () => {
     store.setzeDokument({
       ...leeresDocument(2026),

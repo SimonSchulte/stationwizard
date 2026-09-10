@@ -289,3 +289,22 @@ Beide Proxy-Pfade fragen mit `redirect: 'manual'` an und trennen `3xx`-Antworten
 15-Sekunden-Zeitlimit (`EFS_ZEITLIMIT`). Ziel, Inhalt und Header einer Weiterleitung werden
 verworfen; der Transportfehler wird redigiert im Worker-Log protokolliert. Der vollständige
 Fehlercode-Katalog steht im [Worker-README](../worker/README.md#schutzgrenzen-und-diagnose).
+
+## HiOrg-Karte bei exaktem Treffer nicht mehr doppelt
+
+Ein Plan-Termin mit exakt passendem HiOrg-Eintrag zeigte im Wochenraster bisher zwei
+Karten übereinander: die Termin-Karte (mit Verknüpfungssymbol) und zusätzlich die
+eigenständige HiOrg-Karte darunter – für denselben Tag und dasselbe Thema. Das war
+gegenüber der vorherigen Festlegung „HiOrg-Ebene immer eingeblendet" (siehe oben) eine
+bewusste Korrektur auf Nutzerwunsch: Bei einem Treffer reicht das Verknüpfungssymbol auf
+der Termin-Karte, die zweite Karte entfällt.
+
+`Jahresplan.istBereitsAufTerminKarte()` prüft je HiOrg-Eintrag, ob er in
+`HiorgTagesAbgleich.treffer` steckt (`hiorg-abgleich.ts`, unverändert); `jahresplan.html`
+überspringt die `app-hiorg-eintrag-karte` für solche Einträge. Abweichungen und Einträge
+ohne Gegenstück bleiben wie bisher sichtbar – nur der exakte Treffer verschwindet als
+zweite Karte.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (249 Angular- und
+280 Worker-Tests) und `npm run format:check` – alle grün. Keine Browserprüfung in dieser
+Runde.
