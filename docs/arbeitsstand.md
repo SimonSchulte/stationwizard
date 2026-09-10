@@ -225,6 +225,18 @@ alle grün. Browserprüfung mit gemocktem Feed (der echte HiOrg-Feed ist hier ni
 erreichbar) in Desktop- und Mobilbreite: alle Verbindungszustände, Link-Icon, Öffnen-
 Knopf, sowie dass die Ebene ohne weiteres Zutun sichtbar ist.
 
+Rückmeldung aus dem Test gegen die echte Vorschau-Umgebung: Der Statuschip in der
+Kopfleiste war zwar sofort verbunden, aber das Wochenraster selbst erscheint erst nach
+dem Öffnen einer Arbeitsmappe – der „Rahmenplan öffnen"-Bildschirm zeigte bis dahin gar
+keinen Kalender. Ergänzt: Der Willkommen-Bildschirm zeigt jetzt zusätzlich eine reine
+Terminliste „Nächste HiOrg-Termine" (`Jahresplan.naechsteHiorgTermine`, bis zu 20 laufende
+und künftige Einträge, nach Beginn sortiert, vergangene ausgeblendet) über
+`app-hiorg-eintrag-karte` – bewusst ohne Wochenraster, Diensttage oder Namensabgleich, die
+alle an einer geöffneten Arbeitsmappe hängen. Geprüft: build, 248 Angular- und
+280 Worker-Tests, format:check sowie eine Browserprüfung mit gemocktem Feed: ein
+vergangener Termin bleibt draußen, ein bereits laufender mehrtägiger Termin erscheint
+zuerst, Sortierung nach Beginn stimmt.
+
 ## GitHub-Übergabe
 
 Die sechs AP-Branches (AP1 bis AP6) wurden über Pull Requests aus dem Fork

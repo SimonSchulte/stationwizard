@@ -171,6 +171,28 @@
         Leeren Plan beginnen
       </button>
     </div>
+
+    <!--
+      Der HiOrg-Kalender ist unabhängig vom Rahmenplan verfügbar – schon hier
+      eine reine Terminliste, ohne Wochenraster, Diensttage oder Abgleich, die
+      alle an einer geöffneten Arbeitsmappe hängen.
+    -->
+    @if (naechsteHiorgTermine().length) {
+      <div class="willkommen-hiorg">
+        <h2>Nächste HiOrg-Termine</h2>
+        <div class="willkommen-hiorg-liste">
+          @for (eintrag of naechsteHiorgTermine(); track eintrag.schluessel) {
+            <app-hiorg-eintrag-karte
+              [eintrag]="eintrag"
+              [datum]="eintrag.beginn"
+              [kompakt]="false"
+            />
+          }
+        </div>
+      </div>
+    } @else if (hiorg.zustand() === 'geladen') {
+      <p class="willkommen-hiorg-leer">Keine anstehenden HiOrg-Termine.</p>
+    }
   </div>
 } @else {
   <div class="arbeitsflaeche" cdkDropListGroup>

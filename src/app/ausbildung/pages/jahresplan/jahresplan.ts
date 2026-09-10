@@ -126,6 +126,20 @@ export class Jahresplan {
   );
 
   /**
+   * Anstehende HiOrg-Termine für den Willkommen-Bildschirm, bevor überhaupt eine
+   * Arbeitsmappe offen ist – ohne Wochenraster, Diensttage oder Abgleich, die alle
+   * an einem geöffneten Rahmenplan hängen. Nach Beginn sortiert, laufende und
+   * künftige Termine, auf eine überschaubare Anzahl gedeckelt.
+   */
+  readonly naechsteHiorgTermine = computed<HiorgEintrag[]>(() => {
+    const heute = this.heute;
+    return [...this.hiorg.eintraege()]
+      .filter((e) => e.ende >= heute)
+      .sort((a, b) => a.beginn.localeCompare(b.beginn) || a.beginnZeit.localeCompare(b.beginnZeit))
+      .slice(0, 20);
+  });
+
+  /**
    * Kurzstatus der HiOrg-Verbindung für die Kopfleiste – deutlich sichtbar statt
    * nur im Overflow-Menü lesbar. Die vier Zustände von `HiorgKalenderService`
    * decken sich mit dem Fußzeilentext dort; hier kommt Symbol/„lädt"-Fall hinzu.

@@ -329,3 +329,78 @@ describe('HiOrg-Statuschip', () => {
     });
   });
 });
+
+describe('HiOrg-Vorschau auf dem Willkommen-Bildschirm', () => {
+  const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
+  const workbook = {
+    ziel: signal(null),
+    beschaeftigt: signal(false),
+    neuLaden: vi.fn(),
+    neuesDokument: vi.fn(),
+    waehleJahr: vi.fn(),
+    verfuegbareJahre: signal<number[]>([2026]),
+  };
+  const hiorg = {
+    eintraege: signal<readonly HiorgEintrag[]>([]),
+    zustand: signal<'ungeprueft' | 'geladen' | 'nicht-konfiguriert' | 'fehler'>('geladen'),
+    fehler: signal(''),
+    verworfen: signal(0),
+    laedt: signal(false),
+    lade: vi.fn(),
+  };
+  let ansicht: Jahresplan;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DialogDienst, useValue: dialog },
+        { provide: MatDialog, useValue: {} },
+        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: WorkbookService, useValue: workbook },
+        {
+          provide: FeiertagService,
+          useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
+        },
+        { provide: HiorgKalenderService, useValue: hiorg },
+      ],
+    });
+    hiorg.eintraege.set([]);
+    hiorg.zustand.set('geladen');
+    ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
+  });
+
+  function eintrag(zusatz: Partial<HiorgEintrag> & { beginn: string }): HiorgEintrag {
+    return {
+      ...HIORG_EINTRAG,
+      ende: zusatz.beginn,
+      schluessel: `s-${zusatz.beginn}-${zusatz.name}`,
+      ...zusatz,
+    };
+  }
+
+  it('zeigt vergangene Termine nicht an', () => {
+    hiorg.eintraege.set([eintrag({ beginn: '2000-01-01', ende: '2000-01-01', name: 'Alt' })]);
+
+    expect(ansicht.naechsteHiorgTermine()).toHaveLength(0);
+  });
+
+  it('zeigt laufende und künftige Termine, nach Beginn sortiert', () => {
+    hiorg.eintraege.set([
+      eintrag({ beginn: '2099-01-05', ende: '2099-01-05', name: 'Später' }),
+      eintrag({ beginn: '2099-01-01', ende: '2099-01-01', name: 'Früher' }),
+    ]);
+
+    expect(ansicht.naechsteHiorgTermine().map((e) => e.name)).toEqual(['Früher', 'Später']);
+  });
+
+  it('deckelt die Liste auf 20 Einträge', () => {
+    hiorg.eintraege.set(
+      Array.from({ length: 25 }, (_, i) =>
+        eintrag({ beginn: `2099-02-${String(i + 1).padStart(2, '0')}`, name: `Termin ${i}` }),
+      ),
+    );
+
+    expect(ansicht.naechsteHiorgTermine()).toHaveLength(20);
+  });
+});
