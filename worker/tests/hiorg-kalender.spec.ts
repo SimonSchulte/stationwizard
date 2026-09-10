@@ -242,8 +242,10 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     );
   });
 
-  it('verwirft die Antwort und protokolliert redigiert, wenn der Feed den geheimen Parameterwert spiegelt', async () => {
+  it('verwirft die Antwort und protokolliert, welcher Query-Wert in welchem Feld gespiegelt wurde', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // FEED_URL trägt "ov=testov&key=<GEHEIMER_PARAMETER>" – der gespiegelte Wert
+    // ist also der zweite Query-Wert (Index 2 in [URL, ov-Wert, key-Wert]).
     feed(rohEintrag({ verbez: `Ausbildung ${GEHEIMER_PARAMETER}` }));
 
     const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
@@ -252,7 +254,27 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
     expect(log).toHaveBeenCalledWith(
       'HIORG_KALENDER_ANTWORT_UNGUELTIG',
-      'Feed spiegelt die geheime Zugangsadresse',
+      "Query-Wert Nr. 2 im Feld 'verbez' von Eintrag 1 gespiegelt",
+    );
+    expect(log.mock.calls[0]?.join(' ')).not.toContain(GEHEIMER_PARAMETER);
+  });
+
+  it('erkennt den gespiegelten Wert auch im url-Feld eines späteren Eintrags', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    feed(
+      rohEintrag({ id: 1000001 }),
+      rohEintrag({
+        id: 1000002,
+        url: `https://www.hiorg-server.de/formulare.php?ri=${GEHEIMER_PARAMETER}`,
+      }),
+    );
+
+    const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    expect(antwort.status).toBe(502);
+    expect(log).toHaveBeenCalledWith(
+      'HIORG_KALENDER_ANTWORT_UNGUELTIG',
+      "Query-Wert Nr. 2 im Feld 'url' von Eintrag 2 gespiegelt",
     );
     expect(log.mock.calls[0]?.join(' ')).not.toContain(GEHEIMER_PARAMETER);
   });
