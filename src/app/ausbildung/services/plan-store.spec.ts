@@ -175,3 +175,70 @@ describe('Thema aus HiOrg übernehmen', () => {
     expect(store.terminNachId('t1')?.thema).toBe('Erste Ausbildung');
   });
 });
+
+describe('Mehrtägige Termine im Store', () => {
+  it('erhält die Dauer beim Verschieben auf ein anderes Datum', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [
+        {
+          ...leererTermin('2026-03-13'),
+          id: 't1',
+          datumBis: '2026-03-15',
+          thema: 'Erfundenes Wochenendseminar',
+        },
+      ],
+    });
+
+    store.verschiebeAufDatum('t1', '2026-04-10');
+
+    expect(store.terminNachId('t1')?.datum).toBe('2026-04-10');
+    expect(store.terminNachId('t1')?.datumBis).toBe('2026-04-12');
+  });
+
+  it('erhält die Dauer beim Datumstausch zweier Termine', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [
+        { ...leererTermin('2026-03-13'), id: 't1', datumBis: '2026-03-15', thema: 'Seminar' },
+        { ...leererTermin('2026-05-04'), id: 't2', thema: 'Dienstabend' },
+      ],
+    });
+
+    store.tauscheDatum('t1', 't2');
+
+    expect(store.terminNachId('t1')).toMatchObject({
+      datum: '2026-05-04',
+      datumBis: '2026-05-06',
+    });
+    expect(store.terminNachId('t2')).toMatchObject({ datum: '2026-03-13', datumBis: null });
+  });
+
+  it('lässt einen Termin ohne Datum auch ohne Enddatum ins Backlog wandern', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [{ ...leererTermin('2026-03-13'), id: 't1', datumBis: '2026-03-15' }],
+    });
+
+    store.zuBacklog('t1');
+
+    expect(store.backlog()[0]).toMatchObject({ datum: null, datumBis: null });
+  });
+
+  it('ergänzt keinen Diensttag, der schon in einem mehrtägigen Termin steckt', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [
+        { ...leererTermin('2026-03-08'), id: 't1', datumBis: '2026-03-10', thema: 'Lehrgang' },
+      ],
+    });
+
+    store.ergaenzeFehlendeDiensttage('Mo');
+
+    expect(store.termine().filter((t) => t.datum === '2026-03-09')).toHaveLength(0);
+  });
+});

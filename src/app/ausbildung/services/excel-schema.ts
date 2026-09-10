@@ -1,4 +1,4 @@
-import { NACHWEISE, NachweisKey } from '../models/plan.model';
+import { NACHWEISE, NachweisKey, Termin, TerminTyp } from '../models/plan.model';
 
 /**
  * Blattnamen, die beim Lesen erkannt werden.
@@ -37,10 +37,27 @@ export function jahrAusBlattname(name: string): number | null {
   return treffer ? Number(treffer[1]) : null;
 }
 
+/**
+ * Reihenfolge der Zeilen in der Mappe: nach Datum, innerhalb eines Tages nach
+ * Beginnzeit. Termine ohne Uhrzeit stehen hinter denen mit Uhrzeit – die leere
+ * Zeichenkette würde sie sonst an den Anfang des Tages ziehen. Lesen und
+ * Schreiben teilen sich diesen Vergleich, damit der Rundlauf stabil ist.
+ */
+export function vergleicheTermine(a: Termin, b: Termin): number {
+  return (
+    (a.datum ?? '').localeCompare(b.datum ?? '') ||
+    (a.beginnZeit || '99:99').localeCompare(b.beginnZeit || '99:99')
+  );
+}
+
 /** Feldnamen, auf die eine Spaltenüberschrift abgebildet wird. */
 export type SpaltenFeld =
   | 'datum'
+  | 'datumBis'
   | 'tag'
+  | 'beginnZeit'
+  | 'endeZeit'
+  | 'typ'
   | 'hinweis'
   | 'kategorie'
   | 'thema'
@@ -57,7 +74,11 @@ export type SpaltenFeld =
 
 export const SPALTEN_UEBERSCHRIFTEN: ReadonlyArray<{ feld: SpaltenFeld; text: string }> = [
   { feld: 'datum', text: 'Datum' },
+  { feld: 'datumBis', text: 'Datum bis' },
   { feld: 'tag', text: 'Tag' },
+  { feld: 'beginnZeit', text: 'Von' },
+  { feld: 'endeZeit', text: 'Bis' },
+  { feld: 'typ', text: 'Typ' },
   { feld: 'hinweis', text: 'Hinweis' },
   { feld: 'kategorie', text: 'Rolle' },
   { feld: 'thema', text: 'Thema' },
@@ -76,7 +97,11 @@ export const SPALTEN_UEBERSCHRIFTEN: ReadonlyArray<{ feld: SpaltenFeld; text: st
 /** Spaltenbreiten der geschriebenen Blätter (Reihenfolge wie oben). */
 export const SPALTEN_BREITEN: Readonly<Record<SpaltenFeld, number>> = {
   datum: 12,
+  datumBis: 12,
   tag: 6,
+  beginnZeit: 7,
+  endeZeit: 7,
+  typ: 10,
   hinweis: 24,
   kategorie: 10,
   thema: 52,
@@ -103,6 +128,12 @@ export function normHeader(wert: unknown): string {
 }
 
 const ZUSATZ_ALIASE: ReadonlyArray<{ feld: SpaltenFeld; muster: RegExp }> = [
+  // Vor `endeZeit`: „bisdatum" und „datumbis" sind ein Enddatum, das bloße
+  // „bis" dagegen eine Uhrzeit.
+  { feld: 'datumBis', muster: /^(datumbis|enddatum|bisdatum|letztertag)$/ },
+  { feld: 'beginnZeit', muster: /^(von|beginn|start|uhrzeit|beginnzeit)$/ },
+  { feld: 'endeZeit', muster: /^(bis|ende|endzeit|endezeit)$/ },
+  { feld: 'typ', muster: /^(typ|art|terminart)$/ },
   { feld: 'ausbilder', muster: /^ausbilder/ },
   { feld: 'kategorie', muster: /^(rolle|kategorie|fachgruppe|fachdienst)$/ },
   { feld: 'katsPflicht', muster: /^kats-a-planbezug/ },
@@ -148,6 +179,65 @@ export function istWahr(wert: unknown): boolean {
     return false;
   }
   return /^(x|ja|j|✓|✔|1|true|wahr)$/i.test(wert.trim());
+}
+
+/**
+ * Uhrzeit aus der Mappe: `18:30`, `18.30`, `1830` oder eine Excel-Zeit
+ * (Bruchteil eines Tages, wie ihn `raw: true` liefert). Ergebnis ist `HH:MM`
+ * oder `''` – nie eine erratene Zeit.
+ */
+export function leseZeit(wert: unknown): string {
+  if (wert === null || wert === undefined || wert === '') {
+    return '';
+  }
+  if (wert instanceof Date && !Number.isNaN(wert.getTime())) {
+    return `${zweistellig(wert.getHours())}:${zweistellig(wert.getMinutes())}`;
+  }
+  if (typeof wert === 'number' && Number.isFinite(wert)) {
+    // Excel führt Zeiten als Tagesbruchteil; ganze Zahlen sind dagegen als
+    // `1830` getippte Uhrzeiten.
+    if (wert > 0 && wert < 1) {
+      const minutenGesamt = Math.round(wert * 24 * 60);
+      return baueZeit(Math.floor(minutenGesamt / 60), minutenGesamt % 60);
+    }
+    return leseZeit(String(Math.round(wert)));
+  }
+  if (typeof wert !== 'string') {
+    return '';
+  }
+  const text = wert.trim();
+  const getrennt = /^(\d{1,2})[:.](\d{2})/.exec(text);
+  if (getrennt) {
+    return baueZeit(Number(getrennt[1]), Number(getrennt[2]));
+  }
+  const kompakt = /^(\d{1,2})(\d{2})$/.exec(text);
+  if (kompakt) {
+    return baueZeit(Number(kompakt[1]), Number(kompakt[2]));
+  }
+  const volleStunde = /^(\d{1,2})$/.exec(text);
+  return volleStunde ? baueZeit(Number(volleStunde[1]), 0) : '';
+}
+
+function baueZeit(stunden: number, minuten: number): string {
+  if (!Number.isInteger(stunden) || !Number.isInteger(minuten)) {
+    return '';
+  }
+  if (stunden < 0 || stunden > 23 || minuten < 0 || minuten > 59) {
+    return '';
+  }
+  return `${zweistellig(stunden)}:${zweistellig(minuten)}`;
+}
+
+function zweistellig(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/**
+ * Spalte „Typ". Leer bedeutet Dienst – das ist der Regelfall im Jahresplan
+ * und hält Altdateien ohne diese Spalte unverändert lesbar.
+ */
+export function leseTyp(wert: unknown): TerminTyp {
+  return /^(termin|veranstaltung|t)$/i.test(alsText(wert)) ? 'termin' : 'dienst';
 }
 
 export function alsText(wert: unknown): string {

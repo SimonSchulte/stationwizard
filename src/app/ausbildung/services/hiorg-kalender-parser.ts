@@ -1,4 +1,4 @@
-import { epochSekundenZuIsoDatum } from '../../kern/kalender/datum';
+import { epochSekundenZuIsoDatum, epochSekundenZuIsoZeit } from '../../kern/kalender/datum';
 import { dekodiereEntitaeten } from '../../kern/text/entitaeten';
 import type { HiorgArt, HiorgEintrag } from '../models/hiorg-kalender.model';
 
@@ -33,7 +33,12 @@ export function leseHiorgAntwort(rohdaten: unknown): HiorgParserErgebnis {
       verworfen += 1;
     }
   }
-  eintraege.sort((a, b) => a.beginn.localeCompare(b.beginn) || a.name.localeCompare(b.name));
+  eintraege.sort(
+    (a, b) =>
+      a.beginn.localeCompare(b.beginn) ||
+      a.beginnZeit.localeCompare(b.beginnZeit) ||
+      a.name.localeCompare(b.name),
+  );
   return { eintraege, verworfen };
 }
 
@@ -76,6 +81,12 @@ function leseEintrag(roh: unknown): HiorgEintrag | null {
   const rohEnde = typeof enddate === 'number' ? epochSekundenZuIsoDatum(enddate) : null;
   const ende = rohEnde && rohEnde > beginn ? rohEnde : beginn;
 
+  // Die Tageszeit steckt im selben Zeitstempel; sie geht bisher verloren,
+  // wird aber gebraucht, um mehrere Einträge eines Tages zu ordnen.
+  const beginnZeit = epochSekundenZuIsoZeit(sortdate) ?? '';
+  const endeZeit =
+    typeof enddate === 'number' && rohEnde ? (epochSekundenZuIsoZeit(enddate) ?? '') : '';
+
   const rohUrl = roh['url'];
   const url = typeof rohUrl === 'string' && rohUrl.startsWith('https://') ? rohUrl : null;
 
@@ -83,6 +94,8 @@ function leseEintrag(roh: unknown): HiorgEintrag | null {
     schluessel: `${String(id)}|${beginn}|${ende}|${url ?? name}`,
     beginn,
     ende,
+    beginnZeit,
+    endeZeit,
     name,
     art,
     url,

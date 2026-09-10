@@ -482,3 +482,47 @@ app-termin-karte {
     display: flex;
   }
 }
+
+/* Monatsnavigation der Plan-Kopfzeile: Pfeile, Monatsmenü und „heute". */
+.monats-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.monats-navigation .monat {
+  min-width: 8.5rem;
+}
+
+/* Ein Tag mit Terminen, an dem die Ausbildung fehlt – einmal je Tag, nicht je Karte. */
+.tag-zelle.luecke {
+  border: 1px solid var(--luecke-rand);
+  background: var(--luecke-bg);
+}
+
+/* Der heutige Tag bleibt auch im gefilterten Monat sofort auffindbar. */
+.tag-zelle.heute {
+  outline: 2px solid var(--ci-blue);
+  outline-offset: calc(-1 * var(--space-unit));
+}
+
+/* „+" an einem bereits belegten Tag: ruhig, bis der Tag berührt wird. */
+.weiterer-termin {
+  --mat-icon-button-state-layer-size: 22px;
+
+  align-self: flex-end;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+
+  mat-icon {
+    font-size: 16px;
+  }
+}
+
+.tag-zelle:hover .weiterer-termin,
+.weiterer-termin:focus-visible {
+  opacity: 0.75;
+}

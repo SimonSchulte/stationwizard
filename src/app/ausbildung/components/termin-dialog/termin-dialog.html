@@ -18,6 +18,20 @@
           (ngModelChange)="setze('datum', $event || entwurf().datum)"
         />
       </mat-form-field>
+      <mat-form-field appearance="outline" class="schmal">
+        <mat-label>Datum bis (mehrtägig)</mat-label>
+        <input
+          matInput
+          type="date"
+          [ngModel]="entwurf().datumBis"
+          (ngModelChange)="setzeDatumBis($event)"
+        />
+        @if (endeVorBeginn()) {
+          <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
+        } @else {
+          <mat-hint>Leer lassen für einen eintägigen Termin.</mat-hint>
+        }
+      </mat-form-field>
     }
     <mat-form-field appearance="outline" class="schmal">
       <mat-label>Rolle</mat-label>
@@ -31,6 +45,43 @@
     <mat-form-field appearance="outline" class="breit">
       <mat-label>Hinweis (Veranstaltung, Feiertag …)</mat-label>
       <input matInput [ngModel]="entwurf().hinweis" (ngModelChange)="setze('hinweis', $event)" />
+    </mat-form-field>
+  </div>
+
+  <div class="reihe">
+    <mat-button-toggle-group
+      class="typ-wahl"
+      aria-label="Art des Eintrags"
+      [value]="entwurf().typ"
+      (change)="setzeTyp($event.value)"
+    >
+      @for (typ of terminTypen; track typ) {
+        <mat-button-toggle [value]="typ">
+          <mat-icon>{{ typ === 'dienst' ? 'shield' : 'event' }}</mat-icon>
+          {{ typName(typ) }}
+        </mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+    <mat-form-field appearance="outline" class="schmal">
+      <mat-label>Von</mat-label>
+      <input
+        matInput
+        type="time"
+        [ngModel]="entwurf().beginnZeit"
+        (ngModelChange)="setze('beginnZeit', $event || '')"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="schmal">
+      <mat-label>Bis</mat-label>
+      <input
+        matInput
+        type="time"
+        [ngModel]="entwurf().endeZeit"
+        (ngModelChange)="setze('endeZeit', $event || '')"
+      />
+      @if (zeitVerdreht()) {
+        <mat-hint>Endet am Folgetag.</mat-hint>
+      }
     </mat-form-field>
   </div>
 
@@ -149,5 +200,5 @@
 
 <mat-dialog-actions align="end">
   <button matButton mat-dialog-close>Abbrechen</button>
-  <button matButton="filled" (click)="speichern()">Übernehmen</button>
+  <button matButton="filled" [disabled]="!kannSpeichern()" (click)="speichern()">Übernehmen</button>
 </mat-dialog-actions>

@@ -1,7 +1,7 @@
 import { jahrVon, tageVonBis } from '../../kern/kalender/datum';
 import { dekodiereEntitaeten } from '../../kern/text/entitaeten';
 import type { HiorgEintrag } from '../models/hiorg-kalender.model';
-import type { Termin } from '../models/plan.model';
+import { type Termin, terminTage } from '../models/plan.model';
 
 /** Ein Plantermin, dessen Thema nicht exakt zum HiOrg-Eintrag desselben Tages passt. */
 export interface HiorgAbweichung {
@@ -119,11 +119,15 @@ function indexiereThemen(termine: readonly Termin[]): Map<string, ThemaBezug[]> 
       text: termin.thema,
       normalisiert: normalisiereName(termin.thema),
     };
-    const vorhanden = nachDatum.get(termin.datum);
-    if (vorhanden) {
-      vorhanden.push(bezug);
-    } else {
-      nachDatum.set(termin.datum, [bezug]);
+    // Das Thema eines mehrtägigen Termins gilt an jedem seiner Tage – sonst
+    // meldete der Abgleich am zweiten Lehrgangstag eine Lücke.
+    for (const tag of terminTage(termin)) {
+      const vorhanden = nachDatum.get(tag);
+      if (vorhanden) {
+        vorhanden.push(bezug);
+      } else {
+        nachDatum.set(tag, [bezug]);
+      }
     }
   }
   return nachDatum;

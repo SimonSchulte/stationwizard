@@ -216,3 +216,44 @@ export function tageVonBis(von: string, bis: string, maxTage = 60): string[] {
   }
   return tage;
 }
+
+/**
+ * Die lokale Uhrzeit in Europe/Berlin. Wie beim Kalendertag bewusst nicht über
+ * UTC gerechnet: der HiOrg-Feed nennt Zeitpunkte in Ortszeit, und genau die
+ * soll im Plan stehen. `hourCycle: 'h23'` verhindert „24:00" um Mitternacht.
+ */
+const UHRZEIT_FORMATIERER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Berlin',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** Unix-Sekunden → lokale Uhrzeit (Europe/Berlin) als `HH:MM`. */
+export function epochSekundenZuIsoZeit(sekunden: number): string | null {
+  if (!Number.isFinite(sekunden) || sekunden <= 0) {
+    return null;
+  }
+  const zeitpunkt = new Date(sekunden * 1000);
+  if (Number.isNaN(zeitpunkt.getTime())) {
+    return null;
+  }
+  const zeit = UHRZEIT_FORMATIERER.format(zeitpunkt);
+  return /^\d{2}:\d{2}$/.test(zeit) ? zeit : null;
+}
+
+/** `HH:MM` als Minuten seit Mitternacht – für Sortierung und Vergleiche. */
+export function zeitAlsMinuten(zeit: string): number | null {
+  const treffer = /^(\d{1,2}):(\d{2})$/.exec(zeit.trim());
+  if (!treffer) {
+    return null;
+  }
+  const stunden = Number(treffer[1]);
+  const minuten = Number(treffer[2]);
+  return stunden < 24 && minuten < 60 ? stunden * 60 + minuten : null;
+}
+
+/** Anzahl Tage von `von` bis `bis` (gleicher Tag = 0, kann negativ sein). */
+export function tageZwischen(von: string, bis: string): number {
+  return Math.round((utcMs(bis) - utcMs(von)) / TAG_MS);
+}

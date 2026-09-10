@@ -129,3 +129,55 @@ describe('baueWochenraster', () => {
     expect(ersteZeile.luecken).toBe(0);
   });
 });
+
+describe('Mehrtägige Termine und mehrere Termine je Tag', () => {
+  it('stellt einen mehrtägigen Termin an jedem Tag mit passendem Segment dar', () => {
+    const wochen = baueWochenraster(
+      2026,
+      [termin('2026-03-13', { datumBis: '2026-03-15', thema: 'Erfundenes Wochenendseminar' })],
+      new Map(),
+      'Mo',
+    );
+    const slots = alleSlots(wochen);
+    const belegt = slots.filter((s) => s.termine.length > 0);
+
+    expect(belegt.map((s) => s.datum)).toEqual(['2026-03-13', '2026-03-14', '2026-03-15']);
+    expect(belegt.map((s) => s.termine[0].segment)).toEqual(['beginn', 'mitte', 'ende']);
+    // Ein einziger Termin, nicht drei Kopien.
+    expect(new Set(belegt.map((s) => s.termine[0].termin.id)).size).toBe(1);
+  });
+
+  it('macht einen Diensttag innerhalb eines mehrtägigen Termins nicht zur Lücke', () => {
+    const wochen = baueWochenraster(
+      2026,
+      [termin('2026-03-08', { datumBis: '2026-03-10', thema: 'Erfundener Lehrgang' })],
+      new Map(),
+      'Mo',
+    );
+    const montag = alleSlots(wochen).find((s) => s.datum === '2026-03-09');
+
+    expect(montag?.istDiensttag).toBe(true);
+    expect(montag?.luecke).toBe(false);
+  });
+
+  it('ordnet mehrere Termine eines Tages nach Beginnzeit, Termine ohne Uhrzeit zuletzt', () => {
+    const wochen = baueWochenraster(
+      2026,
+      [
+        termin('2026-03-02', { thema: 'Ohne Uhrzeit' }),
+        termin('2026-03-02', { thema: 'Dienstabend', beginnZeit: '19:30' }),
+        termin('2026-03-02', { thema: 'Rookies', beginnZeit: '18:00' }),
+      ],
+      new Map(),
+      'Mo',
+    );
+    const tag = alleSlots(wochen).find((s) => s.datum === '2026-03-02');
+
+    expect(tag?.termine.map((e) => e.termin.thema)).toEqual([
+      'Rookies',
+      'Dienstabend',
+      'Ohne Uhrzeit',
+    ]);
+    expect(tag?.termine.every((e) => e.segment === 'einzeln')).toBe(true);
+  });
+});

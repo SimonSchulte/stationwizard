@@ -6,9 +6,10 @@ import {
   leererTermin,
   leeresDocument,
   neueId,
+  terminTage,
 } from '../models/plan.model';
 import { STANDARD_DIENSTTAG } from '../../kern/kalender/wochentage';
-import { Wochentag, wochentageImJahr } from '../../kern/kalender/datum';
+import { Wochentag, tageZwischen, versetzeTage, wochentageImJahr } from '../../kern/kalender/datum';
 import { VerlassenSchutz } from '../../kern/verlassen-schutz';
 
 const MAX_HISTORIE = 100;
@@ -99,7 +100,9 @@ export class PlanStore {
    * ist konfigurierbar (Standard Montag), nicht jede Einheit tagt montags.
    */
   ergaenzeFehlendeDiensttage(diensttag: Wochentag = STANDARD_DIENSTTAG): number {
-    const belegt = new Set(this.termine().map((t) => t.datum));
+    // Auch die Zwischentage mehrtägiger Termine gelten als belegt – sonst
+    // entstünde mitten in einem Lehrgang eine leere Zeile.
+    const belegt = new Set(this.termine().flatMap((t) => terminTage(t)));
     const fehlend = wochentageImJahr(this.jahr(), diensttag).filter((datum) => !belegt.has(datum));
     if (!fehlend.length) {
       return 0;
@@ -115,7 +118,7 @@ export class PlanStore {
   verschiebeAufDatum(id: string, datum: string): void {
     this.mutiere((d) => ({
       ...d,
-      termine: d.termine.map((t) => (t.id === id ? { ...t, datum } : t)),
+      termine: d.termine.map((t) => (t.id === id ? mitDatum(t, datum) : t)),
     }));
   }
 
@@ -147,7 +150,7 @@ export class PlanStore {
       return {
         ...d,
         termine: d.termine.map((t) =>
-          t.id === idA ? { ...t, datum: b.datum } : t.id === idB ? { ...t, datum: a.datum } : t,
+          t.id === idA ? mitDatum(t, b.datum) : t.id === idB ? mitDatum(t, a.datum) : t,
         ),
       };
     });
@@ -163,7 +166,7 @@ export class PlanStore {
       return {
         ...d,
         termine: d.termine.filter((t) => t.id !== id),
-        backlog: [{ ...termin, datum: null }, ...d.backlog],
+        backlog: [{ ...termin, datum: null, datumBis: null }, ...d.backlog],
       };
     });
   }
@@ -184,13 +187,14 @@ export class PlanStore {
       const uebernahme = {
         ...idee,
         datum: ziel.datum,
+        datumBis: null,
         hinweis: zielFrei ? ziel.hinweis || idee.hinweis : idee.hinweis,
       };
       return {
         ...d,
         termine: d.termine.map((t) => (t.id === zielId ? uebernahme : t)),
         backlog: [
-          ...(zielFrei ? [] : [{ ...ziel, datum: null }]),
+          ...(zielFrei ? [] : [{ ...ziel, datum: null, datumBis: null }]),
           ...d.backlog.filter((t) => t.id !== ideeId),
         ],
       };
@@ -206,14 +210,14 @@ export class PlanStore {
       }
       return {
         ...d,
-        termine: [...d.termine, { ...idee, datum }],
+        termine: [...d.termine, { ...idee, datum, datumBis: null }],
         backlog: d.backlog.filter((t) => t.id !== ideeId),
       };
     });
   }
 
   neueIdee(vorlage: Partial<Termin> = {}): string {
-    const idee = { ...leererTermin(null), ...vorlage, id: neueId(), datum: null };
+    const idee = { ...leererTermin(null), ...vorlage, id: neueId(), datum: null, datumBis: null };
     this.mutiere((d) => ({ ...d, backlog: [idee, ...d.backlog] }));
     return idee.id;
   }
@@ -344,4 +348,16 @@ export class PlanStore {
     this.zustand.set(nachher);
     this.ungespeichert.set(true);
   }
+}
+
+/**
+ * Setzt ein neues Datum und verschiebt ein vorhandenes Enddatum um dieselbe
+ * Anzahl Tage – ein dreitägiger Lehrgang bleibt beim Verschieben dreitägig.
+ */
+function mitDatum(termin: Termin, datum: string | null): Termin {
+  if (!datum || !termin.datum || !termin.datumBis) {
+    return { ...termin, datum, datumBis: datum ? termin.datumBis : null };
+  }
+  const dauer = tageZwischen(termin.datum, termin.datumBis);
+  return { ...termin, datum, datumBis: versetzeTage(datum, dauer) };
 }

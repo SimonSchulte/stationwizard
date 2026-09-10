@@ -1,10 +1,13 @@
 <div class="rolle-streifen" [style.background]="farbe()" aria-hidden="true"></div>
 
 <div class="kopf">
+  <mat-icon inline class="typ-symbol" [matTooltip]="typText()" [attr.aria-label]="typText()">{{
+    typSymbol()
+  }}</mat-icon>
   @if (!kompakt() && termin().datum) {
     <div class="datum">
       <span class="tag">{{ tagText() }}</span>
-      <span class="tagdatum">{{ datumText() }}</span>
+      <span class="tagdatum">{{ zeitraumText() }}</span>
     </div>
   }
   @if (termin().kategorie) {
@@ -19,6 +22,12 @@
       <span class="feiertag-marke"> <mat-icon inline>flag</mat-icon>{{ feiertag() }} </span>
     }
   }
+  @if (zeitText()) {
+    <span class="zeit" [matTooltip]="'Uhrzeit: ' + zeitText()">{{ zeitText() }}</span>
+  }
+  @if (tagesFortschritt()) {
+    <span class="fortschritt" [matTooltip]="zeitraumText()">{{ tagesFortschritt() }}</span>
+  }
   @if (termin().hinweis) {
     @if (kompakt()) {
       <mat-icon inline class="hinweis-symbol" [matTooltip]="termin().hinweis">event_note</mat-icon>
@@ -29,19 +38,26 @@
     }
   }
   <span class="fueller"></span>
-  <button
-    matIconButton
-    class="menue-knopf"
-    [matMenuTriggerFor]="menue"
-    aria-label="Aktionen für diesen Eintrag"
-    (click)="$event.stopPropagation()"
-  >
-    <mat-icon>more_vert</mat-icon>
-  </button>
+  <!-- Fortsetzungen im Raster tragen kein eigenes Menü: bearbeitet wird der Termin an seinem Beginn. -->
+  @if (!istFortsetzung() || !kompakt()) {
+    <button
+      matIconButton
+      class="menue-knopf"
+      [matMenuTriggerFor]="menue"
+      aria-label="Aktionen für diesen Eintrag"
+      (click)="$event.stopPropagation()"
+    >
+      <mat-icon>more_vert</mat-icon>
+    </button>
+  }
 </div>
 
 <div class="titel">
-  @if (luecke()) {
+  @if (istFortsetzung()) {
+    <span class="fortsetzung-text" [matTooltip]="termin().thema || zeitraumText()">
+      {{ kompakt() ? '' : termin().thema }}
+    </span>
+  } @else if (luecke()) {
     <span class="luecke-text" [matTooltip]="kompakt() ? 'Ausbildung fehlt' : ''">
       <mat-icon inline>error_outline</mat-icon>{{ kompakt() ? 'fehlt' : 'Ausbildung fehlt' }}
     </span>

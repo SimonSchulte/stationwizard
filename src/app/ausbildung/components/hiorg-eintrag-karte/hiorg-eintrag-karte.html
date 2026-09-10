@@ -4,6 +4,12 @@
     HiOrg
   </span>
 
+  @if (zeitText()) {
+    <span class="zeit-marke" [matTooltip]="'Uhrzeit laut HiOrg: ' + zeitText()">
+      {{ zeitText() }}
+    </span>
+  }
+
   @if (tagesFortschritt()) {
     <span class="tag-marke" [matTooltip]="'Mehrtägig: ' + zeitraumText()">
       {{ tagesFortschritt() }}
@@ -91,7 +97,7 @@
 
 <mat-menu #menue="matMenu">
   <div class="menue-kopf" (click)="$event.stopPropagation()">
-    {{ artText() }} · {{ zeitraumText() }}
+    {{ artText() }} · {{ zeitraumText() }}{{ zeitText() ? ' · ' + zeitText() : '' }}
   </div>
 
   @for (abweichung of abweichungen(); track abweichung.terminId) {

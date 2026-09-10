@@ -275,13 +275,124 @@ describe('schreibeArbeitsmappe', () => {
     const kopf = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['Offene Ideen'], {
       header: 1,
     })[0];
-    expect(kopf.slice(0, 6)).toEqual([
-      'Hinweis',
-      'Rolle',
-      'Thema',
-      'Ausbilder/Verantw.',
-      'KatS-A-plan Bezug',
-      'KatS-A-plan Nr.',
+    // Ideen haben kein Datum und damit weder Tag noch Enddatum; Uhrzeit und Typ
+    // pflegen sie dagegen schon vor der Einplanung.
+    expect(kopf.slice(0, 6)).toEqual(['Von', 'Bis', 'Typ', 'Hinweis', 'Rolle', 'Thema']);
+  });
+});
+
+/**
+ * Mappe im neuen Zuschnitt: Enddatum, Uhrzeiten und Typ als eigene Spalten,
+ * zwei Termine an einem Tag und ein unbrauchbares Enddatum.
+ */
+function mappeMitZeitraeumen(): ArrayBuffer {
+  const plan = XLSX.utils.aoa_to_sheet([
+    ['Jahresplan 2026'],
+    [],
+    ['Datum', 'Datum bis', 'Tag', 'Von', 'Bis', 'Typ', 'Hinweis', 'Rolle', 'Thema'],
+    [
+      isoZuSerial('2026-03-02'),
+      null,
+      'Mo',
+      '19:30',
+      '21:30',
+      'Dienst',
+      '',
+      'SAN',
+      'Erfundener Dienstabend',
+    ],
+    [
+      isoZuSerial('2026-03-02'),
+      null,
+      'Mo',
+      '18:00',
+      '19:15',
+      'Termin',
+      '',
+      '',
+      'Erfundener Rookies-Termin',
+    ],
+    [
+      isoZuSerial('2026-03-13'),
+      isoZuSerial('2026-03-15'),
+      'Fr',
+      '17:00',
+      '',
+      'Termin',
+      '',
+      'UF',
+      'Erfundenes Wochenendseminar',
+    ],
+    [
+      isoZuSerial('2026-04-20'),
+      isoZuSerial('2026-04-13'),
+      'Mo',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'Erfundener Termin mit verdrehtem Ende',
+    ],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, plan, '2026');
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
+}
+
+describe('Zeiträume, Uhrzeiten und Typ', () => {
+  it('liest Enddatum, Uhrzeiten und Typ und sortiert einen Tag nach Beginnzeit', () => {
+    const { arbeitsmappe } = leseArbeitsmappe(mappeMitZeitraeumen());
+    const termine = jahresblatt(arbeitsmappe, 2026).termine;
+
+    const tag = termine.filter((t) => t.datum === '2026-03-02');
+    expect(tag.map((t) => t.thema)).toEqual([
+      'Erfundener Rookies-Termin',
+      'Erfundener Dienstabend',
     ]);
+    expect(tag[0].beginnZeit).toBe('18:00');
+    expect(tag[0].typ).toBe('termin');
+    expect(tag[1].typ).toBe('dienst');
+
+    const seminar = termine.find((t) => t.datum === '2026-03-13');
+    expect(seminar?.datumBis).toBe('2026-03-15');
+    expect(seminar?.beginnZeit).toBe('17:00');
+    expect(seminar?.endeZeit).toBe('');
+  });
+
+  it('verwirft ein Enddatum vor dem Datum und meldet es', () => {
+    const { arbeitsmappe, meldungen } = leseArbeitsmappe(mappeMitZeitraeumen());
+    const verdreht = jahresblatt(arbeitsmappe, 2026).termine.find((t) => t.datum === '2026-04-20');
+
+    expect(verdreht?.datumBis).toBeNull();
+    expect(meldungen.some((m) => m.includes('Datum bis'))).toBe(true);
+  });
+
+  it('behält Zeitraum, Uhrzeit und Typ über einen Schreib-/Lese-Rundlauf', () => {
+    const original = leseArbeitsmappe(mappeMitZeitraeumen()).arbeitsmappe;
+    const zurueck = leseArbeitsmappe(schreibeArbeitsmappe(original)).arbeitsmappe;
+
+    const seminar = jahresblatt(zurueck, 2026).termine.find(
+      (t) => t.thema === 'Erfundenes Wochenendseminar',
+    );
+    expect(seminar).toMatchObject({
+      datum: '2026-03-13',
+      datumBis: '2026-03-15',
+      beginnZeit: '17:00',
+      typ: 'termin',
+    });
+    expect(
+      jahresblatt(zurueck, 2026).termine.find((t) => t.thema === 'Erfundener Dienstabend')?.typ,
+    ).toBe('dienst');
+  });
+
+  it('liest eine Mappe ohne die neuen Spalten unverändert als eintägige Dienste', () => {
+    const { arbeitsmappe } = leseArbeitsmappe(beispielMappe());
+    const termine = jahresblatt(arbeitsmappe, 2026).termine;
+
+    expect(termine.length).toBeGreaterThan(0);
+    expect(termine.every((t) => t.datumBis === null)).toBe(true);
+    expect(termine.every((t) => t.typ === 'dienst')).toBe(true);
+    expect(termine.every((t) => t.beginnZeit === '' && t.endeZeit === '')).toBe(true);
   });
 });

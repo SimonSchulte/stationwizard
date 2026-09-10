@@ -9,6 +9,8 @@ function eintrag(zusatz: Partial<HiorgEintrag> = {}): HiorgEintrag {
     schluessel: `test|${beginn}|${zusatz.name ?? 'x'}`,
     beginn,
     ende: zusatz.ende ?? beginn,
+    beginnZeit: '',
+    endeZeit: '',
     name: 'Erfundene Ausbildung Verpflegung',
     art: 'termin',
     url: null,

@@ -3,7 +3,15 @@
  * `PlanDocument`: der Feed ist eine reine Anzeige- und Abgleichquelle, die
  * Excel-Arbeitsmappe bleibt das führende Ausbildungsformat.
  */
-export type HiorgArt = 'termin' | 'dienst';
+
+import { type TerminTyp, typName } from './plan.model';
+
+/**
+ * Der Feed nennt das Feld `typ`; im Plan heißt dieselbe Unterscheidung
+ * `TerminTyp`. Ein Alias statt eines zweiten Wertebereichs, damit übernommene
+ * Einträge ihre Einordnung ohne Umrechnung behalten.
+ */
+export type HiorgArt = TerminTyp;
 
 export interface HiorgEintrag {
   /**
@@ -16,6 +24,9 @@ export interface HiorgEintrag {
   readonly beginn: string;
   /** Letzter Kalendertag einschließlich; gleich `beginn` bei eintägigen Terminen. */
   readonly ende: string;
+  /** Ortszeit `HH:MM` des Beginns, leer wenn der Feed keine brauchbare Zeit nennt. */
+  readonly beginnZeit: string;
+  readonly endeZeit: string;
   /** Angezeigte Bezeichnung, entitätenfrei und getrimmt. */
   readonly name: string;
   readonly art: HiorgArt;
@@ -28,5 +39,5 @@ export function istMehrtaegig(eintrag: HiorgEintrag): boolean {
 }
 
 export function artName(art: HiorgArt): string {
-  return art === 'dienst' ? 'Dienst' : 'Termin';
+  return typName(art);
 }
