@@ -47,10 +47,11 @@ export function artName(art: HiorgArt): string {
 /**
  * Direktlink auf die Detailseite dieses Eintrags im HiOrg-Server – anders als
  * `url` (Feed-Feld, kann fehlen oder auf ein Formular statt die Detailseite
- * zeigen) fest aus `art` und `id` gebaut.
+ * zeigen) fest aus `art` und `id` gebaut. `ov=biel` ist bei beiden Formularen
+ * Pflichtparameter des HiOrg-Servers.
  */
 export function hiorgServerLink(eintrag: HiorgEintrag): string {
   return eintrag.art === 'termin'
-    ? `https://www.hiorg-server.de/termin.php?id=${eintrag.id}`
-    : `https://www.hiorg-server.de/dienstform.php?action=show_existing&id=${eintrag.id}`;
+    ? `https://www.hiorg-server.de/termin.php?ov=biel&id=${eintrag.id}`
+    : `https://www.hiorg-server.de/dienstform.php?action=show_existing&ov=biel&id=${eintrag.id}`;
 }

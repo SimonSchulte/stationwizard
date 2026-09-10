@@ -269,8 +269,9 @@ stattgefunden.
 Der Öffnen-Link einer HiOrg-Karte und die Verknüpfungsmarke am Plantermin nutzten bisher
 die vom Feed gelieferte `url` (führt teils auf `formulare.php` statt auf die Detailseite).
 `hiorgServerLink()` in `hiorg-kalender.model.ts` baut jetzt aus `art` und `id` fest
-`https://www.hiorg-server.de/termin.php?id=<id>` (Typ `termin`) beziehungsweise
-`https://www.hiorg-server.de/dienstform.php?action=show_existing&id=<id>` (Typ `dienst`).
+`https://www.hiorg-server.de/termin.php?ov=biel&id=<id>` (Typ `termin`) beziehungsweise
+`https://www.hiorg-server.de/dienstform.php?action=show_existing&ov=biel&id=<id>`
+(Typ `dienst`); `ov=biel` ist bei beiden Formularen Pflichtparameter des HiOrg-Servers.
 Die `id` kommt jetzt zusätzlich zum bestehenden `url`-Feld aus dem Parser. Der
 Kartenkontextmenüpunkt „In HiOrg öffnen" (`app-hiorg-eintrag-karte`) und der
 Verknüpfungs-Kopf sowie ein neuer Kontextmenüpunkt „Im HiOrg-Server öffnen" bei
