@@ -5,29 +5,17 @@
     typSymbol()
   }}</mat-icon>
   @if (hiorgEintrag(); as hiorg) {
-    @if (hiorg.url) {
-      <a
-        class="hiorg-link-symbol"
-        [href]="hiorg.url"
-        target="_blank"
-        rel="noopener noreferrer"
-        [matTooltip]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“ – im HiOrg-Server öffnen'"
-        [attr.aria-label]="
-          'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“ – im HiOrg-Server öffnen'
-        "
-        (click)="$event.stopPropagation()"
-      >
-        <mat-icon inline>link</mat-icon>
-      </a>
-    } @else {
-      <mat-icon
-        inline
-        class="hiorg-link-symbol"
-        [matTooltip]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“'"
-        [attr.aria-label]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“'"
-        >link</mat-icon
-      >
-    }
+    <a
+      class="hiorg-link-symbol"
+      [href]="hiorgLink()"
+      target="_blank"
+      rel="noopener noreferrer"
+      [matTooltip]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“ – im HiOrg-Server öffnen'"
+      [attr.aria-label]="'Verknüpft mit HiOrg-Termin „' + hiorg.name + '“ – im HiOrg-Server öffnen'"
+      (click)="$event.stopPropagation()"
+    >
+      <mat-icon inline>link</mat-icon>
+    </a>
   }
   @if (!kompakt() && termin().datum) {
     <div class="datum">
@@ -139,6 +127,12 @@
     <mat-icon>edit</mat-icon>
     <span>Bearbeiten</span>
   </button>
+  @if (hiorgLink(); as hiorgLinkUrl) {
+    <a mat-menu-item [href]="hiorgLinkUrl" target="_blank" rel="noopener noreferrer">
+      <mat-icon>open_in_new</mat-icon>
+      <span>Im HiOrg-Server öffnen</span>
+    </a>
+  }
   <button mat-menu-item (click)="verschieben.emit()">
     <mat-icon>{{ termin().datum ? 'inbox' : 'event_available' }}</mat-icon>
     <span>{{ termin().datum ? 'In die offenen Ideen' : 'Datum zuweisen' }}</span>

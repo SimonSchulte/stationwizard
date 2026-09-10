@@ -14,6 +14,7 @@ function eintrag(zusatz: Partial<HiorgEintrag> = {}): HiorgEintrag {
     name: 'Erfundene Ausbildung Verpflegung',
     art: 'termin',
     url: null,
+    id: 'test-id',
     ...zusatz,
   };
 }

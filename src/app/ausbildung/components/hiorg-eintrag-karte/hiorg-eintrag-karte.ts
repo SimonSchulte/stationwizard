@@ -4,7 +4,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { formatiereDatum, tageVonBis } from '../../../kern/kalender/datum';
-import { artName, istMehrtaegig, type HiorgEintrag } from '../../models/hiorg-kalender.model';
+import {
+  artName,
+  hiorgServerLink,
+  istMehrtaegig,
+  type HiorgEintrag,
+} from '../../models/hiorg-kalender.model';
 import type { HiorgAbweichung } from '../../services/hiorg-abgleich';
 
 /**
@@ -40,6 +45,8 @@ export class HiorgEintragKarte {
 
   readonly artText = computed(() => artName(this.eintrag().art));
   readonly mehrtaegig = computed(() => istMehrtaegig(this.eintrag()));
+  /** Direktlink auf die Detailseite im HiOrg-Server, passend zu `art` (Termin/Dienst). */
+  readonly link = computed(() => hiorgServerLink(this.eintrag()));
 
   /** „Tag 2/4" – nur bei mehrtägigen Terminen. */
   readonly tagesFortschritt = computed(() => {
