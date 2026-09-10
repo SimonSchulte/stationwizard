@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -27,7 +26,6 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
       providers: [
         provideRouter(routes),
         provideHttpClient(),
-        provideNoopAnimations(),
         { provide: LOCALE_ID, useValue: 'de-DE' },
       ],
     });
