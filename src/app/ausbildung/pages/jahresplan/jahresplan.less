@@ -32,31 +32,44 @@
   font-variant-numeric: tabular-nums;
 }
 
-.quelle {
+/* Quelle und HiOrg-Status teilen sich dieselbe Chip-Anmutung wie `.jahr`, damit sie
+   sich klar vom Rest der Kopfleiste abgrenzen. Ein verbundener Zustand hebt sich
+   zusätzlich in Grün ab, statt nur im neutralen Fließtextgrau unterzugehen. */
+.quelle,
+.hiorg-status {
   display: inline-flex;
   align-items: center;
   gap: var(--space-compact);
   max-width: 280px;
+  padding: var(--space-2xs) var(--space-sm);
   overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
   color: var(--text-secondary);
   font-size: 0.75rem;
   white-space: nowrap;
   text-overflow: ellipsis;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+
+  &.verbunden {
+    border-color: var(--status-ok);
+    background: color-mix(in srgb, var(--status-ok) 10%, var(--surface-primary));
+    color: var(--status-ok);
+
+    mat-icon {
+      color: var(--status-ok);
+    }
+  }
 }
 
 .ungespeichert {
   color: var(--status-warn);
   font-size: 1.5rem;
   line-height: 0;
-}
-
-/* Verbindungsstatus zum HiOrg-Kalenderfeed – deutlich in der Kopfleiste statt nur im Menü. */
-.hiorg-status {
-  flex: 0 0 auto;
-  gap: var(--space-compact);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  white-space: nowrap;
 }
 
 .fueller {
@@ -93,12 +106,6 @@
   padding: var(--space-sm) var(--space-lg);
   border-bottom: 1px solid var(--border-light);
   background: var(--surface-primary);
-
-  h2 {
-    margin: 0 var(--space-sm) 0 0;
-    font-size: 0.9375rem;
-    font-weight: 500;
-  }
 }
 
 .diensttags-marke {
@@ -309,12 +316,38 @@ app-termin-karte {
 // ------------------------------------------------------------------ Seitenleiste
 
 .seitenleiste {
+  position: relative;
   display: flex;
   flex: 0 0 clamp(340px, 32vw, 480px);
   flex-direction: column;
   min-height: 0;
   border-left: 1px solid var(--border-light);
   background: var(--surface-primary);
+  transition: flex-basis 160ms ease;
+
+  /* Eingeklappt bleibt nur ein schmaler Rand mit dem Ausklapp-Knopf übrig – gibt dem
+     Wochenraster bei schmalerer Fensterbreite Platz, ohne die Ideensammlung zu verlieren. */
+  &.eingeklappt {
+    flex-basis: 40px;
+
+    .reiter {
+      display: none;
+    }
+  }
+}
+
+/* Sitzt auf der Trennlinie zur Planfläche – wie ein Splitter-Griff statt über der
+   Reiterleiste, damit er nie ein Tab-Label überlagert. */
+.seitenleiste-umschalter {
+  position: absolute;
+  top: 50%;
+  left: calc(-1 * var(--space-md));
+  z-index: 4;
+  border: 1px solid var(--border-light);
+  border-radius: 50%;
+  background: var(--surface-primary);
+  box-shadow: var(--elevation-1);
+  transform: translateY(-50%);
 }
 
 .reiter {
@@ -433,10 +466,6 @@ app-termin-karte {
   .plan-kopf {
     flex-wrap: wrap;
     row-gap: var(--space-xs);
-
-    h2 {
-      flex: 1 1 100%;
-    }
   }
 
   .plan-suche {
@@ -453,10 +482,26 @@ app-termin-karte {
   }
 
   .seitenleiste {
+    // Auf schmalen Displays wechseln Plan und Seitenleiste komplett über die
+    // Mobil-Navigation statt über das Einklappen – das bleibt Desktop/Tablet
+    // vorbehalten, sonst überlagern sich zwei Mechanismen für dasselbe Problem.
     flex: 1 1 auto;
     width: 100%;
     max-width: none;
     border-left: 0;
+
+    &.eingeklappt {
+      flex-basis: auto;
+      overflow: visible;
+
+      .reiter {
+        display: flex;
+      }
+    }
+  }
+
+  .seitenleiste-umschalter {
+    display: none;
   }
 
   .mobil-nav {
