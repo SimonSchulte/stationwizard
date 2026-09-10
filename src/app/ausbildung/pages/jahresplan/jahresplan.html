@@ -145,6 +145,17 @@
       <mat-icon>cloud_sync</mat-icon>
       <span>HiOrg-Termine neu laden</span>
     </button>
+    @if (entwicklungsmodus) {
+      <button
+        mat-menu-item
+        [disabled]="hiorg.laedt()"
+        matTooltip="Nur im Entwicklungsbuild: lädt eine anonymisierte Testantwort statt des echten Feeds"
+        (click)="hiorgTestdatenLaden()"
+      >
+        <mat-icon>bug_report</mat-icon>
+        <span>HiOrg-Testdaten laden (Entwicklung)</span>
+      </button>
+    }
     <div class="menue-fuss" (click)="$event.stopPropagation()">
       @switch (hiorg.zustand()) {
         @case ('geladen') {

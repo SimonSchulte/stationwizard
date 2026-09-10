@@ -6,6 +6,14 @@ import { leseHiorgAntwort } from './hiorg-kalender-parser';
 export type HiorgZustand = 'ungeprueft' | 'geladen' | 'nicht-konfiguriert' | 'fehler';
 
 /**
+ * Anonymisierter Mitschnitt einer echten HiOrg-Server-Antwort für die manuelle
+ * Sichtprüfung im Browser (z. B. Textumbruch/Ellipsen im Wochenraster). Liegt
+ * unter `public/`, damit sie ganz ohne Worker-Konfiguration abrufbar ist; die
+ * Route ist bewusst kein Teil der geschützten `/api/*`-Oberfläche.
+ */
+const TESTDATEN_PFAD = 'testdaten/hiorg-kalender-mock.json';
+
+/**
  * Die HiOrg-Termine des Verbands, gelesen über den Worker.
  *
  * Der Feed ist eine reine Anzeige- und Abgleichquelle: er wird **nicht**
@@ -34,6 +42,35 @@ export class HiorgKalenderService {
       this.laufend = null;
     });
     return this.laufend;
+  }
+
+  /**
+   * Lädt die anonymisierte Testantwort statt des echten Feeds – nur für die
+   * manuelle Sichtprüfung im Browser, nicht für automatisierte Tests (dort
+   * entstehen Testdaten laut Konvention direkt im Test).
+   */
+  async ladeTestdaten(): Promise<void> {
+    this.laedt.set(true);
+    try {
+      const antwort = await fetch(TESTDATEN_PFAD);
+      if (!antwort.ok) {
+        throw new Error(`Testdaten nicht abrufbar (${antwort.status})`);
+      }
+      const rohdaten = (await antwort.json()) as { success?: boolean; data?: unknown };
+      const huelle = { status: 'OK', eintraege: rohdaten.data };
+      const { eintraege, verworfen } = leseHiorgAntwort(huelle);
+      this.eintraege.set(eintraege);
+      this.verworfen.set(verworfen);
+      this.zustand.set('geladen');
+      this.fehler.set('');
+    } catch (ursache) {
+      this.eintraege.set([]);
+      this.verworfen.set(0);
+      this.zustand.set('fehler');
+      this.fehler.set(ursache instanceof Error ? ursache.message : String(ursache));
+    } finally {
+      this.laedt.set(false);
+    }
   }
 
   private async abrufen(): Promise<void> {

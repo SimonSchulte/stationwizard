@@ -6,6 +6,7 @@ import {
   computed,
   effect,
   inject,
+  isDevMode,
   signal,
   untracked,
 } from '@angular/core';
@@ -99,6 +100,9 @@ export class Jahresplan {
   readonly hiorg = inject(HiorgKalenderService);
   private readonly worker = inject(WorkerClient);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Blendet den Testdaten-Knopf nur in der Entwicklung ein, nie im Produktivbuild. */
+  readonly entwicklungsmodus = isDevMode();
 
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
@@ -358,6 +362,23 @@ export class Jahresplan {
       this.hiorg.zustand() === 'geladen'
         ? `${this.hiorg.eintraege().length} HiOrg-Termine geladen.`
         : this.hiorg.fehler() || 'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet.',
+      6000,
+      this.hiorg.zustand() === 'fehler',
+    );
+  }
+
+  /**
+   * Nur für die manuelle Sichtprüfung im Entwicklungsbuild: lädt die anonymisierte
+   * Testantwort in `public/testdaten/` statt des echten HiOrg-Feeds, damit sich
+   * Darstellungsfragen (Textumbruch, Ellipsen, Layout im Wochenraster) ohne
+   * eingerichteten Worker reproduzieren lassen.
+   */
+  async hiorgTestdatenLaden(): Promise<void> {
+    await this.hiorg.ladeTestdaten();
+    this.melde(
+      this.hiorg.zustand() === 'geladen'
+        ? `${this.hiorg.eintraege().length} HiOrg-Testtermine geladen.`
+        : this.hiorg.fehler() || 'Testdaten konnten nicht geladen werden.',
       6000,
       this.hiorg.zustand() === 'fehler',
     );

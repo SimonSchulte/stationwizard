@@ -1,6 +1,7 @@
 :host {
   position: relative;
   display: block;
+  min-width: 0;
   padding: var(--space-sm) var(--space-sm) var(--space-sm)
     calc(var(--space-sm) + var(--space-compact));
   background: var(--surface-primary);
@@ -119,6 +120,7 @@ a.hiorg-link-symbol {
 }
 
 :host(.kompakt) .kopf {
+  flex-wrap: wrap;
   gap: var(--space-xs);
   min-height: 18px;
 }
@@ -230,13 +232,16 @@ a.hiorg-link-symbol {
 }
 
 .rolle-chip {
+  max-width: 100%;
   padding: var(--space-unit) var(--space-sm);
+  overflow: hidden;
   border-radius: var(--radius-chip);
   color: var(--surface-primary);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .hinweis {
@@ -273,6 +278,7 @@ a.hiorg-link-symbol {
   font-size: 0.9375rem;
   line-height: 1.35;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .platzhalter {
