@@ -135,7 +135,7 @@ Alle Endpunkte benötigen die verifizierte Anmeldung:
 | `/api/nextcloud/arbeitsmappe`     | GET / PUT | Konfigurierte Excel-Datei                                                                    |
 | `/api/nextcloud/planungen`        | GET       | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
 | `/api/nextcloud/planungen/<UUID>` | GET / PUT | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
-| `/api/hiorg/kalender`             | GET       | Antwort `{ "status": "OK", "eintraege": [...] }`; keine Anfrageparameter                     |
+| `/api/hiorg/kalender`             | GET       | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`                  |
 
 ### HiOrg-Kalenderfeed
 
@@ -147,6 +147,14 @@ Schreibweise „CALENDER" ist bewusst übernommen – das Secret heißt im Store
 Der Worker bindet das Ziel fest an `hiorg-server.de` beziehungsweise dessen Subdomains.
 Ein versehentlich vertauschtes Secret kann den Worker damit nicht zu einem beliebigen
 fremden Ziel schicken.
+
+HiOrg kann pro Abruf nur in eine Richtung schauen: der Parameter `monate` in der
+konfigurierten Feed-URL zählt ab heute vorwärts (positiv) oder zurück (negativ), nie
+beides zugleich. Der optionale Anfrageparameter `?monat=JJJJ-MM` überträgt deshalb den im
+Jahresplan gerade angeschauten Monat; der Worker überschreibt `monate` je nach Abstand zum
+heutigen Monat (Europe/Berlin) mit dem passenden Vorzeichen und ausreichend Vorlauf. Ohne
+`monat` bleibt es bei der im Secret konfigurierten Richtung. Kein anderer Anfrageparameter
+ist erlaubt.
 
 Weitergereicht wird pro Termin ausschließlich `sortdate`, `enddate`, `verbez`, `typ`, `id`
 und die geprüfte `url`. Bewusst **nicht** weitergereicht werden `ansprech` und `bemerkung`

@@ -100,7 +100,7 @@ describe('HiOrg-Kalender: Anfrageoberfläche', () => {
     expect(abrufen).not.toHaveBeenCalled();
   });
 
-  it('lehnt URL-Parameter ab', async () => {
+  it('lehnt unbekannte URL-Parameter ab', async () => {
     const antwort = await verarbeiteHiorgKalender(
       anfrage('/api/hiorg/kalender?jahr=2026'),
       umgebung,
@@ -116,6 +116,84 @@ describe('HiOrg-Kalender: Anfrageoberfläche', () => {
 
     expect(antwort.status).toBe(404);
     expect(await inhaltVon(antwort)).toMatchObject({ code: 'API_NICHT_GEFUNDEN' });
+    expect(abrufen).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die HiOrg-API kann pro Abruf nur vorwärts (positives `monate`) oder
+ * rückwärts (negatives `monate`) schauen. Statt der im Secret fest
+ * konfigurierten Richtung überschreibt der Worker `monate` je nach Abstand
+ * zwischen "heute" (Europe/Berlin) und dem vom Client übergebenen Monat.
+ */
+describe('HiOrg-Kalender: angeschauter Monat', () => {
+  beforeEach(() => {
+    // 15. Juni 2026, 10:00 UTC – mitten im Monat, unabhängig von Zeitzonenrändern.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-15T10:00:00Z'));
+  });
+
+  function abgerufenesMonate(): string | null {
+    const abgerufeneUrl = new URL(String(abrufen.mock.calls[0]?.[0]));
+    return abgerufeneUrl.searchParams.get('monate');
+  }
+
+  it('lässt die Feed-URL unverändert, wenn kein Monat angegeben ist', async () => {
+    await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    expect(abrufen.mock.calls[0]?.[0]).toBe(FEED_URL);
+  });
+
+  it('schaut für den laufenden Monat einen Monat vorwärts', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-06'), umgebung);
+
+    expect(abgerufenesMonate()).toBe('1');
+  });
+
+  it('schaut für einen künftigen Monat mit ausreichendem Vorlauf vorwärts', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-09'), umgebung);
+
+    expect(abgerufenesMonate()).toBe('4');
+  });
+
+  it('schaut für einen vergangenen Monat mit ausreichendem Vorlauf zurück', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-01'), umgebung);
+
+    expect(abgerufenesMonate()).toBe('-6');
+  });
+
+  it('behält die übrigen Feed-Parameter beim Überschreiben von monate', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-09'), umgebung);
+
+    const abgerufeneUrl = new URL(String(abrufen.mock.calls[0]?.[0]));
+    expect(abgerufeneUrl.searchParams.get('ov')).toBe('testov');
+    expect(abgerufeneUrl.searchParams.get('key')).toBe(GEHEIMER_PARAMETER);
+  });
+
+  it.each(['2026-13', '26-06', '2026-6', 'ohne-monat', ''])(
+    'lehnt ein ungültiges Monatsformat ab (%s)',
+    async (wert) => {
+      const antwort = await verarbeiteHiorgKalender(
+        anfrage(`/api/hiorg/kalender?monat=${encodeURIComponent(wert)}`),
+        umgebung,
+      );
+
+      expect(antwort.status).toBe(400);
+      expect(await inhaltVon(antwort)).toMatchObject({
+        code: 'HIORG_KALENDER_ANFRAGE_UNGUELTIG',
+      });
+      expect(abrufen).not.toHaveBeenCalled();
+    },
+  );
+
+  it('lehnt monat zusammen mit einem weiteren Parameter ab', async () => {
+    const antwort = await verarbeiteHiorgKalender(
+      anfrage('/api/hiorg/kalender?monat=2026-06&jahr=2026'),
+      umgebung,
+    );
+
+    expect(antwort.status).toBe(400);
+    expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANFRAGE_UNGUELTIG' });
     expect(abrufen).not.toHaveBeenCalled();
   });
 });

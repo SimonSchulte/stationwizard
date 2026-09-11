@@ -25,6 +25,9 @@ const ERLAUBTER_HOST = 'hiorg-server.de';
 /** Zeichen, die in einer Konfigurations- oder Ereignis-URL nichts zu suchen haben. */
 const UNZULAESSIGE_ZEICHEN = /[\u0000-\u0020\u007f\\]/;
 
+/** Angeschauter Monat als `JJJJ-MM`, wie ihn das Frontend führt (`monatIndex()+1`). */
+const MONAT_MUSTER = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 interface Eintrag {
   id: string | number;
   sortdate: number;
@@ -46,8 +49,13 @@ export async function verarbeiteHiorgKalender(
   if (anfrage.method !== 'GET') {
     return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, { Allow: 'GET' });
   }
-  if (url.search !== '' || anfrage.url.includes('?')) {
-    return fehlerAntwort('HIORG_KALENDER_ANFRAGE_UNGUELTIG', 'Keine URL-Parameter erlaubt.', 400);
+  const angeschauterMonat = leseAngeschauterMonat(url);
+  if (angeschauterMonat === 'ungueltig') {
+    return fehlerAntwort(
+      'HIORG_KALENDER_ANFRAGE_UNGUELTIG',
+      'Der Parameter "monat" muss im Format JJJJ-MM angegeben werden; andere Parameter sind nicht erlaubt.',
+      400,
+    );
   }
 
   const ziel = pruefeFeedZiel(await leseZugangsdatum(umgebung.HIORGSERVER_CALENDER_FEED));
@@ -62,12 +70,19 @@ export async function verarbeiteHiorgKalender(
   // der steht in jedem legitimen Ereignis-Link und darf nicht wegredigiert werden.
   const geheimnisse = [ziel, ...queryWerte(ziel)];
 
+  // Die HiOrg-API kann pro Abruf nur in eine Richtung schauen ("monate" positiv
+  // vorwärts, negativ zurück). Statt der fest im Secret konfigurierten Richtung
+  // überschreibt der Worker "monate" so, dass der vom Client angeschaute Monat
+  // sicher im Fenster liegt – vorwärts für die Gegenwart/Zukunft, zurück für die
+  // Vergangenheit.
+  const abrufZiel = angeschauterMonat ? zielFuerMonat(ziel, angeschauterMonat) : ziel;
+
   const abbruch = new AbortController();
   const zeitlimit = setTimeout(() => abbruch.abort(), HIORG_KALENDER_ZEITLIMIT_MS);
   try {
     let antwort: Response;
     try {
-      antwort = await fetch(ziel, {
+      antwort = await fetch(abrufZiel, {
         method: 'GET',
         headers: { Accept: 'application/json' },
         // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen Status sichtbar.
@@ -150,6 +165,57 @@ function antwortUngueltig(grund: string): Response {
     'HiOrg hat keine gültigen Kalenderdaten geliefert.',
     502,
   );
+}
+
+interface AngeschauterMonat {
+  jahr: number;
+  monat: number; // 1..12
+}
+
+/**
+ * Einziger erlaubter Anfrageparameter: der im Frontend gerade angeschaute
+ * Monat. `undefined` heißt „kein Parameter gesendet" (Rückfall auf die im
+ * Secret konfigurierte Richtung), `'ungueltig'` heißt „falscher Name oder
+ * falsches Format" – beides führt getrennt behandelt zu unterschiedlichen
+ * Antworten.
+ */
+function leseAngeschauterMonat(url: URL): AngeschauterMonat | undefined | 'ungueltig' {
+  const schluessel = [...url.searchParams.keys()];
+  if (schluessel.length === 0) return undefined;
+  if (schluessel.length > 1 || schluessel[0] !== 'monat') return 'ungueltig';
+  const wert = url.searchParams.get('monat') ?? '';
+  if (!MONAT_MUSTER.test(wert)) return 'ungueltig';
+  const [jahrText, monatText] = wert.split('-');
+  return { jahr: Number(jahrText), monat: Number(monatText) };
+}
+
+/** Heutiges Jahr/Monat in Europe/Berlin – nie über eine reine UTC-Rechnung. */
+function heutigerMonat(): AngeschauterMonat {
+  const teile = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const jahr = Number(teile.find((teil) => teil.type === 'year')?.value);
+  const monat = Number(teile.find((teil) => teil.type === 'month')?.value);
+  return { jahr, monat };
+}
+
+/**
+ * Überschreibt „monate" in der konfigurierten Feed-URL so, dass der
+ * angeschaute Monat sicher im abgerufenen Fenster liegt: vorwärts (positiv)
+ * für die Gegenwart und Zukunft, zurück (negativ) für die Vergangenheit. Die
+ * `+1`/`-1`-Polsterung fängt ab, dass „monate" laut HiOrg-Dokumentation ab
+ * dem heutigen Tag zählt, nicht ab Monatsanfang.
+ */
+function zielFuerMonat(ziel: string, angeschauterMonat: AngeschauterMonat): string {
+  const heute = heutigerMonat();
+  const differenz =
+    (angeschauterMonat.jahr - heute.jahr) * 12 + (angeschauterMonat.monat - heute.monat);
+  const monate = differenz >= 0 ? differenz + 1 : differenz - 1;
+  const angepasst = new URL(ziel);
+  angepasst.searchParams.set('monate', String(monate));
+  return angepasst.href;
 }
 
 /**
