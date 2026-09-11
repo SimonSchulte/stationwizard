@@ -52,9 +52,23 @@ describe('HiOrg-Kalenderdienst', () => {
 
   it('lädt auf ausdrückliche Anforderung neu', async () => {
     await dienst.lade();
-    await dienst.lade(true);
+    await dienst.lade({ erzwingen: true });
 
     expect(json).toHaveBeenCalledTimes(2);
+  });
+
+  it('übergibt den angeschauten Monat als Anfrageparameter', async () => {
+    await dienst.lade({ monat: '2026-03' });
+
+    expect(json).toHaveBeenCalledWith('/api/hiorg/kalender?monat=2026-03');
+  });
+
+  it('lädt erneut, wenn sich der angeschaute Monat ändert, auch ohne erzwingen', async () => {
+    await dienst.lade({ monat: '2026-03' });
+    await dienst.lade({ monat: '2026-04' });
+
+    expect(json).toHaveBeenCalledTimes(2);
+    expect(json).toHaveBeenLastCalledWith('/api/hiorg/kalender?monat=2026-04');
   });
 
   it('bündelt gleichzeitige Aufrufe zu einem Abruf', async () => {

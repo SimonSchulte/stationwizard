@@ -298,8 +298,14 @@ export class Jahresplan {
       this.destroyRef.onDestroy(() => medium.removeEventListener('change', anwenden));
     }
 
-    // Der Feed ist jahresunabhängig; er wird immer geladen, sobald die Ansicht entsteht.
-    void this.hiorg.lade();
+    // Die HiOrg-API kann pro Abruf nur vorwärts oder zurück schauen (Worker-Defizit).
+    // Der Client übergibt deshalb bei jedem Wechsel des angeschauten Monats den
+    // Monat mit, damit der Worker die passende Richtung wählt.
+    effect(() => {
+      const jahr = this.store.jahr();
+      const monat = this.monat();
+      void this.hiorg.lade({ monat: this.angeschauterMonatIso(jahr, monat) });
+    });
 
     // Wie der HiOrg-Feed wird auch die zentrale Arbeitsmappe direkt geladen, ohne dass
     // der Nutzer erst "Öffnen" antippen muss. Nur wenn noch keine Quelle offen ist und
@@ -357,7 +363,10 @@ export class Jahresplan {
   }
 
   async hiorgNeuLaden(): Promise<void> {
-    await this.hiorg.lade(true);
+    await this.hiorg.lade({
+      monat: this.angeschauterMonatIso(this.store.jahr(), this.monat()),
+      erzwingen: true,
+    });
     this.melde(
       this.hiorg.zustand() === 'geladen'
         ? `${this.hiorg.eintraege().length} HiOrg-Termine geladen.`
@@ -365,6 +374,17 @@ export class Jahresplan {
       6000,
       this.hiorg.zustand() === 'fehler',
     );
+  }
+
+  /**
+   * `JJJJ-MM` des gerade angeschauten Monats für den HiOrg-Abruf. Bei „Ganzes
+   * Jahr" (`monat === null`) gilt dieselbe Auswahl wie beim automatischen
+   * Zurücksetzen des Monats beim Jahreswechsel: laufender Monat im laufenden
+   * Jahr, sonst Januar – nie ein beliebiger Ausschnitt.
+   */
+  private angeschauterMonatIso(jahr: number, monat: number | null): string {
+    const index = monat ?? (jahr === jahrVon(this.heute) ? monatIndex(this.heute) : 0);
+    return `${jahr}-${String(index + 1).padStart(2, '0')}`;
   }
 
   /**

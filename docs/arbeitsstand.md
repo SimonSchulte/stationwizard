@@ -308,3 +308,35 @@ zweite Karte.
 Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (249 Angular- und
 280 Worker-Tests) und `npm run format:check` – alle grün. Keine Browserprüfung in dieser
 Runde.
+
+## HiOrg-Kalender: beide Zeitrichtungen statt fester Konfiguration
+
+Die HiOrg-API kann pro Abruf nur in eine Richtung schauen: `monate` in der konfigurierten
+Feed-URL zählt ab heute entweder vorwärts (positiv) oder zurück (negativ), nie beides. Bei
+fest im Secret konfigurierter Richtung blieb deshalb eine Zeitrichtung im Jahresplan immer
+unerreichbar – je nachdem, ob `HIORGSERVER_CALENDER_FEED` mit positivem oder negativem
+`monate` eingerichtet ist.
+
+- `verarbeiteHiorgKalender()` (`worker/src/hiorg-kalender.ts`) erlaubt jetzt genau einen
+  optionalen Anfrageparameter `monat=JJJJ-MM` – der im Jahresplan gerade angeschaute Monat.
+  Der Worker berechnet daraus den Abstand zum heutigen Monat (`Intl.DateTimeFormat` mit
+  `timeZone: 'Europe/Berlin'`, nie eine reine UTC-Rechnung) und überschreibt `monate` in der
+  konfigurierten Feed-URL mit dem passenden Vorzeichen und ausreichend Vorlauf
+  (`Abstand + 1` vorwärts, `Abstand - 1` zurück), bevor der Worker den Feed abruft. Alle
+  übrigen Query-Parameter der konfigurierten URL (`ov`, `lab`, `zr_dienst`, …) bleiben
+  unverändert. Ein fehlendes `monat` verhält sich wie bisher – die im Secret konfigurierte
+  Richtung bleibt Rückfallebene. Ein falsches Format oder ein zusätzlicher Parameter
+  liefert weiterhin `400 / HIORG_KALENDER_ANFRAGE_UNGUELTIG`.
+- `HiorgKalenderService.lade()` (`src/app/ausbildung/services/hiorg-kalender.service.ts`)
+  nimmt jetzt ein Optionsobjekt `{ monat?, erzwingen? }` statt eines einzelnen
+  `erzwingen`-Flags entgegen und lädt bei einem Monatswechsel automatisch neu, auch ohne
+  `erzwingen`.
+- `Jahresplan` (`src/app/ausbildung/pages/jahresplan/jahresplan.ts`) übergibt bei jedem
+  Wechsel von Jahr oder angeschautem Monat den Monat als `JJJJ-MM`; bei „Ganzes Jahr" gilt
+  dieselbe Auswahl wie beim bestehenden automatischen Zurücksetzen des Monats: laufender
+  Monat im laufenden Jahr, sonst Januar.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (251 Angular- und
+291 Worker-Tests) und `npm run format:check` – alle grün. Kein Abruf gegen den echten
+HiOrg-Feed (Secret liegt in dieser Umgebung nicht vor) und keine Browserprüfung in dieser
+Runde.
