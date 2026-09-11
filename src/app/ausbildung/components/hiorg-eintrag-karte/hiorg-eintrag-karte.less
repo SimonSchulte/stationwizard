@@ -3,11 +3,13 @@
    aus der führenden Excel-Arbeitsmappe. */
 :host {
   display: block;
+  min-width: 0;
   padding: var(--space-sm);
   background: var(--hiorg-bg);
   color: var(--hiorg-text);
   border: 1px dashed var(--hiorg-rand);
   border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 :host(.abweichend) {
@@ -23,6 +25,7 @@
 
 .kopf {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
   min-height: 18px;
