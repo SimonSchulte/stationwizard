@@ -1,13 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DialogDienst } from './dialog-dienst';
 
 describe('Gemeinsame Dialoge', () => {
   let dienst: DialogDienst;
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideNoopAnimations()] });
+    TestBed.configureTestingModule({});
     dienst = TestBed.inject(DialogDienst);
   });
 
