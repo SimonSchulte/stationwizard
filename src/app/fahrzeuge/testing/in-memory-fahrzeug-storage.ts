@@ -1,5 +1,9 @@
 import { AblesungEingabe, Fahrzeugstamm, Kilometerstand } from '../models/fahrzeug.model';
-import { FahrzeugKonfliktFehler, FahrzeugStorage } from '../storage/fahrzeug-storage';
+import {
+  FahrzeugKonfliktFehler,
+  FahrzeugMitVersion,
+  FahrzeugStorage,
+} from '../storage/fahrzeug-storage';
 
 let laufendeId = 0;
 function naechsteId(praefix: string): string {
@@ -24,9 +28,9 @@ export class InMemoryFahrzeugStorage implements FahrzeugStorage {
     return [...this.fahrzeuge.values()].map((eintrag) => ({ ...eintrag.daten }));
   }
 
-  async ladeFahrzeug(id: string): Promise<Fahrzeugstamm | null> {
+  async ladeFahrzeug(id: string): Promise<FahrzeugMitVersion | null> {
     const eintrag = this.fahrzeuge.get(id);
-    return eintrag ? { ...eintrag.daten } : null;
+    return eintrag ? { daten: { ...eintrag.daten }, version: eintrag.version } : null;
   }
 
   async speichereFahrzeug(fahrzeug: Fahrzeugstamm, version: string | null): Promise<string> {

@@ -334,3 +334,48 @@ Backendfestlegung.
 - Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (296 Angular- und
   280 Worker-Tests) und `npm run format:check` – alle grün. Keine Oberfläche, daher keine
   Browserprüfung in diesem Paket.
+
+## AP-F2 – Fahrzeugmodul: Cloudflare D1, Worker-Routen und Client-Adapter
+
+Backendentscheidung aus dem Konzept umgesetzt: Cloudflare D1. Domäne aus AP-F1 unverändert;
+die Trennung hat sich in der Praxis bestätigt – kein D1-, SQL- oder HTTP-Typ musste in
+`models/` oder `services/` einziehen.
+
+- **D1-Datenbank real angelegt**: `stationwizard-fahrzeuge`
+  (`698facb9-4c99-45de-8879-d262c2144144`), Region `weur`. Schema aus
+  `worker/migrations/0001_fahrzeuge.sql` über die Cloudflare-D1-API angewendet und gegen
+  `sqlite_master` verifiziert (Tabellen `fahrzeuge`, `ablesungen`, Index
+  `idx_ablesungen_fahrzeug_datum`). Wartungstermine liegen als geprüftes JSON-Array in der
+  Fahrzeugzeile, analog zur bestehenden PEP-Datei als ein zusammengehöriger Datensatz –
+  keine eigene Kindtabelle, damit ein Update mit Versionsprüfung ein einzelnes Statement
+  bleibt.
+- `worker/wrangler.toml`: `[[d1_databases]]`-Block mit Binding `FAHRZEUGE_DB`, echte
+  `database_id`. `deploy:dry-run` bestätigt das Binding.
+- `worker/src/fahrzeuge.ts`: `GET`/`POST /api/fahrzeuge`, `GET`/`PUT
+/api/fahrzeuge/<UUID>`, `GET`/`POST /api/fahrzeuge/<UUID>/ablesungen`. Optimistische
+  Sperre über `If-Match`/`If-None-Match` und ein starkes ETag aus einem Versionszähler,
+  analog zum bestehenden Nextcloud-Muster; `412` bei Konflikt oder unbekannter Kennung.
+  `geaendertAm`/`geaendertVon` und `erfasstVon`/`erfasstAm` setzt der Worker ausschließlich
+  aus der bereits geprüften Access-Identität – ein gleichnamiges Feld im Anfragekörper wird
+  verworfen und in einem Test bewusst mitgeschickt, um das zu belegen. Ohne `FAHRZEUGE_DB`
+  liefert die Route 503 statt eines Absturzes.
+- `kurzlinkWeiterleitung()` in derselben Datei, in `worker/src/index.ts` verdrahtet:
+  `/f/<UUID>` und `/f/<UUID>/km` leiten (302) auf die aktuelle Hash-Route weiter, damit
+  gedruckte QR-Codes eine spätere Routenumstellung überleben (siehe Konzept, Abschnitt 4).
+  Access wird für diese Pfade wie für alle anderen vorher geprüft.
+- `src/app/fahrzeuge/storage/api-fahrzeug-storage.ts`: Adapter gegen `WorkerClient`, einzige
+  Stelle, die zwischen Worker-JSON und Domänentypen übersetzt; Ergebnisse laufen durch die
+  AP-F1-Prüffunktionen, bevor sie die Fachschicht erreichen. Ein 412 wird in
+  `FahrzeugKonfliktFehler` übersetzt.
+- **Interface-Lücke aus AP-F1 behoben**: `FahrzeugStorage.ladeFahrzeug()` lieferte nur den
+  `Fahrzeugstamm`, nicht die Version – ein späteres `speichereFahrzeug()` hätte die zuletzt
+  gelesene Version nicht kennen können. Jetzt `FahrzeugMitVersion` (`{ daten, version }`);
+  In-Memory-Adapter und Tests entsprechend angepasst.
+- Neuer Fake `worker/tests/fahrzeug-db-fake.ts`: bildet nur die tatsächlich genutzte
+  D1-Teilmenge (`prepare().bind().run()/.first()/.all()`) fest verdrahtet nach, kein
+  echter SQL-Parser, damit ein Test nie über eine falsch nachgebildete Query hinwegtäuscht.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (306 Angular- und
+  310 Worker-Tests), `npm run format:check` und `npm run deploy:dry-run` – alle grün.
+  `npm run worker:test`/`test:spa` mit echtem D1-Zugriff nicht Teil dieses Laufs (Worker-
+  Tests laufen weiterhin gegen den Fake, nicht gegen die echte Datenbank). Keine
+  Browserprüfung – es gibt noch keine Oberfläche (folgt in AP-F3).

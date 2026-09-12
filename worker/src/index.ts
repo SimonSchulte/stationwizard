@@ -1,6 +1,11 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
+import {
+  kurzlinkWeiterleitung,
+  verarbeiteFahrzeuge,
+  type FahrzeugeKonfiguration,
+} from './fahrzeuge';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 
@@ -9,7 +14,8 @@ export interface Env
     AccessKonfiguration,
     NextcloudKonfiguration,
     EfsKonfiguration,
-    HiorgKalenderKonfiguration {
+    HiorgKalenderKonfiguration,
+    FahrzeugeKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -59,8 +65,21 @@ export default {
       return verarbeiteNextcloud(anfrage, umgebung);
     }
 
+    if (url.pathname === '/api/fahrzeuge' || url.pathname.startsWith('/api/fahrzeuge/')) {
+      return verarbeiteFahrzeuge(anfrage, umgebung, benutzer);
+    }
+
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
       return fehlerAntwort('API_NICHT_GEFUNDEN', 'API-Endpunkt nicht gefunden.', 404);
+    }
+
+    // Gedruckte QR-Codes zeigen auf feste Kurzpfade statt auf die Hash-Route,
+    // damit sie eine spätere Routenumstellung überleben (siehe
+    // docs/konzept-fahrzeuge.md, Abschnitt 4). Access ist bereits geprüft.
+    if (anfrage.method === 'GET' && url.pathname.startsWith('/f/')) {
+      const weiterleitung = kurzlinkWeiterleitung(url.pathname);
+      if (weiterleitung) return weiterleitung;
+      return fehlerAntwort('FAHRZEUGE_KURZLINK_UNGUELTIG', 'Unbekannter Kurzlink.', 404);
     }
 
     if (anfrage.method !== 'GET' && anfrage.method !== 'HEAD') {

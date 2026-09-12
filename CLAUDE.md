@@ -111,17 +111,27 @@ Prüfungen und offene Abnahmegrenzen.
 
 ### Erlaubte API-Oberfläche
 
-| Pfad                              | Methode   | Vertrag                           |
-| --------------------------------- | --------- | --------------------------------- |
-| `/api/status`                     | GET       | Worker-Status                     |
-| `/api/benutzer`                   | GET       | Verifizierte E-Mail-Adresse       |
-| `/api/efs/checkapikey`            | POST      | JSON `{}`                         |
-| `/api/efs/getveranstaltungen`     | POST      | JSON `{}`                         |
-| `/api/efs/getveranstaltung`       | POST      | JSON mit ausschließlich `id`      |
-| `/api/nextcloud/arbeitsmappe`     | GET / PUT | Konfigurierte Excel-Dateifreigabe |
-| `/api/nextcloud/planungen`        | GET       | Liste aus UUID und ETag           |
-| `/api/nextcloud/planungen/<UUID>` | GET / PUT | Einzelne versionierte PEP-Datei   |
-| `/api/hiorg/kalender`             | GET       | HiOrg-Kalenderfeed, nur lesend    |
+| Pfad                               | Methode    | Vertrag                                                 |
+| ---------------------------------- | ---------- | ------------------------------------------------------- |
+| `/api/status`                      | GET        | Worker-Status                                           |
+| `/api/benutzer`                    | GET        | Verifizierte E-Mail-Adresse                             |
+| `/api/efs/checkapikey`             | POST       | JSON `{}`                                               |
+| `/api/efs/getveranstaltungen`      | POST       | JSON `{}`                                               |
+| `/api/efs/getveranstaltung`        | POST       | JSON mit ausschließlich `id`                            |
+| `/api/nextcloud/arbeitsmappe`      | GET / PUT  | Konfigurierte Excel-Dateifreigabe                       |
+| `/api/nextcloud/planungen`         | GET        | Liste aus UUID und ETag                                 |
+| `/api/nextcloud/planungen/<UUID>`  | GET / PUT  | Einzelne versionierte PEP-Datei                         |
+| `/api/hiorg/kalender`              | GET        | HiOrg-Kalenderfeed, nur lesend                          |
+| `/api/fahrzeuge`                   | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`     |
+| `/api/fahrzeuge/<UUID>`            | GET / PUT  | Einzelnes Fahrzeug; Update nur mit passendem `If-Match` |
+| `/api/fahrzeuge/<UUID>/ablesungen` | GET / POST | Kilometerablesungen, unveränderlich                     |
+| `/f/<UUID>`, `/f/<UUID>/km`        | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter  |
+
+Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
+Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schema in
+`worker/migrations/`); siehe `docs/konzept-fahrzeuge.md` für Konzept und Begründung.
+`erfasstVon`/`erfasstAm` einer Ablesung setzt ausschließlich der Worker aus der geprüften
+Anmeldung, nie der Anfragekörper.
 
 EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt serverseitig
 `apikey`, `version=2` und `action` als Formulardaten. Ziel aus

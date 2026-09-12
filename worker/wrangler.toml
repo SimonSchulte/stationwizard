@@ -17,6 +17,15 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
+# Fahrzeugmodul (AP-F2). Schema und Migrationen liegen unter worker/migrations/,
+# angewendet über die Cloudflare-D1-API. Domäne und Persistenz sind strikt
+# getrennt (siehe docs/konzept-fahrzeuge.md) – ein Wechsel bliebe auf diesen
+# Block und einen neuen Adapter begrenzt.
+[[d1_databases]]
+binding = "FAHRZEUGE_DB"
+database_name = "stationwizard-fahrzeuge"
+database_id = "698facb9-4c99-45de-8879-d262c2144144"
+
 # Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
 [observability]
 enabled = true

@@ -95,6 +95,8 @@ describe('Access vor sämtlichen Assets und APIs', () => {
     '/api/nextcloud/planungen',
     '/api/efs/getveranstaltungen',
     '/api/hiorg/kalender',
+    '/api/fahrzeuge',
+    '/f/01234567-89ab-4cde-8fab-0123456789ab',
   ])('sperrt %s ohne Anwendungstoken', async (pfad) => {
     const antwort = await anfragen(pfad);
     expect(antwort.status).toBe(401);
@@ -283,6 +285,42 @@ describe('API-Routing und schreibende Anfragen', () => {
 
   it('leitet schreibende Aufrufe nicht an Assets weiter', async () => {
     const antwort = await anfragen('/ausbildung', await tokenFuer(), { method: 'PUT' });
+    expect(antwort.status).toBe(405);
+    expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('Fahrzeuge-Routing und QR-Kurzlinks', () => {
+  const FAHRZEUG_ID = '01234567-89ab-4cde-8fab-0123456789ab';
+
+  it('sperrt /api/fahrzeuge ohne eingerichtetes D1-Binding statt eines Absturzes', async () => {
+    const antwort = await anfragen('/api/fahrzeuge', await tokenFuer());
+    expect(antwort.status).toBe(503);
+    expect(await antwort.json()).toMatchObject({ code: 'FAHRZEUGE_KONFIGURATION_FEHLT' });
+  });
+
+  it('leitet den QR-Kurzlink der Übersicht auf die Hash-Route weiter, ohne die Assets zu bemühen', async () => {
+    const antwort = await anfragen(`/f/${FAHRZEUG_ID}`, await tokenFuer());
+    expect(antwort.status).toBe(302);
+    expect(antwort.headers.get('Location')).toBe(`/#/fahrzeuge/${FAHRZEUG_ID}`);
+    expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
+  it('leitet den QR-Kurzlink der Kilometererfassung weiter', async () => {
+    const antwort = await anfragen(`/f/${FAHRZEUG_ID}/km`, await tokenFuer());
+    expect(antwort.status).toBe(302);
+    expect(antwort.headers.get('Location')).toBe(`/#/fahrzeuge/${FAHRZEUG_ID}/km`);
+  });
+
+  it('liefert für einen unbekannten Kurzlink JSON 404 statt der SPA', async () => {
+    const antwort = await anfragen('/f/nicht-uuid', await tokenFuer());
+    expect(antwort.status).toBe(404);
+    expect(await antwort.json()).toMatchObject({ code: 'FAHRZEUGE_KURZLINK_UNGUELTIG' });
+    expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
+  it('lässt einen schreibenden Aufruf auf den Kurzlink nicht durch (nur GET vorgesehen)', async () => {
+    const antwort = await anfragen(`/f/${FAHRZEUG_ID}`, await tokenFuer(), { method: 'PUT' });
     expect(antwort.status).toBe(405);
     expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
   });

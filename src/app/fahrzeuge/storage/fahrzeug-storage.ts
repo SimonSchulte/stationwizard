@@ -7,11 +7,18 @@ import { AblesungEingabe, Fahrzeugstamm, Kilometerstand } from '../models/fahrze
  * damit auf einen neuen Adapter begrenzt (siehe docs/konzept-fahrzeuge.md,
  * Abschnitt 8 „Was das für die Trennung bedeutet").
  */
+/** Fahrzeug plus der Version, gegen die ein späteres Speichern geprüft wird. */
+export interface FahrzeugMitVersion {
+  daten: Fahrzeugstamm;
+  version: string;
+}
+
 export interface FahrzeugStorage {
   readonly bezeichnung: string;
 
+  /** Liste ohne Version – zum Bearbeiten immer zuerst `ladeFahrzeug()` aufrufen. */
   ladeFahrzeuge(): Promise<Fahrzeugstamm[]>;
-  ladeFahrzeug(id: string): Promise<Fahrzeugstamm | null>;
+  ladeFahrzeug(id: string): Promise<FahrzeugMitVersion | null>;
 
   /**
    * Legt an oder aktualisiert. `version` ist eine für die Fachschicht

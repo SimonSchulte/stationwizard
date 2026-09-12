@@ -9,7 +9,7 @@ describe('InMemoryFahrzeugStorage', () => {
     const fahrzeug = erzeugeTestfahrzeug();
     const version = await storage.speichereFahrzeug(fahrzeug, null);
     expect(version).toBeTruthy();
-    expect(await storage.ladeFahrzeug(fahrzeug.id)).toEqual(fahrzeug);
+    expect(await storage.ladeFahrzeug(fahrzeug.id)).toEqual({ daten: fahrzeug, version });
   });
 
   it('lehnt eine Neuanlage ab, wenn die id bereits existiert', async () => {
