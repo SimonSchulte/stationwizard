@@ -29,351 +29,406 @@
   }
 
   @if (store.entwurf(); as entwurf) {
-    <section class="stammdaten" aria-labelledby="stammdaten-titel">
-      <h2 id="stammdaten-titel">Stammdaten</h2>
-      <div class="feldraster">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Bezeichnung</mat-label>
-          <input
-            matInput
-            required
-            [value]="entwurf.bezeichnung"
-            (input)="aktualisieren('bezeichnung', $any($event.target).value)"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Funkrufname</mat-label>
-          <input
-            matInput
-            [value]="entwurf.funkrufname"
-            (input)="aktualisieren('funkrufname', $any($event.target).value)"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Kennzeichen</mat-label>
-          <input
-            matInput
-            required
-            [value]="entwurf.kennzeichen"
-            (input)="aktualisieren('kennzeichen', $any($event.target).value)"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Fahrgestellnummer (optional)</mat-label>
-          <input
-            matInput
-            [value]="entwurf.fahrgestellnummer ?? ''"
-            (input)="aktualisieren('fahrgestellnummer', $any($event.target).value || null)"
-          />
-          @if (!istFin()) {
-            <mat-hint class="feld-fehler">17 Zeichen, ohne die Buchstaben I, O und Q.</mat-hint>
-          }
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Eigentümer</mat-label>
-          <mat-select
-            [value]="entwurf.eigentuemer"
-            (selectionChange)="aktualisieren('eigentuemer', $event.value)"
-          >
-            @for (wert of EIGENTUEMER; track wert) {
-              <mat-option [value]="wert">{{ EIGENTUEMER_LABEL[wert] }}</mat-option>
+    <mat-accordion multi>
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Stammdaten</mat-panel-title>
+        </mat-expansion-panel-header>
+
+        <div class="feldraster">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Bezeichnung</mat-label>
+            <input
+              matInput
+              required
+              [value]="entwurf.bezeichnung"
+              (input)="aktualisieren('bezeichnung', $any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Funkrufname</mat-label>
+            <input
+              matInput
+              [value]="entwurf.funkrufname"
+              (input)="aktualisieren('funkrufname', $any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Kennzeichen</mat-label>
+            <input
+              matInput
+              required
+              [value]="entwurf.kennzeichen"
+              (input)="aktualisieren('kennzeichen', $any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Fahrgestellnummer (optional)</mat-label>
+            <input
+              matInput
+              [value]="entwurf.fahrgestellnummer ?? ''"
+              (input)="aktualisieren('fahrgestellnummer', $any($event.target).value || null)"
+            />
+            @if (!istFin()) {
+              <mat-hint class="feld-fehler">17 Zeichen, ohne die Buchstaben I, O und Q.</mat-hint>
             }
-          </mat-select>
-          @if (jahressoll() !== null) {
-            <mat-hint>
-              @if (jahressoll() === 0) {
-                Keine Mindestlaufleistung.
-              } @else {
-                Jahressoll: {{ jahressoll() }} km.
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Eigentümer</mat-label>
+            <mat-select
+              [value]="entwurf.eigentuemer"
+              (selectionChange)="aktualisieren('eigentuemer', $event.value)"
+            >
+              @for (wert of EIGENTUEMER; track wert) {
+                <mat-option [value]="wert">{{ EIGENTUEMER_LABEL[wert] }}</mat-option>
               }
-            </mat-hint>
-          }
-        </mat-form-field>
-      </div>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung-feld">
-        <mat-label>Bemerkung</mat-label>
-        <textarea
-          matInput
-          rows="2"
-          [value]="entwurf.bemerkung"
-          (input)="aktualisieren('bemerkung', $any($event.target).value)"
-        ></textarea>
-      </mat-form-field>
-      @if (!store.istNeu()) {
-        <p class="metadaten">
-          Zuletzt geändert {{ entwurf.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
-          @if (entwurf.geaendertVon) {
-            von {{ entwurf.geaendertVon }}
-          }
-        </p>
-      }
-    </section>
-
-    <section class="wartungstermine" aria-labelledby="wartung-titel">
-      <div class="section-header">
-        <h2 id="wartung-titel">Wartungstermine</h2>
-        <div class="wartung-aktionen">
-          <button
-            mat-stroked-button
-            (click)="wartungHinzufuegen('hu')"
-            [disabled]="hatOffeneHu()"
-            [matTooltip]="hatOffeneHu() ? 'Es gibt bereits eine offene Hauptuntersuchung.' : ''"
-          >
-            <mat-icon>add</mat-icon> Hauptuntersuchung
-          </button>
-          <button mat-stroked-button (click)="wartungHinzufuegen('frei')">
-            <mat-icon>add</mat-icon> Weiterer Termin
-          </button>
+            </mat-select>
+            @if (jahressoll() !== null) {
+              <mat-hint>
+                @if (jahressoll() === 0) {
+                  Keine Mindestlaufleistung.
+                } @else {
+                  Jahressoll: {{ jahressoll() }} km.
+                }
+              </mat-hint>
+            }
+          </mat-form-field>
         </div>
-      </div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung-feld">
+          <mat-label>Bemerkung</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            [value]="entwurf.bemerkung"
+            (input)="aktualisieren('bemerkung', $any($event.target).value)"
+          ></textarea>
+        </mat-form-field>
+        @if (!store.istNeu()) {
+          <p class="metadaten">
+            Zuletzt geändert {{ entwurf.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+            @if (entwurf.geaendertVon) {
+              von {{ entwurf.geaendertVon }}
+            }
+          </p>
+        }
+      </mat-expansion-panel>
 
-      @if (entwurf.wartungstermine.length === 0) {
-        <p class="empty-hint">Noch keine Wartungstermine erfasst.</p>
-      }
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Wartungstermine</mat-panel-title>
+        </mat-expansion-panel-header>
 
-      <ul class="wartung-liste">
-        @for (termin of entwurf.wartungstermine; track termin.id) {
-          <li class="wartung-zeile" [class]="'ampel-' + wartungAmpel(termin)">
-            <span class="ampel-punkt" aria-hidden="true"></span>
-            @if (termin.art === 'hu') {
-              <span class="wartung-bezeichnung">Hauptuntersuchung</span>
-            } @else {
+        <div class="section-header">
+          <div class="wartung-aktionen">
+            <button
+              mat-stroked-button
+              (click)="wartungHinzufuegen('hu')"
+              [disabled]="hatOffeneHu()"
+              [matTooltip]="hatOffeneHu() ? 'Es gibt bereits eine offene Hauptuntersuchung.' : ''"
+            >
+              <mat-icon>add</mat-icon> Hauptuntersuchung
+            </button>
+            <button mat-stroked-button (click)="wartungHinzufuegen('frei')">
+              <mat-icon>add</mat-icon> Weiterer Termin
+            </button>
+          </div>
+        </div>
+
+        @if (entwurf.wartungstermine.length === 0) {
+          <p class="empty-hint">Noch keine Wartungstermine erfasst.</p>
+        }
+
+        <ul class="wartung-liste">
+          @for (termin of entwurf.wartungstermine; track termin.id) {
+            <li class="wartung-zeile" [class]="'ampel-' + wartungAmpel(termin)">
+              <span class="ampel-punkt" aria-hidden="true"></span>
+              @if (termin.art === 'hu') {
+                <span class="wartung-bezeichnung">Hauptuntersuchung</span>
+              } @else {
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="wartung-bezeichnung-feld"
+                >
+                  <mat-label>Bezeichnung</mat-label>
+                  <input
+                    matInput
+                    [value]="termin.bezeichnung"
+                    (input)="
+                      wartungAktualisieren(termin.id, { bezeichnung: $any($event.target).value })
+                    "
+                  />
+                </mat-form-field>
+              }
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wartung-datum">
+                <mat-label>Fällig</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="wartungPicker"
+                  [value]="alsDatum(termin.faelligAm)"
+                  (dateChange)="wartungDatumAktualisieren(termin.id, $event)"
+                  placeholder="TT.MM.JJJJ"
+                />
+                <mat-datepicker-toggle matSuffix [for]="wartungPicker"></mat-datepicker-toggle>
+                <mat-datepicker #wartungPicker></mat-datepicker>
+              </mat-form-field>
               <mat-form-field
                 appearance="outline"
                 subscriptSizing="dynamic"
-                class="wartung-bezeichnung-feld"
+                class="wartung-vorlauf"
               >
-                <mat-label>Bezeichnung</mat-label>
+                <mat-label>Vorlauf (Tage)</mat-label>
                 <input
                   matInput
-                  [value]="termin.bezeichnung"
-                  (input)="
-                    wartungAktualisieren(termin.id, { bezeichnung: $any($event.target).value })
-                  "
+                  type="number"
+                  min="0"
+                  [value]="termin.erinnerungTage"
+                  (change)="wartungVorlaufAktualisieren(termin.id, $any($event.target).value)"
                 />
               </mat-form-field>
-            }
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wartung-datum">
-              <mat-label>Fällig</mat-label>
-              <input
-                matInput
-                [matDatepicker]="wartungPicker"
-                [value]="alsDatum(termin.faelligAm)"
-                (dateChange)="wartungDatumAktualisieren(termin.id, $event)"
-                placeholder="TT.MM.JJJJ"
-              />
-              <mat-datepicker-toggle matSuffix [for]="wartungPicker"></mat-datepicker-toggle>
-              <mat-datepicker #wartungPicker></mat-datepicker>
-            </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wartung-vorlauf">
-              <mat-label>Vorlauf (Tage)</mat-label>
-              <input
-                matInput
-                type="number"
-                min="0"
-                [value]="termin.erinnerungTage"
-                (change)="wartungVorlaufAktualisieren(termin.id, $any($event.target).value)"
-              />
-            </mat-form-field>
-            <mat-checkbox
-              [checked]="termin.erledigtAm !== null"
-              (change)="wartungAlsErledigtMarkieren(termin.id, $event.checked)"
-            >
-              Erledigt
-            </mat-checkbox>
-            <button
-              mat-icon-button
-              (click)="wartungEntfernen(termin.id)"
-              aria-label="Wartungstermin entfernen"
-            >
-              <mat-icon>delete</mat-icon>
-            </button>
-          </li>
-        }
-      </ul>
-    </section>
-
-    @if (!store.istNeu()) {
-      <section class="kilometer" aria-labelledby="kilometer-titel">
-        <div class="section-header">
-          <h2 id="kilometer-titel">Kilometerstand</h2>
-          <div class="kilometer-aktionen">
-            <a mat-stroked-button [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
-              <mat-icon>speed</mat-icon> Kilometerstand erfassen
-            </a>
-            <button mat-stroked-button (click)="nachtragBeginnen()" [disabled]="nachtragOffen()">
-              <mat-icon>history</mat-icon> Jahresanfang nachtragen
-            </button>
-          </div>
-        </div>
-
-        @if (nachtragOffen()) {
-          <div class="nachtrag-formular">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Datum</mat-label>
-              <input
-                matInput
-                [matDatepicker]="nachtragPicker"
-                [value]="alsDatum(nachtragDatum())"
-                (dateChange)="nachtragDatumAktualisieren($event)"
-                placeholder="TT.MM.JJJJ"
-              />
-              <mat-datepicker-toggle matSuffix [for]="nachtragPicker"></mat-datepicker-toggle>
-              <mat-datepicker #nachtragPicker></mat-datepicker>
-            </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Stand (km)</mat-label>
-              <input
-                matInput
-                type="number"
-                min="0"
-                [value]="nachtragStand()"
-                (input)="nachtragStand.set($any($event.target).value)"
-              />
-            </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Bemerkung</mat-label>
-              <input
-                matInput
-                [value]="nachtragBemerkung()"
-                (input)="nachtragBemerkung.set($any($event.target).value)"
-              />
-            </mat-form-field>
-            <div class="nachtrag-aktionen">
-              <button mat-raised-button color="primary" (click)="nachtragSpeichern()">
-                Speichern
-              </button>
-              <button mat-button (click)="nachtragAbbrechen()">Abbrechen</button>
-            </div>
-          </div>
-        }
-
-        @if (jahresbilanz(); as bilanz) {
-          <div class="bilanz-karte">
-            <app-kilometer-bilanz [bilanz]="bilanz" />
-          </div>
-        }
-
-        @if (ablesungStore.laedt()) {
-          <p role="status">Ablesungen werden geladen …</p>
-        }
-        @if (ablesungStore.fehler()) {
-          <p class="error-hint" role="alert">{{ ablesungStore.fehler() }}</p>
-        }
-        @if (ablesungStore.loeschFehler()) {
-          <p class="error-hint" role="alert">{{ ablesungStore.loeschFehler() }}</p>
-        }
-        @if (!ablesungStore.laedt() && ablesungenAbsteigend().length === 0) {
-          <p class="empty-hint">Noch keine Kilometerablesung erfasst.</p>
-        }
-
-        <ul class="ablesung-liste">
-          @for (ablesung of ablesungenAbsteigend(); track ablesung.id) {
-            <li class="ablesung-zeile">
-              <span class="ablesung-datum">{{ ablesung.abgelesenAm }}</span>
-              <span class="ablesung-stand">{{ ablesung.stand }} km</span>
-              <span class="ablesung-quelle">{{ ablesung.quelle }}</span>
-              <span class="ablesung-erfasser">{{ ablesung.erfasstVon }}</span>
-              @if (ablesung.korrigiert) {
-                <span class="ablesung-korrektur-hinweis">korrigiert eine frühere Ablesung</span>
-              }
-              @if (korrigiertId() !== ablesung.id) {
-                <button mat-button (click)="korrekturBeginnen(ablesung)">Korrigieren</button>
-              }
+              <mat-checkbox
+                [checked]="termin.erledigtAm !== null"
+                (change)="wartungAlsErledigtMarkieren(termin.id, $event.checked)"
+              >
+                Erledigt
+              </mat-checkbox>
               <button
                 mat-icon-button
-                (click)="ablesungLoeschen(ablesung)"
-                [disabled]="hatKorrektur(ablesung)"
-                [matTooltip]="
-                  hatKorrektur(ablesung)
-                    ? 'Diese Ablesung wurde bereits korrigiert. Zuerst die Korrektur löschen.'
-                    : 'Ablesung löschen'
-                "
-                aria-label="Ablesung löschen"
+                (click)="wartungEntfernen(termin.id)"
+                aria-label="Wartungstermin entfernen"
               >
                 <mat-icon>delete</mat-icon>
               </button>
             </li>
-            @if (korrigiertId() === ablesung.id) {
-              <li class="korrektur-formular">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>Datum</mat-label>
-                  <input
-                    matInput
-                    [matDatepicker]="korrekturPicker"
-                    [value]="alsDatum(korrekturDatum())"
-                    (dateChange)="korrekturDatumAktualisieren($event)"
-                    placeholder="TT.MM.JJJJ"
-                  />
-                  <mat-datepicker-toggle matSuffix [for]="korrekturPicker"></mat-datepicker-toggle>
-                  <mat-datepicker #korrekturPicker></mat-datepicker>
-                </mat-form-field>
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>Korrigierter Stand (km)</mat-label>
-                  <input
-                    matInput
-                    type="number"
-                    min="0"
-                    [value]="korrekturStand()"
-                    (input)="korrekturStand.set($any($event.target).value)"
-                  />
-                </mat-form-field>
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>Bemerkung</mat-label>
-                  <input
-                    matInput
-                    [value]="korrekturBemerkung()"
-                    (input)="korrekturBemerkung.set($any($event.target).value)"
-                  />
-                </mat-form-field>
-                <div class="korrektur-aktionen">
-                  <button mat-raised-button color="primary" (click)="korrekturSpeichern()">
-                    Korrektur speichern
-                  </button>
-                  <button mat-button (click)="korrekturAbbrechen()">Abbrechen</button>
-                </div>
-              </li>
-            }
           }
         </ul>
-      </section>
+      </mat-expansion-panel>
 
-      <section class="qr" aria-labelledby="qr-titel">
-        <div class="section-header">
-          <h2 id="qr-titel">QR-Codes</h2>
-          <div class="qr-aktionen">
-            <button mat-stroked-button (click)="qrCodesAnzeigen()" [disabled]="qrLaedt()">
-              <mat-icon>qr_code_2</mat-icon> QR-Codes anzeigen
-            </button>
-            <button
-              mat-stroked-button
-              (click)="druckbogenHerunterladen()"
-              [disabled]="druckbogenLaedt()"
-            >
-              <mat-icon>print</mat-icon>
-              {{ druckbogenLaedt() ? 'Erzeugt …' : 'Druckbogen herunterladen' }}
-            </button>
+      @if (!store.istNeu()) {
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Kilometerstand</mat-panel-title>
+          </mat-expansion-panel-header>
+
+          <div class="section-header">
+            <div class="kilometer-aktionen">
+              <a mat-stroked-button [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
+                <mat-icon>speed</mat-icon> Kilometerstand erfassen
+              </a>
+              <button mat-stroked-button (click)="nachtragBeginnen()" [disabled]="nachtragOffen()">
+                <mat-icon>history</mat-icon> Jahresanfang nachtragen
+              </button>
+            </div>
           </div>
-        </div>
-        @if (druckbogenFehler()) {
-          <p class="error-hint" role="alert">{{ druckbogenFehler() }}</p>
-        }
-        @if (qrLaedt()) {
-          <mat-progress-spinner mode="indeterminate" diameter="32" />
-        }
-        @if (qrCodes(); as codes) {
-          <div class="qr-vorschau">
-            <figure>
-              <img [src]="codes.uebersicht" alt="QR-Code zur Fahrzeugübersicht" width="160" />
-              <figcaption>Übersicht</figcaption>
-            </figure>
-            <figure>
-              <img [src]="codes.km" alt="QR-Code zur Kilometerstanderfassung" width="160" />
-              <figcaption>Kilometerstand erfassen</figcaption>
-            </figure>
+
+          @if (nachtragOffen()) {
+            <div class="nachtrag-formular">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Datum</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="nachtragPicker"
+                  [value]="alsDatum(nachtragDatum())"
+                  (dateChange)="nachtragDatumAktualisieren($event)"
+                  placeholder="TT.MM.JJJJ"
+                />
+                <mat-datepicker-toggle matSuffix [for]="nachtragPicker"></mat-datepicker-toggle>
+                <mat-datepicker #nachtragPicker></mat-datepicker>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Stand (km)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  [value]="nachtragStand()"
+                  (input)="nachtragStand.set($any($event.target).value)"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Bemerkung</mat-label>
+                <input
+                  matInput
+                  [value]="nachtragBemerkung()"
+                  (input)="nachtragBemerkung.set($any($event.target).value)"
+                />
+              </mat-form-field>
+              <div class="nachtrag-aktionen">
+                <button mat-raised-button color="primary" (click)="nachtragSpeichern()">
+                  Speichern
+                </button>
+                <button mat-button (click)="nachtragAbbrechen()">Abbrechen</button>
+              </div>
+            </div>
+          }
+
+          @if (jahresbilanz(); as bilanz) {
+            <div class="bilanz-karte">
+              <app-kilometer-bilanz [bilanz]="bilanz" />
+            </div>
+          }
+
+          @if (ablesungStore.laedt()) {
+            <p role="status">Ablesungen werden geladen …</p>
+          }
+          @if (ablesungStore.fehler()) {
+            <p class="error-hint" role="alert">{{ ablesungStore.fehler() }}</p>
+          }
+          @if (ablesungStore.loeschFehler()) {
+            <p class="error-hint" role="alert">{{ ablesungStore.loeschFehler() }}</p>
+          }
+          @if (!ablesungStore.laedt() && ablesungenAbsteigend().length === 0) {
+            <p class="empty-hint">Noch keine Kilometerablesung erfasst.</p>
+          }
+
+          <ul class="ablesung-liste">
+            @for (ablesung of ablesungenAbsteigend(); track ablesung.id) {
+              <li class="ablesung-zeile">
+                <span class="ablesung-datum">{{ ablesung.abgelesenAm }}</span>
+                <span class="ablesung-stand">{{ ablesung.stand }} km</span>
+                <span class="ablesung-quelle">{{ ablesung.quelle }}</span>
+                <span class="ablesung-erfasser">{{ ablesung.erfasstVon }}</span>
+                @if (ablesung.korrigiert) {
+                  <span class="ablesung-korrektur-hinweis">korrigiert eine frühere Ablesung</span>
+                }
+                @if (korrigiertId() !== ablesung.id) {
+                  <button mat-button (click)="korrekturBeginnen(ablesung)">Korrigieren</button>
+                }
+                <button
+                  mat-icon-button
+                  (click)="ablesungLoeschen(ablesung)"
+                  [disabled]="hatKorrektur(ablesung)"
+                  [matTooltip]="
+                    hatKorrektur(ablesung)
+                      ? 'Diese Ablesung wurde bereits korrigiert. Zuerst die Korrektur löschen.'
+                      : 'Ablesung löschen'
+                  "
+                  aria-label="Ablesung löschen"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </li>
+              @if (korrigiertId() === ablesung.id) {
+                <li class="korrektur-formular">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Datum</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="korrekturPicker"
+                      [value]="alsDatum(korrekturDatum())"
+                      (dateChange)="korrekturDatumAktualisieren($event)"
+                      placeholder="TT.MM.JJJJ"
+                    />
+                    <mat-datepicker-toggle
+                      matSuffix
+                      [for]="korrekturPicker"
+                    ></mat-datepicker-toggle>
+                    <mat-datepicker #korrekturPicker></mat-datepicker>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Korrigierter Stand (km)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="0"
+                      [value]="korrekturStand()"
+                      (input)="korrekturStand.set($any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Bemerkung</mat-label>
+                    <input
+                      matInput
+                      [value]="korrekturBemerkung()"
+                      (input)="korrekturBemerkung.set($any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <div class="korrektur-aktionen">
+                    <button mat-raised-button color="primary" (click)="korrekturSpeichern()">
+                      Korrektur speichern
+                    </button>
+                    <button mat-button (click)="korrekturAbbrechen()">Abbrechen</button>
+                  </div>
+                </li>
+              }
+            }
+          </ul>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>QR-Codes</mat-panel-title>
+          </mat-expansion-panel-header>
+
+          <div class="section-header">
+            <div class="qr-aktionen">
+              <button mat-stroked-button (click)="qrCodesAnzeigen()" [disabled]="qrLaedt()">
+                <mat-icon>qr_code_2</mat-icon> QR-Codes anzeigen
+              </button>
+              <button
+                mat-stroked-button
+                (click)="druckbogenHerunterladen()"
+                [disabled]="druckbogenLaedt()"
+              >
+                <mat-icon>print</mat-icon>
+                {{ druckbogenLaedt() ? 'Erzeugt …' : 'Druckbogen herunterladen' }}
+              </button>
+            </div>
           </div>
-        }
-      </section>
-    }
+          @if (druckbogenFehler()) {
+            <p class="error-hint" role="alert">{{ druckbogenFehler() }}</p>
+          }
+          @if (qrLaedt()) {
+            <mat-progress-spinner mode="indeterminate" diameter="32" />
+          }
+          @if (qrCodes(); as codes) {
+            <div class="qr-vorschau">
+              <figure>
+                <img [src]="codes.uebersicht" alt="QR-Code zur Fahrzeugübersicht" width="160" />
+                <figcaption>Übersicht</figcaption>
+              </figure>
+              <figure>
+                <img [src]="codes.km" alt="QR-Code zur Kilometerstanderfassung" width="160" />
+                <figcaption>Kilometerstand erfassen</figcaption>
+              </figure>
+            </div>
+          }
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Änderungsprotokoll</mat-panel-title>
+          </mat-expansion-panel-header>
+
+          @if (aenderungsprotokollStore.laedt()) {
+            <p role="status">Änderungsprotokoll wird geladen …</p>
+          }
+          @if (aenderungsprotokollStore.fehler()) {
+            <p class="error-hint" role="alert">{{ aenderungsprotokollStore.fehler() }}</p>
+          }
+          @if (
+            !aenderungsprotokollStore.laedt() && aenderungsprotokollStore.eintraege().length === 0
+          ) {
+            <p class="empty-hint">Noch keine Änderungen protokolliert.</p>
+          }
+
+          <ul class="protokoll-liste">
+            @for (eintrag of aenderungsprotokollStore.eintraege(); track eintrag.id) {
+              <li class="protokoll-zeile">
+                <span class="protokoll-zeitpunkt">{{
+                  eintrag.zeitpunkt | date: 'dd.MM.yyyy, HH:mm'
+                }}</span>
+                <span class="protokoll-von">{{ eintrag.von }}</span>
+                <ul class="protokoll-beschreibung">
+                  @for (zeile of beschreibungZeilen(eintrag); track zeile) {
+                    <li>{{ zeile }}</li>
+                  }
+                </ul>
+              </li>
+            }
+          </ul>
+        </mat-expansion-panel>
+      }
+    </mat-accordion>
   }
 </div>

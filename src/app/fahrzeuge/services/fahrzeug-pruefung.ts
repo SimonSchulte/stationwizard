@@ -1,5 +1,6 @@
 import {
   AblesungEingabe,
+  Aenderungseintrag,
   EIGENTUEMER,
   Eigentuemer,
   Fahrzeugstamm,
@@ -97,6 +98,17 @@ export function istKilometerstand(wert: unknown): wert is Kilometerstand {
  * Prüfung von `erfasstVon` – dieses Feld existiert in der Eingabe nicht,
  * es wird ausschließlich serverseitig aus der geprüften Identität gesetzt.
  */
+export function istAenderungseintrag(wert: unknown): wert is Aenderungseintrag {
+  return (
+    istObjekt(wert) &&
+    istNichtleererText(wert['id']) &&
+    istNichtleererText(wert['fahrzeugId']) &&
+    istNichtleererText(wert['zeitpunkt']) &&
+    istNichtleererText(wert['von']) &&
+    istText(wert['beschreibung'])
+  );
+}
+
 export function istAblesungEingabe(wert: unknown): wert is AblesungEingabe {
   return (
     istObjekt(wert) &&

@@ -637,3 +637,43 @@ Fortschrittsbalken mit Restwert statt als reinem Fließtext.
 letzten Ablesung („Letzte Ablesung 01.06.2026"), ohne Ablesung „Keine Ablesung" – konkreter
 als die vage Zeitangabe und ohne zusätzliche Rechnung in der Vorlage.
 `BilanzMitFahrzeug` führt dafür `letzteAblesungAm` mit; Test ergänzt.
+
+## Nachtrag – Expansion Panels und Änderungsprotokoll auf der Fahrzeugdetailseite
+
+Zwei fachliche Wünsche: die Abschnitte der Fahrzeugdetailseite sollen aufklappbar sein statt
+starr untereinanderzustehen, und am Ende soll ein neuer Abschnitt „Änderungsprotokoll" jede
+Änderung am Fahrzeug samt Persistenz zeigen.
+
+- `fahrzeug-detail`: alle Abschnitte (Stammdaten, Wartungstermine, Kilometerstand, QR-Codes)
+  sind jetzt `mat-expansion-panel`s in einem `mat-accordion` mit `multi` (mehrere gleichzeitig
+  offen). Stammdaten ist vorbelegt geöffnet, die übrigen starten eingeklappt. Aktionsleisten
+  (z. B. „Weiterer Termin", „Kilometerstand erfassen"), die vorher neben der Überschrift
+  standen, sind an den Anfang des jeweiligen Panelinhalts gewandert – ein Klick darauf soll
+  nicht zugleich das Panel zu- oder aufklappen.
+- Neuer Abschnitt **Änderungsprotokoll** am Ende, nur für bereits gespeicherte Fahrzeuge:
+  zeigt jeden protokollierten Eintrag mit Zeitpunkt, wer und einer (bei mehreren Feldern
+  mehrzeiligen) Beschreibung.
+- **Protokollierung inklusive Persistenz**, vollständig serverseitig:
+  - Neue Tabelle `fahrzeug_aenderungen` (`worker/migrations/0002_fahrzeug_aenderungen.sql`),
+    direkt auf der echten D1-Datenbank angelegt. Ausschließlich lesend über
+    `GET /api/fahrzeuge/<UUID>/aenderungen` erreichbar; kein Endpunkt, über den ein Client
+    selbst einen Eintrag schreiben könnte.
+  - `worker/src/fahrzeuge.ts`: `protokolliereAenderung()` schreibt einen Eintrag als
+    Nebeneffekt von Fahrzeuganlage, Stammdaten-/Wartungsänderung (`diffFahrzeug` /
+    `diffWartungstermine` vergleichen alten und neuen Stand feldweise; kein Eintrag ohne
+    echte Änderung), Kilometererfassung und Kilometerlöschung. `beschreibung` entsteht immer
+    aus dem tatsächlichen Unterschied, nie aus einer Clienteingabe.
+  - `FahrzeugStorage.ladeAenderungen()` im gemeinsamen Vertrag ergänzt; `ApiFahrzeugStorage`
+    liest darüber, `InMemoryFahrzeugStorage` bildet eine vereinfachte Version derselben Regel
+    für Fachtests nach. Neuer `AenderungsprotokollStoreService` (analog
+    `AblesungStoreService`) lädt die Liste in `fahrzeug-detail`.
+  - `docs/konzept-fahrzeuge.md` (neuer Unterabschnitt „Änderungsprotokoll (Nachtrag)"),
+    `CLAUDE.md` und `worker/README.md` entsprechend ergänzt.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (382 Angular- und
+  321 Worker-Tests, u. a. neue Fälle für den diffbasierten Protokolleintrag bei Anlage,
+  Stammdaten-, Wartungs-, Ablesungsänderungen in Worker- und In-Memory-Adapter),
+  `npm run format:check`, `npm run deploy:dry-run` – alle grün. Browserprüfung mit
+  `ng serve`/Playwright bei 1280×1100 und 390×844 gegen gemocktes `/api/fahrzeuge/<id>`,
+  `/ablesungen` und `/aenderungen`: Stammdaten startet geöffnet, übrige Panels lassen sich
+  unabhängig auf-/zuklappen, das Änderungsprotokoll zeigt eine mehrzeilige Beschreibung
+  korrekt als Liste, mobile Ansicht bricht sauber um. Keine Konsolenfehler.

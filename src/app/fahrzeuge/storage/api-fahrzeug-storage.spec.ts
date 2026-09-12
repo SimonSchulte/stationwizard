@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { erzeugeTestablesung, erzeugeTestfahrzeug } from '../testing/fahrzeug-testdaten';
+import {
+  erzeugeTestablesung,
+  erzeugeTestaenderung,
+  erzeugeTestfahrzeug,
+} from '../testing/fahrzeug-testdaten';
 import { ApiFahrzeugStorage } from './api-fahrzeug-storage';
 import { AblesungHatKorrekturFehler, FahrzeugKonfliktFehler } from './fahrzeug-storage';
 
@@ -142,5 +146,13 @@ describe('ApiFahrzeugStorage', () => {
   it('reicht andere Fehler beim Löschen weiter', async () => {
     worker.anfragen.mockRejectedValue(new WorkerFehler('Nicht gefunden', 404));
     await expect(storage.loescheAblesung('f1', 'a1')).rejects.toBeInstanceOf(WorkerFehler);
+  });
+
+  it('lädt und prüft das Änderungsprotokoll', async () => {
+    const eintrag = erzeugeTestaenderung();
+    worker.json.mockResolvedValue({ aenderungen: [eintrag, { unvollstaendig: true }] });
+    const ergebnis = await storage.ladeAenderungen('f1');
+    expect(ergebnis).toEqual([eintrag]);
+    expect(worker.json.mock.calls[0][0]).toBe('/api/fahrzeuge/f1/aenderungen');
   });
 });

@@ -13,6 +13,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -25,12 +26,14 @@ import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import {
+  Aenderungseintrag,
   EIGENTUEMER,
   Fahrzeugstamm,
   Kilometerstand,
   Wartungstermin,
 } from '../../models/fahrzeug.model';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
+import { AenderungsprotokollStoreService } from '../../services/aenderungsprotokoll-store.service';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { istGueltigeFin } from '../../services/fahrzeug-pruefung';
 import { berechneJahresbilanz, sollKmProJahr } from '../../services/kilometer-soll';
@@ -72,6 +75,7 @@ function datumZuIso(datum: Date): string {
     MatButtonModule,
     MatCheckboxModule,
     MatDatepickerModule,
+    MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -92,6 +96,7 @@ export class FahrzeugDetail {
   private readonly dialogDienst = inject(DialogDienst);
   readonly store = inject(FahrzeugStoreService);
   readonly ablesungStore = inject(AblesungStoreService);
+  readonly aenderungsprotokollStore = inject(AenderungsprotokollStoreService);
   private readonly druckbogenService = inject(FahrzeugDruckbogenService);
 
   readonly EIGENTUEMER = EIGENTUEMER;
@@ -177,6 +182,7 @@ export class FahrzeugDetail {
       } else {
         void this.store.fahrzeugLaden(id);
         void this.ablesungStore.laden(id);
+        void this.aenderungsprotokollStore.laden(id);
       }
     });
   }
@@ -351,6 +357,11 @@ export class FahrzeugDetail {
     } finally {
       this.qrLaedt.set(false);
     }
+  }
+
+  /** Eine Beschreibung kann mehrere mit `\n` getrennte Zeilen enthalten (mehrere Felder in einem Speichervorgang). */
+  beschreibungZeilen(eintrag: Aenderungseintrag): string[] {
+    return eintrag.beschreibung.split('\n');
   }
 
   async druckbogenHerunterladen(): Promise<void> {

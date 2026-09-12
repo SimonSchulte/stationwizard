@@ -74,3 +74,24 @@ export interface AblesungEingabe {
   korrigiert: string | null;
   bemerkung: string;
 }
+
+/**
+ * Ein Eintrag im Änderungsprotokoll eines Fahrzeugs. Ausschließlich
+ * serverseitig erzeugt: `zeitpunkt`, `von` und `beschreibung` stammen aus der
+ * geprüften Anmeldung bzw. dem tatsächlichen Unterschied zwischen altem und
+ * neuem Stand, nie aus einer Client-Eingabe – es gibt keinen Endpunkt, über
+ * den ein Client einen Eintrag selbst schreiben könnte.
+ */
+export interface Aenderungseintrag {
+  id: string;
+  fahrzeugId: string;
+  /** ISO-Zeitstempel, serverseitig gesetzt. */
+  zeitpunkt: string;
+  /** Geprüfte Access-E-Mail-Adresse, serverseitig gesetzt. */
+  von: string;
+  /**
+   * Menschenlesbare Beschreibung; kann mehrere mit `\n` getrennte Zeilen
+   * enthalten, wenn eine einzelne Änderung mehrere Felder betraf.
+   */
+  beschreibung: string;
+}

@@ -389,6 +389,168 @@ describe('DELETE /api/fahrzeuge/<id>/ablesungen/<id>', () => {
   });
 });
 
+describe('Änderungsprotokoll', () => {
+  async function aenderungen(db: FakeFahrzeugeDb, fahrzeugId = ID) {
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${fahrzeugId}/aenderungen`),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    return antwort;
+  }
+
+  it('protokolliert die Anlage eines Fahrzeugs', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await aenderungen(db);
+    expect(antwort.status).toBe(200);
+    const koerper = (await antwort.json()) as {
+      aenderungen: { von: string; beschreibung: string }[];
+    };
+    expect(koerper.aenderungen).toHaveLength(1);
+    expect(koerper.aenderungen[0].beschreibung).toBe('Fahrzeug angelegt');
+    expect(koerper.aenderungen[0].von).toBe(IDENTITAET.email);
+  });
+
+  it('liefert 404 für ein unbekanntes Fahrzeug', async () => {
+    const db = new FakeFahrzeugeDb();
+    const antwort = await aenderungen(db);
+    expect(antwort.status).toBe(404);
+  });
+
+  it('lehnt eine unbekannte Methode ab', async () => {
+    const db = new FakeFahrzeugeDb();
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/aenderungen`, { method: 'POST' }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(405);
+  });
+
+  it('protokolliert geänderte Stammdaten mit alten und neuen Werten', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+        body: JSON.stringify(fahrzeugKoerper({ bezeichnung: 'MTW Übung 2', eigentuemer: 'bund' })),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      FREMDE_IDENTITAET,
+    );
+    const antwort = await aenderungen(db);
+    const koerper = (await antwort.json()) as {
+      aenderungen: { von: string; beschreibung: string }[];
+    };
+    expect(koerper.aenderungen).toHaveLength(2);
+    const stammdatenEintrag = koerper.aenderungen.find((a) => a.von === FREMDE_IDENTITAET.email);
+    expect(stammdatenEintrag?.beschreibung).toContain(
+      'Bezeichnung geändert: MTW Übung 1 → MTW Übung 2',
+    );
+    expect(stammdatenEintrag?.beschreibung).toContain('Eigentümer geändert: Organisation → Bund');
+  });
+
+  it('protokolliert keinen zusätzlichen Eintrag, wenn sich nichts geändert hat', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+        body: JSON.stringify(fahrzeugKoerper()),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    const antwort = await aenderungen(db);
+    const koerper = (await antwort.json()) as { aenderungen: unknown[] };
+    expect(koerper.aenderungen).toHaveLength(1);
+  });
+
+  it('protokolliert hinzugefügte, geänderte und entfernte Wartungstermine', async () => {
+    const db = new FakeFahrzeugeDb();
+    const bleibt = {
+      id: 'w-bleibt',
+      art: 'frei',
+      bezeichnung: 'Gerätecheck',
+      faelligAm: '2026-01-01',
+      erinnerungTage: 30,
+      erledigtAm: null,
+    };
+    const entfernt = {
+      id: 'w-entfernt',
+      art: 'frei',
+      bezeichnung: 'Reifenwechsel',
+      faelligAm: '2026-02-01',
+      erinnerungTage: 14,
+      erledigtAm: null,
+    };
+    await legeAn(db, fahrzeugKoerper({ wartungstermine: [bleibt, entfernt] }));
+    await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+        body: JSON.stringify(
+          fahrzeugKoerper({
+            wartungstermine: [
+              { ...bleibt, erledigtAm: '2026-01-05' },
+              {
+                id: 'w-neu',
+                art: 'hu',
+                bezeichnung: 'Hauptuntersuchung',
+                faelligAm: '2026-03-01',
+                erinnerungTage: 30,
+                erledigtAm: null,
+              },
+            ],
+          }),
+        ),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    const antwort = await aenderungen(db);
+    const koerper = (await antwort.json()) as { aenderungen: { beschreibung: string }[] };
+    const beschreibung = koerper.aenderungen.map((a) => a.beschreibung).join('\n');
+    expect(beschreibung).toContain('Wartungstermin „Hauptuntersuchung" hinzugefügt');
+    expect(beschreibung).toContain('Wartungstermin „Reifenwechsel" entfernt');
+    expect(beschreibung).toContain('Wartungstermin „Gerätecheck": als erledigt markiert');
+  });
+
+  it('protokolliert eine erfasste und eine gelöschte Ablesung', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const erfassung = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          abgelesenAm: '2026-06-01',
+          stand: 1000,
+          quelle: 'formular',
+          korrigiert: null,
+          bemerkung: '',
+        }),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    const { id: ablesungId } = (await erfassung.json()) as { id: string };
+    await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen/${ablesungId}`, { method: 'DELETE' }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    const antwort = await aenderungen(db);
+    const koerper = (await antwort.json()) as { aenderungen: { beschreibung: string }[] };
+    const beschreibungen = koerper.aenderungen.map((a) => a.beschreibung);
+    expect(beschreibungen).toContain('Kilometerstand erfasst: 1000 km am 2026-06-01');
+    expect(beschreibungen).toContain('Kilometerstand gelöscht: 1000 km vom 2026-06-01');
+  });
+});
+
 describe('Methoden und unbekannte Pfade', () => {
   it('lehnt eine unbekannte Methode auf der Liste ab', async () => {
     const db = new FakeFahrzeugeDb();

@@ -190,12 +190,12 @@ Aufkleber mit Funkrufname, Kennzeichen und beiden Codes.
 
 Route `/#/fahrzeuge` als dritter Fachbereich, lazy geladen, Einstieg von der Startseite.
 
-| Seite                         | Inhalt                                                                                                   |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Dashboard `/fahrzeuge`        | Nächste Wartungen, Restkilometer je Fahrzeug, Fahrzeuge ohne Ablesung seit 30 Tagen                      |
-| Liste `/fahrzeuge/liste`      | Alle Fahrzeuge, Filter nach Eigentümer, Suche über Funkrufname und Kennzeichen                           |
-| Detail `/fahrzeuge/:id`       | Stammdaten, Wartungstermine, Ablesungsverlauf, beide QR-Codes, Druckbogen                                |
-| Erfassung `/fahrzeuge/:id/km` | Bewusst minimal: Zahlenfeld, Datum (Vorgabe heute), Speichern. Ziel des QR-Codes, mobil zuerst entworfen |
+| Seite                         | Inhalt                                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dashboard `/fahrzeuge`        | Nächste Wartungen, Restkilometer je Fahrzeug, Fahrzeuge ohne Ablesung seit 30 Tagen                                                                                |
+| Liste `/fahrzeuge/liste`      | Alle Fahrzeuge, Filter nach Eigentümer, Suche über Funkrufname und Kennzeichen                                                                                     |
+| Detail `/fahrzeuge/:id`       | Stammdaten, Wartungstermine, Ablesungsverlauf, beide QR-Codes, Druckbogen, Änderungsprotokoll — als aufklappbare `mat-expansion-panel`s, Stammdaten vorab geöffnet |
+| Erfassung `/fahrzeuge/:id/km` | Bewusst minimal: Zahlenfeld, Datum (Vorgabe heute), Speichern. Ziel des QR-Codes, mobil zuerst entworfen                                                           |
 
 Die Erfassungsseite ist der einzige Teil, der regelmäßig am Fahrzeug auf dem Telefon
 benutzt wird, und wird entsprechend gestaltet: großes numerisches Eingabefeld, letzter
@@ -411,6 +411,30 @@ alle Arbeitspakete geführt:
   ETag, eine Zeilenversion oder ein Zeitstempel steckt, sieht die Fachschicht nicht.
 
 Damit ist ein späterer Wechsel auf Supabase oder ein anderes Ziel auf AP-F2 begrenzt.
+
+### Änderungsprotokoll (Nachtrag)
+
+Fachlicher Wunsch (Entscheidung vom 12.09.2026): jede Änderung an einem Fahrzeug soll
+nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
+
+- Eigene Tabelle `fahrzeug_aenderungen` (`worker/migrations/0002_fahrzeug_aenderungen.sql`)
+  neben `fahrzeuge` und `ablesungen`, ausschließlich serverseitig befüllt. Kein Endpunkt,
+  über den ein Client selbst einen Eintrag schreiben könnte — ein Eintrag entsteht immer
+  als Nebeneffekt einer anderen Schreiboperation.
+- Auslösende Ereignisse: Fahrzeug anlegen, Stammdaten/Wartungstermine speichern (nur bei
+  tatsächlicher Änderung — ein Speichern ohne Unterschied erzeugt keinen Eintrag),
+  Kilometerstand erfassen, Kilometerstand löschen.
+- `beschreibung` wird serverseitig aus dem tatsächlichen Unterschied zwischen altem und
+  neuem Stand erzeugt (`worker/src/fahrzeuge.ts`, `diffFahrzeug`), nicht aus einer
+  Freitexteingabe des Clients — sonst könnte eine ungenaue oder unehrliche Beschreibung
+  eingetragen werden. Mehrere Feldänderungen in einem Speichervorgang landen als mehrere,
+  mit `\n` getrennte Zeilen in einem einzelnen Protokolleintrag.
+- Nur lesend über `GET /api/fahrzeuge/<UUID>/aenderungen` abrufbar, neueste zuerst.
+  `FahrzeugStorage.ladeAenderungen()` im gemeinsamen Vertrag; `InMemoryFahrzeugStorage`
+  bildet dieselbe Regel für Fachtests vereinfacht nach.
+- In der Oberfläche als eigener, aufklappbarer Abschnitt „Änderungsprotokoll" am Ende der
+  Fahrzeugdetailseite (siehe Abschnitt 5 „Oberfläche": alle Abschnitte der Detailseite sind
+  seit diesem Nachtrag `mat-expansion-panel`s statt starrer Abschnitte).
 
 ## 9. Noch offen
 

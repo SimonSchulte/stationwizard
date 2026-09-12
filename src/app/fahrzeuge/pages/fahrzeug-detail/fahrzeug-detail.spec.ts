@@ -6,7 +6,12 @@ import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { FahrzeugDetail } from './fahrzeug-detail';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
-import { erzeugeTestablesung, erzeugeTestfahrzeug } from '../../testing/fahrzeug-testdaten';
+import { AenderungsprotokollStoreService } from '../../services/aenderungsprotokoll-store.service';
+import {
+  erzeugeTestablesung,
+  erzeugeTestaenderung,
+  erzeugeTestfahrzeug,
+} from '../../testing/fahrzeug-testdaten';
 import { FahrzeugDruckbogenService } from '../../services/fahrzeug-druckbogen.service';
 
 function route(id: string): ActivatedRoute {
@@ -30,10 +35,24 @@ function ablesungStoreMock(ueberschreibung: Record<string, unknown> = {}) {
   };
 }
 
+function aenderungsprotokollStoreMock(ueberschreibung: Record<string, unknown> = {}) {
+  return {
+    laden: vi.fn().mockResolvedValue(undefined),
+    eintraege: () => [],
+    laedt: () => false,
+    fehler: () => '',
+    ...ueberschreibung,
+  };
+}
+
 /** Instanziiert die Komponente und lässt den Lade-Effekt im Konstruktor einmal laufen. */
 function erzeugeDetail(providers: unknown[]): FahrzeugDetail {
   TestBed.configureTestingModule({
-    providers: [{ provide: AblesungStoreService, useValue: ablesungStoreMock() }, ...providers],
+    providers: [
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+      { provide: AenderungsprotokollStoreService, useValue: aenderungsprotokollStoreMock() },
+      ...providers,
+    ],
   });
   const detail = TestBed.runInInjectionContext(() => new FahrzeugDetail());
   TestBed.tick();
@@ -189,6 +208,41 @@ describe('FahrzeugDetail', () => {
       { provide: AblesungStoreService, useValue: ablesungStore },
     ]);
     expect(ablesungStore.laden).toHaveBeenCalledWith(fahrzeug.id);
+  });
+
+  it('lädt das Änderungsprotokoll mit, sobald ein bestehendes Fahrzeug geöffnet wird', () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const aenderungsprotokollStore = aenderungsprotokollStoreMock();
+    erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AenderungsprotokollStoreService, useValue: aenderungsprotokollStore },
+    ]);
+    expect(aenderungsprotokollStore.laden).toHaveBeenCalledWith(fahrzeug.id);
+  });
+
+  it('teilt eine mehrzeilige Protokollbeschreibung in einzelne Zeilen auf', () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+    ]);
+    const eintrag = erzeugeTestaenderung({ beschreibung: 'Zeile eins\nZeile zwei' });
+    expect(detail.beschreibungZeilen(eintrag)).toEqual(['Zeile eins', 'Zeile zwei']);
   });
 
   it('berechnet keine Kilometerbilanz für ein neues, ungespeichertes Fahrzeug', () => {

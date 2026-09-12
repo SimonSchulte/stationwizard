@@ -32,9 +32,18 @@ interface AblesungZeile {
   bemerkung: string;
 }
 
+interface AenderungZeile {
+  id: string;
+  fahrzeug_id: string;
+  zeitpunkt: string;
+  von: string;
+  beschreibung: string;
+}
+
 export class FakeFahrzeugeDb {
   fahrzeuge = new Map<string, FahrzeugZeile>();
   ablesungen: AblesungZeile[] = [];
+  aenderungen: AenderungZeile[] = [];
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query.trim().replace(/\s+/g, ' '));
@@ -184,6 +193,18 @@ class FakeStatement {
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
+    if (this.query.startsWith('INSERT INTO fahrzeug_aenderungen')) {
+      const [id, fahrzeug_id, zeitpunkt, von, beschreibung] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+        string,
+      ];
+      this.db.aenderungen.push({ id, fahrzeug_id, zeitpunkt, von, beschreibung });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     if (this.query.startsWith('DELETE FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')) {
       const [id, fahrzeugId] = this.werte as [string, string];
       const vorher = this.db.ablesungen.length;
@@ -208,6 +229,11 @@ class FakeStatement {
     if (this.query.startsWith('SELECT id FROM fahrzeuge WHERE id = ?')) {
       const [id] = this.werte as [string];
       return this.db.fahrzeuge.has(id) ? ({ id } as T) : null;
+    }
+    if (this.query.startsWith('SELECT * FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')) {
+      const [id, fahrzeugId] = this.werte as [string, string];
+      const treffer = this.db.ablesungen.find((a) => a.id === id && a.fahrzeug_id === fahrzeugId);
+      return (treffer as T | undefined) ?? null;
     }
     if (this.query.startsWith('SELECT id FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')) {
       const [id, fahrzeugId] = this.werte as [string, string];
@@ -234,6 +260,13 @@ class FakeStatement {
       const zeilen = this.db.ablesungen
         .filter((a) => a.fahrzeug_id === fahrzeugId)
         .sort((a, b) => a.abgelesen_am.localeCompare(b.abgelesen_am));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT * FROM fahrzeug_aenderungen WHERE fahrzeug_id = ?')) {
+      const [fahrzeugId] = this.werte as [string];
+      const zeilen = this.db.aenderungen
+        .filter((a) => a.fahrzeug_id === fahrzeugId)
+        .sort((a, b) => b.zeitpunkt.localeCompare(a.zeitpunkt));
       return { success: true, results: zeilen as unknown as T[] };
     }
     throw new Error(`FakeFahrzeugeDb: unbekannte all()-Anweisung: ${this.query}`);

@@ -18,6 +18,7 @@ const ABLESUNG_PFAD = new RegExp(
   `^/api/fahrzeuge/(${UUID_MUSTER})/ablesungen/(${UUID_MUSTER})$`,
   'i',
 );
+const AENDERUNGEN_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})/aenderungen$`, 'i');
 
 const EIGENTUEMER = new Set(['land-nrw', 'bund', 'organisation']);
 const WARTUNGS_ARTEN = new Set(['hu', 'frei']);
@@ -189,6 +190,151 @@ function zuAblesungJson(zeile: AblesungZeile): Record<string, unknown> {
   };
 }
 
+interface AenderungZeile {
+  id: string;
+  fahrzeug_id: string;
+  zeitpunkt: string;
+  von: string;
+  beschreibung: string;
+}
+
+function zuAenderungJson(zeile: AenderungZeile): Record<string, unknown> {
+  return {
+    id: zeile.id,
+    fahrzeugId: zeile.fahrzeug_id,
+    zeitpunkt: zeile.zeitpunkt,
+    von: zeile.von,
+    beschreibung: zeile.beschreibung,
+  };
+}
+
+const EIGENTUEMER_LABEL: Readonly<Record<string, string>> = {
+  'land-nrw': 'Land NRW',
+  bund: 'Bund',
+  organisation: 'Organisation',
+};
+
+type StammdatenFeld =
+  'bezeichnung' | 'funkrufname' | 'kennzeichen' | 'fahrgestellnummer' | 'eigentuemer';
+
+const STAMMDATEN_FELDER: readonly { schluessel: StammdatenFeld; label: string }[] = [
+  { schluessel: 'bezeichnung', label: 'Bezeichnung' },
+  { schluessel: 'funkrufname', label: 'Funkrufname' },
+  { schluessel: 'kennzeichen', label: 'Kennzeichen' },
+  { schluessel: 'fahrgestellnummer', label: 'Fahrgestellnummer' },
+  { schluessel: 'eigentuemer', label: 'Eigentümer' },
+];
+
+function feldAnzeige(schluessel: StammdatenFeld, wert: string | null): string {
+  if (wert === null || wert === '') return '(leer)';
+  return schluessel === 'eigentuemer' ? (EIGENTUEMER_LABEL[wert] ?? wert) : wert;
+}
+
+interface WartungFuerDiff {
+  id: string;
+  bezeichnung: string;
+  faelligAm: string;
+  erinnerungTage: number;
+  erledigtAm: string | null;
+}
+
+function alsWartungFuerDiff(wert: unknown): WartungFuerDiff {
+  const objekt = istObjekt(wert) ? wert : {};
+  return {
+    id: String(objekt['id'] ?? ''),
+    bezeichnung: String(objekt['bezeichnung'] ?? ''),
+    faelligAm: String(objekt['faelligAm'] ?? ''),
+    erinnerungTage: Number(objekt['erinnerungTage'] ?? 0),
+    erledigtAm: objekt['erledigtAm'] === null ? null : String(objekt['erledigtAm'] ?? ''),
+  };
+}
+
+/**
+ * Vergleicht Wartungstermine anhand ihrer `id`: neue, entfernte und
+ * inhaltlich geänderte Termine werden je als eigene Protokollzeile erkannt.
+ */
+function diffWartungstermine(alt: unknown[], neu: unknown[]): string[] {
+  const altListe = alt.map(alsWartungFuerDiff);
+  const neuListe = neu.map(alsWartungFuerDiff);
+  const zeilen: string[] = [];
+
+  for (const termin of neuListe) {
+    if (!altListe.some((t) => t.id === termin.id)) {
+      zeilen.push(
+        `Wartungstermin „${termin.bezeichnung}" hinzugefügt (fällig ${termin.faelligAm})`,
+      );
+    }
+  }
+  for (const termin of altListe) {
+    if (!neuListe.some((t) => t.id === termin.id)) {
+      zeilen.push(`Wartungstermin „${termin.bezeichnung}" entfernt`);
+    }
+  }
+  for (const neuerTermin of neuListe) {
+    const alterTermin = altListe.find((t) => t.id === neuerTermin.id);
+    if (!alterTermin) continue;
+    const details: string[] = [];
+    if (alterTermin.bezeichnung !== neuerTermin.bezeichnung) {
+      details.push(`Bezeichnung „${alterTermin.bezeichnung}" → „${neuerTermin.bezeichnung}"`);
+    }
+    if (alterTermin.faelligAm !== neuerTermin.faelligAm) {
+      details.push(`Fälligkeit ${alterTermin.faelligAm} → ${neuerTermin.faelligAm}`);
+    }
+    if (alterTermin.erinnerungTage !== neuerTermin.erinnerungTage) {
+      details.push(`Vorlauf ${alterTermin.erinnerungTage} → ${neuerTermin.erinnerungTage} Tage`);
+    }
+    if (alterTermin.erledigtAm !== neuerTermin.erledigtAm) {
+      details.push(neuerTermin.erledigtAm !== null ? 'als erledigt markiert' : 'wieder geöffnet');
+    }
+    if (details.length > 0) {
+      zeilen.push(`Wartungstermin „${neuerTermin.bezeichnung}": ${details.join(', ')}`);
+    }
+  }
+  return zeilen;
+}
+
+/** Ermittelt die tatsächlichen Unterschiede für das Änderungsprotokoll – keine Zeile ohne echte Änderung. */
+function diffFahrzeug(alt: FahrzeugZeile, neu: FahrzeugEingabe): string[] {
+  const zeilen: string[] = [];
+  for (const { schluessel, label } of STAMMDATEN_FELDER) {
+    const altWert = alt[schluessel];
+    const neuWert = neu[schluessel];
+    if (altWert !== neuWert) {
+      zeilen.push(
+        `${label} geändert: ${feldAnzeige(schluessel, altWert)} → ${feldAnzeige(schluessel, neuWert)}`,
+      );
+    }
+  }
+  if (alt.bemerkung !== neu.bemerkung) {
+    zeilen.push('Bemerkung geändert');
+  }
+  zeilen.push(
+    ...diffWartungstermine(JSON.parse(alt.wartungstermine) as unknown[], neu.wartungstermine),
+  );
+  return zeilen;
+}
+
+/**
+ * Schreibt einen Eintrag ins Änderungsprotokoll. Ausschließlich intern
+ * aufgerufen: `von` und `zeitpunkt` kommen nie aus dem Anfragekörper, und es
+ * gibt keinen Endpunkt, über den ein Client direkt in diese Tabelle schreiben
+ * könnte (siehe docs/konzept-fahrzeuge.md, Abschnitt „Änderungsprotokoll").
+ */
+async function protokolliereAenderung(
+  db: D1Database,
+  fahrzeugId: string,
+  von: string,
+  beschreibung: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO fahrzeug_aenderungen (id, fahrzeug_id, zeitpunkt, von, beschreibung)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .bind(crypto.randomUUID(), fahrzeugId, new Date().toISOString(), von, beschreibung)
+    .run();
+}
+
 function starkesEtag(version: number): string {
   return `"${version}"`;
 }
@@ -246,7 +392,7 @@ export async function verarbeiteFahrzeuge(
     const ablesungId = ablesungTreffer?.[2];
     if (ablesungFahrzeugId && ablesungId) {
       if (anfrage.method === 'DELETE')
-        return await loescheAblesung(db, ablesungFahrzeugId, ablesungId);
+        return await loescheAblesung(db, ablesungFahrzeugId, ablesungId, identitaet);
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'DELETE',
       });
@@ -259,6 +405,14 @@ export async function verarbeiteFahrzeuge(
         return await ergaenzeAblesung(anfrage, db, ablesungenFahrzeugId, identitaet);
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET, POST',
+      });
+    }
+
+    const aenderungenFahrzeugId = AENDERUNGEN_PFAD.exec(url.pathname)?.[1];
+    if (aenderungenFahrzeugId) {
+      if (anfrage.method === 'GET') return await listeAenderungen(db, aenderungenFahrzeugId);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'GET',
       });
     }
 
@@ -362,6 +516,7 @@ async function legeFahrzeugAn(
       412,
     );
   }
+  await protokolliereAenderung(db, eingabe.id, identitaet.email, 'Fahrzeug angelegt');
   return jsonAntwort({ ...eingabe, geaendertAm: jetzt, geaendertVon: identitaet.email }, 201, {
     ETag: starkesEtag(1),
   });
@@ -391,6 +546,12 @@ async function aktualisiereFahrzeug(
   if (!eingabe || eingabe.id !== id) {
     return fehlerAntwort('FAHRZEUGE_DATEI_UNGUELTIG', 'Ungültige Fahrzeugdaten.', 400);
   }
+  // Für das Änderungsprotokoll: Stand vor dem Schreiben festhalten, sonst
+  // wäre der Unterschied nach dem UPDATE nicht mehr feststellbar.
+  const bisher = await db
+    .prepare('SELECT * FROM fahrzeuge WHERE id = ?')
+    .bind(id)
+    .first<FahrzeugZeile>();
   const jetzt = new Date().toISOString();
   const ergebnis = await db
     .prepare(
@@ -423,6 +584,12 @@ async function aktualisiereFahrzeug(
       412,
     );
   }
+  if (bisher) {
+    const aenderungen = diffFahrzeug(bisher, eingabe);
+    if (aenderungen.length > 0) {
+      await protokolliereAenderung(db, id, identitaet.email, aenderungen.join('\n'));
+    }
+  }
   return jsonAntwort({ ...eingabe, geaendertAm: jetzt, geaendertVon: identitaet.email }, 200, {
     ETag: starkesEtag(erwarteteVersion + 1),
   });
@@ -441,6 +608,21 @@ async function listeAblesungen(db: D1Database, fahrzeugId: string): Promise<Resp
     .bind(fahrzeugId)
     .all<AblesungZeile>();
   return jsonAntwort({ ablesungen: ergebnis.results.map(zuAblesungJson) });
+}
+
+async function listeAenderungen(db: D1Database, fahrzeugId: string): Promise<Response> {
+  const fahrzeug = await db
+    .prepare('SELECT id FROM fahrzeuge WHERE id = ?')
+    .bind(fahrzeugId)
+    .first<{ id: string }>();
+  if (!fahrzeug) {
+    return fehlerAntwort('FAHRZEUG_NICHT_GEFUNDEN', 'Fahrzeug nicht gefunden.', 404);
+  }
+  const ergebnis = await db
+    .prepare('SELECT * FROM fahrzeug_aenderungen WHERE fahrzeug_id = ? ORDER BY zeitpunkt DESC')
+    .bind(fahrzeugId)
+    .all<AenderungZeile>();
+  return jsonAntwort({ aenderungen: ergebnis.results.map(zuAenderungJson) });
 }
 
 async function ergaenzeAblesung(
@@ -495,6 +677,14 @@ async function ergaenzeAblesung(
       eingabe.bemerkung,
     )
     .run();
+  await protokolliereAenderung(
+    db,
+    fahrzeugId,
+    identitaet.email,
+    eingabe.korrigiert !== null
+      ? `Kilometerstand korrigiert: ${eingabe.stand} km am ${eingabe.abgelesenAm}`
+      : `Kilometerstand erfasst: ${eingabe.stand} km am ${eingabe.abgelesenAm}`,
+  );
   return jsonAntwort(
     {
       id,
@@ -526,11 +716,12 @@ async function loescheAblesung(
   db: D1Database,
   fahrzeugId: string,
   ablesungId: string,
+  identitaet: GeprueftesBenutzerkonto,
 ): Promise<Response> {
   const ablesung = await db
-    .prepare('SELECT id FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')
+    .prepare('SELECT * FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')
     .bind(ablesungId, fahrzeugId)
-    .first<{ id: string }>();
+    .first<AblesungZeile>();
   if (!ablesung) {
     return fehlerAntwort('ABLESUNG_NICHT_GEFUNDEN', 'Ablesung nicht gefunden.', 404);
   }
@@ -549,6 +740,12 @@ async function loescheAblesung(
     .prepare('DELETE FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')
     .bind(ablesungId, fahrzeugId)
     .run();
+  await protokolliereAenderung(
+    db,
+    fahrzeugId,
+    identitaet.email,
+    `Kilometerstand gelöscht: ${ablesung.stand} km vom ${ablesung.abgelesen_am}`,
+  );
   return new Response(null, { status: 204 });
 }
 

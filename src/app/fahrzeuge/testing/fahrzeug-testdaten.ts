@@ -1,4 +1,5 @@
 import {
+  Aenderungseintrag,
   Eigentuemer,
   Fahrzeugstamm,
   Kilometerstand,
@@ -50,4 +51,17 @@ export function erzeugeTestablesung(ueberschreibung: Partial<Kilometerstand> = {
 
 export function erzeugeEigentuemer(): readonly Eigentuemer[] {
   return ['land-nrw', 'bund', 'organisation'];
+}
+
+export function erzeugeTestaenderung(
+  ueberschreibung: Partial<Aenderungseintrag> = {},
+): Aenderungseintrag {
+  return {
+    id: crypto.randomUUID(),
+    fahrzeugId: 'fahrzeug-1',
+    zeitpunkt: '2026-06-01T10:00:00.000Z',
+    von: 'test@example.invalid',
+    beschreibung: 'Fahrzeug angelegt',
+    ...ueberschreibung,
+  };
 }

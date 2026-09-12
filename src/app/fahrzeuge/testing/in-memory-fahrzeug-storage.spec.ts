@@ -106,3 +106,45 @@ describe('InMemoryFahrzeugStorage', () => {
     expect(await storage.ladeAblesungen('f1')).toHaveLength(2);
   });
 });
+
+describe('InMemoryFahrzeugStorage – Änderungsprotokoll', () => {
+  it('protokolliert die Anlage und Änderungen an Stammdaten, neueste zuerst', async () => {
+    const storage = new InMemoryFahrzeugStorage(() => 'geprueft@example.invalid');
+    const fahrzeug = erzeugeTestfahrzeug({ bezeichnung: 'MTW A', eigentuemer: 'organisation' });
+    const version = await storage.speichereFahrzeug(fahrzeug, null);
+    await storage.speichereFahrzeug(
+      { ...fahrzeug, bezeichnung: 'MTW B', eigentuemer: 'bund' },
+      version,
+    );
+    const eintraege = await storage.ladeAenderungen(fahrzeug.id);
+    expect(eintraege).toHaveLength(2);
+    expect(eintraege[0].von).toBe('geprueft@example.invalid');
+    expect(eintraege[0].beschreibung).toContain('Bezeichnung geändert: MTW A → MTW B');
+    expect(eintraege[0].beschreibung).toContain('Eigentümer geändert: Organisation → Bund');
+    expect(eintraege[1].beschreibung).toBe('Fahrzeug angelegt');
+  });
+
+  it('protokolliert keinen zusätzlichen Eintrag ohne echte Änderung', async () => {
+    const storage = new InMemoryFahrzeugStorage();
+    const fahrzeug = erzeugeTestfahrzeug();
+    const version = await storage.speichereFahrzeug(fahrzeug, null);
+    await storage.speichereFahrzeug(fahrzeug, version);
+    expect(await storage.ladeAenderungen(fahrzeug.id)).toHaveLength(1);
+  });
+
+  it('protokolliert eine erfasste und eine gelöschte Ablesung', async () => {
+    const storage = new InMemoryFahrzeugStorage();
+    const ablesung = await storage.ergaenzeAblesung({
+      fahrzeugId: 'f1',
+      abgelesenAm: '2026-06-01',
+      stand: 1000,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: '',
+    });
+    await storage.loescheAblesung('f1', ablesung.id);
+    const beschreibungen = (await storage.ladeAenderungen('f1')).map((a) => a.beschreibung);
+    expect(beschreibungen).toContain('Kilometerstand erfasst: 1000 km am 2026-06-01');
+    expect(beschreibungen).toContain('Kilometerstand gelöscht: 1000 km vom 2026-06-01');
+  });
+});

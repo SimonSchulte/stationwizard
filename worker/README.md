@@ -125,21 +125,23 @@ Hostname-/DNS-/Mail-Einrichtung.
 
 Alle Endpunkte benötigen die verifizierte Anmeldung:
 
-| Endpunkt                           | Methode    | Anfrage beziehungsweise Antwort                                                              |
-| ---------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
-| `/api/benutzer`                    | GET        | Antwort `{ "email": "…" }`                                                                   |
-| `/api/status`                      | GET        | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
-| `/api/efs/checkapikey`             | POST       | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltungen`      | POST       | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltung`        | POST       | Anfrage JSON `{ "id": "…" }`                                                                 |
-| `/api/nextcloud/arbeitsmappe`      | GET / PUT  | Konfigurierte Excel-Datei                                                                    |
-| `/api/nextcloud/planungen`         | GET        | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
-| `/api/nextcloud/planungen/<UUID>`  | GET / PUT  | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
-| `/api/hiorg/kalender`              | GET        | Antwort `{ "status": "OK", "eintraege": [...] }`; keine Anfrageparameter                     |
-| `/api/fahrzeuge`                   | GET / POST | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
-| `/api/fahrzeuge/<UUID>`            | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
-| `/api/fahrzeuge/<UUID>/ablesungen` | GET / POST | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
-| `/f/<UUID>`, `/f/<UUID>/km`        | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
+| Endpunkt                                  | Methode    | Anfrage beziehungsweise Antwort                                                              |
+| ----------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| `/api/benutzer`                           | GET        | Antwort `{ "email": "…" }`                                                                   |
+| `/api/status`                             | GET        | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
+| `/api/efs/checkapikey`                    | POST       | Anfrage JSON `{}`                                                                            |
+| `/api/efs/getveranstaltungen`             | POST       | Anfrage JSON `{}`                                                                            |
+| `/api/efs/getveranstaltung`               | POST       | Anfrage JSON `{ "id": "…" }`                                                                 |
+| `/api/nextcloud/arbeitsmappe`             | GET / PUT  | Konfigurierte Excel-Datei                                                                    |
+| `/api/nextcloud/planungen`                | GET        | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
+| `/api/nextcloud/planungen/<UUID>`         | GET / PUT  | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
+| `/api/hiorg/kalender`                     | GET        | Antwort `{ "status": "OK", "eintraege": [...] }`; keine Anfrageparameter                     |
+| `/api/fahrzeuge`                          | GET / POST | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
+| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
+| `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
+| `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
+| `/f/<UUID>`, `/f/<UUID>/km`               | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
 
 ### Fahrzeugmodul (D1)
 
@@ -155,10 +157,18 @@ kennt kein D1-, SQL- oder HTTP-Detail. `version` ist ein starkes HTTP-ETag über
 Zähler in der Fahrzeugzeile, für die Fachschicht eine undurchsichtige Zeichenkette. Details
 und die Begründung für D1 statt Supabase: `docs/konzept-fahrzeuge.md`.
 
-Kilometerablesungen sind unveränderlich – eine Korrektur ist ein neuer Datensatz mit
-Verweis über `korrigiert`, nie ein Update. `erfasstVon` und `erfasstAm` setzt der Worker
-ausschließlich aus der geprüften Anmeldung beziehungsweise der Serverzeit; ein
-gleichnamiges Feld im Anfragekörper wird verworfen.
+Kilometerablesungen werden nie überschrieben – eine Korrektur ist ein neuer Datensatz mit
+Verweis über `korrigiert`, nie ein Update. Löschen ist auf ausdrücklichen fachlichen
+Wunsch möglich, aber gesperrt für eine bereits korrigierte Ablesung. `erfasstVon` und
+`erfasstAm` setzt der Worker ausschließlich aus der geprüften Anmeldung beziehungsweise
+der Serverzeit; ein gleichnamiges Feld im Anfragekörper wird verworfen.
+
+Jede Anlage, Stammdaten-/Wartungsänderung sowie Kilometererfassung/-löschung erzeugt
+serverseitig einen Eintrag im Änderungsprotokoll (`fahrzeug_aenderungen`,
+`worker/migrations/0002_fahrzeug_aenderungen.sql`). Die Beschreibung entsteht aus dem
+tatsächlichen Unterschied zum vorherigen Stand (`diffFahrzeug` in `worker/src/fahrzeuge.ts`),
+nie aus einer Client-Eingabe; es gibt keinen Endpunkt, über den ein Client selbst einen
+Eintrag schreiben könnte.
 
 Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 
@@ -166,6 +176,8 @@ Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 npx wrangler d1 create stationwizard-fahrzeuge --config worker/wrangler.toml
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
   --file worker/migrations/0001_fahrzeuge.sql
+npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
+  --file worker/migrations/0002_fahrzeug_aenderungen.sql
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block von `wrangler.toml`

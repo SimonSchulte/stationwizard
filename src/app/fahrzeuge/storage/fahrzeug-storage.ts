@@ -1,4 +1,9 @@
-import { AblesungEingabe, Fahrzeugstamm, Kilometerstand } from '../models/fahrzeug.model';
+import {
+  AblesungEingabe,
+  Aenderungseintrag,
+  Fahrzeugstamm,
+  Kilometerstand,
+} from '../models/fahrzeug.model';
 
 /**
  * Gemeinsamer Vertrag für die Persistenz des Fahrzeugmoduls. Die Fachschicht
@@ -47,6 +52,14 @@ export interface FahrzeugStorage {
    * Ablesung per `korrigiert` auf diese verweist.
    */
   loescheAblesung(fahrzeugId: string, ablesungId: string): Promise<void>;
+
+  /**
+   * Änderungsprotokoll eines Fahrzeugs, neueste zuerst. Ausschließlich
+   * lesend – ein Eintrag entsteht immer als Nebeneffekt einer anderen
+   * Schreiboperation (Anlage, Speichern, Ablesung erfassen/löschen), nie
+   * über einen eigenen Schreibaufruf der Fachschicht.
+   */
+  ladeAenderungen(fahrzeugId: string): Promise<Aenderungseintrag[]>;
 }
 
 /** Wird geworfen, wenn `version` beim Speichern nicht mehr aktuell ist. */

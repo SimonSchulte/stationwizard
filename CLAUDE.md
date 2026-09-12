@@ -126,6 +126,7 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug; Update nur mit passendem `If-Match`                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
 | `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
+| `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
 | `/f/<UUID>`, `/f/<UUID>/km`               | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
@@ -135,6 +136,10 @@ Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schem
 Anmeldung, nie der Anfragekörper. Löschen einer Ablesung steht mangels Rollenmodell aktuell
 jeder geprüften Identität offen (siehe „Rechte vorerst alle, Rollen später",
 `docs/konzept-fahrzeuge.md` Abschnitt 8); eine spätere Admin-Rolle soll dies einschränken.
+Jede Anlage, Stammdaten-/Wartungsänderung sowie Kilometererfassung/-löschung erzeugt
+serverseitig einen Eintrag im Änderungsprotokoll (`fahrzeug_aenderungen`); die Beschreibung
+entsteht aus dem tatsächlichen Unterschied zum vorherigen Stand, nie aus einer
+Client-Eingabe (siehe `docs/konzept-fahrzeuge.md`, Abschnitt „Änderungsprotokoll").
 
 EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt serverseitig
 `apikey`, `version=2` und `action` als Formulardaten. Ziel aus

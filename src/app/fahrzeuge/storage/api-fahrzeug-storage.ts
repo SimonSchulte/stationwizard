@@ -1,7 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { AblesungEingabe, Fahrzeugstamm, Kilometerstand } from '../models/fahrzeug.model';
-import { istFahrzeugstamm, istKilometerstand } from '../services/fahrzeug-pruefung';
+import {
+  AblesungEingabe,
+  Aenderungseintrag,
+  Fahrzeugstamm,
+  Kilometerstand,
+} from '../models/fahrzeug.model';
+import {
+  istAenderungseintrag,
+  istFahrzeugstamm,
+  istKilometerstand,
+} from '../services/fahrzeug-pruefung';
 import {
   AblesungHatKorrekturFehler,
   FahrzeugKonfliktFehler,
@@ -15,6 +24,10 @@ interface FahrzeugListenAntwort {
 
 interface AblesungListenAntwort {
   ablesungen: unknown[];
+}
+
+interface AenderungListenAntwort {
+  aenderungen: unknown[];
 }
 
 /**
@@ -117,5 +130,12 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
       }
       throw ursache;
     }
+  }
+
+  async ladeAenderungen(fahrzeugId: string): Promise<Aenderungseintrag[]> {
+    const antwort = await this.worker.json<AenderungListenAntwort>(
+      `/api/fahrzeuge/${fahrzeugId}/aenderungen`,
+    );
+    return antwort.aenderungen.filter(istAenderungseintrag);
   }
 }
