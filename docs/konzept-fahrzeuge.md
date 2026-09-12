@@ -84,9 +84,14 @@ Begründungen zu Entscheidungen, die nicht selbsterklärend sind:
   Fehler wird durch eine Korrekturablesung mit Verweis ersetzt. Nur so bleibt die
   Jahreslaufleistung nachvollziehbar und eine nachträgliche Beschönigung der Pflichtkilometer
   erkennbar.
-- **`imBestandSeit` / `imBestandBis`** sind nötig, weil das Mindest-Soll monatsweise
-  definiert ist. Ohne diese Angaben wäre die Jahresrechnung für unterjährig zugelaufene
-  Fahrzeuge falsch.
+- **Der Vorlauf der Wartungswarnung steht am einzelnen Termin**, nicht global. Eine HU
+  braucht anderen Vorlauf als ein Gerätecheck.
+- **Keine Bestandszeiträume in der ersten Fassung.** Zu- und Abgänge werden vorerst nicht
+  abgebildet (Entscheidung vom 12.09.2026). Das Soll gilt damit als volles Jahressoll.
+  Fachlich gewollt ist bei Bedarf die monatsanteilige Rechnung; dafür wären später zwei
+  Felder `imBestandSeit` und `imBestandBis` zu ergänzen. Die Sollberechnung wird deshalb
+  von Anfang an als eigene Funktion mit Jahr und Fahrzeug als Eingabe geführt, damit
+  dieser Schritt eine lokale Änderung bleibt.
 
 ### Nicht abschließend geklärt
 
@@ -109,24 +114,27 @@ Begründungen zu Entscheidungen, die nicht selbsterklärend sind:
 | Bund         | 50 km / Monat  |
 | Organisation | keine Vorgabe  |
 
-Berechnung je Fahrzeug und Kalenderjahr:
+Das Bezugsfenster ist starr das Kalenderjahr vom 1. Januar bis 31. Dezember. Zu- und
+Abgänge bleiben in der ersten Fassung unberücksichtigt, jedes Fahrzeug trägt also ein
+volles Jahressoll:
 
 ```
-anrechenbareMonate = Anzahl Monate des Jahres, in denen das Fahrzeug im Bestand ist
-sollKm            = satz * anrechenbareMonate
-istKm             = aktuellerStand - standZumJahresbeginn
-restKm            = max(0, sollKm - istKm)
+sollKm = satz * 12
+istKm  = aktuellerStand - standZumJahresbeginn
+restKm = max(0, sollKm - istKm)
 ```
 
-Festlegungen, die zur Abstimmung stehen:
+Das ergibt 1.800 km für Land-NRW-Fahrzeuge und 600 km für Bundesfahrzeuge. Sobald
+Bestandszeiträume gepflegt werden, tritt an `12` die Zahl der Monate im Bestand; die
+Berechnung liegt dafür hinter einer eigenen Funktion.
 
-- Ein angefangener Monat zählt als **voller** Monat. Alternative wäre tagesgenaue
-  Anteiligkeit. Vorschlag: voller Monat, weil die Vorgabe selbst monatsweise formuliert ist.
+Weitere Festlegungen:
+
 - **`standZumJahresbeginn`** ist die letzte Ablesung mit `abgelesenAm <= 31.12. des
 Vorjahres`. Existiert keine, wird die erste Ablesung des laufenden Jahres verwendet und
   das Ergebnis in der Oberfläche ausdrücklich als **unvollständig** gekennzeichnet — nicht
-  stillschweigend mit 0 gerechnet und nicht interpoliert. Für das erste Nutzungsjahr des
-  Moduls ist das der Normalfall und muss ehrlich sichtbar bleiben.
+  stillschweigend mit 0 gerechnet und nicht interpoliert. Im ersten Nutzungsjahr des Moduls
+  ist das der Normalfall und muss ehrlich sichtbar bleiben.
 - Bei `eigentuemer === 'organisation'` gibt es kein Soll. Das Dashboard zeigt dort die
   Jahreslaufleistung ohne Ampel, nicht „0 km offen" — das wäre eine falsche Erfolgsmeldung.
 - Eine Hochrechnung („bei aktuellem Schnitt am Jahresende: x km") ist als Zusatz
@@ -179,7 +187,7 @@ Route `/#/fahrzeuge` als dritter Fachbereich, lazy geladen, Einstieg von der Sta
 
 | Seite                         | Inhalt                                                                                                   |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Dashboard `/fahrzeuge`        | Nächste Wartungen über alle Fahrzeuge, Restkilometer je Fahrzeug, Fahrzeuge ohne aktuelle Ablesung       |
+| Dashboard `/fahrzeuge`        | Nächste Wartungen, Restkilometer je Fahrzeug, Fahrzeuge ohne Ablesung seit 30 Tagen                      |
 | Liste `/fahrzeuge/liste`      | Alle Fahrzeuge, Filter nach Eigentümer, Suche über Funkrufname und Kennzeichen                           |
 | Detail `/fahrzeuge/:id`       | Stammdaten, Wartungstermine, Ablesungsverlauf, beide QR-Codes, Druckbogen                                |
 | Erfassung `/fahrzeuge/:id/km` | Bewusst minimal: Zahlenfeld, Datum (Vorgabe heute), Speichern. Ziel des QR-Codes, mobil zuerst entworfen |
@@ -277,16 +285,24 @@ Codes. Kein generischer Abfrageendpunkt und keine frei wählbaren Filter aus dem
 
 ### Datenschutz
 
-Eine Ablesung verknüpft eine Person mit einem Zeitpunkt und einem Fahrzeug und ist damit
-personenbezogen. Vorgesehen:
+Das Modul erfasst Zählerstände, keine Fahrten. Wer eine Ablesung einträgt, hat den Stand
+übermittelt, nicht zwingend das Fahrzeug geführt; ein Bewegungs- oder Nutzungsprofil
+entsteht daraus nicht. Entsprechend wurde entschieden (12.09.2026): **Ablesungen werden
+unbegrenzt aufbewahrt, `erfasstVon` bleibt erhalten.** Ein Löschlauf ist nicht Teil des
+Moduls.
+
+Einordnung zur Vollständigkeit, ohne Handlungsbedarf: die gespeicherte E-Mail-Adresse ist
+für sich genommen personenbezogen, weil sie eine Person identifizierbar macht — unabhängig
+davon, dass kein Fahrtenbuch geführt wird. Die Verarbeitung ist geringfügig und
+zweckgebunden. Sollte später doch eine Frist gewünscht sein, genügt ein Leeren des Feldes
+`erfasstVon`; die Kilometerrechnung hängt nicht daran.
+
+Weiterhin gilt:
 
 - Keine realen Fahrzeug-, Personal- oder Zugangsdaten in Repository, Fixtures, Tests,
   Screenshots oder Fehlertexten. Testdaten werden im Test erfunden.
 - Keine Persistenz fachlicher Daten in `localStorage`.
 - Anzeige von `erfasstVon` nur in der Fahrzeugdetailansicht, nicht im Dashboard.
-- Eine Aufbewahrungsfrist für Ablesungen ist **festzulegen** (Vorschlag: laufendes plus
-  zwei abgeschlossene Kalenderjahre). Dies ist eine Entscheidung der Einheit, keine
-  technische.
 
 ## 7. Umsetzungsplan
 
@@ -297,13 +313,14 @@ grünem Build, Test und Formatprüfung.
 
 - `fahrzeuge/models/fahrzeug.model.ts`, `fahrzeuge/storage/fahrzeug-storage.ts`
 - Fachlogik in `fahrzeuge/services/`: Fälligkeitsberechnung der Wartungstermine,
-  Soll-/Ist-/Restkilometer, Jahresstartstand samt Kennzeichnung „unvollständig",
-  Plausibilitätsprüfung von Ablesungen
+  Soll-/Ist-/Restkilometer als eigene Funktion (Fahrzeug und Jahr als Eingabe),
+  Jahresstartstand samt Kennzeichnung „unvollständig", Plausibilitätsprüfung von Ablesungen
 - Prüfroutinen für unbekannte externe Daten (analog `pep-datei.ts`, ohne `any` und
   ungeprüfte Casts)
 - In-Memory-Adapter für Tests
-- Tests: Monatsanteile über Jahresgrenzen, Schaltjahr, unterjähriger Zu- und Abgang,
-  Organisation ohne Soll, fehlende Vorjahresablesung, Tachorückschritt, Korrekturkette
+- Tests: Jahresgrenze und Zeitzone beim Jahresstartstand, Organisation ohne Soll, fehlende
+  Vorjahresablesung samt Kennzeichnung „unvollständig", Tachorückschritt, Korrekturkette,
+  Wartungsfälligkeit am Stichtag und bei je Termin abweichendem Vorlauf
 - Keine Oberfläche, kein Worker. Blockiert nichts und blockiert nicht auf die
   Backendentscheidung.
 
@@ -323,7 +340,8 @@ Beginnt erst nach der Entscheidung aus Abschnitt 6.
 ### AP-F3 — Fahrzeugverwaltung
 
 - Liste und Detail, Stammdatenformular mit Prüfungen (Kennzeichen, FIN, Datumsfelder)
-- Wartungstermine anlegen, bearbeiten, als erledigt markieren; HU hervorgehoben
+- Wartungstermine anlegen, bearbeiten, als erledigt markieren, Vorlauf je Termin setzen;
+  HU hervorgehoben
 - `VerlassenSchutz`, gemeinsame Dialoge, gemeinsame Leer- und Ladezustände
 - Route in `app.routes.ts`, Einstieg auf der Startseite
 
@@ -336,9 +354,10 @@ Beginnt erst nach der Entscheidung aus Abschnitt 6.
 
 ### AP-F5 — Dashboard
 
-- Nächste Wartungen über alle Fahrzeuge, nach Fälligkeit sortiert, Ampel über Vorlauf
+- Nächste Wartungen über alle Fahrzeuge, nach Fälligkeit sortiert; Ampel über den je
+  Termin eingestellten Vorlauf
 - Restkilometer je Fahrzeug, Organisation ohne Ampel, unvollständige Datenlage sichtbar
-- Fahrzeuge ohne Ablesung in den letzten n Tagen (n festzulegen, Vorschlag 60)
+- Fahrzeuge ohne Ablesung in den letzten 30 Tagen
 - Prognose als solche beschriftet
 
 ### AP-F6 — Integration und Abnahme
@@ -356,14 +375,42 @@ AP-F1 kann sofort beginnen. AP-F2 wartet auf die Backendentscheidung. AP-F3 bis 
 bauen aufeinander auf, lassen sich aber gegen den In-Memory-Adapter vorziehen, falls die
 Entscheidung länger dauert.
 
-## 8. Zu entscheiden
+## 8. Getroffene Entscheidungen
 
-1. **Backend:** Cloudflare D1 (Empfehlung) oder Supabase.
-2. Angefangener Monat zählt voll — oder tagesgenaue Anteiligkeit?
-3. Wird die Fahrgestellnummer überhaupt erfasst?
-4. Aufbewahrungsfrist für Kilometerablesungen.
-5. Vorlauf der Wartungswarnung (Vorschlag 30 Tage) und Schwelle „lange keine Ablesung"
-   (Vorschlag 60 Tage).
-6. Dürfen alle angemeldeten Benutzer Stammdaten ändern, oder nur Ablesungen erfassen?
-   Access liefert derzeit nur die Identität, keine Rollen. Eine Rollenunterscheidung wäre
-   zusätzlicher Aufwand und ist bislang nicht beauftragt.
+Abgestimmt am 12.09.2026.
+
+| Frage                   | Entscheidung                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Backend                 | Cloudflare D1, weil verfügbar. Domäne und Persistenz strikt getrennt, Wechsel bleibt ein Adaptertausch |
+| Bezugsfenster Soll      | Starr 1.1.–31.12., volles Jahressoll je Fahrzeug; Zu- und Abgänge vorerst nicht abgebildet             |
+| Anteiligkeit später     | Wenn nötig, monatsanteilig nach Monaten im Bestand — dafür eine eigene Funktion vorgesehen             |
+| Rechte                  | Vorerst dürfen alle Angemeldeten alles; der Schreibpfad bekommt eine Stelle für spätere Rollen         |
+| Fahrgestellnummer       | Optionales Feld, Prüfung auf 17 Zeichen ohne I/O/Q, in der Oberfläche nicht prominent                  |
+| Aufbewahrung Ablesungen | Unbegrenzt, `erfasstVon` bleibt erhalten; kein Löschlauf                                               |
+| Wartungsvorlauf         | Je Termin einstellbar, Vorgabe 30 Tage                                                                 |
+| Schwelle Ablese-Lücke   | 30 Tage ohne Eintrag                                                                                   |
+
+### Was das für die Trennung bedeutet
+
+Die Vorgabe „Wechsel des Persistenzlayers muss möglich bleiben" wird als harte Regel für
+alle Arbeitspakete geführt:
+
+- `fahrzeuge/models/` und `fahrzeuge/services/` kennen ausschließlich die eigenen
+  Domänentypen. Kein D1-, SQL- oder `Response`-Typ, kein ETag, kein Datenbankfeldname
+  erreicht die Fachschicht.
+- Sämtliche Fachtests laufen gegen den In-Memory-Adapter und bleiben beim Backendwechsel
+  unverändert.
+- Die Übersetzung zwischen Datenbankzeilen und Domänenobjekten liegt an genau einer Stelle
+  im Adapter, einschließlich der Prüfung unbekannter externer Daten.
+- `version` in `FahrzeugStorage` ist eine undurchsichtige Zeichenkette. Ob dahinter ein
+  ETag, eine Zeilenversion oder ein Zeitstempel steckt, sieht die Fachschicht nicht.
+
+Damit ist ein späterer Wechsel auf Supabase oder ein anderes Ziel auf AP-F2 begrenzt.
+
+## 9. Noch offen
+
+- Übernahme von Stammdaten aus HiOrg: die drei freigegebenen EFS-Aktionen liefern keinen
+  Fahrzeugstamm. Eine weitere Aktion braucht zuerst einen Nachweis durch die echte API und
+  deren Dokumentation. Bis dahin manuelle Pflege.
+- Ob die HU-Fälligkeit zusätzlich aus einem Prüfbericht übernommen werden soll.
+- Format und Größe des Aufkleberbogens (Papiergröße, Anzahl je Blatt).
