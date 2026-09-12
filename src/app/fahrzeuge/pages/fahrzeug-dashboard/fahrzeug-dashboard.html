@@ -82,7 +82,13 @@
                     </div>
                     <app-kilometer-bilanz [bilanz]="eintrag.bilanz" />
                     @if (eintrag.hatAbleseLuecke) {
-                      <span class="bilanz-luecke">seit über 30 Tagen keine Ablesung</span>
+                      <span class="tag-chip bilanz-luecke">
+                        @if (eintrag.letzteAblesungAm) {
+                          Letzte Ablesung {{ formatiereDatum(eintrag.letzteAblesungAm) }}
+                        } @else {
+                          Keine Ablesung
+                        }
+                      </span>
                     }
                   </div>
                 }

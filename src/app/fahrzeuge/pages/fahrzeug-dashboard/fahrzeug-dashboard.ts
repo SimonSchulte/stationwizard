@@ -11,7 +11,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
+import { formatiereDatum, heuteIso, jahrVon } from '../../../kern/kalender/datum';
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import { WartungenListe } from '../../components/wartungen-liste/wartungen-liste';
 import { FahrzeugListe } from '../fahrzeug-liste/fahrzeug-liste';
@@ -35,6 +35,8 @@ interface BilanzMitFahrzeug {
   fahrzeug: Fahrzeugstamm;
   bilanz: KilometerJahresbilanz;
   hatAbleseLuecke: boolean;
+  /** ISO-Datum der letzten Ablesung, oder `null` ohne jede Ablesung. */
+  letzteAblesungAm: string | null;
 }
 
 function tageBisFaelligText(tage: number): string {
@@ -74,6 +76,7 @@ export class FahrzeugDashboard implements OnInit {
 
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
   readonly tageBisFaelligText = tageBisFaelligText;
+  readonly formatiereDatum = formatiereDatum;
 
   readonly fahrzeuge = this.store.fahrzeuge;
   readonly listeLaedt = this.store.listeLaedt;
@@ -132,6 +135,7 @@ export class FahrzeugDashboard implements OnInit {
             fahrzeug,
             bilanz: berechneJahresbilanz(fahrzeug, ablesungen, this.jahr),
             hatAbleseLuecke: hatAbleseLuecke(letzte, this.heute),
+            letzteAblesungAm: letzte?.abgelesenAm ?? null,
           };
         }),
       );

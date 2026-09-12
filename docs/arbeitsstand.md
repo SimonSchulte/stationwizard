@@ -630,3 +630,10 @@ Fortschrittsbalken mit Restwert statt als reinem Fließtext.
   (Rest offen/rot, Jahresziel erreicht/grün) und der Erledigt-Umschalter der Wartungsliste
   visuell geprüft; mobile Tableiste nutzt Material-eigene Scroll-Pfeile, Karten brechen
   einspaltig um. Keine Konsolenfehler.
+
+### Nachtrag – Ablese-Lücke als Datum statt Textfloskel
+
+„seit über 30 Tagen keine Ablesung" ersetzt durch einen Chip mit dem tatsächlichen Datum der
+letzten Ablesung („Letzte Ablesung 01.06.2026"), ohne Ablesung „Keine Ablesung" – konkreter
+als die vage Zeitangabe und ohne zusätzliche Rechnung in der Vorlage.
+`BilanzMitFahrzeug` führt dafür `letzteAblesungAm` mit; Test ergänzt.

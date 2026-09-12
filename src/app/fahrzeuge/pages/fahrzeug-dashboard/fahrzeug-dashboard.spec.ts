@@ -93,6 +93,26 @@ describe('FahrzeugDashboard', () => {
     expect(dashboard.bilanzen()[1].bilanz.sollKm).toBe(600);
   });
 
+  it('merkt sich das Datum der letzten Ablesung je Fahrzeug für den Lücken-Hinweis', async () => {
+    const mitAblesung = erzeugeTestfahrzeug({ id: 'mit', bezeichnung: 'Mit Ablesung' });
+    const ohneAblesung = erzeugeTestfahrzeug({ id: 'ohne', bezeichnung: 'Ohne Ablesung' });
+    konfiguriere([mitAblesung, ohneAblesung], {
+      ladeAblesungen: vi.fn((id: string) =>
+        Promise.resolve(
+          id === 'mit'
+            ? [erzeugeTestablesung({ fahrzeugId: 'mit', abgelesenAm: '2025-01-01' })]
+            : [],
+        ),
+      ),
+    });
+    const dashboard = await erzeugeUndWarte();
+    const [mit, ohne] = dashboard.bilanzen();
+    expect(mit.letzteAblesungAm).toBe('2025-01-01');
+    expect(mit.hatAbleseLuecke).toBe(true);
+    expect(ohne.letzteAblesungAm).toBeNull();
+    expect(ohne.hatAbleseLuecke).toBe(true);
+  });
+
   it('zeigt die Bilanzen erfolgreicher Fahrzeuge, auch wenn eines fehlschlägt', async () => {
     const ok = erzeugeTestfahrzeug({ id: 'ok', bezeichnung: 'OK' });
     const kaputt = erzeugeTestfahrzeug({ id: 'kaputt', bezeichnung: 'Kaputt' });
