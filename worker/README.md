@@ -51,7 +51,7 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
 | `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
-| `HIORGSERVER_CALENDER_FEED` | Vollständige HTTPS-URL des HiOrg-Kalenderfeeds **einschließlich Query-Parameter**; die URL ist selbst das Zugangsdatum         |
+| `HIORGSERVER_CALENDER_FEED` | Nur der `lab`-Tokenwert aus der HiOrg-Kalenderfreigabe (keine URL); Host/Pfad/übrige Parameter sind im Worker fest hinterlegt  |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
 Worker unter **Bindings** kontrollieren, ob genau diese sechs Namen auf den richtigen Store
@@ -139,21 +139,23 @@ Alle Endpunkte benötigen die verifizierte Anmeldung:
 
 ### HiOrg-Kalenderfeed
 
-`HIORGSERVER_CALENDER_FEED` ist die vollständige Feed-URL. Anders als bei allen anderen
-Zielen liegt das Zugangsdatum **in der URL selbst** (als Query-Parameter), deshalb ist der
-Query-String hier ausdrücklich erlaubt, während er beim EFS-Endpunkt abgelehnt wird. Die
-Schreibweise „CALENDER" ist bewusst übernommen – das Secret heißt im Store genau so.
+`HIORGSERVER_CALENDER_FEED` enthält **nur noch den `lab`-Tokenwert** aus der
+HiOrg-Kalenderfreigabe, nicht mehr die vollständige Feed-URL. Host (`www.hiorg-server.de`),
+Pfad (`/termine.php`) und die übrigen Anfrageparameter (`ov`, `termin`, `dienst`, `auchint`,
+`zr_dienst`, `json`) sind fest im Worker hinterlegt (`FEED_URL_BASIS`,
+`FESTE_FEED_PARAMETER` in `hiorg-kalender.ts`) und werden dort serverseitig ergänzt –
+dasselbe Muster wie `apikey`/`version`/`action` beim EFS-Ziel. Die Schreibweise „CALENDER"
+ist bewusst übernommen – das Secret heißt im Store genau so.
 
-Der Worker bindet das Ziel fest an `hiorg-server.de` beziehungsweise dessen Subdomains.
-Ein versehentlich vertauschtes Secret kann den Worker damit nicht zu einem beliebigen
-fremden Ziel schicken.
+Der Worker leitet das Ziel nie aus Konfiguration ab: Host und Pfad stehen fest im Code,
+das Secret liefert ausschließlich den `lab`-Wert. Ein vertauschtes Secret kann den Worker
+damit nicht zu einem beliebigen fremden Ziel schicken.
 
-HiOrg kann pro Abruf nur in eine Richtung schauen: der Parameter `monate` in der
-konfigurierten Feed-URL zählt ab heute vorwärts (positiv) oder zurück (negativ), nie
-beides zugleich. Der optionale Anfrageparameter `?monat=JJJJ-MM` überträgt deshalb den im
-Jahresplan gerade angeschauten Monat; der Worker überschreibt `monate` je nach Abstand zum
-heutigen Monat (Europe/Berlin) mit dem passenden Vorzeichen und ausreichend Vorlauf. Ohne
-`monat` bleibt es bei der im Secret konfigurierten Richtung. Kein anderer Anfrageparameter
+HiOrg kann pro Abruf nur in eine Richtung schauen: `monate` zählt ab heute vorwärts
+(positiv) oder zurück (negativ), nie beides zugleich. Der optionale Anfrageparameter
+`?monat=JJJJ-MM` überträgt deshalb den im Jahresplan gerade angeschauten Monat; der Worker
+setzt `monate` je Anfrage passend zum Abstand zum heutigen Monat (Europe/Berlin), mit
+ausreichend Vorlauf. Ohne `monat` gilt der laufende Monat. Kein anderer Anfrageparameter
 ist erlaubt.
 
 Weitergereicht wird pro Termin ausschließlich `sortdate`, `enddate`, `verbez`, `typ`, `id`

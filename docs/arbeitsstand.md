@@ -320,13 +320,20 @@ unerreichbar – je nachdem, ob `HIORGSERVER_CALENDER_FEED` mit positivem oder n
 - `verarbeiteHiorgKalender()` (`worker/src/hiorg-kalender.ts`) erlaubt jetzt genau einen
   optionalen Anfrageparameter `monat=JJJJ-MM` – der im Jahresplan gerade angeschaute Monat.
   Der Worker berechnet daraus den Abstand zum heutigen Monat (`Intl.DateTimeFormat` mit
-  `timeZone: 'Europe/Berlin'`, nie eine reine UTC-Rechnung) und überschreibt `monate` in der
-  konfigurierten Feed-URL mit dem passenden Vorzeichen und ausreichend Vorlauf
-  (`Abstand + 1` vorwärts, `Abstand - 1` zurück), bevor der Worker den Feed abruft. Alle
-  übrigen Query-Parameter der konfigurierten URL (`ov`, `lab`, `zr_dienst`, …) bleiben
-  unverändert. Ein fehlendes `monat` verhält sich wie bisher – die im Secret konfigurierte
-  Richtung bleibt Rückfallebene. Ein falsches Format oder ein zusätzlicher Parameter
-  liefert weiterhin `400 / HIORG_KALENDER_ANFRAGE_UNGUELTIG`.
+  `timeZone: 'Europe/Berlin'`, nie eine reine UTC-Rechnung) und setzt `monate` mit dem
+  passenden Vorzeichen und ausreichend Vorlauf (`Abstand + 1` vorwärts, `Abstand - 1`
+  zurück). Ein fehlendes `monat` gilt wie der laufende Monat (`monate=1`). Ein falsches
+  Format oder ein zusätzlicher Parameter liefert `400 / HIORG_KALENDER_ANFRAGE_UNGUELTIG`.
+- **Zweite, tiefergehende Korrektur in derselben Runde:** `HIORGSERVER_CALENDER_FEED` war
+  bisher die vollständige Feed-URL; das Secret enthält jetzt nur noch den `lab`-Tokenwert.
+  Host (`www.hiorg-server.de`), Pfad (`/termine.php`) und die übrigen Anfrageparameter
+  (`ov=biel`, `termin=1`, `dienst=1`, `auchint=1`, `zr_dienst=1`, `json=1`) sind als
+  `FEED_URL_BASIS`/`FESTE_FEED_PARAMETER` fest im Worker hinterlegt und werden serverseitig
+  ergänzt – dasselbe Muster wie `apikey`/`version`/`action` beim EFS-Ziel. `ov=biel` stand
+  als Pflichtparameter der Ereignis-Detaillinks (`hiorg-kalender.model.ts`) ohnehin schon
+  unverschlüsselt im Repository. Wer das Secret zuvor auf die vollständige URL gesetzt
+  hatte, muss es auf den reinen `lab`-Wert umstellen, sonst antwortet der Worker mit
+  `503 / HIORG_KALENDER_KONFIGURATION_FEHLT`.
 - `HiorgKalenderService.lade()` (`src/app/ausbildung/services/hiorg-kalender.service.ts`)
   nimmt jetzt ein Optionsobjekt `{ monat?, erzwingen? }` statt eines einzelnen
   `erzwingen`-Flags entgegen und lädt bei einem Monatswechsel automatisch neu, auch ohne
@@ -336,7 +343,7 @@ unerreichbar – je nachdem, ob `HIORGSERVER_CALENDER_FEED` mit positivem oder n
   dieselbe Auswahl wie beim bestehenden automatischen Zurücksetzen des Monats: laufender
   Monat im laufenden Jahr, sonst Januar.
 
-Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (251 Angular- und
-291 Worker-Tests) und `npm run format:check` – alle grün. Kein Abruf gegen den echten
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm run worker:test` (288
+Worker-Tests) und `npm run format:check` – alle grün. Kein Abruf gegen den echten
 HiOrg-Feed (Secret liegt in dieser Umgebung nicht vor) und keine Browserprüfung in dieser
 Runde.
