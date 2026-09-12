@@ -27,6 +27,7 @@ const TESTDATEN_PFAD = 'testdaten/hiorg-kalender-mock.json';
 export class HiorgKalenderService {
   private readonly worker = inject(WorkerClient);
   private laufend: Promise<void> | null = null;
+  private geladenerMonat: string | null = null;
 
   readonly eintraege = signal<readonly HiorgEintrag[]>([]);
   readonly zustand = signal<HiorgZustand>('ungeprueft');
@@ -34,11 +35,19 @@ export class HiorgKalenderService {
   readonly verworfen = signal(0);
   readonly laedt = signal(false);
 
-  async lade(erzwingen = false): Promise<void> {
-    if (!erzwingen && this.zustand() === 'geladen') {
+  /**
+   * `monat` ist der im Jahresplan gerade angeschaute Monat als `JJJJ-MM`. Die
+   * HiOrg-API kann pro Abruf nur vorwärts oder zurück schauen (siehe Worker);
+   * ohne diesen Parameter bleibt es bei der im Secret konfigurierten Richtung.
+   * Ein Wechsel des angeschauten Monats lädt automatisch neu, auch ohne
+   * `erzwingen`.
+   */
+  async lade(optionen: { monat?: string; erzwingen?: boolean } = {}): Promise<void> {
+    const { monat, erzwingen = false } = optionen;
+    if (!erzwingen && this.zustand() === 'geladen' && this.geladenerMonat === (monat ?? null)) {
       return;
     }
-    this.laufend ??= this.abrufen().finally(() => {
+    this.laufend ??= this.abrufen(monat).finally(() => {
       this.laufend = null;
     });
     return this.laufend;
@@ -73,13 +82,17 @@ export class HiorgKalenderService {
     }
   }
 
-  private async abrufen(): Promise<void> {
+  private async abrufen(monat: string | undefined): Promise<void> {
     this.laedt.set(true);
     try {
-      const rohdaten = await this.worker.json<unknown>('/api/hiorg/kalender');
+      const pfad = monat
+        ? `/api/hiorg/kalender?monat=${encodeURIComponent(monat)}`
+        : '/api/hiorg/kalender';
+      const rohdaten = await this.worker.json<unknown>(pfad);
       const { eintraege, verworfen } = leseHiorgAntwort(rohdaten);
       this.eintraege.set(eintraege);
       this.verworfen.set(verworfen);
+      this.geladenerMonat = monat ?? null;
       this.zustand.set('geladen');
       this.fehler.set('');
     } catch (ursache) {
