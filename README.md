@@ -12,13 +12,13 @@ Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 
 ## Fachbereiche
 
-| Bereich            | Funktionen                                                                                                                 | Aktuelle Route      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| Startseite         | Einstieg in alle Fachbereiche, gemeinsamer Benutzer- und Verbindungsstatus                                                 | `/#/`               |
-| Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich | `/#/ausbildung`     |
-| Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                      | `/#/einsatz`        |
-| Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                               | `/#/einsatz/editor` |
-| Fahrzeuge          | Liste, Stammdaten, Wartungstermine, Kilometerverlauf mit Jahresbilanz, QR-Codes und Druckbogen; Fuhrpark-Dashboard folgt   | `/#/fahrzeuge`      |
+| Bereich            | Funktionen                                                                                                                               | Aktuelle Route      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Startseite         | Einstieg in alle Fachbereiche, gemeinsamer Benutzer- und Verbindungsstatus                                                               | `/#/`               |
+| Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich               | `/#/ausbildung`     |
+| Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                                    | `/#/einsatz`        |
+| Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                                             | `/#/einsatz/editor` |
+| Fahrzeuge          | Fuhrpark-Dashboard (nächste Wartungen, Kilometerbilanzen); Liste, Stammdaten, Wartungstermine, Kilometerverlauf, QR-Codes und Druckbogen | `/#/fahrzeuge`      |
 
 Hash-Routing bleibt vorerst bewusst erhalten. Der Worker ist bereits mit
 `not_found_handling = "single-page-application"` vorbereitet, aber der reale

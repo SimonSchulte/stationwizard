@@ -5,6 +5,13 @@ export const fahrzeugeRoutes: Routes = [
     path: '',
     pathMatch: 'full',
     loadComponent: () =>
+      import('./pages/fahrzeug-dashboard/fahrzeug-dashboard').then(
+        (modul) => modul.FahrzeugDashboard,
+      ),
+  },
+  {
+    path: 'liste',
+    loadComponent: () =>
       import('./pages/fahrzeug-liste/fahrzeug-liste').then((modul) => modul.FahrzeugListe),
   },
   {

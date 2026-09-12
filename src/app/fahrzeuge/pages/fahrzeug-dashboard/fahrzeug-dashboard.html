@@ -1,0 +1,91 @@
+<mat-toolbar class="dashboard-kopfleiste">
+  <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
+  <span class="toolbar-title">Fahrzeuge</span>
+  <span class="spacer"></span>
+  <a mat-stroked-button routerLink="/fahrzeuge/liste"> <mat-icon>list</mat-icon> Alle Fahrzeuge </a>
+  <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+    <mat-icon>add</mat-icon> Neues Fahrzeug
+  </button>
+</mat-toolbar>
+
+<div class="dashboard-content">
+  @if (listeLaedt()) {
+    <p role="status">Fahrzeuge werden geladen …</p>
+  }
+  @if (listeFehler()) {
+    <p class="error-hint" role="alert">{{ listeFehler() }}</p>
+  }
+
+  @if (!listeLaedt() && !listeFehler() && fahrzeuge().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon">local_shipping</mat-icon>
+      <p class="empty-hint">Noch keine Fahrzeuge angelegt.</p>
+      <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+        <mat-icon>add</mat-icon> Neues Fahrzeug anlegen
+      </button>
+    </div>
+  }
+
+  @if (fahrzeuge().length > 0) {
+    <section class="wartungen" aria-labelledby="wartungen-titel">
+      <h2 id="wartungen-titel">Nächste Wartungen</h2>
+      @if (offeneWartungen().length === 0) {
+        <p class="empty-hint">Keine offenen Wartungstermine.</p>
+      } @else {
+        <ul class="wartungen-liste">
+          @for (eintrag of offeneWartungen(); track eintrag.status.termin.id) {
+            <li class="wartung-zeile" [class]="'ampel-' + eintrag.status.ampel">
+              <span class="ampel-punkt" aria-hidden="true"></span>
+              <a class="wartung-fahrzeug" [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]">{{
+                eintrag.fahrzeug.bezeichnung
+              }}</a>
+              <span class="wartung-bezeichnung">{{ eintrag.status.termin.bezeichnung }}</span>
+              <span class="wartung-faellig">{{
+                tageBisFaelligText(eintrag.status.tageBisFaellig)
+              }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="kilometer" aria-labelledby="kilometer-titel">
+      <h2 id="kilometer-titel">Kilometerbilanz laufendes Jahr</h2>
+      @if (bilanzenLaedt()) {
+        <p role="status">Kilometerbilanzen werden geladen …</p>
+      }
+      @if (bilanzenFehler()) {
+        <p class="error-hint" role="alert">{{ bilanzenFehler() }}</p>
+      }
+      @if (!bilanzenLaedt() && bilanzen().length > 0) {
+        <ul class="bilanz-liste">
+          @for (eintrag of bilanzen(); track eintrag.fahrzeug.id) {
+            <li class="bilanz-zeile">
+              <a class="bilanz-fahrzeug" [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]">{{
+                eintrag.fahrzeug.bezeichnung
+              }}</a>
+              <span class="bilanz-eigentuemer">{{
+                EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer]
+              }}</span>
+              @if (eintrag.bilanz.sollKm === 0) {
+                <span class="bilanz-wert bilanz-neutral">keine Mindestlaufleistung</span>
+              } @else if (eintrag.bilanz.restKm === null) {
+                <span class="bilanz-wert bilanz-neutral">noch keine Datenlage</span>
+              } @else {
+                <span class="bilanz-wert" [class.bilanz-warnung]="eintrag.bilanz.restKm > 0">
+                  {{ eintrag.bilanz.restKm }} km offen
+                </span>
+                @if (eintrag.bilanz.unvollstaendig) {
+                  <span class="bilanz-hinweis">unvollständige Datenlage</span>
+                }
+              }
+              @if (eintrag.hatAbleseLuecke) {
+                <span class="bilanz-hinweis bilanz-luecke">seit über 30 Tagen keine Ablesung</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</div>

@@ -463,3 +463,30 @@ valid JSON` statt einer verständlichen Fehlermeldung. Jetzt dieselbe Prüfung w
   fotografieren – ihre Erzeugung ist stattdessen durch Unit-Tests abgesichert (echte
   `qrcode`-PNG-Data-URLs, kein Mock). Das bleibt für eine spätere Runde mit echtem Backend
   offen.
+
+## AP-F5 – Fuhrpark-Dashboard
+
+Umsetzung der im Konzept vorgesehenen Routenaufteilung: das Dashboard ist jetzt die
+Startseite des Moduls, die bisherige Liste ist auf `/fahrzeuge/liste` gewandert.
+`fahrzeug-detail`s Zurück-Pfeil verweist entsprechend auf `/fahrzeuge/liste` statt auf das
+Dashboard. Diese Umstellung war unkritisch, weil das Modul noch nicht produktiv läuft.
+
+- `fahrzeuge.routes.ts`: `''` → `FahrzeugDashboard`, `'liste'` → `FahrzeugListe`
+  (unverändert), `'neu'`/`':id/km'`/`':id'` wie zuvor.
+- `fahrzeug-dashboard`: „Nächste Wartungen“ sammelt alle offenen (nicht erledigten)
+  Wartungstermine über alle Fahrzeuge mit `ermittleWartungsstatus` (unverändert aus AP-F1)
+  und sortiert nach Fälligkeit. „Kilometerbilanz“ lädt je Fahrzeug die Ablesungshistorie
+  und berechnet `berechneJahresbilanz`; da es keinen zentralen Ablesungs-Endpunkt über
+  alle Fahrzeuge gibt (bewusst, siehe Konzept), sind das so viele Anfragen wie Fahrzeuge –
+  bei der erwarteten Fuhrparkgröße unproblematisch. `Promise.allSettled` statt
+  `Promise.all`: ein einzelnes fehlgeschlagenes Fahrzeug blockiert nicht die Bilanzen der
+  übrigen, meldet aber einen Sammel­hinweis.
+- Fahrzeuge ohne Ablesung seit über 30 Tagen (`hatAbleseLuecke`, unverändert aus AP-F1)
+  werden in der Kilometerliste gesondert markiert.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (346 Angular- und
+  310 Worker-Tests), `npm run format:check` – alle grün. Browserprüfung mit `ng serve` und
+  Playwright/Chromium bei 1280×900 und 390×844: Dashboard und die verschobene Liste unter
+  `/fahrzeuge/liste` laden und brechen nicht um, Fehleranzeige ohne Worker wie erwartet.
+  Die befüllten Wartungs-/Kilometerabschnitte selbst konnten mangels Backend nicht mit
+  echten Daten fotografiert werden; ihre Berechnung ist durch Unit-Tests mit mehreren
+  Fahrzeugen und einem gezielt fehlschlagenden Ablesungsabruf abgesichert.
