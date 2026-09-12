@@ -308,3 +308,29 @@ zweite Karte.
 Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (249 Angular- und
 280 Worker-Tests) und `npm run format:check` – alle grün. Keine Browserprüfung in dieser
 Runde.
+
+## AP-F1 – Fahrzeugmodul: Domäne und Persistenzabstraktion
+
+Erste Umsetzungsstufe von `docs/konzept-fahrzeuge.md`. Ausschließlich Fachschicht, keine
+Oberfläche und kein Worker – das folgt in AP-F2 nach der dort noch offenen
+Backendfestlegung.
+
+- `src/app/fahrzeuge/models/fahrzeug.model.ts`: `Fahrzeugstamm`, `Wartungstermin`,
+  `Kilometerstand`, `AblesungEingabe`. Keine Bestandszeiträume (Zu-/Abgang) in dieser
+  Fassung – bewusste Entscheidung vom 12.09.2026, siehe Konzeptdokument Abschnitt 8.
+- `src/app/fahrzeuge/storage/fahrzeug-storage.ts`: `FahrzeugStorage`-Interface und
+  `FahrzeugKonfliktFehler`. Die Fachschicht kennt ausschließlich diese Typen, keinen
+  Datenbank-, ETag- oder HTTP-Bezug; ein Backendwechsel bleibt auf einen neuen Adapter
+  begrenzt.
+- `src/app/fahrzeuge/services/`: `fahrzeug-pruefung.ts` (Prüfung unbekannter externer
+  Daten, analog `pep-datei.ts`, kein `any`), `kilometer-soll.ts` (Jahresbilanz je
+  Fahrzeug – starres Kalenderjahr, volles Jahressoll, `unvollstaendig`-Kennzeichnung ohne
+  Vorjahresablesung), `wartungsstatus.ts` (Ampel je Wartungstermin mit individuellem
+  Vorlauf), `ablesung-pruefung.ts` (Plausibilitätshinweis bei Rückschritt/Sprung, feste
+  30-Tage-Schwelle für die Ablese-Lücke).
+- `src/app/fahrzeuge/testing/`: `InMemoryFahrzeugStorage` als Referenzadapter (bildet
+  Versionsprüfung und serverseitige Identität nach) sowie Testdaten-Factories. Alle
+  Fachtests laufen dagegen und bleiben bei der Backendentscheidung unverändert.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (296 Angular- und
+  280 Worker-Tests) und `npm run format:check` – alle grün. Keine Oberfläche, daher keine
+  Browserprüfung in diesem Paket.
