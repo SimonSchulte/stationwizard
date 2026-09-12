@@ -7,7 +7,7 @@ import {
   EfsEinsatzmittel,
   FahrzeugRef,
 } from '../models/planung.model';
-import { FAHRZEUGE } from '../data/fahrzeuge';
+import { FahrzeugeQuelleService } from './fahrzeuge-quelle.service';
 
 // Raw response shapes from the HiOrg EFS-API
 interface EfsApiEnvelope {
@@ -79,6 +79,7 @@ export interface EfsDetailResult {
 @Injectable({ providedIn: 'root' })
 export class EfsApiService {
   readonly worker = inject(WorkerClient);
+  private readonly fahrzeugeQuelle = inject(FahrzeugeQuelleService);
   readonly verbindung = signal<'ungeprueft' | 'verbunden' | 'gestoert'>('ungeprueft');
   readonly fehler = signal('');
   readonly erreichbar = computed(
@@ -259,11 +260,14 @@ export class EfsApiService {
   }
 
   matchFahrzeug(em: EfsEinsatzmittel): FahrzeugRef | null {
+    this.fahrzeugeQuelle.sicherstellenGeladen();
+    const fahrzeuge = this.fahrzeugeQuelle.fahrzeuge();
     const code = em.fugcode?.toLowerCase();
+    const fugcode = em.fugcode;
     const f =
-      FAHRZEUGE.find((v) => v.hiorgId === em.fugcode) ??
-      FAHRZEUGE.find((v) => v.funkruf.toLowerCase() === code) ??
-      FAHRZEUGE.find((v) => v.seriennummer.toLowerCase() === code);
+      (fugcode ? fahrzeuge.find((v) => v.hiorgId === fugcode) : undefined) ??
+      (code ? fahrzeuge.find((v) => v.funkruf.toLowerCase() === code) : undefined) ??
+      (code ? fahrzeuge.find((v) => v.seriennummer.toLowerCase() === code) : undefined);
     if (f) return { seriennummer: f.seriennummer, funkruf: f.funkruf, hiorgId: f.hiorgId };
     const funkruf = em.funkruf?.trim();
     return funkruf ? { seriennummer: null, funkruf, hiorgId: em.id || null } : null;

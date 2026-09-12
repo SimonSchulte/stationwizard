@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { EfsApiService } from './efs-api.service';
+import { FahrzeugeQuelleService } from './fahrzeuge-quelle.service';
 import { ImportService } from './import.service';
 
 describe('EFS-Verbindung über denselben Worker', () => {
@@ -187,5 +188,41 @@ describe('EFS-Verbindung über denselben Worker', () => {
     await expect(service.getVeranstaltungDetail('test')).rejects.toThrow('Einsatzkräfteliste');
     worker.json.mockResolvedValue({ status: 'OK', einsatzmittel_imeinsatz: {} });
     await expect(service.getVeranstaltungDetail('test')).rejects.toThrow('Einsatzmittelliste');
+  });
+});
+
+describe('Fahrzeugabgleich gegen das Fahrzeugmodul', () => {
+  it('gleicht gegen die Fahrzeuge aus dem Fahrzeugmodul ab, sobald welche vorhanden sind', () => {
+    const bekannt = { seriennummer: 'WBA123', funkruf: 'Florian Test 1', hiorgId: '' };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: WorkerClient, useValue: { json: vi.fn(), zustand: signal('erreichbar') } },
+        {
+          provide: FahrzeugeQuelleService,
+          useValue: { fahrzeuge: () => [bekannt], sicherstellenGeladen: vi.fn() },
+        },
+      ],
+    });
+    const service = TestBed.inject(EfsApiService);
+    expect(service.matchFahrzeug({ id: 'x', fugcode: 'florian test 1' })).toEqual({
+      seriennummer: bekannt.seriennummer,
+      funkruf: bekannt.funkruf,
+      hiorgId: bekannt.hiorgId,
+    });
+  });
+
+  it('matcht nicht versehentlich über eine leere fugcode/hiorgId-Übereinstimmung', () => {
+    const bekannt = { seriennummer: '', funkruf: 'Florian Test 1', hiorgId: '' };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: WorkerClient, useValue: { json: vi.fn(), zustand: signal('erreichbar') } },
+        {
+          provide: FahrzeugeQuelleService,
+          useValue: { fahrzeuge: () => [bekannt], sicherstellenGeladen: vi.fn() },
+        },
+      ],
+    });
+    const service = TestBed.inject(EfsApiService);
+    expect(service.matchFahrzeug({ id: 'x', fugcode: '' })).toBeNull();
   });
 });

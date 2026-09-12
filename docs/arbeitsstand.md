@@ -490,3 +490,31 @@ Dashboard. Diese Umstellung war unkritisch, weil das Modul noch nicht produktiv 
   Die befüllten Wartungs-/Kilometerabschnitte selbst konnten mangels Backend nicht mit
   echten Daten fotografiert werden; ihre Berechnung ist durch Unit-Tests mit mehreren
   Fahrzeugen und einem gezielt fehlschlagenden Ablesungsabruf abgesichert.
+
+## AP-F6 – Integration in den Einsatzplaner
+
+Der Einsatzplaner bezieht Fahrzeuge jetzt aus dem Fahrzeugmodul statt aus der leeren
+Konstante `einsatz/data/fahrzeuge.ts` (entfernt). Die Einsatzmodelle bleiben dabei
+unverändert – wie im Konzept (Abschnitt 2 „Verhältnis zum Bestand“) festgelegt.
+
+- Neuer `einsatz/services/fahrzeuge-quelle.service.ts`: schmaler, schreibgeschützter
+  Übersetzer von `Fahrzeugstamm` (Fahrzeugmodul) auf das bestehende `Fahrzeug`
+  (Einsatzmodell, `{ seriennummer, funkruf, hiorgId }`). Keine Vereinheitlichung der
+  beiden Fachmodelle: `funkrufname` → `funkruf`, die optionale `fahrgestellnummer` → die
+  bislang ungenutzte `seriennummer` (fachlich dieselbe Fahrzeugkennung), `hiorgId` bleibt
+  leer, weil das Fahrzeugmodul keine HiOrg-Kennung führt – eine spätere Übernahme aus EFS
+  braucht zuerst einen fachlichen Nachweis (Konzept, Abschnitt 9).
+- `efs-api.service.ts` (`matchFahrzeug`) und `planning-editor.ts` (`filteredFahrzeuge`)
+  lesen jetzt über diesen Dienst statt der statischen `FAHRZEUGE`-Liste.
+  `sicherstellenGeladen()` löst das Laden beim ersten Zugriff aus, spätere Aufrufe sind
+  ein günstiger No-op.
+- **Eine echte Regression beim Umbau vermieden**: mit echten Fahrgestellnummern in der
+  Liste hätte `matchFahrzeug`s bisheriger Vergleich `v.hiorgId === em.fugcode` bei einem
+  leeren `fugcode` aus EFS auf eine leere `hiorgId` (jetzt immer `''`) treffen und
+  fälschlich das erste Fahrzeug der Liste zurückgeben können. Beide Vergleichspfade prüfen
+  jetzt zuerst, dass der EFS-Wert selbst nicht leer ist, mit Test.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (351 Angular- und
+  310 Worker-Tests), `npm run format:check`, `npm run deploy:dry-run` – alle grün.
+  Browserprüfung mit `ng serve`/Playwright: neue Planung angelegt, Posten erstellt, das
+  Fahrzeugfeld im Editor geöffnet – keine Konsolenfehler, leere Trefferliste wie erwartet
+  ohne angebundenen Worker.
