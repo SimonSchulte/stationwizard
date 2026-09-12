@@ -133,33 +133,15 @@
 }
 
 .wartung-bezeichnung-feld {
-  font: inherit;
-  border: none;
-  border-bottom: 1px solid var(--border-medium);
-  background: transparent;
   min-width: 160px;
-  padding: var(--space-2xs) 0;
 }
 
-.wartung-datum,
+.wartung-datum {
+  width: 10em;
+}
+
 .wartung-vorlauf {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-
-  input {
-    font: inherit;
-    color: var(--text-primary);
-    border: 1px solid var(--border-medium);
-    border-radius: var(--space-2xs);
-    padding: var(--space-2xs) var(--space-xs);
-  }
-}
-
-.wartung-vorlauf input {
-  width: 5em;
+  width: 9em;
 }
 
 @media (max-width: 480px) {
@@ -229,32 +211,48 @@
 .korrektur-formular {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: start;
   gap: var(--space-md);
   padding: var(--space-sm) var(--space-md);
   background: var(--surface-secondary);
   border-radius: var(--space-xs);
 
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2xs);
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-
-    input {
-      font: inherit;
-      color: var(--text-primary);
-      border: 1px solid var(--border-medium);
-      border-radius: var(--space-2xs);
-      padding: var(--space-2xs) var(--space-xs);
-    }
+  mat-form-field {
+    width: 12em;
   }
 }
 
 .korrektur-aktionen {
   display: flex;
   gap: var(--space-sm);
+  padding-top: var(--space-xs);
+}
+
+.kilometer-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.nachtrag-formular {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-secondary);
+  border-radius: var(--space-xs);
+  margin-bottom: var(--space-md);
+
+  mat-form-field {
+    width: 12em;
+  }
+}
+
+.nachtrag-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-xs);
 }
 
 .qr-aktionen {

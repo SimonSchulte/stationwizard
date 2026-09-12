@@ -50,6 +50,17 @@ describe('ermittleJahresstartstand', () => {
       unvollstaendig: false,
     });
   });
+
+  it('behandelt eine nachgetragene Ablesung genau vom 1.1. als vollwertigen Startstand', () => {
+    const ablesungen = [
+      erzeugeTestablesung({ abgelesenAm: '2026-01-01', stand: 8000 }),
+      erzeugeTestablesung({ abgelesenAm: '2026-06-01', stand: 8300 }),
+    ];
+    expect(ermittleJahresstartstand(ablesungen, 2026)).toEqual({
+      stand: 8000,
+      unvollstaendig: false,
+    });
+  });
 });
 
 describe('berechneJahresbilanz', () => {

@@ -8,7 +8,14 @@
       <mat-icon aria-hidden="true">local_shipping</mat-icon>
       <div>
         <h1>{{ fahrzeug.bezeichnung }}</h1>
-        <p class="unterzeile">{{ fahrzeug.funkrufname || fahrzeug.kennzeichen }}</p>
+        <div class="chip-zeile">
+          @if (fahrzeug.funkrufname) {
+            <span class="tag-chip tag-zusatz">{{ fahrzeug.funkrufname }}</span>
+          }
+          @if (fahrzeug.kennzeichen) {
+            <span class="tag-chip tag-zusatz">{{ fahrzeug.kennzeichen }}</span>
+          }
+        </div>
       </div>
     </header>
 
@@ -21,8 +28,7 @@
     } @else {
       @if (ablesungStore.letzteAblesung(); as letzte) {
         <p class="kontext">
-          Letzter bekannter Stand: <strong>{{ letzte.stand }} km</strong> am
-          {{ letzte.abgelesenAm }}
+          Kilometerstand: <strong>{{ letzte.stand }} km</strong>
         </p>
       }
 

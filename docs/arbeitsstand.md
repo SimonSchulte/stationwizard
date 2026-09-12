@@ -518,3 +518,45 @@ unverändert – wie im Konzept (Abschnitt 2 „Verhältnis zum Bestand“) fest
   Browserprüfung mit `ng serve`/Playwright: neue Planung angelegt, Posten erstellt, das
   Fahrzeugfeld im Editor geöffnet – keine Konsolenfehler, leere Trefferliste wie erwartet
   ohne angebundenen Worker.
+
+## Nachtrag – Jahresanfangsstand nachtragen, Material-Eingabefelder, Detailseite
+
+Nachbesserung an der Kilometerbilanz und den Eingabeformularen des Fahrzeugmoduls, ohne
+dass diese ein eigenes AP-Kürzel bekommen hätten:
+
+- `kilometer-soll.ts` (`ermittleJahresstartstand`): eine ersatzweise verwendete erste
+  Ablesung des Jahres gilt jetzt genau dann als vollwertiger Jahresstartstand (nicht mehr
+  `unvollstaendig`), wenn sie exakt auf den 1.1. datiert ist. Ohne diese Lockerung ließ
+  sich der Jahresvergleich nie „vollständig" bekommen, sobald ein Fahrzeug erst im
+  laufenden Jahr erfasst wurde – der Warnhinweis blieb trotz bewusst nachgetragenem
+  Startwert stehen.
+- `fahrzeug-detail`: neuer Button „Jahresanfang nachtragen" im Abschnitt
+  „Kilometerstand" öffnet ein Formular mit auf den 1.1. des laufenden Jahres vorbelegtem,
+  aber änderbarem Datum, Stand und Bemerkung; speichert über den bestehenden
+  `AblesungStoreService.erfassen()` mit `quelle: 'formular'`. Bewusst nicht durch
+  `pruefeAblesungPlausibilitaet` geführt, da ein rückwirkend nachgetragenes Datum sonst
+  fälschlich als „Rückschritt" gegenüber der jüngsten Ablesung gewertet würde – eine
+  eigene Plausibilitätsprüfung für rückwirkende Nachträge ist eine spätere, hier bewusst
+  nicht mitgelöste Erweiterung.
+- Alle bisher rohen `<input>`-Felder in `fahrzeug-detail` (Wartungstermin-Bezeichnung,
+  -Fälligkeit, -Vorlauf; Korrektur- und das neue Nachtrag-Formular) sind jetzt echte
+  Material-Formularfelder (`mat-form-field`/`matInput`). Datumsfelder verwenden
+  `MatDatepicker` mit `MAT_DATE_LOCALE: 'de-DE'` (gleiches Muster wie in
+  `planning-editor.ts`) statt des nativen, browserabhängig formatierten `type="date"` –
+  Eingabe und Kalender zeigen jetzt durchgehend das deutsche Format (`TT.MM.JJJJ`).
+- `km-erfassung` (mobile QR-Erfassung): Funkrufname und Kennzeichen erscheinen jetzt als
+  `tag-chip`-Chips unter der Fahrzeugbezeichnung (gemeinsame, bereits global definierte
+  Chip-Klasse aus `styles.less`, keine neue Komponente); der bisherige, aus zwei Feldern
+  zusammengesetzte Fließtext ist entfallen. Der Hinweis auf die letzte Ablesung ist von
+  „Letzter bekannter Stand: X km am Datum" auf „Kilometerstand: X km" gekürzt. Das native
+  `type="date"`-Feld dieser Seite bleibt bewusst unverändert: es ist die mobile
+  QR-Erfassung, für die der native Gerätepicker (der die Systemsprache respektiert) der
+  bessere Touch-Bedienweg bleibt.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (355 Angular- und
+  310 Worker-Tests, u. a. neue Fälle für `ermittleJahresstartstand` und die drei neuen
+  `nachtrag*`-Methoden), `npm run format:check` – alle grün. Browserprüfung mit
+  `ng serve`/Playwright bei 1280×900: neues Wartungstermin-Datumsfeld zeigt
+  `TT.MM.JJJJ`-Format und ein Kalender mit deutschen Monats-/Wochentagsnamen, keine
+  Konsolenfehler. Die Nachtragen-Fläche selbst (nur sichtbar für ein bereits gespeichertes
+  Fahrzeug) ließ sich mangels angebundenem Worker nicht zusätzlich fotografieren; ihr
+  Verhalten ist durch die neuen Komponenten-Tests abgesichert.

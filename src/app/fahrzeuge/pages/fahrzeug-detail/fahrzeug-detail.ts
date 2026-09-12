@@ -11,6 +11,8 @@ import { distinctUntilChanged, map } from 'rxjs';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -47,6 +49,19 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   };
 }
 
+/** ISO-Datum (`YYYY-MM-DD`) → lokales `Date` für `mat-datepicker`, zeitzonenunabhängig. */
+function isoZuDatum(iso: string): Date | null {
+  if (!iso) return null;
+  const [jahr, monat, tag] = iso.split('-').map(Number);
+  return new Date(jahr, monat - 1, tag);
+}
+
+/** Gegenstück zu `isoZuDatum`: lokales `Date` aus dem Datepicker → ISO-Datum. */
+function datumZuIso(datum: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-detail',
@@ -55,14 +70,17 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     RouterLink,
     MatButtonModule,
     MatCheckboxModule,
+    MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatNativeDateModule,
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTooltipModule,
     MatToolbarModule,
   ],
+  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './fahrzeug-detail.html',
   styleUrl: './fahrzeug-detail.less',
 })
@@ -123,6 +141,11 @@ export class FahrzeugDetail {
   readonly korrekturDatum = signal(heuteIso());
   readonly korrekturBemerkung = signal('');
 
+  readonly nachtragOffen = signal(false);
+  readonly nachtragDatum = signal(heuteIso());
+  readonly nachtragStand = signal('');
+  readonly nachtragBemerkung = signal('');
+
   readonly qrLaedt = signal(false);
   readonly qrCodes = signal<{ uebersicht: string; km: string } | null>(null);
   readonly druckbogenLaedt = signal(false);
@@ -149,6 +172,16 @@ export class FahrzeugDetail {
     this.store.wartungstermineAktualisieren(
       liste.map((termin) => (termin.id === id ? { ...termin, ...patch } : termin)),
     );
+  }
+
+  /** Für die Datepicker-Bindung: ISO-Datum-Signale/-Felder als `Date` darstellen. */
+  alsDatum(iso: string): Date | null {
+    return isoZuDatum(iso);
+  }
+
+  wartungDatumAktualisieren(id: string, event: MatDatepickerInputEvent<Date>): void {
+    if (!event.value) return;
+    this.wartungAktualisieren(id, { faelligAm: datumZuIso(event.value) });
   }
 
   wartungVorlaufAktualisieren(id: string, wert: string): void {
@@ -216,6 +249,10 @@ export class FahrzeugDetail {
     this.korrigiertId.set(null);
   }
 
+  korrekturDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
+    if (event.value) this.korrekturDatum.set(datumZuIso(event.value));
+  }
+
   async korrekturSpeichern(): Promise<void> {
     const fahrzeugId = this.store.entwurf()?.id;
     const korrigiert = this.korrigiertId();
@@ -230,6 +267,42 @@ export class FahrzeugDetail {
       bemerkung: this.korrekturBemerkung(),
     });
     if (erfolg) this.korrigiertId.set(null);
+  }
+
+  /**
+   * Für den häufigsten Fall – den Stand zum 1.1. des laufenden Jahres
+   * nachtragen, ohne den kein Jahresvergleich möglich ist (siehe
+   * `kilometer-soll.ts`, `ermittleJahresstartstand`) – ist das Datum
+   * vorbelegt, bleibt aber änderbar für andere fehlende Ablesungen.
+   */
+  nachtragBeginnen(): void {
+    this.nachtragDatum.set(`${jahrVon(this.heute)}-01-01`);
+    this.nachtragStand.set('');
+    this.nachtragBemerkung.set('');
+    this.nachtragOffen.set(true);
+  }
+
+  nachtragAbbrechen(): void {
+    this.nachtragOffen.set(false);
+  }
+
+  nachtragDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
+    if (event.value) this.nachtragDatum.set(datumZuIso(event.value));
+  }
+
+  async nachtragSpeichern(): Promise<void> {
+    const fahrzeugId = this.store.entwurf()?.id;
+    const stand = Number(this.nachtragStand());
+    if (!fahrzeugId || !Number.isFinite(stand) || stand < 0) return;
+    const erfolg = await this.ablesungStore.erfassen({
+      fahrzeugId,
+      abgelesenAm: this.nachtragDatum(),
+      stand,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: this.nachtragBemerkung(),
+    });
+    if (erfolg) this.nachtragOffen.set(false);
   }
 
   async qrCodesAnzeigen(): Promise<void> {

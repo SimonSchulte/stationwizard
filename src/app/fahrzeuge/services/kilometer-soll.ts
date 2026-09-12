@@ -21,8 +21,9 @@ export interface JahresstartstandErgebnis {
   /** Stand am Jahresanfang, oder `null` ohne jede Ablesung. */
   stand: number | null;
   /**
-   * `true`, wenn keine Ablesung aus dem Vorjahr vorliegt und stattdessen die
-   * erste Ablesung des betrachteten Jahres verwendet wurde. Muss in der
+   * `true`, wenn weder eine Ablesung aus dem Vorjahr noch eine auf den 1.1.
+   * selbst datierte Ablesung vorliegt und stattdessen ersatzweise eine
+   * spätere Ablesung des betrachteten Jahres verwendet wurde. Muss in der
    * Oberfläche sichtbar bleiben statt stillschweigend mit 0 zu rechnen.
    */
   unvollstaendig: boolean;
@@ -31,7 +32,11 @@ export interface JahresstartstandErgebnis {
 /**
  * Ermittelt den Stand, ab dem im gegebenen Jahr gezählt wird: die letzte
  * Ablesung des Vorjahres, sonst ersatzweise die erste Ablesung des
- * betrachteten Jahres selbst (dann als unvollständig markiert).
+ * betrachteten Jahres selbst. Ist diese ersatzweise Ablesung genau auf den
+ * 1.1. datiert, gilt sie als vollwertiger Jahresstartstand – wer den Stand
+ * zum Jahresbeginn gezielt nachträgt (siehe Fahrzeugdetail, Abschnitt
+ * „Kilometerstand"), bekommt keine „unvollständig"-Warnung mehr. Nur eine
+ * spätere erste Ablesung bedeutet einen echten Informationsverlust.
  */
 export function ermittleJahresstartstand(
   ablesungen: readonly Kilometerstand[],
@@ -47,7 +52,9 @@ export function ermittleJahresstartstand(
     .filter((a) => Number(a.abgelesenAm.slice(0, 4)) === jahr)
     .sort((a, b) => a.abgelesenAm.localeCompare(b.abgelesenAm));
   if (jahresablesungen.length > 0) {
-    return { stand: jahresablesungen[0].stand, unvollstaendig: true };
+    const erste = jahresablesungen[0];
+    const istJahresanfang = erste.abgelesenAm === `${jahr}-01-01`;
+    return { stand: erste.stand, unvollstaendig: !istJahresanfang };
   }
   return { stand: null, unvollstaendig: true };
 }

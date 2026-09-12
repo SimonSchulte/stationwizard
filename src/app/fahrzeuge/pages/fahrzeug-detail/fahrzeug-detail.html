@@ -138,32 +138,43 @@
             @if (termin.art === 'hu') {
               <span class="wartung-bezeichnung">Hauptuntersuchung</span>
             } @else {
-              <input
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
                 class="wartung-bezeichnung-feld"
-                [value]="termin.bezeichnung"
-                (input)="
-                  wartungAktualisieren(termin.id, { bezeichnung: $any($event.target).value })
-                "
-                aria-label="Bezeichnung des Wartungstermins"
-              />
+              >
+                <mat-label>Bezeichnung</mat-label>
+                <input
+                  matInput
+                  [value]="termin.bezeichnung"
+                  (input)="
+                    wartungAktualisieren(termin.id, { bezeichnung: $any($event.target).value })
+                  "
+                />
+              </mat-form-field>
             }
-            <label class="wartung-datum">
-              Fällig
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wartung-datum">
+              <mat-label>Fällig</mat-label>
               <input
-                type="date"
-                [value]="termin.faelligAm"
-                (change)="wartungAktualisieren(termin.id, { faelligAm: $any($event.target).value })"
+                matInput
+                [matDatepicker]="wartungPicker"
+                [value]="alsDatum(termin.faelligAm)"
+                (dateChange)="wartungDatumAktualisieren(termin.id, $event)"
+                placeholder="TT.MM.JJJJ"
               />
-            </label>
-            <label class="wartung-vorlauf">
-              Vorlauf (Tage)
+              <mat-datepicker-toggle matSuffix [for]="wartungPicker"></mat-datepicker-toggle>
+              <mat-datepicker #wartungPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wartung-vorlauf">
+              <mat-label>Vorlauf (Tage)</mat-label>
               <input
+                matInput
                 type="number"
                 min="0"
                 [value]="termin.erinnerungTage"
                 (change)="wartungVorlaufAktualisieren(termin.id, $any($event.target).value)"
               />
-            </label>
+            </mat-form-field>
             <mat-checkbox
               [checked]="termin.erledigtAm !== null"
               (change)="wartungAlsErledigtMarkieren(termin.id, $event.checked)"
@@ -186,10 +197,56 @@
       <section class="kilometer" aria-labelledby="kilometer-titel">
         <div class="section-header">
           <h2 id="kilometer-titel">Kilometerstand</h2>
-          <a mat-stroked-button [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
-            <mat-icon>speed</mat-icon> Kilometerstand erfassen
-          </a>
+          <div class="kilometer-aktionen">
+            <a mat-stroked-button [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
+              <mat-icon>speed</mat-icon> Kilometerstand erfassen
+            </a>
+            <button mat-stroked-button (click)="nachtragBeginnen()" [disabled]="nachtragOffen()">
+              <mat-icon>history</mat-icon> Jahresanfang nachtragen
+            </button>
+          </div>
         </div>
+
+        @if (nachtragOffen()) {
+          <div class="nachtrag-formular">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Datum</mat-label>
+              <input
+                matInput
+                [matDatepicker]="nachtragPicker"
+                [value]="alsDatum(nachtragDatum())"
+                (dateChange)="nachtragDatumAktualisieren($event)"
+                placeholder="TT.MM.JJJJ"
+              />
+              <mat-datepicker-toggle matSuffix [for]="nachtragPicker"></mat-datepicker-toggle>
+              <mat-datepicker #nachtragPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Stand (km)</mat-label>
+              <input
+                matInput
+                type="number"
+                min="0"
+                [value]="nachtragStand()"
+                (input)="nachtragStand.set($any($event.target).value)"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Bemerkung</mat-label>
+              <input
+                matInput
+                [value]="nachtragBemerkung()"
+                (input)="nachtragBemerkung.set($any($event.target).value)"
+              />
+            </mat-form-field>
+            <div class="nachtrag-aktionen">
+              <button mat-raised-button color="primary" (click)="nachtragSpeichern()">
+                Speichern
+              </button>
+              <button mat-button (click)="nachtragAbbrechen()">Abbrechen</button>
+            </div>
+          </div>
+        }
 
         @if (jahresbilanz(); as bilanz) {
           <div class="bilanz-karte">
@@ -239,30 +296,36 @@
             </li>
             @if (korrigiertId() === ablesung.id) {
               <li class="korrektur-formular">
-                <label>
-                  Datum
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Datum</mat-label>
                   <input
-                    type="date"
-                    [value]="korrekturDatum()"
-                    (change)="korrekturDatum.set($any($event.target).value)"
+                    matInput
+                    [matDatepicker]="korrekturPicker"
+                    [value]="alsDatum(korrekturDatum())"
+                    (dateChange)="korrekturDatumAktualisieren($event)"
+                    placeholder="TT.MM.JJJJ"
                   />
-                </label>
-                <label>
-                  Korrigierter Stand (km)
+                  <mat-datepicker-toggle matSuffix [for]="korrekturPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #korrekturPicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Korrigierter Stand (km)</mat-label>
                   <input
+                    matInput
                     type="number"
                     min="0"
                     [value]="korrekturStand()"
                     (input)="korrekturStand.set($any($event.target).value)"
                   />
-                </label>
-                <label>
-                  Bemerkung
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Bemerkung</mat-label>
                   <input
+                    matInput
                     [value]="korrekturBemerkung()"
                     (input)="korrekturBemerkung.set($any($event.target).value)"
                   />
-                </label>
+                </mat-form-field>
                 <div class="korrektur-aktionen">
                   <button mat-raised-button color="primary" (click)="korrekturSpeichern()">
                     Korrektur speichern

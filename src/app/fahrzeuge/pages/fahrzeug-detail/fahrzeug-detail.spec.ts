@@ -269,6 +269,94 @@ describe('FahrzeugDetail', () => {
     expect(detail.korrigiertId()).toBeNull();
   });
 
+  it('beginnt das Nachtragen mit dem 1.1. des laufenden Jahres, speichert und bricht ab', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const ablesungStore = ablesungStoreMock();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+
+    detail.nachtragBeginnen();
+    expect(detail.nachtragOffen()).toBe(true);
+    expect(detail.nachtragDatum()).toBe(`${new Date().getFullYear()}-01-01`);
+
+    detail.nachtragAbbrechen();
+    expect(detail.nachtragOffen()).toBe(false);
+
+    detail.nachtragBeginnen();
+    detail.nachtragStand.set('8000');
+    detail.nachtragBemerkung.set('Jahresanfang nachgetragen');
+    await detail.nachtragSpeichern();
+    expect(ablesungStore.erfassen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fahrzeugId: fahrzeug.id,
+        abgelesenAm: `${new Date().getFullYear()}-01-01`,
+        stand: 8000,
+        quelle: 'formular',
+        korrigiert: null,
+        bemerkung: 'Jahresanfang nachgetragen',
+      }),
+    );
+    expect(detail.nachtragOffen()).toBe(false);
+  });
+
+  it('lässt das Nachtragen bei ungültigem Stand offen, statt fehlerhaft zu speichern', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const ablesungStore = ablesungStoreMock();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+
+    detail.nachtragBeginnen();
+    detail.nachtragStand.set('abc');
+    await detail.nachtragSpeichern();
+    expect(ablesungStore.erfassen).not.toHaveBeenCalled();
+    expect(detail.nachtragOffen()).toBe(true);
+  });
+
+  it('wandelt ein ISO-Datum für den Datepicker in ein lokales Date um und zurück', () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const ablesungStore = ablesungStoreMock();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+
+    const datum = detail.alsDatum('2026-01-01');
+    expect(datum?.getFullYear()).toBe(2026);
+    expect(datum?.getMonth()).toBe(0);
+    expect(datum?.getDate()).toBe(1);
+
+    detail.nachtragDatumAktualisieren({ value: new Date(2026, 5, 15) } as never);
+    expect(detail.nachtragDatum()).toBe('2026-06-15');
+  });
+
   it('zeigt QR-Codes an, lädt sie aber nur einmal', async () => {
     const fahrzeug = erzeugeTestfahrzeug();
     const store = {
