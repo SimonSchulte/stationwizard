@@ -379,3 +379,42 @@ die Trennung hat sich in der Praxis bestätigt – kein D1-, SQL- oder HTTP-Typ 
   `npm run worker:test`/`test:spa` mit echtem D1-Zugriff nicht Teil dieses Laufs (Worker-
   Tests laufen weiterhin gegen den Fake, nicht gegen die echte Datenbank). Keine
   Browserprüfung – es gibt noch keine Oberfläche (folgt in AP-F3).
+
+## AP-F3 – Fahrzeugverwaltung: Liste, Detail, Stammdatenformular
+
+Erste Oberfläche des Fahrzeugmoduls. Dritter Fachbereich unter `/#/fahrzeuge`, lazy
+geladen, Einstieg über Hauptnavigation und Startseite.
+
+- `src/app/fahrzeuge/services/fahrzeug-store.service.ts`: Signal-Zustand für Liste,
+  Detailbearbeitung und Speichern. `entwurf` ist der bearbeitbare Stand, `basislinie` der
+  zuletzt bekannte gespeicherte Stand – ihr Vergleich entscheidet
+  `hatUngesicherteAenderungen()` und ist bei `VerlassenSchutz` registriert (nur
+  `beforeunload`, wie beim bestehenden Editor auch keine In-App-Navigationssperre – kein
+  neues Muster gegenüber dem Bestand). Speichern lädt nach dem Schreiben bewusst neu
+  (`ladeFahrzeug` statt den PUT-Rückgabewert zu vertrauen), damit `geaendertAm`/
+  `geaendertVon` immer vom Server stammen.
+- `src/app/fahrzeuge/pages/fahrzeug-liste/`: Suche über Bezeichnung, Funkrufname und
+  Kennzeichen, Filter nach Eigentümer, gemeinsame Leerzustands-/Fehlerklassen wie im
+  bestehenden Einsatzplaner (`empty-state`, `empty-hint`, `error-hint`).
+- `src/app/fahrzeuge/pages/fahrzeug-detail/`: eine Seite für Neuanlage (`/fahrzeuge/neu`)
+  und Bearbeitung (`/fahrzeuge/<id>`), reagiert über `toSignal(route.paramMap)` auf einen
+  Wechsel der Routen-id. Stammdatenformular mit Live-Prüfung der Fahrgestellnummer
+  (`istGueltigeFin` aus AP-F1) und Anzeige des Jahressolls (`sollKmProJahr`) je
+  Eigentümer. Wartungstermine inline verwaltbar (hinzufügen, Datum, Vorlauf, „Erledigt“,
+  entfernen); die Ampel je Zeile nutzt `ermittleWartungsstatus` unverändert aus AP-F1. Eine
+  zweite offene Hauptuntersuchung wird durch einen deaktivierten Button verhindert, ist
+  aber nicht auf Fachvorschrift geprüft – reine Bedienhilfe.
+- Konfliktfall (412): eigener Hinweisblock mit „Aktuellen Stand laden“, bestätigt über
+  `DialogDienst`, lädt danach über `neuLadenNachKonflikt`. Der Entwurf bleibt bis zur
+  Bestätigung unverändert erhalten.
+- `app.html`/`kern/startseite`: dritter Navigationseintrag und Startseiten-Kachel
+  „Fahrzeuge“, `app.spec.ts` entsprechend erweitert.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (324 Angular- und
+  310 Worker-Tests) und `npm run format:check` – alle grün. Zusätzlich echte
+  Browserprüfung: `ng serve` lokal gestartet, Liste, Neuanlage und ausgefülltes Formular
+  mit Wartungsterminen per Playwright/Chromium bei 1280×900 und 390×844 (mobil)
+  screenshotet und visuell geprüft – Navigation, Filter, Formular, Ampel-Farben und
+  Button-Zustände (deaktivierte zweite HU, aktiviertes Speichern nach gültiger Eingabe)
+  wie erwartet, responsive Umbrüche bei mobiler Breite korrekt. Kein Worker in dieser
+  Prüfung angebunden, daher API-Fehleranzeige sichtbar – das ist der erwartete Zustand
+  ohne Backend.

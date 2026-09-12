@@ -1,0 +1,128 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.list-content {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.filterzeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+
+  .suchfeld {
+    flex: 1 1 260px;
+  }
+
+  .eigentuemer-filter {
+    flex: 0 1 200px;
+  }
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-base);
+  padding: var(--space-2xl) 0;
+  text-align: center;
+
+  .empty-state-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--text-disabled);
+  }
+}
+
+.fahrzeug-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.fahrzeug-karte {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+  text-decoration: none;
+  color: inherit;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--surface-hover);
+  }
+
+  > mat-icon {
+    color: var(--text-disabled);
+  }
+}
+
+.fahrzeug-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.fahrzeug-bezeichnung {
+  font-weight: 500;
+}
+
+.fahrzeug-details {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eigentuemer-badge {
+  flex-shrink: 0;
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: 999px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 480px) {
+  .fahrzeug-karte {
+    flex-wrap: wrap;
+  }
+}

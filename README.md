@@ -14,10 +14,11 @@ Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 
 | Bereich            | Funktionen                                                                                                                 | Aktuelle Route      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| Startseite         | Einstieg in beide Planer, gemeinsamer Benutzer- und Verbindungsstatus                                                      | `/#/`               |
+| Startseite         | Einstieg in alle Fachbereiche, gemeinsamer Benutzer- und Verbindungsstatus                                                 | `/#/`               |
 | Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich | `/#/ausbildung`     |
 | Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                      | `/#/einsatz`        |
 | Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                               | `/#/einsatz/editor` |
+| Fahrzeuge          | Liste, Stammdaten und Wartungstermine; Mindestlaufleistung und QR-Kilometererfassung folgen                                | `/#/fahrzeuge`      |
 
 Hash-Routing bleibt vorerst bewusst erhalten. Der Worker ist bereits mit
 `not_found_handling = "single-page-application"` vorbereitet, aber der reale
@@ -29,7 +30,7 @@ belegt keinen funktionierenden SPA-Fallback.
 ## Architektur
 
 Angular 21, standalone, zoneless, Signals, OnPush und striktes TypeScript bilden die
-gemeinsame Grundlage. Beide Fachbereiche werden über Lazy-Routen geladen. Material/CDK,
+gemeinsame Grundlage. Alle Fachbereiche werden über Lazy-Routen geladen. Material/CDK,
 das Material-Theme, lokale Schriften und Design-Tokens werden gemeinsam verwendet.
 Komponentenstyles sind LESS; die zentrale Material-Theme-Konfiguration liegt in SCSS.
 Hinweis- und Bestätigungsdialoge nutzen den gemeinsamen `DialogDienst`. Der
@@ -40,10 +41,11 @@ und Kalenderhilfen liegen im Kern; Sommer-/Winterzeit wird dabei berücksichtigt
 | --------------------- | ---------------------------------------------------------------------------------- |
 | `src/app/ausbildung/` | Excel-Schema, Planoperationen, Jahresraster und Ausbildungsoberfläche              |
 | `src/app/einsatz/`    | Einsatzmodelle, Qualifikationsmatching, EFS-Mapping, PEP-/PDF-Export und Editor    |
+| `src/app/fahrzeuge/`  | Fahrzeugstammdaten, Wartungstermine, Kilometerstände; D1 als Persistenz            |
 | `src/app/kern/`       | Startseite, `WorkerClient`, gemeinsame Dateispeicherverträge und Kalenderutilities |
 | `src/app/app.*`       | Gemeinsame Shell, Navigation und Anwendungsrouten                                  |
 | `src/styles.less`     | Gemeinsame CSS-Variablen, Typografie und Oberflächenregeln                         |
-| `src/theme.scss`      | Ein Material-Theme für beide Fachbereiche                                          |
+| `src/theme.scss`      | Ein Material-Theme für alle Fachbereiche                                           |
 | `worker/src/`         | Access-Prüfung, feste API-Routen, Nextcloud- und EFS-Proxys                        |
 | `worker/tests/`       | Worker-Tests und isolierter Test der Static Assets mit workerd                     |
 | `docs/`               | Einrichtung, Verifizierungsstand und bekannte Grenzen                              |
@@ -82,17 +84,21 @@ Client zeigt Verbindungs- und Sitzungsfehler an; er enthält keine Upstream-Zuga
 
 Alle folgenden Endpunkte benötigen eine verifizierte Access-Anmeldung:
 
-| Endpunkt                          | Methode   | Inhalt                                                                     |
-| --------------------------------- | --------- | -------------------------------------------------------------------------- |
-| `/api/status`                     | GET       | `{ "status": "erreichbar" }`; prüft den Worker, nicht die Upstream-Systeme |
-| `/api/benutzer`                   | GET       | `{ "email": "…" }` aus dem verifizierten Anwendungstoken                   |
-| `/api/efs/checkapikey`            | POST      | JSON `{}`; prüft den serverseitig konfigurierten EFS-Zugang                |
-| `/api/efs/getveranstaltungen`     | POST      | JSON `{}`; Veranstaltungen aus HiOrg                                       |
-| `/api/efs/getveranstaltung`       | POST      | JSON `{ "id": "…" }`; Details einer Veranstaltung                          |
-| `/api/nextcloud/arbeitsmappe`     | GET / PUT | Die konfigurierte Excel-Dateifreigabe                                      |
-| `/api/nextcloud/planungen`        | GET       | `{ "dateien": [{ "id": "…", "etag": "…" }] }` mit UUIDs und Dateiversionen |
-| `/api/nextcloud/planungen/<UUID>` | GET / PUT | Genau eine `.pep.json` im gesonderten Ordner                               |
-| `/api/hiorg/kalender`             | GET       | `{ "status": "OK", "eintraege": [...] }`; HiOrg-Kalenderfeed, nur lesend   |
+| Endpunkt                           | Methode    | Inhalt                                                                     |
+| ---------------------------------- | ---------- | -------------------------------------------------------------------------- |
+| `/api/status`                      | GET        | `{ "status": "erreichbar" }`; prüft den Worker, nicht die Upstream-Systeme |
+| `/api/benutzer`                    | GET        | `{ "email": "…" }` aus dem verifizierten Anwendungstoken                   |
+| `/api/efs/checkapikey`             | POST       | JSON `{}`; prüft den serverseitig konfigurierten EFS-Zugang                |
+| `/api/efs/getveranstaltungen`      | POST       | JSON `{}`; Veranstaltungen aus HiOrg                                       |
+| `/api/efs/getveranstaltung`        | POST       | JSON `{ "id": "…" }`; Details einer Veranstaltung                          |
+| `/api/nextcloud/arbeitsmappe`      | GET / PUT  | Die konfigurierte Excel-Dateifreigabe                                      |
+| `/api/nextcloud/planungen`         | GET        | `{ "dateien": [{ "id": "…", "etag": "…" }] }` mit UUIDs und Dateiversionen |
+| `/api/nextcloud/planungen/<UUID>`  | GET / PUT  | Genau eine `.pep.json` im gesonderten Ordner                               |
+| `/api/hiorg/kalender`              | GET        | `{ "status": "OK", "eintraege": [...] }`; HiOrg-Kalenderfeed, nur lesend   |
+| `/api/fahrzeuge`                   | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`                        |
+| `/api/fahrzeuge/<UUID>`            | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`         |
+| `/api/fahrzeuge/<UUID>/ablesungen` | GET / POST | Kilometerablesungen, unveränderlich                                        |
+| `/f/<UUID>`, `/f/<UUID>/km`        | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                     |
 
 EFS-Aufrufe setzt der Worker in `application/x-www-form-urlencoded` mit `apikey`,
 `version=2` und einer der drei bekannten Aktionen um. Die Ziel-URL stammt aus

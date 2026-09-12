@@ -1,0 +1,74 @@
+<mat-toolbar class="listen-kopfleiste">
+  <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
+  <span class="toolbar-title">Fahrzeuge</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+    <mat-icon>add</mat-icon>
+    Neues Fahrzeug
+  </button>
+</mat-toolbar>
+
+<div class="list-content">
+  <div class="filterzeile">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
+      <mat-label>Suche</mat-label>
+      <input
+        matInput
+        [value]="suche()"
+        (input)="suche.set($any($event.target).value)"
+        placeholder="Bezeichnung, Funkrufname oder Kennzeichen"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="eigentuemer-filter">
+      <mat-label>Eigentümer</mat-label>
+      <mat-select
+        [value]="eigentuemerFilter()"
+        (selectionChange)="eigentuemerFilter.set($event.value)"
+      >
+        <mat-option value="alle">Alle</mat-option>
+        @for (eintrag of EIGENTUEMER_LABEL | keyvalue; track eintrag.key) {
+          <mat-option [value]="eintrag.key">{{ eintrag.value }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (laedt()) {
+    <p role="status">Fahrzeuge werden geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (!laedt() && !fehler() && gefiltert().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon">local_shipping</mat-icon>
+      <p class="empty-hint">
+        @if (suche() || eigentuemerFilter() !== 'alle') {
+          Kein Fahrzeug passt zu diesem Filter.
+        } @else {
+          Noch keine Fahrzeuge angelegt.
+        }
+      </p>
+      <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+        <mat-icon>add</mat-icon> Neues Fahrzeug anlegen
+      </button>
+    </div>
+  }
+
+  <div class="fahrzeug-liste">
+    @for (fahrzeug of gefiltert(); track fahrzeug.id) {
+      <a class="fahrzeug-karte" [routerLink]="['/fahrzeuge', fahrzeug.id]">
+        <mat-icon aria-hidden="true">local_shipping</mat-icon>
+        <div class="fahrzeug-info">
+          <span class="fahrzeug-bezeichnung">{{ fahrzeug.bezeichnung }}</span>
+          <span class="fahrzeug-details">
+            {{ fahrzeug.funkrufname || 'ohne Funkrufname' }} · {{ fahrzeug.kennzeichen }}
+          </span>
+        </div>
+        <span class="eigentuemer-badge">{{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</span>
+      </a>
+    }
+  </div>
+</div>

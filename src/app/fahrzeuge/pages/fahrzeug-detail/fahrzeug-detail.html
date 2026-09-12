@@ -1,0 +1,185 @@
+<mat-toolbar class="detail-kopfleiste">
+  <a mat-icon-button routerLink="/fahrzeuge" aria-label="Zurück zur Fahrzeugliste">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">{{ store.entwurf()?.bezeichnung || 'Neues Fahrzeug' }}</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="speichern()" [disabled]="!kannSpeichern()">
+    <mat-icon>save</mat-icon>
+    {{ store.speichertGerade() ? 'Speichert …' : 'Speichern' }}
+  </button>
+</mat-toolbar>
+
+<div class="detail-content">
+  @if (store.ladeLaeuft()) {
+    <p role="status">Fahrzeug wird geladen …</p>
+  }
+  @if (store.ladeFehler()) {
+    <p class="error-hint" role="alert">{{ store.ladeFehler() }}</p>
+  }
+
+  @if (store.speicherKonflikt()) {
+    <div class="konflikt-hinweis" role="alert">
+      <mat-icon>warning</mat-icon>
+      <span>{{ store.speicherFehler() }}</span>
+      <button mat-stroked-button (click)="nachKonfliktNeuLaden()">Aktuellen Stand laden</button>
+    </div>
+  } @else if (store.speicherFehler()) {
+    <p class="error-hint" role="alert">{{ store.speicherFehler() }}</p>
+  }
+
+  @if (store.entwurf(); as entwurf) {
+    <section class="stammdaten" aria-labelledby="stammdaten-titel">
+      <h2 id="stammdaten-titel">Stammdaten</h2>
+      <div class="feldraster">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Bezeichnung</mat-label>
+          <input
+            matInput
+            required
+            [value]="entwurf.bezeichnung"
+            (input)="aktualisieren('bezeichnung', $any($event.target).value)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Funkrufname</mat-label>
+          <input
+            matInput
+            [value]="entwurf.funkrufname"
+            (input)="aktualisieren('funkrufname', $any($event.target).value)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Kennzeichen</mat-label>
+          <input
+            matInput
+            required
+            [value]="entwurf.kennzeichen"
+            (input)="aktualisieren('kennzeichen', $any($event.target).value)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Fahrgestellnummer (optional)</mat-label>
+          <input
+            matInput
+            [value]="entwurf.fahrgestellnummer ?? ''"
+            (input)="aktualisieren('fahrgestellnummer', $any($event.target).value || null)"
+          />
+          @if (!istFin()) {
+            <mat-hint class="feld-fehler">17 Zeichen, ohne die Buchstaben I, O und Q.</mat-hint>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Eigentümer</mat-label>
+          <mat-select
+            [value]="entwurf.eigentuemer"
+            (selectionChange)="aktualisieren('eigentuemer', $event.value)"
+          >
+            @for (wert of EIGENTUEMER; track wert) {
+              <mat-option [value]="wert">{{ EIGENTUEMER_LABEL[wert] }}</mat-option>
+            }
+          </mat-select>
+          @if (jahressoll() !== null) {
+            <mat-hint>
+              @if (jahressoll() === 0) {
+                Keine Mindestlaufleistung.
+              } @else {
+                Jahressoll: {{ jahressoll() }} km.
+              }
+            </mat-hint>
+          }
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung-feld">
+        <mat-label>Bemerkung</mat-label>
+        <textarea
+          matInput
+          rows="2"
+          [value]="entwurf.bemerkung"
+          (input)="aktualisieren('bemerkung', $any($event.target).value)"
+        ></textarea>
+      </mat-form-field>
+      @if (!store.istNeu()) {
+        <p class="metadaten">
+          Zuletzt geändert {{ entwurf.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+          @if (entwurf.geaendertVon) {
+            von {{ entwurf.geaendertVon }}
+          }
+        </p>
+      }
+    </section>
+
+    <section class="wartungstermine" aria-labelledby="wartung-titel">
+      <div class="section-header">
+        <h2 id="wartung-titel">Wartungstermine</h2>
+        <div class="wartung-aktionen">
+          <button
+            mat-stroked-button
+            (click)="wartungHinzufuegen('hu')"
+            [disabled]="hatOffeneHu()"
+            [matTooltip]="hatOffeneHu() ? 'Es gibt bereits eine offene Hauptuntersuchung.' : ''"
+          >
+            <mat-icon>add</mat-icon> Hauptuntersuchung
+          </button>
+          <button mat-stroked-button (click)="wartungHinzufuegen('frei')">
+            <mat-icon>add</mat-icon> Weiterer Termin
+          </button>
+        </div>
+      </div>
+
+      @if (entwurf.wartungstermine.length === 0) {
+        <p class="empty-hint">Noch keine Wartungstermine erfasst.</p>
+      }
+
+      <ul class="wartung-liste">
+        @for (termin of entwurf.wartungstermine; track termin.id) {
+          <li class="wartung-zeile" [class]="'ampel-' + wartungAmpel(termin)">
+            <span class="ampel-punkt" aria-hidden="true"></span>
+            @if (termin.art === 'hu') {
+              <span class="wartung-bezeichnung">Hauptuntersuchung</span>
+            } @else {
+              <input
+                class="wartung-bezeichnung-feld"
+                [value]="termin.bezeichnung"
+                (input)="
+                  wartungAktualisieren(termin.id, { bezeichnung: $any($event.target).value })
+                "
+                aria-label="Bezeichnung des Wartungstermins"
+              />
+            }
+            <label class="wartung-datum">
+              Fällig
+              <input
+                type="date"
+                [value]="termin.faelligAm"
+                (change)="wartungAktualisieren(termin.id, { faelligAm: $any($event.target).value })"
+              />
+            </label>
+            <label class="wartung-vorlauf">
+              Vorlauf (Tage)
+              <input
+                type="number"
+                min="0"
+                [value]="termin.erinnerungTage"
+                (change)="wartungVorlaufAktualisieren(termin.id, $any($event.target).value)"
+              />
+            </label>
+            <mat-checkbox
+              [checked]="termin.erledigtAm !== null"
+              (change)="wartungAlsErledigtMarkieren(termin.id, $event.checked)"
+            >
+              Erledigt
+            </mat-checkbox>
+            <button
+              mat-icon-button
+              (click)="wartungEntfernen(termin.id)"
+              aria-label="Wartungstermin entfernen"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>
