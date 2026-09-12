@@ -276,6 +276,9 @@
         @if (ablesungStore.fehler()) {
           <p class="error-hint" role="alert">{{ ablesungStore.fehler() }}</p>
         }
+        @if (ablesungStore.loeschFehler()) {
+          <p class="error-hint" role="alert">{{ ablesungStore.loeschFehler() }}</p>
+        }
         @if (!ablesungStore.laedt() && ablesungenAbsteigend().length === 0) {
           <p class="empty-hint">Noch keine Kilometerablesung erfasst.</p>
         }
@@ -293,6 +296,19 @@
               @if (korrigiertId() !== ablesung.id) {
                 <button mat-button (click)="korrekturBeginnen(ablesung)">Korrigieren</button>
               }
+              <button
+                mat-icon-button
+                (click)="ablesungLoeschen(ablesung)"
+                [disabled]="hatKorrektur(ablesung)"
+                [matTooltip]="
+                  hatKorrektur(ablesung)
+                    ? 'Diese Ablesung wurde bereits korrigiert. Zuerst die Korrektur löschen.'
+                    : 'Ablesung löschen'
+                "
+                aria-label="Ablesung löschen"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
             </li>
             @if (korrigiertId() === ablesung.id) {
               <li class="korrektur-formular">

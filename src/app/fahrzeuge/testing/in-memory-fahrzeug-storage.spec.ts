@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryFahrzeugStorage } from './in-memory-fahrzeug-storage';
-import { FahrzeugKonfliktFehler } from '../storage/fahrzeug-storage';
+import { AblesungHatKorrekturFehler, FahrzeugKonfliktFehler } from '../storage/fahrzeug-storage';
 import { erzeugeTestfahrzeug } from './fahrzeug-testdaten';
 
 describe('InMemoryFahrzeugStorage', () => {
@@ -66,5 +66,43 @@ describe('InMemoryFahrzeugStorage', () => {
     const ab2026 = await storage.ladeAblesungen('f1', 2026);
     expect(ab2026).toHaveLength(1);
     expect(ab2026[0].abgelesenAm).toBe('2026-06-01');
+  });
+
+  it('löscht eine Ablesung ohne Korrektur', async () => {
+    const storage = new InMemoryFahrzeugStorage();
+    const ablesung = await storage.ergaenzeAblesung({
+      fahrzeugId: 'f1',
+      abgelesenAm: '2026-06-01',
+      stand: 1000,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: '',
+    });
+    await storage.loescheAblesung('f1', ablesung.id);
+    expect(await storage.ladeAblesungen('f1')).toHaveLength(0);
+  });
+
+  it('lehnt das Löschen einer bereits korrigierten Ablesung ab', async () => {
+    const storage = new InMemoryFahrzeugStorage();
+    const original = await storage.ergaenzeAblesung({
+      fahrzeugId: 'f1',
+      abgelesenAm: '2026-06-01',
+      stand: 1000,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: '',
+    });
+    await storage.ergaenzeAblesung({
+      fahrzeugId: 'f1',
+      abgelesenAm: '2026-06-01',
+      stand: 1050,
+      quelle: 'korrektur',
+      korrigiert: original.id,
+      bemerkung: '',
+    });
+    await expect(storage.loescheAblesung('f1', original.id)).rejects.toBeInstanceOf(
+      AblesungHatKorrekturFehler,
+    );
+    expect(await storage.ladeAblesungen('f1')).toHaveLength(2);
   });
 });

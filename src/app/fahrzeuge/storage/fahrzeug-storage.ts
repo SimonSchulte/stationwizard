@@ -40,6 +40,13 @@ export interface FahrzeugStorage {
    * möglich ist.
    */
   ergaenzeAblesung(eingabe: AblesungEingabe): Promise<Kilometerstand>;
+
+  /**
+   * Löscht eine Ablesung unwiderruflich (siehe docs/konzept-fahrzeuge.md,
+   * Abschnitt 8). Wirft `AblesungHatKorrekturFehler`, solange eine andere
+   * Ablesung per `korrigiert` auf diese verweist.
+   */
+  loescheAblesung(fahrzeugId: string, ablesungId: string): Promise<void>;
 }
 
 /** Wird geworfen, wenn `version` beim Speichern nicht mehr aktuell ist. */
@@ -47,5 +54,13 @@ export class FahrzeugKonfliktFehler extends Error {
   constructor(readonly fahrzeugId: string) {
     super('Das Fahrzeug wurde zwischenzeitlich geändert. Bitte neu laden und zusammenführen.');
     this.name = 'FahrzeugKonfliktFehler';
+  }
+}
+
+/** Wird geworfen, wenn eine bereits korrigierte Ablesung gelöscht werden soll. */
+export class AblesungHatKorrekturFehler extends Error {
+  constructor(readonly ablesungId: string) {
+    super('Diese Ablesung wurde bereits korrigiert. Zuerst die Korrektur löschen.');
+    this.name = 'AblesungHatKorrekturFehler';
   }
 }

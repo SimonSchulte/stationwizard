@@ -1,5 +1,6 @@
 import { AblesungEingabe, Fahrzeugstamm, Kilometerstand } from '../models/fahrzeug.model';
 import {
+  AblesungHatKorrekturFehler,
   FahrzeugKonfliktFehler,
   FahrzeugMitVersion,
   FahrzeugStorage,
@@ -72,6 +73,17 @@ export class InMemoryFahrzeugStorage implements FahrzeugStorage {
     liste.push(ablesung);
     this.ablesungen.set(eingabe.fahrzeugId, liste);
     return { ...ablesung };
+  }
+
+  async loescheAblesung(fahrzeugId: string, ablesungId: string): Promise<void> {
+    const liste = this.ablesungen.get(fahrzeugId) ?? [];
+    if (liste.some((a) => a.korrigiert === ablesungId)) {
+      throw new AblesungHatKorrekturFehler(ablesungId);
+    }
+    this.ablesungen.set(
+      fahrzeugId,
+      liste.filter((a) => a.id !== ablesungId),
+    );
   }
 
   /** Nur für Tests: Ablesungen direkt vorbelegen, ohne den Identitätsweg zu durchlaufen. */

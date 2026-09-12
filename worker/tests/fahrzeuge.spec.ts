@@ -308,6 +308,87 @@ describe('Ablesungen', () => {
   });
 });
 
+describe('DELETE /api/fahrzeuge/<id>/ablesungen/<id>', () => {
+  async function ergaenze(db: FakeFahrzeugeDb, koerper: Record<string, unknown>) {
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(koerper),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    return (await antwort.json()) as { id: string };
+  }
+
+  it('löscht eine Ablesung ohne Korrektur', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const { id } = await ergaenze(db, {
+      abgelesenAm: '2026-06-01',
+      stand: 1000,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: '',
+    });
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen/${id}`, { method: 'DELETE' }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(204);
+    expect(db.ablesungen).toHaveLength(0);
+  });
+
+  it('liefert 404 für eine unbekannte Ablesung', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen/${ID}`, { method: 'DELETE' }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(404);
+  });
+
+  it('lehnt das Löschen einer bereits korrigierten Ablesung ab (409)', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const original = await ergaenze(db, {
+      abgelesenAm: '2026-06-01',
+      stand: 1000,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: '',
+    });
+    await ergaenze(db, {
+      abgelesenAm: '2026-06-01',
+      stand: 1050,
+      quelle: 'korrektur',
+      korrigiert: original.id,
+      bemerkung: '',
+    });
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen/${original.id}`, { method: 'DELETE' }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(409);
+    expect(db.ablesungen).toHaveLength(2);
+  });
+
+  it('lehnt eine unbekannte Methode auf dem Einzelpfad ab', async () => {
+    const db = new FakeFahrzeugeDb();
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen/${ID}`, { method: 'GET' }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(405);
+  });
+});
+
 describe('Methoden und unbekannte Pfade', () => {
   it('lehnt eine unbekannte Methode auf der Liste ab', async () => {
     const db = new FakeFahrzeugeDb();

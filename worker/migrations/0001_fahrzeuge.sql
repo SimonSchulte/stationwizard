@@ -17,9 +17,11 @@ CREATE TABLE fahrzeuge (
   version INTEGER NOT NULL DEFAULT 1
 );
 
--- Ablesungen sind unveränderlich (siehe Konzept, Abschnitt 8: unbegrenzte
--- Aufbewahrung, keine Löschung). Eine Korrektur ist ein neuer Datensatz mit
--- Verweis über `korrigiert`, nie ein Update einer bestehenden Zeile.
+-- Ablesungen werden nie überschrieben (siehe Konzept, Abschnitt 8): eine
+-- Korrektur ist ein neuer Datensatz mit Verweis über `korrigiert`, nie ein
+-- Update einer bestehenden Zeile. Löschen ist auf ausdrücklichen fachlichen
+-- Wunsch möglich (`worker/src/fahrzeuge.ts`, `loescheAblesung`), aber nicht
+-- für eine bereits korrigierte Zeile, solange deren Korrektur noch existiert.
 CREATE TABLE ablesungen (
   id TEXT PRIMARY KEY,
   fahrzeug_id TEXT NOT NULL REFERENCES fahrzeuge (id),

@@ -2,7 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { AblesungEingabe, Fahrzeugstamm, Kilometerstand } from '../models/fahrzeug.model';
 import { istFahrzeugstamm, istKilometerstand } from '../services/fahrzeug-pruefung';
-import { FahrzeugKonfliktFehler, FahrzeugMitVersion, FahrzeugStorage } from './fahrzeug-storage';
+import {
+  AblesungHatKorrekturFehler,
+  FahrzeugKonfliktFehler,
+  FahrzeugMitVersion,
+  FahrzeugStorage,
+} from './fahrzeug-storage';
 
 interface FahrzeugListenAntwort {
   fahrzeuge: unknown[];
@@ -99,5 +104,18 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
       throw new WorkerFehler('Der Server hat eine ungültige Ablesung geliefert.', 502);
     }
     return antwort;
+  }
+
+  async loescheAblesung(fahrzeugId: string, ablesungId: string): Promise<void> {
+    try {
+      await this.worker.anfragen(`/api/fahrzeuge/${fahrzeugId}/ablesungen/${ablesungId}`, {
+        method: 'DELETE',
+      });
+    } catch (ursache) {
+      if (ursache instanceof WorkerFehler && ursache.status === 409) {
+        throw new AblesungHatKorrekturFehler(ablesungId);
+      }
+      throw ursache;
+    }
   }
 }

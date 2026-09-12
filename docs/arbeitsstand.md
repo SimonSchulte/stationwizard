@@ -560,3 +560,40 @@ dass diese ein eigenes AP-Kürzel bekommen hätten:
   Konsolenfehler. Die Nachtragen-Fläche selbst (nur sichtbar für ein bereits gespeichertes
   Fahrzeug) ließ sich mangels angebundenem Worker nicht zusätzlich fotografieren; ihr
   Verhalten ist durch die neuen Komponenten-Tests abgesichert.
+
+## Nachtrag – Kilometerablesungen löschen
+
+Fachlicher Wunsch: einzelne Kilometerablesungen sollen sich wieder löschen lassen. Das
+widerspricht der ursprünglichen Konzeptentscheidung „Kilometerstände sind unveränderlich"
+(Begründung: nachträgliche Beschönigung der Pflichtkilometer soll erkennbar bleiben). Auf
+Nachfrage lautete die fachliche Antwort: **nur Administratoren** sollen künftig löschen
+(bzw. korrigieren) dürfen – eine Rolle, die es im Modul noch nicht gibt (bestehende
+Entscheidung „Rechte vorerst alle, Rollen später"). Bis zu einer Rollenprüfung steht die
+Funktion deshalb jeder geprüften Identität offen; `docs/konzept-fahrzeuge.md` (Abschnitt 8)
+und die API-Tabelle in `CLAUDE.md` dokumentieren das ausdrücklich als Übergangszustand.
+
+- Neuer Endpunkt `DELETE /api/fahrzeuge/<UUID>/ablesungen/<UUID>`
+  (`worker/src/fahrzeuge.ts`, `loescheAblesung`): löscht endgültig, sperrt aber, solange
+  eine andere Ablesung per `korrigiert` auf diese verweist (409 `ABLESUNG_HAT_KORREKTUR`)
+  – sonst zeigte eine bestehende Korrektur ins Leere. 404, wenn die Ablesung für dieses
+  Fahrzeug nicht existiert. Der Migrationskommentar in
+  `worker/migrations/0001_fahrzeuge.sql` ist entsprechend angepasst (keine Schemaänderung
+  nötig).
+- `FahrzeugStorage.loescheAblesung()` ergänzt den gemeinsamen Vertrag; neue
+  `AblesungHatKorrekturFehler`-Fehlerklasse neben der bestehenden
+  `FahrzeugKonfliktFehler`. `ApiFahrzeugStorage` übersetzt HTTP 409 entsprechend,
+  `InMemoryFahrzeugStorage` bildet dieselbe Regel lokal für Tests nach.
+  `AblesungStoreService.loeschen(fahrzeugId, ablesungId)` entfernt die Ablesung optimistisch
+  erst nach erfolgreicher Serverantwort aus der lokalen Liste.
+- `fahrzeug-detail`: neuer Löschen-Button je Ablesungszeile, mit Bestätigungsdialog über
+  `DialogDienst` („endgültig, nicht wiederherstellbar"). Ein clientseitiges `hatKorrektur()`
+  deaktiviert den Button bereits vorab für korrigierte Ablesungen (mit Tooltip) – der Server
+  bleibt die verbindliche Prüfung, das ist nur eine vorweggenommene Fehlermeldung.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (364 Angular- und
+  314 Worker-Tests, u. a. neue Fälle für den DELETE-Endpunkt, beide Storage-Adapter, den
+  Store und die Komponente), `npm run format:check`, `npm run deploy:dry-run` – alle grün.
+  Browserprüfung mit `ng serve`/Playwright bei 1280×900 auf `/fahrzeuge/neu` und
+  `/fahrzeuge/liste`: keine Konsolenfehler. Der Löschen-Button selbst (nur sichtbar für ein
+  bereits gespeichertes Fahrzeug mit Ablesungen) ließ sich mangels angebundenem Worker nicht
+  zusätzlich fotografieren; sein Verhalten ist durch die neuen Tests auf allen Schichten
+  (Worker, beide Storage-Adapter, Store, Komponente) abgesichert.

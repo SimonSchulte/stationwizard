@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { erzeugeTestablesung, erzeugeTestfahrzeug } from '../testing/fahrzeug-testdaten';
 import { ApiFahrzeugStorage } from './api-fahrzeug-storage';
-import { FahrzeugKonfliktFehler } from './fahrzeug-storage';
+import { AblesungHatKorrekturFehler, FahrzeugKonfliktFehler } from './fahrzeug-storage';
 
 describe('ApiFahrzeugStorage', () => {
   const worker = { anfragen: vi.fn(), json: vi.fn() };
@@ -122,5 +122,25 @@ describe('ApiFahrzeugStorage', () => {
         bemerkung: '',
       }),
     ).rejects.toBeInstanceOf(WorkerFehler);
+  });
+
+  it('löscht eine Ablesung über den Einzelpfad', async () => {
+    worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
+    await storage.loescheAblesung('f1', 'a1');
+    const [pfad, optionen] = worker.anfragen.mock.calls[0];
+    expect(pfad).toBe('/api/fahrzeuge/f1/ablesungen/a1');
+    expect(optionen.method).toBe('DELETE');
+  });
+
+  it('übersetzt einen 409er in AblesungHatKorrekturFehler', async () => {
+    worker.anfragen.mockRejectedValue(new WorkerFehler('Konflikt', 409));
+    await expect(storage.loescheAblesung('f1', 'a1')).rejects.toBeInstanceOf(
+      AblesungHatKorrekturFehler,
+    );
+  });
+
+  it('reicht andere Fehler beim Löschen weiter', async () => {
+    worker.anfragen.mockRejectedValue(new WorkerFehler('Nicht gefunden', 404));
+    await expect(storage.loescheAblesung('f1', 'a1')).rejects.toBeInstanceOf(WorkerFehler);
   });
 });

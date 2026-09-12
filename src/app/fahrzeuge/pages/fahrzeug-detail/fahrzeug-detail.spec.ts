@@ -23,6 +23,9 @@ function ablesungStoreMock(ueberschreibung: Record<string, unknown> = {}) {
     erfassen: vi.fn().mockResolvedValue(true),
     erfassungsFehler: () => '',
     erfasstGerade: () => false,
+    loeschen: vi.fn().mockResolvedValue(true),
+    loeschFehler: () => '',
+    loeschtGerade: () => false,
     ...ueberschreibung,
   };
 }
@@ -267,6 +270,56 @@ describe('FahrzeugDetail', () => {
       }),
     );
     expect(detail.korrigiertId()).toBeNull();
+  });
+
+  it('löscht eine Ablesung erst nach Bestätigung des Dialogs', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const ablesung = erzeugeTestablesung({ id: 'a1' });
+    const ablesungStore = ablesungStoreMock();
+    const dialog = { bestaetigen: vi.fn() };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+      { provide: DialogDienst, useValue: dialog },
+    ]);
+
+    dialog.bestaetigen.mockResolvedValue(false);
+    await detail.ablesungLoeschen(ablesung);
+    expect(ablesungStore.loeschen).not.toHaveBeenCalled();
+
+    dialog.bestaetigen.mockResolvedValue(true);
+    await detail.ablesungLoeschen(ablesung);
+    expect(ablesungStore.loeschen).toHaveBeenCalledWith(fahrzeug.id, 'a1');
+  });
+
+  it('erkennt eine Ablesung, auf die eine Korrektur verweist', () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const original = erzeugeTestablesung({ id: 'original' });
+    const korrektur = erzeugeTestablesung({ id: 'korrektur', korrigiert: 'original' });
+    const ablesungStore = ablesungStoreMock({ ablesungen: () => [original, korrektur] });
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+
+    expect(detail.hatKorrektur(original)).toBe(true);
+    expect(detail.hatKorrektur(korrektur)).toBe(false);
   });
 
   it('beginnt das Nachtragen mit dem 1.1. des laufenden Jahres, speichert und bricht ab', async () => {

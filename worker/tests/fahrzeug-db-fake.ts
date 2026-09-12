@@ -184,6 +184,19 @@ class FakeStatement {
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
+    if (this.query.startsWith('DELETE FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')) {
+      const [id, fahrzeugId] = this.werte as [string, string];
+      const vorher = this.db.ablesungen.length;
+      this.db.ablesungen = this.db.ablesungen.filter(
+        (a) => !(a.id === id && a.fahrzeug_id === fahrzeugId),
+      );
+      return {
+        success: true,
+        meta: { changes: vorher - this.db.ablesungen.length },
+        results: [],
+      };
+    }
+
     throw new Error(`FakeFahrzeugeDb: unbekannte run()-Anweisung: ${this.query}`);
   }
 
@@ -199,6 +212,11 @@ class FakeStatement {
     if (this.query.startsWith('SELECT id FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')) {
       const [id, fahrzeugId] = this.werte as [string, string];
       const treffer = this.db.ablesungen.find((a) => a.id === id && a.fahrzeug_id === fahrzeugId);
+      return treffer ? ({ id: treffer.id } as T) : null;
+    }
+    if (this.query.startsWith('SELECT id FROM ablesungen WHERE korrigiert = ?')) {
+      const [korrigiert] = this.werte as [string];
+      const treffer = this.db.ablesungen.find((a) => a.korrigiert === korrigiert);
       return treffer ? ({ id: treffer.id } as T) : null;
     }
     throw new Error(`FakeFahrzeugeDb: unbekannte first()-Anweisung: ${this.query}`);

@@ -57,4 +57,23 @@ export class AblesungStoreService {
       this.erfasstGerade.set(false);
     }
   }
+
+  readonly loeschtGerade = signal(false);
+  readonly loeschFehler = signal('');
+
+  /** `true` bei Erfolg. Der Aufrufer entscheidet, ob vorher bestätigt werden muss. */
+  async loeschen(fahrzeugId: string, ablesungId: string): Promise<boolean> {
+    this.loeschtGerade.set(true);
+    this.loeschFehler.set('');
+    try {
+      await this.storage.loescheAblesung(fahrzeugId, ablesungId);
+      this.ablesungen.update((liste) => liste.filter((a) => a.id !== ablesungId));
+      return true;
+    } catch (fehler) {
+      this.loeschFehler.set(fehlermeldung(fehler));
+      return false;
+    } finally {
+      this.loeschtGerade.set(false);
+    }
+  }
 }

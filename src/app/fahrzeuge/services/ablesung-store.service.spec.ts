@@ -5,7 +5,7 @@ import { ApiFahrzeugStorage } from '../storage/api-fahrzeug-storage';
 import { AblesungStoreService } from './ablesung-store.service';
 
 describe('AblesungStoreService', () => {
-  const storage = { ladeAblesungen: vi.fn(), ergaenzeAblesung: vi.fn() };
+  const storage = { ladeAblesungen: vi.fn(), ergaenzeAblesung: vi.fn(), loescheAblesung: vi.fn() };
   let service: AblesungStoreService;
 
   beforeEach(() => {
@@ -57,5 +57,34 @@ describe('AblesungStoreService', () => {
     });
     expect(erfolg).toBe(false);
     expect(service.erfassungsFehler()).toBe('Server nicht erreichbar');
+  });
+
+  it('löscht eine Ablesung aus der lokalen Liste', async () => {
+    const eingabe = {
+      fahrzeugId: 'f1',
+      abgelesenAm: '2026-03-01',
+      stand: 150,
+      quelle: 'qr' as const,
+      korrigiert: null,
+      bemerkung: '',
+    };
+    storage.ergaenzeAblesung.mockResolvedValue(
+      erzeugeTestablesung({ ...eingabe, id: 'zu-loeschen' }),
+    );
+    await service.erfassen(eingabe);
+    expect(service.ablesungen()).toHaveLength(1);
+
+    storage.loescheAblesung.mockResolvedValue(undefined);
+    const erfolg = await service.loeschen('f1', 'zu-loeschen');
+    expect(erfolg).toBe(true);
+    expect(storage.loescheAblesung).toHaveBeenCalledWith('f1', 'zu-loeschen');
+    expect(service.ablesungen()).toHaveLength(0);
+  });
+
+  it('meldet einen Fehler beim Löschen, statt zu werfen', async () => {
+    storage.loescheAblesung.mockRejectedValue(new Error('Bereits korrigiert'));
+    const erfolg = await service.loeschen('f1', 'x');
+    expect(erfolg).toBe(false);
+    expect(service.loeschFehler()).toBe('Bereits korrigiert');
   });
 });

@@ -80,10 +80,15 @@ Begründungen zu Entscheidungen, die nicht selbsterklärend sind:
   Liste erzwingt zwei Codepfade für Fälligkeit, Warnung und Dashboard. Die HU bleibt
   fachlich sichtbar (eigene Art, feste Bezeichnung, in Liste und Dashboard hervorgehoben),
   liegt technisch aber im selben Container.
-- **Kilometerstände sind unveränderlich.** Eine Ablesung wird nie überschrieben; ein
-  Fehler wird durch eine Korrekturablesung mit Verweis ersetzt. Nur so bleibt die
-  Jahreslaufleistung nachvollziehbar und eine nachträgliche Beschönigung der Pflichtkilometer
-  erkennbar.
+- **Kilometerstände werden nie überschrieben.** Ein Fehler wird durch eine
+  Korrekturablesung mit Verweis ersetzt, nie durch ein Update der bestehenden Zeile. Nur
+  so bleibt die Jahreslaufleistung nachvollziehbar und eine nachträgliche Beschönigung der
+  Pflichtkilometer erkennbar. **Löschen ist auf ausdrücklichen fachlichen Wunsch möglich**
+  (Entscheidung vom 12.09.2026) und soll perspektivisch einer Admin-Rolle vorbehalten
+  bleiben; da das Modul noch keine Rollen kennt (siehe „Rechte vorerst alle, Rollen
+  später"), steht die Funktion bis dahin jeder geprüften Identität offen. Eine bereits
+  korrigierte Ablesung bleibt gesperrt, solange ihre Korrektur noch existiert – sonst
+  zeigte die Korrektur ins Leere.
 - **Der Vorlauf der Wartungswarnung steht am einzelnen Termin**, nicht global. Eine HU
   braucht anderen Vorlauf als ein Gerätecheck.
 - **Keine Bestandszeiträume in der ersten Fassung.** Zu- und Abgänge werden vorerst nicht

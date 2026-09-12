@@ -14,6 +14,10 @@ const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const FAHRZEUG_LISTE_PFAD = '/api/fahrzeuge';
 const FAHRZEUG_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})$`, 'i');
 const ABLESUNGEN_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})/ablesungen$`, 'i');
+const ABLESUNG_PFAD = new RegExp(
+  `^/api/fahrzeuge/(${UUID_MUSTER})/ablesungen/(${UUID_MUSTER})$`,
+  'i',
+);
 
 const EIGENTUEMER = new Set(['land-nrw', 'bund', 'organisation']);
 const WARTUNGS_ARTEN = new Set(['hu', 'frei']);
@@ -234,6 +238,17 @@ export async function verarbeiteFahrzeuge(
         return await aktualisiereFahrzeug(anfrage, db, fahrzeugId, identitaet);
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET, PUT',
+      });
+    }
+
+    const ablesungTreffer = ABLESUNG_PFAD.exec(url.pathname);
+    const ablesungFahrzeugId = ablesungTreffer?.[1];
+    const ablesungId = ablesungTreffer?.[2];
+    if (ablesungFahrzeugId && ablesungId) {
+      if (anfrage.method === 'DELETE')
+        return await loescheAblesung(db, ablesungFahrzeugId, ablesungId);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'DELETE',
       });
     }
 
@@ -494,6 +509,47 @@ async function ergaenzeAblesung(
     },
     201,
   );
+}
+
+/**
+ * Löscht eine Ablesung unwiderruflich. Abweichend vom ursprünglichen Konzept
+ * (`docs/konzept-fahrzeuge.md`, Abschnitt 8: „Kilometerstände sind
+ * unveränderlich") jetzt auf ausdrücklichen fachlichen Wunsch möglich –
+ * vorerst für jede geprüfte Identität, weil dem Modul noch keine Rollen
+ * zugrunde liegen (siehe Konzept: „Rechte vorerst alle, Rollen später").
+ * Eine spätere Rollenprüfung soll dies auf eine Admin-Rolle einschränken.
+ * Eine Ablesung, auf die eine andere Ablesung per `korrigiert` verweist,
+ * bleibt gesperrt, damit keine Korrektur ins Leere zeigt – die Korrektur
+ * muss zuerst gelöscht werden.
+ */
+async function loescheAblesung(
+  db: D1Database,
+  fahrzeugId: string,
+  ablesungId: string,
+): Promise<Response> {
+  const ablesung = await db
+    .prepare('SELECT id FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')
+    .bind(ablesungId, fahrzeugId)
+    .first<{ id: string }>();
+  if (!ablesung) {
+    return fehlerAntwort('ABLESUNG_NICHT_GEFUNDEN', 'Ablesung nicht gefunden.', 404);
+  }
+  const korrektur = await db
+    .prepare('SELECT id FROM ablesungen WHERE korrigiert = ?')
+    .bind(ablesungId)
+    .first<{ id: string }>();
+  if (korrektur) {
+    return fehlerAntwort(
+      'ABLESUNG_HAT_KORREKTUR',
+      'Diese Ablesung wurde bereits korrigiert. Zuerst die Korrektur löschen.',
+      409,
+    );
+  }
+  await db
+    .prepare('DELETE FROM ablesungen WHERE id = ? AND fahrzeug_id = ?')
+    .bind(ablesungId, fahrzeugId)
+    .run();
+  return new Response(null, { status: 204 });
 }
 
 /**

@@ -136,6 +136,22 @@ export class FahrzeugDetail {
     [...this.ablesungStore.ablesungen()].sort((a, b) => b.abgelesenAm.localeCompare(a.abgelesenAm)),
   );
 
+  /** IDs aller Ablesungen, auf die eine andere Ablesung per `korrigiert` verweist. */
+  private readonly korrigierteIds = computed(
+    () =>
+      new Set(
+        this.ablesungStore
+          .ablesungen()
+          .map((a) => a.korrigiert)
+          .filter((id) => !!id),
+      ),
+  );
+
+  /** Server sperrt das Löschen für diesen Fall ebenfalls; hier nur eine vorab sichtbare Sperre. */
+  hatKorrektur(ablesung: Kilometerstand): boolean {
+    return this.korrigierteIds().has(ablesung.id);
+  }
+
   readonly korrigiertId = signal<string | null>(null);
   readonly korrekturStand = signal('');
   readonly korrekturDatum = signal(heuteIso());
@@ -267,6 +283,20 @@ export class FahrzeugDetail {
       bemerkung: this.korrekturBemerkung(),
     });
     if (erfolg) this.korrigiertId.set(null);
+  }
+
+  async ablesungLoeschen(ablesung: Kilometerstand): Promise<void> {
+    const fahrzeugId = this.store.entwurf()?.id;
+    if (!fahrzeugId) return;
+    if (
+      !(await this.dialogDienst.bestaetigen(
+        'Die Ablesung wird endgültig gelöscht und lässt sich nicht wiederherstellen.',
+        'Ablesung löschen',
+        'Endgültig löschen',
+      ))
+    )
+      return;
+    await this.ablesungStore.loeschen(fahrzeugId, ablesung.id);
   }
 
   /**
