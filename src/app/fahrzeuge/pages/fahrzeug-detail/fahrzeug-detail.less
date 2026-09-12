@@ -168,3 +168,114 @@
     align-items: stretch;
   }
 }
+
+.bilanz-karte {
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-secondary);
+
+  p {
+    margin: 0;
+  }
+}
+
+.unvollstaendig-hinweis {
+  display: block;
+  color: var(--status-warn);
+  font-size: 0.875rem;
+  margin-top: var(--space-xs);
+}
+
+.ablesung-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ablesung-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.9rem;
+
+  .ablesung-stand {
+    font-weight: 500;
+  }
+
+  .ablesung-quelle {
+    color: var(--text-secondary);
+    text-transform: capitalize;
+  }
+
+  .ablesung-erfasser {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    flex: 1;
+  }
+
+  .ablesung-korrektur-hinweis {
+    color: var(--status-warn);
+    font-size: 0.8125rem;
+  }
+}
+
+.korrektur-formular {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-secondary);
+  border-radius: var(--space-xs);
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+
+    input {
+      font: inherit;
+      color: var(--text-primary);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--space-2xs);
+      padding: var(--space-2xs) var(--space-xs);
+    }
+  }
+}
+
+.korrektur-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.qr-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.qr-vorschau {
+  display: flex;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+
+  figure {
+    margin: 0;
+    text-align: center;
+
+    figcaption {
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+      margin-top: var(--space-xs);
+    }
+  }
+}

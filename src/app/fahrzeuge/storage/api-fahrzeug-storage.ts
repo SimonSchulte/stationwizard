@@ -32,7 +32,15 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
   async ladeFahrzeug(id: string): Promise<FahrzeugMitVersion | null> {
     try {
       const antwort = await this.worker.anfragen(`/api/fahrzeuge/${id}`);
-      const inhalt: unknown = await antwort.json();
+      if (!antwort.headers.get('Content-Type')?.includes('application/json')) {
+        throw new WorkerFehler('Der Server hat keine gültige API-Antwort geliefert.', 502);
+      }
+      let inhalt: unknown;
+      try {
+        inhalt = await antwort.json();
+      } catch {
+        throw new WorkerFehler('Die Serverantwort konnte nicht gelesen werden.', 502);
+      }
       const version = antwort.headers.get('ETag');
       if (!istFahrzeugstamm(inhalt) || !version) {
         throw new WorkerFehler('Der Server hat ein ungültiges Fahrzeug geliefert.', 502);

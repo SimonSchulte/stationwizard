@@ -13,6 +13,11 @@ export const fahrzeugeRoutes: Routes = [
       import('./pages/fahrzeug-detail/fahrzeug-detail').then((modul) => modul.FahrzeugDetail),
   },
   {
+    path: ':id/km',
+    loadComponent: () =>
+      import('./pages/km-erfassung/km-erfassung').then((modul) => modul.KmErfassung),
+  },
+  {
     path: ':id',
     loadComponent: () =>
       import('./pages/fahrzeug-detail/fahrzeug-detail').then((modul) => modul.FahrzeugDetail),

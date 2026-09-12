@@ -181,5 +181,136 @@
         }
       </ul>
     </section>
+
+    @if (!store.istNeu()) {
+      <section class="kilometer" aria-labelledby="kilometer-titel">
+        <div class="section-header">
+          <h2 id="kilometer-titel">Kilometerstand</h2>
+          <a mat-stroked-button [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
+            <mat-icon>speed</mat-icon> Kilometerstand erfassen
+          </a>
+        </div>
+
+        @if (jahresbilanz(); as bilanz) {
+          <div class="bilanz-karte">
+            @if (bilanz.sollKm === 0) {
+              <p>Keine Mindestlaufleistung für diesen Eigentümer.</p>
+            } @else if (bilanz.istKm === null) {
+              <p class="empty-hint">
+                Noch kein Jahresstartstand bekannt – Bilanz erst nach der ersten Ablesung.
+              </p>
+            } @else {
+              <p>
+                <strong>{{ bilanz.istKm }} km</strong> von {{ bilanz.sollKm }} km Jahressoll
+                gefahren, <strong>{{ bilanz.restKm }} km</strong> verbleiben.
+                @if (bilanz.unvollstaendig) {
+                  <span class="unvollstaendig-hinweis"
+                    >Datenlage unvollständig (keine Ablesung aus dem Vorjahr).</span
+                  >
+                }
+              </p>
+            }
+          </div>
+        }
+
+        @if (ablesungStore.laedt()) {
+          <p role="status">Ablesungen werden geladen …</p>
+        }
+        @if (ablesungStore.fehler()) {
+          <p class="error-hint" role="alert">{{ ablesungStore.fehler() }}</p>
+        }
+        @if (!ablesungStore.laedt() && ablesungenAbsteigend().length === 0) {
+          <p class="empty-hint">Noch keine Kilometerablesung erfasst.</p>
+        }
+
+        <ul class="ablesung-liste">
+          @for (ablesung of ablesungenAbsteigend(); track ablesung.id) {
+            <li class="ablesung-zeile">
+              <span class="ablesung-datum">{{ ablesung.abgelesenAm }}</span>
+              <span class="ablesung-stand">{{ ablesung.stand }} km</span>
+              <span class="ablesung-quelle">{{ ablesung.quelle }}</span>
+              <span class="ablesung-erfasser">{{ ablesung.erfasstVon }}</span>
+              @if (ablesung.korrigiert) {
+                <span class="ablesung-korrektur-hinweis">korrigiert eine frühere Ablesung</span>
+              }
+              @if (korrigiertId() !== ablesung.id) {
+                <button mat-button (click)="korrekturBeginnen(ablesung)">Korrigieren</button>
+              }
+            </li>
+            @if (korrigiertId() === ablesung.id) {
+              <li class="korrektur-formular">
+                <label>
+                  Datum
+                  <input
+                    type="date"
+                    [value]="korrekturDatum()"
+                    (change)="korrekturDatum.set($any($event.target).value)"
+                  />
+                </label>
+                <label>
+                  Korrigierter Stand (km)
+                  <input
+                    type="number"
+                    min="0"
+                    [value]="korrekturStand()"
+                    (input)="korrekturStand.set($any($event.target).value)"
+                  />
+                </label>
+                <label>
+                  Bemerkung
+                  <input
+                    [value]="korrekturBemerkung()"
+                    (input)="korrekturBemerkung.set($any($event.target).value)"
+                  />
+                </label>
+                <div class="korrektur-aktionen">
+                  <button mat-raised-button color="primary" (click)="korrekturSpeichern()">
+                    Korrektur speichern
+                  </button>
+                  <button mat-button (click)="korrekturAbbrechen()">Abbrechen</button>
+                </div>
+              </li>
+            }
+          }
+        </ul>
+      </section>
+
+      <section class="qr" aria-labelledby="qr-titel">
+        <div class="section-header">
+          <h2 id="qr-titel">QR-Codes</h2>
+          <div class="qr-aktionen">
+            <button mat-stroked-button (click)="qrCodesAnzeigen()" [disabled]="qrLaedt()">
+              <mat-icon>qr_code_2</mat-icon> QR-Codes anzeigen
+            </button>
+            <button
+              mat-stroked-button
+              (click)="druckbogenHerunterladen()"
+              [disabled]="druckbogenLaedt()"
+            >
+              <mat-icon>print</mat-icon>
+              {{ druckbogenLaedt() ? 'Erzeugt …' : 'Druckbogen herunterladen' }}
+            </button>
+          </div>
+        </div>
+        @if (druckbogenFehler()) {
+          <p class="error-hint" role="alert">{{ druckbogenFehler() }}</p>
+        }
+        @if (qrLaedt()) {
+          <mat-progress-spinner mode="indeterminate" diameter="32" />
+        }
+        @if (qrCodes(); as codes) {
+          <div class="qr-vorschau">
+            <figure>
+              <img [src]="codes.uebersicht" alt="QR-Code zur Fahrzeugübersicht" width="160" />
+              <figcaption>Übersicht</figcaption>
+            </figure>
+            <figure>
+              <img [src]="codes.km" alt="QR-Code zur Kilometerstanderfassung" width="160" />
+              <figcaption>Kilometerstand erfassen</figcaption>
+            </figure>
+          </div>
+        }
+      </section>
+    }
   }
 </div>

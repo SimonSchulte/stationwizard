@@ -1,0 +1,84 @@
+<div class="erfassung">
+  @if (ladeLaeuft()) {
+    <p role="status">Fahrzeug wird geladen …</p>
+  } @else if (ladeFehler()) {
+    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+  } @else if (fahrzeug(); as fahrzeug) {
+    <header class="kopf">
+      <mat-icon aria-hidden="true">local_shipping</mat-icon>
+      <div>
+        <h1>{{ fahrzeug.bezeichnung }}</h1>
+        <p class="unterzeile">{{ fahrzeug.funkrufname || fahrzeug.kennzeichen }}</p>
+      </div>
+    </header>
+
+    @if (erfolgreichErfasst()) {
+      <div class="erfolg" role="status">
+        <mat-icon>check_circle</mat-icon>
+        <p>Kilometerstand gespeichert. Danke!</p>
+        <button mat-stroked-button (click)="weitereErfassung()">Weitere Ablesung erfassen</button>
+      </div>
+    } @else {
+      @if (ablesungStore.letzteAblesung(); as letzte) {
+        <p class="kontext">
+          Letzter bekannter Stand: <strong>{{ letzte.stand }} km</strong> am
+          {{ letzte.abgelesenAm }}
+        </p>
+      }
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="stand-feld">
+        <mat-label>Kilometerstand</mat-label>
+        <input
+          matInput
+          type="number"
+          inputmode="numeric"
+          min="0"
+          [value]="stand()"
+          (input)="stand.set($any($event.target).value)"
+          autofocus
+        />
+        <span matSuffix>km</span>
+      </mat-form-field>
+
+      @if (hinweis() === 'rueckschritt') {
+        <p class="hinweis-warnung" role="alert">
+          Dieser Stand liegt unter dem letzten bekannten Wert. Bei einem Tachotausch bitte in der
+          Bemerkung vermerken.
+        </p>
+      } @else if (hinweis() === 'unplausibler-sprung') {
+        <p class="hinweis-warnung" role="alert">
+          Große Differenz zum letzten Stand. Bitte kurz prüfen, ob der Wert stimmt.
+        </p>
+      }
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Datum</mat-label>
+        <input
+          matInput
+          type="date"
+          [value]="abgelesenAm()"
+          (change)="abgelesenAm.set($any($event.target).value)"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bemerkung (optional)</mat-label>
+        <input matInput [value]="bemerkung()" (input)="bemerkung.set($any($event.target).value)" />
+      </mat-form-field>
+
+      @if (ablesungStore.erfassungsFehler()) {
+        <p class="error-hint" role="alert">{{ ablesungStore.erfassungsFehler() }}</p>
+      }
+
+      <button
+        mat-raised-button
+        color="primary"
+        class="speichern-button"
+        (click)="speichern()"
+        [disabled]="standZahl() === null || ablesungStore.erfasstGerade()"
+      >
+        {{ ablesungStore.erfasstGerade() ? 'Speichert …' : 'Speichern' }}
+      </button>
+    }
+  }
+</div>

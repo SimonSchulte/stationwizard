@@ -350,7 +350,7 @@ describe('kurzlinkWeiterleitung', () => {
   it('leitet die Kilometererfassung auf die Hash-Route weiter', () => {
     const antwort = kurzlinkWeiterleitung(`/f/${ID}/km`);
     expect(antwort?.status).toBe(302);
-    expect(antwort?.headers.get('Location')).toBe(`/#/fahrzeuge/${ID}/km`);
+    expect(antwort?.headers.get('Location')).toBe(`/#/fahrzeuge/${ID}/km?quelle=qr`);
   });
 
   it('gibt null für einen unbekannten Kurzlink zurück', () => {

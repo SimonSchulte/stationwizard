@@ -5,15 +5,33 @@ import { describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { FahrzeugDetail } from './fahrzeug-detail';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
-import { erzeugeTestfahrzeug } from '../../testing/fahrzeug-testdaten';
+import { AblesungStoreService } from '../../services/ablesung-store.service';
+import { erzeugeTestablesung, erzeugeTestfahrzeug } from '../../testing/fahrzeug-testdaten';
+import { FahrzeugDruckbogenService } from '../../services/fahrzeug-druckbogen.service';
 
 function route(id: string): ActivatedRoute {
   const paramMap = convertToParamMap({ id });
   return { paramMap: of(paramMap), snapshot: { paramMap } } as unknown as ActivatedRoute;
 }
 
+function ablesungStoreMock(ueberschreibung: Record<string, unknown> = {}) {
+  return {
+    laden: vi.fn().mockResolvedValue(undefined),
+    ablesungen: () => [],
+    laedt: () => false,
+    fehler: () => '',
+    erfassen: vi.fn().mockResolvedValue(true),
+    erfassungsFehler: () => '',
+    erfasstGerade: () => false,
+    ...ueberschreibung,
+  };
+}
+
 /** Instanziiert die Komponente und lässt den Lade-Effekt im Konstruktor einmal laufen. */
-function erzeugeDetail(): FahrzeugDetail {
+function erzeugeDetail(providers: unknown[]): FahrzeugDetail {
+  TestBed.configureTestingModule({
+    providers: [{ provide: AblesungStoreService, useValue: ablesungStoreMock() }, ...providers],
+  });
   const detail = TestBed.runInInjectionContext(() => new FahrzeugDetail());
   TestBed.tick();
   return detail;
@@ -28,13 +46,10 @@ describe('FahrzeugDetail', () => {
       speichertGerade: () => false,
       istNeu: () => true,
     };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: FahrzeugStoreService, useValue: store },
-        { provide: ActivatedRoute, useValue: route('neu') },
-      ],
-    });
-    erzeugeDetail();
+    erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route('neu') },
+    ]);
     expect(store.neuesFahrzeugBeginnen).toHaveBeenCalledOnce();
     expect(store.fahrzeugLaden).not.toHaveBeenCalled();
   });
@@ -47,13 +62,10 @@ describe('FahrzeugDetail', () => {
       speichertGerade: () => false,
       istNeu: () => false,
     };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: FahrzeugStoreService, useValue: store },
-        { provide: ActivatedRoute, useValue: route('bestehende-id') },
-      ],
-    });
-    erzeugeDetail();
+    erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route('bestehende-id') },
+    ]);
     expect(store.fahrzeugLaden).toHaveBeenCalledWith('bestehende-id');
     expect(store.neuesFahrzeugBeginnen).not.toHaveBeenCalled();
   });
@@ -79,13 +91,10 @@ describe('FahrzeugDetail', () => {
       istNeu: () => false,
       wartungstermineAktualisieren: vi.fn(),
     };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: FahrzeugStoreService, useValue: store },
-        { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
-      ],
-    });
-    const detail = erzeugeDetail();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+    ]);
     expect(detail.hatOffeneHu()).toBe(true);
 
     detail.wartungHinzufuegen('frei');
@@ -106,14 +115,11 @@ describe('FahrzeugDetail', () => {
       speichern: vi.fn().mockResolvedValue(true),
     };
     const router = { navigate: vi.fn().mockResolvedValue(true) };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: FahrzeugStoreService, useValue: store },
-        { provide: ActivatedRoute, useValue: route('neu') },
-        { provide: Router, useValue: router },
-      ],
-    });
-    const detail = erzeugeDetail();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route('neu') },
+      { provide: Router, useValue: router },
+    ]);
     await detail.speichern();
     expect(router.navigate).toHaveBeenCalledWith(['/fahrzeuge', fahrzeug.id], { replaceUrl: true });
   });
@@ -129,14 +135,11 @@ describe('FahrzeugDetail', () => {
       speichern: vi.fn().mockResolvedValue(true),
     };
     const router = { navigate: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: FahrzeugStoreService, useValue: store },
-        { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
-        { provide: Router, useValue: router },
-      ],
-    });
-    const detail = erzeugeDetail();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: Router, useValue: router },
+    ]);
     await detail.speichern();
     expect(router.navigate).not.toHaveBeenCalled();
   });
@@ -152,14 +155,11 @@ describe('FahrzeugDetail', () => {
       neuLadenNachKonflikt: vi.fn(),
     };
     const dialog = { bestaetigen: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: FahrzeugStoreService, useValue: store },
-        { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
-        { provide: DialogDienst, useValue: dialog },
-      ],
-    });
-    const detail = erzeugeDetail();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: DialogDienst, useValue: dialog },
+    ]);
 
     dialog.bestaetigen.mockResolvedValue(false);
     await detail.nachKonfliktNeuLaden();
@@ -168,5 +168,144 @@ describe('FahrzeugDetail', () => {
     dialog.bestaetigen.mockResolvedValue(true);
     await detail.nachKonfliktNeuLaden();
     expect(store.neuLadenNachKonflikt).toHaveBeenCalledWith(fahrzeug.id);
+  });
+
+  it('lädt die Ablesungen mit, sobald ein bestehendes Fahrzeug geöffnet wird', () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const ablesungStore = ablesungStoreMock();
+    erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+    expect(ablesungStore.laden).toHaveBeenCalledWith(fahrzeug.id);
+  });
+
+  it('berechnet keine Kilometerbilanz für ein neues, ungespeichertes Fahrzeug', () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => true,
+    };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route('neu') },
+    ]);
+    expect(detail.jahresbilanz()).toBeNull();
+  });
+
+  it('berechnet die Kilometerbilanz für ein bestehendes Fahrzeug aus den geladenen Ablesungen', () => {
+    const fahrzeug = erzeugeTestfahrzeug({ eigentuemer: 'bund' });
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const jahr = new Date().getFullYear();
+    const ablesungStore = ablesungStoreMock({
+      ablesungen: () => [
+        erzeugeTestablesung({ abgelesenAm: `${jahr - 1}-12-31`, stand: 1000 }),
+        erzeugeTestablesung({ abgelesenAm: `${jahr}-06-01`, stand: 1300 }),
+      ],
+    });
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+    const bilanz = detail.jahresbilanz();
+    expect(bilanz?.sollKm).toBe(600);
+    expect(bilanz?.istKm).toBe(300);
+    expect(bilanz?.unvollstaendig).toBe(false);
+  });
+
+  it('startet, speichert und bricht eine Korrektur korrekt ab', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const original = erzeugeTestablesung({ id: 'original', stand: 500, abgelesenAm: '2026-01-01' });
+    const ablesungStore = ablesungStoreMock();
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: AblesungStoreService, useValue: ablesungStore },
+    ]);
+
+    detail.korrekturBeginnen(original);
+    expect(detail.korrigiertId()).toBe('original');
+    expect(detail.korrekturStand()).toBe('500');
+
+    detail.korrekturAbbrechen();
+    expect(detail.korrigiertId()).toBeNull();
+
+    detail.korrekturBeginnen(original);
+    detail.korrekturStand.set('520');
+    await detail.korrekturSpeichern();
+    expect(ablesungStore.erfassen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fahrzeugId: fahrzeug.id,
+        stand: 520,
+        quelle: 'korrektur',
+        korrigiert: 'original',
+      }),
+    );
+    expect(detail.korrigiertId()).toBeNull();
+  });
+
+  it('zeigt QR-Codes an, lädt sie aber nur einmal', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+    ]);
+    expect(detail.qrCodes()).toBeNull();
+    await detail.qrCodesAnzeigen();
+    expect(detail.qrCodes()?.uebersicht).toMatch(/^data:image\/png;base64,/);
+    expect(detail.qrCodes()?.km).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('meldet einen Fehler, wenn der Druckbogen nicht erzeugt werden kann', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const druckbogenService = {
+      erzeugeUndSpeichere: vi.fn().mockRejectedValue(new Error('PDF fehlgeschlagen')),
+    };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: FahrzeugDruckbogenService, useValue: druckbogenService },
+    ]);
+    await detail.druckbogenHerunterladen();
+    expect(detail.druckbogenFehler()).toBe('PDF fehlgeschlagen');
   });
 });

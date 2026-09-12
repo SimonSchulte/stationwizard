@@ -509,7 +509,9 @@ export function kurzlinkWeiterleitung(pfad: string): Response | null {
   }
   const km = new RegExp(`^/f/(${UUID_MUSTER})/km$`, 'i').exec(pfad);
   if (km) {
-    return neueWeiterleitung(`/#/fahrzeuge/${km[1]}/km`);
+    // Kennzeichnet die Erfassung als über den gedruckten Aufkleber ausgelöst,
+    // damit das Feld `quelle` einer Ablesung nicht geraten werden muss.
+    return neueWeiterleitung(`/#/fahrzeuge/${km[1]}/km?quelle=qr`);
   }
   return null;
 }

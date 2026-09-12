@@ -309,7 +309,7 @@ describe('Fahrzeuge-Routing und QR-Kurzlinks', () => {
   it('leitet den QR-Kurzlink der Kilometererfassung weiter', async () => {
     const antwort = await anfragen(`/f/${FAHRZEUG_ID}/km`, await tokenFuer());
     expect(antwort.status).toBe(302);
-    expect(antwort.headers.get('Location')).toBe(`/#/fahrzeuge/${FAHRZEUG_ID}/km`);
+    expect(antwort.headers.get('Location')).toBe(`/#/fahrzeuge/${FAHRZEUG_ID}/km?quelle=qr`);
   });
 
   it('liefert für einen unbekannten Kurzlink JSON 404 statt der SPA', async () => {

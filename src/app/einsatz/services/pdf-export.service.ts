@@ -8,8 +8,12 @@ import {
   formatiereTaktischeZeitAnzeige,
 } from '../../kern/kalender/taktische-zeit';
 
-/** PDF unterstützt keine CSS-Variablen; dieselben Designfarben werden hier konkret geführt. */
-const PDF_FARBEN = {
+/**
+ * PDF unterstützt keine CSS-Variablen; dieselben Designfarben werden hier konkret geführt.
+ * Exportiert, damit weitere PDF-Exporte (z. B. der Fahrzeug-Druckbogen) dieselbe Quelle
+ * verwenden statt eine zweite, unabhängige Palette zu pflegen.
+ */
+export const PDF_FARBEN = {
   dunkelblau: '#000548',
   blau: '#4A6FB8',
   rot: '#EB003C',

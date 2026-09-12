@@ -1,0 +1,87 @@
+:host {
+  display: block;
+}
+
+.erfassung {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: var(--ci-red);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+}
+
+.unterzeile {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.kontext {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.error-hint {
+  color: var(--status-error);
+}
+
+.hinweis-warnung {
+  color: var(--status-warn);
+  background: var(--surface-secondary);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  margin: 0;
+}
+
+.stand-feld {
+  ::ng-deep input {
+    font-size: 2rem;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+.speichern-button {
+  padding-block: var(--space-sm);
+  font-size: 1.05rem;
+}
+
+.erfolg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl) var(--space-md);
+  text-align: center;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--status-ok);
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+}

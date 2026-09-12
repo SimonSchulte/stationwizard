@@ -418,3 +418,48 @@ geladen, Einstieg über Hauptnavigation und Startseite.
   wie erwartet, responsive Umbrüche bei mobiler Breite korrekt. Kein Worker in dieser
   Prüfung angebunden, daher API-Fehleranzeige sichtbar – das ist der erwartete Zustand
   ohne Backend.
+
+## AP-F4 – Kilometererfassung, QR-Codes und Druckbogen
+
+- `qrcode` (MIT) als neue Abhängigkeit über `npx npm@11 install` ergänzt, Lockfile
+  konsistent. `src/app/fahrzeuge/services/fahrzeug-qr.ts`: statischer Import darin,
+  dynamisch von den Aufrufern geladen (analog `excel-lesen.ts`/`excel-schreiben.ts`).
+  Ziel-URLs sind absolute `${origin}/f/<UUID>` bzw. `.../km` – dieselben Kurzpfade aus
+  AP-F2, kein neues Routenschema.
+- `PDF_FARBEN` aus `pdf-export.service.ts` exportiert statt einer zweiten Palette für den
+  neuen Druckbogen; `FahrzeugDruckbogenService` (nicht als freie Funktion, sondern als
+  Dienst wie `PdfExportService` – Angulars Testharness verbietet `vi.mock` auf relative
+  Importe, ein injizierbarer Dienst bleibt dagegen wie gewohnt über `TestBed` ersetzbar)
+  erzeugt ein A4-Blatt mit beiden QR-Codes als eingebettetem SVG (pdfmake `ContentSvg`,
+  keine Rasterung nötig). Papierformat und Stückzahl je Blatt sind weiterhin offen (siehe
+  Konzept, Abschnitt 9); dieser Bogen druckt einen Satz pro Fahrzeug.
+- `ablesung-store.service.ts`: eigener, schlanker Store nur für Kilometerablesungen
+  (Verlauf laden, eine Ablesung anhängen), getrennt von `fahrzeug-store.service.ts`, das
+  ausschließlich Stammdaten und deren Bearbeitungszustand verwaltet.
+- `/#/fahrzeuge/<UUID>/km`: eigene, bewusst minimale Erfassungsseite (großes Zahlenfeld,
+  Datum, optionale Bemerkung, letzter bekannter Stand als Kontext). Die Quelle einer
+  Ablesung (`qr` vs. `formular`) wird ehrlich unterschieden: der Worker-Kurzlink hängt
+  `?quelle=qr` an die Weiterleitung an (`worker/src/fahrzeuge.ts`,
+  `kurzlinkWeiterleitung`), die Seite fällt ohne diesen Parameter auf `formular` zurück.
+  Ein Plausibilitätshinweis (Rückschritt/großer Sprung, aus AP-F1) warnt, blockiert das
+  Speichern aber nicht.
+- `fahrzeug-detail`: neue Abschnitte „Kilometerstand“ (Jahresbilanz aus
+  `berechneJahresbilanz`, Verlauf, Korrekturweg – ein neuer Datensatz mit `quelle:
+'korrektur'` und Verweis über `korrigiert`, nie ein Update einer bestehenden Ablesung)
+  und „QR-Codes“ (Bildschirmvorschau als PNG-Data-URL, Druckbogen-Download); beide nur für
+  bereits gespeicherte Fahrzeuge sichtbar.
+- **Echten Fehler in `ApiFahrzeugStorage.ladeFahrzeug` bei der Browserprüfung gefunden und
+  behoben**: die Methode las den Antwortkörper direkt mit `.json()`, ohne vorher den
+  Content-Type zu prüfen (anders als `WorkerClient.json()`). Ohne Worker beziehungsweise
+  bei einer unerwarteten HTML-Antwort erschien ein roher `Unexpected token '<' … is not
+valid JSON` statt einer verständlichen Fehlermeldung. Jetzt dieselbe Prüfung wie im
+  gemeinsamen Client, mit Test.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (341 Angular- und
+  310 Worker-Tests), `npm run format:check` – alle grün. Echte Browserprüfung mit
+  `ng serve` und Playwright/Chromium: Erfassungsseite und Detailseite eines neuen
+  Fahrzeugs bei 390×844 und 1280×900 geprüft, inklusive der beschriebenen Fehlerkorrektur
+  (Screenshot vorher/nachher). Die QR-/Kilometerabschnitte selbst ließen sich ohne
+  angebundenen Worker nicht mit echten Daten befüllen und damit nicht im Browser
+  fotografieren – ihre Erzeugung ist stattdessen durch Unit-Tests abgesichert (echte
+  `qrcode`-PNG-Data-URLs, kein Mock). Das bleibt für eine spätere Runde mit echtem Backend
+  offen.

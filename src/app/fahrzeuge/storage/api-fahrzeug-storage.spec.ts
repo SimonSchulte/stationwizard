@@ -60,9 +60,20 @@ describe('ApiFahrzeugStorage', () => {
   it('lädt ein einzelnes Fahrzeug zusammen mit seiner ETag-Version', async () => {
     const fahrzeug = erzeugeTestfahrzeug();
     worker.anfragen.mockResolvedValue(
-      new Response(JSON.stringify(fahrzeug), { headers: { ETag: '"3"' } }),
+      new Response(JSON.stringify(fahrzeug), {
+        headers: { ETag: '"3"', 'Content-Type': 'application/json' },
+      }),
     );
     expect(await storage.ladeFahrzeug(fahrzeug.id)).toEqual({ daten: fahrzeug, version: '"3"' });
+  });
+
+  it('meldet eine verständliche Fehlermeldung statt eines rohen JSON-Parsefehlers, wenn der Server HTML statt JSON liefert', async () => {
+    worker.anfragen.mockResolvedValue(
+      new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }),
+    );
+    await expect(storage.ladeFahrzeug('x')).rejects.toMatchObject({
+      message: 'Der Server hat keine gültige API-Antwort geliefert.',
+    });
   });
 
   it('liefert null für ein nicht gefundenes Fahrzeug, statt zu werfen', async () => {

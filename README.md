@@ -18,7 +18,7 @@ Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 | Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich | `/#/ausbildung`     |
 | Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                      | `/#/einsatz`        |
 | Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                               | `/#/einsatz/editor` |
-| Fahrzeuge          | Liste, Stammdaten und Wartungstermine; Mindestlaufleistung und QR-Kilometererfassung folgen                                | `/#/fahrzeuge`      |
+| Fahrzeuge          | Liste, Stammdaten, Wartungstermine, Kilometerverlauf mit Jahresbilanz, QR-Codes und Druckbogen; Fuhrpark-Dashboard folgt   | `/#/fahrzeuge`      |
 
 Hash-Routing bleibt vorerst bewusst erhalten. Der Worker ist bereits mit
 `not_found_handling = "single-page-application"` vorbereitet, aber der reale
