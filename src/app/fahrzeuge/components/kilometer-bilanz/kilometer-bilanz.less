@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+.hinweis-neutral {
+  margin: 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.bilanz-balken {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+mat-progress-bar {
+  border-radius: var(--radius-xs);
+  height: 8px;
+
+  &.ziel-erreicht {
+    --mdc-linear-progress-active-indicator-color: var(--status-ok);
+  }
+}
+
+.bilanz-werte {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+}
+
+.bilanz-gefahren {
+  color: var(--text-secondary);
+}
+
+.bilanz-rest {
+  font-weight: 600;
+  color: var(--status-warn);
+}
+
+.bilanz-rest--erreicht {
+  color: var(--status-ok);
+}
+
+.bilanz-hinweis {
+  margin: var(--space-2xs) 0 0;
+  color: var(--status-warn);
+  font-size: 0.8125rem;
+}

@@ -106,6 +106,25 @@ describe('FahrzeugDashboard', () => {
     expect(dashboard.bilanzenFehler()).toContain('nicht geladen werden');
   });
 
+  it('kürzt die Übersicht auf die dringendsten Termine', async () => {
+    const viele = Array.from({ length: 7 }, (_, i) =>
+      erzeugeTestwartung({ faelligAm: `2026-01-${String(i + 1).padStart(2, '0')}` }),
+    );
+    const fahrzeug = erzeugeTestfahrzeug({ wartungstermine: viele });
+    konfiguriere([fahrzeug]);
+    const dashboard = await erzeugeUndWarte();
+    expect(dashboard.offeneWartungen()).toHaveLength(7);
+    expect(dashboard.naechsteWartungenKompakt()).toHaveLength(5);
+  });
+
+  it('springt beim "Alle anzeigen" auf den Wartungen-Tab', async () => {
+    konfiguriere([]);
+    const dashboard = await erzeugeUndWarte();
+    expect(dashboard.ausgewaehlterTab()).toBe(0);
+    dashboard.alleWartungenAnzeigen();
+    expect(dashboard.ausgewaehlterTab()).toBe(2);
+  });
+
   it('beginnt ein neues Fahrzeug und navigiert zur Anlage', async () => {
     const router = { navigate: vi.fn().mockResolvedValue(true) };
     const { store } = konfiguriere([], {}, [{ provide: Router, useValue: router }]);

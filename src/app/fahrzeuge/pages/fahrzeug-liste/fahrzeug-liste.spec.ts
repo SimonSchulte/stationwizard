@@ -68,6 +68,22 @@ describe('FahrzeugListe', () => {
     expect(liste.gefiltert()).toEqual([bund]);
   });
 
+  it('lädt die Liste nicht erneut, wenn eingebettet im Dashboard', () => {
+    const store = {
+      listeLaden: vi.fn(),
+      fahrzeuge: () => [],
+      listeLaedt: () => false,
+      listeFehler: () => '',
+    };
+    TestBed.configureTestingModule({
+      providers: [{ provide: FahrzeugStoreService, useValue: store }],
+    });
+    const fixture = TestBed.createComponent(FahrzeugListe);
+    fixture.componentRef.setInput('eingebettet', true);
+    fixture.componentInstance.ngOnInit();
+    expect(store.listeLaden).not.toHaveBeenCalled();
+  });
+
   it('beginnt ein neues Fahrzeug und navigiert zur Anlage', async () => {
     const store = {
       listeLaden: vi.fn(),

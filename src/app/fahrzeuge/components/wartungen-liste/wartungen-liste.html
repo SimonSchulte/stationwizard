@@ -1,0 +1,35 @@
+<div class="kopfzeile">
+  <mat-checkbox [checked]="erledigteAnzeigen()" (change)="erledigteAnzeigen.set($event.checked)">
+    Erledigte Termine auch anzeigen
+  </mat-checkbox>
+</div>
+
+@if (eintraege().length === 0) {
+  <p class="empty-hint">
+    @if (erledigteAnzeigen()) {
+      Noch keine Wartungstermine erfasst.
+    } @else {
+      Keine offenen Wartungstermine.
+    }
+  </p>
+} @else {
+  <ul class="wartungen-liste">
+    @for (eintrag of eintraege(); track eintrag.status.termin.id) {
+      <li class="wartung-zeile" [class]="'ampel-' + eintrag.status.ampel">
+        <span class="ampel-punkt" aria-hidden="true"></span>
+        <a class="wartung-fahrzeug" [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]">{{
+          eintrag.fahrzeug.bezeichnung
+        }}</a>
+        <span class="wartung-bezeichnung">{{ eintrag.status.termin.bezeichnung }}</span>
+        <span class="wartung-faellig">{{ eintrag.status.termin.faelligAm }}</span>
+        @if (eintrag.status.ampel === 'erledigt') {
+          <span class="wartung-status">erledigt</span>
+        } @else {
+          <span class="wartung-status">{{
+            tageBisFaelligText(eintrag.status.tageBisFaellig)
+          }}</span>
+        }
+      </li>
+    }
+  </ul>
+}

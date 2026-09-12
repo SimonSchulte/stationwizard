@@ -1,14 +1,16 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
-  <span class="toolbar-title">Fahrzeuge</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
-    <mat-icon>add</mat-icon>
-    Neues Fahrzeug
-  </button>
-</mat-toolbar>
+@if (!eingebettet()) {
+  <mat-toolbar class="listen-kopfleiste">
+    <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
+    <span class="toolbar-title">Fahrzeuge</span>
+    <span class="spacer"></span>
+    <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+      <mat-icon>add</mat-icon>
+      Neues Fahrzeug
+    </button>
+  </mat-toolbar>
+}
 
-<div class="list-content">
+<div class="list-content" [class.list-content--eingebettet]="eingebettet()">
   <div class="filterzeile">
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
       <mat-label>Suche</mat-label>

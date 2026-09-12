@@ -9,8 +9,12 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
+import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
+import { WartungenListe } from '../../components/wartungen-liste/wartungen-liste';
+import { FahrzeugListe } from '../fahrzeug-liste/fahrzeug-liste';
 import { Fahrzeugstamm } from '../../models/fahrzeug.model';
 import { hatAbleseLuecke } from '../../services/ablesung-pruefung';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
@@ -18,6 +22,9 @@ import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { berechneJahresbilanz, KilometerJahresbilanz } from '../../services/kilometer-soll';
 import { ermittleWartungsstatus, Wartungsstatus } from '../../services/wartungsstatus';
 import { ApiFahrzeugStorage } from '../../storage/api-fahrzeug-storage';
+
+/** Anzahl der Termine in der kompakten Übersicht; die vollständige Liste steht im eigenen Tab. */
+const KOMPAKT_WARTUNGEN_ANZAHL = 5;
 
 interface WartungMitFahrzeug {
   fahrzeug: Fahrzeugstamm;
@@ -47,7 +54,16 @@ function tageBisFaelligText(tage: number): string {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-dashboard',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatToolbarModule],
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatTabsModule,
+    MatToolbarModule,
+    KilometerBilanz,
+    WartungenListe,
+    FahrzeugListe,
+  ],
   templateUrl: './fahrzeug-dashboard.html',
   styleUrl: './fahrzeug-dashboard.less',
 })
@@ -64,7 +80,7 @@ export class FahrzeugDashboard implements OnInit {
   readonly listeFehler = this.store.listeFehler;
 
   private readonly heute = heuteIso();
-  private readonly jahr = jahrVon(this.heute);
+  readonly jahr = jahrVon(this.heute);
 
   readonly bilanzen = signal<BilanzMitFahrzeug[]>([]);
   readonly bilanzenLaedt = signal(false);
@@ -80,6 +96,17 @@ export class FahrzeugDashboard implements OnInit {
     }
     return eintraege.sort((a, b) => a.status.tageBisFaellig - b.status.tageBisFaellig);
   });
+
+  /** Für die Übersichtskarte: nur die dringendsten Termine, Rest steht im Tab „Liste Wartungen". */
+  readonly naechsteWartungenKompakt = computed(() =>
+    this.offeneWartungen().slice(0, KOMPAKT_WARTUNGEN_ANZAHL),
+  );
+
+  readonly ausgewaehlterTab = signal(0);
+
+  alleWartungenAnzeigen(): void {
+    this.ausgewaehlterTab.set(2);
+  }
 
   ngOnInit(): void {
     void this.laden();

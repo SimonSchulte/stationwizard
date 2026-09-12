@@ -54,12 +54,40 @@
   }
 }
 
+.tab-inhalt {
+  padding: var(--space-lg) 0;
+}
+
 h2 {
   margin: 0 0 var(--space-md);
 }
 
-.wartungen-liste,
-.bilanz-liste {
+.uebersicht-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.karte {
+  padding: var(--space-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+}
+
+.karten-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.wartungen-liste {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -68,8 +96,7 @@ h2 {
   gap: var(--space-xs);
 }
 
-.wartung-zeile,
-.bilanz-zeile {
+.wartung-zeile {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -77,10 +104,8 @@ h2 {
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--border-light);
   border-radius: var(--space-xs);
-  background: var(--surface-primary);
-}
+  background: var(--surface-secondary);
 
-.wartung-zeile {
   &.ampel-ueberfaellig .ampel-punkt {
     background: var(--status-error);
   }
@@ -99,10 +124,9 @@ h2 {
   flex-shrink: 0;
 }
 
-.wartung-fahrzeug,
-.bilanz-fahrzeug {
+.wartung-fahrzeug {
   font-weight: 500;
-  min-width: 140px;
+  min-width: 120px;
   color: var(--text-primary);
   text-decoration: none;
 
@@ -121,45 +145,56 @@ h2 {
   color: var(--text-secondary);
 }
 
+.bilanz-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-md);
+}
+
+.bilanz-karte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-secondary);
+}
+
+.bilanz-karte-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.bilanz-fahrzeug {
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .bilanz-eigentuemer {
   padding: var(--space-2xs) var(--space-sm);
   border-radius: 999px;
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   color: var(--text-secondary);
-  font-size: 0.8125rem;
-}
-
-.bilanz-wert {
-  font-weight: 500;
-}
-
-.bilanz-neutral {
-  color: var(--text-secondary);
-  font-weight: 400;
-  font-style: italic;
-}
-
-.bilanz-warnung {
-  color: var(--status-warn);
-}
-
-.bilanz-hinweis {
-  font-size: 0.8125rem;
-  color: var(--status-warn);
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .bilanz-luecke {
-  margin-left: auto;
+  font-size: 0.8125rem;
+  color: var(--status-warn);
 }
 
 @media (max-width: 480px) {
-  .wartung-zeile,
-  .bilanz-zeile {
+  .wartung-zeile {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .bilanz-luecke {
-    margin-left: 0;
   }
 }

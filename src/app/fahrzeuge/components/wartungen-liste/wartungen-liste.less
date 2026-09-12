@@ -1,0 +1,81 @@
+:host {
+  display: block;
+}
+
+.kopfzeile {
+  margin-bottom: var(--space-md);
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.wartungen-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.wartung-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+
+  &.ampel-ueberfaellig .ampel-punkt {
+    background: var(--status-error);
+  }
+  &.ampel-warnung .ampel-punkt {
+    background: var(--status-warn);
+  }
+  &.ampel-ok .ampel-punkt {
+    background: var(--status-ok);
+  }
+  &.ampel-erledigt .ampel-punkt {
+    background: var(--status-neutral);
+  }
+}
+
+.ampel-punkt {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wartung-fahrzeug {
+  font-weight: 500;
+  min-width: 140px;
+  color: var(--text-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.wartung-bezeichnung {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.wartung-faellig,
+.wartung-status {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+  .wartung-zeile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

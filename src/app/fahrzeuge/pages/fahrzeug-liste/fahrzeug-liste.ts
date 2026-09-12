@@ -4,6 +4,7 @@ import {
   OnInit,
   computed,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
@@ -38,6 +39,13 @@ export class FahrzeugListe implements OnInit {
   private readonly store = inject(FahrzeugStoreService);
   private readonly router = inject(Router);
 
+  /**
+   * Eingebettet als Tab im Fuhrpark-Dashboard: eigene Kopfleiste entfällt
+   * (das Dashboard hat schon eine), und die Liste lädt nicht erneut, weil
+   * das Dashboard `store.fahrzeuge()` bereits gefüllt hat.
+   */
+  readonly eingebettet = input(false);
+
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
   readonly laedt = this.store.listeLaedt;
   readonly fehler = this.store.listeFehler;
@@ -61,7 +69,7 @@ export class FahrzeugListe implements OnInit {
   });
 
   ngOnInit(): void {
-    void this.store.listeLaden();
+    if (!this.eingebettet()) void this.store.listeLaden();
   }
 
   neuesFahrzeug(): void {

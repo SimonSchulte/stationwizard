@@ -250,23 +250,7 @@
 
         @if (jahresbilanz(); as bilanz) {
           <div class="bilanz-karte">
-            @if (bilanz.sollKm === 0) {
-              <p>Keine Mindestlaufleistung für diesen Eigentümer.</p>
-            } @else if (bilanz.istKm === null) {
-              <p class="empty-hint">
-                Noch kein Jahresstartstand bekannt – Bilanz erst nach der ersten Ablesung.
-              </p>
-            } @else {
-              <p>
-                <strong>{{ bilanz.istKm }} km</strong> von {{ bilanz.sollKm }} km Jahressoll
-                gefahren, <strong>{{ bilanz.restKm }} km</strong> verbleiben.
-                @if (bilanz.unvollstaendig) {
-                  <span class="unvollstaendig-hinweis"
-                    >Datenlage unvollständig (keine Ablesung aus dem Vorjahr).</span
-                  >
-                }
-              </p>
-            }
+            <app-kilometer-bilanz [bilanz]="bilanz" />
           </div>
         }
 

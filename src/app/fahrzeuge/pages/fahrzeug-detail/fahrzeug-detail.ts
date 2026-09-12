@@ -23,6 +23,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { DatePipe } from '@angular/common';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
+import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import {
   EIGENTUEMER,
   Fahrzeugstamm,
@@ -79,6 +80,7 @@ function datumZuIso(datum: Date): string {
     MatSelectModule,
     MatTooltipModule,
     MatToolbarModule,
+    KilometerBilanz,
   ],
   providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './fahrzeug-detail.html',

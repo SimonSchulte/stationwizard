@@ -597,3 +597,36 @@ und die API-Tabelle in `CLAUDE.md` dokumentieren das ausdrücklich als Übergang
   bereits gespeichertes Fahrzeug mit Ablesungen) ließ sich mangels angebundenem Worker nicht
   zusätzlich fotografieren; sein Verhalten ist durch die neuen Tests auf allen Schichten
   (Worker, beide Storage-Adapter, Store, Komponente) abgesichert.
+
+## Nachtrag – Fuhrpark-Seite als Dashboard mit Tabs, Kilometerbilanz als Fortschrittsbalken
+
+Fachlicher Wunsch: `/fahrzeuge` stärker als Dashboard aufbauen, mit zusätzlichen Tabs
+„Liste Fahrzeuge" und „Liste Wartungen", und die Kilometerbilanz visuell als
+Fortschrittsbalken mit Restwert statt als reinem Fließtext.
+
+- `fahrzeug-dashboard` bekommt einen `mat-tab-group` mit drei Tabs: **Übersicht** (bisheriger
+  Dashboardinhalt, jetzt als Kartenraster: „Nächste Wartungen" zeigt nur noch die fünf
+  dringendsten Termine mit einem „Alle anzeigen"-Link in den Wartungen-Tab; „Kilometerbilanz"
+  zeigt je Fahrzeug eine kleine Karte mit Fortschrittsbalken), **Liste Fahrzeuge** (die
+  bestehende `FahrzeugListe` eingebettet) und **Liste Wartungen** (neue, vollständige Liste
+  aller Wartungstermine über alle Fahrzeuge, mit Umschalter für bereits erledigte Termine).
+- `FahrzeugListe` bekommt ein `eingebettet`-Eingabesignal: blendet die eigene Kopfleiste aus
+  und lädt die Liste nicht erneut (das Dashboard hat `store.fahrzeuge()` bereits gefüllt) –
+  die eigenständige Route `/fahrzeuge/liste` bleibt unverändert bestehen (z. B. als
+  Rücksprungziel von der Detailseite), verhält sich dort wie zuvor.
+- Neue Komponente `fahrzeuge/components/kilometer-bilanz`: stellt eine
+  `KilometerJahresbilanz` als `mat-progress-bar` (gefahren/Soll) mit Restwert dar, grün
+  hervorgehoben bei erreichtem Jahresziel. Von Dashboard (je Fahrzeug in der
+  Kilometerbilanz-Karte) und `fahrzeug-detail` (Kilometerstand-Abschnitt) gemeinsam genutzt,
+  damit beide Stellen dieselbe Darstellung zeigen statt zweier gepflegter Textvarianten.
+- Neue Komponente `fahrzeuge/components/wartungen-liste`: vollständige, filterbare
+  Wartungsliste über alle Fahrzeuge (Standard: nur offene Termine), als eigener Dashboard-Tab.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (373 Angular- und
+  314 Worker-Tests, u. a. neue Spezifikationen für beide neuen Komponenten und die
+  Dashboard-Tab-Logik), `npm run format:check`, `npm run deploy:dry-run` – alle grün.
+  Browserprüfung mit `ng serve`/Playwright bei 1280×900 und 390×844: `/api/fahrzeuge` und
+  `/api/fahrzeuge/*/ablesungen` über Playwrights Netzwerk-Mocking mit Testdaten beantwortet
+  (kein echter Worker nötig), alle drei Tabs, der Fortschrittsbalken in beiden Zuständen
+  (Rest offen/rot, Jahresziel erreicht/grün) und der Erledigt-Umschalter der Wartungsliste
+  visuell geprüft; mobile Tableiste nutzt Material-eigene Scroll-Pfeile, Karten brechen
+  einspaltig um. Keine Konsolenfehler.
