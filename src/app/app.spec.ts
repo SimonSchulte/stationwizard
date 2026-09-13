@@ -36,6 +36,7 @@ describe('Gemeinsame Anwendung', () => {
     expect(element.querySelector('.marke')?.textContent).toContain('stationwizard');
     expect(element.querySelector('nav')?.textContent).toContain('Ausbildung');
     expect(element.querySelector('nav')?.textContent).toContain('Einsatz');
+    expect(element.querySelector('nav')?.textContent).toContain('Fahrzeuge');
     expect(element.querySelector('.benutzer')?.textContent).toContain('uebung@example.invalid');
     expect(element.querySelector('.benutzer a')?.getAttribute('href')).toBe(
       '/cdn-cgi/access/logout',

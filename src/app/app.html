@@ -11,6 +11,9 @@
     <a routerLink="/einsatz" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
       <mat-icon aria-hidden="true">groups</mat-icon> Einsatz
     </a>
+    <a routerLink="/fahrzeuge" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
+      <mat-icon aria-hidden="true">local_shipping</mat-icon> Fahrzeuge
+    </a>
   </nav>
   <div class="benutzer">
     @if (benutzer.email() && worker.zustand() !== 'sitzung-abgelaufen') {

@@ -1,0 +1,114 @@
+<mat-toolbar class="dashboard-kopfleiste">
+  <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
+  <span class="toolbar-title">Fahrzeuge</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+    <mat-icon>add</mat-icon> Neues Fahrzeug
+  </button>
+</mat-toolbar>
+
+<div class="dashboard-content">
+  @if (listeLaedt()) {
+    <p role="status">Fahrzeuge werden geladen …</p>
+  }
+  @if (listeFehler()) {
+    <p class="error-hint" role="alert">{{ listeFehler() }}</p>
+  }
+
+  @if (!listeLaedt() && !listeFehler() && fahrzeuge().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon">local_shipping</mat-icon>
+      <p class="empty-hint">Noch keine Fahrzeuge angelegt.</p>
+      <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+        <mat-icon>add</mat-icon> Neues Fahrzeug anlegen
+      </button>
+    </div>
+  }
+
+  @if (fahrzeuge().length > 0) {
+    <mat-tab-group [(selectedIndex)]="ausgewaehlterTab">
+      <mat-tab label="Übersicht">
+        <div class="tab-inhalt uebersicht-raster">
+          <section class="karte wartungen" aria-labelledby="wartungen-titel">
+            <div class="karten-kopf">
+              <h2 id="wartungen-titel">Nächste Wartungen</h2>
+              @if (offeneWartungen().length > naechsteWartungenKompakt().length) {
+                <button mat-button (click)="alleWartungenAnzeigen()">Alle anzeigen</button>
+              }
+            </div>
+            @if (offeneWartungen().length === 0) {
+              <p class="empty-hint">Keine offenen Wartungstermine.</p>
+            } @else {
+              <ul class="wartungen-liste">
+                @for (eintrag of naechsteWartungenKompakt(); track eintrag.status.termin.id) {
+                  <li class="wartung-zeile" [class]="'ampel-' + eintrag.status.ampel">
+                    <span class="ampel-punkt" aria-hidden="true"></span>
+                    <a
+                      class="wartung-fahrzeug"
+                      [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]"
+                      >{{ eintrag.fahrzeug.bezeichnung }}</a
+                    >
+                    <span class="wartung-bezeichnung">{{ eintrag.status.termin.bezeichnung }}</span>
+                    <span class="wartung-faellig">{{
+                      tageBisFaelligText(eintrag.status.tageBisFaellig)
+                    }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+
+          <section class="karte kilometer" aria-labelledby="kilometer-titel">
+            <h2 id="kilometer-titel">Kilometerbilanz {{ jahr }}</h2>
+            @if (bilanzenLaedt()) {
+              <p role="status">Kilometerbilanzen werden geladen …</p>
+            }
+            @if (bilanzenFehler()) {
+              <p class="error-hint" role="alert">{{ bilanzenFehler() }}</p>
+            }
+            @if (!bilanzenLaedt() && bilanzen().length > 0) {
+              <div class="bilanz-raster">
+                @for (eintrag of bilanzen(); track eintrag.fahrzeug.id) {
+                  <div class="bilanz-karte">
+                    <div class="bilanz-karte-kopf">
+                      <a
+                        class="bilanz-fahrzeug"
+                        [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]"
+                        >{{ eintrag.fahrzeug.bezeichnung }}</a
+                      >
+                      <span class="bilanz-eigentuemer">{{
+                        EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer]
+                      }}</span>
+                    </div>
+                    <app-kilometer-bilanz [bilanz]="eintrag.bilanz" />
+                    @if (eintrag.hatAbleseLuecke) {
+                      <span class="tag-chip bilanz-luecke">
+                        @if (eintrag.letzteAblesungAm) {
+                          Letzte Ablesung {{ formatiereDatum(eintrag.letzteAblesungAm) }}
+                        } @else {
+                          Keine Ablesung
+                        }
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Liste Fahrzeuge">
+        <div class="tab-inhalt">
+          <app-fahrzeug-liste [eingebettet]="true" />
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Liste Wartungen">
+        <div class="tab-inhalt">
+          <app-wartungen-liste [fahrzeuge]="fahrzeuge()" />
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  }
+</div>

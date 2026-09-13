@@ -1,0 +1,311 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.detail-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.spacer {
+  flex: 1;
+}
+
+.detail-content {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.konflikt-hinweis {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--space-xs);
+  background: var(--surface-secondary);
+  color: var(--status-warn);
+
+  span {
+    flex: 1;
+  }
+}
+
+.section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.feldraster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.bemerkung-feld {
+  width: 100%;
+}
+
+.feld-fehler {
+  color: var(--status-error);
+}
+
+.metadaten {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.wartung-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.wartung-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.wartung-zeile {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+
+  &.ampel-ueberfaellig .ampel-punkt {
+    background: var(--status-error);
+  }
+  &.ampel-warnung .ampel-punkt {
+    background: var(--status-warn);
+  }
+  &.ampel-ok .ampel-punkt {
+    background: var(--status-ok);
+  }
+  &.ampel-erledigt .ampel-punkt {
+    background: var(--status-neutral);
+  }
+}
+
+.ampel-punkt {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wartung-bezeichnung {
+  font-weight: 500;
+  min-width: 160px;
+}
+
+.wartung-bezeichnung-feld {
+  min-width: 160px;
+}
+
+.wartung-datum {
+  width: 10em;
+}
+
+.wartung-vorlauf {
+  width: 9em;
+}
+
+@media (max-width: 480px) {
+  .wartung-zeile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.bilanz-karte {
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-secondary);
+}
+
+.ablesung-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ablesung-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.9rem;
+
+  .ablesung-stand {
+    font-weight: 500;
+  }
+
+  .ablesung-quelle {
+    color: var(--text-secondary);
+    text-transform: capitalize;
+  }
+
+  .ablesung-erfasser {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    flex: 1;
+  }
+
+  .ablesung-korrektur-hinweis {
+    color: var(--status-warn);
+    font-size: 0.8125rem;
+  }
+}
+
+.korrektur-formular {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-secondary);
+  border-radius: var(--space-xs);
+
+  mat-form-field {
+    width: 12em;
+  }
+}
+
+.korrektur-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-xs);
+}
+
+.kilometer-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.nachtrag-formular {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-secondary);
+  border-radius: var(--space-xs);
+  margin-bottom: var(--space-md);
+
+  mat-form-field {
+    width: 12em;
+  }
+}
+
+.nachtrag-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-xs);
+}
+
+.qr-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.qr-vorschau {
+  display: flex;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+
+  figure {
+    margin: 0;
+    text-align: center;
+
+    figcaption {
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+      margin-top: var(--space-xs);
+    }
+  }
+}
+
+.protokoll-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.protokoll-zeile {
+  display: grid;
+  grid-template-columns: 11em 1fr;
+  gap: var(--space-xs) var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.9rem;
+}
+
+.protokoll-zeitpunkt {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.protokoll-von {
+  grid-column: 2;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.protokoll-beschreibung {
+  grid-column: 1 / -1;
+  list-style: disc;
+  margin: 0;
+  padding-left: var(--space-lg);
+}
+
+@media (max-width: 480px) {
+  .protokoll-zeile {
+    grid-template-columns: 1fr;
+  }
+
+  .protokoll-von {
+    grid-column: 1;
+  }
+}

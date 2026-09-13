@@ -48,7 +48,7 @@ import {
   Taktisch,
   Medizinisch,
 } from '../../models/planung.model';
-import { FAHRZEUGE } from '../../data/fahrzeuge';
+import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 
 interface DragData {
@@ -119,6 +119,7 @@ export class PlanningEditor {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly abgleich = inject(MatchService);
   readonly efsApi = inject(EfsApiService);
+  private readonly fahrzeugeQuelle = inject(FahrzeugeQuelleService);
   private readonly importService = inject(ImportService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly sanitizer = inject(DomSanitizer);
@@ -165,9 +166,11 @@ export class PlanningEditor {
   readonly fahrzeugFilter = signal<Record<string, string | null>>({});
 
   filteredFahrzeuge(postenId: string): Fahrzeug[] {
+    this.fahrzeugeQuelle.sicherstellenGeladen();
+    const fahrzeuge = this.fahrzeugeQuelle.fahrzeuge();
     const q = (this.fahrzeugFilter()[postenId] ?? '').toLowerCase();
-    if (!q) return FAHRZEUGE;
-    return FAHRZEUGE.filter(
+    if (!q) return fahrzeuge;
+    return fahrzeuge.filter(
       (f) => f.funkruf.toLowerCase().includes(q) || f.seriennummer.toLowerCase().includes(q),
     );
   }

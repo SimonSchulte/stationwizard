@@ -309,6 +309,375 @@ Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (249 Angu
 280 Worker-Tests) und `npm run format:check` – alle grün. Keine Browserprüfung in dieser
 Runde.
 
+## AP-F1 – Fahrzeugmodul: Domäne und Persistenzabstraktion
+
+Erste Umsetzungsstufe von `docs/konzept-fahrzeuge.md`. Ausschließlich Fachschicht, keine
+Oberfläche und kein Worker – das folgt in AP-F2 nach der dort noch offenen
+Backendfestlegung.
+
+- `src/app/fahrzeuge/models/fahrzeug.model.ts`: `Fahrzeugstamm`, `Wartungstermin`,
+  `Kilometerstand`, `AblesungEingabe`. Keine Bestandszeiträume (Zu-/Abgang) in dieser
+  Fassung – bewusste Entscheidung vom 12.09.2026, siehe Konzeptdokument Abschnitt 8.
+- `src/app/fahrzeuge/storage/fahrzeug-storage.ts`: `FahrzeugStorage`-Interface und
+  `FahrzeugKonfliktFehler`. Die Fachschicht kennt ausschließlich diese Typen, keinen
+  Datenbank-, ETag- oder HTTP-Bezug; ein Backendwechsel bleibt auf einen neuen Adapter
+  begrenzt.
+- `src/app/fahrzeuge/services/`: `fahrzeug-pruefung.ts` (Prüfung unbekannter externer
+  Daten, analog `pep-datei.ts`, kein `any`), `kilometer-soll.ts` (Jahresbilanz je
+  Fahrzeug – starres Kalenderjahr, volles Jahressoll, `unvollstaendig`-Kennzeichnung ohne
+  Vorjahresablesung), `wartungsstatus.ts` (Ampel je Wartungstermin mit individuellem
+  Vorlauf), `ablesung-pruefung.ts` (Plausibilitätshinweis bei Rückschritt/Sprung, feste
+  30-Tage-Schwelle für die Ablese-Lücke).
+- `src/app/fahrzeuge/testing/`: `InMemoryFahrzeugStorage` als Referenzadapter (bildet
+  Versionsprüfung und serverseitige Identität nach) sowie Testdaten-Factories. Alle
+  Fachtests laufen dagegen und bleiben bei der Backendentscheidung unverändert.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (296 Angular- und
+  280 Worker-Tests) und `npm run format:check` – alle grün. Keine Oberfläche, daher keine
+  Browserprüfung in diesem Paket.
+
+## AP-F2 – Fahrzeugmodul: Cloudflare D1, Worker-Routen und Client-Adapter
+
+Backendentscheidung aus dem Konzept umgesetzt: Cloudflare D1. Domäne aus AP-F1 unverändert;
+die Trennung hat sich in der Praxis bestätigt – kein D1-, SQL- oder HTTP-Typ musste in
+`models/` oder `services/` einziehen.
+
+- **D1-Datenbank real angelegt**: `stationwizard-fahrzeuge`
+  (`698facb9-4c99-45de-8879-d262c2144144`), Region `weur`. Schema aus
+  `worker/migrations/0001_fahrzeuge.sql` über die Cloudflare-D1-API angewendet und gegen
+  `sqlite_master` verifiziert (Tabellen `fahrzeuge`, `ablesungen`, Index
+  `idx_ablesungen_fahrzeug_datum`). Wartungstermine liegen als geprüftes JSON-Array in der
+  Fahrzeugzeile, analog zur bestehenden PEP-Datei als ein zusammengehöriger Datensatz –
+  keine eigene Kindtabelle, damit ein Update mit Versionsprüfung ein einzelnes Statement
+  bleibt.
+- `worker/wrangler.toml`: `[[d1_databases]]`-Block mit Binding `FAHRZEUGE_DB`, echte
+  `database_id`. `deploy:dry-run` bestätigt das Binding.
+- `worker/src/fahrzeuge.ts`: `GET`/`POST /api/fahrzeuge`, `GET`/`PUT
+/api/fahrzeuge/<UUID>`, `GET`/`POST /api/fahrzeuge/<UUID>/ablesungen`. Optimistische
+  Sperre über `If-Match`/`If-None-Match` und ein starkes ETag aus einem Versionszähler,
+  analog zum bestehenden Nextcloud-Muster; `412` bei Konflikt oder unbekannter Kennung.
+  `geaendertAm`/`geaendertVon` und `erfasstVon`/`erfasstAm` setzt der Worker ausschließlich
+  aus der bereits geprüften Access-Identität – ein gleichnamiges Feld im Anfragekörper wird
+  verworfen und in einem Test bewusst mitgeschickt, um das zu belegen. Ohne `FAHRZEUGE_DB`
+  liefert die Route 503 statt eines Absturzes.
+- `kurzlinkWeiterleitung()` in derselben Datei, in `worker/src/index.ts` verdrahtet:
+  `/f/<UUID>` und `/f/<UUID>/km` leiten (302) auf die aktuelle Hash-Route weiter, damit
+  gedruckte QR-Codes eine spätere Routenumstellung überleben (siehe Konzept, Abschnitt 4).
+  Access wird für diese Pfade wie für alle anderen vorher geprüft.
+- `src/app/fahrzeuge/storage/api-fahrzeug-storage.ts`: Adapter gegen `WorkerClient`, einzige
+  Stelle, die zwischen Worker-JSON und Domänentypen übersetzt; Ergebnisse laufen durch die
+  AP-F1-Prüffunktionen, bevor sie die Fachschicht erreichen. Ein 412 wird in
+  `FahrzeugKonfliktFehler` übersetzt.
+- **Interface-Lücke aus AP-F1 behoben**: `FahrzeugStorage.ladeFahrzeug()` lieferte nur den
+  `Fahrzeugstamm`, nicht die Version – ein späteres `speichereFahrzeug()` hätte die zuletzt
+  gelesene Version nicht kennen können. Jetzt `FahrzeugMitVersion` (`{ daten, version }`);
+  In-Memory-Adapter und Tests entsprechend angepasst.
+- Neuer Fake `worker/tests/fahrzeug-db-fake.ts`: bildet nur die tatsächlich genutzte
+  D1-Teilmenge (`prepare().bind().run()/.first()/.all()`) fest verdrahtet nach, kein
+  echter SQL-Parser, damit ein Test nie über eine falsch nachgebildete Query hinwegtäuscht.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (306 Angular- und
+  310 Worker-Tests), `npm run format:check` und `npm run deploy:dry-run` – alle grün.
+  `npm run worker:test`/`test:spa` mit echtem D1-Zugriff nicht Teil dieses Laufs (Worker-
+  Tests laufen weiterhin gegen den Fake, nicht gegen die echte Datenbank). Keine
+  Browserprüfung – es gibt noch keine Oberfläche (folgt in AP-F3).
+
+## AP-F3 – Fahrzeugverwaltung: Liste, Detail, Stammdatenformular
+
+Erste Oberfläche des Fahrzeugmoduls. Dritter Fachbereich unter `/#/fahrzeuge`, lazy
+geladen, Einstieg über Hauptnavigation und Startseite.
+
+- `src/app/fahrzeuge/services/fahrzeug-store.service.ts`: Signal-Zustand für Liste,
+  Detailbearbeitung und Speichern. `entwurf` ist der bearbeitbare Stand, `basislinie` der
+  zuletzt bekannte gespeicherte Stand – ihr Vergleich entscheidet
+  `hatUngesicherteAenderungen()` und ist bei `VerlassenSchutz` registriert (nur
+  `beforeunload`, wie beim bestehenden Editor auch keine In-App-Navigationssperre – kein
+  neues Muster gegenüber dem Bestand). Speichern lädt nach dem Schreiben bewusst neu
+  (`ladeFahrzeug` statt den PUT-Rückgabewert zu vertrauen), damit `geaendertAm`/
+  `geaendertVon` immer vom Server stammen.
+- `src/app/fahrzeuge/pages/fahrzeug-liste/`: Suche über Bezeichnung, Funkrufname und
+  Kennzeichen, Filter nach Eigentümer, gemeinsame Leerzustands-/Fehlerklassen wie im
+  bestehenden Einsatzplaner (`empty-state`, `empty-hint`, `error-hint`).
+- `src/app/fahrzeuge/pages/fahrzeug-detail/`: eine Seite für Neuanlage (`/fahrzeuge/neu`)
+  und Bearbeitung (`/fahrzeuge/<id>`), reagiert über `toSignal(route.paramMap)` auf einen
+  Wechsel der Routen-id. Stammdatenformular mit Live-Prüfung der Fahrgestellnummer
+  (`istGueltigeFin` aus AP-F1) und Anzeige des Jahressolls (`sollKmProJahr`) je
+  Eigentümer. Wartungstermine inline verwaltbar (hinzufügen, Datum, Vorlauf, „Erledigt“,
+  entfernen); die Ampel je Zeile nutzt `ermittleWartungsstatus` unverändert aus AP-F1. Eine
+  zweite offene Hauptuntersuchung wird durch einen deaktivierten Button verhindert, ist
+  aber nicht auf Fachvorschrift geprüft – reine Bedienhilfe.
+- Konfliktfall (412): eigener Hinweisblock mit „Aktuellen Stand laden“, bestätigt über
+  `DialogDienst`, lädt danach über `neuLadenNachKonflikt`. Der Entwurf bleibt bis zur
+  Bestätigung unverändert erhalten.
+- `app.html`/`kern/startseite`: dritter Navigationseintrag und Startseiten-Kachel
+  „Fahrzeuge“, `app.spec.ts` entsprechend erweitert.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (324 Angular- und
+  310 Worker-Tests) und `npm run format:check` – alle grün. Zusätzlich echte
+  Browserprüfung: `ng serve` lokal gestartet, Liste, Neuanlage und ausgefülltes Formular
+  mit Wartungsterminen per Playwright/Chromium bei 1280×900 und 390×844 (mobil)
+  screenshotet und visuell geprüft – Navigation, Filter, Formular, Ampel-Farben und
+  Button-Zustände (deaktivierte zweite HU, aktiviertes Speichern nach gültiger Eingabe)
+  wie erwartet, responsive Umbrüche bei mobiler Breite korrekt. Kein Worker in dieser
+  Prüfung angebunden, daher API-Fehleranzeige sichtbar – das ist der erwartete Zustand
+  ohne Backend.
+
+## AP-F4 – Kilometererfassung, QR-Codes und Druckbogen
+
+- `qrcode` (MIT) als neue Abhängigkeit über `npx npm@11 install` ergänzt, Lockfile
+  konsistent. `src/app/fahrzeuge/services/fahrzeug-qr.ts`: statischer Import darin,
+  dynamisch von den Aufrufern geladen (analog `excel-lesen.ts`/`excel-schreiben.ts`).
+  Ziel-URLs sind absolute `${origin}/f/<UUID>` bzw. `.../km` – dieselben Kurzpfade aus
+  AP-F2, kein neues Routenschema.
+- `PDF_FARBEN` aus `pdf-export.service.ts` exportiert statt einer zweiten Palette für den
+  neuen Druckbogen; `FahrzeugDruckbogenService` (nicht als freie Funktion, sondern als
+  Dienst wie `PdfExportService` – Angulars Testharness verbietet `vi.mock` auf relative
+  Importe, ein injizierbarer Dienst bleibt dagegen wie gewohnt über `TestBed` ersetzbar)
+  erzeugt ein A4-Blatt mit beiden QR-Codes als eingebettetem SVG (pdfmake `ContentSvg`,
+  keine Rasterung nötig). Papierformat und Stückzahl je Blatt sind weiterhin offen (siehe
+  Konzept, Abschnitt 9); dieser Bogen druckt einen Satz pro Fahrzeug.
+- `ablesung-store.service.ts`: eigener, schlanker Store nur für Kilometerablesungen
+  (Verlauf laden, eine Ablesung anhängen), getrennt von `fahrzeug-store.service.ts`, das
+  ausschließlich Stammdaten und deren Bearbeitungszustand verwaltet.
+- `/#/fahrzeuge/<UUID>/km`: eigene, bewusst minimale Erfassungsseite (großes Zahlenfeld,
+  Datum, optionale Bemerkung, letzter bekannter Stand als Kontext). Die Quelle einer
+  Ablesung (`qr` vs. `formular`) wird ehrlich unterschieden: der Worker-Kurzlink hängt
+  `?quelle=qr` an die Weiterleitung an (`worker/src/fahrzeuge.ts`,
+  `kurzlinkWeiterleitung`), die Seite fällt ohne diesen Parameter auf `formular` zurück.
+  Ein Plausibilitätshinweis (Rückschritt/großer Sprung, aus AP-F1) warnt, blockiert das
+  Speichern aber nicht.
+- `fahrzeug-detail`: neue Abschnitte „Kilometerstand“ (Jahresbilanz aus
+  `berechneJahresbilanz`, Verlauf, Korrekturweg – ein neuer Datensatz mit `quelle:
+'korrektur'` und Verweis über `korrigiert`, nie ein Update einer bestehenden Ablesung)
+  und „QR-Codes“ (Bildschirmvorschau als PNG-Data-URL, Druckbogen-Download); beide nur für
+  bereits gespeicherte Fahrzeuge sichtbar.
+- **Echten Fehler in `ApiFahrzeugStorage.ladeFahrzeug` bei der Browserprüfung gefunden und
+  behoben**: die Methode las den Antwortkörper direkt mit `.json()`, ohne vorher den
+  Content-Type zu prüfen (anders als `WorkerClient.json()`). Ohne Worker beziehungsweise
+  bei einer unerwarteten HTML-Antwort erschien ein roher `Unexpected token '<' … is not
+valid JSON` statt einer verständlichen Fehlermeldung. Jetzt dieselbe Prüfung wie im
+  gemeinsamen Client, mit Test.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (341 Angular- und
+  310 Worker-Tests), `npm run format:check` – alle grün. Echte Browserprüfung mit
+  `ng serve` und Playwright/Chromium: Erfassungsseite und Detailseite eines neuen
+  Fahrzeugs bei 390×844 und 1280×900 geprüft, inklusive der beschriebenen Fehlerkorrektur
+  (Screenshot vorher/nachher). Die QR-/Kilometerabschnitte selbst ließen sich ohne
+  angebundenen Worker nicht mit echten Daten befüllen und damit nicht im Browser
+  fotografieren – ihre Erzeugung ist stattdessen durch Unit-Tests abgesichert (echte
+  `qrcode`-PNG-Data-URLs, kein Mock). Das bleibt für eine spätere Runde mit echtem Backend
+  offen.
+
+## AP-F5 – Fuhrpark-Dashboard
+
+Umsetzung der im Konzept vorgesehenen Routenaufteilung: das Dashboard ist jetzt die
+Startseite des Moduls, die bisherige Liste ist auf `/fahrzeuge/liste` gewandert.
+`fahrzeug-detail`s Zurück-Pfeil verweist entsprechend auf `/fahrzeuge/liste` statt auf das
+Dashboard. Diese Umstellung war unkritisch, weil das Modul noch nicht produktiv läuft.
+
+- `fahrzeuge.routes.ts`: `''` → `FahrzeugDashboard`, `'liste'` → `FahrzeugListe`
+  (unverändert), `'neu'`/`':id/km'`/`':id'` wie zuvor.
+- `fahrzeug-dashboard`: „Nächste Wartungen“ sammelt alle offenen (nicht erledigten)
+  Wartungstermine über alle Fahrzeuge mit `ermittleWartungsstatus` (unverändert aus AP-F1)
+  und sortiert nach Fälligkeit. „Kilometerbilanz“ lädt je Fahrzeug die Ablesungshistorie
+  und berechnet `berechneJahresbilanz`; da es keinen zentralen Ablesungs-Endpunkt über
+  alle Fahrzeuge gibt (bewusst, siehe Konzept), sind das so viele Anfragen wie Fahrzeuge –
+  bei der erwarteten Fuhrparkgröße unproblematisch. `Promise.allSettled` statt
+  `Promise.all`: ein einzelnes fehlgeschlagenes Fahrzeug blockiert nicht die Bilanzen der
+  übrigen, meldet aber einen Sammel­hinweis.
+- Fahrzeuge ohne Ablesung seit über 30 Tagen (`hatAbleseLuecke`, unverändert aus AP-F1)
+  werden in der Kilometerliste gesondert markiert.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (346 Angular- und
+  310 Worker-Tests), `npm run format:check` – alle grün. Browserprüfung mit `ng serve` und
+  Playwright/Chromium bei 1280×900 und 390×844: Dashboard und die verschobene Liste unter
+  `/fahrzeuge/liste` laden und brechen nicht um, Fehleranzeige ohne Worker wie erwartet.
+  Die befüllten Wartungs-/Kilometerabschnitte selbst konnten mangels Backend nicht mit
+  echten Daten fotografiert werden; ihre Berechnung ist durch Unit-Tests mit mehreren
+  Fahrzeugen und einem gezielt fehlschlagenden Ablesungsabruf abgesichert.
+
+## AP-F6 – Integration in den Einsatzplaner
+
+Der Einsatzplaner bezieht Fahrzeuge jetzt aus dem Fahrzeugmodul statt aus der leeren
+Konstante `einsatz/data/fahrzeuge.ts` (entfernt). Die Einsatzmodelle bleiben dabei
+unverändert – wie im Konzept (Abschnitt 2 „Verhältnis zum Bestand“) festgelegt.
+
+- Neuer `einsatz/services/fahrzeuge-quelle.service.ts`: schmaler, schreibgeschützter
+  Übersetzer von `Fahrzeugstamm` (Fahrzeugmodul) auf das bestehende `Fahrzeug`
+  (Einsatzmodell, `{ seriennummer, funkruf, hiorgId }`). Keine Vereinheitlichung der
+  beiden Fachmodelle: `funkrufname` → `funkruf`, die optionale `fahrgestellnummer` → die
+  bislang ungenutzte `seriennummer` (fachlich dieselbe Fahrzeugkennung), `hiorgId` bleibt
+  leer, weil das Fahrzeugmodul keine HiOrg-Kennung führt – eine spätere Übernahme aus EFS
+  braucht zuerst einen fachlichen Nachweis (Konzept, Abschnitt 9).
+- `efs-api.service.ts` (`matchFahrzeug`) und `planning-editor.ts` (`filteredFahrzeuge`)
+  lesen jetzt über diesen Dienst statt der statischen `FAHRZEUGE`-Liste.
+  `sicherstellenGeladen()` löst das Laden beim ersten Zugriff aus, spätere Aufrufe sind
+  ein günstiger No-op.
+- **Eine echte Regression beim Umbau vermieden**: mit echten Fahrgestellnummern in der
+  Liste hätte `matchFahrzeug`s bisheriger Vergleich `v.hiorgId === em.fugcode` bei einem
+  leeren `fugcode` aus EFS auf eine leere `hiorgId` (jetzt immer `''`) treffen und
+  fälschlich das erste Fahrzeug der Liste zurückgeben können. Beide Vergleichspfade prüfen
+  jetzt zuerst, dass der EFS-Wert selbst nicht leer ist, mit Test.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (351 Angular- und
+  310 Worker-Tests), `npm run format:check`, `npm run deploy:dry-run` – alle grün.
+  Browserprüfung mit `ng serve`/Playwright: neue Planung angelegt, Posten erstellt, das
+  Fahrzeugfeld im Editor geöffnet – keine Konsolenfehler, leere Trefferliste wie erwartet
+  ohne angebundenen Worker.
+
+## Nachtrag – Jahresanfangsstand nachtragen, Material-Eingabefelder, Detailseite
+
+Nachbesserung an der Kilometerbilanz und den Eingabeformularen des Fahrzeugmoduls, ohne
+dass diese ein eigenes AP-Kürzel bekommen hätten:
+
+- `kilometer-soll.ts` (`ermittleJahresstartstand`): eine ersatzweise verwendete erste
+  Ablesung des Jahres gilt jetzt genau dann als vollwertiger Jahresstartstand (nicht mehr
+  `unvollstaendig`), wenn sie exakt auf den 1.1. datiert ist. Ohne diese Lockerung ließ
+  sich der Jahresvergleich nie „vollständig" bekommen, sobald ein Fahrzeug erst im
+  laufenden Jahr erfasst wurde – der Warnhinweis blieb trotz bewusst nachgetragenem
+  Startwert stehen.
+- `fahrzeug-detail`: neuer Button „Jahresanfang nachtragen" im Abschnitt
+  „Kilometerstand" öffnet ein Formular mit auf den 1.1. des laufenden Jahres vorbelegtem,
+  aber änderbarem Datum, Stand und Bemerkung; speichert über den bestehenden
+  `AblesungStoreService.erfassen()` mit `quelle: 'formular'`. Bewusst nicht durch
+  `pruefeAblesungPlausibilitaet` geführt, da ein rückwirkend nachgetragenes Datum sonst
+  fälschlich als „Rückschritt" gegenüber der jüngsten Ablesung gewertet würde – eine
+  eigene Plausibilitätsprüfung für rückwirkende Nachträge ist eine spätere, hier bewusst
+  nicht mitgelöste Erweiterung.
+- Alle bisher rohen `<input>`-Felder in `fahrzeug-detail` (Wartungstermin-Bezeichnung,
+  -Fälligkeit, -Vorlauf; Korrektur- und das neue Nachtrag-Formular) sind jetzt echte
+  Material-Formularfelder (`mat-form-field`/`matInput`). Datumsfelder verwenden
+  `MatDatepicker` mit `MAT_DATE_LOCALE: 'de-DE'` (gleiches Muster wie in
+  `planning-editor.ts`) statt des nativen, browserabhängig formatierten `type="date"` –
+  Eingabe und Kalender zeigen jetzt durchgehend das deutsche Format (`TT.MM.JJJJ`).
+- `km-erfassung` (mobile QR-Erfassung): Funkrufname und Kennzeichen erscheinen jetzt als
+  `tag-chip`-Chips unter der Fahrzeugbezeichnung (gemeinsame, bereits global definierte
+  Chip-Klasse aus `styles.less`, keine neue Komponente); der bisherige, aus zwei Feldern
+  zusammengesetzte Fließtext ist entfallen. Der Hinweis auf die letzte Ablesung ist von
+  „Letzter bekannter Stand: X km am Datum" auf „Kilometerstand: X km" gekürzt. Das native
+  `type="date"`-Feld dieser Seite bleibt bewusst unverändert: es ist die mobile
+  QR-Erfassung, für die der native Gerätepicker (der die Systemsprache respektiert) der
+  bessere Touch-Bedienweg bleibt.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (355 Angular- und
+  310 Worker-Tests, u. a. neue Fälle für `ermittleJahresstartstand` und die drei neuen
+  `nachtrag*`-Methoden), `npm run format:check` – alle grün. Browserprüfung mit
+  `ng serve`/Playwright bei 1280×900: neues Wartungstermin-Datumsfeld zeigt
+  `TT.MM.JJJJ`-Format und ein Kalender mit deutschen Monats-/Wochentagsnamen, keine
+  Konsolenfehler. Die Nachtragen-Fläche selbst (nur sichtbar für ein bereits gespeichertes
+  Fahrzeug) ließ sich mangels angebundenem Worker nicht zusätzlich fotografieren; ihr
+  Verhalten ist durch die neuen Komponenten-Tests abgesichert.
+
+## Nachtrag – Kilometerablesungen löschen
+
+Fachlicher Wunsch: einzelne Kilometerablesungen sollen sich wieder löschen lassen. Das
+widerspricht der ursprünglichen Konzeptentscheidung „Kilometerstände sind unveränderlich"
+(Begründung: nachträgliche Beschönigung der Pflichtkilometer soll erkennbar bleiben). Auf
+Nachfrage lautete die fachliche Antwort: **nur Administratoren** sollen künftig löschen
+(bzw. korrigieren) dürfen – eine Rolle, die es im Modul noch nicht gibt (bestehende
+Entscheidung „Rechte vorerst alle, Rollen später"). Bis zu einer Rollenprüfung steht die
+Funktion deshalb jeder geprüften Identität offen; `docs/konzept-fahrzeuge.md` (Abschnitt 8)
+und die API-Tabelle in `CLAUDE.md` dokumentieren das ausdrücklich als Übergangszustand.
+
+- Neuer Endpunkt `DELETE /api/fahrzeuge/<UUID>/ablesungen/<UUID>`
+  (`worker/src/fahrzeuge.ts`, `loescheAblesung`): löscht endgültig, sperrt aber, solange
+  eine andere Ablesung per `korrigiert` auf diese verweist (409 `ABLESUNG_HAT_KORREKTUR`)
+  – sonst zeigte eine bestehende Korrektur ins Leere. 404, wenn die Ablesung für dieses
+  Fahrzeug nicht existiert. Der Migrationskommentar in
+  `worker/migrations/0001_fahrzeuge.sql` ist entsprechend angepasst (keine Schemaänderung
+  nötig).
+- `FahrzeugStorage.loescheAblesung()` ergänzt den gemeinsamen Vertrag; neue
+  `AblesungHatKorrekturFehler`-Fehlerklasse neben der bestehenden
+  `FahrzeugKonfliktFehler`. `ApiFahrzeugStorage` übersetzt HTTP 409 entsprechend,
+  `InMemoryFahrzeugStorage` bildet dieselbe Regel lokal für Tests nach.
+  `AblesungStoreService.loeschen(fahrzeugId, ablesungId)` entfernt die Ablesung optimistisch
+  erst nach erfolgreicher Serverantwort aus der lokalen Liste.
+- `fahrzeug-detail`: neuer Löschen-Button je Ablesungszeile, mit Bestätigungsdialog über
+  `DialogDienst` („endgültig, nicht wiederherstellbar"). Ein clientseitiges `hatKorrektur()`
+  deaktiviert den Button bereits vorab für korrigierte Ablesungen (mit Tooltip) – der Server
+  bleibt die verbindliche Prüfung, das ist nur eine vorweggenommene Fehlermeldung.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (364 Angular- und
+  314 Worker-Tests, u. a. neue Fälle für den DELETE-Endpunkt, beide Storage-Adapter, den
+  Store und die Komponente), `npm run format:check`, `npm run deploy:dry-run` – alle grün.
+  Browserprüfung mit `ng serve`/Playwright bei 1280×900 auf `/fahrzeuge/neu` und
+  `/fahrzeuge/liste`: keine Konsolenfehler. Der Löschen-Button selbst (nur sichtbar für ein
+  bereits gespeichertes Fahrzeug mit Ablesungen) ließ sich mangels angebundenem Worker nicht
+  zusätzlich fotografieren; sein Verhalten ist durch die neuen Tests auf allen Schichten
+  (Worker, beide Storage-Adapter, Store, Komponente) abgesichert.
+
+## Nachtrag – Fuhrpark-Seite als Dashboard mit Tabs, Kilometerbilanz als Fortschrittsbalken
+
+Fachlicher Wunsch: `/fahrzeuge` stärker als Dashboard aufbauen, mit zusätzlichen Tabs
+„Liste Fahrzeuge" und „Liste Wartungen", und die Kilometerbilanz visuell als
+Fortschrittsbalken mit Restwert statt als reinem Fließtext.
+
+- `fahrzeug-dashboard` bekommt einen `mat-tab-group` mit drei Tabs: **Übersicht** (bisheriger
+  Dashboardinhalt, jetzt als Kartenraster: „Nächste Wartungen" zeigt nur noch die fünf
+  dringendsten Termine mit einem „Alle anzeigen"-Link in den Wartungen-Tab; „Kilometerbilanz"
+  zeigt je Fahrzeug eine kleine Karte mit Fortschrittsbalken), **Liste Fahrzeuge** (die
+  bestehende `FahrzeugListe` eingebettet) und **Liste Wartungen** (neue, vollständige Liste
+  aller Wartungstermine über alle Fahrzeuge, mit Umschalter für bereits erledigte Termine).
+- `FahrzeugListe` bekommt ein `eingebettet`-Eingabesignal: blendet die eigene Kopfleiste aus
+  und lädt die Liste nicht erneut (das Dashboard hat `store.fahrzeuge()` bereits gefüllt) –
+  die eigenständige Route `/fahrzeuge/liste` bleibt unverändert bestehen (z. B. als
+  Rücksprungziel von der Detailseite), verhält sich dort wie zuvor.
+- Neue Komponente `fahrzeuge/components/kilometer-bilanz`: stellt eine
+  `KilometerJahresbilanz` als `mat-progress-bar` (gefahren/Soll) mit Restwert dar, grün
+  hervorgehoben bei erreichtem Jahresziel. Von Dashboard (je Fahrzeug in der
+  Kilometerbilanz-Karte) und `fahrzeug-detail` (Kilometerstand-Abschnitt) gemeinsam genutzt,
+  damit beide Stellen dieselbe Darstellung zeigen statt zweier gepflegter Textvarianten.
+- Neue Komponente `fahrzeuge/components/wartungen-liste`: vollständige, filterbare
+  Wartungsliste über alle Fahrzeuge (Standard: nur offene Termine), als eigener Dashboard-Tab.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (373 Angular- und
+  314 Worker-Tests, u. a. neue Spezifikationen für beide neuen Komponenten und die
+  Dashboard-Tab-Logik), `npm run format:check`, `npm run deploy:dry-run` – alle grün.
+  Browserprüfung mit `ng serve`/Playwright bei 1280×900 und 390×844: `/api/fahrzeuge` und
+  `/api/fahrzeuge/*/ablesungen` über Playwrights Netzwerk-Mocking mit Testdaten beantwortet
+  (kein echter Worker nötig), alle drei Tabs, der Fortschrittsbalken in beiden Zuständen
+  (Rest offen/rot, Jahresziel erreicht/grün) und der Erledigt-Umschalter der Wartungsliste
+  visuell geprüft; mobile Tableiste nutzt Material-eigene Scroll-Pfeile, Karten brechen
+  einspaltig um. Keine Konsolenfehler.
+
+### Nachtrag – Ablese-Lücke als Datum statt Textfloskel
+
+„seit über 30 Tagen keine Ablesung" ersetzt durch einen Chip mit dem tatsächlichen Datum der
+letzten Ablesung („Letzte Ablesung 01.06.2026"), ohne Ablesung „Keine Ablesung" – konkreter
+als die vage Zeitangabe und ohne zusätzliche Rechnung in der Vorlage.
+`BilanzMitFahrzeug` führt dafür `letzteAblesungAm` mit; Test ergänzt.
+
+## Nachtrag – Expansion Panels und Änderungsprotokoll auf der Fahrzeugdetailseite
+
+Zwei fachliche Wünsche: die Abschnitte der Fahrzeugdetailseite sollen aufklappbar sein statt
+starr untereinanderzustehen, und am Ende soll ein neuer Abschnitt „Änderungsprotokoll" jede
+Änderung am Fahrzeug samt Persistenz zeigen.
+
+- `fahrzeug-detail`: alle Abschnitte (Stammdaten, Wartungstermine, Kilometerstand, QR-Codes)
+  sind jetzt `mat-expansion-panel`s in einem `mat-accordion` mit `multi` (mehrere gleichzeitig
+  offen). Stammdaten ist vorbelegt geöffnet, die übrigen starten eingeklappt. Aktionsleisten
+  (z. B. „Weiterer Termin", „Kilometerstand erfassen"), die vorher neben der Überschrift
+  standen, sind an den Anfang des jeweiligen Panelinhalts gewandert – ein Klick darauf soll
+  nicht zugleich das Panel zu- oder aufklappen.
+- Neuer Abschnitt **Änderungsprotokoll** am Ende, nur für bereits gespeicherte Fahrzeuge:
+  zeigt jeden protokollierten Eintrag mit Zeitpunkt, wer und einer (bei mehreren Feldern
+  mehrzeiligen) Beschreibung.
+- **Protokollierung inklusive Persistenz**, vollständig serverseitig:
+  - Neue Tabelle `fahrzeug_aenderungen` (`worker/migrations/0002_fahrzeug_aenderungen.sql`),
+    direkt auf der echten D1-Datenbank angelegt. Ausschließlich lesend über
+    `GET /api/fahrzeuge/<UUID>/aenderungen` erreichbar; kein Endpunkt, über den ein Client
+    selbst einen Eintrag schreiben könnte.
+  - `worker/src/fahrzeuge.ts`: `protokolliereAenderung()` schreibt einen Eintrag als
+    Nebeneffekt von Fahrzeuganlage, Stammdaten-/Wartungsänderung (`diffFahrzeug` /
+    `diffWartungstermine` vergleichen alten und neuen Stand feldweise; kein Eintrag ohne
+    echte Änderung), Kilometererfassung und Kilometerlöschung. `beschreibung` entsteht immer
+    aus dem tatsächlichen Unterschied, nie aus einer Clienteingabe.
+  - `FahrzeugStorage.ladeAenderungen()` im gemeinsamen Vertrag ergänzt; `ApiFahrzeugStorage`
+    liest darüber, `InMemoryFahrzeugStorage` bildet eine vereinfachte Version derselben Regel
+    für Fachtests nach. Neuer `AenderungsprotokollStoreService` (analog
+    `AblesungStoreService`) lädt die Liste in `fahrzeug-detail`.
+  - `docs/konzept-fahrzeuge.md` (neuer Unterabschnitt „Änderungsprotokoll (Nachtrag)"),
+    `CLAUDE.md` und `worker/README.md` entsprechend ergänzt.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (382 Angular- und
+  321 Worker-Tests, u. a. neue Fälle für den diffbasierten Protokolleintrag bei Anlage,
+  Stammdaten-, Wartungs-, Ablesungsänderungen in Worker- und In-Memory-Adapter),
+  `npm run format:check`, `npm run deploy:dry-run` – alle grün. Browserprüfung mit
+  `ng serve`/Playwright bei 1280×1100 und 390×844 gegen gemocktes `/api/fahrzeuge/<id>`,
+  `/ablesungen` und `/aenderungen`: Stammdaten startet geöffnet, übrige Panels lassen sich
+  unabhängig auf-/zuklappen, das Änderungsprotokoll zeigt eine mehrzeilige Beschreibung
+  korrekt als Liste, mobile Ansicht bricht sauber um. Keine Konsolenfehler.
+
 ## HiOrg-Kalender: beide Zeitrichtungen statt fester Konfiguration
 
 Die HiOrg-API kann pro Abruf nur in eine Richtung schauen: `monate` in der konfigurierten

@@ -1,0 +1,24 @@
+@if (bilanz().sollKm === 0) {
+  <p class="hinweis-neutral">Keine Mindestlaufleistung für diesen Eigentümer.</p>
+} @else if (bilanz().istKm === null) {
+  <p class="hinweis-neutral">Noch kein Jahresstartstand bekannt.</p>
+} @else {
+  <div class="bilanz-balken">
+    <mat-progress-bar
+      mode="determinate"
+      [value]="fortschrittProzent()"
+      [class.ziel-erreicht]="zielErreicht()"
+    />
+    <div class="bilanz-werte">
+      <span class="bilanz-gefahren">{{ bilanz().istKm }} / {{ bilanz().sollKm }} km</span>
+      @if (zielErreicht()) {
+        <span class="bilanz-rest bilanz-rest--erreicht">Jahressoll erreicht</span>
+      } @else {
+        <span class="bilanz-rest">{{ bilanz().restKm }} km Rest</span>
+      }
+    </div>
+  </div>
+  @if (bilanz().unvollstaendig) {
+    <p class="bilanz-hinweis">Datenlage unvollständig (keine Ablesung aus dem Vorjahr).</p>
+  }
+}
