@@ -4,9 +4,12 @@ import { istKennung, istObjekt, leseJsonBegrenzt, verwerfeInhalt } from './json-
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 /**
- * Öffentlicher HiOrg-Kalenderfeed. Der Abruf braucht keine Header-Zugangsdaten,
- * aber die vollständige Feed-URL **ist** das Geheimnis: die Zugangsdaten stecken
- * als Query-Parameter darin. Sie bleibt deshalb vollständig im Worker.
+ * Öffentlicher HiOrg-Kalenderfeed. Der Abruf braucht keine Header-Zugangsdaten;
+ * das Geheimnis ist ausschließlich der `lab`-Tokenwert aus der HiOrg-Kalender-
+ * freigabe. Host, Pfad und die übrigen Anfrageparameter sind fest im Worker
+ * hinterlegt (`FEED_URL_BASIS`, `FESTE_FEED_PARAMETER`) – dasselbe Muster wie
+ * `apikey`/`version`/`action`, die der Worker beim EFS-Ziel serverseitig
+ * ergänzt (`efs.ts`).
  *
  * Die Schreibweise `HIORGSERVER_CALENDER_FEED` (mit „CALENDER") ist bewusst so
  * übernommen – das Secret heißt im Secrets Store genau so. Nicht „korrigieren".
@@ -19,11 +22,31 @@ export const HIORG_KALENDER_PFAD = '/api/hiorg/kalender';
 export const MAX_HIORG_KALENDER_ANTWORT_BYTES = 1024 * 1024;
 export const HIORG_KALENDER_ZEITLIMIT_MS = 15_000;
 
-/** Fester Fremddienst: ein vertauschtes Secret darf kein beliebiges Ziel freischalten. */
+/** Fester Fremddienst: der Worker leitet das Ziel nie von Konfiguration ab. */
 const ERLAUBTER_HOST = 'hiorg-server.de';
 
-/** Zeichen, die in einer Konfigurations- oder Ereignis-URL nichts zu suchen haben. */
+/** Fester Endpunkt; nur `lab` und `monate` unterscheiden sich je Einrichtung/Anfrage. */
+const FEED_URL_BASIS = 'https://www.hiorg-server.de/termine.php';
+
+/**
+ * Feste, nicht geheime Anfrageparameter. `ov=biel` ist bereits Pflichtparameter
+ * der öffentlichen Ereignis-Detaillinks (`hiorg-kalender.model.ts`) und damit
+ * ohnehin kein Geheimnis.
+ */
+const FESTE_FEED_PARAMETER: Readonly<Record<string, string>> = {
+  ov: 'biel',
+  termin: '1',
+  dienst: '1',
+  auchint: '1',
+  zr_dienst: '1',
+  json: '1',
+};
+
+/** Zeichen, die in einem Konfigurations- oder Ereignis-Freitext nichts zu suchen haben. */
 const UNZULAESSIGE_ZEICHEN = /[\u0000-\u0020\u007f\\]/;
+
+/** Angeschauter Monat als `JJJJ-MM`, wie ihn das Frontend führt (`monatIndex()+1`). */
+const MONAT_MUSTER = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 interface Eintrag {
   id: string | number;
@@ -46,28 +69,40 @@ export async function verarbeiteHiorgKalender(
   if (anfrage.method !== 'GET') {
     return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, { Allow: 'GET' });
   }
-  if (url.search !== '' || anfrage.url.includes('?')) {
-    return fehlerAntwort('HIORG_KALENDER_ANFRAGE_UNGUELTIG', 'Keine URL-Parameter erlaubt.', 400);
+  const monatParam = leseAngeschauterMonat(url);
+  if (monatParam === 'ungueltig') {
+    return fehlerAntwort(
+      'HIORG_KALENDER_ANFRAGE_UNGUELTIG',
+      'Der Parameter "monat" muss im Format JJJJ-MM angegeben werden; andere Parameter sind nicht erlaubt.',
+      400,
+    );
   }
 
-  const ziel = pruefeFeedZiel(await leseZugangsdatum(umgebung.HIORGSERVER_CALENDER_FEED));
-  if (!ziel) {
+  const labToken = pruefeLabToken(await leseZugangsdatum(umgebung.HIORGSERVER_CALENDER_FEED));
+  if (!labToken) {
     return fehlerAntwort(
       'HIORG_KALENDER_KONFIGURATION_FEHLT',
       'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet.',
       503,
     );
   }
-  // Geheim sind die vollständige URL und ihre Parameterwerte – nicht der Hostname:
-  // der steht in jedem legitimen Ereignis-Link und darf nicht wegredigiert werden.
-  const geheimnisse = [ziel, ...queryWerte(ziel)];
+  // Geheim ist ausschließlich der lab-Tokenwert – Host, Pfad und die übrigen
+  // Parameter sind fest und nicht schützenswert.
+  const geheimnisse = [labToken];
+
+  // Die HiOrg-API kann pro Abruf nur in eine Richtung schauen ("monate" positiv
+  // vorwärts, negativ zurück). Der Worker setzt "monate" deshalb je Anfrage so,
+  // dass der vom Client angeschaute Monat (ohne Angabe: der laufende Monat)
+  // sicher im Fenster liegt – vorwärts für Gegenwart/Zukunft, zurück für die
+  // Vergangenheit.
+  const abrufZiel = baueZielUrl(labToken, monatParam ?? heutigerMonat());
 
   const abbruch = new AbortController();
   const zeitlimit = setTimeout(() => abbruch.abort(), HIORG_KALENDER_ZEITLIMIT_MS);
   try {
     let antwort: Response;
     try {
-      antwort = await fetch(ziel, {
+      antwort = await fetch(abrufZiel, {
         method: 'GET',
         headers: { Accept: 'application/json' },
         // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen Status sichtbar.
@@ -152,42 +187,82 @@ function antwortUngueltig(grund: string): Response {
   );
 }
 
+interface AngeschauterMonat {
+  jahr: number;
+  monat: number; // 1..12
+}
+
 /**
- * Wie `pruefeZiel()` in `efs.ts`, mit einem bewussten Unterschied: der
- * Query-String ist hier **erlaubt**, weil genau dort die Zugangsdaten stehen.
- * Dafür ist der Host fest an HiOrg gebunden.
+ * Einziger erlaubter Anfrageparameter: der im Frontend gerade angeschaute
+ * Monat. `undefined` heißt „kein Parameter gesendet" (Rückfall auf den
+ * laufenden Monat), `'ungueltig'` heißt „falscher Name oder falsches Format"
+ * – beides führt getrennt behandelt zu unterschiedlichen Antworten.
  */
-export function pruefeFeedZiel(wert: string | undefined): string | undefined {
-  if (!wert || UNZULAESSIGE_ZEICHEN.test(wert)) return undefined;
-  try {
-    const url = new URL(wert);
-    if (
-      url.protocol !== 'https:' ||
-      !url.hostname ||
-      url.username ||
-      url.password ||
-      url.hash ||
-      !istHiorgHost(url.hostname)
-    ) {
-      return undefined;
-    }
-    return url.href;
-  } catch {
-    return undefined;
+function leseAngeschauterMonat(url: URL): AngeschauterMonat | undefined | 'ungueltig' {
+  const schluessel = [...url.searchParams.keys()];
+  if (schluessel.length === 0) return undefined;
+  if (schluessel.length > 1 || schluessel[0] !== 'monat') return 'ungueltig';
+  const wert = url.searchParams.get('monat') ?? '';
+  if (!MONAT_MUSTER.test(wert)) return 'ungueltig';
+  const [jahrText, monatText] = wert.split('-');
+  return { jahr: Number(jahrText), monat: Number(monatText) };
+}
+
+/** Heutiges Jahr/Monat in Europe/Berlin – nie über eine reine UTC-Rechnung. */
+function heutigerMonat(): AngeschauterMonat {
+  const teile = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const jahr = Number(teile.find((teil) => teil.type === 'year')?.value);
+  const monat = Number(teile.find((teil) => teil.type === 'month')?.value);
+  return { jahr, monat };
+}
+
+/**
+ * "monate" so gewählt, dass der angeschaute Monat sicher im abgerufenen
+ * Fenster liegt: vorwärts (positiv) für die Gegenwart und Zukunft, zurück
+ * (negativ) für die Vergangenheit. Die `+1`/`-1`-Polsterung fängt ab, dass
+ * „monate" laut HiOrg-Dokumentation ab dem heutigen Tag zählt, nicht ab
+ * Monatsanfang.
+ */
+function monateFuer(angeschauterMonat: AngeschauterMonat): number {
+  const heute = heutigerMonat();
+  const differenz =
+    (angeschauterMonat.jahr - heute.jahr) * 12 + (angeschauterMonat.monat - heute.monat);
+  return differenz >= 0 ? differenz + 1 : differenz - 1;
+}
+
+/**
+ * Baut die Feed-Anfrage-URL vollständig im Worker: fester Host und Pfad
+ * (`FEED_URL_BASIS`), feste nicht geheime Parameter (`FESTE_FEED_PARAMETER`),
+ * der geheime `lab`-Tokenwert und das je Anfrage berechnete `monate`.
+ */
+function baueZielUrl(labToken: string, angeschauterMonat: AngeschauterMonat): string {
+  const url = new URL(FEED_URL_BASIS);
+  for (const [schluessel, wert] of Object.entries(FESTE_FEED_PARAMETER)) {
+    url.searchParams.set(schluessel, wert);
   }
+  url.searchParams.set('lab', labToken);
+  url.searchParams.set('monate', String(monateFuer(angeschauterMonat)));
+  return url.href;
+}
+
+/**
+ * `HIORGSERVER_CALENDER_FEED` enthält nur noch den `lab`-Tokenwert aus der
+ * HiOrg-Kalenderfreigabe, keine vollständige URL mehr. Ein leerer Wert oder
+ * ein enthaltenes Steuerzeichen/Backslash sperrt den Zugriff wie zuvor bei
+ * einer ungültigen Feed-URL.
+ */
+export function pruefeLabToken(wert: string | undefined): string | undefined {
+  if (!wert || UNZULAESSIGE_ZEICHEN.test(wert)) return undefined;
+  return wert;
 }
 
 function istHiorgHost(wirt: string): boolean {
   const klein = wirt.toLowerCase();
   return klein === ERLAUBTER_HOST || klein.endsWith(`.${ERLAUBTER_HOST}`);
-}
-
-function queryWerte(ziel: string): string[] {
-  try {
-    return [...new URL(ziel).searchParams.values()].filter((wert) => wert.trim() !== '');
-  } catch {
-    return [];
-  }
 }
 
 type HuelleErgebnis = { eintraege: Eintrag[] } | { grund: string };

@@ -5,16 +5,34 @@ import {
   type HiorgKalenderKonfiguration,
 } from '../src/hiorg-kalender';
 
-// Frei erfundene Feed-URL und frei erfundene Termininhalte: aus dem echten Feed
-// wird nur die Feldstruktur nachgebildet, keine realen Personen- oder Plandaten.
-const GEHEIMER_PARAMETER = 'nur-fuer-den-test-erfunden-4711';
-const FEED_URL = `https://www.hiorg-server.de/termine.json?ov=testov&key=${GEHEIMER_PARAMETER}`;
+// Frei erfundener lab-Tokenwert und frei erfundene Termininhalte: aus dem echten
+// Feed wird nur die Feldstruktur nachgebildet, keine realen Personen- oder Plandaten.
+// Der Token enthält bewusst ein "+", wie ihn echte HiOrg-Freigabelinks führen.
+const LAB_TOKEN = '+nur-fuer-den-test-erfunden-4711';
 
 const abrufen = vi.fn<typeof fetch>();
 let umgebung: HiorgKalenderKonfiguration;
 
 function anfrage(pfad = '/api/hiorg/kalender', optionen: RequestInit = {}): Request {
   return new Request(`https://stationwizard.example${pfad}`, { method: 'GET', ...optionen });
+}
+
+/**
+ * Baut dieselbe Ziel-URL wie `baueZielUrl()` im Worker nach – fester Host/Pfad,
+ * feste Parameter, `lab` aus dem Secret, `monate` je Test berechnet – damit die
+ * Tests nicht die interne Reihenfolge der `URLSearchParams` duplizieren müssen.
+ */
+function erwarteteUrl(monate: number, labToken = LAB_TOKEN): string {
+  const url = new URL('https://www.hiorg-server.de/termine.php');
+  url.searchParams.set('ov', 'biel');
+  url.searchParams.set('termin', '1');
+  url.searchParams.set('dienst', '1');
+  url.searchParams.set('auchint', '1');
+  url.searchParams.set('zr_dienst', '1');
+  url.searchParams.set('json', '1');
+  url.searchParams.set('lab', labToken);
+  url.searchParams.set('monate', String(monate));
+  return url.href;
 }
 
 interface RohEintrag {
@@ -57,7 +75,7 @@ async function eintraegeVon(antwort: Response): Promise<Record<string, unknown>[
 beforeEach(() => {
   vi.stubGlobal('fetch', abrufen);
   abrufen.mockReset();
-  umgebung = { HIORGSERVER_CALENDER_FEED: FEED_URL };
+  umgebung = { HIORGSERVER_CALENDER_FEED: LAB_TOKEN };
   feed(rohEintrag());
 });
 
@@ -79,7 +97,9 @@ describe('HiOrg-Kalender: Anfrageoberfläche', () => {
     await verarbeiteHiorgKalender(anfrage(), umgebung);
 
     expect(abrufen).toHaveBeenCalledTimes(1);
-    expect(abrufen.mock.calls[0]?.[0]).toBe(FEED_URL);
+    // Ohne "monat" gilt der laufende Monat – der Abstand zu sich selbst ist immer 0,
+    // das ergibt unabhängig vom tatsächlichen Datum immer "monate=1".
+    expect(abrufen.mock.calls[0]?.[0]).toBe(erwarteteUrl(1));
     expect(abrufen.mock.calls[0]?.[1]).toMatchObject({
       method: 'GET',
       redirect: 'manual',
@@ -100,7 +120,7 @@ describe('HiOrg-Kalender: Anfrageoberfläche', () => {
     expect(abrufen).not.toHaveBeenCalled();
   });
 
-  it('lehnt URL-Parameter ab', async () => {
+  it('lehnt unbekannte URL-Parameter ab', async () => {
     const antwort = await verarbeiteHiorgKalender(
       anfrage('/api/hiorg/kalender?jahr=2026'),
       umgebung,
@@ -120,25 +140,99 @@ describe('HiOrg-Kalender: Anfrageoberfläche', () => {
   });
 });
 
+/**
+ * Die HiOrg-API kann pro Abruf nur vorwärts (positives `monate`) oder
+ * rückwärts (negatives `monate`) schauen. Der Worker baut die Ziel-URL
+ * vollständig selbst (fester Host/Pfad/Parameter, `lab` aus dem Secret) und
+ * setzt `monate` je nach Abstand zwischen "heute" (Europe/Berlin) und dem vom
+ * Client übergebenen Monat.
+ */
+describe('HiOrg-Kalender: angeschauter Monat', () => {
+  beforeEach(() => {
+    // 15. Juni 2026, 10:00 UTC – mitten im Monat, unabhängig von Zeitzonenrändern.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-15T10:00:00Z'));
+  });
+
+  function abgerufenesMonate(): string | null {
+    const abgerufeneUrl = new URL(String(abrufen.mock.calls[0]?.[0]));
+    return abgerufeneUrl.searchParams.get('monate');
+  }
+
+  it('schaut für den laufenden Monat einen Monat vorwärts', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-06'), umgebung);
+
+    expect(abgerufenesMonate()).toBe('1');
+  });
+
+  it('schaut ohne Angabe wie für den laufenden Monat einen Monat vorwärts', async () => {
+    await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    expect(abgerufenesMonate()).toBe('1');
+  });
+
+  it('schaut für einen künftigen Monat mit ausreichendem Vorlauf vorwärts', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-09'), umgebung);
+
+    expect(abgerufenesMonate()).toBe('4');
+  });
+
+  it('schaut für einen vergangenen Monat mit ausreichendem Vorlauf zurück', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-01'), umgebung);
+
+    expect(abgerufenesMonate()).toBe('-6');
+  });
+
+  it('baut Host, Pfad und die festen Parameter unabhängig vom angeschauten Monat gleich', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-09'), umgebung);
+
+    expect(abrufen.mock.calls[0]?.[0]).toBe(erwarteteUrl(4));
+  });
+
+  it.each(['2026-13', '26-06', '2026-6', 'ohne-monat', ''])(
+    'lehnt ein ungültiges Monatsformat ab (%s)',
+    async (wert) => {
+      const antwort = await verarbeiteHiorgKalender(
+        anfrage(`/api/hiorg/kalender?monat=${encodeURIComponent(wert)}`),
+        umgebung,
+      );
+
+      expect(antwort.status).toBe(400);
+      expect(await inhaltVon(antwort)).toMatchObject({
+        code: 'HIORG_KALENDER_ANFRAGE_UNGUELTIG',
+      });
+      expect(abrufen).not.toHaveBeenCalled();
+    },
+  );
+
+  it('lehnt monat zusammen mit einem weiteren Parameter ab', async () => {
+    const antwort = await verarbeiteHiorgKalender(
+      anfrage('/api/hiorg/kalender?monat=2026-06&jahr=2026'),
+      umgebung,
+    );
+
+    expect(antwort.status).toBe(400);
+    expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANFRAGE_UNGUELTIG' });
+    expect(abrufen).not.toHaveBeenCalled();
+  });
+});
+
 describe('HiOrg-Kalender: Zugangsdatum', () => {
   it('löst das Secret auch aus einem Secrets-Store-Objekt auf', async () => {
     const antwort = await verarbeiteHiorgKalender(anfrage(), {
-      HIORGSERVER_CALENDER_FEED: { get: vi.fn().mockResolvedValue(FEED_URL) } as never,
+      HIORGSERVER_CALENDER_FEED: { get: vi.fn().mockResolvedValue(LAB_TOKEN) } as never,
     });
 
     expect(antwort.status).toBe(200);
-    expect(abrufen.mock.calls[0]?.[0]).toBe(FEED_URL);
+    expect(abrufen.mock.calls[0]?.[0]).toBe(erwarteteUrl(1));
   });
 
   it.each([
     ['fehlend', undefined],
     ['leer', ''],
-    ['ohne TLS', 'http://www.hiorg-server.de/termine.json?key=x'],
-    ['mit Userinfo', 'https://nutzer:geheim@www.hiorg-server.de/termine.json'],
-    ['mit Fragment', 'https://www.hiorg-server.de/termine.json?key=x#teil'],
-    ['fremder Host', 'https://beispiel.invalid/termine.json?key=x'],
-    ['Host nur als Suffixtrick', 'https://hiorg-server.de.beispiel.invalid/termine.json'],
-    ['kein URL', 'einfach-nur-text'],
+    ['mit Steuerzeichen', 'token\nmit-zeilenumbruch'],
+    ['mit Leerzeichen', 'token mit leerzeichen'],
+    ['mit Backslash', 'token\\mit-backslash'],
   ])('sperrt bei %s Secret', async (_fall, wert) => {
     const antwort = await verarbeiteHiorgKalender(anfrage(), {
       HIORGSERVER_CALENDER_FEED: wert,
@@ -173,27 +267,26 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     });
   });
 
-  it('veröffentlicht bei einem Transportfehler weder Feed-URL noch Parameterwert', async () => {
+  it('veröffentlicht bei einem Transportfehler weder Ziel-URL noch Tokenwert', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    abrufen.mockRejectedValue(new Error(`Verbindung zu ${FEED_URL} fehlgeschlagen`));
+    abrufen.mockRejectedValue(new Error(`Verbindung zu ${erwarteteUrl(1)} fehlgeschlagen`));
 
     const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
     const rohtext = await antwort.clone().text();
 
     expect(antwort.status).toBe(502);
     expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_KALENDER_NICHT_ERREICHBAR');
-    expect(rohtext).not.toContain(GEHEIMER_PARAMETER);
-    expect(rohtext).not.toContain(FEED_URL);
-    expect([...antwort.headers.values()].join(' ')).not.toContain(GEHEIMER_PARAMETER);
+    expect(rohtext).not.toContain(LAB_TOKEN);
+    expect([...antwort.headers.values()].join(' ')).not.toContain(LAB_TOKEN);
   });
 
-  it('redigiert die Feed-URL auch im Betreiberlog', async () => {
+  it('redigiert den Tokenwert auch im Betreiberlog', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    abrufen.mockRejectedValue(new Error(`Verbindung zu ${FEED_URL} fehlgeschlagen`));
+    abrufen.mockRejectedValue(new Error(`Verbindung zu ${erwarteteUrl(1)} fehlgeschlagen`));
 
     await verarbeiteHiorgKalender(anfrage(), umgebung);
 
-    expect(log.mock.calls[0]?.join(' ')).not.toContain(GEHEIMER_PARAMETER);
+    expect(log.mock.calls[0]?.join(' ')).not.toContain(LAB_TOKEN);
   });
 
   it('begrenzt die Antwortgröße', async () => {
@@ -244,7 +337,7 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
 
   it('entfernt einen Eintrag, dessen verbez ein konfiguriertes Zugangsdatum spiegelt, behält den Rest', async () => {
     feed(
-      rohEintrag({ id: 1000001, verbez: `Ausbildung ${GEHEIMER_PARAMETER}` }),
+      rohEintrag({ id: 1000001, verbez: `Ausbildung ${LAB_TOKEN}` }),
       rohEintrag({ id: 1000002, verbez: 'Zweite erfundene Ausbildung' }),
     );
 
@@ -254,7 +347,7 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     const eintraege = await eintraegeVon(antwort);
     expect(eintraege).toHaveLength(1);
     expect(eintraege[0]).toMatchObject({ id: 1000002 });
-    expect(await antwort.clone().text()).not.toContain(GEHEIMER_PARAMETER);
+    expect(await antwort.clone().text()).not.toContain(LAB_TOKEN);
   });
 
   it('entfernt nur den url-Link, wenn er ein konfiguriertes Zugangsdatum spiegelt, behält den Eintrag', async () => {
@@ -262,7 +355,7 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
       rohEintrag({ id: 1000001 }),
       rohEintrag({
         id: 1000002,
-        url: `https://www.hiorg-server.de/formulare.php?ri=${GEHEIMER_PARAMETER}`,
+        url: `https://www.hiorg-server.de/formulare.php?ri=${LAB_TOKEN}`,
       }),
     );
 
@@ -272,14 +365,14 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     const eintraege = await eintraegeVon(antwort);
     expect(eintraege).toHaveLength(2);
     expect(eintraege.find((e) => e['id'] === 1000002)).not.toHaveProperty('url');
-    expect(await antwort.clone().text()).not.toContain(GEHEIMER_PARAMETER);
+    expect(await antwort.clone().text()).not.toContain(LAB_TOKEN);
   });
 
   it.each(['id', 'url', 'typ', 'status', 'termin', 'OK'])(
-    'liefert die Einträge, auch wenn ein Query-Wert zufällig "%s" aus der eigenen JSON-Hülle trifft',
+    'liefert die Einträge, auch wenn der Tokenwert zufällig "%s" aus der eigenen JSON-Hülle trifft',
     async (zufaelligerJsonBaustein) => {
       const antwort = await verarbeiteHiorgKalender(anfrage(), {
-        HIORGSERVER_CALENDER_FEED: `https://www.hiorg-server.de/termine.json?lab=${zufaelligerJsonBaustein}`,
+        HIORGSERVER_CALENDER_FEED: zufaelligerJsonBaustein,
       });
 
       expect(antwort.status).toBe(200);
