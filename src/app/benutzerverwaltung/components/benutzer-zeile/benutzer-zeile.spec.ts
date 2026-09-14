@@ -17,6 +17,14 @@ function testkonto(ueberschreibung: Partial<Benutzerkonto> = {}): Benutzerkonto 
 }
 
 describe('BenutzerZeile', () => {
+  it('leitet den Anzeigenamen aus der E-Mail-Adresse ab', () => {
+    const fixture = TestBed.createComponent(BenutzerZeile);
+    fixture.componentRef.setInput('konto', testkonto({ email: 'max.mustermann@juh-beispiel.de' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.anzeigename()).toBe('Max Mustermann');
+  });
+
   it('übernimmt Rolle und Sonderrollen des Kontos als Entwurf, ohne Änderung', () => {
     const fixture = TestBed.createComponent(BenutzerZeile);
     fixture.componentRef.setInput(

@@ -20,15 +20,31 @@
     <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
   }
 
+  @if (!laedt() && !fehler() && benutzer().length > 0) {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
+      <mat-label>Suche</mat-label>
+      <input
+        matInput
+        [value]="suche()"
+        (input)="suche.set($any($event.target).value)"
+        placeholder="E-Mail-Adresse oder Name"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  }
+
   @if (!laedt() && !fehler() && benutzer().length === 0) {
     <div class="empty-state">
       <mat-icon class="empty-state-icon">manage_accounts</mat-icon>
       <p class="empty-hint">Noch niemand hat sich angemeldet.</p>
     </div>
   }
+  @if (!laedt() && !fehler() && benutzer().length > 0 && gefiltert().length === 0) {
+    <p class="empty-hint">Kein Treffer für diese Suche.</p>
+  }
 
   <div class="benutzer-liste">
-    @for (eintrag of benutzer(); track eintrag.email) {
+    @for (eintrag of gefiltert(); track eintrag.email) {
       <app-benutzer-zeile
         [konto]="eintrag"
         [speichert]="speichertFuer() === eintrag.email"

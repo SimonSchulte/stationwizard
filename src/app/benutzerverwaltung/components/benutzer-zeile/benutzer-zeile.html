@@ -2,6 +2,7 @@
   <div class="benutzer-kopf">
     <mat-icon aria-hidden="true">person</mat-icon>
     <div class="benutzer-info">
+      <span class="benutzer-name">{{ anzeigename() }}</span>
       <span class="benutzer-email">{{ konto().email }}</span>
       <span class="benutzer-details">
         Zuletzt angemeldet am {{ konto().letzterZugriffAm | date: 'short' }}

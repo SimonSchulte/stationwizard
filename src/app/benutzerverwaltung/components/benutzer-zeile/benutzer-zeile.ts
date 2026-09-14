@@ -13,6 +13,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
 import {
   Benutzerkonto,
   HAUPTROLLEN,
@@ -53,6 +54,9 @@ function gleicheSonderrollen(a: readonly Sonderrolle[], b: readonly Sonderrolle[
 export class BenutzerZeile {
   readonly konto = input.required<Benutzerkonto>();
   readonly speichert = input(false);
+
+  /** Kein echter Benutzername vorhanden – aus der E-Mail-Adresse abgeleitet, wie im übrigen Shell-Header. */
+  readonly anzeigename = computed(() => anzeigenameAusEmail(this.konto().email));
 
   readonly uebernehmen = output<{ rolle: Hauptrolle | null; sonderrollen: Sonderrolle[] }>();
 
