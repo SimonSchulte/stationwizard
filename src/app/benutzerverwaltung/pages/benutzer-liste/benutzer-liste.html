@@ -6,7 +6,8 @@
 <div class="list-content">
   <p class="beschreibung">
     Nur wer sich bereits über Google angemeldet hat, erscheint hier. Wer sich anmelden darf,
-    entscheidet weiterhin die Zugriffsliste in Cloudflare Access, nicht diese Seite.
+    entscheidet weiterhin die Zugriffsliste in Cloudflare Access, nicht diese Seite. Änderungen an
+    Rolle und Sonderrollen gelten erst nach Klick auf „Übernehmen".
   </p>
 
   @if (laedt()) {
@@ -28,54 +29,11 @@
 
   <div class="benutzer-liste">
     @for (eintrag of benutzer(); track eintrag.email) {
-      <div class="benutzer-karte">
-        <div class="benutzer-kopf">
-          <mat-icon aria-hidden="true">person</mat-icon>
-          <div class="benutzer-info">
-            <span class="benutzer-email">{{ eintrag.email }}</span>
-            <span class="benutzer-details">
-              Zuletzt angemeldet am {{ eintrag.letzterZugriffAm | date: 'short' }}
-            </span>
-          </div>
-          @if (speichertFuer() === eintrag.email) {
-            <span class="speichert-hinweis">Speichert …</span>
-          }
-        </div>
-
-        <div class="rollen-zeile">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="hauptrolle-feld">
-            <mat-label>Rolle</mat-label>
-            <mat-select
-              [value]="eintrag.rolle ?? ''"
-              (selectionChange)="
-                hauptrolleAendern(eintrag.email, eintrag.sonderrollen, $event.value)
-              "
-            >
-              <mat-option value="">— keine Rolle —</mat-option>
-              @for (rolle of HAUPTROLLEN; track rolle) {
-                <mat-option [value]="rolle">{{ HAUPTROLLE_LABEL[rolle] }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-
-          @for (sonderrolle of SONDERROLLEN; track sonderrolle) {
-            <mat-checkbox
-              [checked]="eintrag.sonderrollen.includes(sonderrolle)"
-              (change)="
-                sonderrolleUmschalten(
-                  eintrag.email,
-                  eintrag.rolle,
-                  eintrag.sonderrollen,
-                  sonderrolle,
-                  $event.checked
-                )
-              "
-            >
-              {{ SONDERROLLE_LABEL[sonderrolle] }}
-            </mat-checkbox>
-          }
-        </div>
-      </div>
+      <app-benutzer-zeile
+        [konto]="eintrag"
+        [speichert]="speichertFuer() === eintrag.email"
+        (uebernehmen)="uebernehmen(eintrag.email, $event)"
+      />
     }
   </div>
 </div>

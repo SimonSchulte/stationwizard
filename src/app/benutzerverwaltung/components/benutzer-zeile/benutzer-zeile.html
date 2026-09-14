@@ -1,0 +1,48 @@
+<div class="benutzer-karte">
+  <div class="benutzer-kopf">
+    <mat-icon aria-hidden="true">person</mat-icon>
+    <div class="benutzer-info">
+      <span class="benutzer-email">{{ konto().email }}</span>
+      <span class="benutzer-details">
+        Zuletzt angemeldet am {{ konto().letzterZugriffAm | date: 'short' }}
+      </span>
+    </div>
+    @if (speichert()) {
+      <span class="speichert-hinweis">Speichert …</span>
+    }
+  </div>
+
+  <div class="rollen-zeile">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="hauptrolle-feld">
+      <mat-label>Rolle</mat-label>
+      <mat-select
+        [value]="entwurfRolle() ?? ''"
+        (selectionChange)="hauptrolleAendern($event.value)"
+      >
+        <mat-option value="">— keine Rolle —</mat-option>
+        @for (rolle of HAUPTROLLEN; track rolle) {
+          <mat-option [value]="rolle">{{ HAUPTROLLE_LABEL[rolle] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @for (sonderrolle of SONDERROLLEN; track sonderrolle) {
+      <mat-checkbox
+        [checked]="entwurfSonderrollen().includes(sonderrolle)"
+        (change)="sonderrolleUmschalten(sonderrolle, $event.checked)"
+      >
+        {{ SONDERROLLE_LABEL[sonderrolle] }}
+      </mat-checkbox>
+    }
+
+    <button
+      mat-flat-button
+      color="primary"
+      class="uebernehmen-button"
+      [disabled]="!hatAenderung() || speichert()"
+      (click)="uebernehmenKlick()"
+    >
+      Übernehmen
+    </button>
+  </div>
+</div>
