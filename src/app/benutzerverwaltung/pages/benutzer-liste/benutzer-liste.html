@@ -10,6 +10,17 @@
     Rolle und Sonderrollen gelten erst nach Klick auf „Übernehmen".
   </p>
 
+  <p class="beschreibung">
+    Neue Personen müssen zusätzlich in der Google-Cloud-Konsole als zulässiges Zielpublikum
+    freigeschaltet werden, bevor sich Google-Anmeldung und Cloudflare Access nutzen lassen:
+    <a
+      href="https://console.cloud.google.com/auth/audience?hl=en&orgonly=true&project=stationwizard&supportedpurview=organizationId"
+      target="_blank"
+      rel="noopener noreferrer"
+      >Google-Cloud-Konsole: Zielgruppe (OAuth-Konfiguration)</a
+    >.
+  </p>
+
   @if (laedt()) {
     <p role="status">Benutzer werden geladen …</p>
   }
