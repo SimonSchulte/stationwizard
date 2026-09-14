@@ -1,7 +1,11 @@
 .inhalt {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
+  // Material setzt bei Titel + Inhalt `padding-top: 0` mit höherer Spezifität
+  // (`.mat-mdc-dialog-container .mat-mdc-dialog-title + .mat-mdc-dialog-content`);
+  // ohne Gegenwert wird das schwebende Label der ersten Zeile oben abgeschnitten.
+  padding-top: var(--space-md) !important;
 }
 
 .reihe {
