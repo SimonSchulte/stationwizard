@@ -1,5 +1,6 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { WorkerClient } from './worker-client';
+import { anzeigenameAusEmail, initialenAusAnzeigename } from './text/anzeigename';
 
 /** Zeigt ausschließlich die vom Worker geprüfte Access-Identität an. */
 @Injectable({ providedIn: 'root' })
@@ -8,6 +9,9 @@ export class Benutzerkontext {
   readonly email = signal('');
   readonly laedt = signal(false);
   readonly fehler = signal('');
+  /** Aus der geprüften E-Mail-Adresse abgeleitet; kein echter Google-Name. */
+  readonly anzeigename = computed(() => anzeigenameAusEmail(this.email()));
+  readonly initialen = computed(() => initialenAusAnzeigename(this.anzeigename()));
 
   async laden(): Promise<void> {
     if (this.laedt()) return;

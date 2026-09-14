@@ -1,13 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
 import { VerlassenSchutz } from './kern/verlassen-schutz';
+import { anzeigenameAusEmail, initialenAusAnzeigename } from './kern/text/anzeigename';
 
 describe('Gemeinsame Anwendung', () => {
   beforeEach(async () => {
+    const email = signal('uebung@example.invalid');
+    const anzeigename = computed(() => anzeigenameAusEmail(email()));
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
@@ -15,10 +18,12 @@ describe('Gemeinsame Anwendung', () => {
         {
           provide: Benutzerkontext,
           useValue: {
-            email: signal('uebung@example.invalid'),
+            email,
             laedt: signal(false),
             fehler: signal(''),
             laden: vi.fn(),
+            anzeigename,
+            initialen: computed(() => initialenAusAnzeigename(anzeigename())),
           },
         },
       ],
@@ -33,14 +38,24 @@ describe('Gemeinsame Anwendung', () => {
     const ansicht = TestBed.createComponent(App);
     ansicht.detectChanges();
     const element = ansicht.nativeElement as HTMLElement;
-    expect(element.querySelector('.marke')?.textContent).toContain('stationwizard');
+    expect(element.querySelector('.marke')?.textContent).toContain('HiorgWache');
     expect(element.querySelector('nav')?.textContent).toContain('Ausbildung');
     expect(element.querySelector('nav')?.textContent).toContain('Einsatz');
     expect(element.querySelector('nav')?.textContent).toContain('Fahrzeuge');
-    expect(element.querySelector('.benutzer')?.textContent).toContain('uebung@example.invalid');
+    expect(element.querySelector('.benutzer-name')?.textContent).toContain('Uebung');
+    expect(element.querySelector('.benutzer-name')?.getAttribute('title')).toBe(
+      'uebung@example.invalid',
+    );
+    expect(element.querySelector('.benutzer-avatar')?.textContent?.trim()).toBe('U');
     expect(element.querySelector('.benutzer a')?.getAttribute('href')).toBe(
       '/cdn-cgi/access/logout',
     );
+  });
+  it('zeigt einen immer sichtbaren Footer', () => {
+    const ansicht = TestBed.createComponent(App);
+    ansicht.detectChanges();
+    const element = ansicht.nativeElement as HTMLElement;
+    expect(element.querySelector('footer.shell-fuss')?.textContent).toContain('HiorgWache');
   });
   it('verhindert Verlassen nur bei ungesicherten Fachdaten', () => {
     const app = TestBed.createComponent(App).componentInstance;
@@ -61,6 +76,6 @@ describe('Gemeinsame Anwendung', () => {
     ansicht.detectChanges();
     const element = ansicht.nativeElement as HTMLElement;
     expect(element.querySelector('[role="alert"]')?.textContent).toContain('Erneut anmelden');
-    expect(element.querySelector('.benutzer')?.textContent).not.toContain('uebung@example.invalid');
+    expect(element.querySelector('.benutzer')?.textContent).not.toContain('Uebung');
   });
 });

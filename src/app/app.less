@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-lg);
+  gap: var(--space-md);
   padding: var(--space-sm) var(--space-lg);
   background: var(--ci-dark-blue);
   color: var(--text-on-dark);
@@ -16,6 +16,9 @@ a {
   color: inherit;
   text-decoration: none;
 }
+.burger {
+  color: inherit;
+}
 .marke {
   display: flex;
   align-items: center;
@@ -23,40 +26,63 @@ a {
   font-weight: 700;
   font-size: 1.2rem;
 }
-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
+.shell-koerper {
+  flex: 1;
+  min-height: 0;
 }
-nav a {
+mat-sidenav {
+  width: min(280px, 80vw);
+  background: var(--ci-dark-blue);
+  color: var(--text-on-dark);
+}
+mat-sidenav nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+}
+mat-sidenav nav a {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
 }
-nav a.aktiv,
-nav a:hover {
+mat-sidenav nav a.aktiv,
+mat-sidenav nav a:hover {
   background: var(--ci-blue);
 }
 main {
-  flex: 1;
   min-height: 0;
-  overflow: auto;
 }
 .benutzer {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   margin-left: auto;
   font-size: 0.875rem;
   min-width: 0;
 }
-.benutzer-adresse {
+.benutzer-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ci-blue);
+  color: var(--text-on-dark);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+.benutzer-name {
   max-width: min(40vw, 24rem);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .benutzer a,
 .shell-meldung a {
@@ -80,6 +106,17 @@ main {
   background: var(--surface-primary);
   cursor: pointer;
 }
+.shell-fuss {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs) var(--space-lg);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-light);
+}
 .sprunglink {
   position: fixed;
   top: var(--space-sm);
@@ -101,10 +138,7 @@ main {
   .marke {
     font-size: 1rem;
   }
-  nav a {
-    padding: var(--space-sm);
-  }
-  nav mat-icon {
-    display: none;
+  .benutzer-name {
+    max-width: 40vw;
   }
 }

@@ -16,6 +16,8 @@ describe('Benutzerkontext', () => {
     expect(json).toHaveBeenCalledWith('/api/benutzer');
     expect(kontext.email()).toBe('uebung@example.invalid');
     expect(kontext.laedt()).toBe(false);
+    expect(kontext.anzeigename()).toBe('Uebung');
+    expect(kontext.initialen()).toBe('U');
   });
 
   it('entfernt die bisherige Anzeige nach Ablauf der Sitzung', async () => {

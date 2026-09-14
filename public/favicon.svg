@@ -1,3 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <text x="50" y="86" font-size="86" text-anchor="middle">🚑</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="badge">
+      <rect x="2" y="2" width="60" height="60" rx="14" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#badge)">
+    <rect x="2" y="2" width="60" height="60" fill="#000548" />
+    <rect x="2" y="50" width="60" height="12" fill="#eb003c" />
+  </g>
+  <text
+    x="32"
+    y="36"
+    font-family="Roboto, Arial, sans-serif"
+    font-weight="700"
+    font-size="24"
+    letter-spacing="-0.5"
+    fill="#ffffff"
+    text-anchor="middle"
+  >HW</text>
 </svg>
