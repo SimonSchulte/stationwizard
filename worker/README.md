@@ -141,6 +141,8 @@ Alle Endpunkte benötigen die verifizierte Anmeldung:
 | `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
 | `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
 | `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
+| `/api/benutzerverwaltung`                 | GET        | Liste aller bereits angemeldeten Personen samt Rolle                                         |
+| `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
 | `/f/<UUID>`, `/f/<UUID>/km`               | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
 
 ### Fahrzeugmodul (D1)
@@ -199,6 +201,35 @@ npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangle
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block von `wrangler.toml`
 eintragen.
+
+### Benutzerverwaltung (D1)
+
+`BENUTZER_DB` bindet eine eigene D1-Datenbank `stationwizard-benutzer` (getrennt von
+`FAHRZEUGE_DB`, damit die Fachdomänen getrennt bleiben). Schema in
+`worker/migrations/0004_benutzer.sql`. Ohne dieses Binding antwortet
+`/api/benutzerverwaltung*` mit 503 (`BENUTZERVERWALTUNG_KONFIGURATION_FEHLT`) statt eines
+Absturzes; `/api/benutzer` (eigene E-Mail-Adresse) funktioniert unverändert weiter, merkt
+sich den Zugriff dann nur nicht vor.
+
+Cloudflare Access entscheidet weiterhin allein, wer sich überhaupt anmelden darf (feste
+Zugriffsliste in Zero Trust). Diese Tabelle kennt nur, wer sich bereits mindestens einmal
+geprüft angemeldet hat (vorgemerkt bei jedem `GET /api/benutzer`, das die Shell einmal je
+Sitzungsstart abruft), und eine optionale Rollenzuordnung dazu. Rollenvergabe ist vorerst
+jeder geprüften Identität möglich – es gibt noch keine Rolle, die eine Berechtigung dafür
+prüfen könnte (siehe „Rechte vorerst alle, Rollen später" im Fahrzeugmodul,
+`docs/konzept-fahrzeuge.md`, Abschnitt 8, für dieselbe Übergangslösung).
+
+**TODO vor dem ersten Deployment:** `wrangler.toml` enthält noch die Platzhalter-
+`database_id` `00000000-0000-0000-0000-000000000000`. Eine neue D1-Datenbank anlegen:
+
+```bash
+npx wrangler d1 create stationwizard-benutzer --config worker/wrangler.toml
+npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler.toml \
+  --file worker/migrations/0004_benutzer.sql
+```
+
+Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER_DB` in
+`wrangler.toml` eintragen.
 
 ### HiOrg-Kalenderfeed
 

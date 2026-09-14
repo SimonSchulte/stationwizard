@@ -1,0 +1,121 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+}
+
+.list-content {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.beschreibung {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-base);
+  padding: var(--space-2xl) 0;
+  text-align: center;
+
+  .empty-state-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--text-disabled);
+  }
+}
+
+.benutzer-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.benutzer-karte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+}
+
+.benutzer-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+
+  > mat-icon {
+    color: var(--text-disabled);
+  }
+}
+
+.benutzer-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.benutzer-email {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.benutzer-details {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.speichert-hinweis {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.rollen-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.hauptrolle-feld {
+  flex: 1 1 260px;
+}
+
+@media (max-width: 480px) {
+  .benutzer-kopf {
+    flex-wrap: wrap;
+  }
+}

@@ -22,4 +22,11 @@ export const verwaltungRouten: Routes = [
         (modul) => modul.FahrzeugImport,
       ),
   },
+  {
+    path: 'benutzer',
+    loadComponent: () =>
+      import('../benutzerverwaltung/pages/benutzer-liste/benutzer-liste').then(
+        (modul) => modul.BenutzerListe,
+      ),
+  },
 ];
