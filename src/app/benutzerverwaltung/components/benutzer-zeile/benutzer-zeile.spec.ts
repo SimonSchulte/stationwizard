@@ -25,6 +25,16 @@ describe('BenutzerZeile', () => {
     expect(fixture.componentInstance.anzeigename()).toBe('Max Mustermann');
   });
 
+  it('verlinkt die Google Admin Console für diese E-Mail-Adresse', () => {
+    const fixture = TestBed.createComponent(BenutzerZeile);
+    fixture.componentRef.setInput('konto', testkonto({ email: 'max.mustermann@juh-beispiel.de' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.googleAdminLink()).toBe(
+      'https://admin.google.com/ac/users?query=email%3Amax.mustermann%40juh-beispiel.de',
+    );
+  });
+
   it('übernimmt Rolle und Sonderrollen des Kontos als Entwurf, ohne Änderung', () => {
     const fixture = TestBed.createComponent(BenutzerZeile);
     fixture.componentRef.setInput(

@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
+import { googleAdminKonsoleLink } from '../../../kern/text/google-admin-link';
 import {
   Benutzerkonto,
   HAUPTROLLEN,
@@ -60,6 +61,9 @@ export class BenutzerZeile {
 
   /** Kein echter Benutzername vorhanden – aus der E-Mail-Adresse abgeleitet, wie im übrigen Shell-Header. */
   readonly anzeigename = computed(() => anzeigenameAusEmail(this.konto().email));
+
+  /** Nur ein Deep-Link – kein API-Zugriff; siehe `google-admin-link.ts`. */
+  readonly googleAdminLink = computed(() => googleAdminKonsoleLink(this.konto().email));
 
   readonly uebernehmen = output<{ rolle: Hauptrolle | null; sonderrollen: Sonderrolle[] }>();
 

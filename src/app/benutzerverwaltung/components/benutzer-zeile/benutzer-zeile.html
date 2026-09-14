@@ -8,6 +8,17 @@
         Zuletzt angemeldet am {{ konto().letzterZugriffAm | date: 'short' }}
       </span>
     </div>
+    <a
+      mat-icon-button
+      class="google-admin-link"
+      [href]="googleAdminLink()"
+      target="_blank"
+      rel="noopener noreferrer"
+      matTooltip="In der Google Workspace Admin Console öffnen"
+      aria-label="In der Google Workspace Admin Console öffnen"
+    >
+      <mat-icon aria-hidden="true">open_in_new</mat-icon>
+    </a>
     @if (speichert()) {
       <span class="speichert-hinweis">Speichert …</span>
     }
