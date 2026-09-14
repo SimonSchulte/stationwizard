@@ -29,7 +29,15 @@
 
     @for (sonderrolle of SONDERROLLEN; track sonderrolle) {
       <mat-checkbox
-        [checked]="entwurfSonderrollen().includes(sonderrolle)"
+        [checked]="
+          entwurfSonderrollen().includes(sonderrolle) || istDurchZugfuehrungInkludiert(sonderrolle)
+        "
+        [disabled]="istDurchZugfuehrungInkludiert(sonderrolle)"
+        [matTooltip]="
+          istDurchZugfuehrungInkludiert(sonderrolle)
+            ? 'In der Rolle Zugführung automatisch enthalten'
+            : ''
+        "
         (change)="sonderrolleUmschalten(sonderrolle, $event.checked)"
       >
         {{ SONDERROLLE_LABEL[sonderrolle] }}

@@ -98,4 +98,33 @@ describe('BenutzerZeile', () => {
     expect(fixture.componentInstance.entwurfRolle()).toBe('helfer');
     expect(fixture.componentInstance.hatAenderung()).toBe(false);
   });
+
+  it('zeigt Verwaltungshelfer und Sanitätsdienste bei Zugführung als automatisch enthalten', () => {
+    const fixture = TestBed.createComponent(BenutzerZeile);
+    fixture.componentRef.setInput('konto', testkonto({ rolle: 'zugfuehrung' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.istDurchZugfuehrungInkludiert('verwaltungshelfer')).toBe(true);
+    expect(fixture.componentInstance.istDurchZugfuehrungInkludiert('sanitaetsdienste')).toBe(true);
+  });
+
+  it('zeigt Sonderrollen bei anderen Hauptrollen nicht als automatisch enthalten', () => {
+    const fixture = TestBed.createComponent(BenutzerZeile);
+    fixture.componentRef.setInput('konto', testkonto({ rolle: 'helfer' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.istDurchZugfuehrungInkludiert('verwaltungshelfer')).toBe(
+      false,
+    );
+  });
+
+  it('folgt der Auswahl im Entwurf, nicht nur dem gespeicherten Konto', () => {
+    const fixture = TestBed.createComponent(BenutzerZeile);
+    fixture.componentRef.setInput('konto', testkonto({ rolle: 'helfer' }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.istDurchZugfuehrungInkludiert('sanitaetsdienste')).toBe(false);
+
+    fixture.componentInstance.hauptrolleAendern('zugfuehrung');
+    expect(fixture.componentInstance.istDurchZugfuehrungInkludiert('sanitaetsdienste')).toBe(true);
+  });
 });

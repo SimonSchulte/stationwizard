@@ -54,6 +54,16 @@ export const SONDERROLLE_LABEL: Readonly<Record<Sonderrolle, string>> = {
   sanitaetsdienste: 'Sanitätsdienste',
 };
 
+/**
+ * Sonderrollen, die die Hauptrolle Zugführung automatisch einschließt – nicht
+ * automatisch jede künftige Sonderrolle, deshalb eine eigene, bewusst
+ * gepflegte Liste statt `SONDERROLLEN` selbst.
+ */
+export const ZUGFUEHRUNG_INKLUDIERTE_SONDERROLLEN: readonly Sonderrolle[] = [
+  'verwaltungshelfer',
+  'sanitaetsdienste',
+];
+
 export interface Benutzerkonto {
   email: string;
   rolle: Hauptrolle | null;

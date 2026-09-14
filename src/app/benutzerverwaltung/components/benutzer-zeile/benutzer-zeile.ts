@@ -13,6 +13,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
 import {
   Benutzerkonto,
@@ -22,6 +23,7 @@ import {
   SONDERROLLEN,
   SONDERROLLE_LABEL,
   Sonderrolle,
+  ZUGFUEHRUNG_INKLUDIERTE_SONDERROLLEN,
 } from '../../models/benutzerkonto.model';
 
 function gleicheSonderrollen(a: readonly Sonderrolle[], b: readonly Sonderrolle[]): boolean {
@@ -47,6 +49,7 @@ function gleicheSonderrollen(a: readonly Sonderrolle[], b: readonly Sonderrolle[
     MatFormFieldModule,
     MatIconModule,
     MatSelectModule,
+    MatTooltipModule,
   ],
   templateUrl: './benutzer-zeile.html',
   styleUrl: './benutzer-zeile.less',
@@ -89,6 +92,19 @@ export class BenutzerZeile {
   sonderrolleUmschalten(sonderrolle: Sonderrolle, gesetzt: boolean): void {
     this.entwurfSonderrollen.update((liste) =>
       gesetzt ? [...liste, sonderrolle] : liste.filter((eintrag) => eintrag !== sonderrolle),
+    );
+  }
+
+  /**
+   * Zugführung schließt diese Sonderrolle automatisch ein (siehe
+   * `ZUGFUEHRUNG_INKLUDIERTE_SONDERROLLEN`); die Checkbox zeigt das als
+   * gesetzt und deaktiviert an, statt die Rolle redundant im Entwurf zu
+   * speichern.
+   */
+  istDurchZugfuehrungInkludiert(sonderrolle: Sonderrolle): boolean {
+    return (
+      this.entwurfRolle() === 'zugfuehrung' &&
+      ZUGFUEHRUNG_INKLUDIERTE_SONDERROLLEN.includes(sonderrolle)
     );
   }
 
