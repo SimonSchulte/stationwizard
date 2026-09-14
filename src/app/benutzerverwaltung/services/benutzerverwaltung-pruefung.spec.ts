@@ -28,8 +28,9 @@ describe('istHauptrolle', () => {
 });
 
 describe('istSonderrolle', () => {
-  it('erkennt Verwaltungshelfer', () => {
+  it('erkennt Verwaltungshelfer und Sanitätsdienste', () => {
     expect(istSonderrolle('verwaltungshelfer')).toBe(true);
+    expect(istSonderrolle('sanitaetsdienste')).toBe(true);
   });
 
   it('lehnt Unbekanntes ab', () => {

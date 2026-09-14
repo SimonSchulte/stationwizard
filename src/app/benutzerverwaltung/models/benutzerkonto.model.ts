@@ -36,16 +36,22 @@ export const HAUPTROLLE_LABEL: Readonly<Record<Hauptrolle, string>> = {
 };
 
 /**
- * Zusatzrollen neben der Hauptrolle, unabhängig kombinierbar – aktuell nur
- * Verwaltungshelfer. Bewusst als Liste statt Einzelfeld, damit künftige
- * weitere Sonderrollen ohne Modelländerung dazukommen.
+ * Zusatzrollen neben der Hauptrolle, unabhängig kombinierbar: Verwaltungshelfer
+ * schaltet den Verwaltungsbereich frei (Fahrzeugimport, Benutzerverwaltung),
+ * Sanitätsdienste die Einsatzplanung (PEP). Bewusst als Liste statt
+ * Einzelfeldern, damit künftige weitere Sonderrollen ohne Modelländerung
+ * dazukommen. Die Hauptrolle Zugführung schließt beide ein, unabhängig davon,
+ * ob sie hier zusätzlich gesetzt sind – eine künftige Berechtigungsprüfung
+ * muss `rolle === 'zugfuehrung' || sonderrollen.includes(...)` prüfen, nicht
+ * nur `sonderrollen.includes(...)`.
  */
-export type Sonderrolle = 'verwaltungshelfer';
+export type Sonderrolle = 'verwaltungshelfer' | 'sanitaetsdienste';
 
-export const SONDERROLLEN: readonly Sonderrolle[] = ['verwaltungshelfer'];
+export const SONDERROLLEN: readonly Sonderrolle[] = ['verwaltungshelfer', 'sanitaetsdienste'];
 
 export const SONDERROLLE_LABEL: Readonly<Record<Sonderrolle, string>> = {
   verwaltungshelfer: 'Verwaltungshelfer',
+  sanitaetsdienste: 'Sanitätsdienste',
 };
 
 export interface Benutzerkonto {

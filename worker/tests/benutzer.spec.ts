@@ -102,6 +102,17 @@ describe('PUT /api/benutzerverwaltung/<email>', () => {
     expect(koerper.sonderrollen).toEqual(['verwaltungshelfer']);
   });
 
+  it('erlaubt Verwaltungshelfer und Sanitätsdienste kombiniert', async () => {
+    const db = new FakeBenutzerDb();
+    await registriereZugriff(db as never, ANGEMELDET);
+    const antwort = await rolleAntwort(db, ANGEMELDET, {
+      rolle: 'helfer',
+      sonderrollen: ['verwaltungshelfer', 'sanitaetsdienste'],
+    });
+    const koerper = (await antwort.json()) as { sonderrollen: string[] };
+    expect(koerper.sonderrollen).toEqual(['verwaltungshelfer', 'sanitaetsdienste']);
+  });
+
   it('erlaubt das Zurücksetzen auf keine Rolle', async () => {
     const db = new FakeBenutzerDb();
     await registriereZugriff(db as never, ANGEMELDET);

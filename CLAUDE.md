@@ -151,12 +151,17 @@ außerhalb dieser App. Die eigene D1-Datenbank (`BENUTZER_DB`, Schema in
 geprüft angemeldet hat (bei jedem `GET /api/benutzer`), und ordnet optional eine
 Hauptrolle aus `zugfuehrung`, `gruppenfuehrung-sanitaet`, `gruppenfuehrung-betreuung`,
 `gruppenfuehrung-tesi`, `gruppenfuehrung-verpflegung`, `gruppenfuehrung-fuehrung`,
-`helfer` zu. Unabhängig davon
-kombinierbare Sonderrollen (`sonderrollen`, aktuell nur `verwaltungshelfer`) stehen als
-JSON-Array, damit künftige weitere Sonderrollen ohne Schemaänderung dazukommen können.
-Rollenvergabe ist vorerst jeder geprüften Identität möglich – dieselbe Übergangslösung wie
-beim Löschen einer Ablesung (siehe „Rechte vorerst alle, Rollen später",
-`docs/konzept-fahrzeuge.md` Abschnitt 8); eine spätere Admin-Rolle soll dies einschränken.
+`helfer` zu. Unabhängig davon kombinierbare Sonderrollen (`sonderrollen`, aktuell
+`verwaltungshelfer` für den Verwaltungsbereich und `sanitaetsdienste` für die
+Einsatzplanung/PEP) stehen als JSON-Array, damit künftige weitere Sonderrollen ohne
+Schemaänderung dazukommen können. Die Hauptrolle `zugfuehrung` schließt beide Sonderrollen
+ein, unabhängig davon, ob sie zusätzlich gesetzt sind – eine künftige Berechtigungsprüfung
+muss `rolle === 'zugfuehrung' || sonderrollen.includes(...)` prüfen, nicht nur
+`sonderrollen.includes(...)`. Rollenvergabe ist vorerst jeder geprüften Identität möglich –
+dieselbe Übergangslösung wie beim Löschen einer Ablesung (siehe „Rechte vorerst alle, Rollen
+später", `docs/konzept-fahrzeuge.md` Abschnitt 8); eine spätere Admin-Rolle soll dies
+einschränken. Eine tatsächliche serverseitige Durchsetzung dieser Sonderrollen auf den
+Verwaltungs- und Einsatzplanungs-Endpunkten steht noch aus (siehe Arbeitsstand).
 
 Der Verwaltungsbereich (`src/app/verwaltung/`, Route `/verwaltung`) hält nur den Einstieg in
 administrative Aufgaben; die Fachlogik bleibt beim jeweiligen Fachmodul. Er kennt kein

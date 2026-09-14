@@ -23,11 +23,15 @@ const ROLLEN = new Set([
 ]);
 
 /**
- * Zusatzrollen neben der Hauptrolle, unabhängig kombinierbar. Aktuell nur
- * "verwaltungshelfer"; als Menge angelegt, damit künftige weitere
- * Sonderrollen ohne Schemaänderung dazukommen.
+ * Zusatzrollen neben der Hauptrolle, unabhängig kombinierbar: "verwaltungshelfer"
+ * schaltet den Verwaltungsbereich frei, "sanitaetsdienste" die Einsatzplanung
+ * (PEP). Als Menge angelegt, damit künftige weitere Sonderrollen ohne
+ * Schemaänderung dazukommen. Die Hauptrolle "zugfuehrung" schließt beide ein,
+ * unabhängig davon, ob sie hier zusätzlich gesetzt sind (siehe
+ * `src/app/benutzerverwaltung/models/benutzerkonto.model.ts`) – eine künftige
+ * Berechtigungsprüfung muss das berücksichtigen.
  */
-const SONDERROLLEN = new Set(['verwaltungshelfer']);
+const SONDERROLLEN = new Set(['verwaltungshelfer', 'sanitaetsdienste']);
 
 const BENUTZERVERWALTUNG_LISTE_PFAD = '/api/benutzerverwaltung';
 const BENUTZERVERWALTUNG_EINTRAG_PFAD = /^\/api\/benutzerverwaltung\/([^/]+)$/;
