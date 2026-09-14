@@ -37,8 +37,9 @@ import { AenderungsprotokollStoreService } from '../../services/aenderungsprotok
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { istGueltigeFin } from '../../services/fahrzeug-pruefung';
 import { berechneJahresbilanz, sollKmProJahr } from '../../services/kilometer-soll';
+import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { FahrzeugDruckbogenService } from '../../services/fahrzeug-druckbogen.service';
-import { erzeugeQrDataUrl, fahrzeugQrZiele } from '../../services/fahrzeug-qr';
+import { erzeugeQrDataUrl, erzeugeQrSvg, fahrzeugQrZiele } from '../../services/fahrzeug-qr';
 import { ermittleWartungsstatus, WartungsAmpel } from '../../services/wartungsstatus';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 
@@ -362,6 +363,20 @@ export class FahrzeugDetail {
   /** Eine Beschreibung kann mehrere mit `\n` getrennte Zeilen enthalten (mehrere Felder in einem Speichervorgang). */
   beschreibungZeilen(eintrag: Aenderungseintrag): string[] {
     return eintrag.beschreibung.split('\n');
+  }
+
+  async qrSvgHerunterladen(ziel: 'uebersicht' | 'km'): Promise<void> {
+    const entwurf = this.store.entwurf();
+    if (!entwurf) return;
+    const ziele = fahrzeugQrZiele(entwurf.id);
+    const url = ziel === 'uebersicht' ? ziele.uebersichtUrl : ziele.kmUrl;
+    const svg = await erzeugeQrSvg(url);
+    const beschriftung = ziel === 'uebersicht' ? 'uebersicht' : 'km';
+    dateiHerunterladen(
+      svg,
+      `${entwurf.bezeichnung || 'fahrzeug'}-qr-${beschriftung}.svg`,
+      'image/svg+xml',
+    );
   }
 
   async druckbogenHerunterladen(): Promise<void> {
