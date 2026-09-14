@@ -42,6 +42,16 @@ const FESTE_FEED_PARAMETER: Readonly<Record<string, string>> = {
   json: '1',
 };
 
+/**
+ * Derselbe Feed liefert bei einem manuellen Browser-Aufruf gültiges JSON, beim
+ * Worker-Abruf ohne `User-Agent` dagegen wiederholt eine HTML-Antwort (Status
+ * 200) statt JSON – beobachtet über `HIORG_KALENDER_ANTWORT_UNGUELTIG`. Ein
+ * browsertypischer `User-Agent` ist der naheliegendste Unterschied zwischen
+ * beiden Anfragen.
+ */
+const FEED_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
 /** Zeichen, die in einem Konfigurations- oder Ereignis-Freitext nichts zu suchen haben. */
 const UNZULAESSIGE_ZEICHEN = /[\u0000-\u0020\u007f\\]/;
 
@@ -104,7 +114,7 @@ export async function verarbeiteHiorgKalender(
     try {
       antwort = await fetch(abrufZiel, {
         method: 'GET',
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', 'User-Agent': FEED_USER_AGENT },
         // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen Status sichtbar.
         redirect: 'manual',
         signal: abbruch.signal,
