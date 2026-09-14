@@ -8,8 +8,10 @@ import { formatiereDatum } from '../../../kern/kalender/datum';
 /**
  * Eine Wochenraster-Zelle ohne Eintrag – die meisten Zellen eines Jahres.
  *
- * Bewusst schmal und ruhig: nur die Tagesnummer, ein Symbol bei Feiertag oder
- * Lücke, und ein "+"-Knopf, der erst beim Hovern erscheint.
+ * Bewusst schmal und ruhig: nur ein Symbol bei Feiertag oder Lücke und ein
+ * "+"-Knopf, der erst beim Hovern erscheint. Die Tageszahl selbst zeigt die
+ * umgebende Rasterzelle in `jahresplan.html`, unabhängig davon, ob ein Tag
+ * belegt ist oder nicht.
  */
 @Component({
   selector: 'app-leerer-tag',
@@ -27,6 +29,5 @@ export class LeererTag {
   readonly slot = input.required<PlanSlot>();
   readonly anlegen = output<void>();
 
-  readonly tagNummer = computed(() => Number(this.slot().datum.slice(8, 10)));
   readonly datumText = computed(() => formatiereDatum(this.slot().datum));
 }

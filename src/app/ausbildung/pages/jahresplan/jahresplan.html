@@ -326,26 +326,30 @@
               [class.heute]="slot.datum === heute"
               [class.hat-hiorg-abweichung]="hiorgAbgleich().tageMitAbweichung.has(slot.datum)"
             >
+              <!--
+                  Die Tageszahl steht immer hier, unabhängig von Terminen: sonst
+                  verschwindet sie an belegten Tagen unter der Termin-Karte.
+                -->
+              <span class="tag-nummer" [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'">
+                {{ slot.datum.slice(8, 10) }}
+              </span>
+
               @if (!slot.imJahr) {
                 <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
-                @if (slot.termine.length) {
-                  @for (eintrag of slot.termine; track eintrag.termin.id) {
-                    <app-termin-karte
-                      [termin]="eintrag.termin"
-                      [segment]="eintrag.segment"
-                      [tagDatum]="slot.datum"
-                      [katsThema]="katsThema(eintrag.termin)"
-                      [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
-                      [feiertag]="slot.feiertag"
-                      [kompakt]="true"
-                      (bearbeiten)="bearbeiten(eintrag.termin.id)"
-                      (verschieben)="zuBacklog(eintrag.termin)"
-                      (loeschen)="loeschen(eintrag.termin.id)"
-                      (dblclick)="bearbeiten(eintrag.termin.id)"
-                    />
-                  }
-                } @else {
-                  <span class="tag-nummer-still">{{ slot.datum.slice(8, 10) }}</span>
+                @for (eintrag of slot.termine; track eintrag.termin.id) {
+                  <app-termin-karte
+                    [termin]="eintrag.termin"
+                    [segment]="eintrag.segment"
+                    [tagDatum]="slot.datum"
+                    [katsThema]="katsThema(eintrag.termin)"
+                    [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
+                    [feiertag]="slot.feiertag"
+                    [kompakt]="true"
+                    (bearbeiten)="bearbeiten(eintrag.termin.id)"
+                    (verschieben)="zuBacklog(eintrag.termin)"
+                    (loeschen)="loeschen(eintrag.termin.id)"
+                    (dblclick)="bearbeiten(eintrag.termin.id)"
+                  />
                 }
               } @else if (slot.termine.length) {
                 @for (eintrag of slot.termine; track eintrag.termin.id) {

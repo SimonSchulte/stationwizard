@@ -1,7 +1,5 @@
 @let s = slot();
 
-<span class="tag-nummer">{{ tagNummer() }}</span>
-
 @if (s.feiertag) {
   <mat-icon inline class="symbol" [matTooltip]="'Feiertag: ' + s.feiertag">flag</mat-icon>
 } @else if (s.luecke) {

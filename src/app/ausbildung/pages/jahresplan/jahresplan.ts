@@ -129,10 +129,11 @@ export class Jahresplan {
 
   /**
    * Ob die Ideensammlung (Offene Ideen/Auswertung/KatS-A-Plan) eingeklappt ist, um dem
-   * Wochenraster bei schmalerer Fensterbreite Platz zu machen. Startet passend zur
-   * aktuellen Fensterbreite und folgt danach nur noch dem manuellen Umschalten.
+   * Wochenraster Platz zu machen. Startet immer eingeklappt, damit der Kalender gleich
+   * die volle Breite bekommt; folgt danach nur noch dem manuellen Umschalten (und, bis
+   * dahin, weiterhin der Fensterbreite auf schmalen Desktop-/Tablet-Bildschirmen).
    */
-  readonly seitenleisteEingeklappt = signal(schmalesFensterMedium()?.matches ?? false);
+  readonly seitenleisteEingeklappt = signal(true);
   private seitenleisteManuellGesetzt = false;
 
   readonly monatsTitel = computed(() => {

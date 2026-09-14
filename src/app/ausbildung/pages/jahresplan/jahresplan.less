@@ -175,9 +175,16 @@
 .wochenraster {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(88px, 1fr));
+  // Die Kopfzeile bleibt inhaltsbreit; jede weitere (implizite) Zeile – Wochen
+  // wie Monatsmarken – teilt sich stattdessen den übrigen Platz, damit der
+  // Kalender bei kurzen Ausschnitten (z. B. einem einzelnen Monat) die ganze
+  // verfügbare Höhe von `.raster-bereich` ausfüllt statt oben mit Rand zu enden.
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(72px, 1fr);
   gap: var(--space-2xs);
   align-items: stretch;
   padding-top: var(--space-md);
+  min-height: 100%;
 }
 
 .kw-kopf,
@@ -255,6 +262,20 @@
   }
 }
 
+/* Immer sichtbar, unabhängig von Terminen an diesem Tag; Samstag/Sonntag heben
+   sich in einem Rotton ab, damit das Wochenende auch ohne die Kopfzeile auffällt. */
+.tag-nummer {
+  padding: calc(var(--space-unit) * 2) var(--space-compact) 0;
+  color: var(--text-disabled);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+
+  &.wochenende {
+    color: var(--wochenende-text);
+    font-weight: 600;
+  }
+}
+
 .abweichungs-marke {
   display: inline-flex;
   align-items: center;
@@ -277,13 +298,6 @@
     background: var(--hiorg-abweichung-rand);
     color: var(--text-on-dark);
   }
-}
-
-.tag-nummer-still {
-  padding: calc(var(--space-unit) * 5) var(--space-compact);
-  color: var(--text-disabled);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .mini-slot {
