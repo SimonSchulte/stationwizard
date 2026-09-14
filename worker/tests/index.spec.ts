@@ -91,6 +91,7 @@ describe('Access vor sämtlichen Assets und APIs', () => {
     '/einsatz/planung/test',
     '/main.js',
     '/api/status',
+    '/api/benutzer/profilbild',
     '/api/nextcloud/arbeitsmappe',
     '/api/nextcloud/planungen',
     '/api/efs/getveranstaltungen',

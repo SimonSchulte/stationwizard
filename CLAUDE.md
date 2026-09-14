@@ -108,6 +108,16 @@ Prüfungen und offene Abnahmegrenzen.
   Secretlängen oder vollständigen Bindinglisten veröffentlichen.
 - Ursprungsschutz, feste Pfade, Größen-/Zeitlimits und Redirect-Verbot erhalten.
   `GET /api/status` belegt nur die Erreichbarkeit des Workers, nicht von EFS/Nextcloud.
+- `worker/src/profilbild.ts` kapselt den einzigen Aufruf, der das Google-Profilbild aus
+  der Anmeldung holt: ein serverseitiger Abruf von `/cdn-cgi/access/get-identity` auf der
+  Team-Domain mit dem bereits geprüften Access-JWT als `CF_Authorization`-Cookie. `picture`
+  ist dabei kein von Cloudflare offiziell dokumentierter fester Vertrag, sondern eine von
+  Google durchgereichte IdP-Zusatzangabe; ohne Zugriff auf eine echte Team-Domain war das
+  hier nicht gegen die offizielle Dokumentation nachweisbar. Der Endpunkt bleibt deshalb
+  strikt best-effort: nicht erreichbar, kein `picture`-Feld oder keine gültige `https`-URL
+  liefert immer `{ "profilbildUrl": null }`, nie einen Fehlerstatus – ein fehlendes Bild
+  darf die Anmeldung nie blockieren oder verzögern. Das Frontend (`Benutzerkontext`) kennt
+  nur `profilbildUrl`, nicht den Umweg über Access; die Initialen bleiben der Rückfall.
 
 ### Erlaubte API-Oberfläche
 
@@ -115,6 +125,7 @@ Prüfungen und offene Abnahmegrenzen.
 | ----------------------------------------- | ---------- | --------------------------------------------------------------------------- |
 | `/api/status`                             | GET        | Worker-Status                                                               |
 | `/api/benutzer`                           | GET        | Verifizierte E-Mail-Adresse                                                 |
+| `/api/benutzer/profilbild`                | GET        | Best-effort Google-Profilbild-URL oder `null`, siehe unten                  |
 | `/api/efs/checkapikey`                    | POST       | JSON `{}`                                                                   |
 | `/api/efs/getveranstaltungen`             | POST       | JSON `{}`                                                                   |
 | `/api/efs/getveranstaltung`               | POST       | JSON mit ausschließlich `id`                                                |

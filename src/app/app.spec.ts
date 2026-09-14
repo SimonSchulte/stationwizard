@@ -24,6 +24,7 @@ describe('Gemeinsame Anwendung', () => {
             laden: vi.fn(),
             anzeigename,
             initialen: computed(() => initialenAusAnzeigename(anzeigename())),
+            profilbildUrl: signal<string | null>(null),
           },
         },
       ],

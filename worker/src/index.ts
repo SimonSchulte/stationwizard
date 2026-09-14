@@ -13,6 +13,7 @@ import {
 } from './fahrzeuge';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
+import { PROFILBILD_PFAD, verarbeiteProfilbild } from './profilbild';
 
 export interface Env
   extends
@@ -67,6 +68,10 @@ export default {
         }
       }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (url.pathname === PROFILBILD_PFAD) {
+      return verarbeiteProfilbild(anfrage, umgebung);
     }
 
     if (
