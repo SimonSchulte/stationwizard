@@ -103,7 +103,7 @@ describe('HiOrg-Kalender: Anfrageoberfläche', () => {
     expect(abrufen.mock.calls[0]?.[1]).toMatchObject({
       method: 'GET',
       redirect: 'manual',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': expect.stringContaining('Mozilla/5.0') },
     });
   });
 
