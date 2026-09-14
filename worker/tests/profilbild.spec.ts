@@ -35,11 +35,11 @@ afterEach(() => {
 });
 
 describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
-  it('liefert die https-Bild-URL aus get-identity', async () => {
+  it('liefert die https-Bild-URL aus oidc_fields.picture', async () => {
     abrufen.mockResolvedValue(
       Response.json({
         email: 'erfunden@example.invalid',
-        picture: 'https://bild.example/foto.png',
+        oidc_fields: { picture: 'https://bild.example/foto.png' },
       }),
     );
 
@@ -65,11 +65,14 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
   });
 
   it.each([
-    ['fehlendes Feld', {}],
-    ['leerer Text', { picture: '' }],
-    ['kein https', { picture: 'http://bild.example/foto.png' }],
-    ['keine gültige URL', { picture: 'nicht-mal-eine-url' }],
-    ['falscher Typ', { picture: 42 }],
+    ['fehlendes oidc_fields', {}],
+    ['fehlendes picture-Feld', { oidc_fields: {} }],
+    ['picture nicht verschachtelt', { picture: 'https://bild.example/foto.png' }],
+    ['leerer Text', { oidc_fields: { picture: '' } }],
+    ['kein https', { oidc_fields: { picture: 'http://bild.example/foto.png' } }],
+    ['keine gültige URL', { oidc_fields: { picture: 'nicht-mal-eine-url' } }],
+    ['falscher Typ', { oidc_fields: { picture: 42 } }],
+    ['oidc_fields falscher Typ', { oidc_fields: 'https://bild.example/foto.png' }],
   ])('liefert null statt Fehler bei %s', async (_bezeichnung, identitaet) => {
     abrufen.mockResolvedValue(Response.json(identitaet));
 

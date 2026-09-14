@@ -9,12 +9,14 @@ import { istObjekt, leseJsonBegrenzt, verwerfeInhalt } from './json-lesen';
  * trägt nur die geprüften Pflichtangaben; ein Profilbild ist dort nicht Teil
  * des genutzten Claim-Umfangs. Cloudflare reicht IdP-Zusatzangaben stattdessen
  * über den `/cdn-cgi/access/get-identity`-Endpunkt der eigenen Team-Domain
- * durch, sofern die Google-Anmeldung sie liefert. Dieses Modul kapselt genau
- * diesen einen zusätzlichen "Gespräch mit Google"-Aufruf, damit weder das
- * Frontend noch `anmeldung.ts` den Umweg über Access kennen müssen: Ein
- * fehlendes, unerreichbares oder unerwartet geformtes Bildfeld ist kein
- * Anmeldefehler, sondern liefert schlicht kein Bild – die Anmeldung selbst
- * bleibt davon unberührt.
+ * durch, sofern die Google-Anmeldung sie liefert – dort verschachtelt unter
+ * `oidc_fields.picture` (per Cloudflare-Zero-Trust-IdP-Testfunktion gegen die
+ * echte Team-Domain geprüft, nicht nur aus der offiziellen Dokumentation
+ * abgeleitet). Dieses Modul kapselt genau diesen einen zusätzlichen
+ * "Gespräch mit Google"-Aufruf, damit weder das Frontend noch `anmeldung.ts`
+ * den Umweg über Access kennen müssen: Ein fehlendes, unerreichbares oder
+ * unerwartet geformtes Bildfeld ist kein Anmeldefehler, sondern liefert
+ * schlicht kein Bild – die Anmeldung selbst bleibt davon unberührt.
  */
 
 export const PROFILBILD_PFAD = '/api/benutzer/profilbild';
@@ -71,14 +73,17 @@ export async function verarbeiteProfilbild(
 }
 
 /**
- * `picture` ist bei Cloudflare Access kein dokumentiert fester Vertrag,
- * sondern eine von Google durchgereichte IdP-Zusatzangabe. Nur eine
- * plausible https-Bild-URL wird übernommen; alles andere liefert `null`,
- * statt eine ungeprüfte fremde URL in die Anwendung zu lassen.
+ * `oidc_fields.picture` ist bei Cloudflare Access kein von Cloudflare selbst
+ * dokumentiert fester Vertrag, sondern eine unter `oidc_fields` gebündelte,
+ * von Google durchgereichte IdP-Zusatzangabe. Nur eine plausible https-Bild-
+ * URL wird übernommen; alles andere liefert `null`, statt eine ungeprüfte
+ * fremde URL in die Anwendung zu lassen.
  */
 function leseProfilbildUrl(identitaet: unknown): string | null {
   if (!istObjekt(identitaet)) return null;
-  const wert = identitaet['picture'];
+  const oidcFelder = identitaet['oidc_fields'];
+  if (!istObjekt(oidcFelder)) return null;
+  const wert = oidcFelder['picture'];
   if (typeof wert !== 'string' || wert.trim() !== wert || wert === '') return null;
   try {
     return new URL(wert).protocol === 'https:' ? wert : null;

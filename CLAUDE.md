@@ -110,14 +110,15 @@ Prüfungen und offene Abnahmegrenzen.
   `GET /api/status` belegt nur die Erreichbarkeit des Workers, nicht von EFS/Nextcloud.
 - `worker/src/profilbild.ts` kapselt den einzigen Aufruf, der das Google-Profilbild aus
   der Anmeldung holt: ein serverseitiger Abruf von `/cdn-cgi/access/get-identity` auf der
-  Team-Domain mit dem bereits geprüften Access-JWT als `CF_Authorization`-Cookie. `picture`
-  ist dabei kein von Cloudflare offiziell dokumentierter fester Vertrag, sondern eine von
-  Google durchgereichte IdP-Zusatzangabe; ohne Zugriff auf eine echte Team-Domain war das
-  hier nicht gegen die offizielle Dokumentation nachweisbar. Der Endpunkt bleibt deshalb
-  strikt best-effort: nicht erreichbar, kein `picture`-Feld oder keine gültige `https`-URL
-  liefert immer `{ "profilbildUrl": null }`, nie einen Fehlerstatus – ein fehlendes Bild
-  darf die Anmeldung nie blockieren oder verzögern. Das Frontend (`Benutzerkontext`) kennt
-  nur `profilbildUrl`, nicht den Umweg über Access; die Initialen bleiben der Rückfall.
+  Team-Domain mit dem bereits geprüften Access-JWT als `CF_Authorization`-Cookie. Das Bild
+  steckt dort unter `oidc_fields.picture` (per Cloudflare-Zero-Trust-IdP-Testfunktion gegen
+  die echte Team-Domain bestätigt, kein top-level `picture`). `oidc_fields` ist dabei kein
+  von Cloudflare offiziell dokumentierter fester Vertrag, sondern eine von Google
+  durchgereichte IdP-Zusatzangabe. Der Endpunkt bleibt deshalb strikt best-effort: nicht
+  erreichbar, kein `oidc_fields.picture`-Feld oder keine gültige `https`-URL liefert immer
+  `{ "profilbildUrl": null }`, nie einen Fehlerstatus – ein fehlendes Bild darf die
+  Anmeldung nie blockieren oder verzögern. Das Frontend (`Benutzerkontext`) kennt nur
+  `profilbildUrl`, nicht den Umweg über Access; die Initialen bleiben der Rückfall.
 
 ### Erlaubte API-Oberfläche
 
