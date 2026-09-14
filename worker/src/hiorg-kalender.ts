@@ -158,7 +158,11 @@ export async function verarbeiteHiorgKalender(
             'Die HiOrg-Kalenderantwort ist zu groß.',
             502,
           )
-        : antwortUngueltig('JSON-Antwort nicht lesbar oder kein Body');
+        : antwortUngueltig(
+            `JSON-Antwort nicht lesbar oder kein Body (Status ${antwort.status}, ` +
+              `Content-Type ${antwort.headers.get('content-type') ?? 'fehlt'}, ` +
+              `Content-Length ${antwort.headers.get('content-length') ?? 'fehlt'})`,
+          );
     }
 
     const huelle = filtereEintraege(ergebnis.inhalt, geheimnisse);
