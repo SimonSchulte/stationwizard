@@ -1,5 +1,10 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import {
+  registriereZugriff,
+  verarbeiteBenutzerverwaltung,
+  type BenutzerverwaltungKonfiguration,
+} from './benutzer';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import {
   kurzlinkWeiterleitung,
@@ -15,7 +20,8 @@ export interface Env
     NextcloudKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
-    FahrzeugeKonfiguration {
+    FahrzeugeKonfiguration,
+    BenutzerverwaltungKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -50,7 +56,24 @@ export default {
           Allow: 'GET',
         });
       }
+      if (url.pathname === '/api/benutzer' && umgebung.BENUTZER_DB) {
+        // Die Shell ruft diesen Endpunkt einmal je Sitzungsstart ab; das
+        // genügt, um "letzter Zugriff" aktuell zu halten. Ein Fehler hier
+        // darf die eigentliche Antwort nicht verhindern.
+        try {
+          await registriereZugriff(umgebung.BENUTZER_DB, benutzer.email);
+        } catch (ursache) {
+          console.error('BENUTZER_DB_FEHLER', ursache instanceof Error ? ursache.message : ursache);
+        }
+      }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (
+      url.pathname === '/api/benutzerverwaltung' ||
+      url.pathname.startsWith('/api/benutzerverwaltung/')
+    ) {
+      return verarbeiteBenutzerverwaltung(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname.startsWith('/api/efs/')) {

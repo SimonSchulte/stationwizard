@@ -127,6 +127,8 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
 | `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
 | `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
+| `/api/benutzerverwaltung`                 | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
+| `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
 | `/f/<UUID>`, `/f/<UUID>/km`               | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
@@ -140,6 +142,26 @@ Jede Anlage, Stammdaten-/Wartungsänderung sowie Kilometererfassung/-löschung e
 serverseitig einen Eintrag im Änderungsprotokoll (`fahrzeug_aenderungen`); die Beschreibung
 entsteht aus dem tatsächlichen Unterschied zum vorherigen Stand, nie aus einer
 Client-Eingabe (siehe `docs/konzept-fahrzeuge.md`, Abschnitt „Änderungsprotokoll").
+
+Die Benutzerverwaltung (`src/app/benutzerverwaltung/`, `worker/src/benutzer.ts`) ist keine
+Nutzerverwaltung im Sinne von Anlegen/Löschen von Zugängen und kein Zugriffsschutz: wer
+sich überhaupt anmelden darf, entscheidet ausschließlich die Cloudflare-Access-Zugriffsliste
+außerhalb dieser App. Die eigene D1-Datenbank (`BENUTZER_DB`, Schema in
+`worker/migrations/0004_benutzer.sql`) merkt nur vor, wer sich bereits mindestens einmal
+geprüft angemeldet hat (bei jedem `GET /api/benutzer`), und ordnet optional eine
+Hauptrolle aus `zugfuehrung`, `gruppenfuehrung-sanitaet`, `gruppenfuehrung-betreuung`,
+`gruppenfuehrung-tesi`, `gruppenfuehrung-verpflegung`, `gruppenfuehrung-fuehrung`,
+`helfer` zu. Unabhängig davon kombinierbare Sonderrollen (`sonderrollen`, aktuell
+`verwaltungshelfer` für den Verwaltungsbereich und `sanitaetsdienste` für die
+Einsatzplanung/PEP) stehen als JSON-Array, damit künftige weitere Sonderrollen ohne
+Schemaänderung dazukommen können. Die Hauptrolle `zugfuehrung` schließt beide Sonderrollen
+ein, unabhängig davon, ob sie zusätzlich gesetzt sind – eine künftige Berechtigungsprüfung
+muss `rolle === 'zugfuehrung' || sonderrollen.includes(...)` prüfen, nicht nur
+`sonderrollen.includes(...)`. Rollenvergabe ist vorerst jeder geprüften Identität möglich –
+dieselbe Übergangslösung wie beim Löschen einer Ablesung (siehe „Rechte vorerst alle, Rollen
+später", `docs/konzept-fahrzeuge.md` Abschnitt 8); eine spätere Admin-Rolle soll dies
+einschränken. Eine tatsächliche serverseitige Durchsetzung dieser Sonderrollen auf den
+Verwaltungs- und Einsatzplanungs-Endpunkten steht noch aus (siehe Arbeitsstand).
 
 Der Verwaltungsbereich (`src/app/verwaltung/`, Route `/verwaltung`) hält nur den Einstieg in
 administrative Aufgaben; die Fachlogik bleibt beim jeweiligen Fachmodul. Er kennt kein

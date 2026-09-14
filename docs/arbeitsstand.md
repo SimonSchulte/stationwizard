@@ -816,3 +816,69 @@ D1-Datenbank angewendet. Das muss vor dem Ausrollen geschehen und scheitert, sol
 Doubletten liegen — die Prüfabfrage steht als Kommentar in der Migrationsdatei, der Befehl
 in `worker/README.md`. Solange die Migration fehlt, greift nur die Vorabprüfung des
 Workers; ein Rennen zwischen zwei gleichzeitigen Anfragen bliebe dann ungeschützt.
+
+## Benutzerverwaltung: Anmeldungen einsehen und Rollen zuweisen
+
+Fachlicher Anlass: Cloudflare Access entscheidet bereits, wer sich anmelden darf, aber die
+App selbst kannte weder eine Liste der bekannten Personen noch irgendeine Rollenzuordnung.
+Ziel war zunächst nur Einsehen und Rollenvergabe, kein Anlegen von Zugängen — das bleibt
+Sache der Access-Zugriffsliste außerhalb dieser App.
+
+- **Neue eigene D1-Datenbank `BENUTZER_DB`** (`stationwizard-benutzer`,
+  `worker/migrations/0004_benutzer.sql`), getrennt von `FAHRZEUGE_DB`, damit die
+  Fachdomänen getrennt bleiben. Tabelle `benutzer`: `email` als Primärschlüssel, `rolle`
+  (höchstens eine Hauptrolle oder `NULL`), `sonderrollen` als JSON-Array (aktuell nur
+  `verwaltungshelfer`, absichtlich als Array für künftige weitere Sonderrollen ohne
+  Schemaänderung), sowie erster/letzter Zugriff und wer die Rolle zuletzt geändert hat.
+- **Sechs Hauptrollen** wie vom Auftraggeber benannt: Zugführung, Gruppenführung Sanität,
+  Gruppenführung Betreuung, Gruppenführung TeSi, Gruppenführung Führung, Helfer. Die
+  Sonderrolle Verwaltungshelfer ist unabhängig von der Hauptrolle kombinierbar.
+- **`worker/src/benutzer.ts`**: `registriereZugriff()` merkt eine Anmeldung vor (erster
+  Zugriff legt die Zeile an, jeder weitere aktualisiert nur den Zeitstempel) und wird
+  best-effort aus dem bestehenden `GET /api/benutzer` aufgerufen — die Shell ruft diesen
+  Endpunkt ohnehin einmal je Sitzungsstart ab, ein zusätzlicher Aufruf war nicht nötig. Ein
+  Fehler dabei verhindert nicht die eigentliche Antwort. Neue Endpunkte
+  `GET /api/benutzerverwaltung` (Liste) und `PUT /api/benutzerverwaltung/<E-Mail>` (Rolle
+  setzen, 404 ohne vorherige Anmeldung).
+- **Rollenvergabe ist vorerst jeder geprüften Identität möglich** — dieselbe
+  Übergangslösung wie beim Löschen einer Ablesung im Fahrzeugmodul („Rechte vorerst alle,
+  Rollen später"): es gibt noch keine Rolle, die eine Berechtigung dafür prüfen könnte,
+  bevor diese Tabelle überhaupt existiert. Eine spätere Admin-Rolle soll dies einschränken.
+- **Oberfläche** `src/app/benutzerverwaltung/pages/benutzer-liste/`, verlinkt als neue
+  Kachel unter `/verwaltung/benutzer`: Liste aller bekannten Anmeldungen mit letztem
+  Zugriff, Rollenauswahl und Sonderrollen-Checkbox je Person, Änderungen speichern sofort.
+  Domäne (`src/app/benutzerverwaltung/models/`) und Persistenz
+  (`storage/api-benutzerverwaltung-storage.ts`) strikt getrennt, analog zum Fahrzeugmodul.
+
+**Offen und ausdrücklich nicht erledigt:** `BENUTZER_DB` in `worker/wrangler.toml` trägt
+noch eine Platzhalter-`database_id`; die echte Datenbank ist **nicht** angelegt und die
+Migration **nicht** angewendet (Befehle in `worker/README.md`, Abschnitt „Benutzerverwaltung
+(D1)"). Ohne diesen Schritt liefert `/api/benutzerverwaltung*` bewusst 503 statt eines
+Absturzes, und `/api/benutzer` funktioniert unverändert weiter, merkt sich den Zugriff aber
+nicht vor.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (463 Angular-Tests,
+351 Worker-Tests), `npm run format:check`, `npm run worker:test` und
+`npm run deploy:dry-run` — alle grün; `deploy:dry-run` bestätigt das neue `BENUTZER_DB`-
+Binding. `npm run test:spa` in dieser Runde nicht ausgeführt, weil unverändert wie zuvor
+dokumentiert blockiert. Keine Browserprüfung in dieser Runde — die neue Seite wurde nicht
+in `ng serve` gegen einen echten oder gemockten Worker geöffnet.
+
+### Nachtrag in derselben Runde: echte D1-Datenbank angelegt
+
+Der reale Deploy-Versuch (Cloudflare Workers Builds auf dem Feature-Branch) scheiterte
+erwartungsgemäß mit `D1 binding 'BENUTZER_DB' references database
+'00000000-0000-0000-0000-000000000000' which was not found` — die Platzhalter-`database_id`
+existiert naturgemäß nicht. `deploy:dry-run` prüft das nicht, weil er nur lokal gegen die
+Konfiguration validiert, nicht gegen das tatsächliche Cloudflare-Konto.
+
+Die Datenbank wurde daraufhin angelegt (`stationwizard-benutzer`, `database_id`
+`8d57d55d-8bd2-4701-bbbe-f25a4ee34fa9`), die Migration `0004_benutzer.sql` darauf
+angewendet und `worker/wrangler.toml` mit der echten `database_id` aktualisiert. Kein
+Bestand vorher, also keine Doubletten- oder Datenübernahmeprobleme. `worker/README.md`
+entsprechend nachgezogen: der Abschnitt „Benutzerverwaltung (D1)" beschreibt jetzt den
+erledigten Stand statt eines TODOs.
+
+Nicht erneut ausgeführt in diesem Nachtrag: `npm test`/`build` (unverändert seit der
+vorherigen Prüfung in dieser Runde, da nur `wrangler.toml`- und Dokumentationstext
+geändert wurden) und keine erneute Browserprüfung.

@@ -1,0 +1,55 @@
+<mat-toolbar class="listen-kopfleiste">
+  <mat-icon class="kopfleiste-icon">manage_accounts</mat-icon>
+  <span class="toolbar-title">Benutzerverwaltung</span>
+</mat-toolbar>
+
+<div class="list-content">
+  <p class="beschreibung">
+    Nur wer sich bereits über Google angemeldet hat, erscheint hier. Wer sich anmelden darf,
+    entscheidet weiterhin die Zugriffsliste in Cloudflare Access, nicht diese Seite. Änderungen an
+    Rolle und Sonderrollen gelten erst nach Klick auf „Übernehmen".
+  </p>
+
+  @if (laedt()) {
+    <p role="status">Benutzer werden geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+  @if (speicherFehler()) {
+    <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+  }
+
+  @if (!laedt() && !fehler() && benutzer().length > 0) {
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
+      <mat-label>Suche</mat-label>
+      <input
+        matInput
+        [value]="suche()"
+        (input)="suche.set($any($event.target).value)"
+        placeholder="E-Mail-Adresse oder Name"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  }
+
+  @if (!laedt() && !fehler() && benutzer().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon">manage_accounts</mat-icon>
+      <p class="empty-hint">Noch niemand hat sich angemeldet.</p>
+    </div>
+  }
+  @if (!laedt() && !fehler() && benutzer().length > 0 && gefiltert().length === 0) {
+    <p class="empty-hint">Kein Treffer für diese Suche.</p>
+  }
+
+  <div class="benutzer-liste">
+    @for (eintrag of gefiltert(); track eintrag.email) {
+      <app-benutzer-zeile
+        [konto]="eintrag"
+        [speichert]="speichertFuer() === eintrag.email"
+        (uebernehmen)="uebernehmen(eintrag.email, $event)"
+      />
+    }
+  </div>
+</div>
