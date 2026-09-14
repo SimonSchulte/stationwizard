@@ -302,6 +302,25 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
     expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_ZU_GROSS' });
   });
 
+  it('verwirft eine Nicht-JSON-Antwort (z. B. eine HTML-Fehlerseite) und protokolliert Status/Content-Type', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    abrufen.mockResolvedValue(
+      new Response('<html>Just a moment...</html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      }),
+    );
+
+    const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    expect(antwort.status).toBe(502);
+    expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
+    expect(log).toHaveBeenCalledWith(
+      'HIORG_KALENDER_ANTWORT_UNGUELTIG',
+      'JSON-Antwort nicht lesbar oder kein Body (Status 200, Content-Type text/html; charset=utf-8, Content-Length fehlt)',
+    );
+  });
+
   it.each([
     ['success: false', { success: false, data: [] }, 'success ist boolean statt true'],
     ['ohne data', { success: true }, 'data ist kein Array'],
