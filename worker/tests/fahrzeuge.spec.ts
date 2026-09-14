@@ -600,3 +600,105 @@ describe('kurzlinkWeiterleitung', () => {
     expect(kurzlinkWeiterleitung('/f/nicht-uuid')).toBeNull();
   });
 });
+
+describe('Kennzeichen ist eindeutig', () => {
+  const ZWEITE_ID = 'abcdef01-2345-4678-89ab-cdef01234567';
+
+  it('weist ein bereits vergebenes Kennzeichen mit 409 ab', async () => {
+    const db = new FakeFahrzeugeDb();
+    expect((await legeAn(db)).status).toBe(201);
+    const antwort = await legeAn(
+      db,
+      fahrzeugKoerper({ id: ZWEITE_ID, bezeichnung: 'Zweites Fahrzeug' }),
+    );
+    expect(antwort.status).toBe(409);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('FAHRZEUG_KENNZEICHEN_VERGEBEN');
+    expect(db.fahrzeuge.size).toBe(1);
+  });
+
+  it('erkennt Schreibvarianten desselben Kennzeichens', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db, fahrzeugKoerper({ kennzeichen: 'XY-TE 123' }));
+    for (const variante of [
+      'xy te123',
+      'XYTE123',
+      'xy-te-123',
+      'X.Y-TE.123'.replace('X.Y', 'XY'),
+    ]) {
+      const antwort = await legeAn(db, fahrzeugKoerper({ id: ZWEITE_ID, kennzeichen: variante }));
+      expect(antwort.status, `Variante ${variante}`).toBe(409);
+    }
+    expect(db.fahrzeuge.size).toBe(1);
+  });
+
+  it('lässt leere Kennzeichen mehrfach zu, weil das Datenmodell sie erlaubt', async () => {
+    const db = new FakeFahrzeugeDb();
+    expect((await legeAn(db, fahrzeugKoerper({ kennzeichen: '' }))).status).toBe(201);
+    const antwort = await legeAn(db, fahrzeugKoerper({ id: ZWEITE_ID, kennzeichen: '' }));
+    expect(antwort.status).toBe(201);
+    expect(db.fahrzeuge.size).toBe(2);
+  });
+
+  it('unterscheidet die Kennzeichenkollision vom Konflikt gleicher Kennung', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const gleicheId = await legeAn(db, fahrzeugKoerper({ kennzeichen: 'XY-TE 999' }));
+    expect(gleicheId.status).toBe(412);
+    expect(gleicheId.headers.get('X-Stationwizard-Diagnose')).toBe('FAHRZEUGE_KONFLIKT');
+  });
+
+  it('weist auch beim Ändern ein fremdes Kennzeichen ab und lässt den Stand unverändert', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    await legeAn(db, fahrzeugKoerper({ id: ZWEITE_ID, kennzeichen: 'XY-TE 456' }));
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ZWEITE_ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+        body: JSON.stringify(fahrzeugKoerper({ id: ZWEITE_ID, kennzeichen: 'xy te 123' })),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(409);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('FAHRZEUG_KENNZEICHEN_VERGEBEN');
+    expect(db.fahrzeuge.get(ZWEITE_ID)?.kennzeichen).toBe('XY-TE 456');
+    expect(db.fahrzeuge.get(ZWEITE_ID)?.version).toBe(1);
+  });
+
+  it('lässt das eigene Kennzeichen beim Ändern unangetastet durch', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+        body: JSON.stringify(fahrzeugKoerper({ bezeichnung: 'MTW Übung 2' })),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(200);
+    expect(db.fahrzeuge.get(ID)?.bezeichnung).toBe('MTW Übung 2');
+  });
+});
+
+describe('Kennzeichen: Rennen zwischen Vorabprüfung und Schreiben', () => {
+  /** Meldet das Kennzeichen als frei, lässt den Index beim Schreiben aber zuschlagen. */
+  class NachtraeglichBelegteDb extends FakeFahrzeugeDb {
+    override vorabTreffer(): string | null {
+      return null;
+    }
+  }
+
+  it('beantwortet die Indexverletzung beim Anlegen als Kennzeichenkollision, nicht als 412', async () => {
+    const db = new NachtraeglichBelegteDb();
+    expect((await legeAn(db)).status).toBe(201);
+    const antwort = await legeAn(
+      db,
+      fahrzeugKoerper({ id: 'abcdef01-2345-4678-89ab-cdef01234567' }),
+    );
+    expect(antwort.status).toBe(409);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('FAHRZEUG_KENNZEICHEN_VERGEBEN');
+  });
+});

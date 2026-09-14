@@ -6,6 +6,7 @@ import {
   FahrzeugKonfliktFehler,
   FahrzeugMitVersion,
   FahrzeugStorage,
+  KennzeichenVergebenFehler,
 } from '../storage/fahrzeug-storage';
 
 function leeresFahrzeug(): Fahrzeugstamm {
@@ -139,7 +140,11 @@ export class FahrzeugStoreService {
       });
       return true;
     } catch (fehler) {
-      if (fehler instanceof FahrzeugKonfliktFehler) {
+      if (fehler instanceof KennzeichenVergebenFehler) {
+        // Kein Versionskonflikt: neu laden hilft nicht, das Kennzeichen selbst
+        // muss geändert werden. Deshalb bewusst ohne `speicherKonflikt`.
+        this.speicherFehler.set(fehler.message);
+      } else if (fehler instanceof FahrzeugKonfliktFehler) {
         this.speicherKonflikt.set(true);
         this.speicherFehler.set(fehler.message);
       } else {

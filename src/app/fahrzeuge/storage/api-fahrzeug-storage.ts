@@ -16,6 +16,7 @@ import {
   FahrzeugKonfliktFehler,
   FahrzeugMitVersion,
   FahrzeugStorage,
+  KennzeichenVergebenFehler,
 } from './fahrzeug-storage';
 
 interface FahrzeugListenAntwort {
@@ -89,6 +90,9 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
     } catch (ursache) {
       if (ursache instanceof WorkerFehler && ursache.status === 412) {
         throw new FahrzeugKonfliktFehler(fahrzeug.id);
+      }
+      if (ursache instanceof WorkerFehler && ursache.status === 409) {
+        throw new KennzeichenVergebenFehler(fahrzeug.kennzeichen);
       }
       throw ursache;
     }

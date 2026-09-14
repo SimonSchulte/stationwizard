@@ -1,0 +1,143 @@
+<mat-toolbar class="import-kopfleiste">
+  <mat-icon class="kopfleiste-icon">upload_file</mat-icon>
+  <span class="toolbar-title">Fahrzeuge importieren</span>
+  <span class="spacer"></span>
+  <a mat-button routerLink="/verwaltung">Zurück zur Verwaltung</a>
+</mat-toolbar>
+
+<div class="import-inhalt">
+  <section class="abschnitt">
+    <h2>1. Vorlage</h2>
+    <p>
+      Die Datei braucht eine Kopfzeile. Pflicht sind <strong>bezeichnung</strong> und
+      <strong>kennzeichen</strong>; optional sind funkrufname, fahrgestellnummer, eigentuemer,
+      bemerkung, hu_faellig und hu_erinnerung_tage. Ohne Eigentümer gilt „Organisation“ und damit
+      keine Mindestlaufleistung. Als Prüftermin wird nur die Hauptuntersuchung übernommen; weitere
+      Wartungstermine werden am Fahrzeug selbst gepflegt.
+    </p>
+    <p class="hinweis">
+      Jedes Kennzeichen wird nur einmalig importiert. Ist es schon vergeben, wird die Zeile
+      abgewiesen – ein bestehendes Fahrzeug wird nie überschrieben.
+    </p>
+    <button mat-stroked-button type="button" (click)="vorlageHerunterladen()">
+      <mat-icon>download</mat-icon>
+      Mustervorlage herunterladen
+    </button>
+  </section>
+
+  <section class="abschnitt">
+    <h2>2. Datei wählen</h2>
+    <label class="datei-feld">
+      <input type="file" accept=".csv,text/csv" (change)="dateiGewaehlt($event)" />
+      <span class="datei-knopf">
+        <mat-icon>upload_file</mat-icon>
+        CSV-Datei auswählen
+      </span>
+    </label>
+    @if (dateiname()) {
+      <p class="dateiname">{{ dateiname() }}</p>
+    }
+    @if (liestEin()) {
+      <p role="status">Datei wird gelesen …</p>
+    }
+    @if (fehler()) {
+      <p class="error-hint" role="alert">{{ fehler() }}</p>
+    }
+    @for (spaltenfehler of vorschau().spaltenfehler; track spaltenfehler) {
+      <p class="error-hint" role="alert">{{ spaltenfehler }}</p>
+    }
+    @for (hinweis of vorschau().hinweise; track hinweis) {
+      <p class="empty-hint">{{ hinweis }}</p>
+    }
+  </section>
+
+  @if (zeilen().length > 0 && ergebnisse().length === 0) {
+    <section class="abschnitt">
+      <h2>3. Vorschau</h2>
+      <p class="zaehler">
+        {{ zeilen().length }} Zeile(n) gelesen · {{ anzahlJeBefund().uebernehmen }} werden angelegt
+        · {{ anzahlJeBefund()['dublette-bestand'] }} bereits vorhanden ·
+        {{ anzahlJeBefund()['dublette-datei'] }} doppelt in der Datei ·
+        {{ anzahlJeBefund().fehler }} fehlerhaft
+      </p>
+      <ul class="zeilen-liste">
+        @for (zeile of zeilen(); track zeile.zeilennummer) {
+          <li class="import-zeile" [class]="'befund-' + zeile.befund">
+            <span class="zeilennummer">Zeile {{ zeile.zeilennummer }}</span>
+            <span class="zeilen-text">
+              <strong>{{ zeile.bezeichnung || '(ohne Bezeichnung)' }}</strong>
+              · {{ zeile.kennzeichen || '(ohne Kennzeichen)' }}
+            </span>
+            <span class="befund-chip">{{ BEFUND_LABEL[zeile.befund] }}</span>
+            @if (zeile.meldungen.length > 0) {
+              <ul class="meldungen">
+                @for (meldung of zeile.meldungen; track meldung) {
+                  <li>{{ meldung }}</li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="abschnitt">
+      <h2>4. Import</h2>
+      @if (laeuftGerade()) {
+        <mat-progress-bar mode="determinate" [value]="fortschritt()" />
+        <p role="status">{{ erledigt() }} von {{ gesamt() }} angelegt …</p>
+      }
+      <div class="aktionen">
+        <button
+          mat-raised-button
+          color="primary"
+          type="button"
+          [disabled]="!bereit()"
+          (click)="importStarten()"
+        >
+          <mat-icon>playlist_add</mat-icon>
+          {{ gesamt() }} Fahrzeug(e) anlegen
+        </button>
+        <button mat-stroked-button type="button" [disabled]="laeuftGerade()" (click)="neueDatei()">
+          Andere Datei
+        </button>
+      </div>
+      @if (gesamt() === 0 && vorschau().spaltenfehler.length === 0) {
+        <p class="empty-hint">Keine Zeile dieser Datei kann angelegt werden.</p>
+      }
+    </section>
+  }
+
+  @if (ergebnisse().length > 0 && !laeuftGerade()) {
+    <section class="abschnitt">
+      <h2>Ergebnis</h2>
+      <p class="zaehler">
+        {{ angelegteAnzahl() }} von {{ ergebnisse().length }} Zeile(n) angelegt.
+      </p>
+      <ul class="zeilen-liste">
+        @for (eintrag of ergebnisse(); track eintrag.zeilennummer) {
+          <li class="import-zeile" [class.befund-uebernehmen]="eintrag.angelegt">
+            <span class="zeilennummer">Zeile {{ eintrag.zeilennummer }}</span>
+            <span class="zeilen-text">
+              <strong>{{ eintrag.bezeichnung }}</strong> · {{ eintrag.kennzeichen }}
+            </span>
+            <span class="befund-chip">{{ eintrag.angelegt ? 'angelegt' : 'abgewiesen' }}</span>
+            @if (eintrag.grund) {
+              <ul class="meldungen">
+                <li>{{ eintrag.grund }}</li>
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+      <div class="aktionen">
+        <button mat-stroked-button type="button" (click)="berichtHerunterladen()">
+          <mat-icon>download</mat-icon>
+          Bericht als CSV herunterladen
+        </button>
+        <button mat-stroked-button type="button" (click)="neueDatei()">Andere Datei</button>
+        <a mat-button routerLink="/fahrzeuge/liste">Zur Fahrzeugliste</a>
+      </div>
+    </section>
+  }
+</div>

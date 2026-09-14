@@ -28,8 +28,9 @@ export interface FahrzeugStorage {
   /**
    * Legt an oder aktualisiert. `version` ist eine für die Fachschicht
    * undurchsichtige Kennung des zuletzt gelesenen Stands (z. B. ein ETag) –
-   * `null` bedeutet Neuanlage. Bei einem Konflikt wirft der Adapter
-   * `FahrzeugKonfliktFehler`.
+   * `null` bedeutet Neuanlage. Bei einem Versionskonflikt wirft der Adapter
+   * `FahrzeugKonfliktFehler`, bei einem schon vergebenen Kennzeichen
+   * `KennzeichenVergebenFehler`.
    *
    * @returns die neue Versionskennung.
    */
@@ -67,6 +68,18 @@ export class FahrzeugKonfliktFehler extends Error {
   constructor(readonly fahrzeugId: string) {
     super('Das Fahrzeug wurde zwischenzeitlich geändert. Bitte neu laden und zusammenführen.');
     this.name = 'FahrzeugKonfliktFehler';
+  }
+}
+
+/**
+ * Wird geworfen, wenn das Kennzeichen schon zu einem anderen Fahrzeug gehört.
+ * Anders als beim Versionskonflikt hilft erneutes Laden hier nicht – das
+ * Kennzeichen selbst muss geändert werden.
+ */
+export class KennzeichenVergebenFehler extends Error {
+  constructor(readonly kennzeichen: string) {
+    super('Zu diesem Kennzeichen ist bereits ein Fahrzeug angelegt.');
+    this.name = 'KennzeichenVergebenFehler';
   }
 }
 

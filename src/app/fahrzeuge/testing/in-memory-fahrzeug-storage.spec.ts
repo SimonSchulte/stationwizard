@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryFahrzeugStorage } from './in-memory-fahrzeug-storage';
-import { AblesungHatKorrekturFehler, FahrzeugKonfliktFehler } from '../storage/fahrzeug-storage';
+import {
+  AblesungHatKorrekturFehler,
+  FahrzeugKonfliktFehler,
+  KennzeichenVergebenFehler,
+} from '../storage/fahrzeug-storage';
 import { erzeugeTestfahrzeug } from './fahrzeug-testdaten';
 
 describe('InMemoryFahrzeugStorage', () => {
@@ -104,6 +108,33 @@ describe('InMemoryFahrzeugStorage', () => {
       AblesungHatKorrekturFehler,
     );
     expect(await storage.ladeAblesungen('f1')).toHaveLength(2);
+  });
+});
+
+describe('InMemoryFahrzeugStorage – eindeutiges Kennzeichen', () => {
+  it('lehnt ein bereits vergebenes Kennzeichen ab, auch in anderer Schreibweise', async () => {
+    const speicher = new InMemoryFahrzeugStorage();
+    await speicher.speichereFahrzeug(erzeugeTestfahrzeug({ kennzeichen: 'XY-TE 123' }), null);
+    await expect(
+      speicher.speichereFahrzeug(erzeugeTestfahrzeug({ kennzeichen: 'xy te123' }), null),
+    ).rejects.toThrow(KennzeichenVergebenFehler);
+    expect(await speicher.ladeFahrzeuge()).toHaveLength(1);
+  });
+
+  it('lässt das eigene Kennzeichen beim Ändern zu', async () => {
+    const speicher = new InMemoryFahrzeugStorage();
+    const fahrzeug = erzeugeTestfahrzeug({ kennzeichen: 'XY-TE 123' });
+    const version = await speicher.speichereFahrzeug(fahrzeug, null);
+    await expect(
+      speicher.speichereFahrzeug({ ...fahrzeug, bezeichnung: 'Neu benannt' }, version),
+    ).resolves.toBeTypeOf('string');
+  });
+
+  it('lässt leere Kennzeichen mehrfach zu', async () => {
+    const speicher = new InMemoryFahrzeugStorage();
+    await speicher.speichereFahrzeug(erzeugeTestfahrzeug({ kennzeichen: '' }), null);
+    await speicher.speichereFahrzeug(erzeugeTestfahrzeug({ kennzeichen: '' }), null);
+    expect(await speicher.ladeFahrzeuge()).toHaveLength(2);
   });
 });
 

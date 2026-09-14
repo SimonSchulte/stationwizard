@@ -436,6 +436,92 @@ nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
   Fahrzeugdetailseite (siehe Abschnitt 5 „Oberfläche": alle Abschnitte der Detailseite sind
   seit diesem Nachtrag `mat-expansion-panel`s statt starrer Abschnitte).
 
+### Verwaltungsbereich und Stammdatenimport (Nachtrag)
+
+Fachlicher Anlass (Entscheidung vom 13.09.2026): ein Fuhrpark lässt sich nicht sinnvoll
+Fahrzeug für Fahrzeug über das Formular anlegen, und es fehlte bisher ein Ort für
+Aufgaben, die ganze Stammdatenbestände betreffen. Umsetzung:
+
+- Neuer Hauptbereich **Verwaltung** (`/verwaltung`, `src/app/verwaltung/`) als vierter
+  Navigationspunkt. Er enthält nur den Einstieg; die Fachlogik bleibt beim jeweiligen
+  Fachmodul. Erste und bislang einzige Aufgabe ist der Fahrzeugimport.
+- **Kein Rollenmodell.** Der Bereich steht jeder geprüften Anmeldung offen, genau wie das
+  Löschen von Ablesungen (Abschnitt 8, „Rechte vorerst alle, Rollen später"). Er ist damit
+  der natürliche Andockpunkt für eine spätere Admin-Rolle, ist aber heute ausdrücklich
+  kein Zugriffsschutz und wird auch in der Oberfläche so benannt.
+- Die Importseite liegt fachlich im Fahrzeugmodul
+  (`src/app/fahrzeuge/pages/fahrzeug-import/`), die Route hängt im Verwaltungsbereich.
+  Das Lesen und Bewerten der Datei ist eine reine Funktion
+  (`src/app/fahrzeuge/services/fahrzeug-import.ts`), der Ablauf ein Signalstore
+  (`fahrzeug-import-store.service.ts`); der CSV-Leser selbst ist allgemein und liegt unter
+  `src/app/kern/text/csv.ts`.
+
+**Dateivertrag.** Kopfzeile erforderlich, Trenner wird erkannt (Semikolon, Komma,
+Tabulator), Byte-Order-Mark und Anführungszeichen nach RFC 4180 werden verstanden.
+
+| Spalte                            | Pflicht | Regel                                       |
+| --------------------------------- | ------- | ------------------------------------------- |
+| `bezeichnung`                     | ja      | nichtleer                                   |
+| `kennzeichen`                     | ja      | nichtleer, je Bestand nur einmal            |
+| `funkrufname`                     | nein    | freier Text                                 |
+| `fahrgestellnummer` (auch `fin`)  | nein    | leer oder gültige FIN                       |
+| `eigentuemer` (auch `eigentümer`) | nein    | Schlüssel oder Label; leer → `organisation` |
+| `bemerkung`                       | nein    | freier Text                                 |
+| `hu_faellig` (auch `hu`)          | nein    | `JJJJ-MM-TT` oder `TT.MM.JJJJ`              |
+| `hu_erinnerung_tage`              | nein    | ganze Zahl ab 0, Vorgabe 30                 |
+
+Als Prüftermin wird **nur die Hauptuntersuchung** übernommen: ein `Wartungstermin` mit
+`art: 'hu'`. Weitere Wartungstermine bleiben der Detailseite vorbehalten, weil eine
+CSV-Spalte je Termin den Dateivertrag ohne fachlichen Gewinn aufblähen würde. Unbekannte
+Spalten werden mit Hinweis übergangen, eine fehlende Pflichtspalte sperrt den Import
+vollständig.
+
+**Einmaligkeit je Kennzeichen.** Ein Kennzeichen darf es im ganzen Bestand nur einmal
+geben — nicht nur im Import. Verglichen wird eine Vergleichsform statt des Rohwerts:
+Großschreibung ohne Leerzeichen, Bindestriche und Punkte, so dass `me-xx 123`,
+`ME XX123` und `ME.XX.123` dasselbe Kennzeichen sind. Gespeichert und angezeigt wird
+immer die eingegebene Schreibweise.
+
+Verbindlich ist die Datenbank: der eindeutige Index aus
+`worker/migrations/0003_kennzeichen_eindeutig.sql` liegt auf genau dieser Vergleichsform.
+Er ist bewusst **partiell** — ein leeres Kennzeichen bleibt erlaubt und mehrfach möglich,
+weil `kennzeichen` im Datenmodell leer sein darf. Der Worker prüft vor dem Schreiben und
+antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`; verliert er das Rennen gegen eine
+gleichzeitige Anfrage, übersetzt er die Indexverletzung in dieselbe Antwort. Die Prüfung
+ist also die freundliche Fehlermeldung, der Index die Zusage. Das gilt für jede Anlage und
+jede Änderung, auch über `/fahrzeuge/neu` und die Detailseite.
+
+Die Fachschicht sieht dafür einen eigenen Fehler, `KennzeichenVergebenFehler`, getrennt
+vom `FahrzeugKonfliktFehler`: ein Versionskonflikt wird durch Neuladen und Zusammenführen
+gelöst, ein vergebenes Kennzeichen nicht — dort muss das Kennzeichen selbst geändert
+werden. `InMemoryFahrzeugStorage` und `FakeFahrzeugeDb` bilden die Regel nach, damit sie
+in Fach- und Workertests tatsächlich geprüft wird.
+
+Die Vergleichsform steht damit an drei Stellen — im Index, in `kennzeichenVergeben()`
+(`worker/src/fahrzeuge.ts`, als SQL-Ausdruck) und in
+`src/app/fahrzeuge/services/kennzeichen.ts` (für Anzeige und Importvorschau). Sie wird nur
+gemeinsam geändert. Ein bewusster Unterschied bleibt: SQLites `upper()` arbeitet nur auf
+ASCII, `toUpperCase()` auch darüber hinaus. Die Oberfläche erkennt damit höchstens mehr
+Schreibvarianten als die Datenbank, nie weniger — sie warnt eher zu früh als zu spät.
+
+Der Import prüft zusätzlich gegen die bereits gelesenen Zeilen derselben Datei und liest
+den Bestand unmittelbar vor dem Schreiben erneut, damit die Vorschau nicht etwas
+verspricht, was die Datenbank gleich darauf ablehnt.
+
+**Grenzen, bewusst so entschieden.** Der Import ist nicht transaktional (siehe unten). Der
+eindeutige Index muss auf einen bestehenden Bestand erst angewendet werden und scheitert,
+solange dort Doubletten liegen; die Prüfabfrage steht als Kommentar in der
+Migrationsdatei.
+
+**Keine neue API-Oberfläche.** Der Import legt jedes Fahrzeug einzeln über den
+bestehenden Neuanlagepfad an (`POST /api/fahrzeuge` mit `If-None-Match: *`); es gibt
+keinen Massenschreibpfad, keinen neuen Endpunkt und keine Migration. Jede angelegte Zeile
+erzeugt damit automatisch den Protokolleintrag „Fahrzeug angelegt", und `geaendertVon`
+setzt weiterhin ausschließlich der Worker aus der geprüften Anmeldung. Der Lauf ist
+deshalb nicht transaktional: bricht er ab, bleiben die bereits angelegten Fahrzeuge
+stehen. Der Bericht weist Zeile für Zeile aus, was tatsächlich angelegt wurde, und lässt
+sich als CSV sichern.
+
 ## 9. Noch offen
 
 - Übernahme von Stammdaten aus HiOrg: die drei freigegebenen EFS-Aktionen liefern keinen
@@ -443,3 +529,7 @@ nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
   deren Dokumentation. Bis dahin manuelle Pflege.
 - Ob die HU-Fälligkeit zusätzlich aus einem Prüfbericht übernommen werden soll.
 - Format und Größe des Aufkleberbogens (Papiergröße, Anzahl je Blatt).
+- Anwenden von `0003_kennzeichen_eindeutig.sql` auf die produktive D1-Datenbank: steht im
+  Repository, ist aber noch nicht ausgeführt. Vorher den Bestand mit der Abfrage aus der
+  Migrationsdatei auf Doubletten prüfen.
+- Ob der Import weitere Wartungstermine außer der HU aufnehmen soll.

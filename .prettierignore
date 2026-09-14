@@ -5,3 +5,10 @@ dist
 package-lock.json
 coverage
 pruefungen
+
+# Von `npx skills add` verwaltete Werkzeugdateien (siehe #27): wie package-lock.json
+# ein von Tooling erzeugter/aktualisierter Bestand, kein handformatierter Quelltext.
+.agents/skills
+.claude/skills
+skills-lock.json
+.claude/settings.local.json

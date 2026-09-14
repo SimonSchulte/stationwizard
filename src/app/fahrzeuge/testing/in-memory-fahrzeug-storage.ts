@@ -12,7 +12,9 @@ import {
   FahrzeugKonfliktFehler,
   FahrzeugMitVersion,
   FahrzeugStorage,
+  KennzeichenVergebenFehler,
 } from '../storage/fahrzeug-storage';
+import { normalisiereKennzeichen } from '../services/kennzeichen';
 
 let laufendeId = 0;
 function naechsteId(praefix: string): string {
@@ -110,6 +112,21 @@ export class InMemoryFahrzeugStorage implements FahrzeugStorage {
     return eintrag ? { daten: { ...eintrag.daten }, version: eintrag.version } : null;
   }
 
+  /**
+   * Bildet den eindeutigen Index auf dem Kennzeichen nach
+   * (`worker/migrations/0003_kennzeichen_eindeutig.sql`). Wie dort bleibt ein
+   * leeres Kennzeichen mehrfach erlaubt.
+   */
+  private kennzeichenVergeben(kennzeichen: string, eigeneId: string): boolean {
+    const gesucht = normalisiereKennzeichen(kennzeichen);
+    if (gesucht === '') return false;
+    return [...this.fahrzeuge.values()].some(
+      (eintrag) =>
+        eintrag.daten.id !== eigeneId &&
+        normalisiereKennzeichen(eintrag.daten.kennzeichen) === gesucht,
+    );
+  }
+
   async speichereFahrzeug(fahrzeug: Fahrzeugstamm, version: string | null): Promise<string> {
     const bestehend = this.fahrzeuge.get(fahrzeug.id);
     if (version === null) {
@@ -118,6 +135,9 @@ export class InMemoryFahrzeugStorage implements FahrzeugStorage {
       }
     } else if (!bestehend || bestehend.version !== version) {
       throw new FahrzeugKonfliktFehler(fahrzeug.id);
+    }
+    if (this.kennzeichenVergeben(fahrzeug.kennzeichen, fahrzeug.id)) {
+      throw new KennzeichenVergebenFehler(fahrzeug.kennzeichen);
     }
     const neueVersion = naechsteId('version');
     this.fahrzeuge.set(fahrzeug.id, { daten: { ...fahrzeug }, version: neueVersion });
