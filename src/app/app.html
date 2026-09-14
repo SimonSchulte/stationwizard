@@ -1,27 +1,35 @@
 <a class="sprunglink" href="#inhalt" (click)="zumInhalt($event, inhalt)">Zum Inhalt</a>
 <header class="shell-kopf">
-  <a class="marke" routerLink="/" aria-label="stationwizard Startseite">
+  <button
+    type="button"
+    mat-icon-button
+    class="burger"
+    (click)="seitenNav.toggle()"
+    [attr.aria-expanded]="seitenNav.opened"
+    aria-controls="hauptnavigation"
+    aria-label="Hauptnavigation öffnen"
+  >
+    <mat-icon aria-hidden="true">menu</mat-icon>
+  </button>
+  <a class="marke" routerLink="/" aria-label="HiorgWache Startseite">
     <mat-icon aria-hidden="true">hub</mat-icon>
-    <span>stationwizard</span>
+    <span>HiorgWache</span>
   </a>
-  <nav aria-label="Hauptnavigation">
-    <a routerLink="/ausbildung" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
-      <mat-icon aria-hidden="true">calendar_month</mat-icon> Ausbildung
-    </a>
-    <a routerLink="/einsatz" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
-      <mat-icon aria-hidden="true">groups</mat-icon> Einsatz
-    </a>
-    <a routerLink="/fahrzeuge" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
-      <mat-icon aria-hidden="true">local_shipping</mat-icon> Fahrzeuge
-    </a>
-    <a routerLink="/verwaltung" routerLinkActive="aktiv" ariaCurrentWhenActive="page">
-      <mat-icon aria-hidden="true">admin_panel_settings</mat-icon> Verwaltung
-    </a>
-  </nav>
   <div class="benutzer">
     @if (benutzer.email() && worker.zustand() !== 'sitzung-abgelaufen') {
-      <span class="benutzer-adresse" [title]="benutzer.email()">{{ benutzer.email() }}</span>
-      <a href="/cdn-cgi/access/logout">Abmelden</a>
+      <button
+        type="button"
+        class="benutzer-schalter"
+        [matMenuTriggerFor]="benutzerMenu"
+        [title]="benutzer.email()"
+      >
+        <span class="benutzer-avatar" aria-hidden="true">{{ benutzer.initialen() }}</span>
+        <span class="benutzer-name">{{ benutzer.anzeigename() }}</span>
+        <mat-icon aria-hidden="true">arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #benutzerMenu="matMenu">
+        <a mat-menu-item href="/cdn-cgi/access/logout">Abmelden</a>
+      </mat-menu>
     } @else if (benutzer.laedt()) {
       <span>Benutzer wird geladen …</span>
     }
@@ -43,4 +51,47 @@
     </button>
   </div>
 }
-<main #inhalt id="inhalt" tabindex="-1"><router-outlet /></main>
+<mat-sidenav-container class="shell-koerper">
+  <mat-sidenav #seitenNav id="hauptnavigation" mode="over">
+    <nav aria-label="Hauptnavigation">
+      <a
+        routerLink="/ausbildung"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">calendar_month</mat-icon> Ausbildung
+      </a>
+      <a
+        routerLink="/einsatz"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">groups</mat-icon> Einsatz
+      </a>
+      <a
+        routerLink="/fahrzeuge"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">local_shipping</mat-icon> Fahrzeuge
+      </a>
+      <a
+        routerLink="/verwaltung"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">admin_panel_settings</mat-icon> Verwaltung
+      </a>
+    </nav>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <main #inhalt id="inhalt" tabindex="-1"><router-outlet /></main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+<footer class="shell-fuss">
+  <span>© {{ aktuellesJahr }} HiorgWache</span>
+</footer>
