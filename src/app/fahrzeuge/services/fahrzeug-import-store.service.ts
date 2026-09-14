@@ -2,13 +2,8 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Fahrzeugstamm } from '../models/fahrzeug.model';
 import { ApiFahrzeugStorage } from '../storage/api-fahrzeug-storage';
 import { FahrzeugKonfliktFehler, FahrzeugStorage } from '../storage/fahrzeug-storage';
-import {
-  ImportErgebnis,
-  ImportVorschau,
-  ImportZeile,
-  leseFahrzeugImport,
-  normalisiereKennzeichen,
-} from './fahrzeug-import';
+import { ImportErgebnis, ImportVorschau, ImportZeile, leseFahrzeugImport } from './fahrzeug-import';
+import { normalisiereKennzeichen } from './kennzeichen';
 
 function fehlermeldung(fehler: unknown): string {
   return fehler instanceof Error ? fehler.message : 'Der Import ist fehlgeschlagen.';

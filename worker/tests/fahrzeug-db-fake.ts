@@ -40,10 +40,42 @@ interface AenderungZeile {
   beschreibung: string;
 }
 
+/**
+ * Vergleichsform des Kennzeichens, wie sie der eindeutige Index aus
+ * `migrations/0003_kennzeichen_eindeutig.sql` bildet: Großschreibung ohne
+ * Leerzeichen, Bindestriche und Punkte. Ohne diese Nachbildung würde der Fake
+ * doppelte Kennzeichen annehmen, die die echte Datenbank ablehnt.
+ */
+export function vergleichsform(kennzeichen: string): string {
+  return kennzeichen.replace(/[ \-.]/g, '').toUpperCase();
+}
+
 export class FakeFahrzeugeDb {
   fahrzeuge = new Map<string, FahrzeugZeile>();
   ablesungen: AblesungZeile[] = [];
   aenderungen: AenderungZeile[] = [];
+
+  /**
+   * Der eindeutige Index selbst; er lässt leere Kennzeichen mehrfach zu, weil
+   * er partiell ist. Greift beim Schreiben und ist nicht umgehbar.
+   */
+  indexTreffer(kennzeichen: string, ausserId: string): string | null {
+    const gesucht = vergleichsform(kennzeichen);
+    if (gesucht === '') return null;
+    for (const zeile of this.fahrzeuge.values()) {
+      if (zeile.id !== ausserId && vergleichsform(zeile.kennzeichen) === gesucht) return zeile.id;
+    }
+    return null;
+  }
+
+  /**
+   * Antwort auf die Vorabprüfung des Workers. Getrennt vom Index, damit ein
+   * Test das Rennen zwischen „Prüfung meldet frei" und „Index schlägt zu"
+   * nachstellen kann, indem er nur diese Methode überschreibt.
+   */
+  vorabTreffer(kennzeichen: string, ausserId: string): string | null {
+    return this.indexTreffer(kennzeichen, ausserId);
+  }
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query.trim().replace(/\s+/g, ' '));
@@ -95,6 +127,9 @@ class FakeStatement {
       if (this.db.fahrzeuge.has(id)) {
         throw new Error('UNIQUE constraint failed: fahrzeuge.id');
       }
+      if (this.db.indexTreffer(kennzeichen, id) !== null) {
+        throw new Error('UNIQUE constraint failed: index idx_fahrzeuge_kennzeichen_eindeutig');
+      }
       this.db.fahrzeuge.set(id, {
         id,
         bezeichnung,
@@ -140,6 +175,9 @@ class FakeStatement {
       const bestehend = this.db.fahrzeuge.get(id);
       if (!bestehend || bestehend.version !== erwarteteVersion) {
         return { success: true, meta: { changes: 0 }, results: [] };
+      }
+      if (this.db.indexTreffer(kennzeichen, id) !== null) {
+        throw new Error('UNIQUE constraint failed: index idx_fahrzeuge_kennzeichen_eindeutig');
       }
       this.db.fahrzeuge.set(id, {
         ...bestehend,
@@ -225,6 +263,11 @@ class FakeStatement {
     if (this.query.startsWith('SELECT * FROM fahrzeuge WHERE id = ?')) {
       const [id] = this.werte as [string];
       return (this.db.fahrzeuge.get(id) as T | undefined) ?? null;
+    }
+    if (this.query.startsWith('SELECT id FROM fahrzeuge WHERE upper(replace(')) {
+      const [kennzeichen, eigeneId] = this.werte as [string, string];
+      const belegtVon = this.db.vorabTreffer(kennzeichen, eigeneId);
+      return belegtVon === null ? null : ({ id: belegtVon } as T);
     }
     if (this.query.startsWith('SELECT id FROM fahrzeuge WHERE id = ?')) {
       const [id] = this.werte as [string];

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { erzeugeTestfahrzeug } from '../testing/fahrzeug-testdaten';
 import { ApiFahrzeugStorage } from '../storage/api-fahrzeug-storage';
-import { FahrzeugKonfliktFehler } from '../storage/fahrzeug-storage';
+import { FahrzeugKonfliktFehler, KennzeichenVergebenFehler } from '../storage/fahrzeug-storage';
 import { FahrzeugStoreService } from './fahrzeug-store.service';
 
 describe('FahrzeugStoreService', () => {
@@ -96,5 +96,17 @@ describe('FahrzeugStoreService', () => {
     const { VerlassenSchutz } = await import('../../kern/verlassen-schutz');
     const verlassenSchutz = TestBed.inject(VerlassenSchutz);
     expect(verlassenSchutz.hatUngesicherteAenderungen()).toBe(true);
+  });
+
+  it('meldet ein vergebenes Kennzeichen als Fehler, aber nicht als Konflikt zum Neuladen', async () => {
+    const fahrzeug = erzeugeTestfahrzeug({ kennzeichen: 'XY-TE 123' });
+    storage.ladeFahrzeug.mockResolvedValue({ daten: fahrzeug, version: '"1"' });
+    await service.fahrzeugLaden(fahrzeug.id);
+    storage.speichereFahrzeug.mockRejectedValue(new KennzeichenVergebenFehler('XY-TE 123'));
+    expect(await service.speichern()).toBe(false);
+    expect(service.speicherFehler()).toBe(
+      'Zu diesem Kennzeichen ist bereits ein Fahrzeug angelegt.',
+    );
+    expect(service.speicherKonflikt()).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import { leseCsv, schreibeCsv } from '../../kern/text/csv';
 import { Eigentuemer, Fahrzeugstamm, Wartungstermin } from '../models/fahrzeug.model';
 import { EIGENTUEMER_LABEL } from './eigentuemer-label';
+import { normalisiereKennzeichen } from './kennzeichen';
 import { istEigentuemer, istGueltigeFin, istIsoDatum } from './fahrzeug-pruefung';
 
 /**
@@ -69,15 +70,6 @@ export interface ImportVorschau {
   /** Unkritische Hinweise, etwa zu unbekannten Spalten. */
   hinweise: string[];
   zeilen: ImportZeile[];
-}
-
-/**
- * Vergleichsform eines Kennzeichens: Großschreibung ohne Leerzeichen und
- * Bindestriche. `me-xx 123`, `ME-XX123` und `ME XX 123` sind damit dasselbe
- * Kennzeichen. Gespeichert und angezeigt wird weiterhin der Rohwert.
- */
-export function normalisiereKennzeichen(wert: string): string {
-  return wert.toUpperCase().replace(/[\s\-.]/g, '');
 }
 
 function eigentuemerAusText(wert: string): Eigentuemer | null {

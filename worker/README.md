@@ -170,6 +170,21 @@ tatsächlichen Unterschied zum vorherigen Stand (`diffFahrzeug` in `worker/src/f
 nie aus einer Client-Eingabe; es gibt keinen Endpunkt, über den ein Client selbst einen
 Eintrag schreiben könnte.
 
+Jedes Kennzeichen darf es nur einmal geben. Verbindlich ist der eindeutige Index aus
+`worker/migrations/0003_kennzeichen_eindeutig.sql` auf einer Vergleichsform des
+Kennzeichens (Großschreibung ohne Leerzeichen, Bindestriche und Punkte), damit
+„ME-XX 123" und „me xx123" dasselbe Kennzeichen sind. Der Worker prüft vorab und
+antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`; verliert er das Rennen gegen eine
+gleichzeitige Anfrage, übersetzt er die Indexverletzung in dieselbe Antwort. Der Index ist
+partiell: ein leeres Kennzeichen bleibt erlaubt und mehrfach möglich. Wird die
+Vergleichsform geändert, muss das an drei Stellen gemeinsam geschehen – Migration,
+`kennzeichenVergeben()` in `worker/src/fahrzeuge.ts` und
+`src/app/fahrzeuge/services/kennzeichen.ts`.
+
+`0003` auf eine **bestehende** Datenbank anwenden: zuerst prüfen, ob der Bestand schon
+Doubletten enthält, sonst scheitert die Migration. Die passende Abfrage steht als
+Kommentar in der Migrationsdatei.
+
 Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 
 ```bash
@@ -178,6 +193,8 @@ npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangle
   --file worker/migrations/0001_fahrzeuge.sql
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
   --file worker/migrations/0002_fahrzeug_aenderungen.sql
+npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
+  --file worker/migrations/0003_kennzeichen_eindeutig.sql
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block von `wrangler.toml`

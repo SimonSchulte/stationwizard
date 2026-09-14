@@ -129,4 +129,32 @@ describe('Stammdatenimport-Store', () => {
     expect(store.vorschau().zeilen).toEqual([]);
     expect(store.ergebnisse()).toEqual([]);
   });
+
+  it('meldet die Abweisung durch die Datenbank, wenn die Vorschau das Kennzeichen für frei hielt', async () => {
+    // Der Bestand meldet nichts, der Speicher kennt das Kennzeichen aber schon:
+    // genau der Fall, den die Vorabprüfung im Browser nicht sehen kann.
+    await speicher.speichereFahrzeug(
+      erzeugeTestfahrzeug({ kennzeichen: 'XY-TE 123', bezeichnung: 'Schon da' }),
+      null,
+    );
+    const blind = {
+      bezeichnung: speicher.bezeichnung,
+      ladeFahrzeuge: async () => [],
+      speichereFahrzeug: (fahrzeug: Parameters<typeof speicher.speichereFahrzeug>[0]) =>
+        speicher.speichereFahrzeug(fahrzeug, null),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [{ provide: ApiFahrzeugStorage, useValue: blind }],
+    });
+    const blinderStore = TestBed.inject(FahrzeugImportStoreService);
+    await blinderStore.dateiEinlesen(datei(INHALT));
+    expect(blinderStore.gesamt()).toBe(2);
+    await blinderStore.importStarten();
+    expect(blinderStore.angelegteAnzahl()).toBe(1);
+    const abgewiesen = blinderStore.ergebnisse().find((e) => !e.angelegt);
+    expect(abgewiesen?.kennzeichen).toBe('XY-TE 123');
+    expect(abgewiesen?.grund).toContain('bereits ein Fahrzeug angelegt');
+    expect(await speicher.ladeFahrzeuge()).toHaveLength(2);
+  });
 });

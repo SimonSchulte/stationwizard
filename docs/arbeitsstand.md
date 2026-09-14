@@ -750,11 +750,8 @@ Aufgaben, die ganze Stammdatenbestände betreffen.
   Datei wählen, Vorschau mit Befund je Zeile, Bestätigungsdialog über `DialogDienst`,
   Fortschrittsbalken, Bericht mit CSV-Download.
 
-**Bewusst offen geblieben** (siehe Konzept Abschnitt 9): Die Einmaligkeit ist eine
-Importregel, keine Datenbankzusage. `fahrzeuge.kennzeichen` hat weiterhin keinen
-eindeutigen Index; über `/fahrzeuge/neu` lässt sich ein doppeltes Kennzeichen anlegen, und
-zwei gleichzeitige Importe können sich überholen. Der Import ist außerdem nicht
-transaktional — ein Abbruch mittendrin lässt die bereits angelegten Fahrzeuge stehen.
+**Bewusst offen geblieben:** Der Import ist nicht transaktional — ein Abbruch mittendrin
+lässt die bereits angelegten Fahrzeuge stehen.
 
 Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (427 Angular-Tests,
 329 Worker-Tests) und `npm run format:check` — alle grün. `npm run worker:test`,
@@ -770,3 +767,52 @@ Schreibvariante eines bereits gelesenen Kennzeichens) wird als „2 werden angel
 derselbe zweite Lauf weist alle vier Zeilen ab und legt nichts hinzu, der Startknopf
 bleibt gesperrt. Mobile Ansicht bricht sauber um, keine Konsolenfehler. Kein Lauf gegen
 den echten Worker mit D1 und keine realen Fahrzeugdaten.
+
+### Nachtrag in derselben Runde: Kennzeichen wird in der Datenbank eindeutig
+
+Die Einmaligkeit sollte auf Wunsch nicht nur im Import gelten, sondern für jedes
+Kennzeichen im Bestand. Sie ist damit keine Regel der Oberfläche mehr, sondern eine Zusage
+der Datenbank.
+
+- Neue Migration `worker/migrations/0003_kennzeichen_eindeutig.sql`: eindeutiger Index auf
+  der Vergleichsform `upper(replace(replace(replace(kennzeichen,' ',''),'-',''),'.',''))`.
+  Bewusst **partiell** (`WHERE ... <> ''`), damit ein leeres Kennzeichen weiterhin erlaubt
+  und mehrfach möglich bleibt — das Datenmodell lässt es zu.
+- `worker/src/fahrzeuge.ts` prüft in `kennzeichenVergeben()` vor Anlage **und** Änderung
+  und antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`. Verliert die Prüfung das Rennen
+  gegen eine gleichzeitige Anfrage, wird die Indexverletzung aus `INSERT`/`UPDATE` in
+  dieselbe Antwort übersetzt statt in das bisherige pauschale `412` beziehungsweise einen
+  generischen `502`. Der Versionskonflikt bleibt unverändert bei `412`.
+- Die Fachschicht bekommt einen eigenen `KennzeichenVergebenFehler` neben dem
+  `FahrzeugKonfliktFehler`: Neuladen hilft hier nicht, das Kennzeichen selbst muss geändert
+  werden. `FahrzeugStoreService` setzt deshalb bewusst **kein** `speicherKonflikt`, sodass
+  die Detailseite eine schlichte Fehlermeldung zeigt statt des Banners „neu laden und
+  zusammenführen".
+- Die Vergleichsform liegt jetzt in `src/app/fahrzeuge/services/kennzeichen.ts` (aus der
+  Importlogik herausgelöst) und existiert bewusst dreifach: Index, SQL-Ausdruck im Worker,
+  TypeScript für Anzeige und Vorschau. Der Unterschied zwischen SQLites ASCII-`upper()`
+  und `toUpperCase()` ist notiert: die Oberfläche warnt eher zu früh als zu spät.
+- `InMemoryFahrzeugStorage` und `FakeFahrzeugeDb` bilden den Index nach; im Fake sind
+  Indexzugriff (`indexTreffer`) und Vorabprüfung (`vorabTreffer`) getrennt, damit ein Test
+  das Rennen zwischen beiden nachstellen kann.
+
+Geprüft: `npm run build`, `npm test` (434 Angular-Tests, 336 Worker-Tests),
+`npm run format:check`, `npm run worker:check`, `npm run worker:test` und
+`npm run deploy:dry-run` — alle grün. `npm run test:spa` scheitert weiterhin am bekannten
+Bestandsfehler (`MiniflareCoreError [ERR_VALIDATION]`, `workers: undefined` in
+`worker/tests/spa-routing.mjs`); das ist unverändert und nicht durch diese Änderung
+verursacht.
+
+Browserprüfung mit `ng serve`/Playwright bei 1440×1000 gegen ein `/api/fahrzeuge`, das wie
+der geänderte Worker antwortet: Die Importvorschau hält bei leerer Bestandsliste beide
+Zeilen für frei, der Server weist eine davon mit 409 ab, und der Bericht nennt den Grund
+„Zu diesem Kennzeichen ist bereits ein Fahrzeug angelegt." Dieselbe Abweisung erscheint
+bei manueller Anlage über `/fahrzeuge/neu` mit der Schreibvariante `xy te 123` als
+Fehlerhinweis über dem Formular, ohne Konfliktbanner. Keine Anwendungsfehler in der
+Konsole (die beiden Meldungen dort sind die 409-Antworten selbst).
+
+**Offen und ausdrücklich nicht erledigt:** Die Migration ist **nicht** auf die produktive
+D1-Datenbank angewendet. Das muss vor dem Ausrollen geschehen und scheitert, solange dort
+Doubletten liegen — die Prüfabfrage steht als Kommentar in der Migrationsdatei, der Befehl
+in `worker/README.md`. Solange die Migration fehlt, greift nur die Vorabprüfung des
+Workers; ein Rennen zwischen zwei gleichzeitigen Anfragen bliebe dann ungeschützt.

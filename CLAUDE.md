@@ -122,8 +122,8 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/nextcloud/planungen`                | GET        | Liste aus UUID und ETag                                                     |
 | `/api/nextcloud/planungen/<UUID>`         | GET / PUT  | Einzelne versionierte PEP-Datei                                             |
 | `/api/hiorg/kalender`                     | GET        | HiOrg-Kalenderfeed, nur lesend                                              |
-| `/api/fahrzeuge`                          | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`                         |
-| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug; Update nur mit passendem `If-Match`                     |
+| `/api/fahrzeuge`                          | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig  |
+| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig        |
 | `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
 | `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
 | `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
@@ -148,11 +148,21 @@ CSV-Stammdatenimport (`src/app/fahrzeuge/services/fahrzeug-import.ts`, Seite unt
 `src/app/fahrzeuge/pages/fahrzeug-import/`, CSV-Leser in `src/app/kern/text/csv.ts`) legt
 Fahrzeuge ausschließlich über den bestehenden `POST /api/fahrzeuge` mit `If-None-Match: *`
 an; keinen Massenschreibpfad und keinen Importendpunkt ergänzen. Pflichtspalten sind
-`bezeichnung` und `kennzeichen`, als Prüftermin wird nur die HU übernommen. Jedes
-Kennzeichen wird nur einmalig importiert, verglichen tolerant normalisiert; die Regel gilt
-bislang ausschließlich im Import, nicht in der Datenbank und nicht bei manueller Anlage
-(siehe `docs/konzept-fahrzeuge.md`, Abschnitte „Verwaltungsbereich und Stammdatenimport"
-sowie 9).
+`bezeichnung` und `kennzeichen`, als Prüftermin wird nur die HU übernommen.
+
+Jedes Kennzeichen darf es nur einmal geben. Verbindlich ist der partielle eindeutige Index
+aus `worker/migrations/0003_kennzeichen_eindeutig.sql` auf einer Vergleichsform
+(Großschreibung ohne Leerzeichen, Bindestriche, Punkte); ein leeres Kennzeichen bleibt
+mehrfach erlaubt. Der Worker prüft vorab und antwortet mit
+`409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`, übersetzt aber auch eine Indexverletzung aus einem
+Rennen in dieselbe Antwort — die Vorabprüfung nicht als alleinigen Schutz behandeln. Die
+Vergleichsform steht an drei Stellen und wird nur gemeinsam geändert: Migration,
+`kennzeichenVergeben()` in `worker/src/fahrzeuge.ts` und
+`src/app/fahrzeuge/services/kennzeichen.ts`. `InMemoryFahrzeugStorage` und
+`FakeFahrzeugeDb` bilden die Regel nach; das so erhalten. Die Fachschicht sieht
+`KennzeichenVergebenFehler`, nicht `FahrzeugKonfliktFehler` — erneutes Laden hilft hier
+nicht (siehe `docs/konzept-fahrzeuge.md`, Abschnitt „Verwaltungsbereich und
+Stammdatenimport").
 
 EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt serverseitig
 `apikey`, `version=2` und `action` als Formulardaten. Ziel aus

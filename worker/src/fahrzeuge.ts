@@ -468,6 +468,54 @@ async function lesePruefeKoerper(
   }
 }
 
+/**
+ * Vergleichsform des Kennzeichens als SQL-Ausdruck: Großschreibung ohne
+ * Leerzeichen, Bindestriche und Punkte. Wortgleich mit dem eindeutigen Index
+ * aus `migrations/0003_kennzeichen_eindeutig.sql` – beide müssen zusammen
+ * geändert werden, sonst weist die Vorabprüfung anderes ab als die Datenbank.
+ */
+const KENNZEICHEN_VERGLEICHSFORM = (spalte: string) =>
+  `upper(replace(replace(replace(${spalte}, ' ', ''), '-', ''), '.', ''))`;
+
+const KENNZEICHEN_BELEGT_ABFRAGE = `SELECT id FROM fahrzeuge
+   WHERE ${KENNZEICHEN_VERGLEICHSFORM('kennzeichen')} = ${KENNZEICHEN_VERGLEICHSFORM('?')}
+     AND ${KENNZEICHEN_VERGLEICHSFORM('kennzeichen')} <> ''
+     AND id <> ?`;
+
+/**
+ * Meldet das Kennzeichen als vergeben, wenn es schon zu einem anderen Fahrzeug
+ * gehört. Die Prüfung ist die freundliche Antwort; verbindlich ist der
+ * eindeutige Index, der auch ein Rennen zwischen Prüfung und Schreiben abfängt.
+ * Ein leeres Kennzeichen bleibt erlaubt und mehrfach möglich.
+ */
+async function kennzeichenVergeben(
+  db: D1Database,
+  kennzeichen: string,
+  eigeneId: string,
+): Promise<boolean> {
+  const treffer = await db
+    .prepare(KENNZEICHEN_BELEGT_ABFRAGE)
+    .bind(kennzeichen, eigeneId)
+    .first<{ id: string }>();
+  return treffer !== null;
+}
+
+/** Verletzt der Datenbankfehler den eindeutigen Index auf dem Kennzeichen? */
+function istKennzeichenKollision(fehler: unknown): boolean {
+  const text = fehler instanceof Error ? fehler.message : String(fehler);
+  return (
+    text.includes('idx_fahrzeuge_kennzeichen_eindeutig') || text.includes('fahrzeuge.kennzeichen')
+  );
+}
+
+function kennzeichenVergebenAntwort(): Response {
+  return fehlerAntwort(
+    'FAHRZEUG_KENNZEICHEN_VERGEBEN',
+    'Zu diesem Kennzeichen ist bereits ein Fahrzeug angelegt.',
+    409,
+  );
+}
+
 async function legeFahrzeugAn(
   anfrage: Request,
   db: D1Database,
@@ -485,6 +533,9 @@ async function legeFahrzeugAn(
   const eingabe = pruefeFahrzeugEingabe(koerper.inhalt);
   if (!eingabe) {
     return fehlerAntwort('FAHRZEUGE_DATEI_UNGUELTIG', 'Ungültige Fahrzeugdaten.', 400);
+  }
+  if (await kennzeichenVergeben(db, eingabe.kennzeichen, eingabe.id)) {
+    return kennzeichenVergebenAntwort();
   }
   const jetzt = new Date().toISOString();
   try {
@@ -508,8 +559,11 @@ async function legeFahrzeugAn(
         identitaet.email,
       )
       .run();
-  } catch {
-    // Primärschlüsselkonflikt: dieselbe id existiert bereits.
+  } catch (fehler) {
+    // Der eindeutige Index kann hier zuschlagen, wenn zwischen Vorabprüfung
+    // und INSERT jemand dasselbe Kennzeichen angelegt hat; sonst bleibt nur
+    // der Primärschlüsselkonflikt, also dieselbe id.
+    if (istKennzeichenKollision(fehler)) return kennzeichenVergebenAntwort();
     return fehlerAntwort(
       'FAHRZEUGE_KONFLIKT',
       'Ein Fahrzeug mit dieser Kennung existiert bereits.',
@@ -546,6 +600,9 @@ async function aktualisiereFahrzeug(
   if (!eingabe || eingabe.id !== id) {
     return fehlerAntwort('FAHRZEUGE_DATEI_UNGUELTIG', 'Ungültige Fahrzeugdaten.', 400);
   }
+  if (await kennzeichenVergeben(db, eingabe.kennzeichen, id)) {
+    return kennzeichenVergebenAntwort();
+  }
   // Für das Änderungsprotokoll: Stand vor dem Schreiben festhalten, sonst
   // wäre der Unterschied nach dem UPDATE nicht mehr feststellbar.
   const bisher = await db
@@ -553,28 +610,36 @@ async function aktualisiereFahrzeug(
     .bind(id)
     .first<FahrzeugZeile>();
   const jetzt = new Date().toISOString();
-  const ergebnis = await db
-    .prepare(
-      `UPDATE fahrzeuge
+  let ergebnis;
+  try {
+    ergebnis = await db
+      .prepare(
+        `UPDATE fahrzeuge
          SET bezeichnung = ?, funkrufname = ?, kennzeichen = ?, fahrgestellnummer = ?,
              eigentuemer = ?, bemerkung = ?, wartungstermine = ?, geaendert_am = ?,
              geaendert_von = ?, version = version + 1
          WHERE id = ? AND version = ?`,
-    )
-    .bind(
-      eingabe.bezeichnung,
-      eingabe.funkrufname,
-      eingabe.kennzeichen,
-      eingabe.fahrgestellnummer,
-      eingabe.eigentuemer,
-      eingabe.bemerkung,
-      JSON.stringify(eingabe.wartungstermine),
-      jetzt,
-      identitaet.email,
-      id,
-      erwarteteVersion,
-    )
-    .run();
+      )
+      .bind(
+        eingabe.bezeichnung,
+        eingabe.funkrufname,
+        eingabe.kennzeichen,
+        eingabe.fahrgestellnummer,
+        eingabe.eigentuemer,
+        eingabe.bemerkung,
+        JSON.stringify(eingabe.wartungstermine),
+        jetzt,
+        identitaet.email,
+        id,
+        erwarteteVersion,
+      )
+      .run();
+  } catch (fehler) {
+    // Rennen zwischen Vorabprüfung und UPDATE: jemand anderes hat dasselbe
+    // Kennzeichen belegt.
+    if (istKennzeichenKollision(fehler)) return kennzeichenVergebenAntwort();
+    throw fehler;
+  }
   if (ergebnis.meta.changes === 0) {
     // Entweder unbekannte id oder veraltete Version – beides ist für die
     // aufrufende Seite derselbe Fall: neu laden und zusammenführen.

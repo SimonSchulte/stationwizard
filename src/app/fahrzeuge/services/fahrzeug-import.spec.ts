@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   berichtCsv,
   leseFahrzeugImport,
-  normalisiereKennzeichen,
   vorlageCsv,
   VORGABE_ERINNERUNG_TAGE,
 } from './fahrzeug-import';
@@ -128,11 +127,6 @@ describe('Fahrzeug-Stammdatenimport', () => {
       ohneBestand(),
     );
     expect(vorschau.zeilen.map((z) => z.befund)).toEqual(['uebernehmen', 'dublette-datei']);
-  });
-
-  it('erkennt Schreibvarianten desselben Kennzeichens als gleich', () => {
-    expect(normalisiereKennzeichen('me-xx 123')).toBe(normalisiereKennzeichen('ME XX123'));
-    expect(normalisiereKennzeichen('XY-TE 123')).toBe('XYTE123');
   });
 
   it('übergeht unbekannte Spalten mit einem Hinweis', () => {

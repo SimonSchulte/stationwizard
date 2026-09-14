@@ -476,21 +476,42 @@ CSV-Spalte je Termin den Dateivertrag ohne fachlichen Gewinn aufblähen würde. 
 Spalten werden mit Hinweis übergangen, eine fehlende Pflichtspalte sperrt den Import
 vollständig.
 
-**Einmaligkeit je Kennzeichen.** Ein Kennzeichen wird nur einmalig importiert; jede
-weitere Zeile dazu wird abgewiesen, nie zusammengeführt und nie überschrieben. Verglichen
-wird tolerant normalisiert (Großschreibung ohne Leerzeichen, Bindestriche und Punkte), so
-dass `me-xx 123` und `ME XX123` dasselbe Kennzeichen sind; gespeichert und angezeigt wird
-die Schreibweise aus der Datei. Geprüft wird gegen den Bestand und gegen die bereits
-gelesenen Zeilen derselben Datei. Vor dem Schreiben wird der Bestand erneut gelesen und
-die Vorschau neu bewertet, damit ein zwischenzeitlich angelegtes Fahrzeug nicht doch ein
-zweites Mal entsteht.
+**Einmaligkeit je Kennzeichen.** Ein Kennzeichen darf es im ganzen Bestand nur einmal
+geben — nicht nur im Import. Verglichen wird eine Vergleichsform statt des Rohwerts:
+Großschreibung ohne Leerzeichen, Bindestriche und Punkte, so dass `me-xx 123`,
+`ME XX123` und `ME.XX.123` dasselbe Kennzeichen sind. Gespeichert und angezeigt wird
+immer die eingegebene Schreibweise.
 
-**Grenzen, bewusst so entschieden.** Die Einmaligkeit ist eine Importregel, keine
-Datenbankzusage: `fahrzeuge.kennzeichen` hat keinen eindeutigen Index (siehe
-`worker/migrations/0001_fahrzeuge.sql`). Über `/fahrzeuge/neu` lässt sich weiterhin ein
-doppeltes Kennzeichen anlegen, und zwei gleichzeitige Importe können sich überholen. Der
-belastbare Schutz wäre ein eindeutiger Index auf dem normalisierten Kennzeichen samt
-eigenem Fehlercode im Worker; das ist offen (Abschnitt 9).
+Verbindlich ist die Datenbank: der eindeutige Index aus
+`worker/migrations/0003_kennzeichen_eindeutig.sql` liegt auf genau dieser Vergleichsform.
+Er ist bewusst **partiell** — ein leeres Kennzeichen bleibt erlaubt und mehrfach möglich,
+weil `kennzeichen` im Datenmodell leer sein darf. Der Worker prüft vor dem Schreiben und
+antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`; verliert er das Rennen gegen eine
+gleichzeitige Anfrage, übersetzt er die Indexverletzung in dieselbe Antwort. Die Prüfung
+ist also die freundliche Fehlermeldung, der Index die Zusage. Das gilt für jede Anlage und
+jede Änderung, auch über `/fahrzeuge/neu` und die Detailseite.
+
+Die Fachschicht sieht dafür einen eigenen Fehler, `KennzeichenVergebenFehler`, getrennt
+vom `FahrzeugKonfliktFehler`: ein Versionskonflikt wird durch Neuladen und Zusammenführen
+gelöst, ein vergebenes Kennzeichen nicht — dort muss das Kennzeichen selbst geändert
+werden. `InMemoryFahrzeugStorage` und `FakeFahrzeugeDb` bilden die Regel nach, damit sie
+in Fach- und Workertests tatsächlich geprüft wird.
+
+Die Vergleichsform steht damit an drei Stellen — im Index, in `kennzeichenVergeben()`
+(`worker/src/fahrzeuge.ts`, als SQL-Ausdruck) und in
+`src/app/fahrzeuge/services/kennzeichen.ts` (für Anzeige und Importvorschau). Sie wird nur
+gemeinsam geändert. Ein bewusster Unterschied bleibt: SQLites `upper()` arbeitet nur auf
+ASCII, `toUpperCase()` auch darüber hinaus. Die Oberfläche erkennt damit höchstens mehr
+Schreibvarianten als die Datenbank, nie weniger — sie warnt eher zu früh als zu spät.
+
+Der Import prüft zusätzlich gegen die bereits gelesenen Zeilen derselben Datei und liest
+den Bestand unmittelbar vor dem Schreiben erneut, damit die Vorschau nicht etwas
+verspricht, was die Datenbank gleich darauf ablehnt.
+
+**Grenzen, bewusst so entschieden.** Der Import ist nicht transaktional (siehe unten). Der
+eindeutige Index muss auf einen bestehenden Bestand erst angewendet werden und scheitert,
+solange dort Doubletten liegen; die Prüfabfrage steht als Kommentar in der
+Migrationsdatei.
 
 **Keine neue API-Oberfläche.** Der Import legt jedes Fahrzeug einzeln über den
 bestehenden Neuanlagepfad an (`POST /api/fahrzeuge` mit `If-None-Match: *`); es gibt
@@ -508,8 +529,7 @@ sich als CSV sichern.
   deren Dokumentation. Bis dahin manuelle Pflege.
 - Ob die HU-Fälligkeit zusätzlich aus einem Prüfbericht übernommen werden soll.
 - Format und Größe des Aufkleberbogens (Papiergröße, Anzahl je Blatt).
-- Eindeutiges Kennzeichen auf Datenbankebene: eindeutiger Index auf dem normalisierten
-  Kennzeichen plus eigener Fehlercode im Worker, damit die Einmaligkeit auch für die
-  manuelle Anlage und bei gleichzeitigen Sitzungen gilt. Vorher müsste ein vorhandener
-  Bestand auf Doubletten geprüft werden, sonst scheitert die Migration.
+- Anwenden von `0003_kennzeichen_eindeutig.sql` auf die produktive D1-Datenbank: steht im
+  Repository, ist aber noch nicht ausgeführt. Vorher den Bestand mit der Abfrage aus der
+  Migrationsdatei auf Doubletten prüfen.
 - Ob der Import weitere Wartungstermine außer der HU aufnehmen soll.
