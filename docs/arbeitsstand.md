@@ -716,3 +716,57 @@ Geprüft: `npm run build` (einschließlich `worker:check`), `npm run worker:test
 Worker-Tests) und `npm run format:check` – alle grün. Kein Abruf gegen den echten
 HiOrg-Feed (Secret liegt in dieser Umgebung nicht vor) und keine Browserprüfung in dieser
 Runde.
+
+## Verwaltungsbereich mit CSV-Stammdatenimport für Fahrzeuge
+
+Fachlicher Anlass: das Fahrzeugmodul zwang bis hierher dazu, jedes Fahrzeug einzeln über
+`/fahrzeuge/neu` anzulegen — eine Übernahme aus HiOrg ist mangels nachgewiesener
+EFS-Aktion weiterhin blockiert (Konzept Abschnitt 9). Zugleich fehlte ein Ort für
+Aufgaben, die ganze Stammdatenbestände betreffen.
+
+- **Neuer Bereich Verwaltung** (`/verwaltung`, `src/app/verwaltung/`) als vierter
+  Navigationspunkt in `app.html` und als vierte Kachel auf der Startseite. Er enthält nur
+  den Einstieg; erste Aufgabe ist der Fahrzeugimport. Der Bereich hat **kein
+  Rollenmodell** und ist kein Zugriffsschutz — jede geprüfte Anmeldung sieht ihn, was auf
+  der Seite selbst so benannt wird. Er ist der Andockpunkt für eine spätere Admin-Rolle.
+- **CSV-Leser** `src/app/kern/text/csv.ts` (`leseCsv`, `schreibeCsv`): reine Funktionen
+  ohne Bibliothek, mit Byte-Order-Mark, Trennererkennung (`;`, `,`, Tabulator),
+  RFC-4180-Anführungszeichen, eingebetteten Umbrüchen und CRLF.
+- **Importfachlogik** `src/app/fahrzeuge/services/fahrzeug-import.ts`: Spaltenvertrag mit
+  Pflichtspalten `bezeichnung` und `kennzeichen`, allem Weiteren optional, `eigentuemer`
+  mit Vorgabe „Organisation", HU-Fälligkeit in `JJJJ-MM-TT` oder `TT.MM.JJJJ`. Geprüft
+  wird über die bestehenden Guards aus `fahrzeug-pruefung.ts`, nicht über eine zweite
+  Prüfschicht. Nur die HU wird als Prüftermin übernommen.
+- **Einmaligkeit je Kennzeichen**: tolerant normalisierter Vergleich (Großschreibung ohne
+  Leerzeichen, Bindestriche, Punkte) gegen den Bestand und gegen die bereits gelesenen
+  Zeilen derselben Datei. Vor dem Schreiben liest
+  `fahrzeug-import-store.service.ts` den Bestand erneut und bewertet die Vorschau neu.
+  Ein abgeschlossener Lauf sperrt den Startknopf, bis eine Datei neu gewählt wird.
+- **Keine neue API-Oberfläche, keine Migration**: der Import ruft je Zeile
+  `speichereFahrzeug(fahrzeug, null)` und damit `POST /api/fahrzeuge` mit
+  `If-None-Match: *`. `worker/` bleibt unangetastet; jede angelegte Zeile erzeugt
+  serverseitig den Protokolleintrag „Fahrzeug angelegt".
+- **Oberfläche** `src/app/fahrzeuge/pages/fahrzeug-import/`: Mustervorlage herunterladen,
+  Datei wählen, Vorschau mit Befund je Zeile, Bestätigungsdialog über `DialogDienst`,
+  Fortschrittsbalken, Bericht mit CSV-Download.
+
+**Bewusst offen geblieben** (siehe Konzept Abschnitt 9): Die Einmaligkeit ist eine
+Importregel, keine Datenbankzusage. `fahrzeuge.kennzeichen` hat weiterhin keinen
+eindeutigen Index; über `/fahrzeuge/neu` lässt sich ein doppeltes Kennzeichen anlegen, und
+zwei gleichzeitige Importe können sich überholen. Der Import ist außerdem nicht
+transaktional — ein Abbruch mittendrin lässt die bereits angelegten Fahrzeuge stehen.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (427 Angular-Tests,
+329 Worker-Tests) und `npm run format:check` — alle grün. `npm run worker:test`,
+`npm run test:spa` und `npm run deploy:dry-run` in dieser Runde nicht nötig beziehungsweise
+nicht ausgeführt, weil weder `worker/` noch die Migrationen berührt wurden; `test:spa`
+bleibt wie zuvor dokumentiert blockiert.
+
+Browserprüfung mit `ng serve`/Playwright bei 1440×1000 und 400×850 gegen gemocktes
+`GET`/`POST /api/fahrzeuge`: Mustervorlage lädt mit Byte-Order-Mark und Semikolon
+herunter; eine Testdatei mit vier Zeilen (vollständig, nur Pflichtfelder, ungültige FIN,
+Schreibvariante eines bereits gelesenen Kennzeichens) wird als „2 werden angelegt,
+1 doppelt in der Datei, 1 fehlerhaft" bewertet; der Import legt genau zwei Fahrzeuge an;
+derselbe zweite Lauf weist alle vier Zeilen ab und legt nichts hinzu, der Startknopf
+bleibt gesperrt. Mobile Ansicht bricht sauber um, keine Konsolenfehler. Kein Lauf gegen
+den echten Worker mit D1 und keine realen Fahrzeugdaten.

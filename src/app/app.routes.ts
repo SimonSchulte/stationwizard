@@ -22,5 +22,10 @@ export const routes: Routes = [
     loadChildren: () => import('./fahrzeuge/fahrzeuge.routes').then((m) => m.fahrzeugeRoutes),
     title: 'Fahrzeuge · stationwizard',
   },
+  {
+    path: 'verwaltung',
+    loadChildren: () => import('./verwaltung/verwaltung.routes').then((m) => m.verwaltungRouten),
+    title: 'Verwaltung · stationwizard',
+  },
   { path: '**', redirectTo: '' },
 ];

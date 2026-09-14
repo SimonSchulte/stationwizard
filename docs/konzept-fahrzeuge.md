@@ -436,6 +436,71 @@ nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
   Fahrzeugdetailseite (siehe Abschnitt 5 „Oberfläche": alle Abschnitte der Detailseite sind
   seit diesem Nachtrag `mat-expansion-panel`s statt starrer Abschnitte).
 
+### Verwaltungsbereich und Stammdatenimport (Nachtrag)
+
+Fachlicher Anlass (Entscheidung vom 13.09.2026): ein Fuhrpark lässt sich nicht sinnvoll
+Fahrzeug für Fahrzeug über das Formular anlegen, und es fehlte bisher ein Ort für
+Aufgaben, die ganze Stammdatenbestände betreffen. Umsetzung:
+
+- Neuer Hauptbereich **Verwaltung** (`/verwaltung`, `src/app/verwaltung/`) als vierter
+  Navigationspunkt. Er enthält nur den Einstieg; die Fachlogik bleibt beim jeweiligen
+  Fachmodul. Erste und bislang einzige Aufgabe ist der Fahrzeugimport.
+- **Kein Rollenmodell.** Der Bereich steht jeder geprüften Anmeldung offen, genau wie das
+  Löschen von Ablesungen (Abschnitt 8, „Rechte vorerst alle, Rollen später"). Er ist damit
+  der natürliche Andockpunkt für eine spätere Admin-Rolle, ist aber heute ausdrücklich
+  kein Zugriffsschutz und wird auch in der Oberfläche so benannt.
+- Die Importseite liegt fachlich im Fahrzeugmodul
+  (`src/app/fahrzeuge/pages/fahrzeug-import/`), die Route hängt im Verwaltungsbereich.
+  Das Lesen und Bewerten der Datei ist eine reine Funktion
+  (`src/app/fahrzeuge/services/fahrzeug-import.ts`), der Ablauf ein Signalstore
+  (`fahrzeug-import-store.service.ts`); der CSV-Leser selbst ist allgemein und liegt unter
+  `src/app/kern/text/csv.ts`.
+
+**Dateivertrag.** Kopfzeile erforderlich, Trenner wird erkannt (Semikolon, Komma,
+Tabulator), Byte-Order-Mark und Anführungszeichen nach RFC 4180 werden verstanden.
+
+| Spalte                            | Pflicht | Regel                                       |
+| --------------------------------- | ------- | ------------------------------------------- |
+| `bezeichnung`                     | ja      | nichtleer                                   |
+| `kennzeichen`                     | ja      | nichtleer, je Bestand nur einmal            |
+| `funkrufname`                     | nein    | freier Text                                 |
+| `fahrgestellnummer` (auch `fin`)  | nein    | leer oder gültige FIN                       |
+| `eigentuemer` (auch `eigentümer`) | nein    | Schlüssel oder Label; leer → `organisation` |
+| `bemerkung`                       | nein    | freier Text                                 |
+| `hu_faellig` (auch `hu`)          | nein    | `JJJJ-MM-TT` oder `TT.MM.JJJJ`              |
+| `hu_erinnerung_tage`              | nein    | ganze Zahl ab 0, Vorgabe 30                 |
+
+Als Prüftermin wird **nur die Hauptuntersuchung** übernommen: ein `Wartungstermin` mit
+`art: 'hu'`. Weitere Wartungstermine bleiben der Detailseite vorbehalten, weil eine
+CSV-Spalte je Termin den Dateivertrag ohne fachlichen Gewinn aufblähen würde. Unbekannte
+Spalten werden mit Hinweis übergangen, eine fehlende Pflichtspalte sperrt den Import
+vollständig.
+
+**Einmaligkeit je Kennzeichen.** Ein Kennzeichen wird nur einmalig importiert; jede
+weitere Zeile dazu wird abgewiesen, nie zusammengeführt und nie überschrieben. Verglichen
+wird tolerant normalisiert (Großschreibung ohne Leerzeichen, Bindestriche und Punkte), so
+dass `me-xx 123` und `ME XX123` dasselbe Kennzeichen sind; gespeichert und angezeigt wird
+die Schreibweise aus der Datei. Geprüft wird gegen den Bestand und gegen die bereits
+gelesenen Zeilen derselben Datei. Vor dem Schreiben wird der Bestand erneut gelesen und
+die Vorschau neu bewertet, damit ein zwischenzeitlich angelegtes Fahrzeug nicht doch ein
+zweites Mal entsteht.
+
+**Grenzen, bewusst so entschieden.** Die Einmaligkeit ist eine Importregel, keine
+Datenbankzusage: `fahrzeuge.kennzeichen` hat keinen eindeutigen Index (siehe
+`worker/migrations/0001_fahrzeuge.sql`). Über `/fahrzeuge/neu` lässt sich weiterhin ein
+doppeltes Kennzeichen anlegen, und zwei gleichzeitige Importe können sich überholen. Der
+belastbare Schutz wäre ein eindeutiger Index auf dem normalisierten Kennzeichen samt
+eigenem Fehlercode im Worker; das ist offen (Abschnitt 9).
+
+**Keine neue API-Oberfläche.** Der Import legt jedes Fahrzeug einzeln über den
+bestehenden Neuanlagepfad an (`POST /api/fahrzeuge` mit `If-None-Match: *`); es gibt
+keinen Massenschreibpfad, keinen neuen Endpunkt und keine Migration. Jede angelegte Zeile
+erzeugt damit automatisch den Protokolleintrag „Fahrzeug angelegt", und `geaendertVon`
+setzt weiterhin ausschließlich der Worker aus der geprüften Anmeldung. Der Lauf ist
+deshalb nicht transaktional: bricht er ab, bleiben die bereits angelegten Fahrzeuge
+stehen. Der Bericht weist Zeile für Zeile aus, was tatsächlich angelegt wurde, und lässt
+sich als CSV sichern.
+
 ## 9. Noch offen
 
 - Übernahme von Stammdaten aus HiOrg: die drei freigegebenen EFS-Aktionen liefern keinen
@@ -443,3 +508,8 @@ nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
   deren Dokumentation. Bis dahin manuelle Pflege.
 - Ob die HU-Fälligkeit zusätzlich aus einem Prüfbericht übernommen werden soll.
 - Format und Größe des Aufkleberbogens (Papiergröße, Anzahl je Blatt).
+- Eindeutiges Kennzeichen auf Datenbankebene: eindeutiger Index auf dem normalisierten
+  Kennzeichen plus eigener Fehlercode im Worker, damit die Einmaligkeit auch für die
+  manuelle Anlage und bei gleichzeitigen Sitzungen gilt. Vorher müsste ein vorhandener
+  Bestand auf Doubletten geprüft werden, sonst scheitert die Migration.
+- Ob der Import weitere Wartungstermine außer der HU aufnehmen soll.

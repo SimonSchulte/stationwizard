@@ -1,0 +1,25 @@
+import { Routes } from '@angular/router';
+
+/**
+ * Administrationsbereich. Die Fachlogik der einzelnen Aufgaben bleibt beim
+ * jeweiligen Fachmodul – hier liegt nur der Einstieg. Der Bereich kennt kein
+ * Rollenmodell: er steht jeder geprüften Anmeldung offen (siehe
+ * docs/konzept-fahrzeuge.md, Abschnitt 8).
+ */
+export const verwaltungRouten: Routes = [
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./pages/verwaltung-startseite/verwaltung-startseite').then(
+        (modul) => modul.VerwaltungStartseite,
+      ),
+  },
+  {
+    path: 'fahrzeuge-import',
+    loadComponent: () =>
+      import('../fahrzeuge/pages/fahrzeug-import/fahrzeug-import').then(
+        (modul) => modul.FahrzeugImport,
+      ),
+  },
+];

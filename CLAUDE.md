@@ -141,6 +141,19 @@ serverseitig einen Eintrag im Änderungsprotokoll (`fahrzeug_aenderungen`); die 
 entsteht aus dem tatsächlichen Unterschied zum vorherigen Stand, nie aus einer
 Client-Eingabe (siehe `docs/konzept-fahrzeuge.md`, Abschnitt „Änderungsprotokoll").
 
+Der Verwaltungsbereich (`src/app/verwaltung/`, Route `/verwaltung`) hält nur den Einstieg in
+administrative Aufgaben; die Fachlogik bleibt beim jeweiligen Fachmodul. Er kennt kein
+Rollenmodell und ist kein Zugriffsschutz — das nicht anders dokumentieren. Der
+CSV-Stammdatenimport (`src/app/fahrzeuge/services/fahrzeug-import.ts`, Seite unter
+`src/app/fahrzeuge/pages/fahrzeug-import/`, CSV-Leser in `src/app/kern/text/csv.ts`) legt
+Fahrzeuge ausschließlich über den bestehenden `POST /api/fahrzeuge` mit `If-None-Match: *`
+an; keinen Massenschreibpfad und keinen Importendpunkt ergänzen. Pflichtspalten sind
+`bezeichnung` und `kennzeichen`, als Prüftermin wird nur die HU übernommen. Jedes
+Kennzeichen wird nur einmalig importiert, verglichen tolerant normalisiert; die Regel gilt
+bislang ausschließlich im Import, nicht in der Datenbank und nicht bei manueller Anlage
+(siehe `docs/konzept-fahrzeuge.md`, Abschnitte „Verwaltungsbereich und Stammdatenimport"
+sowie 9).
+
 EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt serverseitig
 `apikey`, `version=2` und `action` als Formulardaten. Ziel aus
 `HIORGSERVER_BASE_URL`, Token aus `HIORGSERVER_EFS_API_TOKEN`. Neue Aktionen benötigen
