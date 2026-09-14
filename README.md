@@ -219,6 +219,10 @@ Wochenraster kann horizontal gescrollt werden. Für den Einsatzplaner sind respo
 Anpassungen vorbereitet; für umfangreiche Zuordnungen wird vorerst Desktopbedienung
 empfohlen.
 
+Eine eigenständige mobile App ist nicht umgesetzt. Ein Entwurf dazu, einschließlich der
+beiden blockierenden Punkte Anmeldung in einer WebView und Erreichbarkeit von
+`/.well-known/`, steht in [Konzept Mobile App](docs/konzept-mobile-app.md).
+
 Die gelesenen Quellprojekte weichen an zwei Stellen von der Auftragsbeschreibung ab:
 
 - `MEDIZINISCH_ORDER` enthält tatsächlich neun Werte:
