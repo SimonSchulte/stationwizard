@@ -64,6 +64,24 @@ main {
   font-size: 0.875rem;
   min-width: 0;
 }
+.benutzer-schalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.benutzer-schalter:hover,
+.benutzer-schalter:focus-visible {
+  background: var(--ci-blue);
+}
 .benutzer-avatar {
   display: flex;
   align-items: center;
@@ -84,7 +102,6 @@ main {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.benutzer a,
 .shell-meldung a {
   text-decoration: underline;
 }

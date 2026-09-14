@@ -17,9 +17,19 @@
   </a>
   <div class="benutzer">
     @if (benutzer.email() && worker.zustand() !== 'sitzung-abgelaufen') {
-      <span class="benutzer-avatar" aria-hidden="true">{{ benutzer.initialen() }}</span>
-      <span class="benutzer-name" [title]="benutzer.email()">{{ benutzer.anzeigename() }}</span>
-      <a href="/cdn-cgi/access/logout">Abmelden</a>
+      <button
+        type="button"
+        class="benutzer-schalter"
+        [matMenuTriggerFor]="benutzerMenu"
+        [title]="benutzer.email()"
+      >
+        <span class="benutzer-avatar" aria-hidden="true">{{ benutzer.initialen() }}</span>
+        <span class="benutzer-name">{{ benutzer.anzeigename() }}</span>
+        <mat-icon aria-hidden="true">arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #benutzerMenu="matMenu">
+        <a mat-menu-item href="/cdn-cgi/access/logout">Abmelden</a>
+      </mat-menu>
     } @else if (benutzer.laedt()) {
       <span>Benutzer wird geladen …</span>
     }

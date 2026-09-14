@@ -43,13 +43,19 @@ describe('Gemeinsame Anwendung', () => {
     expect(element.querySelector('nav')?.textContent).toContain('Einsatz');
     expect(element.querySelector('nav')?.textContent).toContain('Fahrzeuge');
     expect(element.querySelector('.benutzer-name')?.textContent).toContain('Uebung');
-    expect(element.querySelector('.benutzer-name')?.getAttribute('title')).toBe(
+    expect(element.querySelector('.benutzer-schalter')?.getAttribute('title')).toBe(
       'uebung@example.invalid',
     );
     expect(element.querySelector('.benutzer-avatar')?.textContent?.trim()).toBe('U');
-    expect(element.querySelector('.benutzer a')?.getAttribute('href')).toBe(
-      '/cdn-cgi/access/logout',
-    );
+  });
+  it('öffnet über den Benutzer-Schalter ein Menü mit dem Abmelden-Eintrag', async () => {
+    const ansicht = TestBed.createComponent(App);
+    ansicht.detectChanges();
+    const element = ansicht.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('.benutzer-schalter')?.click();
+    await ansicht.whenStable();
+    const abmelden = document.querySelector('a[href="/cdn-cgi/access/logout"]');
+    expect(abmelden?.textContent).toContain('Abmelden');
   });
   it('zeigt einen immer sichtbaren Footer', () => {
     const ansicht = TestBed.createComponent(App);
