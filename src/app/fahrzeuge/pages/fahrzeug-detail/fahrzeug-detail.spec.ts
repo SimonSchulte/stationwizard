@@ -483,6 +483,34 @@ describe('FahrzeugDetail', () => {
     expect(detail.qrCodes()?.km).toMatch(/^data:image\/png;base64,/);
   });
 
+  it('lädt einen einzelnen QR-Code als SVG herunter', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+    ]);
+    const erzeugteUrl = 'blob:mock-url';
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue(erzeugteUrl);
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const klickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    await detail.qrSvgHerunterladen('km');
+    expect(createObjectUrlSpy).toHaveBeenCalledTimes(1);
+    const blob = createObjectUrlSpy.mock.calls[0][0] as Blob;
+    expect(blob.type).toBe('image/svg+xml');
+    expect(klickSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith(erzeugteUrl);
+    createObjectUrlSpy.mockRestore();
+    revokeObjectUrlSpy.mockRestore();
+    klickSpy.mockRestore();
+  });
+
   it('meldet einen Fehler, wenn der Druckbogen nicht erzeugt werden kann', async () => {
     const fahrzeug = erzeugeTestfahrzeug();
     const store = {

@@ -386,10 +386,16 @@
               <figure>
                 <img [src]="codes.uebersicht" alt="QR-Code zur Fahrzeugübersicht" width="160" />
                 <figcaption>Übersicht</figcaption>
+                <button mat-stroked-button (click)="qrSvgHerunterladen('uebersicht')">
+                  <mat-icon>download</mat-icon> Als SVG herunterladen
+                </button>
               </figure>
               <figure>
                 <img [src]="codes.km" alt="QR-Code zur Kilometerstanderfassung" width="160" />
                 <figcaption>Kilometerstand erfassen</figcaption>
+                <button mat-stroked-button (click)="qrSvgHerunterladen('km')">
+                  <mat-icon>download</mat-icon> Als SVG herunterladen
+                </button>
               </figure>
             </div>
           }
