@@ -11,6 +11,7 @@ export type Hauptrolle =
   | 'gruppenfuehrung-sanitaet'
   | 'gruppenfuehrung-betreuung'
   | 'gruppenfuehrung-tesi'
+  | 'gruppenfuehrung-verpflegung'
   | 'gruppenfuehrung-fuehrung'
   | 'helfer';
 
@@ -19,6 +20,7 @@ export const HAUPTROLLEN: readonly Hauptrolle[] = [
   'gruppenfuehrung-sanitaet',
   'gruppenfuehrung-betreuung',
   'gruppenfuehrung-tesi',
+  'gruppenfuehrung-verpflegung',
   'gruppenfuehrung-fuehrung',
   'helfer',
 ];
@@ -28,6 +30,7 @@ export const HAUPTROLLE_LABEL: Readonly<Record<Hauptrolle, string>> = {
   'gruppenfuehrung-sanitaet': 'Gruppenführung Sanität',
   'gruppenfuehrung-betreuung': 'Gruppenführung Betreuung',
   'gruppenfuehrung-tesi': 'Gruppenführung TeSi',
+  'gruppenfuehrung-verpflegung': 'Gruppenführung Verpflegung',
   'gruppenfuehrung-fuehrung': 'Gruppenführung Führung',
   helfer: 'Helfer',
 };

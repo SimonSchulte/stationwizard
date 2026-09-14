@@ -150,7 +150,8 @@ außerhalb dieser App. Die eigene D1-Datenbank (`BENUTZER_DB`, Schema in
 `worker/migrations/0004_benutzer.sql`) merkt nur vor, wer sich bereits mindestens einmal
 geprüft angemeldet hat (bei jedem `GET /api/benutzer`), und ordnet optional eine
 Hauptrolle aus `zugfuehrung`, `gruppenfuehrung-sanitaet`, `gruppenfuehrung-betreuung`,
-`gruppenfuehrung-tesi`, `gruppenfuehrung-fuehrung`, `helfer` zu. Unabhängig davon
+`gruppenfuehrung-tesi`, `gruppenfuehrung-verpflegung`, `gruppenfuehrung-fuehrung`,
+`helfer` zu. Unabhängig davon
 kombinierbare Sonderrollen (`sonderrollen`, aktuell nur `verwaltungshelfer`) stehen als
 JSON-Array, damit künftige weitere Sonderrollen ohne Schemaänderung dazukommen können.
 Rollenvergabe ist vorerst jeder geprüften Identität möglich – dieselbe Übergangslösung wie

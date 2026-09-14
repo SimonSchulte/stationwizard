@@ -17,6 +17,7 @@ const ROLLEN = new Set([
   'gruppenfuehrung-sanitaet',
   'gruppenfuehrung-betreuung',
   'gruppenfuehrung-tesi',
+  'gruppenfuehrung-verpflegung',
   'gruppenfuehrung-fuehrung',
   'helfer',
 ]);
