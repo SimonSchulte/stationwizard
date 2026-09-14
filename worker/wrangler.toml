@@ -28,13 +28,10 @@ database_id = "698facb9-4c99-45de-8879-d262c2144144"
 
 # Benutzerverwaltung (AP-B1). Eigene D1-Datenbank statt FAHRZEUGE_DB, damit
 # die Fachdomänen getrennt bleiben; Schema in worker/migrations/0004_benutzer.sql.
-# TODO vor dem ersten Deployment: echte Datenbank per
-# `npx wrangler d1 create stationwizard-benutzer` anlegen, `database_id`
-# unten ersetzen und die Migration anwenden (siehe worker/README.md).
 [[d1_databases]]
 binding = "BENUTZER_DB"
 database_name = "stationwizard-benutzer"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "8d57d55d-8bd2-4701-bbbe-f25a4ee34fa9"
 
 # Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
 [observability]

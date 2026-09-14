@@ -863,3 +863,22 @@ Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (463 Angu
 Binding. `npm run test:spa` in dieser Runde nicht ausgeführt, weil unverändert wie zuvor
 dokumentiert blockiert. Keine Browserprüfung in dieser Runde — die neue Seite wurde nicht
 in `ng serve` gegen einen echten oder gemockten Worker geöffnet.
+
+### Nachtrag in derselben Runde: echte D1-Datenbank angelegt
+
+Der reale Deploy-Versuch (Cloudflare Workers Builds auf dem Feature-Branch) scheiterte
+erwartungsgemäß mit `D1 binding 'BENUTZER_DB' references database
+'00000000-0000-0000-0000-000000000000' which was not found` — die Platzhalter-`database_id`
+existiert naturgemäß nicht. `deploy:dry-run` prüft das nicht, weil er nur lokal gegen die
+Konfiguration validiert, nicht gegen das tatsächliche Cloudflare-Konto.
+
+Die Datenbank wurde daraufhin angelegt (`stationwizard-benutzer`, `database_id`
+`8d57d55d-8bd2-4701-bbbe-f25a4ee34fa9`), die Migration `0004_benutzer.sql` darauf
+angewendet und `worker/wrangler.toml` mit der echten `database_id` aktualisiert. Kein
+Bestand vorher, also keine Doubletten- oder Datenübernahmeprobleme. `worker/README.md`
+entsprechend nachgezogen: der Abschnitt „Benutzerverwaltung (D1)" beschreibt jetzt den
+erledigten Stand statt eines TODOs.
+
+Nicht erneut ausgeführt in diesem Nachtrag: `npm test`/`build` (unverändert seit der
+vorherigen Prüfung in dieser Runde, da nur `wrangler.toml`- und Dokumentationstext
+geändert wurden) und keine erneute Browserprüfung.

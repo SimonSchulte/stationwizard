@@ -219,8 +219,8 @@ jeder geprüften Identität möglich – es gibt noch keine Rolle, die eine Bere
 prüfen könnte (siehe „Rechte vorerst alle, Rollen später" im Fahrzeugmodul,
 `docs/konzept-fahrzeuge.md`, Abschnitt 8, für dieselbe Übergangslösung).
 
-**TODO vor dem ersten Deployment:** `wrangler.toml` enthält noch die Platzhalter-
-`database_id` `00000000-0000-0000-0000-000000000000`. Eine neue D1-Datenbank anlegen:
+Angelegt und Migration angewendet (`database_id` `8d57d55d-8bd2-4701-bbbe-f25a4ee34fa9` in
+`wrangler.toml`). Für eine erneute Einrichtung an anderer Stelle:
 
 ```bash
 npx wrangler d1 create stationwizard-benutzer --config worker/wrangler.toml
