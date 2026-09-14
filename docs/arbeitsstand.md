@@ -882,3 +882,66 @@ erledigten Stand statt eines TODOs.
 Nicht erneut ausgeführt in diesem Nachtrag: `npm test`/`build` (unverändert seit der
 vorherigen Prüfung in dieser Runde, da nur `wrangler.toml`- und Dokumentationstext
 geändert wurden) und keine erneute Browserprüfung.
+
+## HiOrg-Kalender: vollständige Freigabe-URL wieder als Secret zugelassen
+
+**Befund aus dem Betrieb.** `GET /api/hiorg/kalender?monat=2026-09` beantwortet der Worker
+produktiv mit `502 / HIORG_KALENDER_ANTWORT_UNGUELTIG`. Das mit
+„HiOrg-Kalender: Status/Content-Type/Content-Length bei unlesbarer Antwort loggen"
+ergänzte Betreiberlog benennt die Ursache genau: HiOrg antwortet mit **Status 200 und
+`Content-Type: text/html; charset=UTF-8`** – also mit einer Seite statt mit dem
+JSON-Feed. Der anschließend mitgeschickte browsertypische `User-Agent` hat daran nichts
+geändert; der Fehler blieb bestehen.
+
+**Ursache.** Mit „HiOrg-Kalender: beide Zeitrichtungen statt fester Konfiguration" wurde
+`HIORGSERVER_CALENDER_FEED` von der vollständigen Freigabe-URL auf den reinen
+`lab`-Tokenwert umgestellt; Host, Pfad und die Parameterliste (`ov`, `termin`, `dienst`,
+`auchint`, `zr_dienst`, `json`) baut der Worker seither selbst. Diese Liste ist aus einer
+einzelnen Freigabe abgeleitet und durch keine HiOrg-Dokumentation belegt, und der Umbau
+wurde nie gegen den echten Feed geprüft (das Secret liegt in der Entwicklungsumgebung
+nicht vor). Passt die selbst gebaute Adresse nicht zur Einrichtung – oder steht im Secret
+weiterhin die vollständige URL, die `pruefeLabToken()` mangels Steuerzeichen anstandslos
+durchwinkte und als `lab`-Wert in die Adresse setzte –, liefert HiOrg genau die
+beobachtete HTML-Seite. Die für die Umstellung dokumentierte Sperre
+(`503 / HIORG_KALENDER_KONFIGURATION_FEHLT` bei einem URL-Secret) trat dabei nie ein.
+
+**Korrektur.** `pruefeFeedZugang()` (`worker/src/hiorg-kalender.ts`) ersetzt
+`pruefeLabToken()` und nimmt beide Formen an, erkannt an der Gestalt des Wertes:
+
+- **Vollständige Freigabe-URL** (führend): der Worker ruft genau diese Adresse ab und
+  ersetzt darin ausschließlich `monate`. Die je Anfrage passende Zeitrichtung aus der
+  vorherigen Runde bleibt damit erhalten. Die URL muss `https:` sein, auf
+  `hiorg-server.de` zeigen und darf weder Zugangsdaten im Ursprung noch ein Fragment
+  tragen; sonst sperrt `503 / HIORG_KALENDER_KONFIGURATION_FEHLT` wie zuvor.
+- **Reiner `lab`-Tokenwert**: unverändertes Verhalten über `FEED_URL_BASIS` und
+  `FESTE_FEED_PARAMETER`.
+
+Geheim sind der Tokenwert beziehungsweise die vollständige URL samt ihrer Query-Werte ab
+`MIN_GEHEIM_LAENGE` (8 Zeichen). Kurze Schaltwerte (`1`, `biel`) bleiben bewusst außen
+vor: sie stehen ohnehin in den öffentlichen Ereignis-Detaillinks und würden als
+„Geheimnis" jeden Termin verwerfen, dessen Bezeichnung eine `1` enthält – dieselbe Klasse
+Falsch-Positiv wie bei der früheren Prüfung der gesamten Antworthülle.
+
+Das Betreiberlog zu `HIORG_KALENDER_ANTWORT_UNGUELTIG` nennt jetzt zusätzlich die
+**Gestalt** des Secrets (`vollständige Freigabe-URL` / `lab-Tokenwert`, nie den Wert) und
+weist bei `text/html` ausdrücklich darauf hin, dass HiOrg eine Seite statt JSON liefert.
+
+`CLAUDE.md`, `worker/README.md` und `docs/einrichtung.md` beschreiben wieder beide
+zulässigen Secret-Formen; die feste Parameterliste ist dort ausdrücklich als nicht
+nachgewiesen gekennzeichnet.
+
+**Bewusst offen geblieben:** Ohne Zugriff auf den echten Feed lässt sich hier nicht
+entscheiden, welcher der beiden möglichen Auslöser produktiv zutrifft (URL noch im Secret
+oder abweichende Feed-Parameter). Beide führen auf denselben Weg: die vollständige
+Freigabe-URL ins Secret eintragen. Ein Abruf gegen `www.hiorg-server.de` ist aus dieser
+Umgebung netzseitig gesperrt (`connect_rejected`), ein Nachweis am echten Feed steht
+deshalb weiterhin aus.
+
+Geprüft: `npm run worker:check`, `npm run worker:test` (361 Worker-Tests, darunter neun
+neue Fälle für die URL-Form: exakte Zieladresse mit ersetztem `monate`, keine Ergänzung
+der festen Parameter, Sperre bei fremdem Host/fehlendem TLS/Zugangsdaten im
+Ursprung/unlesbarer Adresse, gespiegelter Tokenwert, kurze Schaltwerte als Falsch-Positiv),
+`npm run build`, `npm test` (478 Angular-Tests, 361 Worker-Tests),
+`npm run format:check` und `npm run deploy:dry-run` – alle grün. Keine Browserprüfung: die
+Änderung liegt vollständig im Worker und ändert die Client-Antwort nicht.
+`npm run test:spa` bleibt wie zuvor dokumentiert blockiert.

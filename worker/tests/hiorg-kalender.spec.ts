@@ -246,6 +246,91 @@ describe('HiOrg-Kalender: Zugangsdatum', () => {
   });
 });
 
+/**
+ * `HIORGSERVER_CALENDER_FEED` darf auch die vollständige Freigabe-URL enthalten,
+ * so wie HiOrg sie ausgibt. Der Worker ruft dann genau diese Adresse ab und
+ * ersetzt darin ausschließlich `monate`; die aus einer einzelnen Freigabe
+ * abgeleitete feste Parameterliste kommt in diesem Fall nicht zum Zug.
+ */
+describe('HiOrg-Kalender: vollständige Freigabe-URL als Secret', () => {
+  // Frei erfundene Freigabe-URL mit frei erfundenem Tokenwert; `ausgabe=json`
+  // und `monate=-24` weichen bewusst von der festen Parameterliste ab.
+  const FREIGABE_TOKEN = 'nur-fuer-den-test-erfundener-tokenwert-4711';
+  const FREIGABE_URL =
+    'https://www.hiorg-server.de/termine.php?ov=biel&termin=1&dienst=1' +
+    `&ausgabe=json&lab=${FREIGABE_TOKEN}&monate=-24`;
+
+  function abgerufeneUrl(): URL {
+    return new URL(String(abrufen.mock.calls[0]?.[0]));
+  }
+
+  beforeEach(() => {
+    // 15. Juni 2026, 10:00 UTC – wie im Monatsblock, damit `monate` feststeht.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-15T10:00:00Z'));
+    umgebung = { HIORGSERVER_CALENDER_FEED: FREIGABE_URL };
+  });
+
+  it('ruft genau die konfigurierte Adresse ab und ersetzt nur monate', async () => {
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-09'), umgebung);
+
+    const ziel = abgerufeneUrl();
+    expect(ziel.origin + ziel.pathname).toBe('https://www.hiorg-server.de/termine.php');
+    expect(ziel.searchParams.get('ausgabe')).toBe('json');
+    expect(ziel.searchParams.get('lab')).toBe(FREIGABE_TOKEN);
+    expect(ziel.searchParams.get('monate')).toBe('4');
+  });
+
+  it('ersetzt die konfigurierte Adresse nicht durch die feste Parameterliste', async () => {
+    await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    const ziel = abgerufeneUrl();
+    expect(ziel.searchParams.get('auchint')).toBeNull();
+    expect(ziel.searchParams.get('zr_dienst')).toBeNull();
+    expect(ziel.searchParams.get('json')).toBeNull();
+    expect(ziel.searchParams.get('monate')).toBe('1');
+  });
+
+  it.each([
+    ['fremdem Host', 'https://beispiel.invalid/termine.php?lab=erfunden-4711'],
+    ['fehlendem TLS', 'http://www.hiorg-server.de/termine.php?lab=erfunden-4711'],
+    ['Zugangsdaten im Ursprung', 'https://n:g@www.hiorg-server.de/termine.php?lab=erfunden-4711'],
+    ['unlesbarer Adresse', 'https://'],
+  ])('sperrt bei URL-Secret mit %s', async (_fall, wert) => {
+    const antwort = await verarbeiteHiorgKalender(anfrage(), {
+      HIORGSERVER_CALENDER_FEED: wert,
+    });
+
+    expect(antwort.status).toBe(503);
+    expect(await inhaltVon(antwort)).toMatchObject({
+      code: 'HIORG_KALENDER_KONFIGURATION_FEHLT',
+    });
+    expect(abrufen).not.toHaveBeenCalled();
+  });
+
+  it('verwirft einen Eintrag, der den Tokenwert der Freigabe spiegelt', async () => {
+    feed(rohEintrag({ id: 1000005, verbez: `Erfunden ${FREIGABE_TOKEN}` }));
+
+    const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    expect(antwort.status).toBe(502);
+    expect(await inhaltVon(antwort)).toMatchObject({
+      code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG',
+    });
+  });
+
+  it('behält Einträge, deren Text nur die kurzen Schaltwerte der Adresse enthält', async () => {
+    feed(
+      rohEintrag({ id: 1000006, verbez: 'Erfundene Ausbildung 1' }),
+      rohEintrag({ id: 1000007, verbez: 'Erfundener Dienst in biel' }),
+    );
+
+    const eintraege = await eintraegeVon(await verarbeiteHiorgKalender(anfrage(), umgebung));
+
+    expect(eintraege).toHaveLength(2);
+  });
+});
+
 describe('HiOrg-Kalender: Upstream-Fehler', () => {
   it('folgt keiner Weiterleitung', async () => {
     abrufen.mockResolvedValue(new Response(null, { status: 302 }));
@@ -315,10 +400,16 @@ describe('HiOrg-Kalender: Upstream-Fehler', () => {
 
     expect(antwort.status).toBe(502);
     expect(await inhaltVon(antwort)).toMatchObject({ code: 'HIORG_KALENDER_ANTWORT_UNGUELTIG' });
-    expect(log).toHaveBeenCalledWith(
-      'HIORG_KALENDER_ANTWORT_UNGUELTIG',
-      'JSON-Antwort nicht lesbar oder kein Body (Status 200, Content-Type text/html; charset=utf-8, Content-Length fehlt)',
-    );
+    // Die Gestalt des Secrets steht im Grund, weil genau sie die Ursache
+    // eingrenzt: eine HTML-Antwort deutet auf eine Adresse, die nicht zur
+    // Einrichtung passt. Der Wert selbst bleibt draußen.
+    const grund = String(log.mock.calls[0]?.[1]);
+    expect(grund).toContain('Status 200');
+    expect(grund).toContain('Content-Type text/html; charset=utf-8');
+    expect(grund).toContain('Content-Length fehlt');
+    expect(grund).toContain('Feed-Zugang lab-Tokenwert');
+    expect(grund).toContain('HTML-Seite statt JSON');
+    expect(grund).not.toContain(LAB_TOKEN);
   });
 
   it.each([

@@ -51,7 +51,7 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
 | `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
-| `HIORGSERVER_CALENDER_FEED` | Nur der `lab`-Tokenwert aus der HiOrg-Kalenderfreigabe (keine URL); Host/Pfad/übrige Parameter sind im Worker fest hinterlegt  |
+| `HIORGSERVER_CALENDER_FEED` | Vollständige HiOrg-Kalenderfreigabe-URL (führend) oder ersatzweise nur der `lab`-Tokenwert daraus                              |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
 Worker unter **Bindings** kontrollieren, ob genau diese sechs Namen auf den richtigen Store
@@ -233,17 +233,31 @@ Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER
 
 ### HiOrg-Kalenderfeed
 
-`HIORGSERVER_CALENDER_FEED` enthält **nur noch den `lab`-Tokenwert** aus der
-HiOrg-Kalenderfreigabe, nicht mehr die vollständige Feed-URL. Host (`www.hiorg-server.de`),
-Pfad (`/termine.php`) und die übrigen Anfrageparameter (`ov`, `termin`, `dienst`, `auchint`,
-`zr_dienst`, `json`) sind fest im Worker hinterlegt (`FEED_URL_BASIS`,
-`FESTE_FEED_PARAMETER` in `hiorg-kalender.ts`) und werden dort serverseitig ergänzt –
-dasselbe Muster wie `apikey`/`version`/`action` beim EFS-Ziel. Die Schreibweise „CALENDER"
-ist bewusst übernommen – das Secret heißt im Store genau so.
+`HIORGSERVER_CALENDER_FEED` darf beide Formen haben; `pruefeFeedZugang()` in
+`hiorg-kalender.ts` erkennt sie an der Gestalt des Wertes:
 
-Der Worker leitet das Ziel nie aus Konfiguration ab: Host und Pfad stehen fest im Code,
-das Secret liefert ausschließlich den `lab`-Wert. Ein vertauschtes Secret kann den Worker
-damit nicht zu einem beliebigen fremden Ziel schicken.
+- **Vollständige Freigabe-URL** – der empfohlene Weg, weil HiOrg die Adresse genau so
+  ausgibt und sie nachweislich JSON liefert. Der Worker ruft exakt diese Adresse ab und
+  ersetzt darin ausschließlich `monate`.
+- **Reiner `lab`-Tokenwert** – dann baut der Worker die Adresse aus `FEED_URL_BASIS`
+  (`https://www.hiorg-server.de/termine.php`) und `FESTE_FEED_PARAMETER` (`ov`, `termin`,
+  `dienst`, `auchint`, `zr_dienst`, `json`) selbst, wie bei `apikey`/`version`/`action` am
+  EFS-Ziel. Diese Parameterliste stammt aus einer einzelnen Freigabe und ist **nicht**
+  durch die HiOrg-Dokumentation belegt: weicht die eigene Einrichtung davon ab, antwortet
+  HiOrg mit einer HTML-Seite (Status 200) statt mit JSON, und der Endpunkt meldet
+  `HIORG_KALENDER_ANTWORT_UNGUELTIG`. In diesem Fall die vollständige Freigabe-URL
+  eintragen.
+
+Die Schreibweise „CALENDER" ist bewusst übernommen – das Secret heißt im Store genau so.
+
+Ein vertauschtes Secret kann den Worker nicht zu einem beliebigen fremden Ziel schicken:
+eine konfigurierte URL muss `https:` sein, auf `hiorg-server.de` zeigen und darf weder
+Zugangsdaten im Ursprung noch ein Fragment enthalten; andernfalls antwortet der Endpunkt
+mit `503 / HIORG_KALENDER_KONFIGURATION_FEHLT`. Geheim sind der `lab`-Tokenwert
+beziehungsweise die vollständige URL samt ihrer hinreichend langen Query-Werte – kurze
+Schaltwerte wie `1` oder `biel` gelten nicht als Zugangsdatum, weil sie ohnehin in den
+öffentlichen Ereignis-Detaillinks stehen und als „Geheimnis" jeden Termin mit einer `1` im
+Namen verwerfen würden.
 
 HiOrg kann pro Abruf nur in eine Richtung schauen: `monate` zählt ab heute vorwärts
 (positiv) oder zurück (negativ), nie beides zugleich. Der optionale Anfrageparameter
@@ -405,14 +419,14 @@ im JSON sowie in `X-Stationwizard-Diagnose`:
 | `EFS_ABRUF_FEHLGESCHLAGEN`            | 502  | HiOrg lieferte einen nicht erfolgreichen HTTP-Status              |
 | `EFS_ANTWORT_UNGUELTIG`               | 502  | JSON-Status/Form unerwartet oder Zugangsdaten gespiegelt          |
 | `EFS_ANTWORT_ZU_GROSS`                | 502  | Antwort überschreitet 5 MiB                                       |
-| `HIORG_KALENDER_KONFIGURATION_FEHLT`  | 503  | Feed-Secret fehlt, ist kein HTTPS-URL oder zeigt nicht auf HiOrg  |
+| `HIORG_KALENDER_KONFIGURATION_FEHLT`  | 503  | Feed-Secret fehlt oder ist eine URL ohne HTTPS/HiOrg-Ziel         |
 | `HIORG_KALENDER_ANFRAGE_UNGUELTIG`    | 400  | Der Endpunkt nimmt keine URL-Parameter entgegen                   |
 | `HIORG_KALENDER_ZEITLIMIT`            | 504  | HiOrg-Feed zu langsam                                             |
 | `HIORG_KALENDER_NICHT_ERREICHBAR`     | 502  | DNS, TLS oder Verbindung zum Feed prüfen                          |
 | `HIORG_KALENDER_UMLEITUNG`            | 502  | Feed antwortet mit 3xx; kanonische URL eintragen                  |
 | `HIORG_KALENDER_ABRUF_FEHLGESCHLAGEN` | 502  | HiOrg lieferte einen nicht erfolgreichen HTTP-Status              |
 | `HIORG_KALENDER_ANTWORT_ZU_GROSS`     | 502  | Feed-Antwort überschreitet 1 MiB                                  |
-| `HIORG_KALENDER_ANTWORT_UNGUELTIG`    | 502  | `success` fehlt, kein brauchbarer Termin oder Feed-URL gespiegelt |
+| `HIORG_KALENDER_ANTWORT_UNGUELTIG`    | 502  | HTML statt JSON, `success` fehlt, kein Termin oder URL gespiegelt |
 
 Keine Tokens, Secretlängen oder vollständigen Bindinglisten werden veröffentlicht.
 Der gemeinsame Client sendet `X-Requested-With: XMLHttpRequest`, damit Access eine
