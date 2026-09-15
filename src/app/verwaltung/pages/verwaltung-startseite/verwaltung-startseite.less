@@ -46,6 +46,23 @@ h1 {
 .aufgabe mat-icon {
   color: var(--ci-red);
 }
+button.aufgabe {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  &:disabled {
+    cursor: progress;
+    opacity: 0.7;
+  }
+}
+.aufgabe .aktion mat-progress-spinner {
+  display: inline-block;
+}
+.aufgabe .fehler {
+  color: var(--status-error);
+  margin: 0 0 var(--space-sm);
+}
 h2 {
   color: var(--ci-dark-blue);
   font-size: 1.35rem;

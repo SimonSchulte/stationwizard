@@ -1085,6 +1085,59 @@ produktive Google-Sitzung hat **nicht** stattgefunden. Worker und Routing sind
 unverändert, deshalb kein neuer `test:spa`-/`deploy:dry-run`-Lauf; `test:spa` bleibt wie
 zuvor dokumentiert blockiert.
 
+## Fahrzeug-QR-Übersichtsbogen für die Zugführung
+
+Fachlicher Wunsch: ein druckbarer Übersichtsbogen mit dem Kilometererfassungs-QR-Code
+jedes Fahrzeugs (zwei je Zeile, Funkrufname und Kennzeichen als Text daneben), erreichbar
+aus dem Verwaltungsbereich und nur für die Rolle Zugführung sichtbar.
+
+- `FahrzeugDruckbogenService.erzeugeUndSpeichereUebersicht()` (neue Methode neben dem
+  bestehenden `erzeugeUndSpeichere()` für den Einzelbogen): sortiert die übergebene
+  Fahrzeugliste nach Bezeichnung, erzeugt für jedes Fahrzeug nur den
+  Erfassungs-QR-Code (`.../km`, nicht den Übersichts-Code – hier zählt der schnelle Weg
+  zum Formular), und baut daraus eine pdfmake-Tabelle mit zwei Spalten
+  (`layout: 'lightHorizontalLines'` als Zeilentrennung), ungerade Fahrzeuganzahl bekommt
+  eine leere Schlusszelle. Die gemeinsame `ladePdfMake()`-Hilfsfunktion (dynamischer
+  Import von `pdfmake` und `vfs_fonts`) ist aus dem Einzelbogen herausgezogen, damit
+  beide Methoden sie teilen.
+- **Bewusst kein Kennzeichen im QR-Inhalt selbst**, obwohl fachlich gewünscht: der
+  QR-Code bleibt die reine Ziel-URL ohne zusätzliche Kennung (siehe Konzept, Abschnitt 4,
+  „kein Token im Code“) – ein eingebettetes Kennzeichen hätte den gedruckten Code aus
+  einem reinen Weiterleitungsaufkleber in einen Träger echter Fachdaten verwandelt, ohne
+  dass die Erfassungsseite ihn bräuchte (sie kennt das Fahrzeug schon über die UUID in der
+  Ziel-URL). Kennzeichen und Funkrufname stehen stattdessen als Text über jedem Code.
+- **Erste UI-Sichtbarkeitsprüfung nach Rolle im Verwaltungsbereich.** Der Bereich hatte
+  bisher ausdrücklich kein Rollenmodell (siehe Abschnitt „Verwaltungsbereich mit
+  CSV-Stammdatenimport“ oben). Für dieses eine Feature reicht das nicht: es soll nur die
+  Zugführung sehen. Dafür `BenutzerverwaltungStoreService.eigeneRolle` /
+  `.istZugfuehrung` ergänzt – ein `computed()`, das die bereits geladene Benutzerliste
+  (`GET /api/benutzerverwaltung`, ohnehin für jede angemeldete Person abrufbar) mit der
+  eigenen, über `Benutzerkontext.email()` geprüften Access-Identität abgleicht.
+  **Ausdrücklich kein Zugriffsschutz**, nur eine Einblendregel: es gibt keine
+  serverseitige Durchsetzung, der Aufruf bleibt technisch für jede angemeldete Person
+  möglich. Das deckt sich mit der bestehenden Aussage in CLAUDE.md „Rechte vorerst alle,
+  Rollen später“ – eine echte Durchsetzung ist damit weiterhin offen.
+- `VerwaltungStartseite` lädt beim Aufbau `BenutzerverwaltungStoreService.listeLaden()`
+  und blendet bei `istZugfuehrung()` eine dritte Kachel ein (als `<button>` statt `<a>`,
+  da sie direkt herunterlädt statt zu navigieren – `.aufgabe`-Klasse wiederverwendet,
+  Browser-Default `text-align: center` für `<button>` explizit auf `left` zurückgesetzt).
+  Klick lädt bei Bedarf die Fahrzeugliste (`FahrzeugStoreService.listeLaden()`) und ruft
+  den neuen Druckbogendienst auf; „keine Fahrzeuge vorhanden“ und ein fehlgeschlagener
+  PDF-Aufbau werden als Fehlertext in der Kachel angezeigt, kein stiller Fehlschlag.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (499 Angular- und
+  385 Worker-Tests, unverändert da kein Worker-Code betroffen) und `npm run format:check`
+  – alle grün. Browserprüfung mit Chromium über Playwright gegen `ng serve` tatsächlich
+  ausgeführt, auf **Desktop (1280×900)** und **Mobil (390×844)**: ohne erreichbaren
+  Worker bleibt `istZugfuehrung()` `false` (Liste lädt nicht), die neue Kachel blieb
+  dabei korrekt ausgeblendet und die Seite fehlerfrei (keine Konsolenfehler). Um das
+  eingeblendete Aussehen, die Textausrichtung und den Fehlerzustand zu prüfen, wurde
+  `istZugfuehrung` lokal vorübergehend hart auf `true` gesetzt, fotografiert (Kachel
+  erscheint layoutgleich zu den bestehenden, Klick zeigt „Es sind keine Fahrzeuge
+  vorhanden.“ in Rot) und die Änderung danach vollständig rückgängig gemacht – nicht
+  Teil des Commits. Ein Lauf mit echter Cloudflare-Access-Sitzung und echten
+  Fahrzeugdaten (tatsächlich sichtbarer QR-Bogen mit realen Kennzeichen) hat **nicht**
+  stattgefunden; das bleibt für eine Prüfung mit angebundenem Worker offen.
+
 ## Nachtrag – Kennzeichen-Chip in der Kilometerbilanz
 
 Fachlicher Wunsch: In der Kilometerbilanz auf dem Fuhrpark-Dashboard soll neben der

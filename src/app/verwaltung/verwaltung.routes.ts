@@ -3,8 +3,11 @@ import { Routes } from '@angular/router';
 /**
  * Administrationsbereich. Die Fachlogik der einzelnen Aufgaben bleibt beim
  * jeweiligen Fachmodul – hier liegt nur der Einstieg. Der Bereich kennt kein
- * Rollenmodell: er steht jeder geprüften Anmeldung offen (siehe
- * docs/konzept-fahrzeuge.md, Abschnitt 8).
+ * durchgesetztes Rollenmodell: er steht jeder geprüften Anmeldung offen (siehe
+ * docs/konzept-fahrzeuge.md, Abschnitt 8). Der Fahrzeug-QR-Übersichtsbogen auf
+ * der Startseite ist eine Ausnahme – er blendet sich nur für die Rolle
+ * `zugfuehrung` ein (`BenutzerverwaltungStoreService.istZugfuehrung`), rein als
+ * UI-Regel ohne serverseitige Durchsetzung.
  */
 export const verwaltungRouten: Routes = [
   {

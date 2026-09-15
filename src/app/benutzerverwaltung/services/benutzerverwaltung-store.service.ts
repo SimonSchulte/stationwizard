@@ -1,4 +1,5 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { Benutzerkontext } from '../../kern/benutzerkontext';
 import { Benutzerkonto, Hauptrolle, Sonderrolle } from '../models/benutzerkonto.model';
 import { ApiBenutzerverwaltungStorage } from '../storage/api-benutzerverwaltung-storage';
 import { BenutzerverwaltungStorage } from '../storage/benutzerverwaltung-storage';
@@ -13,6 +14,7 @@ function fehlermeldung(fehler: unknown): string {
 @Injectable({ providedIn: 'root' })
 export class BenutzerverwaltungStoreService {
   private readonly storage: BenutzerverwaltungStorage = inject(ApiBenutzerverwaltungStorage);
+  private readonly benutzerkontext = inject(Benutzerkontext);
 
   readonly benutzer = signal<Benutzerkonto[]>([]);
   readonly listeLaedt = signal(false);
@@ -21,6 +23,21 @@ export class BenutzerverwaltungStoreService {
   /** E-Mail-Adresse, deren Rolle gerade gespeichert wird, oder `''`. */
   readonly speichertFuer = signal('');
   readonly speicherFehler = signal('');
+
+  /** Hauptrolle der angemeldeten Person selbst, sobald `benutzer()` geladen ist; sonst `null`. */
+  readonly eigeneRolle = computed<Hauptrolle | null>(() => {
+    const email = this.benutzerkontext.email();
+    if (!email) return null;
+    return this.benutzer().find((eintrag) => eintrag.email === email)?.rolle ?? null;
+  });
+
+  /**
+   * Reine UI-Sichtbarkeitsprüfung für einzelne Zugführung-Funktionen (z. B. den
+   * Fahrzeug-QR-Übersichtsbogen). Der Verwaltungsbereich kennt weiterhin kein
+   * durchgesetztes Rollenmodell (siehe CLAUDE.md „Rechte vorerst alle, Rollen
+   * später“) – das hier ist kein Zugriffsschutz, nur eine Einblendregel.
+   */
+  readonly istZugfuehrung = computed(() => this.eigeneRolle() === 'zugfuehrung');
 
   async listeLaden(): Promise<void> {
     this.listeLaedt.set(true);

@@ -2,8 +2,9 @@
   <p class="einordnung">ADMINISTRATION</p>
   <h1>Verwaltung</h1>
   <p class="beschreibung">
-    Aufgaben, die Stammdaten ganzer Bereiche betreffen. Der Bereich kennt noch kein Rollenmodell:
-    jede angemeldete Person sieht und benutzt ihn.
+    Aufgaben, die Stammdaten ganzer Bereiche betreffen. Der Bereich kennt noch kein durchgesetztes
+    Rollenmodell: die meisten Aufgaben sieht und benutzt jede angemeldete Person. Einzelne
+    Funktionen sind zusätzlich nach der zugeordneten Rolle ein- oder ausgeblendet.
   </p>
   <div class="aufgaben">
     <a class="aufgabe" routerLink="/verwaltung/fahrzeuge-import">
@@ -33,6 +34,32 @@
       </p>
       <span class="aktion">Systemkonfiguration öffnen <span aria-hidden="true">→</span></span>
     </a>
+    @if (istZugfuehrung()) {
+      <button
+        type="button"
+        class="aufgabe"
+        [disabled]="qrUebersichtLaedt()"
+        (click)="qrUebersichtErstellen()"
+      >
+        <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+        <h2>Fahrzeug-QR-Übersichtsbogen</h2>
+        <p>
+          Ein PDF mit dem Kilometererfassungs-QR-Code jedes Fahrzeugs, zwei je Zeile, mit
+          Funkrufname und Kennzeichen zum Aushängen. Nur für die Zugführung sichtbar.
+        </p>
+        @if (qrUebersichtFehler()) {
+          <p class="fehler">{{ qrUebersichtFehler() }}</p>
+        }
+        <span class="aktion">
+          @if (qrUebersichtLaedt()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+            Wird erstellt…
+          } @else {
+            Übersichtsbogen erstellen <span aria-hidden="true">→</span>
+          }
+        </span>
+      </button>
+    }
   </div>
   <p class="ausblick">Weitere Verwaltungsaufgaben folgen.</p>
 </div>
