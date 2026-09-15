@@ -18,6 +18,7 @@ function fahrzeugKoerper(ueberschreibung: Record<string, unknown> = {}) {
     kennzeichen: 'XY-TE 123',
     fahrgestellnummer: null,
     eigentuemer: 'organisation',
+    gruppe: 'fuehrung',
     bemerkung: '',
     wartungstermine: [],
     ...ueberschreibung,
@@ -86,6 +87,12 @@ describe('POST /api/fahrzeuge', () => {
   it('lehnt einen unbekannten Eigentümer ab', async () => {
     const db = new FakeFahrzeugeDb();
     const antwort = await legeAn(db, fahrzeugKoerper({ eigentuemer: 'unbekannt' }));
+    expect(antwort.status).toBe(400);
+  });
+
+  it('lehnt eine unbekannte Gruppe ab', async () => {
+    const db = new FakeFahrzeugeDb();
+    const antwort = await legeAn(db, fahrzeugKoerper({ gruppe: 'verpflegung' }));
     expect(antwort.status).toBe(400);
   });
 });

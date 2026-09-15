@@ -4,6 +4,8 @@ import {
   EIGENTUEMER,
   Eigentuemer,
   Fahrzeugstamm,
+  GRUPPEN,
+  Gruppe,
   Kilometerstand,
   KilometerQuelle,
   Wartungstermin,
@@ -44,6 +46,10 @@ export function istEigentuemer(wert: unknown): wert is Eigentuemer {
   return istText(wert) && (EIGENTUEMER as readonly string[]).includes(wert);
 }
 
+export function istGruppe(wert: unknown): wert is Gruppe {
+  return istText(wert) && (GRUPPEN as readonly string[]).includes(wert);
+}
+
 export function istWartungstermin(wert: unknown): wert is Wartungstermin {
   return (
     istObjekt(wert) &&
@@ -67,6 +73,7 @@ export function istFahrzeugstamm(wert: unknown): wert is Fahrzeugstamm {
     istText(wert['kennzeichen']) &&
     (wert['fahrgestellnummer'] === null || istText(wert['fahrgestellnummer'])) &&
     istEigentuemer(wert['eigentuemer']) &&
+    istGruppe(wert['gruppe']) &&
     istText(wert['bemerkung']) &&
     Array.isArray(wert['wartungstermine']) &&
     wert['wartungstermine'].every(istWartungstermin) &&

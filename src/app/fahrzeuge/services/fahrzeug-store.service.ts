@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { VerlassenSchutz } from '../../kern/verlassen-schutz';
-import { Fahrzeugstamm, Wartungstermin } from '../models/fahrzeug.model';
+import { Fahrzeugstamm, GRUPPE_STANDARD, Wartungstermin } from '../models/fahrzeug.model';
 import { ApiFahrzeugStorage } from '../storage/api-fahrzeug-storage';
 import {
   FahrzeugKonfliktFehler,
@@ -18,6 +18,7 @@ function leeresFahrzeug(): Fahrzeugstamm {
     kennzeichen: '',
     fahrgestellnummer: null,
     eigentuemer: 'organisation',
+    gruppe: GRUPPE_STANDARD,
     bemerkung: '',
     wartungstermine: [],
     geaendertAm: jetzt,

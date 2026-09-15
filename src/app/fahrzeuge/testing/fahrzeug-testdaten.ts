@@ -2,6 +2,7 @@ import {
   Aenderungseintrag,
   Eigentuemer,
   Fahrzeugstamm,
+  Gruppe,
   Kilometerstand,
   Wartungstermin,
 } from '../models/fahrzeug.model';
@@ -14,6 +15,7 @@ export function erzeugeTestfahrzeug(ueberschreibung: Partial<Fahrzeugstamm> = {}
     kennzeichen: 'XY-TE 123',
     fahrgestellnummer: null,
     eigentuemer: 'organisation',
+    gruppe: 'fuehrung',
     bemerkung: '',
     wartungstermine: [],
     geaendertAm: '2026-01-05T09:00:00.000Z',
@@ -51,6 +53,10 @@ export function erzeugeTestablesung(ueberschreibung: Partial<Kilometerstand> = {
 
 export function erzeugeEigentuemer(): readonly Eigentuemer[] {
   return ['land-nrw', 'bund', 'organisation'];
+}
+
+export function erzeugeGruppen(): readonly Gruppe[] {
+  return ['betreuung', 'tesi', 'fuehrung', 'sanitaet'];
 }
 
 export function erzeugeTestaenderung(

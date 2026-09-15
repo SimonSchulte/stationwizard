@@ -15,6 +15,18 @@ export const MINDEST_KM_PRO_MONAT: Readonly<Record<Eigentuemer, number>> = {
   organisation: 0,
 };
 
+/**
+ * Gruppenzugehörigkeit eines Fahrzeugs, entsprechend den bekannten
+ * Gruppenführungen (siehe `benutzerverwaltung/models/benutzerkonto.model.ts`,
+ * `Hauptrolle`) – ohne `verpflegung`, da dafür fachlich keine Fahrzeuge
+ * vorgesehen sind.
+ */
+export type Gruppe = 'betreuung' | 'tesi' | 'fuehrung' | 'sanitaet';
+
+export const GRUPPEN: readonly Gruppe[] = ['betreuung', 'tesi', 'fuehrung', 'sanitaet'];
+
+export const GRUPPE_STANDARD: Gruppe = 'fuehrung';
+
 export type WartungsArt = 'hu' | 'frei';
 
 export interface Wartungstermin {
@@ -38,6 +50,7 @@ export interface Fahrzeugstamm {
   /** Fahrgestellnummer (FIN), optional, 17 Zeichen ohne I/O/Q wenn gesetzt. */
   fahrgestellnummer: string | null;
   eigentuemer: Eigentuemer;
+  gruppe: Gruppe;
   bemerkung: string;
   wartungstermine: Wartungstermin[];
   /** ISO-Zeitstempel der letzten Änderung. */
