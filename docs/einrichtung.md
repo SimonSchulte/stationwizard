@@ -45,21 +45,33 @@ eintragen; sie gehören weder in GitHub noch in die App oder einen Chat.
   HTML-Seite kopierter Link mit `&amp;` statt `&` werden beim Lesen abgefangen; die Adresse
   muss aber vollständig sein (mit `lab=`) und darf nicht gekürzt werden.
 
-- **Mailversand:** `MAIL_ABSENDER` ist die Absenderadresse des Kilometerstandsberichts und
-  muss zu einer Domain gehören, die im Cloudflare-Konto für den Versand belegt ist.
-  `MAIL_API_TOKEN` gehört zum Versandweg „Mail-API (Resend)"; wer nur Email Routing
-  benutzt, legt das Secret trotzdem an, weil `wrangler deploy` sonst über das fehlende
-  Binding stolpert. Für den Versandweg **Cloudflare Email Routing** zusätzlich Email
-  Routing für die Zone aktivieren, die Berichtsadresse dort als **Zieladresse bestätigen**
-  und den `[[send_email]]`-Block in `worker/wrangler.toml` aktivieren (`destination_address`
-  auf genau diese Adresse). Ohne die Bestätigung lehnt Cloudflare den Versand ab – das ist
-  eine Eigenschaft von Email Routing, keine Einstellung dieser Anwendung. Empfänger,
-  Betreff und Versandweg werden anschließend in der Anwendung unter
-  **Verwaltung → Systemkonfiguration** gesetzt, nicht im Dashboard.
-
-Alle acht Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
+Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
+
+## Mailversand des Kilometerstandsberichts (optional)
+
+Der Versand ist erst möglich, wenn ein Versandweg eingerichtet ist; alle zugehörigen Blöcke
+in `worker/wrangler.toml` sind **auskommentiert ausgeliefert**. Das ist Absicht: ein Binding
+auf ein nicht vorhandenes Secret bricht `wrangler deploy` ab und würde das Deployment des
+gesamten Workers an eine noch nicht bestehende Einrichtung koppeln. Ohne Einrichtung läuft
+alles Übrige unverändert, und die Systemkonfiguration meldet den Weg ehrlich als nicht
+eingerichtet.
+
+1. `MAIL_ABSENDER` im Secrets Store anlegen (Absenderadresse, für **beide** Wege nötig; die
+   Domain muss im Cloudflare-Konto für den Versand belegt sein) und den Block aktivieren.
+2. Für **Cloudflare Email Routing**: Email Routing für die Zone aktivieren, die
+   Berichtsadresse dort als **Zieladresse bestätigen** und den `[[send_email]]`-Block
+   aktivieren, mit `destination_address` auf genau diese Adresse. Ohne die Bestätigung lehnt
+   Cloudflare den Versand ab – eine Eigenschaft von Email Routing, keine Einstellung dieser
+   Anwendung.
+3. Für die **Mail-API (Resend)**: `MAIL_API_TOKEN` im Secrets Store anlegen und den Block
+   aktivieren.
+4. Optional den Anzeigename des Absenders als Laufzeitvariable `MAIL_ABSENDER_NAME` setzen;
+   das ist kein Geheimnis.
+
+Empfänger, Betreff und Versandweg werden anschließend in der Anwendung unter
+**Verwaltung → Systemkonfiguration** gesetzt, nicht im Dashboard.
 
 ## Zero Trust, Google-Anmeldung und Access
 

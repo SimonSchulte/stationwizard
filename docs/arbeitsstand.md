@@ -1138,10 +1138,18 @@ Kilometerstandsbericht, der von dort aus per E-Mail verschickt wird.
   wurden gegen den Livedienst geprüft; in dieser Umgebung liegen weder Secrets noch eine
   eingerichtete Zone vor. Ob die Mail bei einem echten Client so aussieht wie gedacht, ist
   damit ungeprüft.
-- **Vor dem nächsten Deployment** müssen `MAIL_ABSENDER` und `MAIL_API_TOKEN` im Secrets
-  Store existieren, sonst bricht `wrangler deploy` über das fehlende Secret ab. Der
-  `[[send_email]]`-Block in `worker/wrangler.toml` ist absichtlich auskommentiert, weil er
-  eine eingerichtete Email-Routing-Zone und eine dort bestätigte Zieladresse voraussetzt.
+- **Der Mailversand ist noch nicht eingerichtet und deshalb noch nicht benutzbar.** Alle
+  drei Blöcke in `worker/wrangler.toml` (`MAIL_ABSENDER`, `MAIL_API_TOKEN`,
+  `[[send_email]]`) sind auskommentiert ausgeliefert. Das war zunächst anders: die beiden
+  Secrets-Store-Bindings standen aktiv in der Datei, woraufhin der Cloudflare-Workers-Build
+  des Pull Requests **fehlschlug** – ein Binding auf ein im Store nicht vorhandenes Secret
+  bricht `wrangler deploy` ab und hätte das Deployment des gesamten Workers an eine noch
+  nicht bestehende Einrichtung gekoppelt. `npm run deploy:dry-run` deckt das nicht auf, er
+  prüft die Existenz der Secrets nicht. Der Einrichtungsweg (erst Secret anlegen
+  beziehungsweise Email Routing einrichten und die Zieladresse bestätigen, dann den Block
+  aktivieren, dann deployen) steht in [Einrichtung](einrichtung.md) und im
+  [Worker-README](../worker/README.md). Bis dahin meldet die Systemkonfiguration den Weg als
+  nicht eingerichtet und sperrt den Versand, statt ihn scheitern zu lassen.
 - Die Migration `0005_systemkonfiguration.sql` ist **noch nicht angewendet**; ohne sie
   antwortet die Seite mit `SYSTEMKONFIGURATION_DB_FEHLER`.
 - Die Kennzahlenlogik liegt doppelt vor: `worker/src/km-bericht.ts` bildet
