@@ -1,6 +1,6 @@
 import type { AccessKonfiguration } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
-import { istUmleitung, redigiere, ursachenText } from './diagnose';
+import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
 import { istObjekt, leseJsonBegrenzt, verwerfeInhalt } from './json-lesen';
 
 /**
@@ -16,7 +16,11 @@ import { istObjekt, leseJsonBegrenzt, verwerfeInhalt } from './json-lesen';
  * "Gespräch mit Google"-Aufruf, damit weder das Frontend noch `anmeldung.ts`
  * den Umweg über Access kennen müssen: Ein fehlendes, unerreichbares oder
  * unerwartet geformtes Bildfeld ist kein Anmeldefehler, sondern liefert
- * schlicht kein Bild – die Anmeldung selbst bleibt davon unberührt.
+ * schlicht kein Bild – die Anmeldung selbst bleibt davon unberührt. Jeder
+ * "kein Bild"-Pfad protokolliert eine Diagnose ausschließlich über Status
+ * und Feldnamen (nie Feldwerte, da `get-identity` echte Personendaten wie
+ * Name und E-Mail trägt) – damit sich ein unerwartetes Verhalten im echten
+ * Team ohne erneutes Raten über `wrangler tail` nachvollziehen lässt.
  */
 
 export const PROFILBILD_PFAD = '/api/benutzer/profilbild';
@@ -58,18 +62,45 @@ export async function verarbeiteProfilbild(
     }
 
     if (istUmleitung(antwort) || !antwort.ok) {
+      // Nur Status und Ziel-Host der Weiterleitung – nie Cookie-/Token-Werte,
+      // nie den (möglicherweise personenbezogenen) Antwortkörper.
+      console.error(
+        'PROFILBILD_ABRUF_FEHLGESCHLAGEN',
+        antwort.status,
+        istUmleitung(antwort) ? hostname(antwort.headers.get('Location') ?? '') : undefined,
+      );
       await verwerfeInhalt(antwort);
       return jsonAntwort({ profilbildUrl: null });
     }
 
     const ergebnis = await leseJsonBegrenzt(antwort, MAX_ANTWORT_BYTES, abbruch.signal);
     if (!ergebnis.erfolg) {
+      console.error('PROFILBILD_ANTWORT_UNLESBAR', ergebnis.ursache);
       return jsonAntwort({ profilbildUrl: null });
     }
-    return jsonAntwort({ profilbildUrl: leseProfilbildUrl(ergebnis.inhalt) });
+    const profilbildUrl = leseProfilbildUrl(ergebnis.inhalt);
+    if (profilbildUrl === null) {
+      // Diagnose ausschließlich über Feldnamen, nie über Feldwerte: get-identity
+      // trägt echte Personendaten (Name, E-Mail), die hier nie ins Log dürfen.
+      console.error('PROFILBILD_FELD_FEHLT', struktur(ergebnis.inhalt));
+    }
+    return jsonAntwort({ profilbildUrl });
   } finally {
     clearTimeout(zeitlimit);
   }
+}
+
+/**
+ * Nur Feldnamen für die Betreiberdiagnose, nie Werte: `get-identity` trägt
+ * echte Personendaten (Name, E-Mail, IdP-Kennung), die nie ins Log dürfen.
+ */
+function struktur(identitaet: unknown): string {
+  if (!istObjekt(identitaet)) return `kein Objekt (${typeof identitaet})`;
+  const oidcFelder = identitaet['oidc_fields'];
+  const oidcSchluessel = istObjekt(oidcFelder)
+    ? Object.keys(oidcFelder).sort().join(',')
+    : `kein Objekt (${typeof oidcFelder})`;
+  return `felder=${Object.keys(identitaet).sort().join(',')} oidc_fields=${oidcSchluessel}`;
 }
 
 /**
