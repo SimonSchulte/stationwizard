@@ -163,9 +163,17 @@ h2 {
 
 .bilanz-karte-kopf {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-sm);
+}
+
+.bilanz-karte-titel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .bilanz-fahrzeug {
