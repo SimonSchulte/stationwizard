@@ -1231,8 +1231,9 @@ Kilometerstandsbericht, der von dort aus per E-Mail verschickt wird.
   aktivieren, dann deployen) steht in [Einrichtung](einrichtung.md) und im
   [Worker-README](../worker/README.md). Bis dahin meldet die Systemkonfiguration den Weg als
   nicht eingerichtet und sperrt den Versand, statt ihn scheitern zu lassen.
-- Die Migration `0005_systemkonfiguration.sql` ist **noch nicht angewendet**; ohne sie
-  antwortet die Seite mit `SYSTEMKONFIGURATION_DB_FEHLER`.
+- Die Migration `0005_systemkonfiguration.sql` wurde am 2026-09-15 auf der produktiven
+  `stationwizard-benutzer`-Datenbank angewendet (`CREATE TABLE systemkonfiguration`
+  verifiziert); zuvor antwortete die Seite mit `SYSTEMKONFIGURATION_DB_FEHLER`.
 - Die Kennzahlenlogik liegt doppelt vor: `worker/src/km-bericht.ts` bildet
   `src/app/fahrzeuge/services/kilometer-soll.ts` nach, weil das Worker-Bundle bewusst keine
   Anwendungsquellen zieht. `worker/tests/km-bericht.spec.ts` spiegelt die Fälle der dortigen
