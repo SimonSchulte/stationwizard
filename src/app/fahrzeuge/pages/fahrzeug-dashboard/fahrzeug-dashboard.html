@@ -71,11 +71,18 @@
                 @for (eintrag of bilanzen(); track eintrag.fahrzeug.id) {
                   <div class="bilanz-karte">
                     <div class="bilanz-karte-kopf">
-                      <a
-                        class="bilanz-fahrzeug"
-                        [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]"
-                        >{{ eintrag.fahrzeug.bezeichnung }}</a
-                      >
+                      <div class="bilanz-karte-titel">
+                        <a
+                          class="bilanz-fahrzeug"
+                          [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]"
+                          >{{ eintrag.fahrzeug.bezeichnung }}</a
+                        >
+                        @if (eintrag.fahrzeug.kennzeichen) {
+                          <span class="tag-chip tag-zusatz">{{
+                            eintrag.fahrzeug.kennzeichen
+                          }}</span>
+                        }
+                      </div>
                       <span class="bilanz-eigentuemer">{{
                         EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer]
                       }}</span>
