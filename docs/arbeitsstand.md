@@ -1056,3 +1056,31 @@ hat **nicht** stattgefunden. Worker und Routing sind unverändert, deshalb kein 
 echte Feed-Abfrage die über „HiOrg-Testdaten laden" geladenen Einträge wieder (Status
 springt auf „HiOrg-Fehler", das Raster bleibt leer). Das besteht unabhängig von dieser
 Änderung – der Ausgangsstand verhält sich identisch – und betrifft nur den Testdatenweg.
+
+## Nachtrag – Kennzeichen-Chip in der Kilometerbilanz
+
+Fachlicher Wunsch: In der Kilometerbilanz auf dem Fuhrpark-Dashboard soll neben der
+Bezeichnung auch das Kennzeichen sichtbar sein.
+
+- `fahrzeug-dashboard.html`: Der Kopf jeder Bilanzkarte fasst Bezeichnung und Kennzeichen in
+  `.bilanz-karte-titel` zusammen; das Kennzeichen erscheint als `tag-chip tag-zusatz`, also
+  in derselben Chipform wie schon auf der QR-Erfassungsseite, statt einer zweiten
+  Darstellungsvariante. Ein leeres Kennzeichen (weiterhin zulässig, siehe partieller
+  eindeutiger Index) blendet den Chip aus, es entsteht kein leerer Chip.
+- `fahrzeug-dashboard.less`: `.bilanz-karte-titel` bricht bei schmalen Karten um
+  (`flex-wrap`), damit der Chip in der 240px-Rasterspalte unter die Bezeichnung rutscht statt
+  sie zu quetschen; der Kartenkopf richtet seine Teile jetzt oben aus (`flex-start`), sonst
+  hing das Eigentümer-Abzeichen bei umgebrochenem Titel auf halber Höhe.
+- Die Detailseite bleibt unverändert: Dort steht das Kennzeichen bereits im Stammdatenblock
+  direkt über der Bilanz. Die gemeinsame Komponente `kilometer-bilanz` kennt weiterhin nur die
+  `KilometerJahresbilanz` und kein Fahrzeug.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (492 Angular- und
+  385 Worker-Tests), `npm run format:check`, `npm run deploy:dry-run` – alle grün. Keine neuen
+  Tests: die Änderung ist rein darstellend, die Bilanzlogik selbst ist unverändert.
+  Browserprüfung mit Chromium über Playwright auf **Desktop (1280×900)** und
+  **Mobil (390×844)** tatsächlich ausgeführt, `ng serve` mit abgefangenen `/api/*`-Routen und
+  erfundenen Testfahrzeugen: Chip erscheint bei gesetztem Kennzeichen, fehlt beim Fahrzeug
+  ohne Kennzeichen, Umbruch und Ausrichtung wie beschrieben. Ein Lauf gegen echte
+  Nextcloud-/HiOrg-Daten oder eine produktive Google-Sitzung hat **nicht** stattgefunden.
+  Worker und Routing sind unverändert, deshalb kein neuer `test:spa`-Lauf; dieser bleibt wie
+  zuvor dokumentiert blockiert.
