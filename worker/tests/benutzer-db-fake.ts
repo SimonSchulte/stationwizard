@@ -15,11 +15,34 @@ interface BenutzerZeile {
   rolle_geaendert_von: string | null;
 }
 
+interface KonfigurationsZeile {
+  schluessel: string;
+  wert: string;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeBenutzerDb {
   benutzer = new Map<string, BenutzerZeile>();
+  systemkonfiguration = new Map<string, KonfigurationsZeile>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query.trim().replace(/\s+/g, ' '));
+  }
+
+  /**
+   * `worker/src/systemkonfiguration.ts` schreibt alle Einstellungen gemeinsam.
+   * Der Fake führt sie der Reihe nach aus; er bildet damit die Reihenfolge
+   * nach, nicht die Atomarität einer echten D1-Transaktion.
+   */
+  async batch<T = Record<string, unknown>>(
+    anweisungen: FakeStatement[],
+  ): Promise<{ success: true; meta: { changes: number }; results: T[] }[]> {
+    const ergebnisse = [];
+    for (const anweisung of anweisungen) {
+      ergebnisse.push(await anweisung.run<T>());
+    }
+    return ergebnisse;
   }
 }
 
@@ -82,6 +105,22 @@ class FakeStatement {
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
+    if (this.query.startsWith('INSERT INTO systemkonfiguration')) {
+      const [schluessel, wert, geaendert_am, geaendert_von] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      this.db.systemkonfiguration.set(schluessel, {
+        schluessel,
+        wert,
+        geaendert_am,
+        geaendert_von,
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     throw new Error(`FakeBenutzerDb: unbekannte run()-Anweisung: ${this.query}`);
   }
 
@@ -100,6 +139,13 @@ class FakeStatement {
   async all<T = Record<string, unknown>>(): Promise<{ success: true; results: T[] }> {
     if (this.query.startsWith('SELECT * FROM benutzer ORDER BY email')) {
       const zeilen = [...this.db.benutzer.values()].sort((a, b) => a.email.localeCompare(b.email));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT schluessel, wert FROM systemkonfiguration')) {
+      const zeilen = [...this.db.systemkonfiguration.values()].map(({ schluessel, wert }) => ({
+        schluessel,
+        wert,
+      }));
       return { success: true, results: zeilen as unknown as T[] };
     }
     throw new Error(`FakeBenutzerDb: unbekannte all()-Anweisung: ${this.query}`);

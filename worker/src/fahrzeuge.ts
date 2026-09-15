@@ -21,6 +21,7 @@ const ABLESUNG_PFAD = new RegExp(
 const AENDERUNGEN_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})/aenderungen$`, 'i');
 
 const EIGENTUEMER = new Set(['land-nrw', 'bund', 'organisation']);
+const GRUPPEN = new Set(['betreuung', 'tesi', 'fuehrung', 'sanitaet']);
 const WARTUNGS_ARTEN = new Set(['hu', 'frei']);
 const KILOMETER_QUELLEN = new Set(['qr', 'formular', 'korrektur']);
 const ISO_DATUM = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,6 +64,7 @@ interface FahrzeugEingabe {
   kennzeichen: string;
   fahrgestellnummer: string | null;
   eigentuemer: string;
+  gruppe: string;
   bemerkung: string;
   wartungstermine: unknown[];
 }
@@ -81,6 +83,8 @@ function pruefeFahrzeugEingabe(wert: unknown): FahrzeugEingabe | null {
       !FIN_MUSTER.test(wert['fahrgestellnummer'])) ||
     !istText(wert['eigentuemer']) ||
     !EIGENTUEMER.has(wert['eigentuemer']) ||
+    !istText(wert['gruppe']) ||
+    !GRUPPEN.has(wert['gruppe']) ||
     !istText(wert['bemerkung']) ||
     !Array.isArray(wert['wartungstermine']) ||
     !wert['wartungstermine'].every(istWartungstermin)
@@ -97,6 +101,7 @@ function pruefeFahrzeugEingabe(wert: unknown): FahrzeugEingabe | null {
         ? wert['fahrgestellnummer']
         : null,
     eigentuemer: wert['eigentuemer'],
+    gruppe: wert['gruppe'],
     bemerkung: wert['bemerkung'],
     wartungstermine: wert['wartungstermine'],
   };
@@ -141,6 +146,7 @@ interface FahrzeugZeile {
   kennzeichen: string;
   fahrgestellnummer: string | null;
   eigentuemer: string;
+  gruppe: string;
   bemerkung: string;
   wartungstermine: string;
   geaendert_am: string;
@@ -156,6 +162,7 @@ function zuFahrzeugJson(zeile: FahrzeugZeile): Record<string, unknown> {
     kennzeichen: zeile.kennzeichen,
     fahrgestellnummer: zeile.fahrgestellnummer,
     eigentuemer: zeile.eigentuemer,
+    gruppe: zeile.gruppe,
     bemerkung: zeile.bemerkung,
     // In der Spalte liegt bereits geprüftes JSON aus einem früheren Schreibvorgang.
     wartungstermine: JSON.parse(zeile.wartungstermine),
@@ -214,8 +221,15 @@ const EIGENTUEMER_LABEL: Readonly<Record<string, string>> = {
   organisation: 'Organisation',
 };
 
+const GRUPPE_LABEL: Readonly<Record<string, string>> = {
+  betreuung: 'Betreuung',
+  tesi: 'TeSi',
+  fuehrung: 'Führung',
+  sanitaet: 'Sanität',
+};
+
 type StammdatenFeld =
-  'bezeichnung' | 'funkrufname' | 'kennzeichen' | 'fahrgestellnummer' | 'eigentuemer';
+  'bezeichnung' | 'funkrufname' | 'kennzeichen' | 'fahrgestellnummer' | 'eigentuemer' | 'gruppe';
 
 const STAMMDATEN_FELDER: readonly { schluessel: StammdatenFeld; label: string }[] = [
   { schluessel: 'bezeichnung', label: 'Bezeichnung' },
@@ -223,11 +237,14 @@ const STAMMDATEN_FELDER: readonly { schluessel: StammdatenFeld; label: string }[
   { schluessel: 'kennzeichen', label: 'Kennzeichen' },
   { schluessel: 'fahrgestellnummer', label: 'Fahrgestellnummer' },
   { schluessel: 'eigentuemer', label: 'Eigentümer' },
+  { schluessel: 'gruppe', label: 'Gruppe' },
 ];
 
 function feldAnzeige(schluessel: StammdatenFeld, wert: string | null): string {
   if (wert === null || wert === '') return '(leer)';
-  return schluessel === 'eigentuemer' ? (EIGENTUEMER_LABEL[wert] ?? wert) : wert;
+  if (schluessel === 'eigentuemer') return EIGENTUEMER_LABEL[wert] ?? wert;
+  if (schluessel === 'gruppe') return GRUPPE_LABEL[wert] ?? wert;
+  return wert;
 }
 
 interface WartungFuerDiff {
@@ -543,8 +560,8 @@ async function legeFahrzeugAn(
       .prepare(
         `INSERT INTO fahrzeuge
            (id, bezeichnung, funkrufname, kennzeichen, fahrgestellnummer, eigentuemer,
-            bemerkung, wartungstermine, geaendert_am, geaendert_von, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            gruppe, bemerkung, wartungstermine, geaendert_am, geaendert_von, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       )
       .bind(
         eingabe.id,
@@ -553,6 +570,7 @@ async function legeFahrzeugAn(
         eingabe.kennzeichen,
         eingabe.fahrgestellnummer,
         eingabe.eigentuemer,
+        eingabe.gruppe,
         eingabe.bemerkung,
         JSON.stringify(eingabe.wartungstermine),
         jetzt,
@@ -616,7 +634,7 @@ async function aktualisiereFahrzeug(
       .prepare(
         `UPDATE fahrzeuge
          SET bezeichnung = ?, funkrufname = ?, kennzeichen = ?, fahrgestellnummer = ?,
-             eigentuemer = ?, bemerkung = ?, wartungstermine = ?, geaendert_am = ?,
+             eigentuemer = ?, gruppe = ?, bemerkung = ?, wartungstermine = ?, geaendert_am = ?,
              geaendert_von = ?, version = version + 1
          WHERE id = ? AND version = ?`,
       )
@@ -626,6 +644,7 @@ async function aktualisiereFahrzeug(
         eingabe.kennzeichen,
         eingabe.fahrgestellnummer,
         eingabe.eigentuemer,
+        eingabe.gruppe,
         eingabe.bemerkung,
         JSON.stringify(eingabe.wartungstermine),
         jetzt,

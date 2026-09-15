@@ -3,10 +3,12 @@ import {
   Aenderungseintrag,
   Eigentuemer,
   Fahrzeugstamm,
+  Gruppe,
   Kilometerstand,
   Wartungstermin,
 } from '../models/fahrzeug.model';
 import { EIGENTUEMER_LABEL } from '../services/eigentuemer-label';
+import { GRUPPE_LABEL } from '../services/gruppe-label';
 import {
   AblesungHatKorrekturFehler,
   FahrzeugKonfliktFehler,
@@ -22,20 +24,23 @@ function naechsteId(praefix: string): string {
   return `${praefix}-${laufendeId}`;
 }
 
-const STAMMDATEN_FELDER: readonly {
-  schluessel: 'bezeichnung' | 'funkrufname' | 'kennzeichen' | 'fahrgestellnummer' | 'eigentuemer';
-  label: string;
-}[] = [
+type StammdatenFeld =
+  'bezeichnung' | 'funkrufname' | 'kennzeichen' | 'fahrgestellnummer' | 'eigentuemer' | 'gruppe';
+
+const STAMMDATEN_FELDER: readonly { schluessel: StammdatenFeld; label: string }[] = [
   { schluessel: 'bezeichnung', label: 'Bezeichnung' },
   { schluessel: 'funkrufname', label: 'Funkrufname' },
   { schluessel: 'kennzeichen', label: 'Kennzeichen' },
   { schluessel: 'fahrgestellnummer', label: 'Fahrgestellnummer' },
   { schluessel: 'eigentuemer', label: 'Eigentümer' },
+  { schluessel: 'gruppe', label: 'Gruppe' },
 ];
 
-function feldAnzeige(wert: string | null, eigentuemer: boolean): string {
+function feldAnzeige(schluessel: StammdatenFeld, wert: string | null): string {
   if (wert === null || wert === '') return '(leer)';
-  return eigentuemer ? EIGENTUEMER_LABEL[wert as Eigentuemer] : wert;
+  if (schluessel === 'eigentuemer') return EIGENTUEMER_LABEL[wert as Eigentuemer];
+  if (schluessel === 'gruppe') return GRUPPE_LABEL[wert as Gruppe];
+  return wert;
 }
 
 /** Vereinfachtes Gegenstück zum serverseitigen Diff (`worker/src/fahrzeuge.ts`, `diffFahrzeug`). */
@@ -44,7 +49,7 @@ function diffFahrzeug(alt: Fahrzeugstamm, neu: Fahrzeugstamm): string[] {
   for (const { schluessel, label } of STAMMDATEN_FELDER) {
     if (alt[schluessel] !== neu[schluessel]) {
       zeilen.push(
-        `${label} geändert: ${feldAnzeige(alt[schluessel], schluessel === 'eigentuemer')} → ${feldAnzeige(neu[schluessel], schluessel === 'eigentuemer')}`,
+        `${label} geändert: ${feldAnzeige(schluessel, alt[schluessel])} → ${feldAnzeige(schluessel, neu[schluessel])}`,
       );
     }
   }

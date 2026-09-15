@@ -86,3 +86,40 @@ secret_name = "HIORGSERVER_EFS_API_TOKEN"
 binding = "HIORGSERVER_CALENDER_FEED"
 store_id = "36762a3b5aa547bea7f547b1d66c30ee"
 secret_name = "HIORGSERVER_CALENDER_FEED"
+
+# Mailversand des Kilometerstandsberichts (AP-S1).
+#
+# Alle drei Blöcke sind bewusst auskommentiert: jeder von ihnen setzt eine
+# Einrichtung im Cloudflare-Konto voraus, die außerhalb dieses Repositorys
+# passiert. Ein Binding auf ein nicht vorhandenes Secret bricht `wrangler
+# deploy` ab - ein aktiver Block würde den Deployment des gesamten Workers an
+# eine Einrichtung koppeln, die es noch nicht gibt. Der Worker kommt ohne sie
+# aus: fehlende Bindings gelten als "Versandweg nicht eingerichtet", die
+# Systemkonfiguration meldet das ehrlich und sperrt den Versand, statt ihn
+# scheitern zu lassen (siehe worker/src/mail-versand.ts).
+#
+# Absenderadresse, für beide Wege nötig. Als Secret geführt, weil sie zusammen
+# mit dem Token den Versandweg ausmacht. Der Anzeigename ist dagegen eine
+# gewöhnliche Laufzeitvariable am Worker (MAIL_ABSENDER_NAME, von keep_vars
+# erfasst) und braucht hier keinen Block.
+# [[secrets_store_secrets]]
+# binding = "MAIL_ABSENDER"
+# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+# secret_name = "MAIL_ABSENDER"
+
+# Versandweg "resend" über einen HTTP-Anbieter mit festem Endpunkt (siehe
+# worker/src/mail-versand.ts). Erst das Secret im Store anlegen, dann diesen
+# Block aktivieren.
+# [[secrets_store_secrets]]
+# binding = "MAIL_API_TOKEN"
+# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+# secret_name = "MAIL_API_TOKEN"
+
+# Versandweg "email-routing" über das send_email-Binding. Setzt voraus, dass
+# Email Routing im Konto eingerichtet ist und die Empfängeradresse dort als
+# Zieladresse bestätigt wurde. Nach dem Einrichten aktivieren und
+# destination_address auf genau die Berichtsadresse setzen, damit das Binding
+# nicht an beliebige Adressen senden kann.
+# [[send_email]]
+# name = "MAIL_ROUTING"
+# destination_address = "<BERICHTSADRESSE>"

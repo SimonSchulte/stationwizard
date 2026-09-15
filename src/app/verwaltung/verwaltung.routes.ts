@@ -26,6 +26,13 @@ export const verwaltungRouten: Routes = [
       ),
   },
   {
+    path: 'systemkonfiguration',
+    loadComponent: () =>
+      import('../systemkonfiguration/pages/systemkonfiguration/systemkonfiguration').then(
+        (modul) => modul.Systemkonfiguration,
+      ),
+  },
+  {
     path: 'benutzer',
     loadComponent: () =>
       import('../benutzerverwaltung/pages/benutzer-liste/benutzer-liste').then(

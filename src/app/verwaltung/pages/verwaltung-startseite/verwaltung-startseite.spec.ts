@@ -5,7 +5,7 @@ import { VerwaltungStartseite } from './verwaltung-startseite';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { FahrzeugDruckbogenService } from '../../../fahrzeuge/services/fahrzeug-druckbogen.service';
 import { FahrzeugStoreService } from '../../../fahrzeuge/services/fahrzeug-store.service';
-import { Fahrzeugstamm } from '../../../fahrzeuge/models/fahrzeug.model';
+import { Fahrzeugstamm, GRUPPE_STANDARD } from '../../../fahrzeuge/models/fahrzeug.model';
 
 function testfahrzeug(ueberschreibung: Partial<Fahrzeugstamm> = {}): Fahrzeugstamm {
   return {
@@ -15,6 +15,7 @@ function testfahrzeug(ueberschreibung: Partial<Fahrzeugstamm> = {}): Fahrzeugsta
     kennzeichen: 'AB-CD 123',
     fahrgestellnummer: null,
     eigentuemer: 'organisation',
+    gruppe: GRUPPE_STANDARD,
     bemerkung: '',
     wartungstermine: [],
     geaendertAm: '2026-01-01T00:00:00.000Z',
