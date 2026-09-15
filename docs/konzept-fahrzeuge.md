@@ -533,3 +533,9 @@ sich als CSV sichern.
   Repository, ist aber noch nicht ausgeführt. Vorher den Bestand mit der Abfrage aus der
   Migrationsdatei auf Doubletten prüfen.
 - Ob der Import weitere Wartungstermine außer der HU aufnehmen soll.
+- Der Fahrzeug-QR-Übersichtsbogen im Verwaltungsbereich blendet sich nur für die Rolle
+  Zugführung ein (`BenutzerverwaltungStoreService.istZugfuehrung`, siehe Arbeitsstand,
+  „Fahrzeug-QR-Übersichtsbogen für die Zugführung“) – das ist die erste rollenbasierte
+  Einblendregel im Verwaltungsbereich, aber weiterhin ohne serverseitige Durchsetzung.
+  Eine echte Zugriffskontrolle bleibt an die künftige Admin-Rolle gebunden (Abschnitt 8,
+  „Rechte vorerst alle, Rollen später“).

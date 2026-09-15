@@ -1,5 +1,7 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Benutzerkontext } from '../../kern/benutzerkontext';
 import { Benutzerkonto } from '../models/benutzerkonto.model';
 import { ApiBenutzerverwaltungStorage } from '../storage/api-benutzerverwaltung-storage';
 import { BenutzerverwaltungStoreService } from './benutzerverwaltung-store.service';
@@ -69,5 +71,51 @@ describe('BenutzerverwaltungStoreService', () => {
     expect(erfolg).toBe(false);
     expect(service.speicherFehler()).toBe('Diese Person hat sich noch nicht angemeldet.');
     expect(service.benutzer()[0].rolle).toBeNull();
+  });
+});
+
+describe('BenutzerverwaltungStoreService – eigene Rolle', () => {
+  const storage = { ladeBenutzer: vi.fn(), rolleSetzen: vi.fn() };
+  const email = signal('');
+  let service: BenutzerverwaltungStoreService;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    email.set('');
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: ApiBenutzerverwaltungStorage, useValue: storage },
+        { provide: Benutzerkontext, useValue: { email } },
+      ],
+    });
+    service = TestBed.inject(BenutzerverwaltungStoreService);
+  });
+
+  it('ist ohne geladene Liste weder ermittelbar noch Zugführung', () => {
+    email.set('fuehrung@example.test');
+    expect(service.eigeneRolle()).toBeNull();
+    expect(service.istZugfuehrung()).toBe(false);
+  });
+
+  it('erkennt die eigene Rolle Zugführung nach dem Laden der Liste', async () => {
+    email.set('fuehrung@example.test');
+    storage.ladeBenutzer.mockResolvedValue([
+      testkonto({ email: 'fuehrung@example.test', rolle: 'zugfuehrung' }),
+      testkonto({ email: 'helfer@example.test', rolle: 'helfer' }),
+    ]);
+    await service.listeLaden();
+
+    expect(service.eigeneRolle()).toBe('zugfuehrung');
+    expect(service.istZugfuehrung()).toBe(true);
+  });
+
+  it('ist nicht Zugführung mit einer anderen Rolle', async () => {
+    email.set('helfer@example.test');
+    storage.ladeBenutzer.mockResolvedValue([
+      testkonto({ email: 'helfer@example.test', rolle: 'helfer' }),
+    ]);
+    await service.listeLaden();
+
+    expect(service.istZugfuehrung()).toBe(false);
   });
 });
