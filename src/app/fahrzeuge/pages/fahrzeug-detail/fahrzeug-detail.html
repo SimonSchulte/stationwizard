@@ -93,6 +93,17 @@
               </mat-hint>
             }
           </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Gruppe</mat-label>
+            <mat-select
+              [value]="entwurf.gruppe"
+              (selectionChange)="aktualisieren('gruppe', $event.value)"
+            >
+              @for (wert of GRUPPEN; track wert) {
+                <mat-option [value]="wert">{{ GRUPPE_LABEL[wert] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         </div>
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung-feld">
           <mat-label>Bemerkung</mat-label>

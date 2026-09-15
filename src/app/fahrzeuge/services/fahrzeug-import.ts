@@ -1,5 +1,10 @@
 import { leseCsv, schreibeCsv } from '../../kern/text/csv';
-import { Eigentuemer, Fahrzeugstamm, Wartungstermin } from '../models/fahrzeug.model';
+import {
+  Eigentuemer,
+  Fahrzeugstamm,
+  GRUPPE_STANDARD,
+  Wartungstermin,
+} from '../models/fahrzeug.model';
 import { EIGENTUEMER_LABEL } from './eigentuemer-label';
 import { normalisiereKennzeichen } from './kennzeichen';
 import { istEigentuemer, istGueltigeFin, istIsoDatum } from './fahrzeug-pruefung';
@@ -202,6 +207,9 @@ function baueFahrzeug(zeile: readonly string[], abbildung: SpaltenAbbildung): Ze
       kennzeichen,
       fahrgestellnummer,
       eigentuemer,
+      // Der Import kennt keine Gruppenspalte; neue Fahrzeuge starten wie im
+      // Formular mit dem Standardwert und lassen sich danach zuordnen.
+      gruppe: GRUPPE_STANDARD,
       bemerkung: feld(zeile, abbildung, 'bemerkung'),
       wartungstermine,
       // Beide Felder setzt der Worker aus der geprüften Anmeldung neu; die

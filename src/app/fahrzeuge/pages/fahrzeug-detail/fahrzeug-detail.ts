@@ -29,12 +29,14 @@ import {
   Aenderungseintrag,
   EIGENTUEMER,
   Fahrzeugstamm,
+  GRUPPEN,
   Kilometerstand,
   Wartungstermin,
 } from '../../models/fahrzeug.model';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
 import { AenderungsprotokollStoreService } from '../../services/aenderungsprotokoll-store.service';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
+import { GRUPPE_LABEL } from '../../services/gruppe-label';
 import { istGueltigeFin } from '../../services/fahrzeug-pruefung';
 import { berechneJahresbilanz, sollKmProJahr } from '../../services/kilometer-soll';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
@@ -102,6 +104,8 @@ export class FahrzeugDetail {
 
   readonly EIGENTUEMER = EIGENTUEMER;
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
+  readonly GRUPPEN = GRUPPEN;
+  readonly GRUPPE_LABEL = GRUPPE_LABEL;
   readonly heute = heuteIso();
 
   /** Reagiert auf einen Wechsel des Routenparameters, falls die Detailseite wiederverwendet wird. */

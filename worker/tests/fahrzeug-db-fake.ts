@@ -13,6 +13,7 @@ interface FahrzeugZeile {
   kennzeichen: string;
   fahrgestellnummer: string | null;
   eigentuemer: string;
+  gruppe: string;
   bemerkung: string;
   wartungstermine: string;
   geaendert_am: string;
@@ -108,6 +109,7 @@ class FakeStatement {
         kennzeichen,
         fahrgestellnummer,
         eigentuemer,
+        gruppe,
         bemerkung,
         wartungstermine,
         geaendert_am,
@@ -118,6 +120,7 @@ class FakeStatement {
         string,
         string,
         string | null,
+        string,
         string,
         string,
         string,
@@ -137,6 +140,7 @@ class FakeStatement {
         kennzeichen,
         fahrgestellnummer,
         eigentuemer,
+        gruppe,
         bemerkung,
         wartungstermine,
         geaendert_am,
@@ -153,6 +157,7 @@ class FakeStatement {
         kennzeichen,
         fahrgestellnummer,
         eigentuemer,
+        gruppe,
         bemerkung,
         wartungstermine,
         geaendert_am,
@@ -164,6 +169,7 @@ class FakeStatement {
         string,
         string,
         string | null,
+        string,
         string,
         string,
         string,
@@ -186,6 +192,7 @@ class FakeStatement {
         kennzeichen,
         fahrgestellnummer,
         eigentuemer,
+        gruppe,
         bemerkung,
         wartungstermine,
         geaendert_am,
