@@ -1,20 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROFILBILD_PFAD, verarbeiteProfilbild } from '../src/profilbild';
-import type { AccessKonfiguration } from '../src/anmeldung';
 
-const TEAM_DOMAIN = 'https://stationwizard-test.cloudflareaccess.com';
+const ANWENDUNGS_ORIGIN = 'https://stationwizard.example';
 // Frei erfundener Testwert; steht nie für ein echtes Access-JWT.
 const JWT = 'erfundenes-testtoken.nur-fuer-den-test.4711';
 
 const abrufen = vi.fn<typeof fetch>();
 const protokollieren = vi.fn();
-let umgebung: AccessKonfiguration;
 
 function anfrage(optionen: RequestInit & { ohneToken?: boolean } = {}): Request {
   const { ohneToken, ...rest } = optionen;
   const header = new Headers(rest.headers);
   if (!ohneToken) header.set('Cf-Access-Jwt-Assertion', JWT);
-  return new Request(`https://stationwizard.example${PROFILBILD_PFAD}`, {
+  return new Request(`${ANWENDUNGS_ORIGIN}${PROFILBILD_PFAD}`, {
     method: 'GET',
     ...rest,
     headers: header,
@@ -30,7 +28,6 @@ beforeEach(() => {
   abrufen.mockReset();
   protokollieren.mockReset();
   vi.spyOn(console, 'error').mockImplementation(protokollieren);
-  umgebung = { ACCESS_TEAM_DOMAIN: TEAM_DOMAIN, ACCESS_AUD: 'stationwizard-test-audience' };
 });
 
 afterEach(() => {
@@ -47,19 +44,22 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
       }),
     );
 
-    const antwort = await verarbeiteProfilbild(anfrage(), umgebung);
+    const antwort = await verarbeiteProfilbild(anfrage());
 
     expect(antwort.status).toBe(200);
     expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: 'https://bild.example/foto.png' });
   });
 
-  it('ruft get-identity mit dem Access-JWT als Cookie ab, ohne Weiterleitung zu folgen', async () => {
+  it('ruft get-identity auf der eigenen Anwendungs-Domain mit dem Access-JWT als Cookie ab, ohne Weiterleitung zu folgen', async () => {
+    // Ein serverseitiger Aufruf gegen die Team-Domain mit dem app-gebundenen JWT
+    // als nachgebautem Cookie lieferte in der Praxis kein oidc_fields (siehe
+    // CLAUDE.md); erst die eigene Anwendungs-Domain tat es zuverlässig.
     abrufen.mockResolvedValue(Response.json({}));
 
-    await verarbeiteProfilbild(anfrage(), umgebung);
+    await verarbeiteProfilbild(anfrage());
 
     expect(abrufen).toHaveBeenCalledExactlyOnceWith(
-      `${TEAM_DOMAIN}/cdn-cgi/access/get-identity`,
+      `${ANWENDUNGS_ORIGIN}/cdn-cgi/access/get-identity`,
       expect.objectContaining({
         method: 'GET',
         redirect: 'manual',
@@ -80,7 +80,7 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
   ])('liefert null statt Fehler bei %s', async (_bezeichnung, identitaet) => {
     abrufen.mockResolvedValue(Response.json(identitaet));
 
-    const antwort = await verarbeiteProfilbild(anfrage(), umgebung);
+    const antwort = await verarbeiteProfilbild(anfrage());
 
     expect(antwort.status).toBe(200);
     expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: null });
@@ -89,7 +89,7 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
   it('liefert null, wenn get-identity nicht erreichbar ist', async () => {
     abrufen.mockRejectedValue(new Error('Netzwerkfehler'));
 
-    const antwort = await verarbeiteProfilbild(anfrage(), umgebung);
+    const antwort = await verarbeiteProfilbild(anfrage());
 
     expect(antwort.status).toBe(200);
     expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: null });
@@ -99,25 +99,25 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
     abrufen.mockResolvedValue(
       new Response(null, {
         status: 302,
-        headers: { Location: 'https://stationwizard-test.cloudflareaccess.com/login' },
+        headers: { Location: `${ANWENDUNGS_ORIGIN}/cdn-cgi/access/login` },
       }),
     );
 
-    const antwort = await verarbeiteProfilbild(anfrage(), umgebung);
+    const antwort = await verarbeiteProfilbild(anfrage());
 
     expect(antwort.status).toBe(200);
     expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: null });
     expect(protokollieren).toHaveBeenCalledWith(
       'PROFILBILD_ABRUF_FEHLGESCHLAGEN',
       302,
-      'stationwizard-test.cloudflareaccess.com',
+      'stationwizard.example',
     );
   });
 
   it('liefert null bei einem ablehnenden Status', async () => {
     abrufen.mockResolvedValue(new Response(null, { status: 401 }));
 
-    const antwort = await verarbeiteProfilbild(anfrage(), umgebung);
+    const antwort = await verarbeiteProfilbild(anfrage());
 
     expect(antwort.status).toBe(200);
     expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: null });
@@ -129,7 +129,7 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
       Response.json({ name: 'Max Mustermann', email: 'max@example.invalid' }),
     );
 
-    await verarbeiteProfilbild(anfrage(), umgebung);
+    await verarbeiteProfilbild(anfrage());
 
     expect(protokollieren).toHaveBeenCalledWith('PROFILBILD_FELD_FEHLT', expect.any(String));
     const geloggt = protokollieren.mock.calls.flat().join(' ');
@@ -140,15 +140,7 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
   });
 
   it('ruft get-identity gar nicht erst auf, wenn kein Access-JWT vorliegt', async () => {
-    const antwort = await verarbeiteProfilbild(anfrage({ ohneToken: true }), umgebung);
-
-    expect(antwort.status).toBe(200);
-    expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: null });
-    expect(abrufen).not.toHaveBeenCalled();
-  });
-
-  it('ruft get-identity gar nicht erst auf, wenn die Team-Domain fehlt', async () => {
-    const antwort = await verarbeiteProfilbild(anfrage(), { ACCESS_TEAM_DOMAIN: undefined });
+    const antwort = await verarbeiteProfilbild(anfrage({ ohneToken: true }));
 
     expect(antwort.status).toBe(200);
     expect(await inhaltVon(antwort)).toEqual({ profilbildUrl: null });
@@ -156,7 +148,7 @@ describe('Profilbild: Best-effort-Abruf über Cloudflare Access', () => {
   });
 
   it.each(['POST', 'PUT', 'DELETE'])('lehnt %s ab', async (methode) => {
-    const antwort = await verarbeiteProfilbild(anfrage({ method: methode }), umgebung);
+    const antwort = await verarbeiteProfilbild(anfrage({ method: methode }));
 
     expect(antwort.status).toBe(405);
     expect(antwort.headers.get('Allow')).toBe('GET');

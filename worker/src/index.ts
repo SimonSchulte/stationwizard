@@ -71,7 +71,7 @@ export default {
     }
 
     if (url.pathname === PROFILBILD_PFAD) {
-      return verarbeiteProfilbild(anfrage, umgebung);
+      return verarbeiteProfilbild(anfrage);
     }
 
     if (
