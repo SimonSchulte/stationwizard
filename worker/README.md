@@ -52,6 +52,8 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
 | `HIORGSERVER_CALENDER_FEED` | Vollständige HiOrg-Kalenderfreigabe-URL (führend) oder ersatzweise nur der `lab`-Tokenwert daraus                              |
+| `MAIL_ABSENDER`             | Absenderadresse des Kilometerstandsberichts; muss zu einer im Cloudflare-Konto belegten Domain gehören                         |
+| `MAIL_API_TOKEN`            | API-Token des HTTP-Mailanbieters; nur für den Versandweg `resend` nötig, sonst ein beliebiger Platzhalterwert                  |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
 Worker unter **Bindings** kontrollieren, ob genau diese sechs Namen auf den richtigen Store
@@ -87,6 +89,30 @@ keinen zusätzlichen Secrets-Store-Block in der vorliegenden Konfiguration.
 `leseZugangsdatum()` in `src/zugangsdaten.ts` unterstützt klassische Secret-Strings und
 Secrets-Store-Bindings mit asynchronem `get()`. Nicht auflösbare Bindings gelten als
 fehlend. Ein Bindingobjekt wird niemals direkt als String verglichen.
+
+### Mailversand (komplett optional)
+
+Der Kilometerstandsbericht wird nur verschickt, wenn ein Versandweg eingerichtet ist. Alle
+zugehörigen Blöcke in `wrangler.toml` sind **auskommentiert ausgeliefert**, weil jeder von
+ihnen eine Einrichtung im Cloudflare-Konto voraussetzt: ein Binding auf ein nicht
+vorhandenes Secret bricht `wrangler deploy` ab und würde damit das Deployment des gesamten
+Workers an eine noch nicht bestehende Einrichtung koppeln. Ohne sie läuft der Worker
+unverändert; die Systemkonfiguration meldet den Versandweg als nicht eingerichtet und
+sperrt den Versand, statt ihn scheitern zu lassen.
+
+| Binding / Variable   | Art              | Wofür                                                                       |
+| -------------------- | ---------------- | --------------------------------------------------------------------------- |
+| `MAIL_ABSENDER`      | Secrets Store    | Absenderadresse, für **beide** Wege nötig; Domain muss im Konto belegt sein |
+| `MAIL_API_TOKEN`     | Secrets Store    | API-Token des HTTP-Anbieters; nur für den Versandweg `resend`               |
+| `MAIL_ROUTING`       | `[[send_email]]` | Nur für den Versandweg `email-routing`; braucht eine bestätigte Zieladresse |
+| `MAIL_ABSENDER_NAME` | Laufzeitvariable | Optionaler Anzeigename des Absenders; kein Geheimnis                        |
+
+Reihenfolge: erst das Secret im Store anlegen beziehungsweise Email Routing einrichten und
+die Empfängeradresse dort als **Zieladresse bestätigen**, dann den passenden Block in
+`worker/wrangler.toml` aktivieren, dann deployen. Bei `[[send_email]]` zusätzlich
+`destination_address` auf genau die Berichtsadresse setzen, damit das Binding nicht an
+beliebige Adressen senden kann. Empfänger, Betreff und Versandweg werden anschließend in
+der Anwendung unter **Verwaltung → Systemkonfiguration** gesetzt, nicht im Dashboard.
 
 `APP_SHARED_SECRET` wird nicht mehr verwendet. Einen alten Store-Eintrag erst entfernen,
 wenn kein noch betriebener alter Worker ihn benötigt.

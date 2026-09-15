@@ -1112,3 +1112,79 @@ Bezeichnung auch das Kennzeichen sichtbar sein.
   Nextcloud-/HiOrg-Daten oder eine produktive Google-Sitzung hat **nicht** stattgefunden.
   Worker und Routing sind unverändert, deshalb kein neuer `test:spa`-Lauf; dieser bleibt wie
   zuvor dokumentiert blockiert.
+
+## AP-S1 – Systemkonfiguration und Kilometerstandsbericht per E-Mail
+
+Neuer Verwaltungspunkt **Systemkonfiguration** (`/verwaltung/systemkonfiguration`) und ein
+Kilometerstandsbericht, der von dort aus per E-Mail verschickt wird.
+
+- **Systemkonfiguration** ist ein Schlüssel-Wert-Speicher in `BENUTZER_DB`
+  (`worker/migrations/0005_systemkonfiguration.sql`) hinter `GET/PUT /api/systemkonfiguration`.
+  Der Vertrag steckt nicht in der Tabelle, sondern in der festen Liste `EINSTELLUNGEN` in
+  `worker/src/systemkonfiguration.ts`: ein unbekannter Schlüssel wird abgelehnt, nie
+  gespeichert. Es stehen dort **keine Zugangsdaten** – alles in der Tabelle ist über die API
+  lesbar. Ein gespeicherter Wert, der heute nicht mehr gültig ist, fällt beim Lesen auf den
+  Standard zurück.
+- **Mailversand** (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern, wie
+  abgestimmt: `email-routing` über das `send_email`-Binding und `resend` über einen festen
+  HTTPS-Endpunkt. Keine konfigurierbare Ziel-URL. SMTP ist in Workers nicht möglich.
+  `GET /api/systemkonfiguration` meldet je Weg nur ein Ja/Nein zur Verfügbarkeit, damit die
+  Oberfläche einen nicht eingerichteten Weg benennen kann, statt den Versand erst beim
+  Absenden scheitern zu lassen – keine Bindingliste, keine Secretnamen, keine Längen.
+  Upstream-Antworten werden nie weitergereicht (`MAIL_VERSANDWEG_NICHT_EINGERICHTET`,
+  `MAIL_VERSAND_FEHLGESCHLAGEN`); im Betreiberlog steht nur Status beziehungsweise
+  Fehlername, nie Empfänger oder Token.
+- **Bericht** (`worker/src/km-bericht.ts`, `GET /api/fahrzeuge/km-bericht` als Vorschau,
+  `POST …/senden` als Versand). Je Fahrzeug: letzter gültiger Stand, Ablesedatum, Abstand
+  zum Stichtag und Jahresbilanz gegen die Mindestlaufleistung. Korrigierte Ablesungen
+  bleiben draußen, wie im Fahrzeugdetail. Der Stichtag ist ein Berliner Kalendertag, nie
+  über UTC gerechnet. Mail und Vorschau zeigen dieselben Zahlen, weil beide aus derselben
+  Berechnung stammen; die Oberfläche rechnet nichts nach.
+- **Bewusst kein Zeitplan**: der Versand wird nur von Hand ausgelöst. Damit gibt es auch
+  keinen Cron-Trigger und keinen Pfad, der am Access-Gate vorbeiliefe.
+- Der Versand verlangt einen Bestätigungsdialog mit der konkreten Adresse und bezieht sich
+  ausschließlich auf den **gespeicherten** Stand – ein ungespeicherter Entwurf wirkt nicht.
+  Ungespeicherte Eingaben melden sich am gemeinsamen `VerlassenSchutz`; ein erneutes Laden
+  überschreibt sie nicht.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test`
+  (**536 Angular-Tests in 67 Dateien**, **421 Worker-Tests in 10 Dateien**),
+  `npm run format:check` und `npm run deploy:dry-run` – alle grün.
+- **Browserprüfung durchgeführt** (Chromium über Playwright gegen `ng serve`, alle
+  `/api/*`-Antworten lokal abgefangen mit ausschließlich erfundenen Fahrzeugen; kein echter
+  Worker und kein echter Mailversand). Desktop 1440×900 und Mobil 390×844: Speichern ist
+  gesperrt, solange nichts geändert wurde, „Verwerfen" setzt das Feld zurück, der
+  Bestätigungsdialog erscheint und ein Abbruch löst keinen Versand aus, die Bestätigung
+  genau einen; danach steht die Quittung auf der Seite. Kein waagerechter Seitenscroll in
+  beiden Breiten, die Berichtstabelle scrollt mobil in ihrem eigenen Bereich, keine
+  Konsolenfehler. Zwei Darstellungsfehler kamen dabei ans Licht und wurden behoben (der
+  dreizeilige Hinweis unter „Versandweg" überlappte die Knöpfe – fehlendes
+  `subscriptSizing="dynamic"`; Zahlen und Daten standen unformatiert statt wie im Mailtext).
+
+### Offene Abnahmegrenzen von AP-S1
+
+- **Ein echter Mailversand hat nicht stattgefunden.** Weder Email Routing noch die Mail-API
+  wurden gegen den Livedienst geprüft; in dieser Umgebung liegen weder Secrets noch eine
+  eingerichtete Zone vor. Ob die Mail bei einem echten Client so aussieht wie gedacht, ist
+  damit ungeprüft.
+- **Der Mailversand ist noch nicht eingerichtet und deshalb noch nicht benutzbar.** Alle
+  drei Blöcke in `worker/wrangler.toml` (`MAIL_ABSENDER`, `MAIL_API_TOKEN`,
+  `[[send_email]]`) sind auskommentiert ausgeliefert. Das war zunächst anders: die beiden
+  Secrets-Store-Bindings standen aktiv in der Datei, woraufhin der Cloudflare-Workers-Build
+  des Pull Requests **fehlschlug** – ein Binding auf ein im Store nicht vorhandenes Secret
+  bricht `wrangler deploy` ab und hätte das Deployment des gesamten Workers an eine noch
+  nicht bestehende Einrichtung gekoppelt. `npm run deploy:dry-run` deckt das nicht auf, er
+  prüft die Existenz der Secrets nicht. Der Einrichtungsweg (erst Secret anlegen
+  beziehungsweise Email Routing einrichten und die Zieladresse bestätigen, dann den Block
+  aktivieren, dann deployen) steht in [Einrichtung](einrichtung.md) und im
+  [Worker-README](../worker/README.md). Bis dahin meldet die Systemkonfiguration den Weg als
+  nicht eingerichtet und sperrt den Versand, statt ihn scheitern zu lassen.
+- Die Migration `0005_systemkonfiguration.sql` ist **noch nicht angewendet**; ohne sie
+  antwortet die Seite mit `SYSTEMKONFIGURATION_DB_FEHLER`.
+- Die Kennzahlenlogik liegt doppelt vor: `worker/src/km-bericht.ts` bildet
+  `src/app/fahrzeuge/services/kilometer-soll.ts` nach, weil das Worker-Bundle bewusst keine
+  Anwendungsquellen zieht. `worker/tests/km-bericht.spec.ts` spiegelt die Fälle der dortigen
+  Tests; die beiden Fassungen sind gemeinsam zu ändern.
+- Rollenprüfung fehlt weiterhin: jede geprüfte Identität kann Einstellungen ändern und den
+  Bericht versenden („Rechte vorerst alle, Rollen später").
+- `npm run test:spa` bleibt wie zuvor dokumentiert blockiert.
+- Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.

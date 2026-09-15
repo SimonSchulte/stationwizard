@@ -49,6 +49,30 @@ Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **W
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
+## Mailversand des Kilometerstandsberichts (optional)
+
+Der Versand ist erst möglich, wenn ein Versandweg eingerichtet ist; alle zugehörigen Blöcke
+in `worker/wrangler.toml` sind **auskommentiert ausgeliefert**. Das ist Absicht: ein Binding
+auf ein nicht vorhandenes Secret bricht `wrangler deploy` ab und würde das Deployment des
+gesamten Workers an eine noch nicht bestehende Einrichtung koppeln. Ohne Einrichtung läuft
+alles Übrige unverändert, und die Systemkonfiguration meldet den Weg ehrlich als nicht
+eingerichtet.
+
+1. `MAIL_ABSENDER` im Secrets Store anlegen (Absenderadresse, für **beide** Wege nötig; die
+   Domain muss im Cloudflare-Konto für den Versand belegt sein) und den Block aktivieren.
+2. Für **Cloudflare Email Routing**: Email Routing für die Zone aktivieren, die
+   Berichtsadresse dort als **Zieladresse bestätigen** und den `[[send_email]]`-Block
+   aktivieren, mit `destination_address` auf genau diese Adresse. Ohne die Bestätigung lehnt
+   Cloudflare den Versand ab – eine Eigenschaft von Email Routing, keine Einstellung dieser
+   Anwendung.
+3. Für die **Mail-API (Resend)**: `MAIL_API_TOKEN` im Secrets Store anlegen und den Block
+   aktivieren.
+4. Optional den Anzeigename des Absenders als Laufzeitvariable `MAIL_ABSENDER_NAME` setzen;
+   das ist kein Geheimnis.
+
+Empfänger, Betreff und Versandweg werden anschließend in der Anwendung unter
+**Verwaltung → Systemkonfiguration** gesetzt, nicht im Dashboard.
+
 ## Zero Trust, Google-Anmeldung und Access
 
 1. In **Zero Trust → Settings → Team name and domain** die Teamdomain ablesen
@@ -112,6 +136,9 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | Nextcloud-Fehler                     | Freigabe, Token, Passwort und Schreibrechte prüfen, danach das Secrets-Store-Binding am Worker.                                             |
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
 | `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
+| `MAIL_VERSANDWEG_NICHT_EINGERICHTET` | Kein `MAIL_ABSENDER`, kein `send_email`-Binding beziehungsweise kein `MAIL_API_TOKEN` für den gewählten Weg.                                |
+| `MAIL_VERSAND_FEHLGESCHLAGEN`        | Der Anbieter hat abgelehnt – bei Email Routing meist eine nicht bestätigte Zieladresse. Details stehen nur im Betreiberlog.                 |
+| `KM_BERICHT_EMPFAENGER_FEHLT`        | Unter Verwaltung → Systemkonfiguration ist keine Empfängeradresse gespeichert.                                                              |
 | Secret vorhanden, trotzdem Fehler    | Unter **Bindings** kontrollieren, ob genau dieser Worker das Secret nutzt – ein Eintrag unter **Build Variables and Secrets** genügt nicht. |
 
 Der vollständige Fehlercode-Katalog mit HTTP-Status steht im

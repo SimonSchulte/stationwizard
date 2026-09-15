@@ -12,8 +12,19 @@ import {
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
+import {
+  KM_BERICHT_PFAD,
+  KM_BERICHT_SENDEN_PFAD,
+  verarbeiteKmBericht,
+  type KmBerichtKonfiguration,
+} from './km-bericht';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 import { PROFILBILD_PFAD, verarbeiteProfilbild } from './profilbild';
+import {
+  SYSTEMKONFIGURATION_PFAD,
+  verarbeiteSystemkonfiguration,
+  type SystemkonfigurationKonfiguration,
+} from './systemkonfiguration';
 
 export interface Env
   extends
@@ -22,7 +33,9 @@ export interface Env
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
     FahrzeugeKonfiguration,
-    BenutzerverwaltungKonfiguration {
+    BenutzerverwaltungKonfiguration,
+    SystemkonfigurationKonfiguration,
+    KmBerichtKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -81,6 +94,10 @@ export default {
       return verarbeiteBenutzerverwaltung(anfrage, umgebung, benutzer);
     }
 
+    if (url.pathname === SYSTEMKONFIGURATION_PFAD) {
+      return verarbeiteSystemkonfiguration(anfrage, umgebung, benutzer);
+    }
+
     if (url.pathname.startsWith('/api/efs/')) {
       return verarbeiteEfs(anfrage, umgebung);
     }
@@ -91,6 +108,12 @@ export default {
 
     if (url.pathname.startsWith('/api/nextcloud/')) {
       return verarbeiteNextcloud(anfrage, umgebung);
+    }
+
+    // Vor der Fahrzeugverarbeitung, weil der Bericht kein einzelnes Fahrzeug
+    // adressiert und deren UUID-Pfade ihn sonst als unbekannt abwiesen.
+    if (url.pathname === KM_BERICHT_PFAD || url.pathname === KM_BERICHT_SENDEN_PFAD) {
+      return verarbeiteKmBericht(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === '/api/fahrzeuge' || url.pathname.startsWith('/api/fahrzeuge/')) {

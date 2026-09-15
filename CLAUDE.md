@@ -145,8 +145,11 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
 | `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
 | `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
+| `/api/fahrzeuge/km-bericht`               | GET        | Kilometerstandsbericht über alle Fahrzeuge als Vorschau; versendet nichts   |
+| `/api/fahrzeuge/km-bericht/senden`        | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
 | `/api/benutzerverwaltung`                 | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
 | `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
+| `/api/systemkonfiguration`                | GET / PUT  | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten       |
 | `/f/<UUID>`, `/f/<UUID>/km`               | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
@@ -180,6 +183,38 @@ dieselbe Übergangslösung wie beim Löschen einer Ablesung (siehe „Rechte vor
 später", `docs/konzept-fahrzeuge.md` Abschnitt 8); eine spätere Admin-Rolle soll dies
 einschränken. Eine tatsächliche serverseitige Durchsetzung dieser Sonderrollen auf den
 Verwaltungs- und Einsatzplanungs-Endpunkten steht noch aus (siehe Arbeitsstand).
+
+Die Systemkonfiguration (`src/app/systemkonfiguration/`, `worker/src/systemkonfiguration.ts`)
+hält Betriebseinstellungen, die zur Laufzeit in der Oberfläche gesetzt werden. Die Tabelle
+`systemkonfiguration` (in `BENUTZER_DB`, Schema in
+`worker/migrations/0005_systemkonfiguration.sql`) ist ein Schlüssel-Wert-Speicher, der
+Vertrag ist es nicht: welche Schlüssel existieren und welche Werte gelten, steht
+ausschließlich in `EINSTELLUNGEN` in `systemkonfiguration.ts`; ein unbekannter Schlüssel
+wird abgelehnt, nie gespeichert. Dort stehen **keine Zugangsdaten** – alles in dieser
+Tabelle ist über die API lesbar. Absenderadresse (`MAIL_ABSENDER`), Anzeigename
+(`MAIL_ABSENDER_NAME`, gewöhnliche Laufzeitvariable) und API-Token (`MAIL_API_TOKEN`)
+bleiben am Worker. `GET` meldet je bekanntem Versandweg nur ein Ja/Nein zur Verfügbarkeit,
+nie eine Bindingliste. Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte
+vorerst alle, Rollen später".
+
+Der Mailversand (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern:
+`email-routing` über das `send_email`-Binding (in `wrangler.toml` bewusst auskommentiert,
+weil es eine bestätigte Zieladresse in Cloudflare Email Routing voraussetzt) und `resend`
+über einen **festen** HTTPS-Endpunkt. Keine konfigurierbare Ziel-URL – eine frei setzbare
+Adresse wäre ein Weiterleitungspunkt für das Token. SMTP ist in Workers nicht möglich.
+Upstream-Antworten werden nie weitergereicht: nur feste Codes
+(`MAIL_VERSANDWEG_NICHT_EINGERICHTET`, `MAIL_VERSAND_FEHLGESCHLAGEN`), im Log nur Status
+beziehungsweise Fehlername. Ein weiterer Anbieter ist ein weiterer Adapter, keine Änderung
+an den Aufrufern.
+
+Der Kilometerstandsbericht (`worker/src/km-bericht.ts`) ist Fahrzeugfachlichkeit und liegt
+deshalb neben `fahrzeuge.ts`; die Systemkonfiguration sagt nur, wohin er geht. Er bildet
+die Kennzahlen aus `src/app/fahrzeuge/services/kilometer-soll.ts` serverseitig nach
+(Jahressoll, Jahresstartstand, „unvollständig"), damit Mail und Vorschau dieselben Zahlen
+zeigen. Beide Fassungen sind gemeinsam zu ändern; `worker/tests/km-bericht.spec.ts`
+spiegelt die Fälle der dortigen Tests. Der Stichtag ist ein Berliner Kalendertag, nie über
+UTC gerechnet. Es gibt bewusst keinen Zeitplan und keinen Cron-Trigger: der Versand wird
+ausschließlich von Hand in der Systemkonfiguration ausgelöst.
 
 Der Verwaltungsbereich (`src/app/verwaltung/`, Route `/verwaltung`) hält nur den Einstieg in
 administrative Aufgaben; die Fachlogik bleibt beim jeweiligen Fachmodul. Er kennt kein
