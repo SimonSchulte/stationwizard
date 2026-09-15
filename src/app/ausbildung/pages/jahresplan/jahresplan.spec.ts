@@ -439,3 +439,102 @@ describe('Automatisches Laden der Arbeitsmappe', () => {
     expect(workbook.laden).not.toHaveBeenCalled();
   });
 });
+
+describe('Tageszellen mit vielen Einträgen', () => {
+  const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
+  const workbook = {
+    ziel: signal(null),
+    beschaeftigt: signal(false),
+    laden: vi.fn(),
+    neuLaden: vi.fn(),
+    neuesDokument: vi.fn(),
+    waehleJahr: vi.fn(),
+    verfuegbareJahre: signal<number[]>([2026]),
+  };
+  const hiorg = {
+    eintraege: signal<readonly HiorgEintrag[]>([]),
+    zustand: signal('geladen'),
+    fehler: signal(''),
+    verworfen: signal(0),
+    laedt: signal(false),
+    lade: vi.fn(),
+  };
+  let ansicht: Jahresplan;
+  let store: PlanStore;
+
+  /** Fünf erfundene Dienste an einem Tag – der Fall, der die Wochenzeile aufblähte. */
+  const DIENSTE: HiorgEintrag[] = [1, 2, 3, 4, 5].map((nummer) => ({
+    schluessel: `dienst|2026-08-26|${nummer}`,
+    beginn: '2026-08-26',
+    ende: '2026-08-26',
+    beginnZeit: '15:00',
+    endeZeit: '23:00',
+    name: `Erfundener Dienst ${nummer}`,
+    art: 'dienst',
+    url: 'https://www.hiorg-server.de/formulare.php?ri=1000000',
+    id: `100000${nummer}`,
+  }));
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DialogDienst, useValue: dialog },
+        { provide: MatDialog, useValue: {} },
+        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: WorkbookService, useValue: workbook },
+        {
+          provide: FeiertagService,
+          useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
+        },
+        { provide: HiorgKalenderService, useValue: hiorg },
+      ],
+    });
+    hiorg.eintraege.set([]);
+    store = TestBed.inject(PlanStore);
+    ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [{ ...leererTermin('2026-08-26'), id: 't1', thema: 'Eigene Ausbildung' }],
+    });
+    hiorg.eintraege.set(DIENSTE);
+  });
+
+  it('hält die Tageszelle auf der Höchstzahl an Karten', () => {
+    ansicht.setzeHiorgEbene('einzeln');
+
+    const inhalt = ansicht.tagesInhalt('2026-08-26');
+
+    expect(inhalt.sichtbar.length).toBeLessThanOrEqual(ansicht.maxKartenProTag);
+    expect(inhalt.verborgen).toBeGreaterThan(0);
+    expect(inhalt.alle).toHaveLength(6);
+  });
+
+  it('fasst die HiOrg-Dienste eines Tages ohne eigenes Thema zu einer Karte zusammen', () => {
+    // Genau der Fall aus dem Raster: ein Tag voller Dienste, kein Plantermin.
+    store.setzeDokument({ ...leeresDocument(2026), termine: [] });
+    expect(ansicht.hiorgEbene()).toBe('gesammelt');
+
+    const inhalt = ansicht.tagesInhalt('2026-08-26');
+
+    expect(inhalt.sichtbar.map((karte) => karte.art)).toEqual(['sammel']);
+    expect(inhalt.verborgen).toBe(0);
+  });
+
+  it('sammelt abweichend benannte Dienste nicht ein, deckelt den Tag aber trotzdem', () => {
+    // Der Plan nennt den Tag anders als HiOrg: jeder Dienst ist eine Abweichung
+    // und bleibt einzeln – die Zelle bleibt trotzdem auf ihrer Höchstzahl.
+    const inhalt = ansicht.tagesInhalt('2026-08-26');
+
+    expect(inhalt.sichtbar.map((karte) => karte.art)).toEqual(['termin', 'hiorg']);
+    expect(inhalt.sichtbar.length).toBeLessThanOrEqual(ansicht.maxKartenProTag);
+    expect(inhalt.verborgen).toBe(4);
+  });
+
+  it('lässt einen Tag ohne Einträge leer', () => {
+    const inhalt = ansicht.tagesInhalt('2026-08-27');
+
+    expect(inhalt.sichtbar).toHaveLength(0);
+    expect(inhalt.alle).toHaveLength(0);
+  });
+});

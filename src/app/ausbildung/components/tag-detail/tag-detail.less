@@ -1,0 +1,38 @@
+.inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: min(520px, 80vw);
+  padding-top: var(--space-xs);
+}
+
+.abschnitt {
+  margin: var(--space-sm) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.feiertag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--feiertag-bg);
+  color: var(--feiertag-text);
+  font-size: 0.8125rem;
+}
+
+.leer {
+  margin: 0;
+  color: var(--text-disabled);
+  font-size: 0.8125rem;
+}

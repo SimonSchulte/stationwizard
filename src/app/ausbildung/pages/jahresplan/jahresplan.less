@@ -180,6 +180,8 @@
   // Kalender bei kurzen Ausschnitten (z. B. einem einzelnen Monat) die ganze
   // verfügbare Höhe von `.raster-bereich` ausfüllt statt oben mit Rand zu enden.
   grid-template-rows: auto;
+  // Die Tageszellen sind auf `MAX_KARTEN_PRO_TAG` gedeckelt; `1fr` verteilt den
+  // übrigen Platz gleichmäßig, statt eine Zeile am vollsten Tag hochzuziehen.
   grid-auto-rows: minmax(72px, 1fr);
   gap: var(--space-2xs);
   align-items: stretch;
@@ -241,7 +243,6 @@
 .tag-zelle {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
   min-width: 0;
   padding: var(--space-unit);
   border-radius: var(--radius-sm);
@@ -253,6 +254,27 @@
   &.ausserhalb {
     opacity: 0.45;
   }
+}
+
+/*
+ * Die Zelle wird auf die Höhe der ganzen Wochenzeile gestreckt, der Inhalt nicht.
+ * Lücke und HiOrg-Abweichung markieren deshalb diesen Block: eine über die volle
+ * Zeilenhöhe gezogene Farbfläche wirkt an einem Tag mit zwei Karten wie ein
+ * Layoutfehler, statt auf den Tag hinzuweisen.
+ */
+.tag-inhalt {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  padding: var(--space-unit);
+  border-radius: var(--radius-sm);
+
+  &.luecke {
+    border: 1px solid var(--luecke-rand);
+    background: var(--luecke-bg);
+  }
 
   /* Eine abweichende HiOrg-Bezeichnung soll schon beim Überfliegen auffallen. */
   &.hat-hiorg-abweichung {
@@ -262,10 +284,115 @@
   }
 }
 
+/* Tageszahl links, Aufklapp-Knopf rechts – eine Zeile, immer sichtbar. */
+.tag-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  min-width: 0;
+}
+
+/* „Ganzen Tag anzeigen" – ruhig, bis der Tag berührt wird, wie das „+" darunter. */
+.tag-oeffnen {
+  --mat-icon-button-state-layer-size: 22px;
+
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+
+  mat-icon {
+    font-size: 15px;
+  }
+}
+
+.tag-zelle:hover .tag-oeffnen,
+.tag-oeffnen:focus-visible {
+  opacity: 0.75;
+}
+
+/*
+ * „+N weitere": der Rest des Tages steckt im Tagesdetail. Ohne diese Deckelung
+ * bestimmt der vollste Tag die Höhe der ganzen Wochenzeile.
+ */
+.weitere-karten {
+  align-self: stretch;
+  padding: var(--space-2xs) var(--space-compact);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+  }
+}
+
+/* Mehrere unauffällige HiOrg-Einträge eines Tages, zusammengefasst. */
+.hiorg-sammelkarte {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  min-width: 0;
+  padding: var(--space-xs) var(--space-compact);
+  border: 1px dashed var(--hiorg-rand);
+  border-radius: var(--radius-sm);
+  background: var(--hiorg-bg);
+  color: var(--hiorg-text);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+
+  span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .sammel-zahl {
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--surface-hover);
+  }
+}
+
+/* Ansichtsschalter der Plan-Kopfzeile, gleiche Anmutung wie die Diensttags-Marke. */
+.ebenen-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-compact);
+  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
 /* Immer sichtbar, unabhängig von Terminen an diesem Tag; Samstag/Sonntag heben
    sich in einem Rotton ab, damit das Wochenende auch ohne die Kopfzeile auffällt. */
 .tag-nummer {
-  padding: calc(var(--space-unit) * 2) var(--space-compact) 0;
+  padding: 0 var(--space-compact);
   color: var(--text-disabled);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -320,7 +447,12 @@ app-termin-karte {
   }
 }
 
-.leer {
+/*
+ * Leerzustand des ganzen Rasters. Bewusst nicht `.leer`: dieselbe Klasse trägt
+ * auch die leere Drop-Fläche einer Tageszelle, die dadurch das große Polster
+ * geerbt und über jeder HiOrg-Karte tote Fläche erzeugt hat.
+ */
+.raster-leer {
   grid-column: 1 / -1;
   padding: var(--space-xl);
   color: var(--text-disabled);
@@ -495,6 +627,17 @@ app-termin-karte {
     grid-template-columns: 44px repeat(7, minmax(64px, 1fr));
   }
 
+  /* In einer 64px-Spalte bleibt von „HiOrg · 4 Einträge" nur ein Ellipsenrest;
+     das Wolkensymbol nennt die Quelle, die Zahl trägt die Aussage. */
+  .hiorg-sammelkarte {
+    justify-content: center;
+
+    .sammel-quelle,
+    .sammel-wort {
+      display: none;
+    }
+  }
+
   .seitenleiste {
     // Auf schmalen Displays wechseln Plan und Seitenleiste komplett über die
     // Mobil-Navigation statt über das Einklappen – das bleibt Desktop/Tablet
@@ -532,12 +675,6 @@ app-termin-karte {
 
 .monats-navigation .monat {
   min-width: 8.5rem;
-}
-
-/* Ein Tag mit Terminen, an dem die Ausbildung fehlt – einmal je Tag, nicht je Karte. */
-.tag-zelle.luecke {
-  border: 1px solid var(--luecke-rand);
-  background: var(--luecke-bg);
 }
 
 /* Der heutige Tag bleibt auch im gefilterten Monat sofort auffindbar. */

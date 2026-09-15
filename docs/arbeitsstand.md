@@ -993,3 +993,66 @@ umschließenden Leerzeichen, Ziel-/Parameternamen im Log ohne Werte), `npm run w
 `npm run format:check` und `npm run deploy:dry-run` – alle grün. Keine Browserprüfung
 (reine Worker-Änderung, Client-Antwort unverändert); `npm run test:spa` bleibt wie zuvor
 dokumentiert blockiert.
+
+## Wochenraster: Tageszellen gedeckelt, HiOrg-Ebene verdichtet
+
+**Ausgangslage:** Eine Kalenderwoche ist **eine** Gitterzeile
+(`grid-auto-rows: minmax(72px, 1fr)`, `align-items: stretch`). Ihre Höhe richtete sich
+nach dem vollsten Tag, und die Zahl der Karten pro Tag war nach oben offen: Plantermine
+und die vollständige HiOrg-Ebene stapelten sich ungedeckelt übereinander. Ein Tag mit
+zehn Diensten zog die ganze Woche auf mehrere hundert Pixel, und weil die Zellen
+mitwuchsen, spannten Lücken- und Abweichungsmarkierung ihre Farbflächen über die volle
+Zeilenhöhe – sechs leere Nachbartage erschienen als große farbige Blöcke.
+
+**Deckelung je Tag.** `services/tages-inhalt.ts` stellt die Karten einer Tageszelle
+zusammen und begrenzt sie auf `MAX_KARTEN_PRO_TAG` (3). Ist mehr da, bleiben zwei Karten
+stehen und der Rest steckt hinter „+N weitere". Gekürzt wird nach Rang, nicht nach
+Reihenfolge: mehrtägige Plantermine zuerst (ein fehlendes Segment risse den Balken mitten
+in der Woche ab), dann eintägige Plantermine, dann HiOrg-Einträge mit Namensabweichung,
+zuletzt die übrigen HiOrg-Einträge. Die _Anzeige_ behält die Tagesreihenfolge; nur die
+Auswahl richtet sich nach dem Rang.
+
+**Tagesdetail.** `components/tag-detail/` zeigt den ganzen Tag in voller Kartenbreite –
+ohne Sammelkarte und ohne Deckelung, mit denselben Aktionen wie im Raster. Erreichbar über
+„+N weitere", über die HiOrg-Sammelkarte und über ein Symbol in der Tageszeile. Der Dialog
+führt nichts selbst aus, sondern gibt die gewählte Aktion als `TagDetailErgebnis` zurück;
+Store, Rückgängig, Bestätigungen und Meldungen bleiben im Jahresplan.
+
+**HiOrg-Ebene verdichtet.** Ein Schalter in der Plan-Kopfzeile stellt die Ebene auf
+`einzeln`, `gesammelt` (Voreinstellung) oder `aus`. Gesammelt fasst die unauffälligen
+Einträge eines Tages zu einer Karte „HiOrg · N Einträge" zusammen, die das Tagesdetail
+öffnet; ab zwei Einträgen lohnt das, für einen einzelnen bleibt die normale Karte.
+Einträge mit Namensabweichung werden **nie** eingesammelt – sie sind die
+Handlungsaufforderung. Das entspricht der Rollenverteilung: Excel ist die führende
+Ausbildungsquelle, der Kalenderfeed bleibt Anzeige- und Abgleichquelle. Die Einstellung
+gilt nur für die Sitzung und wird nirgends persistiert.
+
+**Markierungen am Inhalt statt an der Zelle.** Lücke und HiOrg-Abweichung sitzen jetzt auf
+einem inneren `.tag-inhalt`, der den Inhalt umschließt, statt auf der gestreckten Zelle.
+Zwei weitere Layoutfehler derselben Gegend sind mitbehoben: die Leerzustands-Klasse `.leer`
+des Rasters heißt jetzt `.raster-leer`, weil die leere Ablagefläche einer Tageszelle
+dieselbe Klasse trug und deren großes Polster erbte (tote Fläche über jeder HiOrg-Karte);
+und diese Ablagefläche steht jetzt **unter** den Karten, weil sie ohne Feiertag oder Lücke
+nur ein Hover-„+" ist und die Karten sonst von der Tageszahl wegschob. Auf schmalen
+Displays zeigt die Sammelkarte nur Wolkensymbol und Zahl, sonst bliebe in einer
+64px-Spalte nur ein Ellipsenrest.
+
+Gemessen im Browser (Testdaten, September 2026 mit einem Tag zu zehn Einträgen):
+Zeilenhöhe vorher vom vollsten Tag getrieben, nachher gleichmäßig 156 px bei einem
+maximalen Zellinhalt von 154 px; kein waagerechter Seitenscroll auf 1600 px und 390 px.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test`, `npm run format:check`
+– alle grün, dazu zwölf neue Tests (neun für die Deckelungs- und Sammellogik in
+`tages-inhalt.spec.ts`, drei für den Tagesinhalt im Jahresplan). Browserprüfung mit
+Chromium über Playwright auf **Desktop (1600×1000)** und **Mobil (390×844)** tatsächlich
+ausgeführt: Deckelung, Sammelkarte, Tagesdetail, Ebenenschalter und Zellhöhen wie
+beschrieben, keine Konsolenfehler außer den erwarteten 503ern der abgeschalteten
+API-Routen. Der HiOrg-Feed kam dabei aus der abgefangenen Route mit
+`public/testdaten/hiorg-kalender-mock.json`; ein Lauf gegen echte HiOrg-/Nextcloud-Daten
+hat **nicht** stattgefunden. Worker und Routing sind unverändert, deshalb kein neuer
+`test:spa`-/`deploy:dry-run`-Lauf; `test:spa` bleibt wie zuvor dokumentiert blockiert.
+
+**Dabei aufgefallen, nicht behoben:** Im Entwicklungsbuild überschreibt die fehlschlagende
+echte Feed-Abfrage die über „HiOrg-Testdaten laden" geladenen Einträge wieder (Status
+springt auf „HiOrg-Fehler", das Raster bleibt leer). Das besteht unabhängig von dieser
+Änderung – der Ausgangsstand verhält sich identisch – und betrifft nur den Testdatenweg.

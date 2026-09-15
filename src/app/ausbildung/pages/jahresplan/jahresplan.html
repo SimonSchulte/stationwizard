@@ -230,6 +230,34 @@
           </button>
         }
 
+        <button
+          class="ebenen-marke"
+          [matMenuTriggerFor]="ebenenMenue"
+          matTooltip="Wie dicht die HiOrg-Termine im Raster stehen"
+        >
+          <mat-icon inline>cloud_download</mat-icon>
+          HiOrg: {{ hiorgEbeneLabel() }}
+          <mat-icon inline>arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #ebenenMenue="matMenu">
+          <div class="menue-kopf" (click)="$event.stopPropagation()">
+            HiOrg-Ebene im Wochenraster. Einträge mit abweichendem Namen bleiben immer einzeln
+            sichtbar.
+          </div>
+          <button mat-menu-item (click)="setzeHiorgEbene('einzeln')">
+            <mat-icon>{{ hiorgEbene() === 'einzeln' ? 'check' : '' }}</mat-icon>
+            <span>Einzeln</span>
+          </button>
+          <button mat-menu-item (click)="setzeHiorgEbene('gesammelt')">
+            <mat-icon>{{ hiorgEbene() === 'gesammelt' ? 'check' : '' }}</mat-icon>
+            <span>Gesammelt</span>
+          </button>
+          <button mat-menu-item (click)="setzeHiorgEbene('aus')">
+            <mat-icon>{{ hiorgEbene() === 'aus' ? 'check' : '' }}</mat-icon>
+            <span>Ausgeblendet</span>
+          </button>
+        </mat-menu>
+
         <span class="monats-navigation">
           <button
             matIconButton
@@ -318,120 +346,191 @@
           </div>
 
           @for (slot of woche.tage; track slot.datum) {
+            @let inhalt = tagesInhalt(slot.datum);
             <div
               class="tag-zelle"
               [class.diensttag]="slot.istDiensttag"
               [class.ausserhalb]="!slot.imJahr"
-              [class.luecke]="slot.luecke && slot.termine.length > 0"
               [class.heute]="slot.datum === heute"
-              [class.hat-hiorg-abweichung]="hiorgAbgleich().tageMitAbweichung.has(slot.datum)"
             >
               <!--
-                  Die Tageszahl steht immer hier, unabhängig von Terminen: sonst
-                  verschwindet sie an belegten Tagen unter der Termin-Karte.
+                  Lücke und HiOrg-Abweichung markieren den Inhalt, nicht die Zelle:
+                  Die Zelle wird auf die Höhe der ganzen Wochenzeile gestreckt, und
+                  eine über diese Höhe gezogene Farbfläche sieht an einem Tag mit
+                  zwei Karten wie ein Layoutfehler aus.
                 -->
-              <span class="tag-nummer" [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'">
-                {{ slot.datum.slice(8, 10) }}
-              </span>
-
-              @if (!slot.imJahr) {
-                <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
-                @for (eintrag of slot.termine; track eintrag.termin.id) {
-                  <app-termin-karte
-                    [termin]="eintrag.termin"
-                    [segment]="eintrag.segment"
-                    [tagDatum]="slot.datum"
-                    [katsThema]="katsThema(eintrag.termin)"
-                    [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
-                    [feiertag]="slot.feiertag"
-                    [kompakt]="true"
-                    (bearbeiten)="bearbeiten(eintrag.termin.id)"
-                    (verschieben)="zuBacklog(eintrag.termin)"
-                    (loeschen)="loeschen(eintrag.termin.id)"
-                    (dblclick)="bearbeiten(eintrag.termin.id)"
-                  />
-                }
-              } @else if (slot.termine.length) {
-                @for (eintrag of slot.termine; track eintrag.termin.id) {
-                  <div
-                    class="mini-slot"
-                    cdkDropList
-                    cdkDropListSortingDisabled
-                    (cdkDropListDropped)="aufTerminAbgelegt($event, eintrag.termin)"
+              <div
+                class="tag-inhalt"
+                [class.luecke]="slot.luecke && slot.termine.length > 0"
+                [class.hat-hiorg-abweichung]="hiorgAbgleich().tageMitAbweichung.has(slot.datum)"
+              >
+                <div class="tag-kopf">
+                  <!--
+                      Die Tageszahl steht immer hier, unabhängig von Terminen: sonst
+                      verschwindet sie an belegten Tagen unter der Termin-Karte.
+                    -->
+                  <span
+                    class="tag-nummer"
+                    [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
                   >
-                    <!--
-                        Mehrtägige Termine hängen an ihrem Beginn: nur dort lässt
-                        sich ziehen, sonst würde ein Zwischentag den Zeitraum
-                        zerreißen.
-                      -->
-                    <app-termin-karte
-                      cdkDrag
-                      [cdkDragDisabled]="eintrag.segment === 'mitte' || eintrag.segment === 'ende'"
-                      [cdkDragData]="eintrag.termin"
-                      [termin]="eintrag.termin"
-                      [segment]="eintrag.segment"
-                      [tagDatum]="slot.datum"
-                      [katsThema]="katsThema(eintrag.termin)"
-                      [hiorgEintrag]="hiorgTreffer(eintrag.termin.id)"
-                      [feiertag]="slot.feiertag"
-                      [kompakt]="true"
-                      (bearbeiten)="bearbeiten(eintrag.termin.id)"
-                      (verschieben)="zuBacklog(eintrag.termin)"
-                      (loeschen)="loeschen(eintrag.termin.id)"
-                      (dblclick)="bearbeiten(eintrag.termin.id)"
-                    />
-                  </div>
-                }
-                <!-- Ein Tag darf mehrere Termine tragen (z. B. Rookies vor dem Dienstabend). -->
-                <button
-                  matIconButton
-                  class="weiterer-termin"
-                  [matTooltip]="
-                    'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
-                  "
-                  [attr.aria-label]="
-                    'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
-                  "
-                  (click)="terminAnlegen(slot.datum)"
-                >
-                  <mat-icon>add</mat-icon>
-                </button>
-              } @else {
-                <div
-                  class="mini-slot leer"
-                  cdkDropList
-                  cdkDropListSortingDisabled
-                  (cdkDropListDropped)="aufLeeremTagAbgelegt($event, slot.datum)"
-                >
-                  <app-leerer-tag [slot]="slot" (anlegen)="terminAnlegen(slot.datum)" />
+                    {{ slot.datum.slice(8, 10) }}
+                  </span>
+                  <span class="fueller"></span>
+                  @if (slot.imJahr && inhalt.alle.length > 1) {
+                    <button
+                      matIconButton
+                      class="tag-oeffnen"
+                      [matTooltip]="'Ganzen Tag ' + formatiereDatumText(slot.datum) + ' anzeigen'"
+                      [attr.aria-label]="
+                        'Ganzen Tag ' + formatiereDatumText(slot.datum) + ' anzeigen'
+                      "
+                      (click)="oeffneTagDetail(slot)"
+                    >
+                      <mat-icon>open_in_full</mat-icon>
+                    </button>
+                  }
                 </div>
-              }
 
-              <!--
-                  HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert.
-                  Ein exakter Treffer steckt schon als Verknüpfungssymbol auf der
-                  Termin-Karte oben – hier entfällt er, sonst stünde derselbe
-                  Termin doppelt im Tag.
-                -->
-              @if (slot.imJahr && hiorgTag(slot.datum); as hiorgTagesstand) {
-                @for (eintrag of hiorgTagesstand.eintraege; track eintrag.schluessel) {
-                  @if (!istBereitsAufTerminKarte(hiorgTagesstand, eintrag)) {
-                    <app-hiorg-eintrag-karte
-                      [eintrag]="eintrag"
-                      [datum]="slot.datum"
-                      [abweichungen]="abweichungenFuer(hiorgTagesstand, eintrag)"
-                      [ohneGegenstueck]="istOhneGegenstueck(hiorgTagesstand, eintrag)"
-                      [kompakt]="true"
-                      (nameUebernehmen)="uebernimmHiorgNamen($event)"
-                      (terminAnlegen)="legeTerminAusHiorgAn($event)"
-                    />
+                @for (karte of inhalt.sichtbar; track karte.schluessel) {
+                  @switch (karte.art) {
+                    @case ('termin') {
+                      @if (!slot.imJahr) {
+                        <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
+                        <app-termin-karte
+                          [termin]="karte.termin.termin"
+                          [segment]="karte.termin.segment"
+                          [tagDatum]="slot.datum"
+                          [katsThema]="katsThema(karte.termin.termin)"
+                          [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
+                          [feiertag]="slot.feiertag"
+                          [kompakt]="true"
+                          (bearbeiten)="bearbeiten(karte.termin.termin.id)"
+                          (verschieben)="zuBacklog(karte.termin.termin)"
+                          (loeschen)="loeschen(karte.termin.termin.id)"
+                          (dblclick)="bearbeiten(karte.termin.termin.id)"
+                        />
+                      } @else {
+                        <div
+                          class="mini-slot"
+                          cdkDropList
+                          cdkDropListSortingDisabled
+                          (cdkDropListDropped)="aufTerminAbgelegt($event, karte.termin.termin)"
+                        >
+                          <!--
+                              Mehrtägige Termine hängen an ihrem Beginn: nur dort lässt
+                              sich ziehen, sonst würde ein Zwischentag den Zeitraum
+                              zerreißen.
+                            -->
+                          <app-termin-karte
+                            cdkDrag
+                            [cdkDragDisabled]="
+                              karte.termin.segment === 'mitte' || karte.termin.segment === 'ende'
+                            "
+                            [cdkDragData]="karte.termin.termin"
+                            [termin]="karte.termin.termin"
+                            [segment]="karte.termin.segment"
+                            [tagDatum]="slot.datum"
+                            [katsThema]="katsThema(karte.termin.termin)"
+                            [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
+                            [feiertag]="slot.feiertag"
+                            [kompakt]="true"
+                            (bearbeiten)="bearbeiten(karte.termin.termin.id)"
+                            (verschieben)="zuBacklog(karte.termin.termin)"
+                            (loeschen)="loeschen(karte.termin.termin.id)"
+                            (dblclick)="bearbeiten(karte.termin.termin.id)"
+                          />
+                        </div>
+                      }
+                    }
+
+                    @case ('hiorg') {
+                      <!--
+                          HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert.
+                          Ein exakter Treffer steckt schon als Verknüpfungssymbol auf der
+                          Termin-Karte oben – hier entfällt er, sonst stünde derselbe
+                          Termin doppelt im Tag.
+                        -->
+                      <app-hiorg-eintrag-karte
+                        [eintrag]="karte.hiorg.eintrag"
+                        [datum]="slot.datum"
+                        [abweichungen]="karte.hiorg.abweichungen"
+                        [ohneGegenstueck]="karte.hiorg.ohneGegenstueck"
+                        [kompakt]="true"
+                        (nameUebernehmen)="uebernimmHiorgNamen($event)"
+                        (terminAnlegen)="legeTerminAusHiorgAn($event)"
+                      />
+                    }
+
+                    @case ('sammel') {
+                      <!-- Mehrere unauffällige HiOrg-Dienste desselben Tages in einer Karte. -->
+                      <button
+                        class="hiorg-sammelkarte"
+                        [matTooltip]="
+                          karte.anzahl +
+                          ' HiOrg-Einträge am ' +
+                          formatiereDatumText(slot.datum) +
+                          ' – zum Anzeigen klicken'
+                        "
+                        (click)="oeffneTagDetail(slot)"
+                      >
+                        <mat-icon inline>cloud_download</mat-icon>
+                        <span class="sammel-quelle">HiOrg ·</span>
+                        <span class="sammel-zahl">{{ karte.anzahl }}</span>
+                        <span class="sammel-wort">Einträge</span>
+                      </button>
+                    }
                   }
                 }
-              }
+
+                @if (slot.imJahr && slot.termine.length === 0) {
+                  <!--
+                      Ablagefläche eines Tages ohne Plantermin. Sie steht unter den
+                      Karten: ohne Feiertag oder Lücke ist sie nur ein Hover-„+" und
+                      schöbe sonst die HiOrg-Karten von der Tageszahl weg.
+                    -->
+                  <div
+                    class="mini-slot leer"
+                    cdkDropList
+                    cdkDropListSortingDisabled
+                    (cdkDropListDropped)="aufLeeremTagAbgelegt($event, slot.datum)"
+                  >
+                    <app-leerer-tag [slot]="slot" (anlegen)="terminAnlegen(slot.datum)" />
+                  </div>
+                }
+
+                @if (inhalt.verborgen > 0) {
+                  <button
+                    class="weitere-karten"
+                    [matTooltip]="
+                      'Alle Einträge am ' + formatiereDatumText(slot.datum) + ' anzeigen'
+                    "
+                    (click)="oeffneTagDetail(slot)"
+                  >
+                    +{{ inhalt.verborgen }} weitere
+                  </button>
+                }
+
+                @if (slot.imJahr && slot.termine.length > 0) {
+                  <!-- Ein Tag darf mehrere Termine tragen (z. B. Rookies vor dem Dienstabend). -->
+                  <button
+                    matIconButton
+                    class="weiterer-termin"
+                    [matTooltip]="
+                      'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
+                    "
+                    [attr.aria-label]="
+                      'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
+                    "
+                    (click)="terminAnlegen(slot.datum)"
+                  >
+                    <mat-icon>add</mat-icon>
+                  </button>
+                }
+              </div>
             </div>
           }
         } @empty {
-          <p class="leer">
+          <p class="raster-leer">
             {{
               nurLuecken()
                 ? 'Kein ' + diensttagLabel() + ' ohne Ausbildung – der Plan ist vollständig.'

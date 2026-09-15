@@ -28,6 +28,11 @@ import { HiorgEintragKarte } from '../../components/hiorg-eintrag-karte/hiorg-ei
 import { KatsPanel } from '../../components/kats-panel/kats-panel';
 import { LeererTag } from '../../components/leerer-tag/leerer-tag';
 import { QuelleDialog } from '../../components/quelle-dialog/quelle-dialog';
+import {
+  TagDetail,
+  TagDetailDaten,
+  TagDetailErgebnis,
+} from '../../components/tag-detail/tag-detail';
 import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/termin-dialog';
 import { TerminKarte } from '../../components/termin-karte/termin-karte';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
@@ -43,6 +48,14 @@ import {
 import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import { FeiertagService } from '../../services/feiertage.service';
 import { PlanSlot, WochenZeile, baueWochenraster } from '../../services/plan-raster';
+import {
+  HiorgEbene,
+  HiorgTagesKarte,
+  LEERER_TAGESINHALT,
+  MAX_KARTEN_PRO_TAG,
+  TagesInhalt,
+  baueTagesInhalt,
+} from '../../services/tages-inhalt';
 import { PlanStore } from '../../services/plan-store';
 import { WorkbookService } from '../../services/workbook.service';
 import { herunterladen } from '../../storage/lokale-datei.storage';
@@ -128,6 +141,15 @@ export class Jahresplan {
   readonly mobilAnsicht = signal<'plan' | 'liste'>('plan');
 
   /**
+   * Wie dicht die HiOrg-Ebene im Raster steht. Voreinstellung `gesammelt`: an
+   * Tagen mit mehreren Diensten bleibt der eigene Plan sichtbar, statt unter
+   * einer Kette von Fremdkarten zu verschwinden. Bewusst nur für diese Sitzung
+   * – eine Ansichtseinstellung wird nirgends persistiert.
+   */
+  readonly hiorgEbene = signal<HiorgEbene>('gesammelt');
+  readonly maxKartenProTag = MAX_KARTEN_PRO_TAG;
+
+  /**
    * Ob die Ideensammlung (Offene Ideen/Auswertung/KatS-A-Plan) eingeklappt ist, um dem
    * Wochenraster Platz zu machen. Startet immer eingeklappt, damit der Kalender gleich
    * die volle Breite bekommt; folgt danach nur noch dem manuellen Umschalten (und, bis
@@ -186,6 +208,17 @@ export class Jahresplan {
     }
   });
 
+  readonly hiorgEbeneLabel = computed(() => {
+    switch (this.hiorgEbene()) {
+      case 'einzeln':
+        return 'einzeln';
+      case 'gesammelt':
+        return 'gesammelt';
+      default:
+        return 'aus';
+    }
+  });
+
   readonly quelleBeschreibung = computed(() => this.ziel()?.bezeichnung ?? 'Keine Quelle geöffnet');
   readonly quelleVerbunden = computed(() => this.ziel() !== null);
   readonly kannSpeichern = computed(() => this.ziel() !== null);
@@ -226,6 +259,36 @@ export class Jahresplan {
   readonly hiorgAbgleich = computed(() =>
     baueHiorgAbgleich(this.hiorg.eintraege(), this.store.termine(), this.store.jahr()),
   );
+
+  /**
+   * Karten je Tag, gedeckelt auf `MAX_KARTEN_PRO_TAG`.
+   *
+   * Eine Wochenzeile ist **eine** Gitterzeile: Ohne Deckelung bestimmt der
+   * vollste Tag ihre Höhe, und sechs leere Nachbartage wachsen mit. Was nicht
+   * mehr in die Zelle passt, steckt hinter „+N weitere" im Tagesdetail.
+   */
+  readonly tagesInhalte = computed<ReadonlyMap<string, TagesInhalt>>(() => {
+    const abgleich = this.hiorgAbgleich();
+    const ebene = this.hiorgEbene();
+    const inhalte = new Map<string, TagesInhalt>();
+    for (const woche of this.wochen()) {
+      for (const slot of woche.tage) {
+        // Randtage des Nachbarjahres tragen keine HiOrg-Ebene, nur zur Orientierung.
+        const tag = slot.imJahr ? (abgleich.nachDatum.get(slot.datum) ?? null) : null;
+        const hiorg: HiorgTagesKarte[] = tag
+          ? tag.eintraege
+              .filter((eintrag) => !this.istBereitsAufTerminKarte(tag, eintrag))
+              .map((eintrag) => ({
+                eintrag,
+                abweichungen: this.abweichungenFuer(tag, eintrag),
+                ohneGegenstueck: this.istOhneGegenstueck(tag, eintrag),
+              }))
+          : [];
+        inhalte.set(slot.datum, baueTagesInhalt(slot.termine, hiorg, ebene, MAX_KARTEN_PRO_TAG));
+      }
+    }
+    return inhalte;
+  });
 
   readonly sichtbareWochen = computed<WochenZeile[]>(() => {
     const suche = this.suche().trim().toLowerCase();
@@ -335,6 +398,56 @@ export class Jahresplan {
   /** HiOrg-Einträge dieses Tages, `null` ohne Treffer. */
   hiorgTag(datum: string): HiorgTagesAbgleich | null {
     return this.hiorgAbgleich().nachDatum.get(datum) ?? null;
+  }
+
+  /** Die Karten dieses Tages; leer für Tage ohne Eintrag. */
+  tagesInhalt(datum: string): TagesInhalt {
+    return this.tagesInhalte().get(datum) ?? LEERER_TAGESINHALT;
+  }
+
+  /**
+   * Öffnet den ganzen Tag in voller Kartenbreite – aus „+N weitere", aus der
+   * HiOrg-Sammelkarte und über das Kartensymbol der Tageszelle. Der Dialog
+   * ändert nichts selbst, sondern gibt die gewählte Aktion zurück.
+   */
+  oeffneTagDetail(slot: PlanSlot): void {
+    const daten: TagDetailDaten = {
+      datum: slot.datum,
+      karten: this.tagesInhalt(slot.datum).alle,
+      feiertag: slot.feiertag,
+    };
+    this.dialog
+      .open(TagDetail, { data: daten, width: '640px', maxWidth: '94vw' })
+      .afterClosed()
+      .subscribe((ergebnis?: TagDetailErgebnis) => {
+        if (!ergebnis) {
+          return;
+        }
+        switch (ergebnis.art) {
+          case 'bearbeiten':
+            this.bearbeiten(ergebnis.terminId);
+            break;
+          case 'zuBacklog':
+            this.zuBacklog(ergebnis.termin);
+            break;
+          case 'loeschen':
+            this.loeschen(ergebnis.terminId);
+            break;
+          case 'anlegen':
+            this.terminAnlegen(ergebnis.datum);
+            break;
+          case 'nameUebernehmen':
+            void this.uebernimmHiorgNamen(ergebnis.abweichung);
+            break;
+          case 'terminAusHiorg':
+            this.legeTerminAusHiorgAn(ergebnis.eintrag);
+            break;
+        }
+      });
+  }
+
+  setzeHiorgEbene(ebene: HiorgEbene): void {
+    this.hiorgEbene.set(ebene);
   }
 
   abweichungenFuer(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): HiorgAbweichung[] {
