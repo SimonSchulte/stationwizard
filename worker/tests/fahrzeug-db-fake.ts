@@ -305,6 +305,38 @@ class FakeStatement {
         .sort((a, b) => a.abgelesen_am.localeCompare(b.abgelesen_am));
       return { success: true, results: zeilen as unknown as T[] };
     }
+    if (
+      this.query.startsWith(
+        'SELECT id, bezeichnung, funkrufname, kennzeichen, eigentuemer FROM fahrzeuge ORDER BY bezeichnung',
+      )
+    ) {
+      const zeilen = [...this.db.fahrzeuge.values()]
+        .sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung))
+        .map(({ id, bezeichnung, funkrufname, kennzeichen, eigentuemer }) => ({
+          id,
+          bezeichnung,
+          funkrufname,
+          kennzeichen,
+          eigentuemer,
+        }));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (
+      this.query.startsWith(
+        'SELECT id, fahrzeug_id, abgelesen_am, stand, korrigiert FROM ablesungen',
+      )
+    ) {
+      const zeilen = this.db.ablesungen.map(
+        ({ id, fahrzeug_id, abgelesen_am, stand, korrigiert }) => ({
+          id,
+          fahrzeug_id,
+          abgelesen_am,
+          stand,
+          korrigiert,
+        }),
+      );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
     if (this.query.startsWith('SELECT * FROM fahrzeug_aenderungen WHERE fahrzeug_id = ?')) {
       const [fahrzeugId] = this.werte as [string];
       const zeilen = this.db.aenderungen

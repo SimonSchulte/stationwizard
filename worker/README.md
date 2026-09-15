@@ -39,7 +39,7 @@ settings**. Diese beiden Werte sind Konfiguration und keine Upstream-Geheimnisse
 `keep_vars = true` bewahrt Dashboard-Laufzeitvariablen bei Deployments. Der Schlüssel
 steht vor allen TOML-Tabellen und ersetzt keine Secrets oder Secret-Bindings.
 
-### Sechs verpflichtende Secrets-Store-Bindings
+### Acht verpflichtende Secrets-Store-Bindings
 
 `wrangler.toml` referenziert den Store `36762a3b5aa547bea7f547b1d66c30ee`. Binding und
 Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht.
@@ -52,10 +52,25 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
 | `HIORGSERVER_CALENDER_FEED` | Vollständige HiOrg-Kalenderfreigabe-URL (führend) oder ersatzweise nur der `lab`-Tokenwert daraus                              |
+| `MAIL_ABSENDER`             | Absenderadresse des Kilometerstandsberichts; muss zu einer im Cloudflare-Konto belegten Domain gehören                         |
+| `MAIL_API_TOKEN`            | API-Token des HTTP-Mailanbieters; nur für den Versandweg `resend` nötig, sonst ein beliebiger Platzhalterwert                  |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
-Worker unter **Bindings** kontrollieren, ob genau diese sechs Namen auf den richtigen Store
+Worker unter **Bindings** kontrollieren, ob genau diese acht Namen auf den richtigen Store
 zeigen. Eine vorhandene Build-Variable genügt nicht.
+
+`MAIL_ABSENDER` und `MAIL_API_TOKEN` müssen im Store **existieren, bevor der nächste
+Deployment läuft** – `wrangler deploy` bricht sonst mit einem fehlenden Secret ab. Wer den
+HTTP-Versandweg nicht benutzt, legt `MAIL_API_TOKEN` trotzdem an (irgendein Wert); der
+Worker meldet den Weg dann weiterhin als nicht verfügbar, sobald ein Versuch scheitert.
+Umgekehrt kann auch der Block in `wrangler.toml` entfernt werden, wenn der Weg dauerhaft
+nicht gebraucht wird.
+
+Der Versandweg **Email Routing** braucht zusätzlich das `send_email`-Binding. Es steht in
+`wrangler.toml` bewusst auskommentiert, weil es eine eingerichtete Email-Routing-Zone und
+eine dort **bestätigte Zieladresse** voraussetzt. Optional lässt sich der Anzeigename des
+Absenders als gewöhnliche Laufzeitvariable `MAIL_ABSENDER_NAME` setzen; sie ist kein
+Geheimnis.
 
 Die Nextcloud-Basis und die EFS-Ziel-URL dürfen keine eingebetteten Zugangsdaten,
 Query-Parameter oder Fragmente enthalten. Der EFS-Endpunkt wird nicht im Quellcode
