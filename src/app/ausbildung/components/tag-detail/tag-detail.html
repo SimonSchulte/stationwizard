@@ -1,0 +1,51 @@
+<h2 mat-dialog-title>{{ titel() }}</h2>
+
+<mat-dialog-content class="inhalt">
+  @if (daten.feiertag) {
+    <p class="feiertag">
+      <mat-icon inline>flag</mat-icon>
+      {{ daten.feiertag }}
+    </p>
+  }
+
+  @if (termine().length) {
+    <h3 class="abschnitt">Jahresdienstplan</h3>
+    @for (karte of termine(); track karte.schluessel) {
+      <app-termin-karte
+        [termin]="karte.termin.termin"
+        [segment]="karte.termin.segment"
+        [tagDatum]="daten.datum"
+        [feiertag]="daten.feiertag"
+        [kompakt]="false"
+        (bearbeiten)="schliesse.close({ art: 'bearbeiten', terminId: karte.termin.termin.id })"
+        (verschieben)="schliesse.close({ art: 'zuBacklog', termin: karte.termin.termin })"
+        (loeschen)="schliesse.close({ art: 'loeschen', terminId: karte.termin.termin.id })"
+      />
+    }
+  } @else {
+    <p class="leer">Kein Eintrag im Jahresdienstplan an diesem Tag.</p>
+  }
+
+  @if (hiorgEintraege().length) {
+    <h3 class="abschnitt">HiOrg-Server</h3>
+    @for (karte of hiorgEintraege(); track karte.schluessel) {
+      <app-hiorg-eintrag-karte
+        [eintrag]="karte.hiorg.eintrag"
+        [datum]="daten.datum"
+        [abweichungen]="karte.hiorg.abweichungen"
+        [ohneGegenstueck]="karte.hiorg.ohneGegenstueck"
+        [kompakt]="false"
+        (nameUebernehmen)="schliesse.close({ art: 'nameUebernehmen', abweichung: $event })"
+        (terminAnlegen)="schliesse.close({ art: 'terminAusHiorg', eintrag: $event })"
+      />
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Schließen</button>
+  <button matButton="filled" [mat-dialog-close]="{ art: 'anlegen', datum: daten.datum }">
+    <mat-icon>add</mat-icon>
+    Termin an diesem Tag
+  </button>
+</mat-dialog-actions>
