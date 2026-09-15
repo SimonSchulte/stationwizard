@@ -213,6 +213,13 @@ Vergleichsform geändert, muss das an drei Stellen gemeinsam geschehen – Migra
 Doubletten enthält, sonst scheitert die Migration. Die passende Abfrage steht als
 Kommentar in der Migrationsdatei.
 
+Migrationen werden nicht automatisch angewendet (kein `wrangler d1 migrations apply`,
+kein CI-Schritt) – jede neue Datei in `worker/migrations/` muss hier **und** gegen die
+bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden. Ein
+Vergessen bleibt sonst unbemerkt: `SELECT *` liefert weiterhin Zeilen, nur ohne die neue
+Spalte, und eine clientseitige Prüfung kann dadurch scheinbar leere Listen zeigen, obwohl
+die Daten unverändert in D1 liegen.
+
 Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 
 ```bash
@@ -223,6 +230,8 @@ npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangle
   --file worker/migrations/0002_fahrzeug_aenderungen.sql
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
   --file worker/migrations/0003_kennzeichen_eindeutig.sql
+npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
+  --file worker/migrations/0006_fahrzeug_gruppe.sql
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block von `wrangler.toml`
@@ -252,6 +261,8 @@ Angelegt und Migration angewendet (`database_id` `8d57d55d-8bd2-4701-bbbe-f25a4e
 npx wrangler d1 create stationwizard-benutzer --config worker/wrangler.toml
 npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler.toml \
   --file worker/migrations/0004_benutzer.sql
+npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler.toml \
+  --file worker/migrations/0005_systemkonfiguration.sql
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER_DB` in
