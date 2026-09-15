@@ -319,6 +319,93 @@ describe('HiOrg-Kalender: vollständige Freigabe-URL als Secret', () => {
     });
   });
 
+  /**
+   * Die Freigabe-URL ist selbst das Zugangsdatum. Sie wird deshalb nicht neu
+   * serialisiert: `URLSearchParams.set()` würde beim Schreiben von `monate` den
+   * ganzen Anfrage-String neu kodieren und dabei Zeichen des Tokens verändern.
+   */
+  it('lässt jedes Zeichen außer monate unverändert', async () => {
+    const kniffligerToken = "Ab+cd/ef=~(x)'1";
+    umgebung = {
+      HIORGSERVER_CALENDER_FEED:
+        `https://www.hiorg-server.de/termine.php?ov=biel&lab=${kniffligerToken}` +
+        '&monate=-24&json=1',
+    };
+
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-09'), umgebung);
+
+    expect(abrufen.mock.calls[0]?.[0]).toBe(
+      `https://www.hiorg-server.de/termine.php?ov=biel&lab=${kniffligerToken}&monate=4&json=1`,
+    );
+  });
+
+  it('hängt monate nur an, wenn die Adresse es nicht führt', async () => {
+    umgebung = {
+      HIORGSERVER_CALENDER_FEED: 'https://www.hiorg-server.de/termine.php?ov=biel&lab=erfunden4711',
+    };
+
+    await verarbeiteHiorgKalender(anfrage('/api/hiorg/kalender?monat=2026-01'), umgebung);
+
+    expect(abrufen.mock.calls[0]?.[0]).toBe(
+      'https://www.hiorg-server.de/termine.php?ov=biel&lab=erfunden4711&monate=-6',
+    );
+  });
+
+  /**
+   * HiOrg gibt Adressen HTML-maskiert aus (der Feed selbst liefert `&amp;` in
+   * den Ereignis-Links). Ein so kopierter Freigabelink hätte sonst Parameter
+   * wie `amp;lab` – also gar kein `lab` – und HiOrg antwortete mit einer
+   * HTML-Seite statt mit JSON.
+   */
+  it('dekodiert eine HTML-maskiert eingefügte Adresse', async () => {
+    umgebung = {
+      HIORGSERVER_CALENDER_FEED:
+        'https://www.hiorg-server.de/termine.php?ov=biel&amp;lab=erfunden4711&amp;json=1',
+    };
+
+    await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    const ziel = abgerufeneUrl();
+    expect(ziel.searchParams.get('lab')).toBe('erfunden4711');
+    expect(ziel.searchParams.get('json')).toBe('1');
+    expect([...ziel.searchParams.keys()]).not.toContain('amp;lab');
+  });
+
+  it('entfernt umschließende Leerzeichen aus dem Secret', async () => {
+    umgebung = {
+      HIORGSERVER_CALENDER_FEED: `\n  ${FREIGABE_URL}  \n`,
+    };
+
+    const antwort = await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    expect(antwort.status).toBe(200);
+    expect(abgerufeneUrl().searchParams.get('lab')).toBe(FREIGABE_TOKEN);
+  });
+
+  /**
+   * Ohne die Parameternamen lässt sich eine HTML-Antwort nicht von einer
+   * Adresse unterscheiden, der schlicht das `lab` fehlt. Werte gehören nicht
+   * ins Log.
+   */
+  it('nennt bei einer HTML-Antwort Host, Pfad und Parameternamen, keine Werte', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    abrufen.mockResolvedValue(
+      new Response('<html>Anmeldung</html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      }),
+    );
+
+    await verarbeiteHiorgKalender(anfrage(), umgebung);
+
+    const grund = String(log.mock.calls[0]?.[1]);
+    expect(grund).toContain('Feed-Zugang vollständige Freigabe-URL');
+    expect(grund).toContain('Ziel www.hiorg-server.de/termine.php mit Parametern');
+    expect(grund).toContain('ov, termin, dienst, ausgabe, lab, monate');
+    expect(grund).not.toContain(FREIGABE_TOKEN);
+    expect(grund).not.toContain('biel');
+  });
+
   it('behält Einträge, deren Text nur die kurzen Schaltwerte der Adresse enthält', async () => {
     feed(
       rohEintrag({ id: 1000006, verbez: 'Erfundene Ausbildung 1' }),

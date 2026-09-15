@@ -238,7 +238,12 @@ Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER
 
 - **Vollständige Freigabe-URL** – der empfohlene Weg, weil HiOrg die Adresse genau so
   ausgibt und sie nachweislich JSON liefert. Der Worker ruft exakt diese Adresse ab und
-  ersetzt darin ausschließlich `monate`.
+  ersetzt darin ausschließlich `monate`, und zwar zeichengenau im Anfrage-String statt über
+  `URLSearchParams` – letzteres würde den gesamten Query-String neu kodieren (`~` zu `%7E`,
+  `/` und `=` in Werten, Leerzeichen zu `+`) und damit Zeichen einer Adresse verändern, die
+  selbst das Zugangsdatum ist. Umschließende Leerzeichen und HTML-Entitäten (`&amp;` aus
+  einem kopierten Link) fängt der Worker ab; ohne das entstünden Parameter wie `amp;lab`
+  und damit eine Anfrage ganz ohne `lab`.
 - **Reiner `lab`-Tokenwert** – dann baut der Worker die Adresse aus `FEED_URL_BASIS`
   (`https://www.hiorg-server.de/termine.php`) und `FESTE_FEED_PARAMETER` (`ov`, `termin`,
   `dienst`, `auchint`, `zr_dienst`, `json`) selbst, wie bei `apikey`/`version`/`action` am
@@ -279,6 +284,13 @@ weg, statt den ganzen Termin zu verwerfen. Einzelne fehlerhafte Datensätze werd
 übersprungen; erst wenn ein nicht leerer Feed gar keinen brauchbaren Termin enthält, gilt
 die Antwort als ungültig. Vor dem Senden prüft der Worker die eigene Ausgabe darauf, dass
 weder die Feed-URL noch einer ihrer Parameterwerte darin gespiegelt ist.
+
+Bleibt die Antwort unlesbar, nennt das Betreiberlog Status, Content-Type,
+Content-Length, die **Gestalt** des Secrets (`vollständige Freigabe-URL` / `lab-Tokenwert`)
+sowie Host, Pfad und die **Namen** der gesendeten Parameter – nie deren Werte. Fehlt in
+dieser Liste ein Parameter der Freigabe (etwa `lab`), steht eine unvollständige Adresse im
+Secret; stimmt die Liste und HiOrg antwortet trotzdem mit HTML, ist die Freigabe abgelaufen
+oder zurückgezogen.
 
 Grenzen: Antwort höchstens 1 MiB, Upstream-Zeitlimit 15 Sekunden, `redirect: 'manual'`.
 

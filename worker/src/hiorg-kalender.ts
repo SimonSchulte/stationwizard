@@ -199,10 +199,11 @@ export async function verarbeiteHiorgKalender(
             `JSON-Antwort nicht lesbar oder kein Body (Status ${antwort.status}, ` +
               `Content-Type ${antwort.headers.get('content-type') ?? 'fehlt'}, ` +
               `Content-Length ${antwort.headers.get('content-length') ?? 'fehlt'}, ` +
-              `Feed-Zugang ${benenneZugang(zugang)})` +
+              `Feed-Zugang ${benenneZugang(zugang)}, Ziel ${beschreibeZiel(abrufZiel)})` +
               (istHtml(antwort)
-                ? ' – HiOrg liefert eine HTML-Seite statt JSON: Freigabe-Adresse und ' +
-                  'Parameter der Einrichtung prüfen (vollständige Freigabe-URL ins Secret)'
+                ? ' – HiOrg liefert eine HTML-Seite statt JSON: fehlt oben ein Parameter ' +
+                  'der Freigabe (etwa lab), steht eine HTML-maskierte oder unvollständige ' +
+                  'Adresse im Secret; sonst ist die Freigabe abgelaufen oder zurückgezogen'
                 : ''),
           );
     }
@@ -282,24 +283,40 @@ function monateFuer(angeschauterMonat: AngeschauterMonat): number {
 
 /**
  * Baut die Feed-Anfrage-URL. Bei einer konfigurierten Freigabe-URL bleibt diese
- * unverändert bis auf `monate`; der Rest der Adresse stammt dann von HiOrg
- * selbst und wird nicht durch eine eigene Parameterliste ersetzt. Bei einem
- * reinen `lab`-Tokenwert setzt der Worker Host, Pfad und die festen Parameter
- * selbst ein.
+ * zeichengenau erhalten bis auf `monate`; der Rest der Adresse stammt von HiOrg
+ * selbst und wird weder durch eine eigene Parameterliste ersetzt noch neu
+ * kodiert. Bei einem reinen `lab`-Tokenwert setzt der Worker Host, Pfad und die
+ * festen Parameter selbst ein.
  */
 function baueZielUrl(zugang: FeedZugang, angeschauterMonat: AngeschauterMonat): string {
-  const url = zugang.art === 'url' ? new URL(zugang.ziel) : baueFesteFeedUrl(zugang.token);
-  url.searchParams.set('monate', String(monateFuer(angeschauterMonat)));
-  return url.href;
+  const ziel = zugang.art === 'url' ? zugang.ziel : baueFesteFeedUrl(zugang.token);
+  return setzeMonate(ziel, monateFuer(angeschauterMonat));
 }
 
-function baueFesteFeedUrl(labToken: string): URL {
+function baueFesteFeedUrl(labToken: string): string {
   const url = new URL(FEED_URL_BASIS);
   for (const [schluessel, wert] of Object.entries(FESTE_FEED_PARAMETER)) {
     url.searchParams.set(schluessel, wert);
   }
   url.searchParams.set('lab', labToken);
-  return url;
+  return url.href;
+}
+
+/** `monate` als Paar im Anfrage-String, an genau einer Stelle. */
+const MONATE_PARAMETER = /([?&])monate=[^&]*/;
+
+/**
+ * Ersetzt ausschließlich den Wert von `monate` und lässt jedes andere Zeichen
+ * der Adresse unberührt. Bewusst textuell statt über `URLSearchParams.set()`:
+ * dessen Schreibvorgang serialisiert den **gesamten** Anfrage-String neu
+ * (`~` wird zu `%7E`, `/` und `=` in Werten werden kodiert, ein Leerzeichen
+ * wird zu `+`). Bei einer Adresse, die selbst das Zugangsdatum ist, darf nur
+ * das geändert werden, was geändert werden muss.
+ */
+function setzeMonate(ziel: string, monate: number): string {
+  const paar = `monate=${Math.trunc(monate)}`;
+  if (MONATE_PARAMETER.test(ziel)) return ziel.replace(MONATE_PARAMETER, `$1${paar}`);
+  return `${ziel}${ziel.includes('?') ? '&' : '?'}${paar}`;
 }
 
 /**
@@ -313,16 +330,35 @@ export type FeedZugang =
 /**
  * Erkennt an der Gestalt des Secrets, welche der beiden zulässigen Formen
  * vorliegt: ein Wert mit Schema ist als vollständige Freigabe-URL gemeint und
- * wird wie zuvor an HTTPS und `hiorg-server.de` gebunden; jeder andere Wert
- * gilt als reiner `lab`-Tokenwert. Ein leerer Wert, ein Steuerzeichen, ein
- * Backslash oder eine URL mit fremdem Ziel sperrt den Zugriff.
+ * wird an HTTPS und `hiorg-server.de` gebunden; jeder andere Wert gilt als
+ * reiner `lab`-Tokenwert. Ein leerer Wert, ein Steuerzeichen, ein Backslash
+ * oder eine URL mit fremdem Ziel sperrt den Zugriff.
+ *
+ * Zwei Eigenheiten des Einfügens werden dabei abgefangen, weil sie sonst eine
+ * technisch gültige, fachlich aber falsche Adresse ergeben – HiOrg antwortet
+ * darauf mit einer HTML-Seite (Status 200) statt mit JSON:
+ *
+ * - **Umschließende Leerzeichen/Zeilenumbrüche** aus der Zwischenablage werden
+ *   entfernt, statt den Zugang zu sperren.
+ * - **HTML-Entitäten** werden dekodiert. HiOrg gibt Adressen escaped aus (der
+ *   Feed selbst liefert `&amp;` in den Ereignis-Links, siehe
+ *   `bereinigeEreignisUrl()`); ein so kopierter Freigabelink hätte sonst
+ *   Parameter wie `amp;lab` und damit gar kein `lab`.
  */
 export function pruefeFeedZugang(wert: string | undefined): FeedZugang | undefined {
-  if (!wert || UNZULAESSIGE_ZEICHEN.test(wert)) return undefined;
-  if (!SCHEMA_MUSTER.test(wert)) return { art: 'lab', token: wert, geheimnisse: [wert] };
+  const roh = (wert ?? '').trim();
+  if (!roh) return undefined;
+  if (!SCHEMA_MUSTER.test(roh)) {
+    return UNZULAESSIGE_ZEICHEN.test(roh)
+      ? undefined
+      : { art: 'lab', token: roh, geheimnisse: [roh] };
+  }
+  // Nur für die URL-Form: ein Tokenwert wird nie entitätenweise verändert.
+  const ziel = dekodiereEntitaeten(roh);
+  if (UNZULAESSIGE_ZEICHEN.test(ziel)) return undefined;
   let url: URL;
   try {
-    url = new URL(wert);
+    url = new URL(ziel);
   } catch {
     return undefined;
   }
@@ -336,7 +372,10 @@ export function pruefeFeedZugang(wert: string | undefined): FeedZugang | undefin
   ) {
     return undefined;
   }
-  return { art: 'url', ziel: url.href, geheimnisse: [url.href, ...geheimeQueryWerte(url)] };
+  // `ziel` bleibt die unveränderte Zeichenfolge, nicht `url.href`: die
+  // Freigabe-URL ist selbst das Zugangsdatum und wird nicht normalisiert.
+  const geheimnisse = new Set([roh, ziel, url.href, ...geheimeQueryWerte(url)]);
+  return { art: 'url', ziel, geheimnisse: [...geheimnisse] };
 }
 
 /** Siehe `MIN_GEHEIM_LAENGE`: kurze Schaltwerte sind keine Zugangsdaten. */
@@ -347,6 +386,22 @@ function geheimeQueryWerte(url: URL): string[] {
 /** Für das Betreiberlog: benennt die Gestalt des Secrets, nie seinen Wert. */
 function benenneZugang(zugang: FeedZugang): string {
   return zugang.art === 'url' ? 'vollständige Freigabe-URL' : 'lab-Tokenwert';
+}
+
+/**
+ * Für das Betreiberlog: Host, Pfad und die **Namen** der gesendeten Parameter –
+ * nie deren Werte. Ohne diese Angabe lässt sich eine HTML-Antwort nicht von
+ * einer Adresse unterscheiden, der schlicht das `lab` fehlt. Parameternamen
+ * sind nicht schützenswert; sie stehen so auch im Quellcode.
+ */
+function beschreibeZiel(abrufZiel: string): string {
+  try {
+    const url = new URL(abrufZiel);
+    const namen = [...url.searchParams.keys()];
+    return `${url.host}${url.pathname} mit Parametern ${namen.join(', ') || '(keine)'}`;
+  } catch {
+    return 'Adresse nicht lesbar';
+  }
 }
 
 function istHtml(antwort: Response): boolean {
@@ -447,10 +502,7 @@ const ENTITAETEN = new Map([
  * Ein Link mit fremdem Ziel entfällt – der Eintrag selbst bleibt erhalten.
  */
 export function bereinigeEreignisUrl(roh: string): string | undefined {
-  const dekodiert = roh.replace(
-    /&(?:amp|lt|gt|quot|apos|#39);/g,
-    (treffer) => ENTITAETEN.get(treffer) ?? treffer,
-  );
+  const dekodiert = dekodiereEntitaeten(roh);
   if (UNZULAESSIGE_ZEICHEN.test(dekodiert)) return undefined;
   try {
     const url = new URL(dekodiert);
@@ -461,6 +513,13 @@ export function bereinigeEreignisUrl(roh: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function dekodiereEntitaeten(text: string): string {
+  return text.replace(
+    /&(?:amp|lt|gt|quot|apos|#39);/g,
+    (treffer) => ENTITAETEN.get(treffer) ?? treffer,
+  );
 }
 
 function varianten(geheim: string): string[] {

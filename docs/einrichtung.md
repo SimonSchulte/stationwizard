@@ -41,7 +41,9 @@ eintragen; sie gehören weder in GitHub noch in die App oder einen Chat.
   passt aber nur zu einer Freigabe mit genau diesen Parametern und führt sonst zu
   `HIORG_KALENDER_ANTWORT_UNGUELTIG` (HiOrg antwortet dann mit einer HTML-Seite statt mit
   JSON). Die Adresse beziehungsweise der Tokenwert wird wie ein Passwort behandelt – nicht
-  in Tickets, Chats oder Repositorys einfügen.
+  in Tickets, Chats oder Repositorys einfügen. Umschließende Leerzeichen und ein aus einer
+  HTML-Seite kopierter Link mit `&amp;` statt `&` werden beim Lesen abgefangen; die Adresse
+  muss aber vollständig sein (mit `lab=`) und darf nicht gekürzt werden.
 
 Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige

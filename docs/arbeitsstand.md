@@ -945,3 +945,51 @@ Ursprung/unlesbarer Adresse, gespiegelter Tokenwert, kurze Schaltwerte als Falsc
 `npm run format:check` und `npm run deploy:dry-run` – alle grün. Keine Browserprüfung: die
 Änderung liegt vollständig im Worker und ändert die Client-Antwort nicht.
 `npm run test:spa` bleibt wie zuvor dokumentiert blockiert.
+
+### Nachtrag: Adresse zeichengenau übernehmen, Einfügefehler abfangen, Ziel benennen
+
+Rückmeldung aus dem Betrieb nach dem Deploy der vorstehenden Runde: **unverändert**. Der
+Abgleich gegen den ausgelieferten Worker bestätigt, dass die Korrektur live ist (das
+Bundle enthält `pruefeFeedZugang()`, `benenneZugang()` und `istHtml()`); die HTML-Antwort
+kommt also weiterhin. Die erneute Prüfung der eigenen Umsetzung fand drei Wege, auf denen
+sie eine technisch gültige, fachlich aber falsche Adresse erzeugt – jeweils mit genau
+diesem Symptom:
+
+- **Neuserialisierung der Freigabe-URL.** `baueZielUrl()` schrieb `monate` über
+  `URLSearchParams.set()`. Dieser Schreibvorgang serialisiert den **gesamten**
+  Anfrage-String neu: `~` wird zu `%7E`, `/` und `=` in Werten werden kodiert, ein
+  Leerzeichen wird zu `+`. Bei einer Adresse, die selbst das Zugangsdatum ist, darf nur
+  geändert werden, was geändert werden muss. `setzeMonate()` ersetzt jetzt textuell genau
+  das Paar `monate=…` (und hängt es nur an, wenn die Adresse es nicht führt); außerdem
+  merkt sich `pruefeFeedZugang()` die unveränderte Zeichenfolge statt `url.href`.
+- **HTML-maskiert eingefügter Link.** `…?ov=biel&amp;lab=…` ist eine gültige URL – mit den
+  Parametern `ov` und `amp;lab`, also **ohne** `lab`. Da HiOrg Adressen escaped ausgibt
+  (der Feed selbst liefert `&amp;` in den Ereignis-Links, siehe `bereinigeEreignisUrl()`),
+  ist das ein naheliegender Einfügefehler. Die Entitätendekodierung ist jetzt eine
+  gemeinsame Hilfe und läuft auch über die konfigurierte Adresse – nicht über einen reinen
+  Tokenwert, der dadurch verfälscht würde.
+- **Umschließende Leerzeichen/Zeilenumbrüche** aus der Zwischenablage sperrten den Zugang
+  mit 503 statt benutzt zu werden; sie werden jetzt entfernt. Steuerzeichen **innerhalb**
+  des Wertes sperren weiterhin.
+
+Damit die nächste Fehlermeldung die Ursache selbst benennt, nennt das Betreiberlog bei
+unlesbarer Antwort zusätzlich **Host, Pfad und die Namen der gesendeten Parameter** (nie
+deren Werte; Namen stehen ohnehin im Quellcode). Fehlt dort ein Parameter der Freigabe –
+etwa `lab` –, steht eine unvollständige Adresse im Secret; stimmt die Liste und HiOrg
+antwortet trotzdem mit HTML, bleiben nur noch eine abgelaufene oder zurückgezogene Freigabe
+beziehungsweise eine Abweisung des Worker-Abrufs durch HiOrg.
+
+**Weiterhin offen und ehrlich zu benennen:** Keiner dieser drei Wege ist belegt, sondern
+nur möglich – ein Abruf gegen den echten Feed ist aus dieser Umgebung netzseitig gesperrt
+(`connect_rejected`), und die Logzeile aus dem Betrieb stammt noch aus der Fassung **vor**
+der Korrektur. Die entscheidende Auskunft liefert die nächste Zeile zu
+`HIORG_KALENDER_ANTWORT_UNGUELTIG`: sie nennt jetzt die Gestalt des Secrets und die
+tatsächlich gesendeten Parameternamen.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (478 Angular-Tests,
+366 Worker-Tests, darunter fünf neue Fälle: zeichengenaue Adresse mit `+ / = ~ ( ) '` im
+Tokenwert, `monate` nur angehängt wenn nicht vorhanden, HTML-maskierte Adresse, Secret mit
+umschließenden Leerzeichen, Ziel-/Parameternamen im Log ohne Werte), `npm run worker:test`,
+`npm run format:check` und `npm run deploy:dry-run` – alle grün. Keine Browserprüfung
+(reine Worker-Änderung, Client-Antwort unverändert); `npm run test:spa` bleibt wie zuvor
+dokumentiert blockiert.
