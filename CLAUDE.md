@@ -196,9 +196,15 @@ Löschmethoden ergänzen.
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig
 im Worker, wird in Fehlern und Logs redigiert und darf weder als Anfrageparameter wählbar
-noch aus dem Client heraus setzbar sein. Der Feed ist reine Anzeige- und Abgleichquelle;
-er wird nicht in die Excel-Mappe geschrieben und nicht im Browser persistiert. Die
-Schreibweise „CALENDER" ist bewusst übernommen und wird nicht korrigiert.
+noch aus dem Client heraus setzbar sein. `pruefeFeedZugang()` nimmt beide Formen an: die
+vollständige Freigabe-URL (führend, an HTTPS und `hiorg-server.de` gebunden; der Worker
+ersetzt darin nur `monate`) und ersatzweise den reinen `lab`-Tokenwert, aus dem der Worker
+die Adresse aus `FEED_URL_BASIS`/`FESTE_FEED_PARAMETER` selbst baut. Diese feste
+Parameterliste ist nur aus einer einzelnen Freigabe abgeleitet und nicht durch die
+HiOrg-Dokumentation belegt – sie nicht als nachgewiesenen Vertrag behandeln und die
+vollständige URL nicht erneut als Konfigurationsweg entfernen. Der Feed ist reine Anzeige-
+und Abgleichquelle; er wird nicht in die Excel-Mappe geschrieben und nicht im Browser
+persistiert. Die Schreibweise „CALENDER" ist bewusst übernommen und wird nicht korrigiert.
 
 ### Konflikte und unklare Speicherergebnisse
 

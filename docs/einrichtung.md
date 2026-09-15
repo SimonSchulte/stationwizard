@@ -33,11 +33,17 @@ eintragen; sie gehören weder in GitHub noch in die App oder einen Chat.
   `HIORGSERVER_BASE_URL` (bei `hiorg-server.de` **mit** abschließendem `/`, siehe
   [Worker-README](../worker/README.md#sechs-verpflichtende-secrets-store-bindings)), der
   Token in `HIORGSERVER_EFS_API_TOKEN`.
-- **HiOrg-Kalenderfeed:** Nur der `lab`-Tokenwert aus der Kalenderfreigabe-URL (der Wert
-  hinter `lab=` im Freigabelink) kommt in `HIORGSERVER_CALENDER_FEED` – nicht die ganze
-  URL. Host, Pfad und alle übrigen Parameter (`ov`, `termin`, `dienst`, `auchint`,
-  `zr_dienst`, `json`) sind im Worker fest hinterlegt. Der Tokenwert wird wie ein Passwort
-  behandelt – nicht in Tickets, Chats oder Repositorys einfügen.
+- **HiOrg-Kalenderfeed:** In `HIORGSERVER_CALENDER_FEED` gehört die **vollständige
+  Freigabe-URL** aus HiOrg (empfohlen, weil HiOrg sie genau so ausgibt); der Worker ruft
+  genau diese Adresse ab und ersetzt darin nur `monate`. Ersatzweise genügt der reine
+  `lab`-Tokenwert (der Wert hinter `lab=` im Freigabelink); dann baut der Worker Host, Pfad
+  und die Parameter (`ov`, `termin`, `dienst`, `auchint`, `zr_dienst`, `json`) selbst – das
+  passt aber nur zu einer Freigabe mit genau diesen Parametern und führt sonst zu
+  `HIORG_KALENDER_ANTWORT_UNGUELTIG` (HiOrg antwortet dann mit einer HTML-Seite statt mit
+  JSON). Die Adresse beziehungsweise der Tokenwert wird wie ein Passwort behandelt – nicht
+  in Tickets, Chats oder Repositorys einfügen. Umschließende Leerzeichen und ein aus einer
+  HTML-Seite kopierter Link mit `&amp;` statt `&` werden beim Lesen abgefangen; die Adresse
+  muss aber vollständig sein (mit `lab=`) und darf nicht gekürzt werden.
 
 Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
@@ -105,7 +111,7 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | `ACCESS_TOKEN_UNGUELTIG`             | Richtige Access-Anwendung/Audience kontrollieren; ab-/neu anmelden.                                                                         |
 | Nextcloud-Fehler                     | Freigabe, Token, Passwort und Schreibrechte prüfen, danach das Secrets-Store-Binding am Worker.                                             |
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
-| `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer oder enthält Steuerzeichen/Backslash – erwartet wird nur der `lab`-Tokenwert, keine URL.        |
+| `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
 | Secret vorhanden, trotzdem Fehler    | Unter **Bindings** kontrollieren, ob genau dieser Worker das Secret nutzt – ein Eintrag unter **Build Variables and Secrets** genügt nicht. |
 
 Der vollständige Fehlercode-Katalog mit HTTP-Status steht im

@@ -5,11 +5,23 @@ import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 /**
  * Öffentlicher HiOrg-Kalenderfeed. Der Abruf braucht keine Header-Zugangsdaten;
- * das Geheimnis ist ausschließlich der `lab`-Tokenwert aus der HiOrg-Kalender-
- * freigabe. Host, Pfad und die übrigen Anfrageparameter sind fest im Worker
- * hinterlegt (`FEED_URL_BASIS`, `FESTE_FEED_PARAMETER`) – dasselbe Muster wie
- * `apikey`/`version`/`action`, die der Worker beim EFS-Ziel serverseitig
- * ergänzt (`efs.ts`).
+ * das Geheimnis steckt in der Kalenderfreigabe selbst.
+ *
+ * `HIORGSERVER_CALENDER_FEED` darf beide Formen haben, und der Worker erkennt
+ * sie an der Gestalt des Wertes:
+ *
+ * - **Vollständige Freigabe-URL** (führend, weil von HiOrg genau so ausgegeben
+ *   und nachweislich als JSON beantwortet): der Worker ruft genau diese URL ab
+ *   und ersetzt darin ausschließlich `monate` je Anfrage. Host und Schema sind
+ *   dabei fest an HiOrg und HTTPS gebunden; ein vertauschtes Secret kann den
+ *   Worker nicht zu einem fremden Ziel schicken.
+ * - **Reiner `lab`-Tokenwert**: der Worker baut die URL aus `FEED_URL_BASIS`
+ *   und `FESTE_FEED_PARAMETER` – dasselbe Muster wie `apikey`/`version`/
+ *   `action` beim EFS-Ziel (`efs.ts`). Diese Parameterliste ist allerdings nur
+ *   aus einer einzelnen Freigabe abgeleitet und nicht durch die HiOrg-
+ *   Dokumentation belegt; weicht eine Einrichtung davon ab, antwortet HiOrg mit
+ *   einer HTML-Seite statt mit JSON (`HIORG_KALENDER_ANTWORT_UNGUELTIG`). Für
+ *   diesen Fall bleibt die vollständige URL der verlässliche Weg.
  *
  * Die Schreibweise `HIORGSERVER_CALENDER_FEED` (mit „CALENDER") ist bewusst so
  * übernommen – das Secret heißt im Secrets Store genau so. Nicht „korrigieren".
@@ -55,6 +67,20 @@ const FEED_USER_AGENT =
 /** Zeichen, die in einem Konfigurations- oder Ereignis-Freitext nichts zu suchen haben. */
 const UNZULAESSIGE_ZEICHEN = /[\u0000-\u0020\u007f\\]/;
 
+/** Ein Wert mit Schema (`https:`) ist als vollständige URL gemeint, nicht als Token. */
+const SCHEMA_MUSTER = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+
+/**
+ * Mindestlänge, ab der ein Query-Wert der Freigabe-URL als Zugangsdatum gilt.
+ * Die kurzen Schaltwerte (`1`) und die Ortskennung (`biel`) stehen ohnehin
+ * unverschlüsselt in den öffentlichen Ereignis-Detaillinks
+ * (`hiorg-kalender.model.ts`). Als „Geheimnis" behandelt würden sie jeden
+ * Termin verwerfen, dessen Bezeichnung zufällig eine `1` enthält – dieselbe
+ * Klasse Falsch-Positiv, die schon die frühere Prüfung der gesamten
+ * Antworthülle ausgelöst hat.
+ */
+const MIN_GEHEIM_LAENGE = 8;
+
 /** Angeschauter Monat als `JJJJ-MM`, wie ihn das Frontend führt (`monatIndex()+1`). */
 const MONAT_MUSTER = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -88,24 +114,25 @@ export async function verarbeiteHiorgKalender(
     );
   }
 
-  const labToken = pruefeLabToken(await leseZugangsdatum(umgebung.HIORGSERVER_CALENDER_FEED));
-  if (!labToken) {
+  const zugang = pruefeFeedZugang(await leseZugangsdatum(umgebung.HIORGSERVER_CALENDER_FEED));
+  if (!zugang) {
     return fehlerAntwort(
       'HIORG_KALENDER_KONFIGURATION_FEHLT',
       'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet.',
       503,
     );
   }
-  // Geheim ist ausschließlich der lab-Tokenwert – Host, Pfad und die übrigen
-  // Parameter sind fest und nicht schützenswert.
-  const geheimnisse = [labToken];
+  // Geheim sind der lab-Tokenwert beziehungsweise die vollständige Freigabe-URL
+  // samt ihrer hinreichend langen Query-Werte – nicht Host, Pfad und die festen
+  // Schaltparameter.
+  const geheimnisse = zugang.geheimnisse;
 
   // Die HiOrg-API kann pro Abruf nur in eine Richtung schauen ("monate" positiv
   // vorwärts, negativ zurück). Der Worker setzt "monate" deshalb je Anfrage so,
   // dass der vom Client angeschaute Monat (ohne Angabe: der laufende Monat)
   // sicher im Fenster liegt – vorwärts für Gegenwart/Zukunft, zurück für die
   // Vergangenheit.
-  const abrufZiel = baueZielUrl(labToken, monatParam ?? heutigerMonat());
+  const abrufZiel = baueZielUrl(zugang, monatParam ?? heutigerMonat());
 
   const abbruch = new AbortController();
   const zeitlimit = setTimeout(() => abbruch.abort(), HIORG_KALENDER_ZEITLIMIT_MS);
@@ -171,7 +198,13 @@ export async function verarbeiteHiorgKalender(
         : antwortUngueltig(
             `JSON-Antwort nicht lesbar oder kein Body (Status ${antwort.status}, ` +
               `Content-Type ${antwort.headers.get('content-type') ?? 'fehlt'}, ` +
-              `Content-Length ${antwort.headers.get('content-length') ?? 'fehlt'})`,
+              `Content-Length ${antwort.headers.get('content-length') ?? 'fehlt'}, ` +
+              `Feed-Zugang ${benenneZugang(zugang)}, Ziel ${beschreibeZiel(abrufZiel)})` +
+              (istHtml(antwort)
+                ? ' – HiOrg liefert eine HTML-Seite statt JSON: fehlt oben ein Parameter ' +
+                  'der Freigabe (etwa lab), steht eine HTML-maskierte oder unvollständige ' +
+                  'Adresse im Secret; sonst ist die Freigabe abgelaufen oder zurückgezogen'
+                : ''),
           );
     }
 
@@ -249,29 +282,130 @@ function monateFuer(angeschauterMonat: AngeschauterMonat): number {
 }
 
 /**
- * Baut die Feed-Anfrage-URL vollständig im Worker: fester Host und Pfad
- * (`FEED_URL_BASIS`), feste nicht geheime Parameter (`FESTE_FEED_PARAMETER`),
- * der geheime `lab`-Tokenwert und das je Anfrage berechnete `monate`.
+ * Baut die Feed-Anfrage-URL. Bei einer konfigurierten Freigabe-URL bleibt diese
+ * zeichengenau erhalten bis auf `monate`; der Rest der Adresse stammt von HiOrg
+ * selbst und wird weder durch eine eigene Parameterliste ersetzt noch neu
+ * kodiert. Bei einem reinen `lab`-Tokenwert setzt der Worker Host, Pfad und die
+ * festen Parameter selbst ein.
  */
-function baueZielUrl(labToken: string, angeschauterMonat: AngeschauterMonat): string {
+function baueZielUrl(zugang: FeedZugang, angeschauterMonat: AngeschauterMonat): string {
+  const ziel = zugang.art === 'url' ? zugang.ziel : baueFesteFeedUrl(zugang.token);
+  return setzeMonate(ziel, monateFuer(angeschauterMonat));
+}
+
+function baueFesteFeedUrl(labToken: string): string {
   const url = new URL(FEED_URL_BASIS);
   for (const [schluessel, wert] of Object.entries(FESTE_FEED_PARAMETER)) {
     url.searchParams.set(schluessel, wert);
   }
   url.searchParams.set('lab', labToken);
-  url.searchParams.set('monate', String(monateFuer(angeschauterMonat)));
   return url.href;
 }
 
+/** `monate` als Paar im Anfrage-String, an genau einer Stelle. */
+const MONATE_PARAMETER = /([?&])monate=[^&]*/;
+
 /**
- * `HIORGSERVER_CALENDER_FEED` enthält nur noch den `lab`-Tokenwert aus der
- * HiOrg-Kalenderfreigabe, keine vollständige URL mehr. Ein leerer Wert oder
- * ein enthaltenes Steuerzeichen/Backslash sperrt den Zugriff wie zuvor bei
- * einer ungültigen Feed-URL.
+ * Ersetzt ausschließlich den Wert von `monate` und lässt jedes andere Zeichen
+ * der Adresse unberührt. Bewusst textuell statt über `URLSearchParams.set()`:
+ * dessen Schreibvorgang serialisiert den **gesamten** Anfrage-String neu
+ * (`~` wird zu `%7E`, `/` und `=` in Werten werden kodiert, ein Leerzeichen
+ * wird zu `+`). Bei einer Adresse, die selbst das Zugangsdatum ist, darf nur
+ * das geändert werden, was geändert werden muss.
  */
-export function pruefeLabToken(wert: string | undefined): string | undefined {
-  if (!wert || UNZULAESSIGE_ZEICHEN.test(wert)) return undefined;
-  return wert;
+function setzeMonate(ziel: string, monate: number): string {
+  const paar = `monate=${Math.trunc(monate)}`;
+  if (MONATE_PARAMETER.test(ziel)) return ziel.replace(MONATE_PARAMETER, `$1${paar}`);
+  return `${ziel}${ziel.includes('?') ? '&' : '?'}${paar}`;
+}
+
+/**
+ * Der konfigurierte Feed-Zugang in der Form, die das Secret tatsächlich hat.
+ * `geheimnisse` benennt, was davon in Antworten und Logs nie auftauchen darf.
+ */
+export type FeedZugang =
+  | { art: 'url'; ziel: string; geheimnisse: string[] }
+  | { art: 'lab'; token: string; geheimnisse: string[] };
+
+/**
+ * Erkennt an der Gestalt des Secrets, welche der beiden zulässigen Formen
+ * vorliegt: ein Wert mit Schema ist als vollständige Freigabe-URL gemeint und
+ * wird an HTTPS und `hiorg-server.de` gebunden; jeder andere Wert gilt als
+ * reiner `lab`-Tokenwert. Ein leerer Wert, ein Steuerzeichen, ein Backslash
+ * oder eine URL mit fremdem Ziel sperrt den Zugriff.
+ *
+ * Zwei Eigenheiten des Einfügens werden dabei abgefangen, weil sie sonst eine
+ * technisch gültige, fachlich aber falsche Adresse ergeben – HiOrg antwortet
+ * darauf mit einer HTML-Seite (Status 200) statt mit JSON:
+ *
+ * - **Umschließende Leerzeichen/Zeilenumbrüche** aus der Zwischenablage werden
+ *   entfernt, statt den Zugang zu sperren.
+ * - **HTML-Entitäten** werden dekodiert. HiOrg gibt Adressen escaped aus (der
+ *   Feed selbst liefert `&amp;` in den Ereignis-Links, siehe
+ *   `bereinigeEreignisUrl()`); ein so kopierter Freigabelink hätte sonst
+ *   Parameter wie `amp;lab` und damit gar kein `lab`.
+ */
+export function pruefeFeedZugang(wert: string | undefined): FeedZugang | undefined {
+  const roh = (wert ?? '').trim();
+  if (!roh) return undefined;
+  if (!SCHEMA_MUSTER.test(roh)) {
+    return UNZULAESSIGE_ZEICHEN.test(roh)
+      ? undefined
+      : { art: 'lab', token: roh, geheimnisse: [roh] };
+  }
+  // Nur für die URL-Form: ein Tokenwert wird nie entitätenweise verändert.
+  const ziel = dekodiereEntitaeten(roh);
+  if (UNZULAESSIGE_ZEICHEN.test(ziel)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(ziel);
+  } catch {
+    return undefined;
+  }
+  if (
+    url.protocol !== 'https:' ||
+    !url.hostname ||
+    url.username ||
+    url.password ||
+    url.hash ||
+    !istHiorgHost(url.hostname)
+  ) {
+    return undefined;
+  }
+  // `ziel` bleibt die unveränderte Zeichenfolge, nicht `url.href`: die
+  // Freigabe-URL ist selbst das Zugangsdatum und wird nicht normalisiert.
+  const geheimnisse = new Set([roh, ziel, url.href, ...geheimeQueryWerte(url)]);
+  return { art: 'url', ziel, geheimnisse: [...geheimnisse] };
+}
+
+/** Siehe `MIN_GEHEIM_LAENGE`: kurze Schaltwerte sind keine Zugangsdaten. */
+function geheimeQueryWerte(url: URL): string[] {
+  return [...url.searchParams.values()].filter((wert) => wert.trim().length >= MIN_GEHEIM_LAENGE);
+}
+
+/** Für das Betreiberlog: benennt die Gestalt des Secrets, nie seinen Wert. */
+function benenneZugang(zugang: FeedZugang): string {
+  return zugang.art === 'url' ? 'vollständige Freigabe-URL' : 'lab-Tokenwert';
+}
+
+/**
+ * Für das Betreiberlog: Host, Pfad und die **Namen** der gesendeten Parameter –
+ * nie deren Werte. Ohne diese Angabe lässt sich eine HTML-Antwort nicht von
+ * einer Adresse unterscheiden, der schlicht das `lab` fehlt. Parameternamen
+ * sind nicht schützenswert; sie stehen so auch im Quellcode.
+ */
+function beschreibeZiel(abrufZiel: string): string {
+  try {
+    const url = new URL(abrufZiel);
+    const namen = [...url.searchParams.keys()];
+    return `${url.host}${url.pathname} mit Parametern ${namen.join(', ') || '(keine)'}`;
+  } catch {
+    return 'Adresse nicht lesbar';
+  }
+}
+
+function istHtml(antwort: Response): boolean {
+  return (antwort.headers.get('content-type') ?? '').toLowerCase().includes('text/html');
 }
 
 function istHiorgHost(wirt: string): boolean {
@@ -368,10 +502,7 @@ const ENTITAETEN = new Map([
  * Ein Link mit fremdem Ziel entfällt – der Eintrag selbst bleibt erhalten.
  */
 export function bereinigeEreignisUrl(roh: string): string | undefined {
-  const dekodiert = roh.replace(
-    /&(?:amp|lt|gt|quot|apos|#39);/g,
-    (treffer) => ENTITAETEN.get(treffer) ?? treffer,
-  );
+  const dekodiert = dekodiereEntitaeten(roh);
   if (UNZULAESSIGE_ZEICHEN.test(dekodiert)) return undefined;
   try {
     const url = new URL(dekodiert);
@@ -382,6 +513,13 @@ export function bereinigeEreignisUrl(roh: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function dekodiereEntitaeten(text: string): string {
+  return text.replace(
+    /&(?:amp|lt|gt|quot|apos|#39);/g,
+    (treffer) => ENTITAETEN.get(treffer) ?? treffer,
+  );
 }
 
 function varianten(geheim: string): string[] {
