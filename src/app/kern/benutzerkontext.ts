@@ -12,6 +12,12 @@ export class Benutzerkontext {
   /** Aus der geprüften E-Mail-Adresse abgeleitet; kein echter Google-Name. */
   readonly anzeigename = computed(() => anzeigenameAusEmail(this.email()));
   readonly initialen = computed(() => initialenAusAnzeigename(this.anzeigename()));
+  /**
+   * Best-effort-Google-Profilbild über `/api/benutzer/profilbild`; `null`,
+   * solange keins vorliegt oder der Abruf fehlschlägt. Wie genau der Worker
+   * daran kommt (`worker/src/profilbild.ts`), bleibt bewusst hier unbekannt.
+   */
+  readonly profilbildUrl = signal<string | null>(null);
 
   async laden(): Promise<void> {
     if (this.laedt()) return;
@@ -23,8 +29,10 @@ export class Benutzerkontext {
         throw new Error('Die Benutzerinformation ist unvollständig. Bitte erneut anmelden.');
       }
       this.email.set(benutzer.email);
+      await this.profilbildLaden();
     } catch (ursache) {
       this.email.set('');
+      this.profilbildUrl.set(null);
       this.fehler.set(
         ursache instanceof Error
           ? ursache.message
@@ -32,6 +40,20 @@ export class Benutzerkontext {
       );
     } finally {
       this.laedt.set(false);
+    }
+  }
+
+  /** Eigener Abruf mit eigenem Fehlerfang: ein fehlendes Bild darf die Anmeldung nie scheitern lassen. */
+  private async profilbildLaden(): Promise<void> {
+    try {
+      const antwort = await this.worker.json<{ profilbildUrl?: unknown }>(
+        '/api/benutzer/profilbild',
+      );
+      this.profilbildUrl.set(
+        typeof antwort.profilbildUrl === 'string' ? antwort.profilbildUrl : null,
+      );
+    } catch {
+      this.profilbildUrl.set(null);
     }
   }
 }

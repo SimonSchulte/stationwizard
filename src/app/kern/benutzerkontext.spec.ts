@@ -38,4 +38,28 @@ describe('Benutzerkontext', () => {
     expect(kontext.email()).toBe('');
     expect(kontext.fehler()).toContain('unvollständig');
   });
+
+  it('lädt zusätzlich ein optionales Profilbild, ohne die Anmeldung selbst zu kennen', async () => {
+    json.mockImplementation((pfad: string) =>
+      pfad === '/api/benutzer'
+        ? Promise.resolve({ email: 'uebung@example.invalid' })
+        : Promise.resolve({ profilbildUrl: 'https://bild.example.invalid/foto.png' }),
+    );
+    const kontext = TestBed.inject(Benutzerkontext);
+    await kontext.laden();
+    expect(json).toHaveBeenCalledWith('/api/benutzer/profilbild');
+    expect(kontext.profilbildUrl()).toBe('https://bild.example.invalid/foto.png');
+  });
+
+  it('zeigt kein Profilbild, wenn der Zusatzabruf fehlschlägt oder unbrauchbar antwortet', async () => {
+    json.mockImplementation((pfad: string) =>
+      pfad === '/api/benutzer'
+        ? Promise.resolve({ email: 'uebung@example.invalid' })
+        : Promise.reject(new WorkerFehler('nicht erreichbar', 0)),
+    );
+    const kontext = TestBed.inject(Benutzerkontext);
+    await kontext.laden();
+    expect(kontext.email()).toBe('uebung@example.invalid');
+    expect(kontext.profilbildUrl()).toBeNull();
+  });
 });

@@ -1,10 +1,11 @@
 /**
  * Leitet einen lesbaren Anzeigenamen und Initialen aus der vom Worker
- * geprüften E-Mail-Adresse ab. Access liefert keinen verifizierten Namen oder
- * ein Profilbild; ein `/cdn-cgi/access/get-identity`-Aufruf wäre eine neue,
- * bislang nicht durch die offizielle Dokumentation belegte Abhängigkeit und
- * bleibt daher bewusst aus. Der Avatar ist ein klassischer Initialenkreis,
- * keine echte Google-Profilbildabfrage.
+ * geprüften E-Mail-Adresse ab. Das Access-App-JWT trägt keinen verifizierten
+ * Namen; der Anzeigename bleibt deshalb aus der E-Mail-Adresse abgeleitet.
+ * Ein echtes Google-Profilbild liefert best-effort `Benutzerkontext.profilbildUrl`
+ * über `/api/benutzer/profilbild` (`worker/src/profilbild.ts` kapselt den dafür
+ * nötigen zusätzlichen Aufruf gegen Cloudflare Access). Die Initialen hier
+ * bleiben der Rückfall, solange kein Bild vorliegt.
  */
 
 const TRENNER = /[._+-]+/;

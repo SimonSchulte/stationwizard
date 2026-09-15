@@ -23,7 +23,18 @@
         [matMenuTriggerFor]="benutzerMenu"
         [title]="benutzer.email()"
       >
-        <span class="benutzer-avatar" aria-hidden="true">{{ benutzer.initialen() }}</span>
+        @if (benutzer.profilbildUrl(); as profilbild) {
+          <img
+            class="benutzer-avatar"
+            [src]="profilbild"
+            alt=""
+            width="32"
+            height="32"
+            (error)="benutzer.profilbildUrl.set(null)"
+          />
+        } @else {
+          <span class="benutzer-avatar" aria-hidden="true">{{ benutzer.initialen() }}</span>
+        }
         <span class="benutzer-name">{{ benutzer.anzeigename() }}</span>
         <mat-icon aria-hidden="true">arrow_drop_down</mat-icon>
       </button>
