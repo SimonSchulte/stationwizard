@@ -1,5 +1,13 @@
+@import '../../../kern/kopfleiste.less';
+
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.erfassung-kopfleiste {
+  .kopfleiste-basis();
 }
 
 .erfassung {
@@ -86,4 +94,11 @@
     margin: 0;
     font-size: 1.1rem;
   }
+}
+
+.erfolg-aktionen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
 }

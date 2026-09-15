@@ -1057,6 +1057,34 @@ echte Feed-Abfrage die über „HiOrg-Testdaten laden" geladenen Einträge wiede
 springt auf „HiOrg-Fehler", das Raster bleibt leer). Das besteht unabhängig von dieser
 Änderung – der Ausgangsstand verhält sich identisch – und betrifft nur den Testdatenweg.
 
+## Rückweg aus der Kilometererfassung
+
+Die Kilometererfassung (`src/app/fahrzeuge/pages/km-erfassung/`) war die einzige
+Fahrzeugseite ohne sichtbaren Rückweg: Wer sie über Fahrzeugliste oder Fahrzeugdetail
+öffnete, kam nur über die Browser-Zurück-Taste wieder heraus; nach dem Speichern bot der
+Erfolgszustand ausschließlich „Weitere Ablesung erfassen" an.
+
+Sie hat jetzt dieselbe Kopfleiste wie `fahrzeug-detail` und `fahrzeug-import`
+(`mat-toolbar` mit `.kopfleiste-basis()` aus `kern/kopfleiste.less`): links ein
+`arrow_back`-Icon-Link mit `aria-label="Zurück zur Fahrzeugliste"` auf
+`/fahrzeuge/liste`, daneben der Titel „Kilometerstand erfassen". Die Leiste steht
+außerhalb der Lade-/Fehlerverzweigung, der Rückweg besteht also auch dann, wenn das
+Fahrzeug gar nicht geladen werden konnte. Zusätzlich führt im Erfolgszustand ein
+„Zurück zur Fahrzeugliste"-Link neben „Weitere Ablesung erfassen" dorthin – der
+übliche Abschluss nach einer QR-Erfassung. Keine Route, kein Vertrag und kein
+Speicherpfad wurden geändert.
+
+Geprüft: `npm run build` (einschließlich `worker:check`), `npm test` (492 Angular- und
+385 Worker-Tests) und `npm run format:check` – alle grün. Browserprüfung mit Chromium
+über Playwright gegen `ng serve` tatsächlich ausgeführt, auf **Desktop (1280×900)** und
+**Mobil (390×844)**: Kopfleiste und Rückpfeil erscheinen in beiden Breiten, ein Klick
+darauf landet auf `#/fahrzeuge/liste`, und der Erfolgszustand zeigt beide Schaltflächen
+untereinander. Die Fahrzeug- und Ablesungsantworten kamen dabei aus abgefangenen Routen
+mit erfundenen Testdaten; ein Lauf gegen echte Nextcloud-/HiOrg-Daten oder eine
+produktive Google-Sitzung hat **nicht** stattgefunden. Worker und Routing sind
+unverändert, deshalb kein neuer `test:spa`-/`deploy:dry-run`-Lauf; `test:spa` bleibt wie
+zuvor dokumentiert blockiert.
+
 ## Nachtrag – Kennzeichen-Chip in der Kilometerbilanz
 
 Fachlicher Wunsch: In der Kilometerbilanz auf dem Fuhrpark-Dashboard soll neben der
