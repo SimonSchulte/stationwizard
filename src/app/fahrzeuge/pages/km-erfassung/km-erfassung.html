@@ -1,3 +1,10 @@
+<mat-toolbar class="erfassung-kopfleiste">
+  <a mat-icon-button routerLink="/fahrzeuge/liste" aria-label="Zurück zur Fahrzeugliste">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">Kilometerstand erfassen</span>
+</mat-toolbar>
+
 <div class="erfassung">
   @if (ladeLaeuft()) {
     <p role="status">Fahrzeug wird geladen …</p>
@@ -23,7 +30,10 @@
       <div class="erfolg" role="status">
         <mat-icon>check_circle</mat-icon>
         <p>Kilometerstand gespeichert. Danke!</p>
-        <button mat-stroked-button (click)="weitereErfassung()">Weitere Ablesung erfassen</button>
+        <div class="erfolg-aktionen">
+          <button mat-stroked-button (click)="weitereErfassung()">Weitere Ablesung erfassen</button>
+          <a mat-button routerLink="/fahrzeuge/liste">Zurück zur Fahrzeugliste</a>
+        </div>
       </div>
     } @else {
       @if (ablesungStore.letzteAblesung(); as letzte) {
