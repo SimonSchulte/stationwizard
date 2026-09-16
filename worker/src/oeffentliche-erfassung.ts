@@ -76,10 +76,18 @@ const SCHUTZ_HEADER: Readonly<Record<string, string>> = {
  * Strikt, weil sie es sein kann: das Build-Ziel bindet Stil und Skript als
  * eigene Dateien ein (`inlineCritical: false` in `angular.json`), es gibt also
  * weder ein inline `<style>` noch ein Ereignisattribut im HTML.
+ *
+ * `base-uri 'self'` statt `'none'`: die Seite wird unter `/e/<token>`
+ * ausgeliefert, ihre Dateien liegen aber unter `/oeffentlich/`. Dafür trägt das
+ * HTML ein `<base href="/oeffentlich/">`, und `'none'` verbietet genau das –
+ * Stil und Skript würden dann gegen `/e/` aufgelöst und die Seite bliebe leer.
+ * `'self'` erlaubt nur eine Basis derselben Origin und wehrt damit weiterhin
+ * das ab, wogegen die Direktive gedacht ist: eine untergeschobene Basis auf
+ * einer fremden Origin. `npm run test:spa` hält beide Seiten zusammen.
  */
 const SEITEN_CSP =
   "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; " +
-  "img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'";
 
 export function istOeffentlicherPfad(pfad: string): boolean {
   return SEITEN_PFAD.test(pfad) || API_PFAD.test(pfad) || DATEI_PFAD.test(pfad);

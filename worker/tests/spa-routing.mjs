@@ -197,6 +197,39 @@ try {
   assert.notEqual(meldeseiteInhalt, index, 'öffentliche Seite liefert die geschützte App-Hülle');
   assert.match(meldeseiteInhalt, /oeff-meldung/, 'öffentliche Seite ist nicht die Meldeseite');
 
+  // Die Richtlinie muss zum ausgelieferten HTML passen. Beides wird an
+  // verschiedenen Stellen gepflegt (Worker und Angular-Build); passt es nicht
+  // zusammen, lädt die Seite im Browser nichts und bleibt leer – ein Fehler,
+  // den kein Einzeltest der beiden Seiten bemerkt.
+  const richtlinie = meldeseite.headers.get('Content-Security-Policy') ?? '';
+  if (/<base\s/i.test(meldeseiteInhalt)) {
+    assert.doesNotMatch(
+      richtlinie,
+      /base-uri 'none'/,
+      "Die Seite trägt ein <base>-Tag, die Richtlinie verbietet es mit base-uri 'none': " +
+        'Stil und Skript würden gegen /e/ aufgelöst und die Seite bliebe leer.',
+    );
+  }
+  if (/style-src 'self'(?!.*unsafe-inline)/.test(richtlinie)) {
+    assert.doesNotMatch(
+      meldeseiteInhalt,
+      /<style[\s>]/i,
+      "Die Seite enthält ein inline <style>, die Richtlinie erlaubt aber nur style-src 'self'.",
+    );
+  }
+  if (/script-src 'self'(?!.*unsafe-inline)/.test(richtlinie)) {
+    assert.doesNotMatch(
+      meldeseiteInhalt,
+      /<script(?![^>]*\ssrc=)/i,
+      "Die Seite enthält ein inline <script>, die Richtlinie erlaubt aber nur script-src 'self'.",
+    );
+    assert.doesNotMatch(
+      meldeseiteInhalt,
+      /\son[a-z]+=/i,
+      'Die Seite enthält ein Ereignisattribut; das verlangt unsafe-inline für Skripte.',
+    );
+  }
+
   // Eine nicht gelistete Datei fällt nicht in die SPA-Rückfallebene.
   for (const pfad of ['/oeffentlich/3rdpartylicenses.txt', '/oeffentlich/index2.html']) {
     const antwort = await laufzeit.dispatchFetch(`${basisUrl}${pfad}`);

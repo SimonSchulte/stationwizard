@@ -29,7 +29,9 @@ const STAND_MAX = 9_999_999;
 @Component({
   selector: 'oeff-meldung',
   templateUrl: './meldung-seite.html',
-  styleUrl: './meldung-seite.less',
+  // Kein `styleUrl`: die Stile stehen global in `oeffentlich/src/styles.less`,
+  // damit Angular sie nicht zur Laufzeit als inline `<style>` einfügt und die
+  // Content-Security-Policy ohne `unsafe-inline` auskommt.
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeldungSeite {
