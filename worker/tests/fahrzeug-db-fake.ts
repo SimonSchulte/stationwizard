@@ -19,6 +19,8 @@ interface FahrzeugZeile {
   geaendert_am: string;
   geaendert_von: string;
   version: number;
+  erfassung_token: string | null;
+  erfassung_token_am: string | null;
 }
 
 interface AblesungZeile {
@@ -114,12 +116,16 @@ class FakeStatement {
         wartungstermine,
         geaendert_am,
         geaendert_von,
+        erfassung_token,
+        erfassung_token_am,
       ] = this.werte as [
         string,
         string,
         string,
         string,
         string | null,
+        string,
+        string,
         string,
         string,
         string,
@@ -146,6 +152,22 @@ class FakeStatement {
         geaendert_am,
         geaendert_von,
         version: 1,
+        erfassung_token,
+        erfassung_token_am,
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    // Vor dem allgemeinen Stammdaten-UPDATE geprüft: beide beginnen mit
+    // "UPDATE fahrzeuge", und die Reihenfolge entscheidet, welcher Zweig greift.
+    if (this.query.startsWith('UPDATE fahrzeuge SET erfassung_token = ?')) {
+      const [token, tokenAm, id] = this.werte as [string, string, string];
+      const bestehend = this.db.fahrzeuge.get(id);
+      if (!bestehend) return { success: true, meta: { changes: 0 }, results: [] };
+      this.db.fahrzeuge.set(id, {
+        ...bestehend,
+        erfassung_token: token,
+        erfassung_token_am: tokenAm,
       });
       return { success: true, meta: { changes: 1 }, results: [] };
     }
@@ -267,6 +289,16 @@ class FakeStatement {
   }
 
   async first<T = Record<string, unknown>>(): Promise<T | null> {
+    if (this.query.startsWith('SELECT erfassung_token FROM fahrzeuge WHERE id = ?')) {
+      const [id] = this.werte as [string];
+      const zeile = this.db.fahrzeuge.get(id);
+      return zeile ? ({ erfassung_token: zeile.erfassung_token } as T) : null;
+    }
+    if (this.query.startsWith('SELECT gruppe FROM fahrzeuge WHERE id = ?')) {
+      const [id] = this.werte as [string];
+      const zeile = this.db.fahrzeuge.get(id);
+      return zeile ? ({ gruppe: zeile.gruppe } as T) : null;
+    }
     if (this.query.startsWith('SELECT * FROM fahrzeuge WHERE id = ?')) {
       const [id] = this.werte as [string];
       return (this.db.fahrzeuge.get(id) as T | undefined) ?? null;
@@ -303,6 +335,25 @@ class FakeStatement {
       const zeilen = [...this.db.fahrzeuge.values()].sort((a, b) =>
         a.bezeichnung.localeCompare(b.bezeichnung),
       );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (
+      this.query.startsWith(
+        'SELECT id, bezeichnung, funkrufname, kennzeichen, gruppe, erfassung_token FROM fahrzeuge WHERE gruppe IN (',
+      )
+    ) {
+      const gruppen = new Set(this.werte as string[]);
+      const zeilen = [...this.db.fahrzeuge.values()]
+        .filter((f) => gruppen.has(f.gruppe))
+        .sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung))
+        .map(({ id, bezeichnung, funkrufname, kennzeichen, gruppe, erfassung_token }) => ({
+          id,
+          bezeichnung,
+          funkrufname,
+          kennzeichen,
+          gruppe,
+          erfassung_token,
+        }));
       return { success: true, results: zeilen as unknown as T[] };
     }
     if (this.query.startsWith('SELECT * FROM ablesungen WHERE fahrzeug_id = ?')) {

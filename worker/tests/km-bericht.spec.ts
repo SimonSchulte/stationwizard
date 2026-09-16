@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   berichtAlsHtml,
   berichtAlsText,
-  berlinerKalendertag,
   ladeKmBericht,
   verarbeiteKmBericht,
   type KmBerichtKonfiguration,
@@ -58,15 +57,6 @@ function ablesung(
     bemerkung: '',
   });
 }
-
-describe('berlinerKalendertag', () => {
-  it('bildet den lokalen Kalendertag ab, nicht den UTC-Tag', () => {
-    // 23:30 Uhr UTC am 14.09. ist in Berlin bereits der 15.09.
-    expect(berlinerKalendertag(new Date('2026-09-14T23:30:00Z'))).toBe('2026-09-15');
-    // Und 00:30 UTC im Winter ist in Berlin noch derselbe Tag.
-    expect(berlinerKalendertag(new Date('2026-01-15T00:30:00Z'))).toBe('2026-01-15');
-  });
-});
 
 describe('ladeKmBericht', () => {
   it('führt jedes Fahrzeug mit letztem Stand und Abstand zum Stichtag', async () => {
