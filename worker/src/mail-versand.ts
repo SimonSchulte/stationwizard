@@ -1,3 +1,4 @@
+import { redigiere, ursachenText } from './diagnose';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 /**
@@ -76,6 +77,18 @@ async function absender(umgebung: MailVersandKonfiguration): Promise<string | un
 }
 
 /**
+ * Getrimmt, weil ein aus dem Dashboard kopiertes Token leicht eine
+ * angehängte Zeilenumbruch- oder Leerraumsequenz mitbringt. Ein solches
+ * Zeichen im `Authorization`-Header lässt `fetch()` mit einem TypeError
+ * scheitern, bevor überhaupt eine Verbindung aufgebaut wird – und landet
+ * dann ununterscheidbar im selben Fehler wie eine echte Nichterreichbarkeit.
+ */
+async function resendToken(umgebung: MailVersandKonfiguration): Promise<string | undefined> {
+  const token = (await leseZugangsdatum(umgebung.MAIL_API_TOKEN))?.trim();
+  return token || undefined;
+}
+
+/**
  * Meldet, ob ein Weg am Worker tatsächlich eingerichtet ist. Bewusst nur ein
  * Ja/Nein je bekanntem Weg – keine Bindingliste, keine Secretnamen und keine
  * Secretlängen (siehe CLAUDE.md, "Worker und Zugangsschutz"). Die Oberfläche
@@ -88,7 +101,7 @@ export async function versandwegVerfuegbar(
 ): Promise<boolean> {
   if ((await absender(umgebung)) === undefined) return false;
   if (weg === 'email-routing') return umgebung.MAIL_ROUTING !== undefined;
-  return ((await leseZugangsdatum(umgebung.MAIL_API_TOKEN)) ?? '').length > 0;
+  return (await resendToken(umgebung)) !== undefined;
 }
 
 /** Wirft `VersandFehler('konfiguration-fehlt')`, wenn der Weg nicht eingerichtet ist. */
@@ -116,7 +129,7 @@ export async function waehleVersand(
     return new EmailRoutingVersand(binding, von, name);
   }
 
-  const token = await leseZugangsdatum(umgebung.MAIL_API_TOKEN);
+  const token = await resendToken(umgebung);
   if (!token) {
     throw new VersandFehler(
       'konfiguration-fehlt',
@@ -184,7 +197,15 @@ class ResendVersand implements MailVersand {
         redirect: 'error',
         signal: AbortSignal.timeout(VERSAND_ZEITGRENZE_MS),
       });
-    } catch {
+    } catch (ursache) {
+      // Fehlerklasse und -text, nie das Token: ein ungültiger Header-Wert
+      // (etwa durch ein Token mit angehängtem Zeilenumbruch) wirft hier
+      // ebenso wie eine echte Zeitüberschreitung oder Nichterreichbarkeit,
+      // und ließ sich bisher nicht unterscheiden.
+      console.error(
+        'MAIL_API_TRANSPORTFEHLER',
+        redigiere(ursachenText(ursache), [this.token, this.von]),
+      );
       throw new VersandFehler('upstream', 'Der Mailanbieter war nicht erreichbar.');
     }
     if (!antwort.ok) {
