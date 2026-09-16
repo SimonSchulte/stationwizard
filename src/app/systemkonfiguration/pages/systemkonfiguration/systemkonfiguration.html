@@ -4,11 +4,6 @@
 </mat-toolbar>
 
 <div class="list-content">
-  <p class="beschreibung">
-    Betriebseinstellungen dieser Anwendung. Zugangsdaten stehen bewusst nicht hier: Absenderadresse
-    und API-Token des Mailversands bleiben Geheimnisse am Worker und lassen sich nur dort setzen.
-  </p>
-
   @if (laedt()) {
     <p role="status">Einstellungen werden geladen …</p>
   }
@@ -16,204 +11,94 @@
     <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
   }
 
-  @if (entwurf(); as werte) {
-    <section class="abschnitt">
-      <h2>Kilometerstandsbericht per E-Mail</h2>
-      <p class="beschreibung">
-        Der Bericht listet alle Fahrzeuge mit letztem Stand, Ablesedatum und Jahresbilanz. Er wird
-        ausschließlich hier von Hand ausgelöst; einen Zeitplan gibt es noch nicht.
-      </p>
+  <mat-tab-group>
+    <mat-tab label="Email Versand">
+      @if (entwurf(); as werte) {
+        <div class="tab-inhalt">
+          <p class="beschreibung">
+            Wohin und worüber der Kilometerstandsbericht versendet wird. Zugangsdaten stehen bewusst
+            nicht hier: Absenderadresse und API-Token des Mailversands bleiben Geheimnisse am Worker
+            und lassen sich nur dort setzen. Vorschau und Versand selbst stehen im Fahrzeugmodul
+            unter „Kilometerübersicht".
+          </p>
 
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-        <mat-label>Empfängeradresse</mat-label>
-        <input
-          matInput
-          type="email"
-          autocomplete="off"
-          [value]="werte.kmBerichtEmpfaenger"
-          (input)="empfaengerAendern($any($event.target).value)"
-          placeholder="berichte@example.org"
-        />
-        <mat-hint>Leer lassen sperrt den Versand.</mat-hint>
-      </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Empfängeradresse</mat-label>
+            <input
+              matInput
+              type="email"
+              autocomplete="off"
+              [value]="werte.kmBerichtEmpfaenger"
+              (input)="empfaengerAendern($any($event.target).value)"
+              placeholder="berichte@example.org"
+            />
+            <mat-hint>Leer lassen sperrt den Versand.</mat-hint>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-        <mat-label>Betreff</mat-label>
-        <input
-          matInput
-          [value]="werte.kmBerichtBetreff"
-          (input)="betreffAendern($any($event.target).value)"
-        />
-        <mat-hint>Das Datum des Berichts wird automatisch angehängt.</mat-hint>
-      </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Betreff</mat-label>
+            <input
+              matInput
+              [value]="werte.kmBerichtBetreff"
+              (input)="betreffAendern($any($event.target).value)"
+            />
+            <mat-hint>Das Datum des Berichts wird automatisch angehängt.</mat-hint>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-        <mat-label>Versandweg</mat-label>
-        <mat-select [value]="werte.kmBerichtVersandweg" (valueChange)="versandwegAendern($event)">
-          @for (weg of versandwege; track weg) {
-            <mat-option [value]="weg">
-              {{ versandwegLabel[weg] }}
-              @if (!istVerfuegbar(weg)) {
-                <span class="nicht-eingerichtet">– nicht eingerichtet</span>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Versandweg</mat-label>
+            <mat-select
+              [value]="werte.kmBerichtVersandweg"
+              (valueChange)="versandwegAendern($event)"
+            >
+              @for (weg of versandwege; track weg) {
+                <mat-option [value]="weg">
+                  {{ versandwegLabel[weg] }}
+                  @if (!istVerfuegbar(weg)) {
+                    <span class="nicht-eingerichtet">– nicht eingerichtet</span>
+                  }
+                </mat-option>
               }
-            </mat-option>
+            </mat-select>
+            <mat-hint>{{ versandwegHinweis[werte.kmBerichtVersandweg] }}</mat-hint>
+          </mat-form-field>
+
+          @if (!istVerfuegbar(werte.kmBerichtVersandweg)) {
+            <p class="warn-hint" role="status">
+              <mat-icon aria-hidden="true">warning</mat-icon>
+              Dieser Weg ist am Worker nicht eingerichtet. Die Einstellung lässt sich speichern, ein
+              Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.
+            </p>
           }
-        </mat-select>
-        <mat-hint>{{ versandwegHinweis[werte.kmBerichtVersandweg] }}</mat-hint>
-      </mat-form-field>
 
-      @if (!istVerfuegbar(werte.kmBerichtVersandweg)) {
-        <p class="warn-hint" role="status">
-          <mat-icon aria-hidden="true">warning</mat-icon>
-          Dieser Weg ist am Worker nicht eingerichtet. Die Einstellung lässt sich speichern, ein
-          Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.
-        </p>
-      }
+          @if (speicherFehler()) {
+            <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+          }
+          @if (gespeichert() && !ungespeichert()) {
+            <p class="erfolg-hint" role="status">Einstellungen gespeichert.</p>
+          }
 
-      @if (speicherFehler()) {
-        <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
-      }
-      @if (gespeichert() && !ungespeichert()) {
-        <p class="erfolg-hint" role="status">Einstellungen gespeichert.</p>
-      }
-
-      <div class="aktionen">
-        <button
-          mat-raised-button
-          color="primary"
-          type="button"
-          [disabled]="!ungespeichert() || speichert()"
-          (click)="speichern()"
-        >
-          {{ speichert() ? 'Speichern …' : 'Speichern' }}
-        </button>
-        <button
-          mat-button
-          type="button"
-          [disabled]="!ungespeichert() || speichert()"
-          (click)="verwerfen()"
-        >
-          Verwerfen
-        </button>
-      </div>
-    </section>
-
-    <section class="abschnitt">
-      <h2>Vorschau und Versand</h2>
-      <p class="beschreibung">
-        Die Vorschau zeigt genau die Zahlen, die in der Mail stehen würden. Gesendet wird an die
-        <strong>gespeicherte</strong> Adresse – ungespeicherte Änderungen wirken nicht.
-      </p>
-
-      @if (berichtLaedt()) {
-        <p role="status">Bericht wird berechnet …</p>
-      }
-      @if (berichtFehler()) {
-        <p class="error-hint" role="alert">{{ berichtFehler() }}</p>
-      }
-
-      @if (bericht(); as daten) {
-        <p class="kennzahlen">
-          Stichtag {{ datum(daten.stichtag) }} · Bezugsjahr {{ daten.jahr }} ·
-          {{ daten.zeilen.length }} Fahrzeuge · {{ daten.ohneAblesung }} ohne Ablesung ·
-          {{ daten.unterSoll }} unter Jahressoll
-        </p>
-
-        @if (daten.zeilen.length === 0) {
-          <p class="empty-hint">Es sind keine Fahrzeuge erfasst.</p>
-        } @else {
-          <div class="tabelle-rahmen">
-            <table class="bericht-tabelle">
-              <thead>
-                <tr>
-                  <th scope="col">Fahrzeug</th>
-                  <th scope="col" class="rechts">Letzter Stand</th>
-                  <th scope="col">Abgelesen</th>
-                  <th scope="col">Jahresbilanz</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (zeile of daten.zeilen; track zeile.bezeichnung + zeile.kennzeichen) {
-                  <tr>
-                    <td>
-                      <strong>{{ zeile.bezeichnung }}</strong>
-                      @if (zeile.funkrufname || zeile.kennzeichen) {
-                        <span class="kennung">{{ kennung(zeile) }}</span>
-                      }
-                    </td>
-                    <td class="rechts">
-                      @if (zeile.letzterStand === null) {
-                        <span class="fehlt">keine Ablesung</span>
-                      } @else {
-                        {{ zahl(zeile.letzterStand) }} km
-                      }
-                    </td>
-                    <td>
-                      @if (zeile.abgelesenAm) {
-                        {{ datum(zeile.abgelesenAm) }}
-                        <span class="kennung">{{ abstand(zeile.tageSeitAblesung) }}</span>
-                      } @else {
-                        –
-                      }
-                    </td>
-                    <td>
-                      @if (zeile.sollKm === 0) {
-                        <span class="kennung">keine Vorgabe</span>
-                      } @else if (zeile.istKm === null) {
-                        <span class="fehlt">nicht berechenbar</span>
-                      } @else {
-                        {{ zahl(zeile.istKm) }} von {{ zahl(zeile.sollKm) }} km
-                        @if (zeile.restKm && zeile.restKm > 0) {
-                          <span class="fehlt">{{ zahl(zeile.restKm) }} km offen</span>
-                        }
-                        @if (zeile.unvollstaendig) {
-                          <span class="kennung">Startstand unvollständig</span>
-                        }
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <div class="aktionen">
+            <button
+              mat-raised-button
+              color="primary"
+              type="button"
+              [disabled]="!ungespeichert() || speichert()"
+              (click)="speichern()"
+            >
+              {{ speichert() ? 'Speichern …' : 'Speichern' }}
+            </button>
+            <button
+              mat-button
+              type="button"
+              [disabled]="!ungespeichert() || speichert()"
+              (click)="verwerfen()"
+            >
+              Verwerfen
+            </button>
           </div>
-        }
+        </div>
       }
-
-      @if (!empfaengerGesetzt()) {
-        <p class="warn-hint" role="status">
-          <mat-icon aria-hidden="true">warning</mat-icon>
-          Es ist keine Empfängeradresse gespeichert.
-        </p>
-      } @else if (!gewaehlterWegVerfuegbar()) {
-        <p class="warn-hint" role="status">
-          <mat-icon aria-hidden="true">warning</mat-icon>
-          Der gespeicherte Versandweg ist am Worker nicht eingerichtet.
-        </p>
-      }
-
-      @if (sendeFehler()) {
-        <p class="error-hint" role="alert">{{ sendeFehler() }}</p>
-      }
-      @if (quittung(); as bestaetigung) {
-        <p class="erfolg-hint" role="status">
-          Gesendet an {{ bestaetigung.gesendetAn }} ({{ bestaetigung.anzahlFahrzeuge }} Fahrzeuge).
-        </p>
-      }
-
-      <div class="aktionen">
-        <button
-          mat-raised-button
-          color="primary"
-          type="button"
-          [disabled]="!versandMoeglich() || sendet() || berichtLaedt()"
-          (click)="senden()"
-        >
-          {{ sendet() ? 'Wird gesendet …' : 'Bericht jetzt senden' }}
-        </button>
-        <button mat-button type="button" [disabled]="berichtLaedt()" (click)="vorschauLaden()">
-          Vorschau aktualisieren
-        </button>
-      </div>
-    </section>
-  }
+    </mat-tab>
+  </mat-tab-group>
 </div>

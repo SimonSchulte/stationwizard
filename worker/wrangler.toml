@@ -102,18 +102,18 @@ secret_name = "HIORGSERVER_CALENDER_FEED"
 # mit dem Token den Versandweg ausmacht. Der Anzeigename ist dagegen eine
 # gewöhnliche Laufzeitvariable am Worker (MAIL_ABSENDER_NAME, von keep_vars
 # erfasst) und braucht hier keinen Block.
-# [[secrets_store_secrets]]
-# binding = "MAIL_ABSENDER"
-# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-# secret_name = "MAIL_ABSENDER"
+[[secrets_store_secrets]]
+binding = "MAIL_ABSENDER"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "MAIL_ABSENDER"
 
 # Versandweg "resend" über einen HTTP-Anbieter mit festem Endpunkt (siehe
 # worker/src/mail-versand.ts). Erst das Secret im Store anlegen, dann diesen
 # Block aktivieren.
-# [[secrets_store_secrets]]
-# binding = "MAIL_API_TOKEN"
-# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-# secret_name = "MAIL_API_TOKEN"
+[[secrets_store_secrets]]
+binding = "MAIL_API_TOKEN"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "MAIL_API_TOKEN"
 
 # Versandweg "email-routing" über das send_email-Binding. Setzt voraus, dass
 # Email Routing im Konto eingerichtet ist und die Empfängeradresse dort als
