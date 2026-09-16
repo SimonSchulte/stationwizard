@@ -158,27 +158,30 @@ Hostname-/DNS-/Mail-Einrichtung.
 Alle Endpunkte benötigen die verifizierte Anmeldung – mit Ausnahme der drei Pfade der
 öffentlichen Kilometermeldung, die weiter unten in einem eigenen Abschnitt stehen:
 
-| Endpunkt                                  | Methode    | Anfrage beziehungsweise Antwort                                                              |
-| ----------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
-| `/api/benutzer`                           | GET        | Antwort `{ "email": "…" }`                                                                   |
-| `/api/status`                             | GET        | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
-| `/api/efs/checkapikey`                    | POST       | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltungen`             | POST       | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltung`               | POST       | Anfrage JSON `{ "id": "…" }`                                                                 |
-| `/api/nextcloud/arbeitsmappe`             | GET / PUT  | Konfigurierte Excel-Datei                                                                    |
-| `/api/nextcloud/planungen`                | GET        | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
-| `/api/nextcloud/planungen/<UUID>`         | GET / PUT  | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
-| `/api/hiorg/kalender`                     | GET        | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`                  |
-| `/api/fahrzeuge`                          | GET / POST | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
-| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
-| `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
-| `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
-| `/api/benutzerverwaltung`                 | GET        | Liste aller bereits angemeldeten Personen samt Rolle                                         |
-| `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
-| `/f/<UUID>`, `/f/<UUID>/km`               | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
-| `/api/fahrzeuge/erfassungslinks`          | GET        | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt           |
-| `/api/fahrzeuge/<UUID>/erfassungslink`    | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig                  |
+| Endpunkt                                        | Methode    | Anfrage beziehungsweise Antwort                                                              |
+| ----------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| `/api/benutzer`                                 | GET        | Antwort `{ "email": "…" }`                                                                   |
+| `/api/status`                                   | GET        | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
+| `/api/efs/checkapikey`                          | POST       | Anfrage JSON `{}`                                                                            |
+| `/api/efs/getveranstaltungen`                   | POST       | Anfrage JSON `{}`                                                                            |
+| `/api/efs/getveranstaltung`                     | POST       | Anfrage JSON `{ "id": "…" }`                                                                 |
+| `/api/nextcloud/arbeitsmappe`                   | GET / PUT  | Konfigurierte Excel-Datei                                                                    |
+| `/api/nextcloud/planungen`                      | GET        | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
+| `/api/nextcloud/planungen/<UUID>`               | GET / PUT  | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
+| `/api/hiorg/kalender`                           | GET        | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`                  |
+| `/api/fahrzeuge`                                | GET / POST | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
+| `/api/fahrzeuge/<UUID>`                         | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
+| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
+| `/api/fahrzeuge/<UUID>/aenderungen`             | GET        | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
+| `/api/benutzerverwaltung`                       | GET        | Liste aller bereits angemeldeten Personen samt Rolle                                         |
+| `/api/benutzerverwaltung/<E-Mail>`              | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
+| `/f/<UUID>`, `/f/<UUID>/km`                     | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
+| `/api/fahrzeuge/erfassungslinks`                | GET        | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt           |
+| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig                  |
+| `/api/fahrzeuge/einreichungen`                  | GET        | Offene öffentliche Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert         |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST       | Erzeugt die echte Ablesung; `erfasstVon` ist die freigebende Person                          |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST       | Anfrage `{ "grund": "…" }` (optional, 200 Zeichen); erzeugt keine Ablesung                   |
 
 ### Fahrzeugmodul (D1)
 

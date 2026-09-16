@@ -145,34 +145,37 @@ Prüfungen und offene Abnahmegrenzen.
 
 ### Erlaubte API-Oberfläche
 
-| Pfad                                      | Methode    | Vertrag                                                                     |
-| ----------------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `/api/status`                             | GET        | Worker-Status                                                               |
-| `/api/benutzer`                           | GET        | Verifizierte E-Mail-Adresse                                                 |
-| `/api/benutzer/profilbild`                | GET        | Best-effort Google-Profilbild-URL oder `null`, siehe unten                  |
-| `/api/efs/checkapikey`                    | POST       | JSON `{}`                                                                   |
-| `/api/efs/getveranstaltungen`             | POST       | JSON `{}`                                                                   |
-| `/api/efs/getveranstaltung`               | POST       | JSON mit ausschließlich `id`                                                |
-| `/api/nextcloud/arbeitsmappe`             | GET / PUT  | Konfigurierte Excel-Dateifreigabe                                           |
-| `/api/nextcloud/planungen`                | GET        | Liste aus UUID und ETag                                                     |
-| `/api/nextcloud/planungen/<UUID>`         | GET / PUT  | Einzelne versionierte PEP-Datei                                             |
-| `/api/hiorg/kalender`                     | GET        | HiOrg-Kalenderfeed, nur lesend                                              |
-| `/api/fahrzeuge`                          | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig  |
-| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig        |
-| `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
-| `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
-| `/api/fahrzeuge/km-bericht`               | GET        | Kilometerstandsbericht über alle Fahrzeuge als Vorschau; versendet nichts   |
-| `/api/fahrzeuge/km-bericht/senden`        | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
-| `/api/benutzerverwaltung`                 | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
-| `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
-| `/api/systemkonfiguration`                | GET / PUT  | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten       |
-| `/f/<UUID>`, `/f/<UUID>/km`               | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
-| `/api/fahrzeuge/erfassungslinks`          | GET        | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt       |
-| `/api/fahrzeuge/<UUID>/erfassungslink`    | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig        |
-| `/e/<TOKEN>`                              | GET        | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                     |
-| `/oeffentlich/<datei>`                    | GET        | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels            |
-| `/api/oeffentlich/meldung/<TOKEN>`        | GET / POST | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen           |
+| Pfad                                            | Methode    | Vertrag                                                                     |
+| ----------------------------------------------- | ---------- | --------------------------------------------------------------------------- |
+| `/api/status`                                   | GET        | Worker-Status                                                               |
+| `/api/benutzer`                                 | GET        | Verifizierte E-Mail-Adresse                                                 |
+| `/api/benutzer/profilbild`                      | GET        | Best-effort Google-Profilbild-URL oder `null`, siehe unten                  |
+| `/api/efs/checkapikey`                          | POST       | JSON `{}`                                                                   |
+| `/api/efs/getveranstaltungen`                   | POST       | JSON `{}`                                                                   |
+| `/api/efs/getveranstaltung`                     | POST       | JSON mit ausschließlich `id`                                                |
+| `/api/nextcloud/arbeitsmappe`                   | GET / PUT  | Konfigurierte Excel-Dateifreigabe                                           |
+| `/api/nextcloud/planungen`                      | GET        | Liste aus UUID und ETag                                                     |
+| `/api/nextcloud/planungen/<UUID>`               | GET / PUT  | Einzelne versionierte PEP-Datei                                             |
+| `/api/hiorg/kalender`                           | GET        | HiOrg-Kalenderfeed, nur lesend                                              |
+| `/api/fahrzeuge`                                | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig  |
+| `/api/fahrzeuge/<UUID>`                         | GET / PUT  | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig        |
+| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
+| `/api/fahrzeuge/<UUID>/aenderungen`             | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
+| `/api/fahrzeuge/km-bericht`                     | GET        | Kilometerstandsbericht über alle Fahrzeuge als Vorschau; versendet nichts   |
+| `/api/fahrzeuge/km-bericht/senden`              | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
+| `/api/benutzerverwaltung`                       | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
+| `/api/benutzerverwaltung/<E-Mail>`              | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
+| `/api/systemkonfiguration`                      | GET / PUT  | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten       |
+| `/f/<UUID>`, `/f/<UUID>/km`                     | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
+| `/api/fahrzeuge/erfassungslinks`                | GET        | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt       |
+| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig        |
+| `/e/<TOKEN>`                                    | GET        | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                     |
+| `/oeffentlich/<datei>`                          | GET        | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels            |
+| `/api/oeffentlich/meldung/<TOKEN>`              | GET / POST | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen           |
+| `/api/fahrzeuge/einreichungen`                  | GET        | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert    |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST       | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung       |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST       | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                      |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
 Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schema in

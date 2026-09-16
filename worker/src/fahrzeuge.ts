@@ -366,7 +366,13 @@ function diffFahrzeug(alt: FahrzeugZeile, neu: FahrzeugEingabe): string[] {
  * gibt keinen Endpunkt, über den ein Client direkt in diese Tabelle schreiben
  * könnte (siehe docs/konzept-fahrzeuge.md, Abschnitt „Änderungsprotokoll").
  */
-async function protokolliereAenderung(
+/**
+ * Der einzige Schreibpfad ins Änderungsprotokoll. Exportiert, damit auch
+ * `einreichungen.ts` ihn benutzt, statt einen zweiten anzulegen: `von` ist
+ * immer eine geprüfte Access-E-Mail, und die Beschreibung entsteht im Code,
+ * nie aus einer Client-Eingabe.
+ */
+export async function protokolliereAenderung(
   db: D1Database,
   fahrzeugId: string,
   von: string,
@@ -510,7 +516,11 @@ async function leseFahrzeug(db: D1Database, id: string): Promise<Response> {
   return jsonAntwort(zuFahrzeugJson(zeile), 200, { ETag: starkesEtag(zeile.version) });
 }
 
-async function lesePruefeKoerper(
+/**
+ * Exportiert für `einreichungen.ts`: dieselben Grenzen und dieselbe
+ * Fehlerklassifikation für jeden Fahrzeug-Schreibendpunkt.
+ */
+export async function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {

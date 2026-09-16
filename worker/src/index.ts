@@ -6,6 +6,7 @@ import {
   type BenutzerverwaltungKonfiguration,
 } from './benutzer';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
+import { EINREICHUNGEN_PFAD, verarbeiteEinreichungen } from './einreichungen';
 import {
   kurzlinkWeiterleitung,
   verarbeiteFahrzeuge,
@@ -136,6 +137,12 @@ export default {
     // adressiert und deren UUID-Pfade ihn sonst als unbekannt abwiesen.
     if (url.pathname === KM_BERICHT_PFAD || url.pathname === KM_BERICHT_SENDEN_PFAD) {
       return verarbeiteKmBericht(anfrage, umgebung, benutzer);
+    }
+
+    // Wie beim Kilometerstandsbericht vor der Fahrzeugverarbeitung: deren
+    // UUID-Pfade wiesen "einreichungen" sonst als unbekannt ab.
+    if (url.pathname === EINREICHUNGEN_PFAD || url.pathname.startsWith(`${EINREICHUNGEN_PFAD}/`)) {
+      return verarbeiteEinreichungen(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === '/api/fahrzeuge' || url.pathname.startsWith('/api/fahrzeuge/')) {

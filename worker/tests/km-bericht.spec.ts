@@ -80,6 +80,37 @@ describe('ladeKmBericht', () => {
     expect(zeile.unvollstaendig).toBe(false);
   });
 
+  it('bleibt von einer offenen Kilometermeldung unberührt', async () => {
+    // Die Versicherung gegen eine spätere Erweiterung, die den Bericht auch aus
+    // `ablesung_einreichungen` speisen würde: eine Meldung zählt erst nach der
+    // Freigabe, und dann steht sie ohnehin in `ablesungen`.
+    const ohne = new FakeFahrzeugeDb();
+    fahrzeug(ohne, 'a', 'MTW', 'land-nrw', 'K-XY 123');
+    ablesung(ohne, 'a1', 'a', '2025-12-20', 10_000);
+
+    const mit = new FakeFahrzeugeDb();
+    fahrzeug(mit, 'a', 'MTW', 'land-nrw', 'K-XY 123');
+    ablesung(mit, 'a1', 'a', '2025-12-20', 10_000);
+    mit.einreichungen.push({
+      id: 'e1',
+      fahrzeug_id: 'a',
+      abgelesen_am: '2026-06-01',
+      stand: 99_999,
+      eingereicht_am: '2026-06-01T08:00:00.000Z',
+      eingereicht_von_name: 'Maxi Muster',
+      bemerkung: '',
+      status: 'offen',
+      entschieden_am: null,
+      entschieden_von: null,
+      ablehnungsgrund: null,
+      ablesung_id: null,
+    });
+
+    expect(await ladeKmBericht(mit as never, '2026-06-15')).toEqual(
+      await ladeKmBericht(ohne as never, '2026-06-15'),
+    );
+  });
+
   it('meldet ein Fahrzeug ohne jede Ablesung statt es wegzulassen', async () => {
     const db = new FakeFahrzeugeDb();
     fahrzeug(db, 'a', 'GW-San', 'bund');

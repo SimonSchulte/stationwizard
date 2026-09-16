@@ -33,6 +33,7 @@ interface AblesungZeile {
   quelle: string;
   korrigiert: string | null;
   bemerkung: string;
+  gemeldet_von_name?: string | null;
 }
 
 interface EinreichungZeile {
@@ -98,6 +99,21 @@ export class FakeFahrzeugeDb {
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query.trim().replace(/\s+/g, ' '));
+  }
+
+  /**
+   * `einreichungen.ts` setzt die erzeugte Ablesung und den Protokolleintrag
+   * gemeinsam ab. Der Fake führt sie der Reihe nach aus; er bildet damit die
+   * Reihenfolge nach, nicht die Atomarität einer echten D1-Transaktion.
+   */
+  async batch<T = Record<string, unknown>>(
+    anweisungen: FakeStatement[],
+  ): Promise<{ success: true; meta: { changes: number }; results: T[] }[]> {
+    const ergebnisse = [];
+    for (const anweisung of anweisungen) {
+      ergebnisse.push(await anweisung.run<T>());
+    }
+    return ergebnisse;
   }
 }
 
@@ -251,6 +267,7 @@ class FakeStatement {
         quelle,
         korrigiert,
         bemerkung,
+        gemeldet_von_name,
       ] = this.werte as [
         string,
         string,
@@ -261,6 +278,7 @@ class FakeStatement {
         string,
         string | null,
         string,
+        string | undefined,
       ];
       this.db.ablesungen.push({
         id,
@@ -272,7 +290,51 @@ class FakeStatement {
         quelle,
         korrigiert,
         bemerkung,
+        gemeldet_von_name: gemeldet_von_name ?? null,
       });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    if (
+      this.query.startsWith(
+        "UPDATE ablesung_einreichungen SET status = 'freigegeben', entschieden_am = ?",
+      )
+    ) {
+      const [entschiedenAm, entschiedenVon, ablesungId, id] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      // Der Waechter: nur eine noch offene Meldung aendert sich. Ohne diese
+      // Nachbildung taeuschte der Test ueber den Rennfall zweier Freigebender
+      // hinweg.
+      const treffer = this.db.einreichungen.find((e) => e.id === id && e.status === 'offen');
+      if (!treffer) return { success: true, meta: { changes: 0 }, results: [] };
+      treffer.status = 'freigegeben';
+      treffer.entschieden_am = entschiedenAm;
+      treffer.entschieden_von = entschiedenVon;
+      treffer.ablesung_id = ablesungId;
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    if (
+      this.query.startsWith(
+        "UPDATE ablesung_einreichungen SET status = 'abgelehnt', entschieden_am = ?",
+      )
+    ) {
+      const [entschiedenAm, entschiedenVon, grund, id] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      const treffer = this.db.einreichungen.find((e) => e.id === id && e.status === 'offen');
+      if (!treffer) return { success: true, meta: { changes: 0 }, results: [] };
+      treffer.status = 'abgelehnt';
+      treffer.entschieden_am = entschiedenAm;
+      treffer.entschieden_von = entschiedenVon;
+      treffer.ablehnungsgrund = grund;
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
@@ -332,6 +394,27 @@ class FakeStatement {
   }
 
   async first<T = Record<string, unknown>>(): Promise<T | null> {
+    if (
+      this.query.startsWith(
+        'SELECT e.id, e.fahrzeug_id, e.abgelesen_am, e.stand, e.eingereicht_von_name, e.bemerkung, e.status, f.gruppe',
+      )
+    ) {
+      const [id] = this.werte as [string];
+      const treffer = this.db.einreichungen.find((e) => e.id === id);
+      if (!treffer) return null;
+      const fahrzeug = this.db.fahrzeuge.get(treffer.fahrzeug_id);
+      if (!fahrzeug) return null;
+      return {
+        id: treffer.id,
+        fahrzeug_id: treffer.fahrzeug_id,
+        abgelesen_am: treffer.abgelesen_am,
+        stand: treffer.stand,
+        eingereicht_von_name: treffer.eingereicht_von_name,
+        bemerkung: treffer.bemerkung,
+        status: treffer.status,
+        gruppe: fahrzeug.gruppe,
+      } as T;
+    }
     if (
       this.query.startsWith(
         'SELECT id, bezeichnung, funkrufname, kennzeichen, erfassung_token FROM fahrzeuge WHERE erfassung_token = ?',
@@ -415,6 +498,51 @@ class FakeStatement {
       const zeilen = [...this.db.fahrzeuge.values()].sort((a, b) =>
         a.bezeichnung.localeCompare(b.bezeichnung),
       );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (
+      this.query.startsWith(
+        'SELECT e.id, e.fahrzeug_id, e.abgelesen_am, e.stand, e.eingereicht_am, e.eingereicht_von_name, e.bemerkung,',
+      )
+    ) {
+      const gruppen = new Set(this.werte as string[]);
+      // Korrigierte Ablesungen zaehlen nicht als letzter Stand – dieselbe Regel
+      // wie in fahrzeug-detail.ts und km-bericht.ts.
+      const korrigierte = new Set(
+        this.db.ablesungen.map((a) => a.korrigiert).filter((id): id is string => id !== null),
+      );
+      const letzte = (fahrzeugId: string) =>
+        this.db.ablesungen
+          .filter((a) => a.fahrzeug_id === fahrzeugId && !korrigierte.has(a.id))
+          .sort(
+            (a, b) =>
+              a.abgelesen_am.localeCompare(b.abgelesen_am) ||
+              a.erfasst_am.localeCompare(b.erfasst_am),
+          )
+          .at(-1) ?? null;
+
+      const zeilen = this.db.einreichungen
+        .filter((e) => e.status === 'offen')
+        .map((e) => ({ e, f: this.db.fahrzeuge.get(e.fahrzeug_id) }))
+        .filter((paar) => paar.f !== undefined && gruppen.has(paar.f.gruppe))
+        .sort((a, b) => a.e.eingereicht_am.localeCompare(b.e.eingereicht_am))
+        .map(({ e, f }) => {
+          const vorher = letzte(e.fahrzeug_id);
+          return {
+            id: e.id,
+            fahrzeug_id: e.fahrzeug_id,
+            abgelesen_am: e.abgelesen_am,
+            stand: e.stand,
+            eingereicht_am: e.eingereicht_am,
+            eingereicht_von_name: e.eingereicht_von_name,
+            bemerkung: e.bemerkung,
+            bezeichnung: f!.bezeichnung,
+            kennzeichen: f!.kennzeichen,
+            gruppe: f!.gruppe,
+            letzter_stand: vorher?.stand ?? null,
+            letzter_stand_am: vorher?.abgelesen_am ?? null,
+          };
+        });
       return { success: true, results: zeilen as unknown as T[] };
     }
     if (
