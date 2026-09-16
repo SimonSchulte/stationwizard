@@ -5,6 +5,7 @@ import {
   waehleVersand,
   type MailVersandKonfiguration,
   type MailNachricht,
+  type VersandFehlerGrund,
 } from './mail-versand';
 import { leseEinstellungen, type SystemkonfigurationKonfiguration } from './systemkonfiguration';
 
@@ -391,6 +392,22 @@ export async function verarbeiteKmBericht(
   return sendeBericht(bericht, umgebung, identitaet);
 }
 
+/**
+ * Fester Code und Status je Fehlergrund. Die Oberfläche bekommt vom
+ * `WorkerClient` nur Status und Diagnosecode zu sehen, nicht den Meldungstext
+ * – ohne eigenen Code je Ursache wäre ein abgelaufenes Token von einem
+ * Netzwerkausfall nur im Worker-Log zu unterscheiden.
+ */
+const VERSANDFEHLER_ANTWORTEN: Record<VersandFehlerGrund, { code: string; status: number }> = {
+  'konfiguration-fehlt': { code: 'MAIL_VERSANDWEG_NICHT_EINGERICHTET', status: 503 },
+  zeitlimit: { code: 'MAIL_VERSAND_ZEITLIMIT', status: 504 },
+  'nicht-erreichbar': { code: 'MAIL_VERSAND_NICHT_ERREICHBAR', status: 502 },
+  umleitung: { code: 'MAIL_VERSAND_UMLEITUNG', status: 502 },
+  'zugang-abgelehnt': { code: 'MAIL_VERSAND_ZUGANG_ABGELEHNT', status: 502 },
+  abgelehnt: { code: 'MAIL_VERSAND_ABGELEHNT', status: 502 },
+  upstream: { code: 'MAIL_VERSAND_FEHLGESCHLAGEN', status: 502 },
+};
+
 async function sendeBericht(
   bericht: KmBericht,
   umgebung: KmBerichtKonfiguration,
@@ -434,13 +451,8 @@ async function sendeBericht(
     await versand.sende(berichtAlsNachricht(bericht, empfaenger, einstellungen.kmBerichtBetreff));
   } catch (ursache) {
     if (ursache instanceof VersandFehler) {
-      return fehlerAntwort(
-        ursache.grund === 'konfiguration-fehlt'
-          ? 'MAIL_VERSANDWEG_NICHT_EINGERICHTET'
-          : 'MAIL_VERSAND_FEHLGESCHLAGEN',
-        ursache.message,
-        ursache.grund === 'konfiguration-fehlt' ? 503 : 502,
-      );
+      const { code, status } = VERSANDFEHLER_ANTWORTEN[ursache.grund];
+      return fehlerAntwort(code, ursache.message, status);
     }
     throw ursache;
   }

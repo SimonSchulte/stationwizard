@@ -202,10 +202,26 @@ Der Mailversand (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern
 weil es eine bestätigte Zieladresse in Cloudflare Email Routing voraussetzt) und `resend`
 über einen **festen** HTTPS-Endpunkt. Keine konfigurierbare Ziel-URL – eine frei setzbare
 Adresse wäre ein Weiterleitungspunkt für das Token. SMTP ist in Workers nicht möglich.
-Upstream-Antworten werden nie weitergereicht: nur feste Codes
-(`MAIL_VERSANDWEG_NICHT_EINGERICHTET`, `MAIL_VERSAND_FEHLGESCHLAGEN`), im Log nur Status
+Upstream-Antworten werden nie weitergereicht: nur feste Codes, im Log nur Status
 beziehungsweise Fehlername. Ein weiterer Anbieter ist ein weiterer Adapter, keine Änderung
 an den Aufrufern.
+
+Jede Fehlerursache hat einen **eigenen** festen Code, weil die Oberfläche vom
+`WorkerClient` nur Status und `X-Stationwizard-Diagnose` zu sehen bekommt und den
+Meldungstext des Workers verwirft — ohne eigenen Code wäre ein abgelaufenes Token ohne
+Zugriff auf die Worker-Logs nicht von einem Netzwerkausfall zu unterscheiden:
+`MAIL_VERSANDWEG_NICHT_EINGERICHTET` (503), `MAIL_VERSAND_ZEITLIMIT` (504),
+`MAIL_VERSAND_NICHT_ERREICHBAR`, `MAIL_VERSAND_UMLEITUNG`,
+`MAIL_VERSAND_ZUGANG_ABGELEHNT`, `MAIL_VERSAND_ABGELEHNT` und
+`MAIL_VERSAND_FEHLGESCHLAGEN` (je 502, letzterer für Wege ohne HTTP-Antwort wie
+`email-routing`). Die Zuordnung steht in `VERSANDFEHLER_ANTWORTEN` in `km-bericht.ts`.
+Der Resend-Weg folgt demselben Muster wie EFS und Nextcloud: eigener `AbortController`
+statt `AbortSignal.timeout()` (nur so ist ein Zeitlimit von einem Verbindungsfehler zu
+unterscheiden) und `redirect: 'manual'` mit `istUmleitung()` statt `redirect: 'error'` —
+einer Weiterleitung wird weiterhin nicht gefolgt, sie ist aber keine ununterscheidbare
+Transportstörung mehr. Ein Token, das nicht aus sichtbaren ASCII-Zeichen besteht, gilt als
+Konfigurationsfehler und nicht als Anbieterproblem: es ließe `fetch()` schon beim Bauen der
+Anfrage scheitern.
 
 Der Kilometerstandsbericht (`worker/src/km-bericht.ts`) ist Fahrzeugfachlichkeit und liegt
 deshalb neben `fahrzeuge.ts`; die Systemkonfiguration sagt nur, wohin er geht. Er bildet

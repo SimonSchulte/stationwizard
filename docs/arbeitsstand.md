@@ -1272,3 +1272,49 @@ lesbar, keine Konsolenfehler. Ein Darstellungsartefakt (sich überlappende Tab-I
 Wechsel) erwies sich als Fehler im Testskript selbst (per `addInitScript` erzwungenes
 Abschalten der Tab-Animation griff vor Angulars eigener Sichtbarkeitssteuerung) und nicht als
 Anwendungsfehler – mit normaler Animation und ausreichender Wartezeit verschwand es.
+
+## Mailversand: jede Fehlerursache mit eigenem Diagnosecode
+
+Der Versand des Kilometerstandsberichts scheiterte im Betrieb mit
+`{"code": "MAIL_VERSAND_FEHLGESCHLAGEN", "nachricht": "Der Mailanbieter war nicht
+erreichbar."}`. Diese Meldung entstand im `catch` um `fetch()` im Resend-Adapter und traf
+damit **vier völlig verschiedene Ursachen** gleichzeitig: eine tatsächlich nicht erreichbare
+Gegenstelle, eine Zeitüberschreitung, eine Weiterleitung (wegen `redirect: 'error'`) und
+einen ungültigen `Authorization`-Header, bei dem `fetch()` schon beim Bauen der Anfrage
+scheitert. Welche davon vorlag, war ohne Zugriff auf die Worker-Logs nicht feststellbar.
+
+- **Der Resend-Adapter folgt jetzt demselben Muster wie EFS, Nextcloud und der
+  HiOrg-Kalender** (`worker/src/efs.ts` als Vorbild): eigener `AbortController` mit
+  `setTimeout` statt `AbortSignal.timeout()` — nur so lässt sich nach dem Abbruch
+  feststellen, ob das Zeitlimit zuschlug oder die Verbindung selbst scheiterte — und
+  `redirect: 'manual'` mit `istUmleitung()` statt `redirect: 'error'`. Einer Weiterleitung
+  wird weiterhin nicht gefolgt (das Token darf nie an ein fremdes Ziel gehen), sie ist aber
+  keine ununterscheidbare Transportstörung mehr.
+- **Jede Ursache hat einen eigenen festen Diagnosecode.** Das ist nötig, weil die Oberfläche
+  vom `WorkerClient` nur HTTP-Status und `X-Stationwizard-Diagnose` angezeigt bekommt und
+  den Meldungstext des Workers verwirft — ein schärferer Text allein wäre nie sichtbar
+  geworden. Neu: `MAIL_VERSAND_ZEITLIMIT` (504), `MAIL_VERSAND_NICHT_ERREICHBAR`,
+  `MAIL_VERSAND_UMLEITUNG`, `MAIL_VERSAND_ZUGANG_ABGELEHNT`, `MAIL_VERSAND_ABGELEHNT`
+  (je 502). `MAIL_VERSAND_FEHLGESCHLAGEN` bleibt für Wege ohne HTTP-Antwort, also
+  `email-routing`; der bestehende Test dazu gilt unverändert.
+- **401 und 403 sind vom Rest getrennt** (`MAIL_VERSAND_ZUGANG_ABGELEHNT`), weil das der
+  mit Abstand häufigste Einrichtungsfehler ist: Token ungültig oder Absenderdomain beim
+  Anbieter nicht freigegeben. Weitergereicht wird davon nichts — im Log steht nur der
+  Status, nie der Antwortkörper.
+- **Ein nicht headertaugliches Token ist jetzt ein Konfigurationsfehler**, keine
+  Anbieterstörung. Ein Wert mit Zeilenumbruch, Steuerzeichen oder Umlaut lässt `fetch()`
+  scheitern, bevor eine Verbindung besteht. `versandwegVerfuegbar()` meldet den Weg
+  deshalb als nicht eingerichtet, und `waehleVersand()` nennt den Grund konkret, statt den
+  Versand erst beim Absenden scheitern zu lassen.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test`,
+  `npm run format:check` und `npm run deploy:dry-run`.
+
+### Offene Abnahmegrenzen
+
+- **Die eigentliche Ursache des gemeldeten Fehlers ist damit noch nicht bewiesen.** Diese
+  Runde macht sie unterscheidbar; welche der vier Ursachen vorlag, zeigt erst der nächste
+  Versuch am echten Worker (Diagnosecode in der Oberfläche) beziehungsweise die
+  Logzeile `MAIL_VERSAND_NICHT_ERREICHBAR …` im Worker-Log. Ein echter Mailversand hat
+  weiterhin nicht stattgefunden.
+- Keine Browserprüfung; die Änderung betrifft ausschließlich den Worker und ist durch
+  Worker-Tests belegt.

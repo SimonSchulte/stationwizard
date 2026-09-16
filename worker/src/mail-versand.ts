@@ -42,7 +42,24 @@ export interface MailNachricht {
   html: string;
 }
 
-export type VersandFehlerGrund = 'konfiguration-fehlt' | 'upstream';
+/**
+ * Warum ein Versand nicht zustande kam. Bewusst mehr als „hat nicht geklappt":
+ * Nichterreichbarkeit, Zeitüberschreitung, Weiterleitung und eine abgelehnte
+ * Antwort verlangen völlig verschiedene Schritte beim Betreiber, und die
+ * Oberfläche sieht davon nur den festen Diagnosecode (der `WorkerClient`
+ * verwirft den Meldungstext des Workers). Jede Ursache braucht deshalb einen
+ * eigenen Grund, sonst ist sie ohne Zugriff auf die Worker-Logs nicht zu
+ * unterscheiden.
+ */
+export type VersandFehlerGrund =
+  | 'konfiguration-fehlt'
+  | 'zeitlimit'
+  | 'nicht-erreichbar'
+  | 'umleitung'
+  | 'zugang-abgelehnt'
+  | 'abgelehnt'
+  /** Weg ohne HTTP-Antwort, bei dem sich die Ursache nicht eingrenzen lässt. */
+  | 'upstream';
 
 export class VersandFehler extends Error {
   constructor(
@@ -77,11 +94,18 @@ async function absender(umgebung: MailVersandKonfiguration): Promise<string | un
 }
 
 /**
+ * Ein Tokenwert geht unverändert in den `Authorization`-Header. Zulässig sind
+ * dort nur sichtbare ASCII-Zeichen; ein Zeilenumbruch, ein Steuerzeichen oder
+ * ein Umlaut aus einem falsch kopierten Wert lässt `fetch()` mit einem
+ * TypeError scheitern, bevor überhaupt eine Verbindung aufgebaut wird. Das ist
+ * ein Konfigurationsfehler und darf nicht als „Anbieter nicht erreichbar"
+ * erscheinen.
+ */
+const HEADERSICHER = /^[\x21-\x7e]+$/;
+
+/**
  * Getrimmt, weil ein aus dem Dashboard kopiertes Token leicht eine
- * angehängte Zeilenumbruch- oder Leerraumsequenz mitbringt. Ein solches
- * Zeichen im `Authorization`-Header lässt `fetch()` mit einem TypeError
- * scheitern, bevor überhaupt eine Verbindung aufgebaut wird – und landet
- * dann ununterscheidbar im selben Fehler wie eine echte Nichterreichbarkeit.
+ * angehängte Zeilenumbruch- oder Leerraumsequenz mitbringt.
  */
 async function resendToken(umgebung: MailVersandKonfiguration): Promise<string | undefined> {
   const token = (await leseZugangsdatum(umgebung.MAIL_API_TOKEN))?.trim();
@@ -101,7 +125,10 @@ export async function versandwegVerfuegbar(
 ): Promise<boolean> {
   if ((await absender(umgebung)) === undefined) return false;
   if (weg === 'email-routing') return umgebung.MAIL_ROUTING !== undefined;
-  return (await resendToken(umgebung)) !== undefined;
+  const token = await resendToken(umgebung);
+  // Ein nicht headertaugliches Token ist genauso wenig benutzbar wie gar
+  // keines – die Oberfläche soll das melden, bevor jemand auf Senden drückt.
+  return token !== undefined && HEADERSICHER.test(token);
 }
 
 /** Wirft `VersandFehler('konfiguration-fehlt')`, wenn der Weg nicht eingerichtet ist. */
@@ -134,6 +161,14 @@ export async function waehleVersand(
     throw new VersandFehler(
       'konfiguration-fehlt',
       'Für den Versand über die Mail-API ist kein Token hinterlegt.',
+    );
+  }
+  if (!HEADERSICHER.test(token)) {
+    throw new VersandFehler(
+      'konfiguration-fehlt',
+      'Das hinterlegte Mail-API-Token enthält Zeichen, die in einem HTTP-Header ' +
+        'nicht zulässig sind. Den Wert im Secrets Store ohne Zeilenumbruch und ' +
+        'ohne Sonderzeichen neu hinterlegen.',
     );
   }
   return new ResendVersand(token, von, name);
@@ -179,56 +214,78 @@ class ResendVersand implements MailVersand {
   ) {}
 
   async sende(nachricht: MailNachricht): Promise<void> {
-    let antwort: Response;
+    // Eigener AbortController statt AbortSignal.timeout(): nur so lässt sich
+    // nach dem Abbruch feststellen, ob das Zeitlimit zugeschlagen hat oder die
+    // Verbindung selbst scheiterte – dieselbe Aufteilung wie bei EFS und
+    // Nextcloud (siehe worker/src/efs.ts).
+    const abbruch = new AbortController();
+    const zeitlimit = setTimeout(() => abbruch.abort(), VERSAND_ZEITGRENZE_MS);
     try {
-      antwort = await fetch(RESEND_ENDPUNKT, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: this.name ? `${this.name} <${this.von}>` : this.von,
-          to: [nachricht.an],
-          subject: nachricht.betreff,
-          text: nachricht.text,
-          html: nachricht.html,
-        }),
-        // 'error' ist in workerd nicht implementiert (wirft sofort einen
-        // TypeError, noch vor jedem Netzwerkzugriff); 'manual' macht eine
-        // Weiterleitung stattdessen als eigenen Status sichtbar (wie bei
-        // Nextcloud/EFS/HiOrg, siehe diagnose.ts).
-        redirect: 'manual',
-        signal: AbortSignal.timeout(VERSAND_ZEITGRENZE_MS),
-      });
-    } catch (ursache) {
-      // Fehlerklasse und -text, nie das Token: ein ungültiger Header-Wert
-      // (etwa durch ein Token mit angehängtem Zeilenumbruch) wirft hier
-      // ebenso wie eine echte Zeitüberschreitung oder Nichterreichbarkeit,
-      // und ließ sich bisher nicht unterscheiden.
-      console.error(
-        'MAIL_API_TRANSPORTFEHLER',
-        redigiere(ursachenText(ursache), [this.token, this.von]),
-      );
-      throw new VersandFehler('upstream', 'Der Mailanbieter war nicht erreichbar.');
-    }
-    if (istUmleitung(antwort)) {
-      // Weiterleitung bewusst nicht folgen: Ziel, Inhalt und Header (inklusive
-      // Token) blieben sonst gegenüber einem unbekannten Ziel offen.
-      console.error('MAIL_API_UMLEITUNG', antwort.status);
+      let antwort: Response;
+      try {
+        antwort = await fetch(RESEND_ENDPUNKT, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: this.name ? `${this.name} <${this.von}>` : this.von,
+            to: [nachricht.an],
+            subject: nachricht.betreff,
+            text: nachricht.text,
+            html: nachricht.html,
+          }),
+          // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen
+          // Status sichtbar, statt sie als Transportfehler zu verschlucken.
+          redirect: 'manual',
+          signal: abbruch.signal,
+        });
+      } catch (ursache) {
+        if (abbruch.signal.aborted) {
+          console.error('MAIL_VERSAND_ZEITLIMIT');
+          throw new VersandFehler(
+            'zeitlimit',
+            'Der Mailanbieter hat nicht rechtzeitig geantwortet.',
+          );
+        }
+        // Fehlerklasse und -text, nie das Token: das trennt eine echte
+        // Nichterreichbarkeit von einem ungültigen Header-Wert.
+        console.error(
+          'MAIL_VERSAND_NICHT_ERREICHBAR',
+          redigiere(ursachenText(ursache), [this.token, this.von]),
+        );
+        throw new VersandFehler('nicht-erreichbar', 'Der Mailanbieter war nicht erreichbar.');
+      }
+
+      if (istUmleitung(antwort)) {
+        // Weiterleitung bewusst nicht folgen: das Token darf nie an ein
+        // fremdes Ziel gehen (siehe CLAUDE.md, fester Endpunkt).
+        await antwort.body?.cancel();
+        console.error('MAIL_VERSAND_UMLEITUNG', antwort.status);
+        throw new VersandFehler(
+          'umleitung',
+          'Der Mailanbieter beantwortet den Versandendpunkt mit einer Weiterleitung.',
+        );
+      }
+      if (!antwort.ok) {
+        // Nur der Status, nie der Antwortkörper: er spiegelt Empfänger und
+        // Absender und kann Teile des Tokens zurückmelden.
+        console.error('MAIL_VERSAND_ABGELEHNT', antwort.status);
+        await antwort.body?.cancel();
+        if (antwort.status === 401 || antwort.status === 403) {
+          // Der mit Abstand häufigste Einrichtungsfehler: Token ungültig oder
+          // die Absenderdomain beim Anbieter nicht freigegeben.
+          throw new VersandFehler(
+            'zugang-abgelehnt',
+            'Der Mailanbieter hat Token oder Absenderadresse nicht akzeptiert.',
+          );
+        }
+        throw new VersandFehler('abgelehnt', 'Der Mailanbieter hat den Versand abgelehnt.');
+      }
       await antwort.body?.cancel();
-      throw new VersandFehler(
-        'upstream',
-        'Der Mailanbieter hat mit einer Weiterleitung geantwortet.',
-      );
+    } finally {
+      clearTimeout(zeitlimit);
     }
-    if (!antwort.ok) {
-      // Nur der Status, nie der Antwortkörper: er spiegelt Empfänger und
-      // Absender und kann Teile des Tokens zurückmelden.
-      console.error('MAIL_API_FEHLER', antwort.status);
-      await antwort.body?.cancel();
-      throw new VersandFehler('upstream', 'Der Mailanbieter hat den Versand abgelehnt.');
-    }
-    await antwort.body?.cancel();
   }
 }
