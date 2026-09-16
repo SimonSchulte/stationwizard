@@ -91,6 +91,32 @@ describe('resend: Transportfehler vor einer Antwort', () => {
   });
 });
 
+describe('resend: Weiterleitung', () => {
+  it('folgt einer Weiterleitung nicht und meldet sie als VersandFehler', async () => {
+    const koerper = { body: { cancel: vi.fn() } };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 302, ...koerper } as unknown as Response),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const versand = await waehleVersand('resend', umgebung());
+    await expect(versand.sende(NACHRICHT)).rejects.toMatchObject({ grund: 'upstream' });
+    expect(koerper.body.cancel).toHaveBeenCalledOnce();
+  });
+
+  it('setzt redirect: manual, nicht error, da workerd error nicht unterstützt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const versand = await waehleVersand('resend', umgebung());
+    await versand.sende(NACHRICHT);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.redirect).toBe('manual');
+  });
+});
+
 describe('resend: abgelehnte Antwort', () => {
   it('meldet eine nicht erfolgreiche Antwort als VersandFehler, ohne den Antworttext zu lesen', async () => {
     const koerper = { body: { cancel: vi.fn() } };
