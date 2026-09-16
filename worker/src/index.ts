@@ -41,6 +41,45 @@ export interface Env
 
 const LESENDE_METHODEN = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/**
+ * Dateiname mit Inhalts-Hash aus dem Angular-Build (`outputHashing: "all"`),
+ * etwa `main-UC6SXZZ6.js`, `styles-VKJXXVPW.css` oder
+ * `media/material-icons-LEZCGFVT.woff2`. Ändert sich der Inhalt, ändert sich
+ * der Name - solche Antworten dürfen dauerhaft im Browser bleiben.
+ */
+const GEHASHTER_DATEINAME = /\/[^/]+-[A-Z0-9]{8}\.[a-z0-9]+$/;
+
+/**
+ * `run_worker_first = true` bedeutet, dass jede einzelne Asset-Anfrage eine
+ * Worker-Anfrage ist - auch jede bloße Rückfrage "hat sich das geändert?".
+ * Ohne diese Kopfzeile fragt der Browser bei jedem Seitenaufruf alle Bundles
+ * erneut an; bei gut sechzig Chunks ist das der mit Abstand größte
+ * Verbrauchsposten. Für Dateien mit Inhalts-Hash entfällt die Rückfrage
+ * vollständig, ohne dass ein neues Deployment unbemerkt bleiben könnte: eine
+ * neue Fassung hat einen neuen Namen, und `index.html` selbst bleibt
+ * ungepuffert.
+ *
+ * Bewusst `private`: die Antworten liegen hinter Access und gehören in keinen
+ * gemeinsam genutzten Zwischenspeicher. Und bewusst nur für echte Dateien -
+ * unbekannte Pfade beantwortet Static Assets wegen
+ * `not_found_handling = "single-page-application"` mit `index.html`, das nie
+ * dauerhaft gepuffert werden darf.
+ */
+async function assetAntwort(anfrage: Request, umgebung: Env, pfad: string): Promise<Response> {
+  const antwort = await umgebung.ASSETS.fetch(anfrage);
+  const istHtml = antwort.headers.get('Content-Type')?.includes('text/html') ?? false;
+  if (!antwort.ok || istHtml || !GEHASHTER_DATEINAME.test(pfad)) {
+    return antwort;
+  }
+  const kopfzeilen = new Headers(antwort.headers);
+  kopfzeilen.set('Cache-Control', 'private, max-age=31536000, immutable');
+  return new Response(antwort.body, {
+    status: antwort.status,
+    statusText: antwort.statusText,
+    headers: kopfzeilen,
+  });
+}
+
 /** Eine Origin für SPA und APIs; Access wird auch auf direkten Worker-Aufrufen geprüft. */
 export default {
   async fetch(anfrage: Request, umgebung: Env): Promise<Response> {
@@ -139,6 +178,6 @@ export default {
       });
     }
 
-    return umgebung.ASSETS.fetch(anfrage);
+    return assetAntwort(anfrage, umgebung, url.pathname);
   },
 } satisfies ExportedHandler<Env>;

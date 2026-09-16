@@ -4,6 +4,7 @@ import { istKmBericht, istVersandQuittung } from './km-bericht-pruefung';
 
 function zeile(ueberschreibung: Partial<BerichtZeile> = {}): BerichtZeile {
   return {
+    id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     bezeichnung: 'MTW',
     funkrufname: 'Florian 1',
     kennzeichen: 'K-XY 123',
@@ -60,6 +61,10 @@ describe('istKmBericht', () => {
     expect(istKmBericht(bericht({ zeilen: [{ ...zeile(), eigentuemer: 'kreis' } as never] }))).toBe(
       false,
     );
+  });
+
+  it('lehnt eine Zeile ohne Fahrzeug-ID ab – die Übersicht verlinkt darüber', () => {
+    expect(istKmBericht(bericht({ zeilen: [{ ...zeile(), id: '' }] }))).toBe(false);
   });
 
   it('lehnt einen gebrochenen Kilometerstand ab', () => {

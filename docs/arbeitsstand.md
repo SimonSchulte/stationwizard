@@ -1318,3 +1318,79 @@ scheitert. Welche davon vorlag, war ohne Zugriff auf die Worker-Logs nicht fests
   weiterhin nicht stattgefunden.
 - Keine Browserprüfung; die Änderung betrifft ausschließlich den Worker und ist durch
   Worker-Tests belegt.
+
+## Sparsamer Umgang mit dem Cloudflare-Free-Tier
+
+Der Betrieb läuft auf dem kostenlosen Cloudflare-Tarif. Dort zählt jede einzelne Anfrage an
+den Worker – wegen `run_worker_first = true` auch jede Asset-Anfrage – und jede D1-Schreibung
+gegen ein Tageskontingent. Diese Runde senkt beides, ohne eine fachliche Regel, den
+Zugangsschutz oder die Konfliktbehandlung zu lockern.
+
+- **Fuhrpark-Übersicht: ein Aufruf statt einer je Fahrzeug.** Die Kilometerbilanzen kamen
+  bisher aus einer eigenen Ablesungshistorie je Fahrzeug (`1 + N` Worker-Anfragen, `1 + 2N`
+  D1-Abfragen je Aufruf der Seite). Sie kommen jetzt aus dem seit AP-S1 vorhandenen
+  Kilometerstandsbericht (`GET /api/fahrzeuge/km-bericht`, zwei D1-Abfragen für den gesamten
+  Fuhrpark). Bei 20 Fahrzeugen sind das 21 Anfragen weniger je Seitenaufruf. Fahrzeugliste
+  und Bericht werden jetzt parallel geladen statt nacheinander.
+  - Fachlicher Nebeneffekt: die Übersicht zeigt jetzt dieselben Zahlen wie Mail und
+    Detailseite. Die frühere Fassung rechnete korrigierte Ablesungen mit, der Bericht lässt
+    sie wie das Fahrzeugdetail draußen – die Übersicht war an dieser Stelle falsch.
+  - Dafür führt `BerichtZeile` jetzt die Fahrzeug-`id`, damit die Übersicht ohne einen
+    zweiten Abruf verlinken kann. Die Prüfung lehnt eine Zeile ohne ID ab.
+- **Dauerhafte Zwischenspeicherung der gehashten Bundles.** `worker/src/index.ts` setzt für
+  Dateinamen mit Inhalts-Hash (`main-UC6SXZZ6.js`, `media/…-LEZCGFVT.woff2`)
+  `Cache-Control: private, max-age=31536000, immutable`. Ohne diese Kopfzeile fragt der
+  Browser bei jedem Seitenaufruf alle Bundles erneut an, und jede dieser Rückfragen ist eine
+  Worker-Anfrage – bei gut sechzig Chunks der mit Abstand größte Posten. `index.html` bleibt
+  ungepuffert, ein Deployment bleibt dadurch nicht unbemerkt; die SPA-Ersatzantwort auf einen
+  unbekannten Pfad wird ausdrücklich nicht dauerhaft gepuffert. `private`, weil die Antworten
+  hinter Access liegen und in keinen gemeinsamen Zwischenspeicher gehören.
+- **Kurzlebiger Lesepuffer im Client** (`src/app/kern/abruf-puffer.ts`,
+  `src/app/fahrzeuge/storage/fahrzeug-abruf-puffer.ts`). Fahrzeugliste, Ablesungsverlauf und
+  Bericht werden 60 Sekunden lang wiederverwendet, gleichzeitige Abrufe desselben Schlüssels
+  zu einer Anfrage gebündelt. Jeder eigene Schreibzugriff verwirft alles; ein Ergebnis, das
+  während eines Schreibzugriffs unterwegs war, wird nicht mehr übernommen. `ladeFahrzeug()`
+  bleibt bewusst ungepuffert – dessen ETag ist die Bedingung des nächsten `If-Match`, ein
+  gepufferter ETag führte zu einem vermeidbaren 412.
+- **Änderungsprotokoll erst beim Aufklappen.** Der Bereich auf der Fahrzeugdetailseite ist
+  zugeklappt und wurde trotzdem bei jedem Seitenaufruf geladen. Jetzt lädt er beim Öffnen –
+  und dann jedes Mal neu, damit der angezeigte Stand nach eigenen Änderungen stimmt.
+- **`letzter_zugriff_am` höchstens einmal je Person und Tag.** `registriereZugriff()`
+  schreibt bei jedem `/api/benutzer` eine D1-Zeile. Die `WHERE`-Bedingung am Konfliktzweig
+  lässt den Schreibvorgang aus, wenn der gespeicherte Wert schon von heute ist. Fachlich
+  bleibt die Angabe tagesgenau – feiner war sie nie gemeint. Der D1-Fake in den Worker-Tests
+  bildet die Regel nach.
+- Der Bericht gruppiert die Ablesungen jetzt einmal nach Fahrzeug, statt je Fahrzeug erneut
+  über alle zu filtern; das bleibt linear und hält ihn auch bei wachsendem Verlauf innerhalb
+  der CPU-Grenze einer Worker-Anfrage.
+- Geprüft nach der Übernahme auf den gemergten Stand (PR #52): `npm run build`
+  (einschließlich `worker:check`), `npm test` (**558 Angular-Tests in 69 Dateien**,
+  **440 Worker-Tests in 11 Dateien**), `npm run format:check` und
+  `npm run deploy:dry-run` – alle grün. Die Übernahme hatte zwei Konflikte: die Importe
+  des Fahrzeug-Dashboards (beide Seiten übernommen, der Reiter „Kilometerübersicht" aus
+  #52 bleibt) und diese Datei. Beide Fassungen des Dashboards vertragen sich: Reiter und
+  Übersicht beziehen den Bericht jetzt aus demselben `KmBerichtStoreService`, der Puffer
+  bündelt das zu einem einzigen Abruf.
+
+### Offene Abnahmegrenzen dieser Runde
+
+- **Keine Browserprüfung durchgeführt.** Weder Desktop noch Mobil, weder die geänderte
+  Fuhrpark-Übersicht noch das nachgeladene Änderungsprotokoll wurden im Browser angesehen.
+  Die Änderungen sind nur durch Tests belegt. Das ist nach den Konventionen keine bestandene
+  Sichtprüfung und vor der Abnahme nachzuholen.
+- **Die Wirkung der Cache-Kopfzeile ist nicht am echten Worker gemessen.** Belegt ist nur,
+  dass der Worker sie für gehashte Dateien setzt und für `index.html` nicht. Ob die
+  Anfragezahl im Cloudflare-Dashboard tatsächlich fällt, zeigt erst der Betrieb.
+- **Die Erkennung des Inhalts-Hashes hängt an der Namensform des Angular-Builds**
+  (`-` plus acht Großbuchstaben/Ziffern vor der Endung). Ändert ein späteres Angular diese
+  Form, greift die Zwischenspeicherung stillschweigend nicht mehr – sie wird dann nur
+  wirkungslos, nie falsch.
+- Der Lesepuffer bedeutet, dass eine Erfassung aus einem **anderen** Browser bis zu eine
+  Minute später sichtbar wird. Eigene Änderungen wirken sofort.
+- `npm run test:spa` schlägt weiterhin fehl, inzwischen aber aus einem anderen Grund als
+  bisher dokumentiert: nicht mehr an der Netzwerkfreigabe, sondern schon beim Aufbau der
+  Laufzeit (`MiniflareCoreError [ERR_VALIDATION] … workers: undefined` in
+  `worker/tests/spa-routing.mjs`). Das betrifft den Testaufbau selbst, nicht den Worker, und
+  besteht unabhängig von dieser Runde. Damit bleibt der Laufzeitnachweis offen und das
+  Hash-Routing erhalten.
+- Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.

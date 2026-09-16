@@ -80,6 +80,8 @@ describe('ladeKmBericht', () => {
     expect(bericht.jahr).toBe(2026);
     expect(bericht.zeilen).toHaveLength(1);
     const zeile = bericht.zeilen[0]!;
+    // Die Übersicht verlinkt über diese ID, ohne die Fahrzeugliste zu joinen.
+    expect(zeile.id).toBe('a');
     expect(zeile.letzterStand).toBe(12_000);
     expect(zeile.abgelesenAm).toBe('2026-06-01');
     expect(zeile.tageSeitAblesung).toBe(14);

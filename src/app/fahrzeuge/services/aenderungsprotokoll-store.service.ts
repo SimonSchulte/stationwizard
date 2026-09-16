@@ -22,6 +22,12 @@ export class AenderungsprotokollStoreService {
   readonly laedt = signal(false);
   readonly fehler = signal('');
 
+  /** Leert den Stand, damit kein fremdes Protokoll stehen bleibt. */
+  zuruecksetzen(): void {
+    this.eintraege.set([]);
+    this.fehler.set('');
+  }
+
   async laden(fahrzeugId: string): Promise<void> {
     this.laedt.set(true);
     this.fehler.set('');

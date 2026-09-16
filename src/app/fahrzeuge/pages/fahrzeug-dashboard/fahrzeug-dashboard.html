@@ -59,7 +59,7 @@
           </section>
 
           <section class="karte kilometer" aria-labelledby="kilometer-titel">
-            <h2 id="kilometer-titel">Kilometerbilanz {{ jahr }}</h2>
+            <h2 id="kilometer-titel">Kilometerbilanz {{ jahr() }}</h2>
             @if (bilanzenLaedt()) {
               <p role="status">Kilometerbilanzen werden geladen …</p>
             }
@@ -68,23 +68,19 @@
             }
             @if (!bilanzenLaedt() && bilanzen().length > 0) {
               <div class="bilanz-raster">
-                @for (eintrag of bilanzen(); track eintrag.fahrzeug.id) {
+                @for (eintrag of bilanzen(); track eintrag.id) {
                   <div class="bilanz-karte">
                     <div class="bilanz-karte-kopf">
                       <div class="bilanz-karte-titel">
-                        <a
-                          class="bilanz-fahrzeug"
-                          [routerLink]="['/fahrzeuge', eintrag.fahrzeug.id]"
-                          >{{ eintrag.fahrzeug.bezeichnung }}</a
-                        >
-                        @if (eintrag.fahrzeug.kennzeichen) {
-                          <span class="tag-chip tag-zusatz">{{
-                            eintrag.fahrzeug.kennzeichen
-                          }}</span>
+                        <a class="bilanz-fahrzeug" [routerLink]="['/fahrzeuge', eintrag.id]">{{
+                          eintrag.bezeichnung
+                        }}</a>
+                        @if (eintrag.kennzeichen) {
+                          <span class="tag-chip tag-zusatz">{{ eintrag.kennzeichen }}</span>
                         }
                       </div>
                       <span class="bilanz-eigentuemer">{{
-                        EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer]
+                        EIGENTUEMER_LABEL[eintrag.eigentuemer]
                       }}</span>
                     </div>
                     <app-kilometer-bilanz [bilanz]="eintrag.bilanz" />

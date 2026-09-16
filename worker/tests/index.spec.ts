@@ -326,3 +326,45 @@ describe('Fahrzeuge-Routing und QR-Kurzlinks', () => {
     expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('Zwischenspeicherung der Assets', () => {
+  function assetAntwort(inhalt: string, typ: string, status = 200): void {
+    umgebung.ASSETS = {
+      fetch: vi.fn(async () => new Response(inhalt, { status, headers: { 'Content-Type': typ } })),
+    } as unknown as Fetcher;
+  }
+
+  it('lässt Dateien mit Inhalts-Hash dauerhaft im Browser liegen', async () => {
+    assetAntwort('console.log(1)', 'text/javascript');
+    const antwort = await anfragen('/chunk-2SPIL53D.js', await tokenFuer());
+    expect(antwort.status).toBe(200);
+    expect(antwort.headers.get('Cache-Control')).toBe('private, max-age=31536000, immutable');
+  });
+
+  it('gilt auch für gehashte Dateien in Unterordnern', async () => {
+    assetAntwort('font', 'font/woff2');
+    const antwort = await anfragen('/media/material-icons-LEZCGFVT.woff2', await tokenFuer());
+    expect(antwort.headers.get('Cache-Control')).toBe('private, max-age=31536000, immutable');
+  });
+
+  it('lässt die Einstiegsseite ungepuffert, sonst bliebe ein Deployment unbemerkt', async () => {
+    assetAntwort('<html>Test-SPA</html>', 'text/html');
+    const antwort = await anfragen('/', await tokenFuer());
+    expect(antwort.headers.get('Cache-Control') ?? '').not.toContain('immutable');
+  });
+
+  it('puffert keine Datei ohne Inhalts-Hash dauerhaft', async () => {
+    assetAntwort('icon', 'image/png');
+    const antwort = await anfragen('/apple-touch-icon.png', await tokenFuer());
+    expect(antwort.headers.get('Cache-Control') ?? '').not.toContain('immutable');
+  });
+
+  it('puffert die SPA-Ersatzantwort auf einen unbekannten gehashten Pfad nicht dauerhaft', async () => {
+    // `not_found_handling = "single-page-application"` beantwortet unbekannte
+    // Pfade mit index.html und Status 200 – dauerhaft gepuffert bliebe die
+    // falsche Antwort ein Jahr unter diesem Namen liegen.
+    assetAntwort('<html>Test-SPA</html>', 'text/html');
+    const antwort = await anfragen('/chunk-NICHTDA1.js', await tokenFuer());
+    expect(antwort.headers.get('Cache-Control') ?? '').not.toContain('immutable');
+  });
+});

@@ -92,6 +92,12 @@ function pruefeRolleEingabe(wert: unknown): RolleEingabe | null {
  * `index.ts` bei jedem `/api/benutzer`-Abruf aufgerufen (die Shell ruft ihn
  * einmal je Sitzungsstart auf) - ein Fehler hier darf die eigentliche
  * Antwort nicht verhindern.
+ *
+ * Die `WHERE`-Bedingung am Konfliktzweig schreibt höchstens einmal je Person
+ * und Kalendertag: mehrere Sitzungsstarts am selben Tag ändern den Wert
+ * ohnehin nicht sichtbar, verbrauchen aber sonst jedes Mal eine D1-Schreibung.
+ * Fachlich bleibt "letzter Zugriff" damit tagesgenau - feiner war die Angabe
+ * nie gemeint (siehe CLAUDE.md, Benutzerverwaltung).
  */
 export async function registriereZugriff(db: D1Database, email: string): Promise<void> {
   const jetzt = new Date().toISOString();
@@ -99,7 +105,8 @@ export async function registriereZugriff(db: D1Database, email: string): Promise
     .prepare(
       `INSERT INTO benutzer (email, sonderrollen, erster_zugriff_am, letzter_zugriff_am)
        VALUES (?, '[]', ?, ?)
-       ON CONFLICT(email) DO UPDATE SET letzter_zugriff_am = excluded.letzter_zugriff_am`,
+       ON CONFLICT(email) DO UPDATE SET letzter_zugriff_am = excluded.letzter_zugriff_am
+         WHERE substr(benutzer.letzter_zugriff_am, 1, 10) < substr(excluded.letzter_zugriff_am, 1, 10)`,
     )
     .bind(email, jetzt, jetzt)
     .run();

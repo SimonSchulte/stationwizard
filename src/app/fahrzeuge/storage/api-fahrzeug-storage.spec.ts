@@ -26,6 +26,52 @@ describe('ApiFahrzeugStorage', () => {
     expect(ergebnis).toEqual([fahrzeug]);
   });
 
+  it('ruft dieselbe Liste nicht bei jedem Seitenwechsel erneut ab', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    worker.json.mockResolvedValue({ fahrzeuge: [fahrzeug] });
+    await storage.ladeFahrzeuge();
+    await storage.ladeFahrzeuge();
+    expect(worker.json).toHaveBeenCalledOnce();
+  });
+
+  it('ruft den Verlauf eines Fahrzeugs nach einer eigenen Erfassung wieder frisch ab', async () => {
+    const ablesung = erzeugeTestablesung({ fahrzeugId: 'f-1' });
+    worker.json.mockResolvedValue({ ablesungen: [ablesung] });
+    await storage.ladeAblesungen('f-1');
+
+    worker.json.mockResolvedValue(ablesung);
+    await storage.ergaenzeAblesung({
+      fahrzeugId: 'f-1',
+      abgelesenAm: '2026-06-01',
+      stand: 12_000,
+      quelle: 'formular',
+      korrigiert: null,
+      bemerkung: '',
+    });
+
+    worker.json.mockResolvedValue({ ablesungen: [ablesung] });
+    await storage.ladeAblesungen('f-1');
+    // Liste, Erfassung, erneute Liste – die Erfassung darf den gepufferten
+    // Verlauf nicht stehen lassen.
+    expect(worker.json).toHaveBeenCalledTimes(3);
+  });
+
+  it('puffert das Fahrzeug samt Version nicht – ein alter ETag führte zu 412', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    worker.anfragen.mockResolvedValue(
+      new Response(JSON.stringify(fahrzeug), {
+        headers: { 'Content-Type': 'application/json', ETag: '"1"' },
+      }),
+    );
+    await storage.ladeFahrzeug(fahrzeug.id);
+    worker.anfragen.mockResolvedValue(
+      new Response(JSON.stringify(fahrzeug), {
+        headers: { 'Content-Type': 'application/json', ETag: '"2"' },
+      }),
+    );
+    expect((await storage.ladeFahrzeug(fahrzeug.id))?.version).toBe('"2"');
+  });
+
   it('legt ein neues Fahrzeug mit If-None-Match: * an', async () => {
     const fahrzeug = erzeugeTestfahrzeug();
     worker.anfragen.mockResolvedValue(

@@ -62,6 +62,8 @@ interface AblesungZeile {
 }
 
 export interface BerichtZeile {
+  /** Fahrzeug-UUID, damit die Oberfläche ohne zweiten Abruf verlinken kann. */
+  id: string;
   bezeichnung: string;
   funkrufname: string;
   kennzeichen: string;
@@ -144,6 +146,7 @@ function berechneZeile(
   const sollKm = (MINDEST_KM_PRO_MONAT[fahrzeug.eigentuemer] ?? 0) * 12;
   const istKm = startstand !== null && letzte ? letzte.stand - startstand : null;
   return {
+    id: fahrzeug.id,
     bezeichnung: fahrzeug.bezeichnung,
     funkrufname: fahrzeug.funkrufname,
     kennzeichen: fahrzeug.kennzeichen,
@@ -169,14 +172,17 @@ export async function ladeKmBericht(db: D1Database, stichtag: string): Promise<K
     .all<AblesungZeile>();
 
   const jahr = jahrVon(stichtag);
-  const gueltige = gueltigeAblesungen(ablesungen.results);
+  // Einmal nach Fahrzeug gruppieren statt je Fahrzeug erneut über alle
+  // Ablesungen zu filtern: das bleibt linear und hält den Bericht auch bei
+  // wachsendem Verlauf innerhalb der CPU-Grenze einer Worker-Anfrage.
+  const nachFahrzeug = new Map<string, AblesungZeile[]>();
+  for (const eintrag of gueltigeAblesungen(ablesungen.results)) {
+    const liste = nachFahrzeug.get(eintrag.fahrzeug_id);
+    if (liste) liste.push(eintrag);
+    else nachFahrzeug.set(eintrag.fahrzeug_id, [eintrag]);
+  }
   const zeilen = fahrzeuge.results.map((fahrzeug) =>
-    berechneZeile(
-      fahrzeug,
-      gueltige.filter((eintrag) => eintrag.fahrzeug_id === fahrzeug.id),
-      stichtag,
-      jahr,
-    ),
+    berechneZeile(fahrzeug, nachFahrzeug.get(fahrzeug.id) ?? [], stichtag, jahr),
   );
 
   return {
