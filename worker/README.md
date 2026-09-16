@@ -12,15 +12,18 @@ Prüfläufe: [Arbeitsstand](../docs/arbeitsstand.md).
 ## Static Assets und Routing
 
 `worker/wrangler.toml` bindet `../dist/stationwizard/browser` als `ASSETS` ein.
-`run_worker_first = true` führt den Worker vor **jedem** Assetabruf aus.
+`run_worker_first = true` führt den Worker vor **jedem** Assetabruf aus. Das zweite
+Build-Ziel der öffentlichen Meldeseite liegt als Unterordner `oeffentlich/` darin; der
+Worker gibt daraus nur eine feste Erlaubnisliste heraus (siehe unten).
 `not_found_handling = "single-page-application"` bereitet den SPA-Fallback vor. Unbekannte
 `/api/*`-Pfade werden vorher mit JSON und HTTP 404 beantwortet und erreichen diesen
 Fallback nicht.
 
 Angular behält vorerst `withHashLocation()` und die Routen `/#/ausbildung`, `/#/einsatz`
-sowie `/#/einsatz/editor`. Der echte workerd-/SPA-Test konnte in der aktuellen Umgebung
-nicht erfolgreich gestartet werden. Auf saubere Pfade erst nach erfolgreichem
-`npm run test:spa` und Browserprüfung der Direkteinstiege umstellen.
+sowie `/#/einsatz/editor`. `npm run test:spa` läuft inzwischen wieder durch und weist am
+echten Bundle nach, dass Access vor allen Assets greift und der Bypass der öffentlichen
+Meldung genau die drei vorgesehenen Muster trifft. Auf saubere Pfade erst nach einer
+Browserprüfung der Direkteinstiege umstellen.
 
 ## Laufzeitkonfiguration
 
@@ -143,13 +146,17 @@ Issuer, Audience und Ablauf. `exp`, `iss`, `aud`, `sub` und `email` sind Pflicht
 haben ein Zeitlimit und einen begrenzten Cache; Schlüsselrotation wird unterstützt.
 
 Service-Tokens wurden nicht eingerichtet. Es gibt keinen produktiven
-Entwicklungs-Bypass. Access auf `workers.dev` erlaubt einen Vorabtest ohne DNS-Umzug;
+Entwicklungs-Bypass. Davon zu unterscheiden ist die fachlich beauftragte, dauerhafte
+Ausnahme für die öffentliche Kilometermeldung: sie ist an ein Geheimnis je Fahrzeug
+gebunden, behauptet keine Identität und ihre Eingabe wird erst durch eine Freigabe
+wirksam (eigener Abschnitt unter „APIs"). Access auf `workers.dev` erlaubt einen Vorabtest ohne DNS-Umzug;
 die gewünschte Custom Domain braucht eine aktive Cloudflare-Zone und vorher die bestätigte
 Hostname-/DNS-/Mail-Einrichtung.
 
 ## APIs
 
-Alle Endpunkte benötigen die verifizierte Anmeldung:
+Alle Endpunkte benötigen die verifizierte Anmeldung – mit Ausnahme der drei Pfade der
+öffentlichen Kilometermeldung, die weiter unten in einem eigenen Abschnitt stehen:
 
 | Endpunkt                                  | Methode    | Anfrage beziehungsweise Antwort                                                              |
 | ----------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
@@ -170,6 +177,8 @@ Alle Endpunkte benötigen die verifizierte Anmeldung:
 | `/api/benutzerverwaltung`                 | GET        | Liste aller bereits angemeldeten Personen samt Rolle                                         |
 | `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
 | `/f/<UUID>`, `/f/<UUID>/km`               | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
+| `/api/fahrzeuge/erfassungslinks`          | GET        | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt           |
+| `/api/fahrzeuge/<UUID>/erfassungslink`    | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig                  |
 
 ### Fahrzeugmodul (D1)
 
@@ -412,21 +421,63 @@ Client benötigten Felder werden weitergereicht; Qualifikationsstrings bleiben f
 bestehende Mapping unverändert. Ein in Nutzdaten zurückgespiegelter API-Key wird
 abgewiesen. Rohfehler von HiOrg gelangen nicht in die Browserantwort.
 
+### Öffentliche Kilometermeldung (ohne Anmeldung)
+
+Der einzige Weg am Access-Gate vorbei, eng gefasst und in `docs/einrichtung.md` samt
+Bypass-Regel beschrieben. Die Prüfung im Worker (`istOeffentlicherPfad()` in
+`src/oeffentliche-erfassung.ts`) läuft zusätzlich zu Access; eine zu weit gefasste
+Access-Regel öffnet die Anwendung deshalb trotzdem nicht.
+
+| Endpunkt                           | Methode | Anfrage beziehungsweise Antwort                                                   |
+| ---------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `/e/<TOKEN>`                       | GET     | Meldeseite des zweiten Build-Ziels; `<TOKEN>` sind 32 Zeichen Kleinbuchstaben-Hex |
+| `/oeffentlich/<datei>`             | GET     | Nur `index.html`, `main.js`, `styles.css` – feste Erlaubnisliste                  |
+| `/api/oeffentlich/meldung/<TOKEN>` | GET     | Antwort `{ "bezeichnung": "…", "funkrufname": "…", "kennzeichen": "…" }`          |
+| `/api/oeffentlich/meldung/<TOKEN>` | POST    | Anfrage `{ "name": "…", "stand": 12345, "bemerkung": "…" }`, Antwort `201`        |
+
+Zusicherungen:
+
+- Die Antwort enthält **keine** Fahrzeug-UUID, **keinen** Kilometerstand, **keinen**
+  Verlauf und **keine** E-Mail-Adresse.
+- Unbekanntes Token, formal ungültiges Token und gelöschtes Fahrzeug liefern byteweise
+  dieselbe Antwort (`404 / MELDUNG_UNBEKANNT`).
+- `abgelesen_am` setzt der Worker als Berliner Kalendertag; die Seite hat kein Datumsfeld.
+- Eine Meldung landet in `ablesung_einreichungen` und wird **nie** von selbst zur Ablesung.
+- `POST` verlangt `Origin` gleich der eigenen Origin – strenger als die globale Prüfung,
+  die einen fehlenden `Origin` duldet.
+- Eine fehlende Datei unter `/oeffentlich/` ergibt 404; die SPA-Rückfallebene gibt hier
+  niemals die geschützte App-Hülle heraus.
+
+Codes: `MELDUNG_KONFIGURATION_FEHLT` (503), `MELDUNG_UNBEKANNT` (404),
+`MELDUNG_INHALTSTYP_UNGUELTIG` (415), `MELDUNG_ZU_GROSS` (413),
+`MELDUNG_EINGABE_UNGUELTIG` (400), `MELDUNG_ZU_HAEUFIG` (429),
+`MELDUNG_ZU_VIELE_OFFEN` (429), `MELDUNG_DB_FEHLER` (502) sowie
+`ANFRAGE_URSPRUNG_UNGUELTIG` (403) und `METHODE_NICHT_ERLAUBT` (405).
+
+Die Rollenprüfung der Erfassungslink- und Freigabeendpunkte kennt zusätzlich
+`ROLLEN_KONFIGURATION_FEHLT` (503) und `FREIGABE_NICHT_ERLAUBT` (403).
+
 ## Schutzgrenzen und Diagnose
 
 Die Grenzen entsprechen `src/nextcloud.ts`, `src/efs.ts` und `src/anmeldung.ts`:
 
-| Vorgang                                                               | Grenze      |
-| --------------------------------------------------------------------- | ----------- |
-| XLSX-Datei, Upload und Download                                       | 15 MiB      |
-| PEP-Datei sowie Nextcloud-Ordnerantwort                               | 2 MiB       |
-| EFS-JSON-Anfrage                                                      | 8 KiB       |
-| EFS-JSON-Upload zum Worker                                            | 30 Sekunden |
-| EFS-JSON-Antwort                                                      | 5 MiB       |
-| Nextcloud-Upload zum Worker                                           | 30 Sekunden |
-| Anschließender Nextcloud-Upstream-Zugriff einschließlich Antwortlesen | 30 Sekunden |
-| EFS-Upstream-Anfrage                                                  | 15 Sekunden |
-| Abruf der öffentlichen Access-Schlüssel                               | 5 Sekunden  |
+| Vorgang                                                               | Grenze       |
+| --------------------------------------------------------------------- | ------------ |
+| XLSX-Datei, Upload und Download                                       | 15 MiB       |
+| PEP-Datei sowie Nextcloud-Ordnerantwort                               | 2 MiB        |
+| EFS-JSON-Anfrage                                                      | 8 KiB        |
+| EFS-JSON-Upload zum Worker                                            | 30 Sekunden  |
+| EFS-JSON-Antwort                                                      | 5 MiB        |
+| Nextcloud-Upload zum Worker                                           | 30 Sekunden  |
+| Anschließender Nextcloud-Upstream-Zugriff einschließlich Antwortlesen | 30 Sekunden  |
+| EFS-Upstream-Anfrage                                                  | 15 Sekunden  |
+| Abruf der öffentlichen Access-Schlüssel                               | 5 Sekunden   |
+| Körper einer öffentlichen Kilometermeldung                            | 2 KiB        |
+| Lesen einer öffentlichen Kilometermeldung                             | 10 Sekunden  |
+| Name in einer öffentlichen Meldung                                    | 2–60 Zeichen |
+| Bemerkung in einer öffentlichen Meldung                               | 200 Zeichen  |
+| Offene Meldungen je Fahrzeug                                          | 5            |
+| Abstand zweier Meldungen je Fahrzeug                                  | 60 Sekunden  |
 
 Die Nextcloud-Zeitlimits gelten für getrennte Phasen, nicht als gemeinsames
 30-Sekunden-Gesamtbudget. Der Browser-Client besitzt zusätzlich sein eigenes

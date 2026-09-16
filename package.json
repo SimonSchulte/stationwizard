@@ -4,8 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build && npm run worker:check",
-    "test": "ng test --no-watch && npm run worker:test",
+    "build": "ng build && ng build oeffentlich && npm run worker:check",
+    "test": "ng test --no-watch && ng test oeffentlich --no-watch && npm run worker:test",
     "test:watch": "ng test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -19,6 +19,11 @@ import {
   type KmBerichtKonfiguration,
 } from './km-bericht';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
+import {
+  istOeffentlicherPfad,
+  verarbeiteOeffentlicheErfassung,
+  type OeffentlicheErfassungKonfiguration,
+} from './oeffentliche-erfassung';
 import { PROFILBILD_PFAD, verarbeiteProfilbild } from './profilbild';
 import {
   SYSTEMKONFIGURATION_PFAD,
@@ -35,7 +40,8 @@ export interface Env
     FahrzeugeKonfiguration,
     BenutzerverwaltungKonfiguration,
     SystemkonfigurationKonfiguration,
-    KmBerichtKonfiguration {
+    KmBerichtKonfiguration,
+    OeffentlicheErfassungKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -44,12 +50,28 @@ const LESENDE_METHODEN = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** Eine Origin für SPA und APIs; Access wird auch auf direkten Worker-Aufrufen geprüft. */
 export default {
   async fetch(anfrage: Request, umgebung: Env): Promise<Response> {
+    const url = new URL(anfrage.url);
+
+    // Die einzige Ausnahme vom Access-Gate, fachlich beauftragt und bewusst
+    // eng: drei feste Pfadmuster der öffentlichen Kilometermeldung, jede
+    // Fachanfrage an ein unerratbares Zufallstoken je Fahrzeug gebunden
+    // (docs/konzept-fahrzeuge.md, Abschnitt 10; die zugehörige
+    // Access-Bypass-Regel steht in docs/einrichtung.md).
+    //
+    // Kein Entwicklungsschalter, kein festes Testtoken, kein Vertrauen in einen
+    // Header: die App-Hülle, sämtliche übrigen Assets und alle anderen
+    // /api/*-Pfade bleiben vollständig hinter der Anmeldung. Der Worker prüft
+    // das Muster unabhängig von Access – eine zu weit gefasste Access-Regel
+    // macht die Anwendung deshalb trotzdem nicht öffentlich.
+    if (istOeffentlicherPfad(url.pathname)) {
+      return verarbeiteOeffentlicheErfassung(anfrage, umgebung, url);
+    }
+
     const benutzer = await pruefeAnmeldung(anfrage, umgebung);
     if (benutzer instanceof Response) {
       return benutzer;
     }
 
-    const url = new URL(anfrage.url);
     if (!LESENDE_METHODEN.has(anfrage.method)) {
       const ursprung = anfrage.headers.get('Origin');
       if (

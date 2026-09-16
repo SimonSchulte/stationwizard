@@ -1,0 +1,165 @@
+/* Mobil zuerst: die Seite wird am Fahrzeug auf dem Telefon geöffnet. Große
+   Tippziele, eine Spalte, keine Navigation. Farben und Abstände ausschließlich
+   über die gemeinsamen Tokens aus `src/tokens.less`. */
+.seite {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.kopf h1 {
+  margin: 0;
+  font-size: 1.375rem;
+  color: var(--ci-dark-blue);
+}
+
+.karte {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.karte h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--ci-dark-blue);
+}
+
+.karte p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.fahrzeug {
+  gap: var(--space-xs);
+}
+
+.fahrzeug-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.kennzeichen {
+  font-weight: 500;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--surface-secondary);
+}
+
+.erfolg {
+  border-left: 4px solid var(--ci-green);
+}
+
+.hinweis {
+  color: var(--text-secondary);
+}
+
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.feld-name {
+  font-weight: 500;
+}
+
+.feld-optional {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.feld-hilfe {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.feld-fehler {
+  font-size: var(--font-size-sm);
+  color: var(--ci-red);
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--surface-primary);
+  /* 16px verhindert das Hineinzoomen beim Fokus auf iOS. */
+  font-size: 1rem;
+  min-height: 2.75rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.zahl-feld {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.zahl-feld input {
+  flex: 1;
+  min-width: 0;
+}
+
+.einheit {
+  color: var(--text-secondary);
+}
+
+.freigabe-hinweis {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.knopf,
+.knopf-zweitrangig,
+.knopf-schlicht {
+  font: inherit;
+  font-size: 1rem;
+  min-height: 3rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.knopf {
+  border: none;
+  background: var(--ci-dark-blue);
+  color: var(--text-on-dark);
+  font-weight: 500;
+}
+
+.knopf[disabled] {
+  background: var(--ci-light-grey);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.knopf-zweitrangig {
+  border: 1px solid var(--ci-dark-blue);
+  background: var(--surface-primary);
+  color: var(--ci-dark-blue);
+}
+
+.knopf-schlicht {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  min-height: 2.5rem;
+}

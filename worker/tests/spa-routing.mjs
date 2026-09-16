@@ -1,7 +1,15 @@
 /**
  * Lokaler Nachweis mit dem tatsächlich gebündelten Produktionsworker und workerd.
  * Die Testumgebung beantwortet ausschließlich die JWKS-Anfrage mit einem frisch
- * erzeugten öffentlichen Testschlüssel. Es gibt keinen Auth-Bypass im Worker.
+ * erzeugten öffentlichen Testschlüssel.
+ *
+ * Es gibt genau einen eng begrenzten, dokumentierten Bypass: die öffentliche
+ * Kilometermeldung unter `/e/<token>`, `/oeffentlich/<datei>` und
+ * `/api/oeffentlich/meldung/<token>` (siehe docs/einrichtung.md für die
+ * zugehörige Access-Regel). Alles andere, einschließlich sämtlicher Assets und
+ * aller übrigen `/api/*`-Pfade, verlangt ein verifiziertes Access-JWT. Beides
+ * wird hier am echten Bundle nachgewiesen – die Beinahetreffer ebenso wie der
+ * erlaubte Pfad.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -26,6 +34,26 @@ const assetsVerzeichnis = resolve(dirname(konfigPfad), konfiguration.assets.dire
 const index = await readFile(join(assetsVerzeichnis, 'index.html'), 'utf8');
 const javascript = (await readdir(assetsVerzeichnis)).find((name) => /^main.*\.js$/.test(name));
 assert.ok(javascript, 'Bitte zuerst npm run build ausführen: Angular-JavaScript fehlt.');
+
+// Die Erlaubnisliste des Workers gegen das tatsächliche Build-Ergebnis des
+// zweiten Ziels: der Worker liefert unter /oeffentlich/ ausschließlich diese
+// Dateien aus. Weicht der Build ab, fiele die fehlende Datei sonst in die
+// SPA-Rückfallebene und damit auf die geschützte App-Hülle.
+const OEFFENTLICHE_DATEIEN = ['index.html', 'main.js', 'styles.css'];
+const oeffentlichVerzeichnis = join(assetsVerzeichnis, 'oeffentlich');
+const gebaut = await readdir(oeffentlichVerzeichnis);
+for (const datei of OEFFENTLICHE_DATEIEN) {
+  assert.ok(
+    gebaut.includes(datei),
+    `Das öffentliche Build-Ziel liefert ${datei} nicht mehr; Erlaubnisliste in worker/src/oeffentliche-erfassung.ts anpassen.`,
+  );
+}
+for (const datei of gebaut.filter((name) => /\.(js|css|html)$/.test(name))) {
+  assert.ok(
+    OEFFENTLICHE_DATEIEN.includes(datei),
+    `Das öffentliche Build-Ziel liefert zusätzlich ${datei}; es wäre über /oeffentlich/ nicht erreichbar.`,
+  );
+}
 
 // Bewusst innerhalb des Projekts statt im Systemtempverzeichnis: workerd löst
 // die Module relativ zur Projektwurzel auf und lehnt einen Pfad ab, der über
@@ -116,18 +144,64 @@ try {
   assert.equal(skript.status, 200);
   assert.match(skript.headers.get('Content-Type') ?? '', /javascript/);
 
+  const oeffentlichesToken = 'a'.repeat(32);
   for (const pfad of [
     '/',
     '/ausbildung',
     '/einsatz/planung/erfunden',
     `/${javascript}`,
     '/api/status',
+    // Beinahetreffer der öffentlichen Muster: sie bleiben gesperrt.
+    '/e',
+    '/e/',
+    '/e/zu-kurz',
+    `/e/${oeffentlichesToken}/extra`,
+    `/ef/${oeffentlichesToken}`,
+    '/oeffentlich/',
+    '/oeffentlich/unter/main.js',
+    '/api/oeffentlich/meldung',
+    '/api/oeffentlich/anderes',
   ]) {
     const antwort = await laufzeit.dispatchFetch(`${basisUrl}${pfad}`, {
       headers: { 'Sec-Fetch-Mode': 'navigate' },
     });
     assert.equal(antwort.status, 401, `Access-Pflicht ${pfad}`);
     assert.equal((await antwort.json()).code, 'ACCESS_TOKEN_FEHLT');
+  }
+
+  // Der erlaubte Pfad, ohne jede Anmeldung. In dieser Umgebung ist keine
+  // D1-Datenbank gebunden, deshalb 503 statt 200 – und genau das ist der
+  // Nachweis: der Zweig greift vor der Anmeldeprüfung, liefert aber nichts aus.
+  const oeffentlicheApi = await laufzeit.dispatchFetch(
+    `${basisUrl}/api/oeffentlich/meldung/${oeffentlichesToken}`,
+  );
+  assert.equal(oeffentlicheApi.status, 503, 'öffentliche Meldung ohne Anmeldung erreichbar');
+  assert.equal((await oeffentlicheApi.json()).code, 'MELDUNG_KONFIGURATION_FEHLT');
+
+  // Die Meldeseite und ihre beiden Dateien kommen ohne Anmeldung aus den Assets.
+  for (const [pfad, typ] of [
+    [`/e/${oeffentlichesToken}`, /html/],
+    ['/oeffentlich/main.js', /javascript/],
+    ['/oeffentlich/styles.css', /css/],
+  ]) {
+    const antwort = await laufzeit.dispatchFetch(`${basisUrl}${pfad}`);
+    assert.equal(antwort.status, 200, `öffentliche Datei ${pfad}`);
+    assert.match(antwort.headers.get('Content-Type') ?? '', typ, pfad);
+    assert.equal(antwort.headers.get('Cache-Control'), 'no-store', pfad);
+    assert.equal(antwort.headers.get('X-Robots-Tag'), 'noindex, nofollow', pfad);
+  }
+
+  // Und sie liefert unter keinen Umständen die geschützte App-Hülle.
+  const meldeseite = await laufzeit.dispatchFetch(`${basisUrl}/e/${oeffentlichesToken}`);
+  const meldeseiteInhalt = await meldeseite.text();
+  assert.notEqual(meldeseiteInhalt, index, 'öffentliche Seite liefert die geschützte App-Hülle');
+  assert.match(meldeseiteInhalt, /oeff-meldung/, 'öffentliche Seite ist nicht die Meldeseite');
+
+  // Eine nicht gelistete Datei fällt nicht in die SPA-Rückfallebene.
+  for (const pfad of ['/oeffentlich/3rdpartylicenses.txt', '/oeffentlich/index2.html']) {
+    const antwort = await laufzeit.dispatchFetch(`${basisUrl}${pfad}`);
+    assert.equal(antwort.status, 404, `nicht gelistete Datei ${pfad}`);
+    assert.notEqual(await antwort.text(), index, `App-Hülle über ${pfad} ausgeliefert`);
   }
 
   const gefaelscht = await laufzeit.dispatchFetch(`${basisUrl}/ausbildung`, {
@@ -151,7 +225,8 @@ try {
   assert.equal((await unbekannt.json()).code, 'API_NICHT_GEFUNDEN');
   assert.equal(schluesselAbrufe, 1, 'Öffentliche JWKS werden pro Worker zwischengespeichert.');
   console.log(
-    'workerd: SPA-Direkteinstiege, JavaScript, Access-Pflicht und API-404 erfolgreich geprüft.',
+    'workerd: SPA-Direkteinstiege, JavaScript, Access-Pflicht, der eng begrenzte ' +
+      'Bypass der öffentlichen Kilometermeldung und API-404 erfolgreich geprüft.',
   );
 } finally {
   await laufzeit?.dispose();

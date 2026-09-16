@@ -90,7 +90,66 @@ Empfänger, Betreff und Versandweg werden anschließend in der Anwendung unter
    setzen (**Settings → Variables and Secrets**, außerhalb von **Build**).
 
 Ohne diese Laufzeitvariablen antwortet der Worker bewusst mit
-`503 / ACCESS_KONFIGURATION_FEHLT`; es gibt keinen produktiven Anmeldungs-Bypass.
+`503 / ACCESS_KONFIGURATION_FEHLT`; es gibt keinen produktiven Anmeldungs-Bypass für die
+Anwendung. Die einzige Ausnahme ist die öffentliche Kilometermeldung – sie ist im nächsten
+Abschnitt vollständig beschrieben und ausdrücklich nicht still.
+
+## Access-Bypass für die öffentliche Kilometermeldung
+
+Damit Helferinnen und Helfer ohne Google-Konto den Kilometerstand am Fahrzeug melden können,
+braucht genau ein Weg eine Ausnahme vom Access-Gate. Sie ist eng, benannt und an ein
+unerratbares Token je Fahrzeug gebunden (siehe `docs/konzept-fahrzeuge.md`, Abschnitt 10).
+
+**Freizugeben sind ausschließlich diese drei Pfadmuster:**
+
+```
+/e/*
+/oeffentlich/*
+/api/oeffentlich/*
+```
+
+Einrichtung:
+
+1. In **Zero Trust → Access → Applications** eine **zusätzliche** Self-hosted-Anwendung
+   anlegen, die genau diese drei Pfade der produktiven Domain umfasst, und ihr eine
+   **Bypass**-Richtlinie (`Everyone`) geben.
+2. Diese Anwendung muss in der Liste **vor** der All-traffic-Anwendung stehen; Access
+   wertet die erste passende Anwendung aus. Steht sie dahinter, greift sie nicht.
+3. **Nur die produktive Domain**, ausdrücklich **nicht** `<worker>.workers.dev` und
+   **nicht** Vorschau-URLs. `workers_dev = true` und `preview_urls = true` stehen in
+   `worker/wrangler.toml`; ein Bypass dort machte Vorschaustände öffentlich adressierbar.
+4. Die All-traffic-Anwendung bleibt unverändert. Sie schützt weiterhin die App-Hülle, alle
+   übrigen Assets und alle anderen `/api/*`-Pfade.
+
+Der Worker prüft dieselben drei Muster unabhängig von Access noch einmal selbst
+(`istOeffentlicherPfad()` in `worker/src/oeffentliche-erfassung.ts`). Eine versehentlich zu
+weit gefasste Bypass-Regel macht die Anwendung deshalb nicht öffentlich – sie bliebe
+trotzdem hinter der JWT-Prüfung des Workers.
+
+Reihenfolge der Inbetriebnahme:
+
+1. Migration 0007 anwenden (davor die noch offenen 0003 und 0005 nachholen):
+   `npx wrangler d1 execute stationwizard-fahrzeuge --remote --file worker/migrations/0007_oeffentliche_meldung.sql`
+2. Worker deployen (`npm run build && npm run deploy`).
+3. Bypass-Anwendung wie oben anlegen.
+4. Prüfliste unten abarbeiten.
+5. Erst danach Aufkleber drucken.
+
+Prüfliste, jeweils in einem privaten Fenster **ohne** Anmeldung:
+
+| Aufruf                              | Erwartetes Ergebnis                                         |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `/`                                 | Access verlangt die Anmeldung                               |
+| `/main-<hash>.js`                   | Access verlangt die Anmeldung                               |
+| `/api/fahrzeuge`                    | Access verlangt die Anmeldung                               |
+| `/e/`                               | Access verlangt die Anmeldung                               |
+| `/e/<gültiges Token>`               | Meldeseite lädt, ohne Anmeldung                             |
+| `/e/<erfundenes Token>`             | Meldeseite lädt und meldet „Dieser Code funktioniert nicht" |
+| `/oeffentlich/3rdpartylicenses.txt` | 404, keinesfalls die App-Hülle                              |
+
+Geht ein Token verloren oder wird ein Aufkleber missbraucht, erneuert die Zug- oder
+Gruppenführung den Code auf der Fahrzeugdetailseite. Alle bereits gedruckten Aufkleber
+dieses Fahrzeugs sind damit sofort ungültig.
 
 ## Workers Builds und Custom Domain
 
@@ -112,15 +171,17 @@ ergänzt. Der Access-Schutz für **All traffic** gilt automatisch auch für die 
 
 Nach Infrastruktur- oder Zugangsdatenänderungen prüfen:
 
-| Prüfung                 | Erwartetes Ergebnis                                                             |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| Ohne Anmeldung          | Privates Fenster → App und `/api/status`: Access verlangt Anmeldung.            |
-| Erlaubte/fremde Adresse | Freigegebenes Google-Konto kommt durch, ein anderes wird abgelehnt.             |
-| `/api/benutzer`         | Enthält die eigene E-Mail-Adresse.                                              |
-| Ausbildung              | Arbeitsmappe laden, Änderung speichern, neu laden – Änderung bleibt erhalten.   |
-| Einsatz                 | EFS-Veranstaltung importieren; Planung in Nextcloud speichern und wieder laden. |
-| HiOrg-Kalender          | Termine erscheinen im Jahresplan als gekennzeichnete Fremdquelle.               |
-| Abmeldung               | `/cdn-cgi/access/logout`; geschützte URL verlangt danach erneut eine Anmeldung. |
+| Prüfung                 | Erwartetes Ergebnis                                                               |
+| ----------------------- | --------------------------------------------------------------------------------- |
+| Ohne Anmeldung          | Privates Fenster → App und `/api/status`: Access verlangt Anmeldung.              |
+| Öffentliche Meldung     | Privates Fenster → `/e/<Token>` lädt ohne Anmeldung; `/` verlangt weiterhin eine. |
+| Freigabe                | Meldung erscheint unter „Offene Aufgaben" und zählt erst nach der Freigabe.       |
+| Erlaubte/fremde Adresse | Freigegebenes Google-Konto kommt durch, ein anderes wird abgelehnt.               |
+| `/api/benutzer`         | Enthält die eigene E-Mail-Adresse.                                                |
+| Ausbildung              | Arbeitsmappe laden, Änderung speichern, neu laden – Änderung bleibt erhalten.     |
+| Einsatz                 | EFS-Veranstaltung importieren; Planung in Nextcloud speichern und wieder laden.   |
+| HiOrg-Kalender          | Termine erscheinen im Jahresplan als gekennzeichnete Fremdquelle.                 |
+| Abmeldung               | `/cdn-cgi/access/logout`; geschützte URL verlangt danach erneut eine Anmeldung.   |
 
 Bei einem Nextcloud-Speicherkonflikt (HTTP 412) bleiben lokale Änderungen erhalten: zuerst
 lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blindes

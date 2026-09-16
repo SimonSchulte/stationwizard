@@ -147,27 +147,42 @@ Vorjahres`. Existiert keine, wird die erste Ablesung des laufenden Jahres verwen
 
 ## 4. QR-Codes
 
-Zwei Codes je Fahrzeug:
+Drei Codes je Fahrzeug:
 
-| Zweck                   | Ziel           |
-| ----------------------- | -------------- |
-| Fahrzeugübersicht       | `/f/<UUID>`    |
-| Kilometerstanderfassung | `/f/<UUID>/km` |
+| Zweck                           | Ziel           | Anmeldung | Wirkung                             |
+| ------------------------------- | -------------- | --------- | ----------------------------------- |
+| Fahrzeugübersicht               | `/f/<UUID>`    | nötig     | Fahrzeugdetailseite                 |
+| Kilometerstanderfassung, intern | `/f/<UUID>/km` | nötig     | Ablesung **sofort gültig**          |
+| Kilometermeldung, öffentlich    | `/e/<TOKEN>`   | keine     | Einreichung, **erst nach Freigabe** |
 
-### Identität: kein Token im Code
+### Identität: kein Token in den internen Codes
 
-Die Erfassung soll „im Namen des registrierten Benutzers" erfolgen. Das geschieht
-**ausschließlich** über die bestehende Cloudflare-Access-Sitzung des Scannenden. Der
-QR-Code enthält keine Kennung, kein Token und keinen Benutzerbezug — er ist ein an der
-Windschutzscheibe klebender, fotografierbarer Aufkleber und damit kein Geheimnis.
+**Diese Festlegung galt bis zum 16.09.2026 für alle QR-Codes. Sie gilt unverändert für die
+beiden internen Codes `/f/<UUID>` und `/f/<UUID>/km`; für den neuen öffentlichen Code wurde
+sie bewusst umgekehrt (siehe Abschnitt 10 und die Begründung am Ende dieses
+Unterabschnitts).**
+
+Die interne Erfassung soll „im Namen des registrierten Benutzers" erfolgen. Das geschieht
+**ausschließlich** über die bestehende Cloudflare-Access-Sitzung des Scannenden. Diese
+QR-Codes enthalten keine Kennung, kein Token und keinen Benutzerbezug — sie sind an der
+Windschutzscheibe klebende, fotografierbare Aufkleber und damit kein Geheimnis.
 
 Ablauf: Scan → Access prüft die Anmeldung (bei fehlender Sitzung Google-Anmeldung) →
 App öffnet das Erfassungsformular → der Worker schreibt `erfasstVon` aus der
 verifizierten JWT-Identität, **niemals** aus dem Anfragekörper. Ein im Körper
 mitgesendetes Benutzerfeld wird verworfen.
 
-Damit entsteht keine neue Authentifizierungsfläche und kein Sonderweg am Zugangsschutz
-vorbei. Der Preis: wer keinen Account hat, kann nichts erfassen. Das ist gewollt.
+Damit entsteht für diese beiden Wege keine neue Authentifizierungsfläche und kein Sonderweg
+am Zugangsschutz vorbei.
+
+**Warum das für den öffentlichen Code nicht reichte (Entscheidung vom 16.09.2026).** Der
+ursprünglich benannte Preis lautete: „wer keinen Account hat, kann nichts erfassen. Das ist
+gewollt." Genau dieser Preis hat sich als die eigentliche Einstiegshürde für die
+Helferschaft erwiesen. Wer ohne Sitzung melden soll, braucht ein anderes Zugangsmerkmal —
+ohne Token bliebe nur eine ungeschützte, allein über die UUID adressierbare Schreibfläche.
+Deshalb trägt der öffentliche Code ein unerratbares Zufallstoken, und deshalb wird seine
+Eingabe erst durch die Freigabe einer geprüften Identität wirksam. Die internen Codes
+bleiben unverändert; beide Erfassungswege stehen nebeneinander.
 
 ### Stabile Kurzpfade statt Hash-Routen
 

@@ -1,0 +1,27 @@
+/**
+ * Grundgestaltung der öffentlichen Meldeseite.
+ *
+ * Bewusst ohne Angular Material und ohne die Schriftpakete der Hauptanwendung:
+ * die Seite wird am Fahrzeug auf dem Telefon geöffnet, oft über Mobilfunk, und
+ * soll klein bleiben. Farben und Abstände kommen ausschließlich aus den
+ * gemeinsamen Tokens – keine zweite Palette.
+ */
+@import '../../src/tokens.less';
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
+* {
+  box-sizing: border-box;
+}

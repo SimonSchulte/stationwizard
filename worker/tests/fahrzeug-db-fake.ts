@@ -35,6 +35,21 @@ interface AblesungZeile {
   bemerkung: string;
 }
 
+interface EinreichungZeile {
+  id: string;
+  fahrzeug_id: string;
+  abgelesen_am: string;
+  stand: number;
+  eingereicht_am: string;
+  eingereicht_von_name: string;
+  bemerkung: string;
+  status: string;
+  entschieden_am: string | null;
+  entschieden_von: string | null;
+  ablehnungsgrund: string | null;
+  ablesung_id: string | null;
+}
+
 interface AenderungZeile {
   id: string;
   fahrzeug_id: string;
@@ -57,6 +72,7 @@ export class FakeFahrzeugeDb {
   fahrzeuge = new Map<string, FahrzeugZeile>();
   ablesungen: AblesungZeile[] = [];
   aenderungen: AenderungZeile[] = [];
+  einreichungen: EinreichungZeile[] = [];
 
   /**
    * Der eindeutige Index selbst; er lässt leere Kennzeichen mehrfach zu, weil
@@ -260,6 +276,33 @@ class FakeStatement {
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
+    if (this.query.startsWith('INSERT INTO ablesung_einreichungen')) {
+      const [
+        id,
+        fahrzeug_id,
+        abgelesen_am,
+        stand,
+        eingereicht_am,
+        eingereicht_von_name,
+        bemerkung,
+      ] = this.werte as [string, string, string, number, string, string, string];
+      this.db.einreichungen.push({
+        id,
+        fahrzeug_id,
+        abgelesen_am,
+        stand,
+        eingereicht_am,
+        eingereicht_von_name,
+        bemerkung,
+        status: 'offen',
+        entschieden_am: null,
+        entschieden_von: null,
+        ablehnungsgrund: null,
+        ablesung_id: null,
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     if (this.query.startsWith('INSERT INTO fahrzeug_aenderungen')) {
       const [id, fahrzeug_id, zeitpunkt, von, beschreibung] = this.werte as [
         string,
@@ -289,6 +332,43 @@ class FakeStatement {
   }
 
   async first<T = Record<string, unknown>>(): Promise<T | null> {
+    if (
+      this.query.startsWith(
+        'SELECT id, bezeichnung, funkrufname, kennzeichen, erfassung_token FROM fahrzeuge WHERE erfassung_token = ?',
+      )
+    ) {
+      const [token] = this.werte as [string];
+      for (const zeile of this.db.fahrzeuge.values()) {
+        if (zeile.erfassung_token === token) {
+          const { id, bezeichnung, funkrufname, kennzeichen, erfassung_token } = zeile;
+          return { id, bezeichnung, funkrufname, kennzeichen, erfassung_token } as T;
+        }
+      }
+      return null;
+    }
+    if (
+      this.query.startsWith(
+        "SELECT COUNT(*) AS anzahl FROM ablesung_einreichungen WHERE fahrzeug_id = ? AND status = 'offen'",
+      )
+    ) {
+      const [fahrzeugId] = this.werte as [string];
+      const anzahl = this.db.einreichungen.filter(
+        (e) => e.fahrzeug_id === fahrzeugId && e.status === 'offen',
+      ).length;
+      return { anzahl } as T;
+    }
+    if (
+      this.query.startsWith(
+        'SELECT MAX(eingereicht_am) AS zuletzt FROM ablesung_einreichungen WHERE fahrzeug_id = ?',
+      )
+    ) {
+      const [fahrzeugId] = this.werte as [string];
+      const zeitpunkte = this.db.einreichungen
+        .filter((e) => e.fahrzeug_id === fahrzeugId)
+        .map((e) => e.eingereicht_am)
+        .sort();
+      return { zuletzt: zeitpunkte.at(-1) ?? null } as T;
+    }
     if (this.query.startsWith('SELECT erfassung_token FROM fahrzeuge WHERE id = ?')) {
       const [id] = this.werte as [string];
       const zeile = this.db.fahrzeuge.get(id);
