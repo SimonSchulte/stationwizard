@@ -6,11 +6,10 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { Miniflare } from 'miniflare';
+import { convertV4MiniflareOptions, Miniflare } from 'miniflare';
 import { unstable_readConfig } from 'wrangler';
 
 process.env['WRANGLER_SEND_METRICS'] = 'false';
@@ -28,7 +27,10 @@ const index = await readFile(join(assetsVerzeichnis, 'index.html'), 'utf8');
 const javascript = (await readdir(assetsVerzeichnis)).find((name) => /^main.*\.js$/.test(name));
 assert.ok(javascript, 'Bitte zuerst npm run build ausführen: Angular-JavaScript fehlt.');
 
-const ausgabe = await mkdtemp(join(tmpdir(), 'stationwizard-spa-'));
+// Bewusst innerhalb des Projekts statt im Systemtempverzeichnis: workerd löst
+// die Module relativ zur Projektwurzel auf und lehnt einen Pfad ab, der über
+// sie hinausführt ("can't use '..' to break out of starting directory").
+const ausgabe = await mkdtemp(join(projekt, 'dist/spa-routing-'));
 let laufzeit;
 try {
   execFileSync(
@@ -66,27 +68,40 @@ try {
     .sign(privateKey);
 
   let schluesselAbrufe = 0;
-  laufzeit = new Miniflare({
-    // Keine externe Standortabfrage gegen workers.cloudflare.com/cf.json.
-    cf: false,
-    modules: true,
-    scriptPath: join(ausgabe, 'index.js'),
-    compatibilityDate: konfiguration.compatibility_date,
-    bindings: { ACCESS_TEAM_DOMAIN: teamDomain, ACCESS_AUD: audience },
-    assets: {
-      directory: assetsVerzeichnis,
-      binding: konfiguration.assets.binding,
-      run_worker_first: konfiguration.assets.run_worker_first,
-      assetConfig: { not_found_handling: konfiguration.assets.not_found_handling },
-    },
-    outboundService: async (anfrage) => {
-      assert.equal(anfrage.url, `${teamDomain}/cdn-cgi/access/certs`);
-      schluesselAbrufe += 1;
-      return new Response(JSON.stringify(jwks), {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    },
-  });
+  // Die installierte Miniflare-Fassung verlangt im Konstruktor die
+  // Mehr-Worker-Form (`workers: [...]`). `convertV4MiniflareOptions` ist der
+  // dafür ausgelieferte, öffentlich exportierte Übersetzer – damit bleibt
+  // diese Datei bei der lesbaren Ein-Worker-Schreibweise, statt die interne
+  // Struktur der neuen Fassung nachzubauen.
+  laufzeit = new Miniflare(
+    convertV4MiniflareOptions({
+      // Keine externe Standortabfrage gegen workers.cloudflare.com/cf.json.
+      cf: false,
+      // Benannt, weil die Static-Assets-Weiterleitung den Nutzerworker sonst nicht
+      // findet ("Fetch for user worker without having a user worker binding").
+      name: konfiguration.name,
+      modules: true,
+      scriptPath: join(ausgabe, 'index.js'),
+      compatibilityDate: konfiguration.compatibility_date,
+      bindings: { ACCESS_TEAM_DOMAIN: teamDomain, ACCESS_AUD: audience },
+      assets: {
+        directory: assetsVerzeichnis,
+        binding: konfiguration.assets.binding,
+        run_worker_first: konfiguration.assets.run_worker_first,
+        assetConfig: { not_found_handling: konfiguration.assets.not_found_handling },
+        // Ohne dieses Kennzeichen weigert sich die Static-Assets-Weiterleitung,
+        // überhaupt einen Worker aufzurufen – der eigentliche Prüfgegenstand.
+        routerConfig: { has_user_worker: true },
+      },
+      outboundService: async (anfrage) => {
+        assert.equal(anfrage.url, `${teamDomain}/cdn-cgi/access/certs`);
+        schluesselAbrufe += 1;
+        return new Response(JSON.stringify(jwks), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      },
+    }),
+  );
 
   const basisUrl = 'https://stationwizard.example';
   const anmeldung = { 'Cf-Access-Jwt-Assertion': token };
