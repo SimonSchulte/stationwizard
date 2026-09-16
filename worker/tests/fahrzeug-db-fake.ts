@@ -33,7 +33,7 @@ interface AblesungZeile {
   quelle: string;
   korrigiert: string | null;
   bemerkung: string;
-  gemeldet_von_name?: string | null;
+  gemeldet_von_name: string | null;
 }
 
 interface EinreichungZeile {

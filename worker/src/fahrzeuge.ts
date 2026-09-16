@@ -210,6 +210,7 @@ interface AblesungZeile {
   quelle: string;
   korrigiert: string | null;
   bemerkung: string;
+  gemeldet_von_name: string | null;
 }
 
 function zuAblesungJson(zeile: AblesungZeile): Record<string, unknown> {
@@ -223,6 +224,9 @@ function zuAblesungJson(zeile: AblesungZeile): Record<string, unknown> {
     quelle: zeile.quelle,
     korrigiert: zeile.korrigiert,
     bemerkung: zeile.bemerkung,
+    // Immer vorhanden, damit die Fachschicht das Feld nicht ungeprüft
+    // durchreichen muss: bei allen anderen Erfassungswegen ist es leer.
+    gemeldetVonName: zeile.gemeldet_von_name ?? '',
   };
 }
 

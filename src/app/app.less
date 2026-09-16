@@ -160,3 +160,31 @@ main {
     max-width: 40vw;
   }
 }
+
+/* Zahl offener Aufgaben. Bewusst eine eigene kleine Klasse statt MatBadge: ein
+   weiteres Material-Modul im Initialbündel wäre dafür zu viel. Farben
+   ausschließlich über die gemeinsamen Tokens. */
+.aufgaben-marke {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-2xs);
+  border-radius: var(--radius-pill);
+  background: var(--ci-red);
+  color: var(--text-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.burger {
+  position: relative;
+}
+
+.burger .aufgaben-marke {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}

@@ -47,6 +47,7 @@ export function erzeugeTestablesung(ueberschreibung: Partial<Kilometerstand> = {
     quelle: 'formular',
     korrigiert: null,
     bemerkung: '',
+    gemeldetVonName: '',
     ...ueberschreibung,
   };
 }

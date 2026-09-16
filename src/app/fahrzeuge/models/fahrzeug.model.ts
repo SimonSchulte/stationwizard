@@ -59,7 +59,18 @@ export interface Fahrzeugstamm {
   geaendertVon: string;
 }
 
-export type KilometerQuelle = 'qr' | 'formular' | 'korrektur';
+/**
+ * Erfassungsweg einer Ablesung.
+ *
+ * `oeffentlich` entsteht ausschließlich serverseitig bei der Freigabe einer
+ * öffentlichen Kilometermeldung und ist deshalb kein einreichbarer Wert –
+ * `AblesungEingabe.quelle` lässt ihn bewusst nicht zu, und der Worker weist ihn
+ * ab (siehe `KILOMETER_QUELLEN_EINGABE` in `worker/src/fahrzeuge.ts`).
+ */
+export type KilometerQuelle = 'qr' | 'formular' | 'korrektur' | 'oeffentlich';
+
+/** Die Quellen, die ein Client selbst angeben darf. */
+export type EingebbareQuelle = Exclude<KilometerQuelle, 'oeffentlich'>;
 
 export interface Kilometerstand {
   id: string;
@@ -76,6 +87,13 @@ export interface Kilometerstand {
   /** Id der Ablesung, die durch diese ersetzt wird, oder `null`. */
   korrigiert: string | null;
   bemerkung: string;
+  /**
+   * Bei `quelle === 'oeffentlich'` der selbst angegebene Name des Meldenden,
+   * sonst leer. Bewusst neben `erfasstVon` statt darin: das ist eine ungeprüfte
+   * Selbstauskunft, `erfasstVon` bleibt immer eine geprüfte Identität – nach
+   * einer Freigabe die der freigebenden Person.
+   */
+  gemeldetVonName: string;
 }
 
 /** Eingabe für eine neue Ablesung; Server ergänzt `id`, `erfasstAm`, `erfasstVon`. */
@@ -83,9 +101,32 @@ export interface AblesungEingabe {
   fahrzeugId: string;
   abgelesenAm: string;
   stand: number;
-  quelle: KilometerQuelle;
+  /** `oeffentlich` fehlt hier absichtlich; der Wert entsteht nur bei der Freigabe. */
+  quelle: EingebbareQuelle;
   korrigiert: string | null;
   bemerkung: string;
+}
+
+/**
+ * Eine über den öffentlichen QR-Code eingegangene Kilometermeldung, die noch
+ * auf die Freigabe durch die Zug- oder Gruppenführung wartet. Sie ist **kein**
+ * Kilometerstand: erst die Freigabe erzeugt daraus eine `Kilometerstand`-Zeile.
+ */
+export interface Ablesungseinreichung {
+  id: string;
+  fahrzeugId: string;
+  bezeichnung: string;
+  kennzeichen: string;
+  gruppe: Gruppe;
+  abgelesenAm: string;
+  stand: number;
+  eingereichtAm: string;
+  /** Selbst angegeben, ungeprüft. */
+  gemeldetVonName: string;
+  bemerkung: string;
+  /** Letzter gültiger Stand des Fahrzeugs, oder `null` ohne jede Ablesung. */
+  letzterStand: number | null;
+  letzterStandAm: string | null;
 }
 
 /**
