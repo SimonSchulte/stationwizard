@@ -545,10 +545,12 @@ sich als CSV sichern.
   deren Dokumentation. Bis dahin manuelle Pflege.
 - Ob die HU-Fälligkeit zusätzlich aus einem Prüfbericht übernommen werden soll.
 - Format und Größe des Aufkleberbogens (Papiergröße, Anzahl je Blatt).
-- Anwenden von `0003_kennzeichen_eindeutig.sql` auf die produktive D1-Datenbank: steht im
-  Repository, ist aber noch nicht ausgeführt. Vorher den Bestand mit der Abfrage aus der
-  Migrationsdatei auf Doubletten prüfen. Dasselbe gilt für `0005_systemkonfiguration.sql`
-  und `0007_oeffentliche_meldung.sql` – drei offene Migrationen, in dieser Reihenfolge.
+- Anwenden von `0003_kennzeichen_eindeutig.sql` und `0007_oeffentliche_meldung.sql` auf die
+  produktive `stationwizard-fahrzeuge`-Datenbank: beide stehen im Repository, sind aber noch
+  nicht ausgeführt. Vorher den Bestand mit der Abfrage aus `0003_kennzeichen_eindeutig.sql`
+  auf Doubletten prüfen. `0005_systemkonfiguration.sql` betrifft die getrennte
+  `stationwizard-benutzer`-Datenbank und wurde dort bereits angewendet (siehe Arbeitsstand,
+  AP-S1).
 - **Durchsetzung der Rollenvergabe.** Seit Abschnitt 10 prüft der Worker die Rolle bei der
   Freigabe wirklich; `PUT /api/benutzerverwaltung/<E-Mail>` steht aber weiterhin jeder
   geprüften Identität offen. Solange das so ist, kann sich jede angemeldete Person selbst

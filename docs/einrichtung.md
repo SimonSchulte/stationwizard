@@ -128,7 +128,8 @@ trotzdem hinter der JWT-Prüfung des Workers.
 
 Reihenfolge der Inbetriebnahme:
 
-1. Migration 0007 anwenden (davor die noch offenen 0003 und 0005 nachholen):
+1. Migration 0007 anwenden (davor die noch offene 0003 nachholen; 0005 betrifft die
+   getrennte `stationwizard-benutzer`-Datenbank und ist dort bereits angewendet):
    `npx wrangler d1 execute stationwizard-fahrzeuge --remote --file worker/migrations/0007_oeffentliche_meldung.sql`
 2. Worker deployen (`npm run build && npm run deploy`).
 3. Bypass-Anwendung wie oben anlegen.

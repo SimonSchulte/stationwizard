@@ -15,6 +15,7 @@ import { formatiereDatum, heuteIso, jahrVon } from '../../../kern/kalender/datum
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import { WartungenListe } from '../../components/wartungen-liste/wartungen-liste';
 import { FahrzeugListe } from '../fahrzeug-liste/fahrzeug-liste';
+import { KilometerUebersicht } from '../kilometer-uebersicht/kilometer-uebersicht';
 import { Fahrzeugstamm } from '../../models/fahrzeug.model';
 import { hatAbleseLuecke } from '../../services/ablesung-pruefung';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
@@ -65,6 +66,7 @@ function tageBisFaelligText(tage: number): string {
     KilometerBilanz,
     WartungenListe,
     FahrzeugListe,
+    KilometerUebersicht,
   ],
   templateUrl: './fahrzeug-dashboard.html',
   styleUrl: './fahrzeug-dashboard.less',
