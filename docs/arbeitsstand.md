@@ -1215,22 +1215,29 @@ Kilometerstandsbericht, der von dort aus per E-Mail verschickt wird.
 
 ### Offene Abnahmegrenzen von AP-S1
 
-- **Ein echter Mailversand hat nicht stattgefunden.** Weder Email Routing noch die Mail-API
-  wurden gegen den Livedienst geprüft; in dieser Umgebung liegen weder Secrets noch eine
-  eingerichtete Zone vor. Ob die Mail bei einem echten Client so aussieht wie gedacht, ist
-  damit ungeprüft.
-- **Der Mailversand ist noch nicht eingerichtet und deshalb noch nicht benutzbar.** Alle
-  drei Blöcke in `worker/wrangler.toml` (`MAIL_ABSENDER`, `MAIL_API_TOKEN`,
-  `[[send_email]]`) sind auskommentiert ausgeliefert. Das war zunächst anders: die beiden
-  Secrets-Store-Bindings standen aktiv in der Datei, woraufhin der Cloudflare-Workers-Build
-  des Pull Requests **fehlschlug** – ein Binding auf ein im Store nicht vorhandenes Secret
-  bricht `wrangler deploy` ab und hätte das Deployment des gesamten Workers an eine noch
-  nicht bestehende Einrichtung gekoppelt. `npm run deploy:dry-run` deckt das nicht auf, er
-  prüft die Existenz der Secrets nicht. Der Einrichtungsweg (erst Secret anlegen
-  beziehungsweise Email Routing einrichten und die Zieladresse bestätigen, dann den Block
-  aktivieren, dann deployen) steht in [Einrichtung](einrichtung.md) und im
-  [Worker-README](../worker/README.md). Bis dahin meldet die Systemkonfiguration den Weg als
-  nicht eingerichtet und sperrt den Versand, statt ihn scheitern zu lassen.
+- **Ein echter erfolgreicher Mailversand über Resend steht noch aus.** `MAIL_ABSENDER` und
+  `MAIL_API_TOKEN` sind inzwischen im Secrets Store angelegt und die zugehörigen
+  `[[secrets_store_secrets]]`-Blöcke in `worker/wrangler.toml` aktiviert (`deploy:dry-run`
+  bestätigt, dass beide Bindings aufgelöst werden). Ein erster echter Versandversuch über den
+  Reiter „Kilometerübersicht" endete jedoch mit `502 / MAIL_VERSAND_FEHLGESCHLAGEN` („Der
+  Mailanbieter war nicht erreichbar."). Der `fetch()`-Catch in `ResendVersand.sende()`
+  (`worker/src/mail-versand.ts`) protokollierte dabei nichts, sodass sich eine echte
+  Nichterreichbarkeit nicht von einem ungültigen `Authorization`-Header unterscheiden ließ –
+  etwa durch ein aus dem Cloudflare-Dashboard kopiertes Token mit angehängtem Zeilenumbruch,
+  was `fetch()` mit einem `TypeError` scheitern lässt, bevor überhaupt eine Verbindung
+  aufgebaut wird. Behoben: `MAIL_API_TOKEN` wird jetzt wie `MAIL_ABSENDER` getrimmt, und der
+  Catch loggt Fehlerklasse und -text redigiert über `ursachenText()`/`redigiere()` (gleiches
+  Muster wie `efs.ts`/`nextcloud.ts`), siehe `worker/tests/mail-versand.spec.ts`. Ob damit
+  bereits die tatsächliche Ursache behoben ist oder der nächste Versuch eine andere,
+  jetzt sichtbare Fehlerursache zeigt, ist nach diesem Fix noch nicht erneut geprüft.
+- Email Routing (`send_email`) bleibt weiterhin auskommentiert ausgeliefert, da nicht
+  eingerichtet (keine bestätigte Zieladresse in Cloudflare Email Routing). Der
+  Einrichtungsweg (erst Secret anlegen beziehungsweise Email Routing einrichten und die
+  Zieladresse bestätigen, dann den Block aktivieren, dann deployen) steht in
+  [Einrichtung](einrichtung.md) und im [Worker-README](../worker/README.md). Ein Binding auf
+  ein im Store nicht vorhandenes Secret bricht `wrangler deploy` ab und hätte das Deployment
+  des gesamten Workers an eine noch nicht bestehende Einrichtung gekoppelt – deshalb bleibt
+  ungenutzten Wegen ihr Block auskommentiert, bis die Einrichtung nachgeholt ist.
 - Die Migration `0005_systemkonfiguration.sql` wurde am 2026-09-15 auf der produktiven
   `stationwizard-benutzer`-Datenbank angewendet (`CREATE TABLE systemkonfiguration`
   verifiziert); zuvor antwortete die Seite mit `SYSTEMKONFIGURATION_DB_FEHLER`.
@@ -1242,3 +1249,26 @@ Kilometerstandsbericht, der von dort aus per E-Mail verschickt wird.
   Bericht versenden („Rechte vorerst alle, Rollen später").
 - `npm run test:spa` bleibt wie zuvor dokumentiert blockiert.
 - Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.
+
+### Nachtrag – Versand in eigenen Reiter, Einstellungen ins Email-Versand-Menü
+
+Vorschau und Versand standen bisher zusammen mit den Versandeinstellungen auf der
+Systemkonfigurationsseite; das war fachlich nicht gewollt (Versand ist eine
+Fahrzeug-Tagesaufgabe, keine Betriebseinstellung). Aufgeteilt:
+
+- Neuer Reiter **„Kilometerübersicht"** im Fahrzeug-Dashboard (`KilometerUebersicht`,
+  `src/app/fahrzeuge/pages/kilometer-uebersicht/`) übernimmt Vorschau, Sendebestätigung und
+  den „Bericht jetzt senden"-Button. Er liest die gespeicherten Einstellungen nur noch
+  (`SystemkonfigurationStoreService.gespeicherteEinstellungen`), ändert sie nicht.
+- Die Systemkonfigurationsseite behält ausschließlich Empfänger, Betreff und Versandweg,
+  jetzt unter einem Menü-Reiter **„Email Versand"** (`mat-tab-group` mit vorerst einem
+  Eintrag, Platz für künftige weitere Einstellungsbereiche).
+
+**Browserprüfung durchgeführt** (Chromium über Playwright gegen `ng serve`, alle `/api/*`-
+Antworten lokal abgefangen mit ausschließlich erfundenen Fahrzeugen; kein echter Worker).
+Desktop 1440×900 und Mobil 390×844: beide Reiter erreichbar, Tab-Leiste scrollt mobil
+horizontal in ihrem eigenen Bereich (wie beim Wochenraster), die Berichtstabelle bleibt
+lesbar, keine Konsolenfehler. Ein Darstellungsartefakt (sich überlappende Tab-Inhalte beim
+Wechsel) erwies sich als Fehler im Testskript selbst (per `addInitScript` erzwungenes
+Abschalten der Tab-Animation griff vor Angulars eigener Sichtbarkeitssteuerung) und nicht als
+Anwendungsfehler – mit normaler Animation und ausreichender Wartezeit verschwand es.
