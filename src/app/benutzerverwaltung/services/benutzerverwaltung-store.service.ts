@@ -39,6 +39,18 @@ export class BenutzerverwaltungStoreService {
    */
   readonly istZugfuehrung = computed(() => this.eigeneRolle() === 'zugfuehrung');
 
+  /**
+   * Darf für mindestens eine Fahrzeuggruppe freigeben – also den
+   * QR-Übersichtsbogen aufrufen. Anders als `istZugfuehrung` schließt das die
+   * Gruppenführungen ein, damit die Kachel nicht für Personen verschwindet, die
+   * den Endpunkt tatsächlich aufrufen dürfen. Die Durchsetzung geschieht
+   * serverseitig (`worker/src/rollen.ts`); das hier bleibt eine Einblendregel.
+   */
+  readonly darfFreigeben = computed(() => {
+    const rolle = this.eigeneRolle();
+    return rolle === 'zugfuehrung' || (rolle?.startsWith('gruppenfuehrung-') ?? false);
+  });
+
   async listeLaden(): Promise<void> {
     this.listeLaedt.set(true);
     this.listeFehler.set('');
