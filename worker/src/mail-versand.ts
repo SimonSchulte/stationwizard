@@ -1,4 +1,4 @@
-import { redigiere, ursachenText } from './diagnose';
+import { istUmleitung, redigiere, ursachenText } from './diagnose';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 /**
@@ -194,7 +194,11 @@ class ResendVersand implements MailVersand {
           text: nachricht.text,
           html: nachricht.html,
         }),
-        redirect: 'error',
+        // 'error' ist in workerd nicht implementiert (wirft sofort einen
+        // TypeError, noch vor jedem Netzwerkzugriff); 'manual' macht eine
+        // Weiterleitung stattdessen als eigenen Status sichtbar (wie bei
+        // Nextcloud/EFS/HiOrg, siehe diagnose.ts).
+        redirect: 'manual',
         signal: AbortSignal.timeout(VERSAND_ZEITGRENZE_MS),
       });
     } catch (ursache) {
@@ -207,6 +211,16 @@ class ResendVersand implements MailVersand {
         redigiere(ursachenText(ursache), [this.token, this.von]),
       );
       throw new VersandFehler('upstream', 'Der Mailanbieter war nicht erreichbar.');
+    }
+    if (istUmleitung(antwort)) {
+      // Weiterleitung bewusst nicht folgen: Ziel, Inhalt und Header (inklusive
+      // Token) blieben sonst gegenüber einem unbekannten Ziel offen.
+      console.error('MAIL_API_UMLEITUNG', antwort.status);
+      await antwort.body?.cancel();
+      throw new VersandFehler(
+        'upstream',
+        'Der Mailanbieter hat mit einer Weiterleitung geantwortet.',
+      );
     }
     if (!antwort.ok) {
       // Nur der Status, nie der Antwortkörper: er spiegelt Empfänger und
