@@ -1319,6 +1319,34 @@ scheitert. Welche davon vorlag, war ohne Zugriff auf die Worker-Logs nicht fests
 - Keine Browserprüfung; die Änderung betrifft ausschließlich den Worker und ist durch
   Worker-Tests belegt.
 
+### Nachtrag – tatsächliche Ursache bestätigt, Branch auf den gemergten Fix rebasiert
+
+Kurz nach dieser Runde bestätigten die Betreiberlogs die konkrete Ursache und PR #54 „Resend-
+Mailversand reparieren: `redirect: 'error'` ist in workerd nicht implementiert" ging
+direkt gegen `main`: `fetch()` mit `redirect: 'error'` wirft in Cloudflare Workers sofort
+einen `TypeError`, noch bevor überhaupt eine Verbindung aufgebaut wird – der Resend-Versand
+konnte dadurch nie erfolgreich sein, unabhängig von Token oder Absenderkonfiguration. Damit
+ist die oben offen gelassene Frage „welche der vier Ursachen lag vor" beantwortet: keine
+davon im engeren Sinn – der Fehler lag im Aufruf selbst, nicht bei Netzwerk, Zeitlimit oder
+Zugangsdaten.
+
+Dieser Branch stand zu dem Zeitpunkt bereits vor `main` (die vorige Runde hier hatte
+unabhängig denselben Wechsel auf `redirect: 'manual'` mit `istUmleitung()` vorgenommen, nur
+umfassender: eigener `AbortController` zur Trennung von Zeitlimit und Verbindungsfehler,
+je Ursache ein eigener Diagnosecode, 401/403 getrennt ausgewiesen, Prüfung auf
+headertaugliche Tokenwerte). Auf `main` rebasiert: ein echter Konflikt in
+`worker/src/mail-versand.ts` (zugunsten der umfassenderen Fassung aufgelöst, die den
+schlankeren Stand aus #54 als Sonderfall enthält) und ein inhaltlich überholter Testfall in
+`worker/tests/mail-versand.spec.ts` (erwartete für eine Weiterleitung noch den alten
+Sammelgrund `upstream`, der seit dieser Runde nur noch dem `email-routing`-Weg vorbehalten
+ist – entfernt als Duplikat des vorhandenen, korrekten Tests). Geprüft nach dem Rebase:
+`npm run build` (einschließlich `worker:check`), `npm test` (**558 Angular-Tests in
+69 Dateien**, **441 Worker-Tests in 11 Dateien**), `npm run format:check` und
+`npm run deploy:dry-run` – alle grün.
+
+Weiterhin offen: ein echter Versand über den reparierten Resend-Weg wurde in dieser Umgebung
+nicht ausgeführt; ob er jetzt tatsächlich ankommt, zeigt erst der Betrieb.
+
 ## Sparsamer Umgang mit dem Cloudflare-Free-Tier
 
 Der Betrieb läuft auf dem kostenlosen Cloudflare-Tarif. Dort zählt jede einzelne Anfrage an
