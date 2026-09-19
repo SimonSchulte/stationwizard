@@ -1,0 +1,12 @@
+/* Eigenes Build-Ziel für die öffentliche Kilometermeldung. Erbt sämtliche
+   strengen Einstellungen der Hauptanwendung; `include` nennt neben dem eigenen
+   Quellbaum ausdrücklich die wiederverwendeten Bausteine aus `src/app/kern/`. */
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../out-tsc/oeffentlich",
+    "types": []
+  },
+  "include": ["src/**/*.ts", "../src/app/kern/kalender/datum.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}

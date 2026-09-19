@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { kurzlinkWeiterleitung, verarbeiteFahrzeuge } from '../src/fahrzeuge';
+import { FakeBenutzerDb } from './benutzer-db-fake';
 import { FakeFahrzeugeDb } from './fahrzeug-db-fake';
 
 const ID = '01234567-89ab-4cde-8fab-0123456789ab';
@@ -707,5 +708,169 @@ describe('Kennzeichen: Rennen zwischen Vorabprüfung und Schreiben', () => {
     );
     expect(antwort.status).toBe(409);
     expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('FAHRZEUG_KENNZEICHEN_VERGEBEN');
+  });
+});
+
+describe('Erfassungstoken für die öffentliche Kilometermeldung', () => {
+  function benutzerDb(rolle: string | null) {
+    const db = new FakeBenutzerDb();
+    db.benutzer.set(IDENTITAET.email, {
+      email: IDENTITAET.email,
+      rolle,
+      sonderrollen: '[]',
+      erster_zugriff_am: '2026-01-01T00:00:00.000Z',
+      letzter_zugriff_am: '2026-01-01T00:00:00.000Z',
+      rolle_geaendert_am: null,
+      rolle_geaendert_von: null,
+    });
+    return db;
+  }
+
+  it('vergibt bei der Anlage sofort ein Token', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    expect(db.fahrzeuge.get(ID)?.erfassung_token).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it('gibt das Token in keiner Fahrzeugantwort preis', async () => {
+    // Das Token ist ein Geheimnis. Stünde es in der Fahrzeugliste, reichte es
+    // über die Fahrzeugquelle bis in den Einsatzplaner.
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const token = db.fahrzeuge.get(ID)!.erfassung_token!;
+
+    for (const pfad of ['/api/fahrzeuge', `/api/fahrzeuge/${ID}`]) {
+      const antwort = await verarbeiteFahrzeuge(
+        anfrage(pfad),
+        { FAHRZEUGE_DB: db as never },
+        IDENTITAET,
+      );
+      const roh = await antwort.text();
+      expect(roh).not.toContain(token);
+      expect(roh).not.toContain('erfassungToken');
+      expect(roh).not.toContain('erfassung_token');
+    }
+  });
+
+  it('liefert das Token je Fahrzeug an jede geprüfte Identität', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/erfassungslink`),
+      { FAHRZEUGE_DB: db as never },
+      FREMDE_IDENTITAET,
+    );
+    expect(antwort.status).toBe(200);
+    expect(await antwort.json()).toEqual({
+      fahrzeugId: ID,
+      token: db.fahrzeuge.get(ID)!.erfassung_token,
+    });
+  });
+
+  it('meldet für ein unbekanntes Fahrzeug 404', async () => {
+    const db = new FakeFahrzeugeDb();
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/erfassungslink`),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(404);
+  });
+
+  it('erneuert das Token nur für die Zugführung oder die Gruppenführung der Gruppe', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db, fahrzeugKoerper({ gruppe: 'sanitaet' }));
+    const vorher = db.fahrzeuge.get(ID)!.erfassung_token;
+
+    const erneuern = (rolle: string | null) =>
+      verarbeiteFahrzeuge(
+        anfrage(`/api/fahrzeuge/${ID}/erfassungslink`, { method: 'POST' }),
+        { FAHRZEUGE_DB: db as never, BENUTZER_DB: benutzerDb(rolle) as never },
+        IDENTITAET,
+      );
+
+    expect((await erneuern('helfer')).status).toBe(403);
+    expect((await erneuern('gruppenfuehrung-betreuung')).status).toBe(403);
+    expect(db.fahrzeuge.get(ID)!.erfassung_token).toBe(vorher);
+
+    const erlaubt = await erneuern('gruppenfuehrung-sanitaet');
+    expect(erlaubt.status).toBe(200);
+    const nachher = db.fahrzeuge.get(ID)!.erfassung_token;
+    expect(nachher).toMatch(/^[0-9a-f]{32}$/);
+    expect(nachher).not.toBe(vorher);
+  });
+
+  it('protokolliert die Erneuerung, ohne das Token zu nennen', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/erfassungslink`, { method: 'POST' }),
+      { FAHRZEUGE_DB: db as never, BENUTZER_DB: benutzerDb('zugfuehrung') as never },
+      IDENTITAET,
+    );
+    const eintrag = db.aenderungen.at(-1)!;
+    expect(eintrag.beschreibung).toContain('Erfassungs-QR-Code erneuert');
+    expect(eintrag.von).toBe(IDENTITAET.email);
+    expect(eintrag.beschreibung).not.toContain(db.fahrzeuge.get(ID)!.erfassung_token!);
+  });
+
+  it('listet Erfassungslinks nur für die eigenen Freigabegruppen', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db, fahrzeugKoerper({ gruppe: 'sanitaet' }));
+    const zweite = '01234567-89ab-4cde-8fab-0123456789ac';
+    await legeAn(db, fahrzeugKoerper({ id: zweite, kennzeichen: 'XY-TE 456', gruppe: 'tesi' }));
+
+    const liste = async (rolle: string | null) => {
+      const antwort = await verarbeiteFahrzeuge(
+        anfrage('/api/fahrzeuge/erfassungslinks'),
+        { FAHRZEUGE_DB: db as never, BENUTZER_DB: benutzerDb(rolle) as never },
+        IDENTITAET,
+      );
+      return (await antwort.json()) as { links: { fahrzeugId: string }[] };
+    };
+
+    expect((await liste('zugfuehrung')).links).toHaveLength(2);
+    expect((await liste('gruppenfuehrung-tesi')).links.map((l) => l.fahrzeugId)).toEqual([zweite]);
+    // Ohne passende Rolle leer statt abgewiesen: der Übersichtsbogen soll für
+    // jeden aufrufbar und dann ehrlich leer sein.
+    expect((await liste('helfer')).links).toEqual([]);
+  });
+
+  it('sperrt die Liste, wenn die Rollenverwaltung nicht eingerichtet ist', async () => {
+    const db = new FakeFahrzeugeDb();
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage('/api/fahrzeuge/erfassungslinks'),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(503);
+  });
+});
+
+describe('quelle "oeffentlich" ist kein Client-Wert', () => {
+  it('weist eine Ablesung mit quelle "oeffentlich" ab', async () => {
+    // Der wichtigste Negativtest dieses Pakets: 'oeffentlich' entsteht
+    // ausschließlich intern bei der Freigabe einer Meldung. Wäre der Wert
+    // einreichbar, könnte jede angemeldete Person eine Freigabe fingieren.
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          abgelesenAm: '2026-09-15',
+          stand: 1000,
+          quelle: 'oeffentlich',
+          korrigiert: null,
+          bemerkung: '',
+        }),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(400);
+    expect(await antwort.json()).toMatchObject({ code: 'FAHRZEUGE_DATEI_UNGUELTIG' });
+    expect(db.ablesungen).toHaveLength(0);
   });
 });

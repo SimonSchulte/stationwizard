@@ -1,0 +1,11 @@
+/* Testkonfiguration des öffentlichen Build-Ziels. Ohne sie werden die
+   Spec-Dateien zwar gebündelt und ausgeführt, aber nicht typgeprüft – die
+   strengen Einstellungen aus der Wurzel gälten dann für sie nicht. */
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../out-tsc/oeffentlich-spec",
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
+}

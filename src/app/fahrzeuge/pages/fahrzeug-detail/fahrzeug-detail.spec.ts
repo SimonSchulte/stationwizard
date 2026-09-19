@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { FahrzeugDetail } from './fahrzeug-detail';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
+import { ApiErfassungslinkStorage } from '../../storage/api-erfassungslink-storage';
+import { FreigabeVerweigertFehler } from '../../storage/einreichung-storage';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
 import { AenderungsprotokollStoreService } from '../../services/aenderungsprotokoll-store.service';
 import {
@@ -45,12 +47,24 @@ function aenderungsprotokollStoreMock(ueberschreibung: Record<string, unknown> =
   };
 }
 
+const TEST_TOKEN = 'a'.repeat(32);
+
+/** Das Erfassungstoken kommt über einen eigenen Endpunkt, nicht mit dem Fahrzeug. */
+function erfassungslinkStorageMock(ueberschreibung: Record<string, unknown> = {}) {
+  return {
+    ladeLink: vi.fn(async (fahrzeugId: string) => ({ fahrzeugId, token: TEST_TOKEN })),
+    erneuere: vi.fn(async (fahrzeugId: string) => ({ fahrzeugId, token: 'b'.repeat(32) })),
+    ...ueberschreibung,
+  };
+}
+
 /** Instanziiert die Komponente und lässt den Lade-Effekt im Konstruktor einmal laufen. */
 function erzeugeDetail(providers: unknown[]): FahrzeugDetail {
   TestBed.configureTestingModule({
     providers: [
       { provide: AblesungStoreService, useValue: ablesungStoreMock() },
       { provide: AenderungsprotokollStoreService, useValue: aenderungsprotokollStoreMock() },
+      { provide: ApiErfassungslinkStorage, useValue: erfassungslinkStorageMock() },
       ...providers,
     ],
   });
@@ -481,6 +495,61 @@ describe('FahrzeugDetail', () => {
     await detail.qrCodesAnzeigen();
     expect(detail.qrCodes()?.uebersicht).toMatch(/^data:image\/png;base64,/);
     expect(detail.qrCodes()?.km).toMatch(/^data:image\/png;base64,/);
+    expect(detail.qrCodes()?.oeffentlich).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('erneuert das Erfassungstoken nur nach Bestätigung', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const linkStorage = erfassungslinkStorageMock();
+    const dialog = { bestaetigen: vi.fn().mockResolvedValue(false) };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      { provide: ApiErfassungslinkStorage, useValue: linkStorage },
+      { provide: DialogDienst, useValue: dialog },
+    ]);
+
+    await detail.qrErneuern();
+    expect(dialog.bestaetigen).toHaveBeenCalled();
+    expect(linkStorage.erneuere).not.toHaveBeenCalled();
+
+    dialog.bestaetigen.mockResolvedValue(true);
+    await detail.qrErneuern();
+    expect(linkStorage.erneuere).toHaveBeenCalledWith(fahrzeug.id);
+    expect(detail.qrCodes()?.oeffentlich).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('meldet eine verweigerte Erneuerung fachlich', async () => {
+    const fahrzeug = erzeugeTestfahrzeug();
+    const store = {
+      neuesFahrzeugBeginnen: vi.fn(),
+      fahrzeugLaden: vi.fn(),
+      entwurf: () => fahrzeug,
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    const detail = erzeugeDetail([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
+      {
+        provide: ApiErfassungslinkStorage,
+        useValue: erfassungslinkStorageMock({
+          erneuere: vi.fn(async () => {
+            throw new FreigabeVerweigertFehler('Nur die Zugführung darf das.');
+          }),
+        }),
+      },
+      { provide: DialogDienst, useValue: { bestaetigen: vi.fn().mockResolvedValue(true) } },
+    ]);
+    await detail.qrErneuern();
+    expect(detail.qrErneuernFehler()).toBe('Nur die Zugführung darf das.');
   });
 
   it('lädt einen einzelnen QR-Code als SVG herunter', async () => {

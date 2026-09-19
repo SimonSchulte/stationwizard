@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   berichtAlsHtml,
   berichtAlsText,
-  berlinerKalendertag,
   ladeKmBericht,
   verarbeiteKmBericht,
   type KmBerichtKonfiguration,
@@ -59,15 +58,6 @@ function ablesung(
   });
 }
 
-describe('berlinerKalendertag', () => {
-  it('bildet den lokalen Kalendertag ab, nicht den UTC-Tag', () => {
-    // 23:30 Uhr UTC am 14.09. ist in Berlin bereits der 15.09.
-    expect(berlinerKalendertag(new Date('2026-09-14T23:30:00Z'))).toBe('2026-09-15');
-    // Und 00:30 UTC im Winter ist in Berlin noch derselbe Tag.
-    expect(berlinerKalendertag(new Date('2026-01-15T00:30:00Z'))).toBe('2026-01-15');
-  });
-});
-
 describe('ladeKmBericht', () => {
   it('führt jedes Fahrzeug mit letztem Stand und Abstand zum Stichtag', async () => {
     const db = new FakeFahrzeugeDb();
@@ -88,6 +78,37 @@ describe('ladeKmBericht', () => {
     expect(zeile.istKm).toBe(2000);
     expect(zeile.restKm).toBe(0);
     expect(zeile.unvollstaendig).toBe(false);
+  });
+
+  it('bleibt von einer offenen Kilometermeldung unberührt', async () => {
+    // Die Versicherung gegen eine spätere Erweiterung, die den Bericht auch aus
+    // `ablesung_einreichungen` speisen würde: eine Meldung zählt erst nach der
+    // Freigabe, und dann steht sie ohnehin in `ablesungen`.
+    const ohne = new FakeFahrzeugeDb();
+    fahrzeug(ohne, 'a', 'MTW', 'land-nrw', 'K-XY 123');
+    ablesung(ohne, 'a1', 'a', '2025-12-20', 10_000);
+
+    const mit = new FakeFahrzeugeDb();
+    fahrzeug(mit, 'a', 'MTW', 'land-nrw', 'K-XY 123');
+    ablesung(mit, 'a1', 'a', '2025-12-20', 10_000);
+    mit.einreichungen.push({
+      id: 'e1',
+      fahrzeug_id: 'a',
+      abgelesen_am: '2026-06-01',
+      stand: 99_999,
+      eingereicht_am: '2026-06-01T08:00:00.000Z',
+      eingereicht_von_name: 'Maxi Muster',
+      bemerkung: '',
+      status: 'offen',
+      entschieden_am: null,
+      entschieden_von: null,
+      ablehnungsgrund: null,
+      ablesung_id: null,
+    });
+
+    expect(await ladeKmBericht(mit as never, '2026-06-15')).toEqual(
+      await ladeKmBericht(ohne as never, '2026-06-15'),
+    );
   });
 
   it('meldet ein Fahrzeug ohne jede Ablesung statt es wegzulassen', async () => {

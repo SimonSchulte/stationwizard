@@ -81,7 +81,9 @@ Prüfungen und offene Abnahmegrenzen.
 - Nur relative `/api/*`-Pfade derselben Origin. `credentials: 'same-origin'`,
   `redirect: 'error'` und `X-Requested-With: XMLHttpRequest` erhalten. Der Client darf
   keine Upstream-URL, kein `apikey` und keine Nextcloud-Freigabedaten benötigen.
-- `worker/src/index.ts` prüft die Anmeldung vor allen Assets und APIs.
+- `worker/src/index.ts` prüft die Anmeldung vor allen Assets und APIs, mit genau einer
+  Ausnahme: den drei festen Pfadmustern der öffentlichen Kilometermeldung (`/e/<TOKEN>`,
+  `/oeffentlich/<datei>`, `/api/oeffentlich/meldung/<TOKEN>`, siehe unten).
   `run_worker_first = true` in `worker/wrangler.toml` muss erhalten bleiben.
   Unbekannte `/api/*`-Pfade liefern JSON/404, niemals die Angular-Startseite.
 - Access-JWTs serverseitig in `worker/src/anmeldung.ts` verifizieren: öffentliche
@@ -90,10 +92,18 @@ Prüfungen und offene Abnahmegrenzen.
   `ACCESS_AUD` ist die Audience genau dieser Access-Anwendung.
 - Fehlende Konfiguration oder nicht prüfbare Tokens sperren den Zugriff. Niemals einen
   Development-Auth-Bypass, ein festes Testtoken oder bloßes Vertrauen in den Header in
-  Produktivcode einbauen. Isolierte Test-JWKS bleiben in Testcode.
+  Produktivcode einbauen. Isolierte Test-JWKS bleiben in Testcode. Die öffentliche
+  Kilometermeldung ist keins von dreien: ein dauerhafter, fachlich beauftragter Pfad mit
+  einem eigenen Geheimnis je Fahrzeug, der keiner Identität glaubt und dessen Eingabe erst
+  durch die Freigabe einer geprüften Identität wirksam wird.
 - Access schützt mit **All traffic** Produktion, `workers.dev` und Vorschauen. Eine
   Google-Anmeldung allein ist keine Zugriffserlaubnis; die Richtlinie braucht die konkrete
-  vereinbarte Zugriffsliste. Kein `Everyone` und kein stiller `Bypass`.
+  vereinbarte Zugriffsliste. Kein `Everyone` und kein **stiller** `Bypass`. Es gibt genau
+  eine benannte Bypass-Anwendung, ausschließlich für die drei Pfadmuster der öffentlichen
+  Kilometermeldung und ausschließlich auf der produktiven Domain – nicht auf `workers.dev`
+  und nicht auf Vorschau-URLs. Sie ist in `docs/einrichtung.md` vollständig beschrieben.
+  Der Worker prüft dieselben Muster unabhängig davon noch einmal selbst: eine zu weit
+  gefasste Access-Regel macht die Anwendung deshalb trotzdem nicht öffentlich.
 - `worker/src/zugangsdaten.ts` enthält `leseZugangsdatum()`: klassische Secret-Strings
   und Secrets-Store-Objekte mit asynchronem `get()` unterstützen. Bindingobjekte nie direkt
   als String vergleichen oder als Authorization-Wert einsetzen.
@@ -103,6 +113,13 @@ Prüfungen und offene Abnahmegrenzen.
 - Keine realen Personal-, Planungs-, Fahrzeug- oder Zugangsdaten in Repository, Fixtures,
   Screenshots, Logs oder Fehlertexte aufnehmen. Fachlich erforderliche Daten nicht in
   `localStorage` persistieren. API-Zugangsdaten bleiben vollständig im Worker.
+  Genau eine aufgezählte Ausnahme von der `localStorage`-Regel: der Schlüssel
+  `stationwizard.erfassung.name` auf der öffentlichen Meldeseite
+  (`oeffentlich/src/app/gemerkter-name.ts`). Gespeichert wird ausschließlich eine
+  Selbstauskunft des Geräteinhabers über sich selbst, keine Fachdaten – die führende
+  Fassung jeder Meldung liegt in D1. Die Seite liegt außerhalb der Angular-App, jeder
+  Zugriff ist gekapselt, und ein sichtbarer Knopf löscht den Namen. Die allgemeine Regel
+  bleibt unverändert; weitere Ausnahmen werden hier aufgezählt oder es gibt sie nicht.
 - Keine unbereinigten Upstream-Fehler oder Auth-Header durchreichen. Fehler über
   `fehlerAntwort()` mit festen Codes und `X-Stationwizard-Diagnose`; keine Secretwerte,
   Secretlängen oder vollständigen Bindinglisten veröffentlichen.
@@ -128,29 +145,37 @@ Prüfungen und offene Abnahmegrenzen.
 
 ### Erlaubte API-Oberfläche
 
-| Pfad                                      | Methode    | Vertrag                                                                     |
-| ----------------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `/api/status`                             | GET        | Worker-Status                                                               |
-| `/api/benutzer`                           | GET        | Verifizierte E-Mail-Adresse                                                 |
-| `/api/benutzer/profilbild`                | GET        | Best-effort Google-Profilbild-URL oder `null`, siehe unten                  |
-| `/api/efs/checkapikey`                    | POST       | JSON `{}`                                                                   |
-| `/api/efs/getveranstaltungen`             | POST       | JSON `{}`                                                                   |
-| `/api/efs/getveranstaltung`               | POST       | JSON mit ausschließlich `id`                                                |
-| `/api/nextcloud/arbeitsmappe`             | GET / PUT  | Konfigurierte Excel-Dateifreigabe                                           |
-| `/api/nextcloud/planungen`                | GET        | Liste aus UUID und ETag                                                     |
-| `/api/nextcloud/planungen/<UUID>`         | GET / PUT  | Einzelne versionierte PEP-Datei                                             |
-| `/api/hiorg/kalender`                     | GET        | HiOrg-Kalenderfeed, nur lesend                                              |
-| `/api/fahrzeuge`                          | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig  |
-| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig        |
-| `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
-| `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
-| `/api/fahrzeuge/km-bericht`               | GET        | Kilometerstandsbericht über alle Fahrzeuge als Vorschau; versendet nichts   |
-| `/api/fahrzeuge/km-bericht/senden`        | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
-| `/api/benutzerverwaltung`                 | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
-| `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
-| `/api/systemkonfiguration`                | GET / PUT  | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten       |
-| `/f/<UUID>`, `/f/<UUID>/km`               | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
+| Pfad                                            | Methode    | Vertrag                                                                     |
+| ----------------------------------------------- | ---------- | --------------------------------------------------------------------------- |
+| `/api/status`                                   | GET        | Worker-Status                                                               |
+| `/api/benutzer`                                 | GET        | Verifizierte E-Mail-Adresse                                                 |
+| `/api/benutzer/profilbild`                      | GET        | Best-effort Google-Profilbild-URL oder `null`, siehe unten                  |
+| `/api/efs/checkapikey`                          | POST       | JSON `{}`                                                                   |
+| `/api/efs/getveranstaltungen`                   | POST       | JSON `{}`                                                                   |
+| `/api/efs/getveranstaltung`                     | POST       | JSON mit ausschließlich `id`                                                |
+| `/api/nextcloud/arbeitsmappe`                   | GET / PUT  | Konfigurierte Excel-Dateifreigabe                                           |
+| `/api/nextcloud/planungen`                      | GET        | Liste aus UUID und ETag                                                     |
+| `/api/nextcloud/planungen/<UUID>`               | GET / PUT  | Einzelne versionierte PEP-Datei                                             |
+| `/api/hiorg/kalender`                           | GET        | HiOrg-Kalenderfeed, nur lesend                                              |
+| `/api/fahrzeuge`                                | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig  |
+| `/api/fahrzeuge/<UUID>`                         | GET / PUT  | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig        |
+| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
+| `/api/fahrzeuge/<UUID>/aenderungen`             | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
+| `/api/fahrzeuge/km-bericht`                     | GET        | Kilometerstandsbericht über alle Fahrzeuge als Vorschau; versendet nichts   |
+| `/api/fahrzeuge/km-bericht/senden`              | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
+| `/api/benutzerverwaltung`                       | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
+| `/api/benutzerverwaltung/<E-Mail>`              | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
+| `/api/systemkonfiguration`                      | GET / PUT  | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten       |
+| `/f/<UUID>`, `/f/<UUID>/km`                     | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
+| `/api/fahrzeuge/erfassungslinks`                | GET        | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt       |
+| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig        |
+| `/e/<TOKEN>`                                    | GET        | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                     |
+| `/oeffentlich/<datei>`                          | GET        | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels            |
+| `/api/oeffentlich/meldung/<TOKEN>`              | GET / POST | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen           |
+| `/api/fahrzeuge/einreichungen`                  | GET        | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert    |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST       | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung       |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST       | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                      |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
 Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schema in
@@ -215,6 +240,60 @@ zeigen. Beide Fassungen sind gemeinsam zu ändern; `worker/tests/km-bericht.spec
 spiegelt die Fälle der dortigen Tests. Der Stichtag ist ein Berliner Kalendertag, nie über
 UTC gerechnet. Es gibt bewusst keinen Zeitplan und keinen Cron-Trigger: der Versand wird
 ausschließlich von Hand in der Systemkonfiguration ausgelöst.
+
+Die öffentliche Kilometermeldung (`oeffentlich/`, `worker/src/oeffentliche-erfassung.ts`)
+ist der einzige Weg am Zugangsschutz vorbei. Sie kehrt die frühere Entscheidung „kein Token
+im Code" bewusst um (siehe `docs/konzept-fahrzeuge.md`, Abschnitt 4 und 10): der öffentliche
+QR-Code trägt ein unerratbares Zufallstoken je Fahrzeug, weil es ohne Access-Sitzung das
+einzige Zugangsmerkmal ist. Für `/f/<UUID>` und `/f/<UUID>/km` gilt „kein Token" unverändert
+weiter. Das Token (`erfassung_token`, Migration 0007) ist ein Geheimnis: es steht nie in
+einer Fahrzeugantwort, nie in einem Log, nie in einem Fehlertext und nie im
+Änderungsprotokoll; auslesbar ist es allein über die Erfassungslink-Endpunkte. Erneuern
+macht alle gedruckten Aufkleber dieses Fahrzeugs ungültig — es gibt bewusst keine
+Übergangsfrist mit zwei gültigen Token.
+
+Die öffentliche Seite ist ein **zweites, sehr kleines Angular-Build-Ziel** (`angular.json`,
+Projekt `oeffentlich`, `outputHashing: none`, ausgeliefert unter `/oeffentlich/`). Die
+App-Hülle bleibt damit vollständig hinter Access; ein Bypass für die Hauptanwendung wäre
+„alles außer `/api/*`" gewesen. Der Worker liefert unter `/oeffentlich/` nur eine **feste
+Erlaubnisliste** aus und verwirft eine HTML-Antwort auf eine `.js`/`.css`-Anfrage, damit die
+SPA-Rückfallebene niemals die geschützte Hülle nach außen gibt; `npm run test:spa` prüft die
+Liste gegen das echte Build-Ergebnis. Kein Router und kein Link führt von dort in die App.
+`inlineCritical` ist abgeschaltet, damit die Seite ohne `unsafe-inline` auskommt.
+
+Die Seite gibt nur Bezeichnung, Funkrufname und Kennzeichen preis — keine UUID, keinen
+Kilometerstand, keinen Verlauf, keine E-Mail-Adresse. Der letzte Stand fehlt bewusst: er
+würde die Fahrzeugnutzung offenlegen und erlauben, die eigene Zahl passend zu wählen. Ein
+Datumsfeld gibt es ebenfalls nicht; `abgelesen_am` setzt der Worker als Berliner
+Kalendertag (`worker/src/kalender.ts`). Unbekanntes Token, formal ungültiges Token und
+gelöschtes Fahrzeug beantwortet der Worker byteweise gleich (404
+`MELDUNG_UNBEKANNT`) — kein Orakel. Weder Access noch die Ursprungsprüfung aus `index.ts`
+laufen hier vor, beides erbringt das Modul selbst; die Mengenbremsen sind bewusst
+fahrzeugbezogen und nicht IP-bezogen, weil eine IP-Speicherung eine neue personenbezogene
+Verarbeitung ohne fachlichen Auftrag wäre.
+
+Eine Meldung wird nie von selbst ein Kilometerstand. Sie liegt in
+`ablesung_einreichungen` und wird erst durch eine Freigabe zur Ablesung. Deshalb liegt sie
+in einer eigenen Tabelle und nicht mit einem Statusfeld in `ablesungen`: dort steht
+ausschließlich, was als echter Stand gilt, und jede Kennzahl liest diese Tabelle
+vollständig. Nach der Freigabe steht in `erfasst_von` die geprüfte E-Mail der
+**freigebenden** Person — die Zusage „`erfasstVon` ist immer eine geprüfte Identität" bleibt
+unangetastet —, der selbst angegebene Name daneben in `gemeldet_von_name`. Die `quelle`
+`oeffentlich` entsteht ausschließlich intern bei der Freigabe und ist über
+`POST /api/fahrzeuge/<UUID>/ablesungen` **nicht** einreichbar; sonst könnte jede angemeldete
+Person eine Freigabe fingieren.
+
+`worker/src/rollen.ts` ist die erste tatsächlich serverseitig durchgesetzte Rollenprüfung
+des Projekts: freigeben darf `zugfuehrung` (alle Gruppen) oder `gruppenfuehrung-<gruppe>`
+genau der Fahrzeuggruppe; `gruppenfuehrung-verpflegung` nie, weil dafür keine Fahrzeuge
+vorgesehen sind. Rollen liegen in `BENUTZER_DB`, Fahrzeuge in `FAHRZEUGE_DB` — zwei
+getrennte Datenbanken, also zwei Abfragen und der Vergleich in TypeScript. Fehlende
+Konfiguration sperrt. Diese Prüfung ist allerdings nur so stark wie die Rollenvergabe, und
+`PUT /api/benutzerverwaltung/<E-Mail>` steht weiterhin jeder geprüften Identität offen: wer
+sich selbst `zugfuehrung` setzt, darf anschließend freigeben. Das ist die auffälligste
+verbleibende Lücke und der nächste fällige Schritt, kein Grund, die Prüfung zu unterlassen.
+Für alles andere — Rollenvergabe, Systemkonfiguration, Löschen einer Ablesung,
+Verwaltungsbereich — gilt weiterhin „Rechte vorerst alle, Rollen später".
 
 Der Verwaltungsbereich (`src/app/verwaltung/`, Route `/verwaltung`) hält nur den Einstieg in
 administrative Aufgaben; die Fachlogik bleibt beim jeweiligen Fachmodul. Er kennt kein

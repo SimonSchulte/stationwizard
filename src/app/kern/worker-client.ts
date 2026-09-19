@@ -41,7 +41,14 @@ export class WorkerClient {
         redirect: 'error',
         signal: optionen.signal ?? AbortSignal.timeout(30_000),
       });
-      if (antwort.status === 401 || antwort.status === 403) {
+      // Nur 401 bedeutet "nicht (mehr) angemeldet". 403 kam bis zur Einführung
+      // der Freigabe öffentlicher Kilometermeldungen ausschließlich vom
+      // Ursprungsschutz und ließ sich deshalb mit 401 zusammenfassen; seither
+      // gibt es fachliche 403 aus der Rollenprüfung (FREIGABE_NICHT_ERLAUBT).
+      // Für die wäre "Sitzung abgelaufen" eine Falschmeldung: die Sitzung ist
+      // gültig, nur das Recht fehlt. Ein fachliches 403 ist deshalb ein
+      // gewöhnlicher WorkerFehler und lässt den Verbindungszustand in Ruhe.
+      if (antwort.status === 401) {
         this.zustand.set('sitzung-abgelaufen');
         throw new WorkerFehler(
           'Die Sitzung ist abgelaufen oder der Zugriff wurde verweigert. Bitte erneut anmelden.',
@@ -51,11 +58,13 @@ export class WorkerClient {
       this.zustand.set('erreichbar');
       if (!antwort.ok) {
         const meldung =
-          antwort.status === 412
-            ? 'Die Datei wurde zwischenzeitlich geändert. Bitte zuerst eine lokale Kopie herunterladen, dann neu laden und die Änderungen zusammenführen.'
-            : antwort.status === 503
-              ? 'Die Verbindung ist noch nicht vollständig eingerichtet.'
-              : `Die Anfrage konnte nicht ausgeführt werden (HTTP ${antwort.status}).`;
+          antwort.status === 403
+            ? 'Für diese Aktion fehlt die Berechtigung.'
+            : antwort.status === 412
+              ? 'Die Datei wurde zwischenzeitlich geändert. Bitte zuerst eine lokale Kopie herunterladen, dann neu laden und die Änderungen zusammenführen.'
+              : antwort.status === 503
+                ? 'Die Verbindung ist noch nicht vollständig eingerichtet.'
+                : `Die Anfrage konnte nicht ausgeführt werden (HTTP ${antwort.status}).`;
         throw new WorkerFehler(meldung + diagnoseZusatz(antwort), antwort.status);
       }
       this.fehler.set('');

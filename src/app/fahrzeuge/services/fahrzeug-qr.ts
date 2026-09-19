@@ -2,25 +2,38 @@ import { toDataURL, toString as qrZuString } from 'qrcode';
 
 /**
  * QR-Erzeugung, dynamisch importiert (analog `excel-lesen.ts`/`excel-schreiben.ts`)
- * durch die aufrufende Seite. Die Codes tragen kein Token: die Identität der
- * Kilometererfassung kommt ausschließlich aus der Access-Sitzung des Scannenden
- * (siehe docs/konzept-fahrzeuge.md, Abschnitt 4). Ziel sind die festen Kurzpfade
- * `/f/<UUID>` und `/f/<UUID>/km`, die der Worker auf die aktuelle Hash-Route
- * weiterleitet – ein gedruckter Aufkleber überlebt damit eine spätere
- * Routenumstellung.
+ * durch die aufrufende Seite.
+ *
+ * Drei Ziele je Fahrzeug, mit unterschiedlichem Charakter (siehe
+ * docs/konzept-fahrzeuge.md, Abschnitt 4 und 10):
+ *
+ * - `uebersichtUrl` und `kmUrl` tragen **kein Token**. Die Identität der
+ *   Erfassung kommt ausschließlich aus der Access-Sitzung des Scannenden; diese
+ *   Aufkleber sind fotografierbar und kein Geheimnis. Ziel sind die festen
+ *   Kurzpfade `/f/<UUID>` und `/f/<UUID>/km`, die der Worker auf die aktuelle
+ *   Hash-Route weiterleitet – ein gedruckter Aufkleber überlebt damit eine
+ *   spätere Routenumstellung.
+ * - `oeffentlichUrl` trägt ein **unerratbares Token**. Ohne Access-Sitzung ist
+ *   es das einzige Zugangsmerkmal, und eine darüber abgegebene Meldung wird
+ *   erst durch eine Freigabe zum Kilometerstand. Dieser Aufkleber ist ein
+ *   Geheimnis: wer ihn hat, darf melden.
  */
 export interface FahrzeugQrZiele {
   uebersichtUrl: string;
   kmUrl: string;
+  /** `null`, solange für das Fahrzeug kein Erfassungstoken vorliegt. */
+  oeffentlichUrl: string | null;
 }
 
 export function fahrzeugQrZiele(
   fahrzeugId: string,
+  erfassungToken: string | null = null,
   basisUrl = window.location.origin,
 ): FahrzeugQrZiele {
   return {
     uebersichtUrl: `${basisUrl}/f/${fahrzeugId}`,
     kmUrl: `${basisUrl}/f/${fahrzeugId}/km`,
+    oeffentlichUrl: erfassungToken ? `${basisUrl}/e/${erfassungToken}` : null,
   };
 }
 

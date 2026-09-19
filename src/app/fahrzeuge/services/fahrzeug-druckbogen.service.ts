@@ -3,6 +3,7 @@ import type { Column, Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { PDF_FARBEN } from '../../einsatz/services/pdf-export.service';
 import { dateiHerunterladen } from '../../kern/storage/datei-storage';
 import { Fahrzeugstamm } from '../models/fahrzeug.model';
+import type { ErfassungslinkMitFahrzeug } from '../storage/erfassungslink-storage';
 import { erzeugeQrSvg, fahrzeugQrZiele } from './fahrzeug-qr';
 
 /**
@@ -23,11 +24,15 @@ export class FahrzeugDruckbogenService {
     return pdfMake;
   }
 
-  async erzeugeUndSpeichere(fahrzeug: Fahrzeugstamm): Promise<void> {
-    const ziele = fahrzeugQrZiele(fahrzeug.id);
-    const [uebersichtSvg, kmSvg] = await Promise.all([
+  async erzeugeUndSpeichere(
+    fahrzeug: Fahrzeugstamm,
+    erfassungToken: string | null = null,
+  ): Promise<void> {
+    const ziele = fahrzeugQrZiele(fahrzeug.id, erfassungToken);
+    const [uebersichtSvg, kmSvg, oeffentlichSvg] = await Promise.all([
       erzeugeQrSvg(ziele.uebersichtUrl),
       erzeugeQrSvg(ziele.kmUrl),
+      ziele.oeffentlichUrl ? erzeugeQrSvg(ziele.oeffentlichUrl) : Promise.resolve(null),
     ]);
 
     const pdfMake = await this.ladePdfMake();
@@ -68,8 +73,54 @@ export class FahrzeugDruckbogenService {
         {
           columns: [
             spalte('Übersicht', uebersichtSvg, ziele.uebersichtUrl),
-            spalte('Kilometerstand erfassen', kmSvg, ziele.kmUrl),
+            spalte('Erfassen – mit Anmeldung', kmSvg, ziele.kmUrl),
           ],
+        },
+        // Der öffentliche Code größer und über die volle Breite: er ist der
+        // Code, der an die Windschutzscheibe kommt.
+        oeffentlichSvg && ziele.oeffentlichUrl
+          ? {
+              stack: [
+                {
+                  text: 'Kilometerstand melden – ohne Anmeldung',
+                  bold: true,
+                  fontSize: 14,
+                  color: PDF_FARBEN.dunkelblau,
+                  alignment: 'center',
+                  margin: [0, 32, 0, 4],
+                },
+                {
+                  text: 'Wird von der Zug- oder Gruppenführung freigegeben.',
+                  fontSize: 10,
+                  color: PDF_FARBEN.sekundaer,
+                  alignment: 'center',
+                  margin: [0, 0, 0, 12],
+                },
+                { svg: oeffentlichSvg, width: 220, alignment: 'center' },
+                {
+                  text: ziele.oeffentlichUrl,
+                  fontSize: 7,
+                  color: PDF_FARBEN.sekundaer,
+                  alignment: 'center',
+                  margin: [0, 8, 0, 0],
+                },
+              ],
+            }
+          : {
+              text: 'Für dieses Fahrzeug ist noch kein öffentlicher Erfassungscode erzeugt.',
+              fontSize: 10,
+              color: PDF_FARBEN.sekundaer,
+              alignment: 'center',
+              margin: [0, 32, 0, 0],
+            },
+        {
+          text:
+            'Der Code ohne Anmeldung ist ein Zugangsmerkmal: Wer ihn hat, kann für dieses ' +
+            'Fahrzeug melden. Bei Verlust oder Missbrauch in der App erneuern – gedruckte ' +
+            'Aufkleber werden dadurch ungültig.',
+          fontSize: 8,
+          color: PDF_FARBEN.sekundaer,
+          margin: [0, 32, 0, 0],
         },
       ],
       defaultStyle: { fontSize: 10, color: PDF_FARBEN.text },
@@ -92,15 +143,27 @@ export class FahrzeugDruckbogenService {
    * zusätzliche Kennung (siehe `fahrzeug-qr.ts`), sonst wäre der gedruckte
    * Code kein reiner Weiterleitungsaufkleber mehr.
    */
-  async erzeugeUndSpeichereUebersicht(fahrzeuge: readonly Fahrzeugstamm[]): Promise<void> {
-    const sortiert = [...fahrzeuge].sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung));
+  async erzeugeUndSpeichereUebersicht(
+    links: readonly ErfassungslinkMitFahrzeug[],
+    art: 'intern' | 'oeffentlich',
+  ): Promise<void> {
+    const sortiert = [...links].sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung));
+    const zielFuer = (link: ErfassungslinkMitFahrzeug) => {
+      const ziele = fahrzeugQrZiele(link.fahrzeugId, link.token);
+      return art === 'oeffentlich' ? ziele.oeffentlichUrl : ziele.kmUrl;
+    };
     const svgs = await Promise.all(
-      sortiert.map((fahrzeug) => erzeugeQrSvg(fahrzeugQrZiele(fahrzeug.id).kmUrl)),
+      // Fahrzeuge ohne öffentlichen Code erscheinen als benannte Leerzelle,
+      // statt stillschweigend aus dem Bogen zu verschwinden.
+      sortiert.map((link) => {
+        const ziel = zielFuer(link);
+        return ziel ? erzeugeQrSvg(ziel) : Promise.resolve(null);
+      }),
     );
 
     const pdfMake = await this.ladePdfMake();
 
-    const zelle = (fahrzeug: Fahrzeugstamm, svg: string): Content => ({
+    const zelle = (fahrzeug: ErfassungslinkMitFahrzeug, svg: string | null): Content => ({
       stack: [
         {
           text: fahrzeug.funkrufname || '—',
@@ -114,7 +177,15 @@ export class FahrzeugDruckbogenService {
           color: PDF_FARBEN.sekundaer,
           margin: [0, 2, 0, 8],
         },
-        { svg, width: 130, alignment: 'center' },
+        svg
+          ? { svg, width: 130, alignment: 'center' }
+          : {
+              text: 'kein öffentlicher Code erzeugt',
+              fontSize: 9,
+              color: PDF_FARBEN.sekundaer,
+              alignment: 'center',
+              margin: [0, 40, 0, 40],
+            },
       ],
       alignment: 'center',
       margin: [0, 12, 0, 12],
@@ -134,13 +205,19 @@ export class FahrzeugDruckbogenService {
       pageMargins: [40, 60, 40, 60],
       content: [
         {
-          text: 'Kilometererfassung – QR-Übersicht',
+          text:
+            art === 'oeffentlich'
+              ? 'Kilometerstand melden – QR-Übersicht (ohne Anmeldung)'
+              : 'Kilometererfassung – QR-Übersicht (mit Anmeldung)',
           fontSize: 18,
           bold: true,
           color: PDF_FARBEN.dunkelblau,
         },
         {
-          text: 'Code am Fahrzeug scannen, um den Kilometerstand direkt einzutragen.',
+          text:
+            art === 'oeffentlich'
+              ? 'Code am Fahrzeug scannen und den Kilometerstand melden. Die Meldung wird von der Zug- oder Gruppenführung freigegeben.'
+              : 'Code am Fahrzeug scannen, um den Kilometerstand direkt einzutragen. Setzt eine Anmeldung voraus.',
           fontSize: 11,
           color: PDF_FARBEN.sekundaer,
           margin: [0, 4, 0, 20],
@@ -149,11 +226,28 @@ export class FahrzeugDruckbogenService {
           table: { widths: ['50%', '50%'], body: zeilen },
           layout: 'lightHorizontalLines',
         },
+        art === 'oeffentlich'
+          ? {
+              text:
+                'Diese Codes sind Zugangsmerkmale: Wer einen hat, kann für dieses Fahrzeug ' +
+                'melden. Bei Verlust oder Missbrauch in der App erneuern – gedruckte Aufkleber ' +
+                'werden dadurch ungültig.',
+              fontSize: 8,
+              color: PDF_FARBEN.sekundaer,
+              margin: [0, 20, 0, 0],
+            }
+          : { text: '' },
       ],
       defaultStyle: { fontSize: 10, color: PDF_FARBEN.text },
     };
 
     const daten = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());
-    dateiHerunterladen(daten, 'fahrzeuge-km-qr-uebersicht.pdf', 'application/pdf');
+    dateiHerunterladen(
+      daten,
+      art === 'oeffentlich'
+        ? 'fahrzeuge-km-qr-uebersicht-oeffentlich.pdf'
+        : 'fahrzeuge-km-qr-uebersicht-intern.pdf',
+      'application/pdf',
+    );
   }
 }

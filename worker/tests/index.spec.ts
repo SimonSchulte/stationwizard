@@ -84,7 +84,9 @@ beforeEach(() => {
   };
 });
 
-describe('Access vor sämtlichen Assets und APIs', () => {
+const OEFFENTLICHES_TOKEN = 'a'.repeat(32);
+
+describe('Access vor sämtlichen Assets und APIs außer der öffentlichen Kilometermeldung', () => {
   it.each([
     '/',
     '/ausbildung',
@@ -98,12 +100,74 @@ describe('Access vor sämtlichen Assets und APIs', () => {
     '/api/hiorg/kalender',
     '/api/fahrzeuge',
     '/f/01234567-89ab-4cde-8fab-0123456789ab',
+    // Beinahetreffer der öffentlichen Muster. Sie sind der eigentliche Wert
+    // dieser Liste: der Bypass darf nicht über Pfadvarianten wachsen.
+    '/e',
+    '/e/',
+    '/e/zu-kurz',
+    `/e/${OEFFENTLICHES_TOKEN}/extra`,
+    `/e/${OEFFENTLICHES_TOKEN}.json`,
+    `/e/${'A'.repeat(32)}`,
+    `/ef/${OEFFENTLICHES_TOKEN}`,
+    '/oeffentlich',
+    '/oeffentlich/',
+    '/oeffentlich/unter/main.js',
+    '/api/oeffentlich/meldung',
+    `/api/oeffentlich/meldung/${OEFFENTLICHES_TOKEN}/extra`,
+    '/api/oeffentlich/anderes',
   ])('sperrt %s ohne Anwendungstoken', async (pfad) => {
     const antwort = await anfragen(pfad);
     expect(antwort.status).toBe(401);
     expect(await antwort.json()).toMatchObject({ code: 'ACCESS_TOKEN_FEHLT' });
     expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
     expect(jwks.aufloesen).not.toHaveBeenCalled();
+  });
+
+  it('lässt die öffentliche Kilometermeldung ohne Anmeldung durch', async () => {
+    // Der einzige Pfad ohne Access. Entscheidend ist nicht nur der Status,
+    // sondern dass die Anmeldeprüfung gar nicht erst angefasst wird – der Zweig
+    // liegt vor `pruefeAnmeldung`.
+    const antwort = await anfragen(`/api/oeffentlich/meldung/${OEFFENTLICHES_TOKEN}`);
+    expect(antwort.status).not.toBe(401);
+    expect(jwks.aufloesen).not.toHaveBeenCalled();
+    // Ohne D1-Bindung in dieser Umgebung: gesperrt, aber eben nicht von Access.
+    expect(await antwort.json()).toMatchObject({ code: 'MELDUNG_KONFIGURATION_FEHLT' });
+  });
+
+  it('liefert die öffentliche Meldeseite ohne Anmeldung aus den Assets', async () => {
+    umgebung.ASSETS = {
+      fetch: vi.fn(
+        async () =>
+          new Response('<html>meldung</html>', {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          }),
+      ),
+    } as unknown as Fetcher;
+    const antwort = await anfragen(`/e/${OEFFENTLICHES_TOKEN}`);
+    expect(antwort.status).toBe(200);
+    expect(antwort.headers.get('Cache-Control')).toBe('no-store');
+    expect(antwort.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
+    expect(jwks.aufloesen).not.toHaveBeenCalled();
+    // Und zwar ausschließlich die Datei des zweiten Build-Ziels.
+    expect(umgebung.ASSETS.fetch).toHaveBeenCalledTimes(1);
+    const gefragt = vi.mocked(umgebung.ASSETS.fetch).mock.calls[0]?.[0] as Request;
+    expect(new URL(gefragt.url).pathname).toBe('/oeffentlich/index.html');
+  });
+
+  it('weist eine Meldung mit fremdem Ursprung ab, auch ohne Anmeldung', async () => {
+    const antwort = await anfragen(`/api/oeffentlich/meldung/${OEFFENTLICHES_TOKEN}`, null, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://fremd.example' },
+      body: '{}',
+    });
+    expect(antwort.status).toBe(403);
+    expect(await antwort.json()).toMatchObject({ code: 'ANFRAGE_URSPRUNG_UNGUELTIG' });
+  });
+
+  it('erlaubt auf der öffentlichen Seite keine schreibende Methode', async () => {
+    const antwort = await anfragen(`/e/${OEFFENTLICHES_TOKEN}`, null, { method: 'PUT' });
+    expect(antwort.status).toBe(405);
+    expect(antwort.headers.get('Allow')).toBe('GET, HEAD');
   });
 
   it('verifiziert echte Signaturen und liefert nur die bestätigte E-Mail-Adresse', async () => {

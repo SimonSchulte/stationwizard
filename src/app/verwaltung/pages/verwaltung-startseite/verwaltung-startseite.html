@@ -35,22 +35,44 @@
       </p>
       <span class="aktion">Systemkonfiguration öffnen <span aria-hidden="true">→</span></span>
     </a>
-    @if (istZugfuehrung()) {
+    @if (darfFreigeben()) {
       <button
         type="button"
         class="aufgabe"
         [disabled]="qrUebersichtLaedt()"
-        (click)="qrUebersichtErstellen()"
+        (click)="qrUebersichtErstellen('oeffentlich')"
       >
         <mat-icon aria-hidden="true">qr_code_2</mat-icon>
-        <h2>Fahrzeug-QR-Übersichtsbogen</h2>
+        <h2>QR-Übersichtsbogen – ohne Anmeldung</h2>
         <p>
-          Ein PDF mit dem Kilometererfassungs-QR-Code jedes Fahrzeugs, zwei je Zeile, mit
-          Funkrufname und Kennzeichen zum Aushängen. Nur für die Zugführung sichtbar.
+          Ein PDF mit dem öffentlichen Melde-QR-Code jedes Fahrzeugs zum Aushängen. Damit kann jede
+          Helferin und jeder Helfer den Kilometerstand melden; die Meldung wird von der Zug- oder
+          Gruppenführung freigegeben. Die Codes sind Zugangsmerkmale.
         </p>
         @if (qrUebersichtFehler()) {
           <p class="fehler">{{ qrUebersichtFehler() }}</p>
         }
+        <span class="aktion">
+          @if (qrUebersichtLaedt()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+            Wird erstellt…
+          } @else {
+            Übersichtsbogen erstellen <span aria-hidden="true">→</span>
+          }
+        </span>
+      </button>
+      <button
+        type="button"
+        class="aufgabe"
+        [disabled]="qrUebersichtLaedt()"
+        (click)="qrUebersichtErstellen('intern')"
+      >
+        <mat-icon aria-hidden="true">qr_code_scanner</mat-icon>
+        <h2>QR-Übersichtsbogen – mit Anmeldung</h2>
+        <p>
+          Derselbe Bogen mit den internen Erfassungscodes. Eine darüber eingetragene Ablesung gilt
+          sofort und braucht keine Freigabe, setzt aber eine Anmeldung voraus.
+        </p>
         <span class="aktion">
           @if (qrUebersichtLaedt()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" />

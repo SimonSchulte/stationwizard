@@ -177,6 +177,9 @@ export class InMemoryFahrzeugStorage implements FahrzeugStorage {
       quelle: eingabe.quelle,
       korrigiert: eingabe.korrigiert,
       bemerkung: eingabe.bemerkung,
+      // Nur eine freigegebene öffentliche Meldung trägt hier einen Namen; über
+      // diesen Weg entsteht keine.
+      gemeldetVonName: '',
     };
     const liste = this.ablesungen.get(eingabe.fahrzeugId) ?? [];
     liste.push(ablesung);

@@ -105,7 +105,9 @@ describe('ApiFahrzeugStorage', () => {
       fahrzeugId: ablesung.fahrzeugId,
       abgelesenAm: ablesung.abgelesenAm,
       stand: ablesung.stand,
-      quelle: ablesung.quelle,
+      // Fest 'formular' statt ablesung.quelle: 'oeffentlich' ist kein
+      // einreichbarer Wert, der Typ lässt ihn hier zu Recht nicht zu.
+      quelle: 'formular' as const,
       korrigiert: null,
       bemerkung: '',
     };

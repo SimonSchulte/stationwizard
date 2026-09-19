@@ -1,0 +1,43 @@
+<section class="seite">
+  <header class="kopf">
+    <h1>Offene Aufgaben</h1>
+    <button type="button" (click)="neuLaden()" [disabled]="store.laedt()">
+      <mat-icon aria-hidden="true">refresh</mat-icon>
+      Aktualisieren
+    </button>
+  </header>
+
+  @for (fehler of fehlerListe(); track fehler[0]) {
+    <p class="error-hint" role="alert">{{ fehler[0] }}: {{ fehler[1] }}</p>
+  }
+
+  @if (store.laedt() && store.anzahl() === 0) {
+    <p class="empty-hint">Aufgaben werden geladen …</p>
+  } @else if (store.anzahl() === 0) {
+    <div class="empty-state">
+      <mat-icon aria-hidden="true">task_alt</mat-icon>
+      <p>Keine offenen Aufgaben.</p>
+      <p class="empty-hint">
+        Hier erscheinen unter anderem Kilometermeldungen, die über den öffentlichen QR-Code
+        eingegangen sind und noch freigegeben werden müssen.
+      </p>
+    </div>
+  } @else {
+    @for (gruppe of gruppen(); track gruppe.kennung) {
+      <h2 class="gruppe">{{ gruppe.bezeichnung }} ({{ gruppe.aufgaben.length }})</h2>
+      <ul class="liste">
+        @for (aufgabe of gruppe.aufgaben; track aufgabe.id) {
+          <li class="aufgabe" [class.hinweis]="aufgabe.dringlichkeit === 'hinweis'">
+            <a [routerLink]="aufgabe.routerLink">
+              <span class="titel">{{ aufgabe.titel }}</span>
+              <span class="beschreibung">{{ aufgabe.beschreibung }}</span>
+              <span class="eingang">
+                eingegangen {{ aufgabe.eingegangenAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

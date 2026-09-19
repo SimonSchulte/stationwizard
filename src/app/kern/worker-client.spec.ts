@@ -28,6 +28,29 @@ describe('WorkerClient', () => {
     expect(client.laufendeAnfragen()).toBe(0);
   });
 
+  it('hält ein fachliches 403 von der abgelaufenen Sitzung auseinander', async () => {
+    // Die Rollenprüfung der Meldungsfreigabe antwortet mit 403. Würde das wie
+    // 401 behandelt, zeigte die Shell "Sitzung abgelaufen", obwohl die Sitzung
+    // gültig ist und nur das Recht fehlt.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: 'FREIGABE_NICHT_ERLAUBT' }), {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Stationwizard-Diagnose': 'FREIGABE_NICHT_ERLAUBT',
+          },
+        }),
+      ),
+    );
+    const client = TestBed.inject(WorkerClient);
+    await expect(client.anfragen('/api/fahrzeuge/einreichungen')).rejects.toThrow('Berechtigung');
+    expect(client.zustand()).toBe('erreichbar');
+    expect(client.fehler()).not.toContain('Sitzung');
+    expect(client.laufendeAnfragen()).toBe(0);
+  });
+
   it('verwechselt eine HTML-Anmeldeseite nicht mit JSON', async () => {
     vi.stubGlobal(
       'fetch',
