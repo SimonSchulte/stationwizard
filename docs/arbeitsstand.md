@@ -1391,11 +1391,14 @@ Gegenprobe wurde gemacht, mit `base-uri 'none'` schlägt der Lauf fehl.
 - **Die Access-Bypass-Regel selbst ist ungeprüft.** Sie lässt sich nur in der produktiven
   Zero-Trust-Konfiguration einrichten und prüfen. Die Prüfliste dafür steht in
   [Einrichtung](einrichtung.md).
-- **Migration 0007 ist nicht auf die produktive Datenbank angewendet** – für
-  `FAHRZEUGE_DB` ist sie damit nach 0003 die zweite noch offene Migration (0005 betrifft
-  `BENUTZER_DB` und wurde am 2026-09-15 bereits angewendet, siehe AP-S1). Befehle stehen in
-  [Einrichtung](einrichtung.md). Ohne 0007 fehlt die Spalte `erfassung_token`, und die
-  öffentlichen Endpunkte antworten mit `MELDUNG_DB_FEHLER`.
+- ~~Migration 0007 ist nicht auf die produktive Datenbank angewendet~~ – **am
+  2026-09-19 auf der produktiven `stationwizard-fahrzeuge`-Datenbank angewendet.** Eine
+  Prüfabfrage vor dem Anwenden zeigte, dass 0001–0003 und 0006 dort bereits vorhanden
+  waren (der Kennzeichen-Unique-Index aus 0003 existierte bereits); 0007 war die einzige
+  noch offene Migration für `FAHRZEUGE_DB` (0005 betrifft die getrennte `BENUTZER_DB` und
+  wurde am 2026-09-15 bereits angewendet, siehe AP-S1). Alle 23 vorhandenen Fahrzeuge haben
+  jetzt ein `erfassung_token`, `ablesung_einreichungen` existiert (leer). Damit sind auf
+  `FAHRZEUGE_DB` keine Migrationen mehr offen.
 - **Kein Lauf mit echter Access-Sitzung und echten Fahrzeugdaten.** Die App-Seiten wurden
   gegen abgefangene Antworten geprüft, nicht gegen den produktiven Worker.
 - **Kein echter Scan mit einem Telefon.** Geprüft wurde im Browser bei Telefonmaßen, nicht
