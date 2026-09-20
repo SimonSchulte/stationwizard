@@ -26,4 +26,12 @@ describe('fahrzeugQrZiele', () => {
     // Kennung her.
     expect(fahrzeugQrZiele(ID, TOKEN, BASIS).oeffentlichUrl).not.toContain(ID);
   });
+
+  it('zeigt ohne explizite Basis-URL auf die produktive Domain, nie auf den aktuellen Ursprung', () => {
+    // Aufkleber werden gedruckt und müssen unabhängig davon funktionieren, von
+    // welchem Worker (Vorschau, workers.dev) aus sie erzeugt wurden.
+    const ziele = fahrzeugQrZiele(ID, TOKEN);
+    expect(ziele.uebersichtUrl).toBe(`https://hiorg-wache.com/f/${ID}`);
+    expect(ziele.oeffentlichUrl).toBe(`https://hiorg-wache.com/e/${TOKEN}`);
+  });
 });
