@@ -1842,3 +1842,60 @@ Geprüft: dasselbe Miniflare+D1-Diagnoseskript (Wegwerfskript, gelöscht), `npm 
 `npm run format:check`, `npm run worker:check`, `npm run worker:test`. **Weiterhin nicht
 bestätigt:** ob dies tatsächlich der Mechanismus hinter dem gemeldeten 428 war – dafür
 fehlt der Beweis, nur die begründete Vermutung. Keine Browserprüfung dieser Sitzung.
+
+### Nachtrag – Ursache des 428 gefunden: Cloudflare schwächt starke ETags ab
+
+Der Fehler trat nach den beiden vorigen Nachträgen unverändert weiter auf. Beide dort
+notierten Erklärungsversuche waren falsch und sind hiermit ausdrücklich zurückgezogen:
+weder war die Live-Instanz zu alt, noch war die behobene Race-Bedingung beim Reload nach
+der Neuanlage die Ursache. Der Fehler war deterministisch, nicht zeitabhängig.
+
+**Ursache.** Der Worker gibt seine Version als _starken_ ETag aus (`"1"`). Cloudflare
+wandelt einen starken ETag aber in einen _schwachen_ um (`W/"1"`), sobald es die Antwort
+unterwegs verändert – der Normalfall dafür ist die automatische Komprimierung, und das
+Abschalten dieser Umwandlung („Respect Strong ETags") ist eine Enterprise-Einstellung, die
+diesem Betrieb auf dem kostenlosen Tarif gar nicht zur Verfügung steht. Der Browser liest
+also `W/"1"`, legt das als Version ab und schickt genau das als `If-Match` zurück. Die
+Prüfung `istStarkerEtag()` verlangte ein führendes `"` und lehnte deshalb **jedes**
+Speichern eines zuvor geladenen Angebots mit 428 ab.
+
+Das erklärt alle Beobachtungen widerspruchsfrei: deterministisch statt sporadisch;
+Anlegen funktioniert (nutzt `If-None-Match: *`, keinen ETag), jedes spätere Speichern
+nicht; in workerd/Miniflare nicht reproduzierbar, weil dort kein Cloudflare-Edge
+dazwischenliegt; und in den Worker-Tests unsichtbar, weil die den ETag als `"1"` fest
+notieren, statt ihn aus einer Antwort zu übernehmen. Dass schwache ETags real vorkommen,
+war im Projekt übrigens schon bekannt – `nextcloud.ts` lässt sie beim Durchreichen einer
+fremden Dateiversion ausdrücklich zu.
+
+**Behoben** in der neuen gemeinsamen Datei `worker/src/etag.ts` (`starkesEtag()`,
+`versionAusEtag()`), verwendet von `angebotswesen.ts` und `fahrzeuge.ts`. Ausgegeben wird
+weiterhin immer ein starker ETag, angenommen werden beide Formen. Die optimistische Sperre
+wird dadurch nicht schwächer: verglichen wird unverändert die exakte Versionsnummer
+(`WHERE id = ? AND version = ?`), ein veralteter Stand bleibt 412. Zusätzlich sind die
+beiden bisher zusammengefassten Ursachen getrennt, wie es die Regel „jede Fehlerursache
+hat einen eigenen Code" ohnehin verlangt: fehlender Header weiterhin 428
+(`…_VORBEDINGUNG_FEHLT`), vorhandener aber unlesbarer jetzt 400
+(`…_VORBEDINGUNG_UNGUELTIG`). Genau diese Vermischung hatte die Ferndiagnose zuvor
+unnötig erschwert.
+
+**Das Fahrzeugmodul war identisch betroffen** (gleiche Prüfung, gleicher Client-Ablauf,
+gleicher Edge): `PUT /api/fahrzeuge/<UUID>` für Stammdaten muss in Produktion ebenso
+zuverlässig mit 428 gescheitert sein, nur hat es niemand gemeldet – vermutlich, weil
+Stammdaten selten bearbeitet werden (Import und Kilometererfassung laufen über POST ohne
+`If-Match`). Mitbehoben, nicht als getrennte Baustelle liegengelassen.
+
+Geprüft: neue Tests `worker/tests/etag.spec.ts` sowie Fälle in `angebotswesen.spec.ts`
+und `fahrzeuge.spec.ts` für `W/"1"` (200, Version erhöht), veraltetes `W/"99"` (weiterhin 412) und fehlendes `If-Match` (weiterhin 428). Zusätzlich am **echten gebündelten Worker**
+mit echter D1 (Miniflare/workerd, Wegwerfskript, danach gelöscht) nachgestellt: Anlegen
+201, Speichern mit `W/"1"` 200 mit ETag `"2"`, veraltetes `W/"1"` 412, ohne Header 428.
+`npm run build` (inkl. `worker:check`), `npm test` (730 Angular-Tests; 13
+`oeffentlich`-Tests; 563 Worker-Tests), `npm run format:check`, `npm run worker:check`,
+`npm run worker:test`, `npm run test:spa`, `npm run deploy:dry-run` – alle grün.
+
+**Offen:** Der direkte Nachweis am Produktiv-Edge fehlt, weil die Netzpolitik dieser
+Umgebung `hiorg-wache.com` sperrt (Proxy antwortet mit 403 auf CONNECT). Die Diagnose
+stützt sich daher auf das dokumentierte Cloudflare-Verhalten in Verbindung mit dem
+kostenlosen Tarif und darauf, dass sie als einzige alle Beobachtungen erklärt. Ob der
+Nextcloud-/PEP-Pfad dasselbe Problem hat, ist wahrscheinlich, aber ungeprüft: dort wird
+`If-Match` an Nextcloud weitergereicht, weshalb ein bloßes Aufweichen der Prüfung dort
+nicht ohne Test gegen echtes Nextcloud verantwortbar ist. Bewusst nicht mitgeändert.

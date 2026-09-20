@@ -175,6 +175,19 @@ describe('Preiskatalog', () => {
     expect(antwort.status).toBe(412);
   });
 
+  it('nimmt einen abgeschwächten ETag als If-Match an', async () => {
+    const db = new FakeAngebotswesenDb();
+    await legePreiskatalogAn(db);
+    const antwort = await verarbeiten(db, `/api/angebotswesen/preiskatalog/${PREISKATALOG_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'If-Match': 'W/"1"' },
+      body: JSON.stringify(preiskatalogKoerper({ einzelpreisCent: 1300 })),
+    });
+    expect(antwort.status).toBe(200);
+    const koerper = (await antwort.json()) as { version: number };
+    expect(koerper.version).toBe(2);
+  });
+
   it('löscht einen Eintrag und liefert danach 404 beim erneuten Löschen', async () => {
     const db = new FakeAngebotswesenDb();
     await legePreiskatalogAn(db);
@@ -316,6 +329,54 @@ describe('Angebote', () => {
       body: JSON.stringify(angebotKoerper()),
     });
     expect(antwort.status).toBe(412);
+  });
+
+  // Cloudflare schwächt einen starken ETag zu `W/"1"` ab, sobald es die Antwort
+  // unterwegs komprimiert; der Browser schickt genau das zurück. Ohne diesen
+  // Fall war jedes Speichern in Produktion ein 428, lokal aber unauffällig.
+  it('nimmt einen abgeschwächten ETag als If-Match an', async () => {
+    const db = new FakeAngebotswesenDb();
+    await legeAngebotAn(db);
+    const antwort = await verarbeiten(db, `/api/angebotswesen/angebote/${ANGEBOT_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'If-Match': 'W/"1"' },
+      body: JSON.stringify(angebotKoerper({ bezeichnung: 'Geändert' })),
+    });
+    expect(antwort.status).toBe(200);
+    expect(antwort.headers.get('ETag')).toBe('"2"');
+  });
+
+  it('erkennt einen Konflikt auch bei abgeschwächtem ETag', async () => {
+    const db = new FakeAngebotswesenDb();
+    await legeAngebotAn(db);
+    const antwort = await verarbeiten(db, `/api/angebotswesen/angebote/${ANGEBOT_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'If-Match': 'W/"99"' },
+      body: JSON.stringify(angebotKoerper()),
+    });
+    expect(antwort.status).toBe(412);
+  });
+
+  it('trennt ein fehlendes If-Match von einem unlesbaren per Diagnosecode', async () => {
+    const db = new FakeAngebotswesenDb();
+    await legeAngebotAn(db);
+    const ohne = await verarbeiten(db, `/api/angebotswesen/angebote/${ANGEBOT_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(angebotKoerper()),
+    });
+    expect(ohne.status).toBe(428);
+    expect(ohne.headers.get('X-Stationwizard-Diagnose')).toBe('ANGEBOTSWESEN_VORBEDINGUNG_FEHLT');
+
+    const unlesbar = await verarbeiten(db, `/api/angebotswesen/angebote/${ANGEBOT_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'If-Match': '"keine-zahl"' },
+      body: JSON.stringify(angebotKoerper()),
+    });
+    expect(unlesbar.status).toBe(400);
+    expect(unlesbar.headers.get('X-Stationwizard-Diagnose')).toBe(
+      'ANGEBOTSWESEN_VORBEDINGUNG_UNGUELTIG',
+    );
   });
 
   it('löscht ein Angebot und liefert danach 404', async () => {

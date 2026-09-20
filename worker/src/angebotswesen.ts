@@ -1,5 +1,6 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { starkesEtag, versionAusEtag } from './etag';
 import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
 
 /**
@@ -37,14 +38,6 @@ function zeitAlsMinuten(zeit: string): number | null {
   const treffer = HHMM_MUSTER.exec(zeit);
   if (!treffer) return null;
   return Number(treffer[1]) * 60 + Number(treffer[2]);
-}
-
-function starkesEtag(version: number): string {
-  return `"${version}"`;
-}
-
-function istStarkerEtag(wert: string): boolean {
-  return /^"[\x21\x23-\x7e\x80-\xff]*"$/.test(wert);
 }
 
 /* -------------------------------------------------------------------- */
@@ -175,15 +168,15 @@ async function aktualisierePreiskatalogEintrag(
   identitaet: Benutzer,
 ): Promise<Response> {
   const ifMatch = anfrage.headers.get('If-Match');
-  if (!ifMatch || !istStarkerEtag(ifMatch)) {
+  if (!ifMatch) {
     return fehlerAntwort(
       'ANGEBOTSWESEN_VORBEDINGUNG_FEHLT',
       'Zum Speichern zuerst laden und die aktuelle Version mitsenden.',
       428,
     );
   }
-  const erwarteteVersion = Number(ifMatch.slice(1, -1));
-  if (!Number.isInteger(erwarteteVersion) || erwarteteVersion < 1) {
+  const erwarteteVersion = versionAusEtag(ifMatch);
+  if (erwarteteVersion === null) {
     return fehlerAntwort('ANGEBOTSWESEN_VORBEDINGUNG_UNGUELTIG', 'Ungültige Version.', 400);
   }
   const koerper = await lesePruefeKoerper(anfrage, PREISKATALOG_KOERPER_GRENZE);
@@ -512,15 +505,15 @@ async function aktualisiereAngebot(
   identitaet: Benutzer,
 ): Promise<Response> {
   const ifMatch = anfrage.headers.get('If-Match');
-  if (!ifMatch || !istStarkerEtag(ifMatch)) {
+  if (!ifMatch) {
     return fehlerAntwort(
       'ANGEBOTSWESEN_VORBEDINGUNG_FEHLT',
       'Zum Speichern zuerst laden und die aktuelle Version mitsenden.',
       428,
     );
   }
-  const erwarteteVersion = Number(ifMatch.slice(1, -1));
-  if (!Number.isInteger(erwarteteVersion) || erwarteteVersion < 1) {
+  const erwarteteVersion = versionAusEtag(ifMatch);
+  if (erwarteteVersion === null) {
     return fehlerAntwort('ANGEBOTSWESEN_VORBEDINGUNG_UNGUELTIG', 'Ungültige Version.', 400);
   }
   const koerper = await lesePruefeKoerper(anfrage, ANGEBOT_KOERPER_GRENZE);

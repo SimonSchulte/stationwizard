@@ -298,6 +298,22 @@ Einzelabfrage – bei vielen kleinen, inline editierbaren Zeilen wäre ein Ladev
 Zeile vor jeder Änderung ein Verstoß gegen die Sparsamkeitsregel. Schreiben bleibt trotzdem
 über `If-Match`/`If-None-Match` und 412 bei Versionskonflikt.
 
+Die Versionsnummer aus `If-Match` liest für die eigenen D1-Module (Angebotswesen und
+Fahrzeuge) gemeinsam `worker/src/etag.ts`. Der Worker **gibt** seine Version immer als
+starken ETag aus (`"3"`), **nimmt** sie aber auch abgeschwächt (`W/"3"`) wieder an: der
+Cloudflare-Edge wandelt einen starken ETag in einen schwachen um, sobald er die Antwort
+unterwegs verändert – der Normalfall dafür ist die automatische Komprimierung, und das
+Abschalten („Respect Strong ETags") ist eine Enterprise-Einstellung, die auf dem
+kostenlosen Tarif nicht zur Verfügung steht. Der Browser bekommt also `W/"3"` zu sehen und
+schickt genau das zurück. Eine Prüfung auf ausschließlich starke ETags lehnte damit in
+Produktion **jedes** Speichern eines zuvor geladenen Datensatzes mit 428 ab, während
+workerd und alle Tests mit fest notiertem `"3"` unauffällig blieben. Die Sperre wird
+dadurch nicht schwächer: verglichen wird weiterhin die exakte Versionsnummer, ein
+veralteter Stand bleibt 412. Ein **fehlender** `If-Match`-Header ergibt weiterhin 428
+(`…_VORBEDINGUNG_FEHLT`), ein vorhandener, aber unlesbarer dagegen 400
+(`…_VORBEDINGUNG_UNGUELTIG`) – zwei Ursachen, zwei Codes, weil die Oberfläche nur Status
+und `X-Stationwizard-Diagnose` sieht.
+
 Ein Angebot (`src/app/angebotswesen/pages/angebot-detail/`) besteht aus mehreren Schichten
 (je ein Kalendertag mit `von`/`bis`-Zeitspanne; ein Dienst über Mitternacht wird als zwei
 Schichten erfasst) mit je mehreren Positionen. Eine Position speichert eine **eigene,

@@ -418,6 +418,17 @@ persistiert. Die Schreibweise „CALENDER" ist bewusst übernommen und wird nich
 - Geladene Dateien mit starkem ETag und `If-Match` speichern. Neue Dateien ausschließlich
   mit `If-None-Match: *` anlegen. Keine unbedingten PUTs, kein `If-Match: *` als Ersatz
   für eine konkrete Dateiversion und keine Kombination beider Bedingungen.
+- Der Worker **gibt** seine Version immer als starken ETag aus, **nimmt** sie in `If-Match`
+  aber auch abgeschwächt (`W/"3"`) an: Cloudflare wandelt einen starken ETag unterwegs in
+  einen schwachen um, sobald es die Antwort verändert (Normalfall: automatische
+  Komprimierung), und „Respect Strong ETags" ist eine Enterprise-Einstellung, die auf dem
+  kostenlosen Tarif fehlt. Die Versionsnummer liest für die eigenen D1-Module gemeinsam
+  `worker/src/etag.ts`; verglichen wird weiterhin die exakte Zahl, ein veralteter Stand
+  bleibt 412. Diese Annahme nicht wieder auf „nur starke ETags" verengen – genau das ließ
+  in Produktion jedes Speichern eines geladenen Datensatzes mit 428 scheitern, während
+  workerd und jeder Test mit fest notiertem `"1"` unauffällig blieb. Fehlender Header
+  bleibt 428 (`…_VORBEDINGUNG_FEHLT`), vorhandener aber unlesbarer wird 400
+  (`…_VORBEDINGUNG_UNGUELTIG`).
 - HTTP 412 bedeutet Konflikt: lokalen Stand erhalten, Kopie herunterladen lassen,
   aktuellen gespeicherten Stand bewusst laden und Änderungen zusammenführen.
 - Timeout oder unklarer Upstream-Erfolg darf keinen automatischen ungeschützten
