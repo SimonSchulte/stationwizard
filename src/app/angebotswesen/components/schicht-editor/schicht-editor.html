@@ -1,0 +1,126 @@
+<div class="schicht-kopf">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="datum-feld">
+    <mat-label>Datum</mat-label>
+    <input
+      matInput
+      type="date"
+      [value]="schicht().datum"
+      (change)="datumAktualisieren($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zeit-feld">
+    <mat-label>Von</mat-label>
+    <input
+      matInput
+      type="time"
+      [value]="schicht().von"
+      (change)="vonAktualisieren($any($event.target).value)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zeit-feld">
+    <mat-label>Bis</mat-label>
+    <input
+      matInput
+      type="time"
+      [value]="schicht().bis"
+      (change)="bisAktualisieren($any($event.target).value)"
+    />
+  </mat-form-field>
+  @if (stundenAnzeige(); as stunden) {
+    <span class="stunden-anzeige">{{ stunden }} h</span>
+  } @else {
+    <span class="stunden-anzeige fehler">Ungültige Zeitspanne</span>
+  }
+  <span class="spacer"></span>
+  <button mat-icon-button (click)="schichtEntfernt.emit()" aria-label="Schicht entfernen">
+    <mat-icon>delete</mat-icon>
+  </button>
+</div>
+
+@if (schicht().positionen.length === 0) {
+  <p class="empty-hint">Noch keine Positionen in dieser Schicht.</p>
+}
+
+<ul class="position-liste">
+  @for (position of schicht().positionen; track position.id) {
+    <li class="position-zeile">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="position-bezeichnung">
+        <mat-label>Bezeichnung</mat-label>
+        <input
+          matInput
+          [value]="position.bezeichnung"
+          (change)="positionAktualisieren(position.id, { bezeichnung: $any($event.target).value })"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="position-art">
+        <mat-label>Art</mat-label>
+        <mat-select
+          [value]="position.art"
+          (selectionChange)="positionArtAktualisieren(position, $event.value)"
+        >
+          <mat-option value="einsatzkraft">Einsatzkraft</mat-option>
+          <mat-option value="fahrzeug">Fahrzeug</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="position-preis">
+        <mat-label>Einzelpreis</mat-label>
+        <input
+          matInput
+          type="number"
+          min="0"
+          step="0.01"
+          [value]="centZuEuroEingabe(position.einzelpreisCent)"
+          (change)="positionPreisAktualisieren(position, $any($event.target).value)"
+        />
+        <span matSuffix>&nbsp;€</span>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="position-anzahl">
+        <mat-label>Anzahl</mat-label>
+        <input
+          matInput
+          type="number"
+          min="1"
+          step="1"
+          [value]="position.anzahl"
+          (change)="positionAnzahlAktualisieren(position, $any($event.target).value)"
+        />
+      </mat-form-field>
+      @if (position.art === 'einsatzkraft') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="position-stunden">
+          <mat-label>Stunden</mat-label>
+          <input
+            matInput
+            type="number"
+            min="0.25"
+            step="0.25"
+            [value]="position.stunden"
+            (change)="positionStundenAktualisieren(position, $any($event.target).value)"
+          />
+        </mat-form-field>
+      } @else {
+        <span class="position-pauschal">Pauschal</span>
+      }
+      <button
+        mat-icon-button
+        (click)="positionEntfernen(position.id)"
+        aria-label="Position entfernen"
+      >
+        <mat-icon>delete</mat-icon>
+      </button>
+    </li>
+  }
+</ul>
+
+<div class="position-hinzufuegen">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="katalog-auswahl">
+    <mat-label>Aus Preiskatalog hinzufügen</mat-label>
+    <mat-select [value]="null" (selectionChange)="katalogPositionHinzufuegen($event.value)">
+      @for (eintrag of katalog(); track eintrag.id) {
+        <mat-option [value]="eintrag.id">{{ eintrag.bezeichnung }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <button mat-stroked-button type="button" (click)="manuellePositionHinzufuegen()">
+    <mat-icon>add</mat-icon> Manuelle Position
+  </button>
+</div>

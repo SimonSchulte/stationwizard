@@ -1,0 +1,131 @@
+<mat-toolbar class="detail-kopfleiste">
+  <a mat-icon-button routerLink="/angebotswesen/angebote" aria-label="Zurück zur Angebotsliste">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">{{ store.entwurf()?.bezeichnung || 'Neues Angebot' }}</span>
+  <span class="spacer"></span>
+  <button
+    mat-raised-button
+    color="primary"
+    (click)="speichern()"
+    [disabled]="store.speichertGerade()"
+  >
+    <mat-icon>save</mat-icon>
+    {{ store.speichertGerade() ? 'Speichert …' : 'Speichern' }}
+  </button>
+</mat-toolbar>
+
+<div class="detail-content">
+  @if (store.ladeLaeuft()) {
+    <p role="status">Angebot wird geladen …</p>
+  }
+  @if (store.ladeFehler()) {
+    <p class="error-hint" role="alert">{{ store.ladeFehler() }}</p>
+  }
+
+  @if (store.speicherKonflikt()) {
+    <div class="konflikt-hinweis" role="alert">
+      <mat-icon>warning</mat-icon>
+      <span>{{ store.speicherFehler() }}</span>
+      <button mat-stroked-button (click)="nachKonfliktNeuLaden()">Aktuellen Stand laden</button>
+    </div>
+  } @else if (store.speicherFehler()) {
+    <p class="error-hint" role="alert">{{ store.speicherFehler() }}</p>
+  }
+
+  @if (store.entwurf(); as entwurf) {
+    <section class="abschnitt">
+      <h2>Angebot</h2>
+      <div class="feldraster">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Bezeichnung</mat-label>
+          <input
+            matInput
+            required
+            [value]="entwurf.bezeichnung"
+            (input)="aktualisieren('bezeichnung', $any($event.target).value)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Auftraggeber</mat-label>
+          <input
+            matInput
+            [value]="entwurf.auftraggeber"
+            (input)="aktualisieren('auftraggeber', $any($event.target).value)"
+          />
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung-feld">
+        <mat-label>Bemerkung</mat-label>
+        <textarea
+          matInput
+          rows="2"
+          [value]="entwurf.bemerkung"
+          (input)="aktualisieren('bemerkung', $any($event.target).value)"
+        ></textarea>
+      </mat-form-field>
+      @if (!store.istNeu()) {
+        <p class="metadaten">
+          Zuletzt geändert {{ entwurf.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+          @if (entwurf.geaendertVon) {
+            von {{ entwurf.geaendertVon }}
+          }
+        </p>
+      }
+    </section>
+
+    <section class="abschnitt">
+      <div class="section-header">
+        <h2>Schichten</h2>
+        <button mat-stroked-button type="button" (click)="schichtHinzufuegen()">
+          <mat-icon>add</mat-icon> Schicht hinzufügen
+        </button>
+      </div>
+      @if (entwurf.schichten.length === 0) {
+        <p class="empty-hint">Noch keine Schichten erfasst.</p>
+      }
+      <div class="schicht-liste">
+        @for (schicht of entwurf.schichten; track schicht.id) {
+          <app-schicht-editor
+            [schicht]="schicht"
+            [katalog]="preiskatalogStore.eintraege()"
+            (schichtGeaendert)="schichtAktualisieren($event)"
+            (schichtEntfernt)="schichtEntfernen(schicht.id)"
+          />
+        }
+      </div>
+    </section>
+
+    <section class="abschnitt">
+      <h2>Kostenaufstellung</h2>
+      <mat-checkbox
+        [checked]="entwurf.pauschalpreisAktiv"
+        (change)="pauschalpreisAktivAktualisieren($event.checked)"
+      >
+        Pauschalpreis statt errechneter Gesamtsumme
+      </mat-checkbox>
+      @if (entwurf.pauschalpreisAktiv) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="pauschalpreis-feld">
+          <mat-label>Pauschalpreis</mat-label>
+          <input
+            matInput
+            type="number"
+            min="0"
+            step="0.01"
+            [value]="centZuEuroEingabe(entwurf.pauschalpreisCent ?? 0)"
+            (change)="pauschalpreisAktualisieren($any($event.target).value)"
+          />
+          <span matSuffix>&nbsp;€</span>
+        </mat-form-field>
+      }
+
+      <app-angebot-kalkulationstabelle [angebot]="entwurf" />
+
+      <div class="aktionen">
+        <button mat-stroked-button type="button" (click)="tabelleKopieren()">
+          <mat-icon>content_copy</mat-icon> Als Word-Tabelle kopieren
+        </button>
+      </div>
+    </section>
+  }
+</div>

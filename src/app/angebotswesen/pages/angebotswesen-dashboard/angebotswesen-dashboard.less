@@ -1,0 +1,53 @@
+@import '../../../kern/kopfleiste.less';
+
+.dashboard-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.dashboard-content {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+
+.beschreibung {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+.bereiche {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-md);
+}
+
+.bereich {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  text-decoration: none;
+
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    color: var(--text-secondary);
+    margin: 0;
+    flex: 1;
+  }
+
+  .aktion {
+    color: var(--status-ok);
+    font-weight: 500;
+  }
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}

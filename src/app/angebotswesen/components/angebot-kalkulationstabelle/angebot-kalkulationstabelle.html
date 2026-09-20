@@ -1,0 +1,68 @@
+@if (kalkulation().gruppen.length === 0) {
+  <p class="empty-hint">Noch keine Schichten in diesem Angebot.</p>
+} @else {
+  <div class="tabelle-rahmen">
+    <table class="bericht-tabelle">
+      <thead>
+        <tr>
+          <th scope="col">Pos.</th>
+          <th scope="col">Bezeichnung</th>
+          <th scope="col">Einzelpreis</th>
+          <th scope="col" class="rechts">Anzahl</th>
+          <th scope="col" class="rechts">Stunde(n)</th>
+          <th scope="col" class="rechts">Gesamt</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (gruppe of kalkulation().gruppen; track gruppe.schicht.id) {
+          <tr class="schicht-kopf-zeile">
+            <td colspan="6">
+              Schicht: {{ formatiereDatum(gruppe.schicht.datum) }} ({{
+                wochentag(gruppe.schicht.datum)
+              }}), {{ gruppe.schicht.von }}–{{ gruppe.schicht.bis }} Uhr
+            </td>
+          </tr>
+          @for (position of gruppe.positionen; track position.positionId) {
+            <tr>
+              <td>{{ position.pos }}</td>
+              <td>{{ position.bezeichnung }}</td>
+              <td>
+                {{ formatEuro(position.einzelpreisCent) }} /
+                {{ position.art === 'fahrzeug' ? 'Pauschal' : 'Stunde' }}
+              </td>
+              <td class="rechts">{{ position.anzahl }}</td>
+              <td class="rechts">{{ position.art === 'fahrzeug' ? '/' : position.stunden }}</td>
+              <td class="rechts">{{ formatEuro(position.gesamtCent) }}</td>
+            </tr>
+          }
+          <tr class="zwischensumme-zeile">
+            <td></td>
+            <td>Zwischensumme</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="rechts">{{ formatEuro(gruppe.gesamtCent) }}</td>
+          </tr>
+        }
+        <tr class="gesamt-zeile">
+          <td></td>
+          <td>{{ angebot().pauschalpreisAktiv ? 'Gesamt (Pauschalpreis)' : 'Gesamt' }}</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td class="rechts">{{ formatEuro(kalkulation().gesamtCent) }}</td>
+        </tr>
+        @if (angebot().pauschalpreisAktiv) {
+          <tr class="rechnerisch-zeile">
+            <td></td>
+            <td>rechnerisch</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="rechts">{{ formatEuro(kalkulation().rechnerischGesamtCent) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

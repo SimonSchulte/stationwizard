@@ -1,0 +1,24 @@
+<mat-toolbar class="dashboard-kopfleiste">
+  <mat-icon aria-hidden="true">request_quote</mat-icon>
+  <span class="toolbar-title">Angebotswesen</span>
+</mat-toolbar>
+
+<div class="dashboard-content">
+  <p class="beschreibung">
+    Preiskatalog pflegen und daraus Kostenangebote für Sanitätsdienste kalkulieren.
+  </p>
+  <div class="bereiche">
+    <a class="bereich" routerLink="/angebotswesen/preiskatalog">
+      <mat-icon aria-hidden="true">sell</mat-icon>
+      <h2>Preiskatalog</h2>
+      <p>Preise für Einsatzkräfte (je Stunde) und Fahrzeuge (Pauschale je Schicht) pflegen.</p>
+      <span class="aktion">Preiskatalog öffnen <span aria-hidden="true">→</span></span>
+    </a>
+    <a class="bereich" routerLink="/angebotswesen/angebote">
+      <mat-icon aria-hidden="true">receipt_long</mat-icon>
+      <h2>Angebote</h2>
+      <p>Angebote mit mehreren Schichten kalkulieren und als Tabelle für Word kopieren.</p>
+      <span class="aktion">Angebote öffnen <span aria-hidden="true">→</span></span>
+    </a>
+  </div>
+</div>

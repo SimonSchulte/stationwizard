@@ -280,6 +280,56 @@ npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER_DB` in
 `wrangler.toml` eintragen.
 
+### Angebotswesen (D1)
+
+`ANGEBOTSWESEN_DB` bindet eine eigene D1-Datenbank `stationwizard-angebotswesen` (getrennt
+von `FAHRZEUGE_DB`/`BENUTZER_DB`, damit die Fachdomäne getrennt bleibt). Schema in
+`worker/migrations/0008_angebotswesen.sql`, zwei Tabellen: `preiskatalog_eintraege` und
+`angebote`. Ohne dieses Binding antwortet `/api/angebotswesen*` mit 503
+(`ANGEBOTSWESEN_KONFIGURATION_FEHLT`) statt eines Absturzes.
+
+Der Preiskatalog (`src/app/angebotswesen/pages/preiskatalog/`) ist eine frei erweiterbare
+Liste, nicht die feste Systemkonfigurations-Schlüssel-Wert-Tabelle: Nutzer legen eigene
+Einträge an, benennen sie um und löschen sie. Jeder Eintrag trägt `art`
+(`einsatzkraft` – Stundensatz – oder `fahrzeug` – Pauschale je Schicht/Tag) und
+`einzelpreisCent` (Integer-Cent, nie Fließkomma-Euro). Anders als beim Fahrzeugmodul liegt
+die Version direkt als JSON-Feld in jeder Listenzeile statt nur im ETag einer
+Einzelabfrage – bei vielen kleinen, inline editierbaren Zeilen wäre ein Ladevorgang je
+Zeile vor jeder Änderung ein Verstoß gegen die Sparsamkeitsregel. Schreiben bleibt trotzdem
+über `If-Match`/`If-None-Match` und 412 bei Versionskonflikt.
+
+Ein Angebot (`src/app/angebotswesen/pages/angebot-detail/`) besteht aus mehreren Schichten
+(je ein Kalendertag mit `von`/`bis`-Zeitspanne; ein Dienst über Mitternacht wird als zwei
+Schichten erfasst) mit je mehreren Positionen. Eine Position speichert eine **eigene,
+editierbare Momentaufnahme** von Bezeichnung und Einzelpreis (`herkunftEintragId` verweist
+nur zur Nachverfolgung auf den Ursprungseintrag) – eine Anpassung bei der Kalkulation wirkt
+nie auf den Preiskatalog zurück, und ein späteres Löschen des Katalogeintrags kann ein
+gespeichertes Angebot nicht beschädigen. Schichten/Positionen liegen als JSON-Array in der
+Spalte `schichten`, analog zu `wartungstermine` im Fahrzeugmodul: ein Angebot wird immer als
+Ganzes geladen und gespeichert. Die eigentliche Kalkulation (Stunden- und
+Pauschalpreisberechnung, Rundung) ist reine Fachlogik ohne Worker-Bezug und lebt in
+`src/app/angebotswesen/services/angebot-kalkulation.ts`; der Worker validiert Eingaben nur
+strukturell (`bis > von`, `stunden` nur bei `art === 'einsatzkraft'` usw.), rechnet aber
+nichts nach. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/`pauschalpreisCent`) ersetzt
+ausschließlich die Gesamtsumme des ganzen Angebots, nie einzelner Schichten; die
+Einzelpositionen bleiben dabei immer berechnet und sichtbar.
+
+Beide Ressourcen sind vorerst ohne eigene Rollenprüfung: jede geprüft angemeldete Identität
+darf lesen und schreiben (dieselbe Übergangslösung „Rechte vorerst alle, Rollen später" wie
+ursprünglich bei Fahrzeugen/Benutzerverwaltung, siehe `docs/konzept-fahrzeuge.md`,
+Abschnitt 8). Eine spätere Admin-Rolle soll dies einschränken.
+
+Für eine erneute Einrichtung an anderer Stelle:
+
+```bash
+npx wrangler d1 create stationwizard-angebotswesen --config worker/wrangler.toml
+npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
+  --file worker/migrations/0008_angebotswesen.sql
+```
+
+Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `ANGEBOTSWESEN_DB` in
+`wrangler.toml` eintragen (dort steht bis dahin ein Platzhalter aus lauter Nullen).
+
 ### HiOrg-Kalenderfeed
 
 `HIORGSERVER_CALENDER_FEED` darf beide Formen haben; `pruefeFeedZugang()` in

@@ -33,6 +33,15 @@ binding = "BENUTZER_DB"
 database_name = "stationwizard-benutzer"
 database_id = "8d57d55d-8bd2-4701-bbbe-f25a4ee34fa9"
 
+# Angebotswesen (AP-A1). Eigene D1-Datenbank, damit die Fachdomäne getrennt
+# bleibt; Schema in worker/migrations/0008_angebotswesen.sql. database_id ist
+# ein Platzhalter, bis `wrangler d1 create stationwizard-angebotswesen`
+# ausgeführt und die echte ID eingetragen wurde (siehe docs/arbeitsstand.md).
+[[d1_databases]]
+binding = "ANGEBOTSWESEN_DB"
+database_name = "stationwizard-angebotswesen"
+database_id = "00000000-0000-0000-0000-000000000000"
+
 # Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
 [observability]
 enabled = true

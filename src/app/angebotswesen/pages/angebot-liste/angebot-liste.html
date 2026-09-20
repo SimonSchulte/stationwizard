@@ -1,0 +1,40 @@
+<mat-toolbar class="liste-kopfleiste">
+  <a mat-icon-button routerLink="/angebotswesen" aria-label="Zurück zum Angebotswesen">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">Angebote</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="neuesAngebot()">
+    <mat-icon>add</mat-icon> Neues Angebot
+  </button>
+</mat-toolbar>
+
+<div class="liste-content">
+  @if (laedt()) {
+    <p role="status">Angebote werden geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (!laedt() && zeilen().length === 0) {
+    <p class="empty-hint">Noch keine Angebote angelegt.</p>
+  } @else {
+    <ul class="angebot-liste">
+      @for (zeile of zeilen(); track zeile.angebot.id) {
+        <li>
+          <a class="angebot-zeile" [routerLink]="['/angebotswesen/angebote', zeile.angebot.id]">
+            <span class="angebot-bezeichnung">{{ zeile.angebot.bezeichnung }}</span>
+            @if (zeile.angebot.auftraggeber) {
+              <span class="angebot-auftraggeber">{{ zeile.angebot.auftraggeber }}</span>
+            }
+            <span class="angebot-summe">{{ formatEuro(zeile.gesamtCent) }}</span>
+            <span class="angebot-geaendert">
+              {{ zeile.angebot.geaendertAm | date: 'dd.MM.yyyy' }}
+            </span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</div>

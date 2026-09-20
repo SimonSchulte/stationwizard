@@ -1,0 +1,96 @@
+:host {
+  display: block;
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+}
+
+.schicht-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.datum-feld {
+  width: 10em;
+}
+
+.zeit-feld {
+  width: 7em;
+}
+
+.stunden-anzeige {
+  align-self: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+
+  &.fehler {
+    color: var(--status-error);
+  }
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.position-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.position-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--surface-secondary);
+  border-radius: var(--space-xs);
+}
+
+.position-bezeichnung {
+  min-width: 180px;
+  flex: 1;
+}
+
+.position-art {
+  width: 11em;
+}
+
+.position-preis,
+.position-anzahl,
+.position-stunden {
+  width: 8em;
+}
+
+.position-pauschal {
+  align-self: center;
+  width: 8em;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.position-hinzufuegen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.katalog-auswahl {
+  min-width: 220px;
+}

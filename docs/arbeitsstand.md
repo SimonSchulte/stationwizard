@@ -1561,3 +1561,95 @@ Gegenprobe wurde gemacht, mit `base-uri 'none'` schlägt der Lauf fehl.
   diesem Paket entstand nur der Bereich „Offene Aufgaben" als Anschlusspunkt. Der
   Mailversand ist produktiv weiterhin nie gelaufen (siehe AP-S1).
 - Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.
+
+## AP-A1 – Angebotswesen: Preiskatalog, Angebote und Kalkulation
+
+Neuer, eigenständiger Bereich `src/app/angebotswesen/` plus `worker/src/angebotswesen.ts`
+und eine eigene D1-Datenbank `ANGEBOTSWESEN_DB` (Schema in
+`worker/migrations/0008_angebotswesen.sql`). Zwei Fachressourcen:
+
+- **Preiskatalog** (`preiskatalog_eintraege`): frei erweiterbare Liste (nicht die feste
+  Systemkonfigurations-Schlüsselliste), vorbelegt mit den sieben in der Anfrage genannten
+  Startwerten (Sanitätshelfer 12 €, RH/RS 25 €, RS/NFS/Einsatzleiter 35 €, Notarzt 50 € je
+  Stunde; KTW/RTW 50 €, MTW 30 €, GW-San 50 € Pauschale je Schicht). Jede Zeile trägt ihre
+  Version direkt als JSON-Feld statt nur im ETag einer Einzelabfrage – bewusste Abweichung
+  vom Fahrzeuge-Muster, um bei vielen kleinen, inline editierbaren Zeilen keinen
+  Ladevorgang je Zeile vor jeder Änderung zu brauchen (Sparsamkeitsregel).
+- **Angebote** (`angebote`): serverseitig gespeicherte Liste (nicht nur ein
+  Rechner ohne Persistenz). Ein Angebot hat mehrere Schichten (je ein Kalendertag mit
+  `von`/`bis`; ein Dienst über Mitternacht wird bewusst als zwei Schichten erfasst, keine
+  Tagesüberlauf-Sonderbehandlung) mit je mehreren Positionen. Jede Position speichert eine
+  eigene editierbare Momentaufnahme von Bezeichnung/Preis statt live an den Katalog
+  zurückzubinden – eine Anpassung bei der Kalkulation wirkt nie auf den Preiskatalog
+  zurück, wie in der Anfrage gefordert.
+
+Getroffene Designentscheidungen, die über die wörtliche Anfrage hinausgehen und hier
+festgehalten werden:
+
+- Geld durchgehend als Integer-Cent (DB, Worker-JSON, Angular-Modelle), nie
+  Fließkomma-Euro, um Rundungsdrift bei vielen Positionen zu vermeiden;
+  `src/app/angebotswesen/services/waehrung.ts` ist der einzige Umrechnungsweg.
+- Bei einer Einsatzkraft-Position wird `stunden` beim Hinzufügen aus der Schichtdauer
+  vorbelegt, bleibt danach aber unabhängig editierbar (z. B. wenn eine Kraft nur einen Teil
+  der Schicht anwesend ist) – keine stille Nachführung bei späterer Änderung der
+  Schichtzeit.
+- `DELETE /api/angebotswesen/angebote/<UUID>` wurde ergänzt, obwohl die Anfrage nur
+  Kalkulation und Kopieren nennt – Grundhygiene für abgebrochene/doppelte Angebote,
+  analog zum übrigen CRUD.
+- Kein neues Rollenmodell: dieselbe Übergangslösung „Rechte vorerst alle, Rollen später"
+  wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
+- Die Kalkulationslogik (`angebot-kalkulation.ts`: Stunden aus Schichtzeit,
+  Positions-/Schicht-/Gesamtsumme, Pauschalpreis-Override) ist reine, DI-freie Fachlogik,
+  von Bildschirmanzeige (`angebot-kalkulationstabelle`) und Word-Export
+  (`angebot-word-export.ts`) gemeinsam genutzt, damit beide nie auseinanderlaufen.
+- Kopieren nach Word (`tabellen-zwischenablage.ts`) ist komplett neuer Code – es gab bisher
+  keine Zwischenablage-Funktion im Projekt. Die HTML-Tabelle wird aus derselben
+  Kalkulationsstruktur wie die Bildschirmanzeige aufgebaut (nicht aus dem gerenderten DOM
+  gelesen), mit Inline-`style` für Hervorhebungen, weil Word beim Einfügen keine extern
+  verlinkten Komponentenstile übernimmt.
+
+### Tatsächlich ausgeführte Prüfungen
+
+```bash
+npx npm@11 ci
+npm run build
+npm test
+npm run format:check
+npm run worker:check
+npm run worker:test
+npm run deploy:dry-run
+npm run test:spa
+```
+
+Alle sieben Kommandos liefen in dieser Runde erfolgreich durch (Angular: 701 Tests, 91
+Dateien; `oeffentlich`-Projekt: 13 Tests; Worker: 551 Tests, 17 Dateien; `deploy:dry-run`
+zeigt `env.ANGEBOTSWESEN_DB` korrekt als gebundene D1-Ressource; `test:spa` lief in dieser
+Umgebung anders als beim letzten Mal erfolgreich durch, siehe unten). Neue Tests decken
+insbesondere die Kalkulationsmathematik gegen die Beispielzeilen aus der Anfrage ab
+(12 € × 2 × 1 h = 24 €, 50 € Pauschale × 1 = 50 €), Bruchstunden-Rundung, gemischte
+Positionsarten je Schicht, Versionskonflikte in beiden Ressourcen sowie die
+Preiskatalog-/Angebots-Validierung im Worker (`worker/tests/angebotswesen.spec.ts`).
+
+### Offene Abnahmegrenzen von AP-A1
+
+- **Keine echte Browserprüfung.** Diese Umgebung hat keinen Browser; die Preiskatalog- und
+  Angebot-Editor-Seiten wurden nicht tatsächlich angeklickt, weder auf Desktop noch auf
+  Mobilgeräten. Das widerspricht der Regel „Ein blockierter Browserlauf ist keine bestandene
+  Sichtprüfung" – vor Abnahme nachholen.
+- **„Als Word-Tabelle kopieren" ist nicht gegen echtes Word geprüft.** Die HTML-Struktur ist
+  durch Unit-Tests abgesichert, aber ob Word (Desktop und/oder Web) daraus tatsächlich eine
+  formatierte Tabelle macht, ist aus dem Code allein nicht sicherzustellen und wurde in
+  dieser Runde nicht getestet.
+- **`ANGEBOTSWESEN_DB` ist noch nicht angelegt.** `wrangler.toml` trägt einen
+  Platzhalter-`database_id` aus lauter Nullen; `wrangler d1 create
+stationwizard-angebotswesen` und das Ausführen der Migration gegen die echte Datenbank
+  (siehe `worker/README.md`, Abschnitt „Angebotswesen (D1)") stehen noch aus. Ohne das
+  bleibt das Modul im produktiven Deployment mit 503 gesperrt.
+- **Keine Rollenprüfung.** Wie bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration
+  ursprünglich auch darf jede geprüfte Identität den Preiskatalog und alle Angebote lesen
+  und schreiben.
+- **Kein PDF-Export der Kalkulationstabelle.** Nur Bildschirmanzeige und
+  Word-Kopieren wurden gebaut; ein Export über `pdfmake` (analog zum Fahrzeug-Druckbogen)
+  ist ein möglicher, aber nicht umgesetzter Folgeschritt.
+- **Keine echte Nextcloud-/HiOrg-/produktive Google-Sitzung.** Wie bei allen vorherigen
+  Paketen gilt: nur tatsächlich ausgeführte Prüfungen oben gelten als geprüft.

@@ -23,6 +23,12 @@ export const routes: Routes = [
     title: 'Fahrzeuge · HiorgWache',
   },
   {
+    path: 'angebotswesen',
+    loadChildren: () =>
+      import('./angebotswesen/angebotswesen.routes').then((m) => m.angebotswesenRoutes),
+    title: 'Angebotswesen · HiorgWache',
+  },
+  {
     path: 'aufgaben',
     loadChildren: () => import('./aufgaben/aufgaben.routes').then((m) => m.aufgabenRouten),
     title: 'Offene Aufgaben · HiorgWache',
