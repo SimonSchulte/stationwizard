@@ -1653,3 +1653,36 @@ stationwizard-angebotswesen` und das Ausführen der Migration gegen die echte Da
   ist ein möglicher, aber nicht umgesetzter Folgeschritt.
 - **Keine echte Nextcloud-/HiOrg-/produktive Google-Sitzung.** Wie bei allen vorherigen
   Paketen gilt: nur tatsächlich ausgeführte Prüfungen oben gelten als geprüft.
+
+### Nachtrag in derselben Runde: echte D1-Datenbank angelegt
+
+Derselbe Ablauf wie bei AP-B1 („Nachtrag in derselben Runde: echte D1-Datenbank angelegt"):
+ein realer Deploy-Versuch scheiterte erwartungsgemäß mit `D1 binding 'ANGEBOTSWESEN_DB'
+references database '00000000-0000-0000-0000-000000000000' which was not found` – die
+Platzhalter-`database_id` existiert naturgemäß nicht, und `deploy:dry-run` prüft das nicht,
+weil er nur lokal gegen die Konfiguration validiert, nicht gegen das tatsächliche
+Cloudflare-Konto.
+
+Anders als bei den vorherigen Datenbanken stand dieser Sitzung dafür kein `wrangler
+login` und kein `CLOUDFLARE_API_TOKEN` zur Verfügung (`wrangler whoami` meldete
+„not authenticated"). Angelegt und migriert wurde stattdessen über die
+Cloudflare-Developer-Platform-MCP-Anbindung dieser Sitzung
+(`mcp__Cloudflare_Developer_Platform__d1_database_create`/`_query`) – ein anderer
+Werkzeugweg zum selben Cloudflare-Konto, keine andere Zugriffsebene. `d1_databases_list`
+bestätigte vorher dasselbe Konto (dieselben `database_id`s wie `FAHRZEUGE_DB`/`BENUTZER_DB`
+in `wrangler.toml`) und dass `stationwizard-angebotswesen` noch nicht existierte.
+
+Die Datenbank wurde angelegt (`stationwizard-angebotswesen`, `database_id`
+`a5fc7cbd-ad5e-4f07-a42d-5a23173a526a`), das Schema aus
+`worker/migrations/0008_angebotswesen.sql` einzeln ausgeführt (`CREATE TABLE
+preiskatalog_eintraege`, die sieben Startwerte, `CREATE TABLE angebote`,
+`CREATE INDEX idx_angebote_bezeichnung`) und per Abfrage bestätigt: `sqlite_master` zeigt
+genau die drei erwarteten Objekte, und alle sieben Preiskatalog-Zeilen stehen mit den
+richtigen Werten in der Tabelle. `worker/wrangler.toml` und `worker/README.md`, Abschnitt
+„Angebotswesen (D1)", wurden mit der echten `database_id` aktualisiert;
+`npm run deploy:dry-run` bestätigt das Binding erneut. Kein Bestand vorher, also keine
+Doubletten- oder Datenübernahmeprobleme.
+
+Nicht erneut ausgeführt in diesem Nachtrag: `npm test`/`build` (unverändert seit der
+vorherigen Prüfung in dieser Runde, da nur `wrangler.toml`- und Dokumentationstext
+geändert wurden) und keine erneute Browserprüfung.

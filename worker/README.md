@@ -319,7 +319,10 @@ darf lesen und schreiben (dieselbe Übergangslösung „Rechte vorerst alle, Rol
 ursprünglich bei Fahrzeugen/Benutzerverwaltung, siehe `docs/konzept-fahrzeuge.md`,
 Abschnitt 8). Eine spätere Admin-Rolle soll dies einschränken.
 
-Für eine erneute Einrichtung an anderer Stelle:
+Angelegt und Migration angewendet (`database_id` `a5fc7cbd-ad5e-4f07-a42d-5a23173a526a` in
+`wrangler.toml`, am 2026-09-20 über die Cloudflare-D1-API angelegt, nicht über die
+`wrangler`-CLI – dieser Sitzung stand kein `wrangler login`/`CLOUDFLARE_API_TOKEN` zur
+Verfügung). Für eine erneute Einrichtung an anderer Stelle:
 
 ```bash
 npx wrangler d1 create stationwizard-angebotswesen --config worker/wrangler.toml
