@@ -22,7 +22,7 @@
   } @else {
     <ul class="angebot-liste">
       @for (zeile of zeilen(); track zeile.angebot.id) {
-        <li>
+        <li class="angebot-eintrag">
           <a class="angebot-zeile" [routerLink]="['/angebotswesen/angebote', zeile.angebot.id]">
             <span class="angebot-bezeichnung">{{ zeile.angebot.bezeichnung }}</span>
             @if (zeile.angebot.auftraggeber) {
@@ -33,6 +33,14 @@
               {{ zeile.angebot.geaendertAm | date: 'dd.MM.yyyy' }}
             </span>
           </a>
+          <button
+            mat-icon-button
+            [disabled]="loeschtId() === zeile.angebot.id"
+            (click)="angebotLoeschen(zeile.angebot)"
+            aria-label="Angebot löschen"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
         </li>
       }
     </ul>

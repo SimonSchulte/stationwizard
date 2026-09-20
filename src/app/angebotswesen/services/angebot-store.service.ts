@@ -54,6 +54,9 @@ export class AngebotStoreService {
   readonly speicherFehler = signal('');
   readonly speicherKonflikt = signal(false);
 
+  /** Id des Angebots, das gerade gelöscht wird, oder `null`. Für das Sperren der Zeile in der Liste. */
+  readonly loeschtId = signal<string | null>(null);
+
   readonly hatUngesicherteAenderungen = computed(() => {
     const entwurf = this.entwurf();
     if (!entwurf) return false;
@@ -152,6 +155,22 @@ export class AngebotStoreService {
   /** Verwirft lokale Änderungen und lädt den aktuellen gespeicherten Stand neu (nach einem Konflikt). */
   async neuLadenNachKonflikt(id: string): Promise<void> {
     await this.angebotLaden(id);
+  }
+
+  /** `true` bei Erfolg. Entfernt das Angebot bei Erfolg auch aus der bereits geladenen Liste. */
+  async angebotLoeschen(id: string): Promise<boolean> {
+    this.loeschtId.set(id);
+    this.listeFehler.set('');
+    try {
+      await this.storage.loescheAngebot(id);
+      this.angebote.update((liste) => liste.filter((angebot) => angebot.id !== id));
+      return true;
+    } catch (fehler) {
+      this.listeFehler.set(fehlermeldung(fehler));
+      return false;
+    } finally {
+      this.loeschtId.set(null);
+    }
   }
 
   private uebernehmeStand(stand: AngebotMitVersion): void {

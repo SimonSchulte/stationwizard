@@ -1740,7 +1740,7 @@ fachlich relevant ist.
 
 Der Vollständigkeits-Build deckte dabei einen Fehler auf, statt ihn zu verschweigen:
 `mat-timepicker`/`mat-datepicker` binden `value` intern als Modellsignal und melden auch
-die *erste* Zuweisung beim Rendern über `valueChange` zurück – unabhängig davon, ob sich
+die _erste_ Zuweisung beim Rendern über `valueChange` zurück – unabhängig davon, ob sich
 der Wert tatsächlich geändert hat. Ein reiner `equal`-Vergleich im `computed()` (stabile
 `Date`-Referenz bei unverändertem Wert) löst nur das Problem neu erzeugter Objekte bei
 jedem Re-Render, nicht den Phantom-Aufruf beim allerersten Rendern. Die eigentliche
@@ -1759,3 +1759,39 @@ Dateien; 13 `oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle 
 durch, anders als beim früher dokumentierten Abbruch mit „network approval was
 cancelled"). Keine erneute Browserprüfung des Timepickers selbst durch diese Sitzung –
 nur die automatisierte Testsuite.
+
+### Nachtrag – Angebot löschen (UI) und Prüfung der gemeldeten 428-Fehlermeldung
+
+Auf Zuruf gemeldet: ein 428/`ANGEBOTSWESEN_VORBEDINGUNG_FEHLT` beim Speichern
+(„Zum Speichern zuerst laden und die aktuelle Version mitsenden.") sowie die fehlende
+Möglichkeit, ein Angebot wieder zu löschen.
+
+Zum Löschen: `DELETE /api/angebotswesen/angebote/<UUID>` existierte im Worker bereits
+seit AP-A1, war aber nirgends aus der Oberfläche erreichbar – `AngebotStoreService` hatte
+keine Löschmethode, `AngebotListe` keinen Löschknopf. Ergänzt: `angebotLoeschen(id)` in
+`AngebotStoreService` (mirrors `PreiskatalogStoreService.eintragLoeschen()`, eigenes
+`loeschtId`-Signal zum Sperren der betroffenen Zeile) sowie ein Löschknopf je Zeile in
+`angebot-liste.html`, mit derselben Bestätigung über `DialogDienst.bestaetigen()` wie
+beim bestehenden Preiskatalog-Löschen.
+
+Zum gemeldeten 428: Worker (`aktualisiereAngebot`/`aktualisierePreiskatalogEintrag` in
+`worker/src/angebotswesen.ts`), beide Storage-Adapter
+(`api-angebot-storage.ts`/`api-preiskatalog-storage.ts`, `If-Match` korrekt aus der
+zuletzt geladenen Version gebildet) und beide Store-Services wurden Zeile für Zeile
+gegen den ETag-/`If-Match`-Vertrag geprüft – kein Codepfad im aktuellen Stand dieses
+Branches (Commit `546c244` und neuer) liefert ein fehlendes oder leeres `If-Match` beim
+Aktualisieren eines bereits geladenen Angebots oder Preiskatalogeintrags; die
+bestehenden Tests (`angebot-store.service.spec.ts`, `api-angebot-storage.spec.ts`,
+`preiskatalog.spec.ts`, `angebotswesen.spec.ts`) decken den Rundlauf ab und laufen grün.
+Da `main` das Angebotswesen noch gar nicht enthält (Merge steht aus), lief die getestete
+Live-Instanz vermutlich auf einem älteren Stand dieses Branches – möglich, aber aus dem
+Code allein nicht bestätigt. **Nicht als behoben gemeldet, sondern als nicht
+reproduzierbar dokumentiert:** Sollte der Fehler nach einem erneuten Deployment des
+aktuellen Branch-Stands weiterhin auftreten, sind konkrete Reproduktionsschritte nötig
+(neues oder bestehendes Angebot, welches Feld, Preiskatalog oder Angebot betroffen).
+
+Geprüft: `npm run build` (inkl. `worker:check`), `npm test` (729 Angular-Tests, 91
+Dateien; 13 `oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle grün;
+`npm run format:check`, `npm run worker:check`, `npm run worker:test`. Keine
+Browserprüfung des neuen Löschknopfs durch diese Sitzung – nur die automatisierte
+Testsuite.

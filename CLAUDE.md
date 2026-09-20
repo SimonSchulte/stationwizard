@@ -265,6 +265,10 @@ melden auch die erste Zuweisung beim Rendern über ihr `valueChange` zurück, un
 einer tatsächlichen Änderung; `SchichtEditor.datumAktualisieren()`/`vonAktualisieren()`/
 `bisAktualisieren()` vergleichen deshalb den umgerechneten Wert gegen den aktuellen
 Schicht-Wert und verwerfen ihn bei Gleichheit, statt bei jedem Rendern ungewollt zu emittieren.
+Ein Angebot lässt sich aus der Liste heraus löschen (`AngebotStoreService.angebotLoeschen()`,
+Löschknopf je Zeile in `angebot-liste.html` mit `DialogDienst.bestaetigen()`, mirrors das
+Preiskatalog-Löschen) – der Worker-Endpunkt dafür bestand bereits, war aber zunächst nicht aus
+der Oberfläche erreichbar.
 Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
 Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
 

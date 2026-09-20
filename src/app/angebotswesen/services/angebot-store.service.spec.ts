@@ -88,6 +88,28 @@ describe('AngebotStoreService', () => {
     expect(service.entwurf()?.bemerkung).toBe('lokal geändert');
   });
 
+  it('löscht ein Angebot und entfernt es aus der geladenen Liste', async () => {
+    const angebot = erzeugeTestAngebot();
+    storage.ladeAngebote.mockResolvedValue([angebot]);
+    storage.loescheAngebot.mockResolvedValue(undefined);
+    await service.listeLaden();
+    const erfolg = await service.angebotLoeschen(angebot.id);
+    expect(erfolg).toBe(true);
+    expect(storage.loescheAngebot).toHaveBeenCalledWith(angebot.id);
+    expect(service.angebote()).toHaveLength(0);
+  });
+
+  it('meldet einen Löschfehler, ohne die Liste zu verändern', async () => {
+    const angebot = erzeugeTestAngebot();
+    storage.ladeAngebote.mockResolvedValue([angebot]);
+    storage.loescheAngebot.mockRejectedValue(new Error('kaputt'));
+    await service.listeLaden();
+    const erfolg = await service.angebotLoeschen(angebot.id);
+    expect(erfolg).toBe(false);
+    expect(service.listeFehler()).toBe('kaputt');
+    expect(service.angebote()).toHaveLength(1);
+  });
+
   it('meldet ungesicherte Änderungen an VerlassenSchutz', async () => {
     service.neuesAngebotBeginnen();
     const { VerlassenSchutz } = await import('../../kern/verlassen-schutz');
