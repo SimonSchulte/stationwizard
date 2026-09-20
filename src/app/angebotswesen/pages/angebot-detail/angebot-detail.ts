@@ -69,7 +69,12 @@ export class AngebotDetail {
       const id = this.routenId();
       if (id === 'neu' || id === null) {
         this.store.neuesAngebotBeginnen();
-      } else {
+        // Nach dem Anlegen navigiert `speichern()` mit `replaceUrl: true` von
+        // 'neu' zur echten Id, ohne die Komponente neu zu erzeugen – dieser
+        // Effekt liefe sonst ein zweites Mal und würde das gerade frisch
+        // gespeicherte Angebot per unbeobachtetem `angebotLaden()` erneut
+        // nachladen, während der Entwurf bereits weiterbearbeitet werden kann.
+      } else if (this.store.geladen()?.daten.id !== id) {
         void this.store.angebotLaden(id);
       }
     });

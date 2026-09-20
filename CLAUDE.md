@@ -268,7 +268,12 @@ Schicht-Wert und verwerfen ihn bei Gleichheit, statt bei jedem Rendern ungewollt
 Ein Angebot lässt sich aus der Liste heraus löschen (`AngebotStoreService.angebotLoeschen()`,
 Löschknopf je Zeile in `angebot-liste.html` mit `DialogDienst.bestaetigen()`, mirrors das
 Preiskatalog-Löschen) – der Worker-Endpunkt dafür bestand bereits, war aber zunächst nicht aus
-der Oberfläche erreichbar.
+der Oberfläche erreichbar. `AngebotDetail`s Routen-Effekt lädt ein Angebot nur nach, wenn es
+noch nicht mit derselben Id geladen ist (`this.store.geladen()?.daten.id !== id`) – nach dem
+Anlegen navigiert `speichern()` mit `replaceUrl: true` von `'neu'` zur echten Id, ohne die
+Komponente neu zu erzeugen, und der Effekt lief dadurch ein zweites Mal; ein per `void`
+unbeobachteter, zeitlich unabhängiger Zweit-Request konnte dabei kurz nach der Neuanlage
+`geladen`/`entwurf` mit einem zwischenzeitlich veralteten Stand überschreiben.
 Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
 Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
 

@@ -1795,3 +1795,50 @@ Dateien; 13 `oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle 
 `npm run format:check`, `npm run worker:check`, `npm run worker:test`. Keine
 Browserprüfung des neuen Löschknopfs durch diese Sitzung – nur die automatisierte
 Testsuite.
+
+### Nachtrag – 428 empirisch geprüft und eine reale Race-Bedingung behoben
+
+Konkretere Rückmeldung: „Ein grade angelegtes Angebot führt beim erneuten laden und
+speichern zu [428]." Die reine Code-Durchsicht aus dem vorigen Nachtrag reichte nicht
+aus, um das auszuschließen – deshalb diesmal ein empirischer Nachweis statt einer
+weiteren Lektüre.
+
+Mit demselben Werkzeug wie `test:spa` (workerd über Miniflare, der echte gebündelte
+Worker aus `wrangler deploy --dry-run`) wurde diesmal zusätzlich eine **echte
+D1-Datenbank** gebunden, die Migrationen `0008`/`0009` angewendet und der komplette
+Rundlauf über HTTP nachgestellt: `POST` anlegen → `GET` neu laden → `PUT` mit dem
+gelesenen `ETag` → nochmal `GET`/`PUT` → zwei parallele `GET`s auf dasselbe Angebot.
+Alle Schritte liefen sauber durch, korrekt hochzählende `ETag`s, kein einziges 428 –
+das schließt einen Fehler im Worker oder im D1-Zusammenspiel (z. B. eine verzögerte
+Sichtbarkeit gerade geschriebener Zeilen) aus. Das Diagnoseskript war ein
+Wegwerfskript außerhalb der Testsuite und wurde nach der Untersuchung wieder gelöscht.
+
+Damit verlagerte sich der Verdacht endgültig auf die Client-Seite, und dort fand sich
+eine echte, bisher übersehene Race-Bedingung: `AngebotDetail`s Konstruktor-`effect()`
+reagiert auf `routenId()` (Routen-Parameter `:id`). Nach dem Anlegen navigiert
+`speichern()` per `router.navigate(..., { replaceUrl: true })` von `'neu'` zur echten
+Id, **ohne dass die Komponente neu erzeugt wird** (Angular behält sie bei einer
+Parameteränderung derselben Route bei) – der `effect()` läuft dadurch ein zweites Mal
+und löste bisher einen **zusätzlichen, unbeobachteten** `store.angebotLaden(id)`-Aufruf
+aus, obwohl `store.speichern()` den frischen Stand (inklusive `ETag`) bereits selbst
+nachgeladen und in `geladen`/`entwurf` übernommen hatte. Dieser zweite, überflüssige
+GET-Aufruf lief nebenläufig zu allem, was der Nutzer direkt danach tat: löste er
+verzögert aus (Netzwerk-Jitter, oder weil der Nutzer zwischenzeitlich bereits erneut
+gespeichert hatte), überschrieb sein `uebernehmeStand()`-Callback `geladen`/`entwurf`
+mit einem inzwischen veralteten Stand – genau im Zeitfenster kurz nach dem Anlegen, das
+der Nutzer beschrieben hat. Das allein erklärt zwingend nur einen 412
+(Versionskonflikt), nicht beweisbar den gemeldeten 428, aber es ist die einzige
+tatsächlich nichtdeterministische Stelle in diesem Ablauf und verstößt außerdem gegen
+das Sparsamkeitsgebot (ein überflüssiger Request pro Neuanlage).
+
+Behoben: der `effect()` prüft jetzt zusätzlich, ob das angeforderte Angebot anhand
+seiner Id bereits geladen ist (`this.store.geladen()?.daten.id !== id`), bevor er
+`angebotLaden()` aufruft – der zweite, überflüssige Request entfällt vollständig, ohne
+den normalen Ladepfad beim Aufruf einer noch unbekannten Id zu berühren.
+
+Geprüft: dasselbe Miniflare+D1-Diagnoseskript (Wegwerfskript, gelöscht), `npm run build`
+(inkl. `worker:check`), `npm test` (730 Angular-Tests, 91 Dateien; 13
+`oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle grün;
+`npm run format:check`, `npm run worker:check`, `npm run worker:test`. **Weiterhin nicht
+bestätigt:** ob dies tatsächlich der Mechanismus hinter dem gemeldeten 428 war – dafür
+fehlt der Beweis, nur die begründete Vermutung. Keine Browserprüfung dieser Sitzung.

@@ -63,6 +63,7 @@ describe('AngebotDetail', () => {
       neuesAngebotBeginnen: vi.fn(),
       angebotLaden: vi.fn(),
       entwurf: () => null,
+      geladen: () => null,
       speichertGerade: () => false,
       istNeu: () => true,
     };
@@ -71,6 +72,23 @@ describe('AngebotDetail', () => {
       { provide: ActivatedRoute, useValue: route('abc-123') },
     ]);
     expect(store.angebotLaden).toHaveBeenCalledWith('abc-123');
+  });
+
+  it('lädt nicht erneut, wenn das angeforderte Angebot bereits geladen ist', () => {
+    const angebot = erzeugeTestAngebot({ id: 'abc-123' });
+    const store = {
+      neuesAngebotBeginnen: vi.fn(),
+      angebotLaden: vi.fn(),
+      entwurf: () => angebot,
+      geladen: () => ({ daten: angebot, version: '"1"' }),
+      speichertGerade: () => false,
+      istNeu: () => false,
+    };
+    erzeugeDetail([
+      { provide: AngebotStoreService, useValue: store },
+      { provide: ActivatedRoute, useValue: route('abc-123') },
+    ]);
+    expect(store.angebotLaden).not.toHaveBeenCalled();
   });
 
   it('fügt eine neue Schicht mit heutigem Datum hinzu', () => {
