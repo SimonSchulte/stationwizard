@@ -22,6 +22,8 @@ interface AngebotZeile {
   auftraggeber: string;
   bemerkung: string;
   schichten: string;
+  materialpauschale_aktiv: number;
+  materialpauschale_cent: number | null;
   pauschalpreis_aktiv: number;
   pauschalpreis_cent: number | null;
   geaendert_am: string;
@@ -119,6 +121,8 @@ class FakeStatement {
         auftraggeber,
         bemerkung,
         schichten,
+        materialpauschale_aktiv,
+        materialpauschale_cent,
         pauschalpreis_aktiv,
         pauschalpreis_cent,
         geaendert_am,
@@ -129,6 +133,8 @@ class FakeStatement {
         string,
         string,
         string,
+        number,
+        number | null,
         number,
         number | null,
         string,
@@ -143,6 +149,8 @@ class FakeStatement {
         auftraggeber,
         bemerkung,
         schichten,
+        materialpauschale_aktiv,
+        materialpauschale_cent,
         pauschalpreis_aktiv,
         pauschalpreis_cent,
         geaendert_am,
@@ -158,6 +166,8 @@ class FakeStatement {
         auftraggeber,
         bemerkung,
         schichten,
+        materialpauschale_aktiv,
+        materialpauschale_cent,
         pauschalpreis_aktiv,
         pauschalpreis_cent,
         geaendert_am,
@@ -169,6 +179,8 @@ class FakeStatement {
         string,
         string,
         string,
+        number,
+        number | null,
         number,
         number | null,
         string,
@@ -186,6 +198,8 @@ class FakeStatement {
         auftraggeber,
         bemerkung,
         schichten,
+        materialpauschale_aktiv,
+        materialpauschale_cent,
         pauschalpreis_aktiv,
         pauschalpreis_cent,
         geaendert_am,

@@ -35,6 +35,14 @@ export interface Angebot {
   auftraggeber: string;
   bemerkung: string;
   schichten: Schicht[];
+  /**
+   * Einmalige Materialpauschale für den ganzen Dienst (nicht je Schicht) –
+   * anders als der Pauschalpreis eine zusätzliche Position, die immer in die
+   * rechnerische Summe einfließt, auch wenn `pauschalpreisAktiv` sie am Ende ersetzt.
+   */
+  materialpauschaleAktiv: boolean;
+  /** Nur gültig/relevant, wenn `materialpauschaleAktiv === true`. */
+  materialpauschaleCent: number | null;
   pauschalpreisAktiv: boolean;
   /** Nur gültig/relevant, wenn `pauschalpreisAktiv === true`. */
   pauschalpreisCent: number | null;

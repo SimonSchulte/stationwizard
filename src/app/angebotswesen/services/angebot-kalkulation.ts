@@ -42,17 +42,46 @@ export function schichtGesamtCent(schicht: Schicht): number {
   );
 }
 
-export function angebotRechnerischGesamtCent(angebot: Pick<Angebot, 'schichten'>): number {
-  return angebot.schichten.reduce((summe, schicht) => summe + schichtGesamtCent(schicht), 0);
+/** Die einmalige Materialpauschale, 0 wenn nicht aktiv – nie `null` in einer Summe. */
+export function materialpauschaleGesamtCent(
+  angebot: Pick<Angebot, 'materialpauschaleAktiv' | 'materialpauschaleCent'>,
+): number {
+  return angebot.materialpauschaleAktiv && angebot.materialpauschaleCent !== null
+    ? angebot.materialpauschaleCent
+    : 0;
+}
+
+/**
+ * Summe aller Schichten plus einer einmaligen Materialpauschale pro Dienst
+ * (nicht je Schicht) – anders als der Pauschalpreis eine zusätzliche
+ * Position, die immer in diese Summe einfließt, auch wenn `pauschalpreisAktiv`
+ * sie am Ende ersetzt.
+ */
+export function angebotRechnerischGesamtCent(
+  angebot: Pick<Angebot, 'schichten' | 'materialpauschaleAktiv' | 'materialpauschaleCent'>,
+): number {
+  const schichtenSumme = angebot.schichten.reduce(
+    (summe, schicht) => summe + schichtGesamtCent(schicht),
+    0,
+  );
+  return schichtenSumme + materialpauschaleGesamtCent(angebot);
 }
 
 /**
  * Gesamtsumme des Angebots. Ein aktiver Pauschalpreis ersetzt ausschließlich
- * diesen Endwert – Einzelpositionen und Schicht-Zwischensummen bleiben davon
- * unberührt und immer sichtbar/berechnet (siehe CLAUDE.md-Absatz zum Modul).
+ * diesen Endwert – Einzelpositionen, Schicht-Zwischensummen und die
+ * Materialpauschale bleiben davon unberührt und immer sichtbar/berechnet
+ * (siehe CLAUDE.md-Absatz zum Modul).
  */
 export function angebotGesamtCent(
-  angebot: Pick<Angebot, 'schichten' | 'pauschalpreisAktiv' | 'pauschalpreisCent'>,
+  angebot: Pick<
+    Angebot,
+    | 'schichten'
+    | 'materialpauschaleAktiv'
+    | 'materialpauschaleCent'
+    | 'pauschalpreisAktiv'
+    | 'pauschalpreisCent'
+  >,
 ): number {
   if (angebot.pauschalpreisAktiv && angebot.pauschalpreisCent !== null) {
     return angebot.pauschalpreisCent;
@@ -81,6 +110,8 @@ export interface KalkulationSchichtGruppe {
 
 export interface AngebotKalkulation {
   gruppen: KalkulationSchichtGruppe[];
+  /** `null`, wenn keine Materialpauschale aktiv ist – dann keine eigene Zeile in der Tabelle. */
+  materialpauschaleCent: number | null;
   rechnerischGesamtCent: number;
   gesamtCent: number;
 }
@@ -110,6 +141,9 @@ export function berechneAngebot(angebot: Angebot): AngebotKalkulation {
   });
   return {
     gruppen,
+    materialpauschaleCent: angebot.materialpauschaleAktiv
+      ? materialpauschaleGesamtCent(angebot)
+      : null,
     rechnerischGesamtCent: angebotRechnerischGesamtCent(angebot),
     gesamtCent: angebotGesamtCent(angebot),
   };

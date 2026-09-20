@@ -1686,3 +1686,44 @@ Doubletten- oder Datenübernahmeprobleme.
 Nicht erneut ausgeführt in diesem Nachtrag: `npm test`/`build` (unverändert seit der
 vorherigen Prüfung in dieser Runde, da nur `wrangler.toml`- und Dokumentationstext
 geändert wurden) und keine erneute Browserprüfung.
+
+### Nachtrag – Schicht duplizieren, Datepicker, Materialpauschale, klebende Kopfleiste
+
+Vier kleine Ergänzungen aus derselben Runde, auf Zuruf während der laufenden Prüfung im
+Browser (echte Access-Sitzung, siehe Screenshot mit „Deutsche Meisterschaften im
+Trampolinturnen"):
+
+- **Schicht duplizieren.** `SchichtEditor` emittiert ein neues `schichtDupliziert`-Ereignis
+  (Button neben „Schicht entfernen"); `AngebotDetail.schichtDuplizieren()` fügt die Kopie
+  direkt hinter dem Original ein, mit neuen Ids für die Schicht selbst und jede ihrer
+  Positionen.
+- **Datepicker statt nativem `type="date"`.** `SchichtEditor` verwendet jetzt
+  `mat-datepicker`, wie der Rest der App (siehe Fahrzeugdetailseite). Die
+  ISO-↔-`Date`-Umrechnung (`isoZuDatum`/`datumZuIso`) war bisher privat in
+  `fahrzeug-detail.ts` dupliziert und wurde nach `kern/kalender/datum.ts` gezogen
+  (`isoZuLokalesDatum`/`lokalesDatumZuIso`), damit beide Stellen dieselbe Funktion nutzen –
+  `fahrzeug-detail.ts` entsprechend umgestellt, keine Verhaltensänderung dort.
+- **Materialpauschale pro Dienst.** Neue Spalten `materialpauschale_aktiv`/
+  `materialpauschale_cent` auf `angebote`, per `ALTER TABLE` ergänzt
+  (`worker/migrations/0009_angebot_materialpauschale.sql`) und **auf der bereits am selben
+  Tag angelegten Produktivdatenbank angewendet** (siehe Nachtrag oben, `database_id`
+  `a5fc7cbd-ad5e-4f07-a42d-5a23173a526a` – über dieselbe Cloudflare-D1-API-Anbindung, aus
+  demselben Grund kein `wrangler`-Login verfügbar). Anders als der bestehende Pauschalpreis
+  ersetzt die Materialpauschale nichts, sondern ist eine zusätzliche, einmalige Position pro
+  Angebot (nicht je Schicht), die immer in `angebotRechnerischGesamtCent()` einfließt – auch
+  wenn ein aktiver Pauschalpreis danach die Gesamtsumme ersetzt. In der Kalkulationstabelle
+  und im Word-Export erscheint dafür bei aktiver Pauschale eine eigene Zeile.
+- **Klebende Kopfleiste.** `.kopfleiste-basis()` in `kern/kopfleiste.less` (gemeinsame
+  Mixin aller Seiten-Werkzeugleisten) bekam `position: sticky; top: 0`, ausgelöst durch den
+  Wunsch, Titel und Speichern-Button der Angebotsdetailseite beim Scrollen durch viele
+  Schichten sichtbar zu halten. Wirkt sich auf alle Seiten aus, die die Mixin verwenden
+  (Fahrzeuge, Angebotswesen, Verwaltung usw.), nicht nur auf diese eine Seite.
+
+Geprüft: `npm run build` (inkl. `worker:check`), `npm test` (720 Angular-Tests, 91 Dateien;
+13 `oeffentlich`-Tests; 553 Worker-Tests, 17 Dateien), `npm run format:check`,
+`npm run worker:test`, `npm run deploy:dry-run` (bestätigt weiterhin `env.ANGEBOTSWESEN_DB`)
+— alle grün. Die beiden `ALTER TABLE`-Anweisungen wurden gegen die echte Produktivdatenbank
+ausgeführt und per `PRAGMA table_info(angebote)` bestätigt (zwölf Spalten inklusive der
+beiden neuen). Keine erneute vollständige Browserprüfung dieser vier Änderungen durch diese
+Sitzung selbst – der Anstoß kam aus einem Screenshot der produktiv laufenden Anwendung, was
+nahelegt, dass der Nutzer selbst dort weiterprüft.

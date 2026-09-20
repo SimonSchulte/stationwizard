@@ -7,11 +7,17 @@ import {
   erzeugeTestSchicht,
 } from '../../testing/angebot-testdaten';
 
-function erzeuge(angebot = erzeugeTestAngebot()): AngebotKalkulationstabelle {
+function erzeuge(angebot = erzeugeTestAngebot()): {
+  komponente: AngebotKalkulationstabelle;
+  text: () => string;
+} {
   const fixture = TestBed.createComponent(AngebotKalkulationstabelle);
   fixture.componentRef.setInput('angebot', angebot);
   fixture.detectChanges();
-  return fixture.componentInstance;
+  return {
+    komponente: fixture.componentInstance,
+    text: () => (fixture.nativeElement as HTMLElement).textContent ?? '',
+  };
 }
 
 describe('AngebotKalkulationstabelle', () => {
@@ -40,7 +46,7 @@ describe('AngebotKalkulationstabelle', () => {
         }),
       ],
     });
-    const komponente = erzeuge(angebot);
+    const { komponente } = erzeuge(angebot);
     const positionen = komponente.kalkulation().gruppen[0].positionen;
     expect(positionen[0]).toMatchObject({ pos: 1, gesamtCent: 2400 });
     expect(positionen[1]).toMatchObject({ pos: 2, gesamtCent: 5000 });
@@ -48,7 +54,27 @@ describe('AngebotKalkulationstabelle', () => {
   });
 
   it('meldet keine Gruppen für ein Angebot ohne Schichten', () => {
-    const komponente = erzeuge(erzeugeTestAngebot({ schichten: [] }));
+    const { komponente } = erzeuge(erzeugeTestAngebot({ schichten: [] }));
     expect(komponente.kalkulation().gruppen).toHaveLength(0);
+  });
+
+  it('zeigt eine Materialpauschale-Zeile, wenn aktiv', () => {
+    const { text } = erzeuge(
+      erzeugeTestAngebot({ materialpauschaleAktiv: true, materialpauschaleCent: 2500 }),
+    );
+    expect(text()).toContain('Materialpauschale');
+    expect(text()).toContain('25,00');
+  });
+
+  it('zeigt die Tabelle mit Materialpauschale auch ohne Schichten, statt des Leerhinweises', () => {
+    const { text } = erzeuge(
+      erzeugeTestAngebot({
+        schichten: [],
+        materialpauschaleAktiv: true,
+        materialpauschaleCent: 1000,
+      }),
+    );
+    expect(text()).not.toContain('Noch keine Schichten');
+    expect(text()).toContain('Materialpauschale');
   });
 });

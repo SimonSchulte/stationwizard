@@ -8,6 +8,7 @@ import {
   angebotGesamtCent,
   angebotRechnerischGesamtCent,
   berechneAngebot,
+  materialpauschaleGesamtCent,
   positionGesamtCent,
   schichtGesamtCent,
   schichtStundenGenau,
@@ -96,6 +97,26 @@ describe('schichtGesamtCent', () => {
   });
 });
 
+describe('materialpauschaleGesamtCent', () => {
+  it('liefert 0, wenn nicht aktiv', () => {
+    expect(
+      materialpauschaleGesamtCent({ materialpauschaleAktiv: false, materialpauschaleCent: 5000 }),
+    ).toBe(0);
+  });
+
+  it('liefert den Cent-Wert, wenn aktiv', () => {
+    expect(
+      materialpauschaleGesamtCent({ materialpauschaleAktiv: true, materialpauschaleCent: 5000 }),
+    ).toBe(5000);
+  });
+
+  it('respektiert materialpauschaleCent = 0 als gültigen, von 0 unterscheidbaren Wert', () => {
+    expect(
+      materialpauschaleGesamtCent({ materialpauschaleAktiv: true, materialpauschaleCent: 0 }),
+    ).toBe(0);
+  });
+});
+
 describe('angebotRechnerischGesamtCent', () => {
   it('summiert mehrere Schichten an unterschiedlichen Tagen', () => {
     const angebot = erzeugeTestAngebot({
@@ -115,6 +136,22 @@ describe('angebotRechnerischGesamtCent', () => {
       ],
     });
     expect(angebotRechnerischGesamtCent(angebot)).toBe(1200 + 1200);
+  });
+
+  it('addiert die Materialpauschale einmal pro Dienst, nicht je Schicht', () => {
+    const angebot = erzeugeTestAngebot({
+      schichten: [
+        erzeugeTestSchicht({
+          positionen: [erzeugeTestPosition({ einzelpreisCent: 1200, anzahl: 1, stunden: 1 })],
+        }),
+        erzeugeTestSchicht({
+          positionen: [erzeugeTestPosition({ einzelpreisCent: 1200, anzahl: 1, stunden: 1 })],
+        }),
+      ],
+      materialpauschaleAktiv: true,
+      materialpauschaleCent: 5000,
+    });
+    expect(angebotRechnerischGesamtCent(angebot)).toBe(1200 + 1200 + 5000);
   });
 });
 
@@ -146,6 +183,18 @@ describe('angebotGesamtCent', () => {
       0,
     );
   });
+
+  it('ersetzt auch die Materialpauschale, sobald der Pauschalpreis aktiv ist', () => {
+    expect(
+      angebotGesamtCent({
+        ...angebot,
+        materialpauschaleAktiv: true,
+        materialpauschaleCent: 5000,
+        pauschalpreisAktiv: true,
+        pauschalpreisCent: 99_900,
+      }),
+    ).toBe(99_900);
+  });
 });
 
 describe('berechneAngebot', () => {
@@ -168,5 +217,15 @@ describe('berechneAngebot', () => {
     const kalkulation = berechneAngebot(angebot);
     expect(kalkulation.gesamtCent).toBe(12_300);
     expect(kalkulation.rechnerischGesamtCent).toBe(angebotRechnerischGesamtCent(angebot));
+  });
+
+  it('setzt materialpauschaleCent nur, wenn die Pauschale aktiv ist', () => {
+    const ohne = berechneAngebot(erzeugeTestAngebot({ materialpauschaleAktiv: false }));
+    expect(ohne.materialpauschaleCent).toBeNull();
+
+    const mit = berechneAngebot(
+      erzeugeTestAngebot({ materialpauschaleAktiv: true, materialpauschaleCent: 5000 }),
+    );
+    expect(mit.materialpauschaleCent).toBe(5000);
   });
 });

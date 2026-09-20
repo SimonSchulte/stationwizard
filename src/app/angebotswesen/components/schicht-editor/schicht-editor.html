@@ -3,10 +3,13 @@
     <mat-label>Datum</mat-label>
     <input
       matInput
-      type="date"
-      [value]="schicht().datum"
-      (change)="datumAktualisieren($any($event.target).value)"
+      [matDatepicker]="schichtDatumPicker"
+      [value]="isoZuLokalesDatum(schicht().datum)"
+      (dateChange)="datumAktualisieren($event)"
+      placeholder="TT.MM.JJJJ"
     />
+    <mat-datepicker-toggle matSuffix [for]="schichtDatumPicker"></mat-datepicker-toggle>
+    <mat-datepicker #schichtDatumPicker></mat-datepicker>
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zeit-feld">
     <mat-label>Von</mat-label>
@@ -32,6 +35,9 @@
     <span class="stunden-anzeige fehler">Ungültige Zeitspanne</span>
   }
   <span class="spacer"></span>
+  <button mat-icon-button (click)="schichtDupliziert.emit()" aria-label="Schicht duplizieren">
+    <mat-icon>content_copy</mat-icon>
+  </button>
   <button mat-icon-button (click)="schichtEntfernt.emit()" aria-label="Schicht entfernen">
     <mat-icon>delete</mat-icon>
   </button>

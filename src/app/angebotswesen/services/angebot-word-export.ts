@@ -59,6 +59,18 @@ export function angebotAlsKlartextTabelle(angebot: Angebot): string {
     }
     zeilen.push(['', 'Zwischensumme', '', '', '', formatEuro(gruppe.gesamtCent)].join('\t'));
   }
+  if (angebot.materialpauschaleAktiv) {
+    zeilen.push(
+      [
+        '',
+        'Materialpauschale',
+        '',
+        '',
+        '',
+        formatEuro(kalkulation.materialpauschaleCent ?? 0),
+      ].join('\t'),
+    );
+  }
   zeilen.push(
     ['', gesamtLabel(angebot), '', '', '', formatEuro(kalkulation.gesamtCent)].join('\t'),
   );
@@ -108,6 +120,16 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
         '<td style="font-weight:600">Zwischensumme</td>' +
         '<td></td><td></td><td></td>' +
         `<td style="font-weight:600">${formatEuro(gruppe.gesamtCent)}</td>` +
+        '</tr>',
+    );
+  }
+  if (angebot.materialpauschaleAktiv) {
+    zeilen.push(
+      '<tr>' +
+        '<td></td>' +
+        '<td style="font-weight:600">Materialpauschale</td>' +
+        '<td></td><td></td><td></td>' +
+        `<td style="font-weight:600">${formatEuro(kalkulation.materialpauschaleCent ?? 0)}</td>` +
         '</tr>',
     );
   }

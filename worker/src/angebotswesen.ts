@@ -328,8 +328,30 @@ interface AngebotEingabe {
   auftraggeber: string;
   bemerkung: string;
   schichten: SchichtEingabe[];
+  materialpauschaleAktiv: boolean;
+  materialpauschaleCent: number | null;
   pauschalpreisAktiv: boolean;
   pauschalpreisCent: number | null;
+}
+
+/**
+ * Prüft ein `<x>Aktiv`/`<x>Cent`-Wertepaar: bei aktivem Flag ist der Cent-Wert
+ * Pflicht (Ganzzahl >= 0), sonst optional (fehlend/`null` oder Ganzzahl >= 0).
+ * Gemeinsam für Materialpauschale und Pauschalpreis, die derselben Regel folgen.
+ */
+function pruefePauschale(aktiv: unknown, centRoh: unknown): { cent: number | null } | null {
+  if (typeof aktiv !== 'boolean') return null;
+  if (aktiv) {
+    if (typeof centRoh !== 'number' || !Number.isInteger(centRoh) || centRoh < 0) return null;
+    return { cent: centRoh };
+  }
+  if (
+    centRoh !== null &&
+    !(typeof centRoh === 'number' && Number.isInteger(centRoh) && centRoh >= 0)
+  ) {
+    return null;
+  }
+  return { cent: centRoh === undefined ? null : (centRoh as number) };
 }
 
 function pruefeAngebotEingabe(wert: unknown): AngebotEingabe | null {
@@ -340,46 +362,28 @@ function pruefeAngebotEingabe(wert: unknown): AngebotEingabe | null {
     !istNichtleererText(wert['bezeichnung']) ||
     !istText(wert['auftraggeber']) ||
     !istText(wert['bemerkung']) ||
-    !Array.isArray(wert['schichten']) ||
-    typeof wert['pauschalpreisAktiv'] !== 'boolean'
+    !Array.isArray(wert['schichten'])
   ) {
     return null;
   }
   const schichten = wert['schichten'].map(pruefeSchicht);
   if (schichten.some((s) => s === null)) return null;
-  const pauschalpreisAktiv = wert['pauschalpreisAktiv'];
-  const pauschalpreisCentRoh = wert['pauschalpreisCent'];
-  let pauschalpreisCent: number | null;
-  if (pauschalpreisAktiv) {
-    if (
-      typeof pauschalpreisCentRoh !== 'number' ||
-      !Number.isInteger(pauschalpreisCentRoh) ||
-      pauschalpreisCentRoh < 0
-    ) {
-      return null;
-    }
-    pauschalpreisCent = pauschalpreisCentRoh;
-  } else {
-    if (
-      pauschalpreisCentRoh !== null &&
-      !(
-        typeof pauschalpreisCentRoh === 'number' &&
-        Number.isInteger(pauschalpreisCentRoh) &&
-        pauschalpreisCentRoh >= 0
-      )
-    ) {
-      return null;
-    }
-    pauschalpreisCent = pauschalpreisCentRoh === undefined ? null : pauschalpreisCentRoh;
-  }
+  const materialpauschale = pruefePauschale(
+    wert['materialpauschaleAktiv'],
+    wert['materialpauschaleCent'],
+  );
+  const pauschalpreis = pruefePauschale(wert['pauschalpreisAktiv'], wert['pauschalpreisCent']);
+  if (!materialpauschale || !pauschalpreis) return null;
   return {
     id: wert['id'],
     bezeichnung: wert['bezeichnung'],
     auftraggeber: wert['auftraggeber'],
     bemerkung: wert['bemerkung'],
     schichten: schichten as SchichtEingabe[],
-    pauschalpreisAktiv,
-    pauschalpreisCent,
+    materialpauschaleAktiv: wert['materialpauschaleAktiv'] as boolean,
+    materialpauschaleCent: materialpauschale.cent,
+    pauschalpreisAktiv: wert['pauschalpreisAktiv'] as boolean,
+    pauschalpreisCent: pauschalpreis.cent,
   };
 }
 
@@ -389,6 +393,8 @@ interface AngebotZeile {
   auftraggeber: string;
   bemerkung: string;
   schichten: string;
+  materialpauschale_aktiv: number;
+  materialpauschale_cent: number | null;
   pauschalpreis_aktiv: number;
   pauschalpreis_cent: number | null;
   geaendert_am: string;
@@ -404,6 +410,8 @@ function zuAngebotJson(zeile: AngebotZeile): Record<string, unknown> {
     bemerkung: zeile.bemerkung,
     // In der Spalte liegt bereits geprüftes JSON aus einem früheren Schreibvorgang.
     schichten: JSON.parse(zeile.schichten),
+    materialpauschaleAktiv: zeile.materialpauschale_aktiv === 1,
+    materialpauschaleCent: zeile.materialpauschale_cent,
     pauschalpreisAktiv: zeile.pauschalpreis_aktiv === 1,
     pauschalpreisCent: zeile.pauschalpreis_cent,
     geaendertAm: zeile.geaendert_am,
@@ -452,9 +460,10 @@ async function legeAngebotAn(
     await db
       .prepare(
         `INSERT INTO angebote
-           (id, bezeichnung, auftraggeber, bemerkung, schichten, pauschalpreis_aktiv,
-            pauschalpreis_cent, geaendert_am, geaendert_von, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+           (id, bezeichnung, auftraggeber, bemerkung, schichten, materialpauschale_aktiv,
+            materialpauschale_cent, pauschalpreis_aktiv, pauschalpreis_cent, geaendert_am,
+            geaendert_von, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       )
       .bind(
         eingabe.id,
@@ -462,6 +471,8 @@ async function legeAngebotAn(
         eingabe.auftraggeber,
         eingabe.bemerkung,
         JSON.stringify(eingabe.schichten),
+        eingabe.materialpauschaleAktiv ? 1 : 0,
+        eingabe.materialpauschaleCent,
         eingabe.pauschalpreisAktiv ? 1 : 0,
         eingabe.pauschalpreisCent,
         jetzt,
@@ -482,6 +493,8 @@ async function legeAngebotAn(
       auftraggeber: eingabe.auftraggeber,
       bemerkung: eingabe.bemerkung,
       schichten: eingabe.schichten,
+      materialpauschaleAktiv: eingabe.materialpauschaleAktiv,
+      materialpauschaleCent: eingabe.materialpauschaleCent,
       pauschalpreisAktiv: eingabe.pauschalpreisAktiv,
       pauschalpreisCent: eingabe.pauschalpreisCent,
       geaendertAm: jetzt,
@@ -521,8 +534,8 @@ async function aktualisiereAngebot(
     .prepare(
       `UPDATE angebote
        SET bezeichnung = ?, auftraggeber = ?, bemerkung = ?, schichten = ?,
-           pauschalpreis_aktiv = ?, pauschalpreis_cent = ?, geaendert_am = ?, geaendert_von = ?,
-           version = version + 1
+           materialpauschale_aktiv = ?, materialpauschale_cent = ?, pauschalpreis_aktiv = ?,
+           pauschalpreis_cent = ?, geaendert_am = ?, geaendert_von = ?, version = version + 1
        WHERE id = ? AND version = ?`,
     )
     .bind(
@@ -530,6 +543,8 @@ async function aktualisiereAngebot(
       eingabe.auftraggeber,
       eingabe.bemerkung,
       JSON.stringify(eingabe.schichten),
+      eingabe.materialpauschaleAktiv ? 1 : 0,
+      eingabe.materialpauschaleCent,
       eingabe.pauschalpreisAktiv ? 1 : 0,
       eingabe.pauschalpreisCent,
       jetzt,
@@ -552,6 +567,8 @@ async function aktualisiereAngebot(
       auftraggeber: eingabe.auftraggeber,
       bemerkung: eingabe.bemerkung,
       schichten: eingabe.schichten,
+      materialpauschaleAktiv: eingabe.materialpauschaleAktiv,
+      materialpauschaleCent: eingabe.materialpauschaleCent,
       pauschalpreisAktiv: eingabe.pauschalpreisAktiv,
       pauschalpreisCent: eingabe.pauschalpreisCent,
       geaendertAm: jetzt,

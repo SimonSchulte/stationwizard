@@ -37,6 +37,8 @@ export function erzeugeTestAngebot(ueberschreibung: Partial<Angebot> = {}): Ange
     auftraggeber: 'Stadt Testort',
     bemerkung: '',
     schichten: [erzeugeTestSchicht()],
+    materialpauschaleAktiv: false,
+    materialpauschaleCent: null,
     pauschalpreisAktiv: false,
     pauschalpreisCent: null,
     geaendertAm: '2026-01-01T00:00:00.000Z',

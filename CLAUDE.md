@@ -242,13 +242,24 @@ Schichten erfasst) mit je mehreren Positionen; jede Position trägt eine **eigen
 editierbare Momentaufnahme** von Bezeichnung und Preis (`herkunftEintragId` verweist nur
 zur Nachverfolgung auf den Preiskatalogeintrag) – eine Anpassung bei einer Kalkulation wirkt
 nie auf den Preiskatalog zurück, und ein späteres Löschen eines Katalogeintrags kann kein
-gespeichertes Angebot beschädigen. Ein optionaler Pauschalpreis
-(`pauschalpreisAktiv`/`pauschalpreisCent`) ersetzt ausschließlich die Gesamtsumme des
-kompletten Angebots, nie einzelner Schichten; die Einzelpositionen bleiben dabei immer
-berechnet und sichtbar, auch in der als Word-Tabelle kopierbaren Kostenaufstellung
-(`src/app/angebotswesen/services/tabellen-zwischenablage.ts`, asynchrone Clipboard-API mit
-`text/html`- und `text/plain`-Eintrag, da Angular CDKs `Clipboard.copy()` nur Klartext
-unterstützt). Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
+gespeichertes Angebot beschädigen. Eine Schicht lässt sich im Editor duplizieren
+(`SchichtEditor.schichtDupliziert`, `AngebotDetail.schichtDuplizieren()`); die Kopie erhält
+neue Ids für sich und alle Positionen und wird direkt hinter dem Original einsortiert. Neben
+dem Pauschalpreis gibt es eine **Materialpauschale pro Dienst**
+(`materialpauschaleAktiv`/`materialpauschaleCent`, Schema-Nachtrag in
+`worker/migrations/0009_angebot_materialpauschale.sql`): anders als der Pauschalpreis ersetzt
+sie nichts, sondern fließt als zusätzliche, einmalige Position (nicht je Schicht) immer in die
+rechnerische Summe ein (`materialpauschaleGesamtCent()`/`angebotRechnerischGesamtCent()` in
+`angebot-kalkulation.ts`) – auch wenn ein aktiver Pauschalpreis am Ende die Gesamtsumme
+ersetzt. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/`pauschalpreisCent`) ersetzt
+ausschließlich die Gesamtsumme des kompletten Angebots, nie einzelner Schichten; die
+Einzelpositionen bleiben dabei immer berechnet und sichtbar, auch in der als Word-Tabelle
+kopierbaren Kostenaufstellung (`src/app/angebotswesen/services/tabellen-zwischenablage.ts`,
+asynchrone Clipboard-API mit `text/html`- und `text/plain`-Eintrag, da Angular CDKs
+`Clipboard.copy()` nur Klartext unterstützt). Das Schichtdatum verwendet `mat-datepicker`
+über die gemeinsamen Umrechnungsfunktionen `isoZuLokalesDatum()`/`lokalesDatumZuIso()` in
+`kern/kalender/datum.ts` (auch vom Fahrzeugmodul genutzt, statt sie zweimal zu pflegen).
+Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
 Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
 
 Der Mailversand (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern:

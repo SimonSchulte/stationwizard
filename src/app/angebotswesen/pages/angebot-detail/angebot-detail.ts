@@ -96,6 +96,21 @@ export class AngebotDetail {
     this.store.schichtenAktualisieren(schichten.filter((schicht) => schicht.id !== id));
   }
 
+  /** Fügt eine Kopie direkt nach dem Original ein – eigene Ids für Schicht und alle Positionen. */
+  schichtDuplizieren(schicht: Schicht): void {
+    const schichten = this.store.entwurf()?.schichten ?? [];
+    const index = schichten.findIndex((s) => s.id === schicht.id);
+    if (index === -1) return;
+    const kopie: Schicht = {
+      ...schicht,
+      id: crypto.randomUUID(),
+      positionen: schicht.positionen.map((position) => ({ ...position, id: crypto.randomUUID() })),
+    };
+    const neueListe = [...schichten];
+    neueListe.splice(index + 1, 0, kopie);
+    this.store.schichtenAktualisieren(neueListe);
+  }
+
   pauschalpreisAktivAktualisieren(aktiv: boolean): void {
     const entwurf = this.store.entwurf();
     this.store.entwurfAktualisieren({
@@ -110,6 +125,22 @@ export class AngebotDetail {
     const cent = euroEingabeZuCent(wert);
     if (cent === null) return;
     this.aktualisieren('pauschalpreisCent', cent);
+  }
+
+  materialpauschaleAktivAktualisieren(aktiv: boolean): void {
+    const entwurf = this.store.entwurf();
+    this.store.entwurfAktualisieren({
+      materialpauschaleAktiv: aktiv,
+      materialpauschaleCent: aktiv
+        ? (entwurf?.materialpauschaleCent ?? 0)
+        : (entwurf?.materialpauschaleCent ?? null),
+    });
+  }
+
+  materialpauschaleAktualisieren(wert: string): void {
+    const cent = euroEingabeZuCent(wert);
+    if (cent === null) return;
+    this.aktualisieren('materialpauschaleCent', cent);
   }
 
   async speichern(): Promise<void> {

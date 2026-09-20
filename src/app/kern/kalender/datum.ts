@@ -257,3 +257,19 @@ export function zeitAlsMinuten(zeit: string): number | null {
 export function tageZwischen(von: string, bis: string): number {
   return Math.round((utcMs(bis) - utcMs(von)) / TAG_MS);
 }
+
+/**
+ * ISO-Datum (`YYYY-MM-DD`) → lokales `Date` für `mat-datepicker`,
+ * zeitzonenunabhängig (bewusst über lokale Jahr/Monat/Tag-Werte konstruiert,
+ * nicht über `new Date(iso)`, das als UTC-Mitternacht interpretiert würde).
+ */
+export function isoZuLokalesDatum(iso: string): Date | null {
+  if (!iso) return null;
+  const [jahr, monat, tag] = iso.split('-').map(Number);
+  return new Date(jahr, monat - 1, tag);
+}
+
+/** Gegenstück zu `isoZuLokalesDatum`: lokales `Date` aus dem Datepicker → ISO-Datum. */
+export function lokalesDatumZuIso(datum: Date): string {
+  return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
+}

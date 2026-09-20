@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   epochSekundenZuIsoDatum,
   isoWochennummer,
+  isoZuLokalesDatum,
   isoZuSerial,
   jahrVon,
+  lokalesDatumZuIso,
   serialZuIso,
   tageVonBis,
   versetzeTage,
@@ -158,5 +160,21 @@ describe('Tagesspannen', () => {
 
   it('deckelt absurde Spannen aus einer Fremdquelle', () => {
     expect(tageVonBis('2026-01-01', '2029-01-01', 5)).toHaveLength(5);
+  });
+});
+
+describe('isoZuLokalesDatum / lokalesDatumZuIso', () => {
+  it('rechnet ein ISO-Datum in ein lokales Date und zurück, ohne Verschiebung', () => {
+    const datum = isoZuLokalesDatum('2026-05-04');
+    expect(datum).not.toBeNull();
+    expect(lokalesDatumZuIso(datum!)).toBe('2026-05-04');
+  });
+
+  it('liefert null für ein leeres ISO-Datum', () => {
+    expect(isoZuLokalesDatum('')).toBeNull();
+  });
+
+  it('füllt Monat und Tag zweistellig', () => {
+    expect(lokalesDatumZuIso(new Date(2026, 0, 5))).toBe('2026-01-05');
   });
 });

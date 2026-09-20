@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { isoZuLokalesDatum, lokalesDatumZuIso } from '../../../kern/kalender/datum';
 import { schichtStundenGenau } from '../../services/angebot-kalkulation';
 import { Position, Schicht } from '../../models/angebot.model';
 import { PreiskatalogEintrag } from '../../models/preiskatalog.model';
@@ -42,7 +45,16 @@ function positionManuell(schicht: Schicht): Position {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-schicht-editor',
-  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [
+    MatButtonModule,
+    MatDatepickerModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatNativeDateModule,
+    MatSelectModule,
+  ],
+  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './schicht-editor.html',
   styleUrl: './schicht-editor.less',
 })
@@ -52,8 +64,10 @@ export class SchichtEditor {
 
   readonly schichtGeaendert = output<Schicht>();
   readonly schichtEntfernt = output<void>();
+  readonly schichtDupliziert = output<void>();
 
   readonly centZuEuroEingabe = centZuEuroEingabe;
+  readonly isoZuLokalesDatum = isoZuLokalesDatum;
 
   readonly zeitGueltig = computed(() => {
     const s = this.schicht();
@@ -69,9 +83,9 @@ export class SchichtEditor {
     this.schichtGeaendert.emit({ ...this.schicht(), ...patch });
   }
 
-  datumAktualisieren(wert: string): void {
-    if (!wert) return;
-    this.aktualisiereSchicht({ datum: wert });
+  datumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
+    if (!event.value) return;
+    this.aktualisiereSchicht({ datum: lokalesDatumZuIso(event.value) });
   }
 
   vonAktualisieren(wert: string): void {

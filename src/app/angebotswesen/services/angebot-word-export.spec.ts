@@ -51,6 +51,16 @@ describe('angebotAlsKlartextTabelle', () => {
     expect(text).toContain('rechnerisch');
     expect(text).toContain('100,00');
   });
+
+  it('zeigt eine Materialpauschale-Zeile, wenn aktiv', () => {
+    const text = angebotAlsKlartextTabelle({
+      ...ANGEBOT,
+      materialpauschaleAktiv: true,
+      materialpauschaleCent: 2500,
+    });
+    expect(text).toContain('Materialpauschale');
+    expect(text).toContain('25,00');
+  });
 });
 
 describe('angebotAlsHtmlTabelle', () => {
@@ -78,5 +88,14 @@ describe('angebotAlsHtmlTabelle', () => {
   it('hebt die Gesamtzeile mit einer Inline-Auszeichnung hervor, nicht nur per CSS-Klasse', () => {
     const html = angebotAlsHtmlTabelle(ANGEBOT);
     expect(html).toMatch(/style="font-weight:700"/);
+  });
+
+  it('zeigt eine Materialpauschale-Zeile, wenn aktiv', () => {
+    const html = angebotAlsHtmlTabelle({
+      ...ANGEBOT,
+      materialpauschaleAktiv: true,
+      materialpauschaleCent: 2500,
+    });
+    expect(html).toContain('Materialpauschale');
   });
 });

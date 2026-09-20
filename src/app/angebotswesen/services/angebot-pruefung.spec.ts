@@ -89,6 +89,18 @@ describe('istAngebot', () => {
     ).toBe(true);
   });
 
+  it('verlangt materialpauschaleCent, wenn materialpauschaleAktiv gesetzt ist', () => {
+    expect(
+      istAngebot(erzeugeTestAngebot({ materialpauschaleAktiv: true, materialpauschaleCent: null })),
+    ).toBe(false);
+  });
+
+  it('akzeptiert materialpauschaleCent = 0 als gültigen Wert', () => {
+    expect(
+      istAngebot(erzeugeTestAngebot({ materialpauschaleAktiv: true, materialpauschaleCent: 0 })),
+    ).toBe(true);
+  });
+
   it('lehnt eine leere Bezeichnung ab', () => {
     expect(istAngebot(erzeugeTestAngebot({ bezeichnung: '' }))).toBe(false);
   });

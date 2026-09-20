@@ -42,33 +42,27 @@ export function istSchicht(wert: unknown): wert is Schicht {
   );
 }
 
+/** Prüft ein `<x>Aktiv`/`<x>Cent`-Wertepaar: bei aktivem Flag ist der Cent-Wert Pflicht, sonst optional. */
+function istGueltigePauschale(aktiv: unknown, cent: unknown): boolean {
+  if (typeof aktiv !== 'boolean') return false;
+  if (aktiv) {
+    return typeof cent === 'number' && Number.isInteger(cent) && cent >= 0;
+  }
+  return cent === null || (typeof cent === 'number' && Number.isInteger(cent) && cent >= 0);
+}
+
 export function istAngebot(wert: unknown): wert is Angebot {
-  if (
-    !istObjekt(wert) ||
-    !istNichtleererText(wert['id']) ||
-    !istNichtleererText(wert['bezeichnung']) ||
-    !istText(wert['auftraggeber']) ||
-    !istText(wert['bemerkung']) ||
-    !Array.isArray(wert['schichten']) ||
-    !wert['schichten'].every(istSchicht) ||
-    typeof wert['pauschalpreisAktiv'] !== 'boolean' ||
-    !istNichtleererText(wert['geaendertAm']) ||
-    !istText(wert['geaendertVon'])
-  ) {
-    return false;
-  }
-  const pauschalpreisCent = wert['pauschalpreisCent'];
-  if (wert['pauschalpreisAktiv']) {
-    return (
-      typeof pauschalpreisCent === 'number' &&
-      Number.isInteger(pauschalpreisCent) &&
-      pauschalpreisCent >= 0
-    );
-  }
   return (
-    pauschalpreisCent === null ||
-    (typeof pauschalpreisCent === 'number' &&
-      Number.isInteger(pauschalpreisCent) &&
-      pauschalpreisCent >= 0)
+    istObjekt(wert) &&
+    istNichtleererText(wert['id']) &&
+    istNichtleererText(wert['bezeichnung']) &&
+    istText(wert['auftraggeber']) &&
+    istText(wert['bemerkung']) &&
+    Array.isArray(wert['schichten']) &&
+    wert['schichten'].every(istSchicht) &&
+    istGueltigePauschale(wert['materialpauschaleAktiv'], wert['materialpauschaleCent']) &&
+    istGueltigePauschale(wert['pauschalpreisAktiv'], wert['pauschalpreisCent']) &&
+    istNichtleererText(wert['geaendertAm']) &&
+    istText(wert['geaendertVon'])
   );
 }

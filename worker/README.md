@@ -310,9 +310,15 @@ Ganzes geladen und gespeichert. Die eigentliche Kalkulation (Stunden- und
 Pauschalpreisberechnung, Rundung) ist reine Fachlogik ohne Worker-Bezug und lebt in
 `src/app/angebotswesen/services/angebot-kalkulation.ts`; der Worker validiert Eingaben nur
 strukturell (`bis > von`, `stunden` nur bei `art === 'einsatzkraft'` usw.), rechnet aber
-nichts nach. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/`pauschalpreisCent`) ersetzt
-ausschließlich die Gesamtsumme des ganzen Angebots, nie einzelner Schichten; die
-Einzelpositionen bleiben dabei immer berechnet und sichtbar.
+nichts nach. Eine Schicht lässt sich im Editor duplizieren (eigene Ids für Kopie und alle
+Positionen, direkt hinter dem Original einsortiert). Neben dem Pauschalpreis gibt es eine
+Materialpauschale pro Dienst (`materialpauschaleAktiv`/`materialpauschaleCent`, Spalten aus
+`worker/migrations/0009_angebot_materialpauschale.sql`, per `ALTER TABLE` zur bereits
+angelegten `angebote`-Tabelle ergänzt): sie ersetzt nichts, sondern fließt als zusätzliche,
+einmalige Position immer in die rechnerische Summe ein – auch wenn der Pauschalpreis danach
+die Gesamtsumme ersetzt. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/
+`pauschalpreisCent`) ersetzt ausschließlich die Gesamtsumme des ganzen Angebots, nie
+einzelner Schichten; die Einzelpositionen bleiben dabei immer berechnet und sichtbar.
 
 Beide Ressourcen sind vorerst ohne eigene Rollenprüfung: jede geprüft angemeldete Identität
 darf lesen und schreiben (dieselbe Übergangslösung „Rechte vorerst alle, Rollen später" wie
@@ -328,6 +334,8 @@ Verfügung). Für eine erneute Einrichtung an anderer Stelle:
 npx wrangler d1 create stationwizard-angebotswesen --config worker/wrangler.toml
 npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
   --file worker/migrations/0008_angebotswesen.sql
+npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
+  --file worker/migrations/0009_angebot_materialpauschale.sql
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `ANGEBOTSWESEN_DB` in

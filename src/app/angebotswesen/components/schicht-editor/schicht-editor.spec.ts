@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { MatDatepickerInputEvent } from '@angular/material/datepicker';
 import { describe, expect, it } from 'vitest';
 import { SchichtEditor } from './schicht-editor';
 import { Schicht } from '../../models/angebot.model';
@@ -78,6 +79,25 @@ describe('SchichtEditor', () => {
     komponente.positionArtAktualisieren(schicht.positionen[0], 'fahrzeug');
     const letzte = emittiert.at(-1) as { positionen: { stunden: number | null }[] };
     expect(letzte.positionen[0].stunden).toBeNull();
+  });
+
+  it('aktualisiert das Datum aus dem Datepicker als ISO-Wert', () => {
+    const { komponente, emittiert } = erzeuge(
+      erzeugeTestSchicht({ datum: '2026-01-01', positionen: [] }),
+    );
+    komponente.datumAktualisieren({
+      value: new Date(2026, 5, 12),
+    } as MatDatepickerInputEvent<Date>);
+    const letzte = emittiert.at(-1) as { datum: string };
+    expect(letzte.datum).toBe('2026-06-12');
+  });
+
+  it('ignoriert ein Datepicker-Ereignis ohne Wert', () => {
+    const { komponente, emittiert } = erzeuge(
+      erzeugeTestSchicht({ datum: '2026-01-01', positionen: [] }),
+    );
+    komponente.datumAktualisieren({ value: null } as MatDatepickerInputEvent<Date>);
+    expect(emittiert).toHaveLength(0);
   });
 
   it('entfernt eine Position', () => {

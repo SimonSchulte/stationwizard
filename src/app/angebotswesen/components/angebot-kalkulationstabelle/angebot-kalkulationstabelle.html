@@ -1,4 +1,4 @@
-@if (kalkulation().gruppen.length === 0) {
+@if (kalkulation().gruppen.length === 0 && kalkulation().materialpauschaleCent === null) {
   <p class="empty-hint">Noch keine Schichten in diesem Angebot.</p>
 } @else {
   <div class="tabelle-rahmen">
@@ -42,6 +42,16 @@
             <td></td>
             <td></td>
             <td class="rechts">{{ formatEuro(gruppe.gesamtCent) }}</td>
+          </tr>
+        }
+        @if (angebot().materialpauschaleAktiv) {
+          <tr class="materialpauschale-zeile">
+            <td></td>
+            <td>Materialpauschale</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="rechts">{{ formatEuro(kalkulation().materialpauschaleCent ?? 0) }}</td>
           </tr>
         }
         <tr class="gesamt-zeile">

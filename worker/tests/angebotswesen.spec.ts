@@ -48,6 +48,8 @@ function angebotKoerper(ueberschreibung: Record<string, unknown> = {}) {
     auftraggeber: 'Stadt Testort',
     bemerkung: '',
     schichten: [schicht()],
+    materialpauschaleAktiv: false,
+    materialpauschaleCent: null,
     pauschalpreisAktiv: false,
     pauschalpreisCent: null,
     ...ueberschreibung,
@@ -252,6 +254,30 @@ describe('Angebote', () => {
       angebotKoerper({ pauschalpreisAktiv: true, pauschalpreisCent: 0 }),
     );
     expect(antwort.status).toBe(201);
+  });
+
+  it('verlangt eine Materialpauschale, wenn materialpauschaleAktiv gesetzt ist', async () => {
+    const db = new FakeAngebotswesenDb();
+    const antwort = await legeAngebotAn(
+      db,
+      angebotKoerper({ materialpauschaleAktiv: true, materialpauschaleCent: null }),
+    );
+    expect(antwort.status).toBe(400);
+  });
+
+  it('legt ein Angebot mit aktiver Materialpauschale an und liefert sie zurück', async () => {
+    const db = new FakeAngebotswesenDb();
+    const antwort = await legeAngebotAn(
+      db,
+      angebotKoerper({ materialpauschaleAktiv: true, materialpauschaleCent: 2500 }),
+    );
+    expect(antwort.status).toBe(201);
+    const koerper = (await antwort.json()) as {
+      materialpauschaleAktiv: boolean;
+      materialpauschaleCent: number;
+    };
+    expect(koerper.materialpauschaleAktiv).toBe(true);
+    expect(koerper.materialpauschaleCent).toBe(2500);
   });
 
   it('liefert 404 für ein unbekanntes Angebot', async () => {

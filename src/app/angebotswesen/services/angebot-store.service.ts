@@ -15,6 +15,8 @@ function leeresAngebot(): Angebot {
     auftraggeber: '',
     bemerkung: '',
     schichten: [],
+    materialpauschaleAktiv: false,
+    materialpauschaleCent: null,
     pauschalpreisAktiv: false,
     pauschalpreisCent: null,
     geaendertAm: new Date().toISOString(),
