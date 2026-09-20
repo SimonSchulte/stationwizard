@@ -1,5 +1,6 @@
 import { epochSekundenZuIsoDatum, epochSekundenZuIsoZeit } from '../../kern/kalender/datum';
 import { dekodiereEntitaeten } from '../../kern/text/entitaeten';
+import { istObjekt } from '../../kern/text/pruefung';
 import type { HiorgArt, HiorgEintrag } from '../models/hiorg-kalender.model';
 
 export interface HiorgParserErgebnis {
@@ -105,8 +106,4 @@ function leseEintrag(roh: unknown): HiorgEintrag | null {
 
 function istArt(wert: unknown): wert is HiorgArt {
   return wert === 'termin' || wert === 'dienst';
-}
-
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
 }

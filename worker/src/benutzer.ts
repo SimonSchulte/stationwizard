@@ -1,6 +1,6 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
-import { istObjekt, leseJsonBegrenzt } from './json-lesen';
+import { istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
 
 export interface BenutzerverwaltungKonfiguration {
   BENUTZER_DB?: D1Database;
@@ -37,10 +37,6 @@ const BENUTZERVERWALTUNG_LISTE_PFAD = '/api/benutzerverwaltung';
 const BENUTZERVERWALTUNG_EINTRAG_PFAD = /^\/api\/benutzerverwaltung\/([^/]+)$/;
 const EMAIL_MUSTER = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const KOERPER_GRENZE = 4 * 1024;
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
 
 interface BenutzerZeile {
   email: string;

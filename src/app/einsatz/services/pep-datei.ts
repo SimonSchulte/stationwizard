@@ -10,6 +10,7 @@ import {
   TAKTISCH_ORDER,
 } from '../models/planung.model';
 import { formatiereTaktischeZeit } from '../../kern/kalender/taktische-zeit';
+import { istNichtleererText, istObjekt, istText } from '../../kern/text/pruefung';
 
 export const PEP_DATEIVERSION = '1.0';
 
@@ -18,17 +19,8 @@ export interface PepLadeErgebnis {
   versionWarning: boolean;
 }
 
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
-}
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
-
-function istKennung(wert: unknown): wert is string {
-  return istText(wert) && wert.trim().length > 0;
-}
+/** Domänenname für dieselbe Prüfung: eine ID gilt als gültig, wenn sie ein nichtleerer Text ist. */
+const istKennung = istNichtleererText;
 
 function optionalerText(wert: unknown): boolean {
   return wert === undefined || istText(wert);

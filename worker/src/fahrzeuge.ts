@@ -1,6 +1,6 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { erzeugeErfassungToken } from './erfassung-token';
-import { istObjekt, leseJsonBegrenzt } from './json-lesen';
+import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
 import {
   freigabeGruppen,
   leseRolle,
@@ -51,14 +51,6 @@ const FIN_MUSTER = /^[A-HJ-NPR-Z0-9]{17}$/i;
 // gegen Missbrauch. Ablesungen sind noch kleiner.
 const FAHRZEUG_KOERPER_GRENZE = 64 * 1024;
 const ABLESUNG_KOERPER_GRENZE = 4 * 1024;
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
-
-function istNichtleererText(wert: unknown): wert is string {
-  return istText(wert) && wert.trim().length > 0;
-}
 
 function istWartungstermin(wert: unknown): boolean {
   return (

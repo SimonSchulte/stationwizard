@@ -11,6 +11,7 @@ import {
   KilometerQuelle,
   Wartungstermin,
 } from '../models/fahrzeug.model';
+import { istNichtleererText, istObjekt, istText } from '../../kern/text/pruefung';
 
 /**
  * Prüfungen für unbekannte externe Daten (Worker-Antworten, künftig auch
@@ -34,18 +35,6 @@ const KILOMETER_QUELLEN: readonly KilometerQuelle[] = [
  * und der Worker weist ihn in einer Eingabe ab.
  */
 const EINGEBBARE_QUELLEN: readonly KilometerQuelle[] = ['qr', 'formular', 'korrektur'];
-
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
-}
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
-
-function istNichtleererText(wert: unknown): wert is string {
-  return istText(wert) && wert.trim().length > 0;
-}
 
 export function istIsoDatum(wert: unknown): wert is string {
   return istText(wert) && ISO_DATUM.test(wert);
