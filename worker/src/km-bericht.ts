@@ -5,6 +5,7 @@ import {
   waehleVersand,
   type MailVersandKonfiguration,
   type MailNachricht,
+  type VersandFehlerGrund,
 } from './mail-versand';
 import { leseEinstellungen, type SystemkonfigurationKonfiguration } from './systemkonfiguration';
 
@@ -61,6 +62,8 @@ interface AblesungZeile {
 }
 
 export interface BerichtZeile {
+  /** Fahrzeug-UUID, damit die Oberfläche ohne zweiten Abruf verlinken kann. */
+  id: string;
   bezeichnung: string;
   funkrufname: string;
   kennzeichen: string;
@@ -143,6 +146,7 @@ function berechneZeile(
   const sollKm = (MINDEST_KM_PRO_MONAT[fahrzeug.eigentuemer] ?? 0) * 12;
   const istKm = startstand !== null && letzte ? letzte.stand - startstand : null;
   return {
+    id: fahrzeug.id,
     bezeichnung: fahrzeug.bezeichnung,
     funkrufname: fahrzeug.funkrufname,
     kennzeichen: fahrzeug.kennzeichen,
@@ -168,14 +172,17 @@ export async function ladeKmBericht(db: D1Database, stichtag: string): Promise<K
     .all<AblesungZeile>();
 
   const jahr = jahrVon(stichtag);
-  const gueltige = gueltigeAblesungen(ablesungen.results);
+  // Einmal nach Fahrzeug gruppieren statt je Fahrzeug erneut über alle
+  // Ablesungen zu filtern: das bleibt linear und hält den Bericht auch bei
+  // wachsendem Verlauf innerhalb der CPU-Grenze einer Worker-Anfrage.
+  const nachFahrzeug = new Map<string, AblesungZeile[]>();
+  for (const eintrag of gueltigeAblesungen(ablesungen.results)) {
+    const liste = nachFahrzeug.get(eintrag.fahrzeug_id);
+    if (liste) liste.push(eintrag);
+    else nachFahrzeug.set(eintrag.fahrzeug_id, [eintrag]);
+  }
   const zeilen = fahrzeuge.results.map((fahrzeug) =>
-    berechneZeile(
-      fahrzeug,
-      gueltige.filter((eintrag) => eintrag.fahrzeug_id === fahrzeug.id),
-      stichtag,
-      jahr,
-    ),
+    berechneZeile(fahrzeug, nachFahrzeug.get(fahrzeug.id) ?? [], stichtag, jahr),
   );
 
   return {
@@ -391,6 +398,22 @@ export async function verarbeiteKmBericht(
   return sendeBericht(bericht, umgebung, identitaet);
 }
 
+/**
+ * Fester Code und Status je Fehlergrund. Die Oberfläche bekommt vom
+ * `WorkerClient` nur Status und Diagnosecode zu sehen, nicht den Meldungstext
+ * – ohne eigenen Code je Ursache wäre ein abgelaufenes Token von einem
+ * Netzwerkausfall nur im Worker-Log zu unterscheiden.
+ */
+const VERSANDFEHLER_ANTWORTEN: Record<VersandFehlerGrund, { code: string; status: number }> = {
+  'konfiguration-fehlt': { code: 'MAIL_VERSANDWEG_NICHT_EINGERICHTET', status: 503 },
+  zeitlimit: { code: 'MAIL_VERSAND_ZEITLIMIT', status: 504 },
+  'nicht-erreichbar': { code: 'MAIL_VERSAND_NICHT_ERREICHBAR', status: 502 },
+  umleitung: { code: 'MAIL_VERSAND_UMLEITUNG', status: 502 },
+  'zugang-abgelehnt': { code: 'MAIL_VERSAND_ZUGANG_ABGELEHNT', status: 502 },
+  abgelehnt: { code: 'MAIL_VERSAND_ABGELEHNT', status: 502 },
+  upstream: { code: 'MAIL_VERSAND_FEHLGESCHLAGEN', status: 502 },
+};
+
 async function sendeBericht(
   bericht: KmBericht,
   umgebung: KmBerichtKonfiguration,
@@ -434,13 +457,8 @@ async function sendeBericht(
     await versand.sende(berichtAlsNachricht(bericht, empfaenger, einstellungen.kmBerichtBetreff));
   } catch (ursache) {
     if (ursache instanceof VersandFehler) {
-      return fehlerAntwort(
-        ursache.grund === 'konfiguration-fehlt'
-          ? 'MAIL_VERSANDWEG_NICHT_EINGERICHTET'
-          : 'MAIL_VERSAND_FEHLGESCHLAGEN',
-        ursache.message,
-        ursache.grund === 'konfiguration-fehlt' ? 503 : 502,
-      );
+      const { code, status } = VERSANDFEHLER_ANTWORTEN[ursache.grund];
+      return fehlerAntwort(code, ursache.message, status);
     }
     throw ursache;
   }

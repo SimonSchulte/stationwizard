@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { KmBericht, VersandQuittung } from '../models/km-bericht.model';
 import { istKmBericht, istVersandQuittung } from '../services/km-bericht-pruefung';
+import { FahrzeugAbrufPuffer } from './fahrzeug-abruf-puffer';
 import { KmBerichtStorage, VersandNichtMoeglichFehler } from './km-bericht-storage';
 
 const BERICHT_PFAD = '/api/fahrzeuge/km-bericht';
@@ -13,13 +14,16 @@ const BERICHT_PFAD = '/api/fahrzeuge/km-bericht';
 @Injectable({ providedIn: 'root' })
 export class ApiKmBerichtStorage implements KmBerichtStorage {
   private readonly worker = inject(WorkerClient);
+  private readonly puffer = inject(FahrzeugAbrufPuffer);
 
   async ladeBericht(): Promise<KmBericht> {
-    const antwort = await this.worker.json<unknown>(BERICHT_PFAD);
-    if (!istKmBericht(antwort)) {
-      throw new WorkerFehler('Der Server hat einen ungültigen Bericht geliefert.', 502);
-    }
-    return antwort;
+    return this.puffer.bericht.hole('aktuell', async () => {
+      const antwort = await this.worker.json<unknown>(BERICHT_PFAD);
+      if (!istKmBericht(antwort)) {
+        throw new WorkerFehler('Der Server hat einen ungültigen Bericht geliefert.', 502);
+      }
+      return antwort;
+    });
   }
 
   async sendeBericht(): Promise<VersandQuittung> {

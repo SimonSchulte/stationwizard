@@ -11,6 +11,7 @@ import {
   istFahrzeugstamm,
   istKilometerstand,
 } from '../services/fahrzeug-pruefung';
+import { FahrzeugAbrufPuffer } from './fahrzeug-abruf-puffer';
 import {
   AblesungHatKorrekturFehler,
   FahrzeugKonfliktFehler,
@@ -42,10 +43,13 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
   readonly bezeichnung = 'Fahrzeugverwaltung (Worker/D1)';
 
   private readonly worker = inject(WorkerClient);
+  private readonly puffer = inject(FahrzeugAbrufPuffer);
 
   async ladeFahrzeuge(): Promise<Fahrzeugstamm[]> {
-    const antwort = await this.worker.json<FahrzeugListenAntwort>('/api/fahrzeuge');
-    return antwort.fahrzeuge.filter(istFahrzeugstamm);
+    return this.puffer.liste.hole('alle', async () => {
+      const antwort = await this.worker.json<FahrzeugListenAntwort>('/api/fahrzeuge');
+      return antwort.fahrzeuge.filter(istFahrzeugstamm);
+    });
   }
 
   async ladeFahrzeug(id: string): Promise<FahrzeugMitVersion | null> {
@@ -86,6 +90,7 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
       if (!neueVersion) {
         throw new WorkerFehler('Der Server hat keine gültige Version geliefert.', 502);
       }
+      this.puffer.verwerfen();
       return neueVersion;
     } catch (ursache) {
       if (ursache instanceof WorkerFehler && ursache.status === 412) {
@@ -99,10 +104,14 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
   }
 
   async ladeAblesungen(fahrzeugId: string, vonJahr?: number): Promise<Kilometerstand[]> {
-    const antwort = await this.worker.json<AblesungListenAntwort>(
-      `/api/fahrzeuge/${fahrzeugId}/ablesungen`,
-    );
-    const alle = antwort.ablesungen.filter(istKilometerstand);
+    // Gepuffert wird immer der vollständige Verlauf; `vonJahr` schränkt nur
+    // das Ergebnis ein und darf den Puffer nicht aufteilen.
+    const alle = await this.puffer.ablesungen.hole(fahrzeugId, async () => {
+      const antwort = await this.worker.json<AblesungListenAntwort>(
+        `/api/fahrzeuge/${fahrzeugId}/ablesungen`,
+      );
+      return antwort.ablesungen.filter(istKilometerstand);
+    });
     return vonJahr === undefined
       ? alle
       : alle.filter((a) => Number(a.abgelesenAm.slice(0, 4)) >= vonJahr);
@@ -120,6 +129,7 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
     if (!istKilometerstand(antwort)) {
       throw new WorkerFehler('Der Server hat eine ungültige Ablesung geliefert.', 502);
     }
+    this.puffer.verwerfen();
     return antwort;
   }
 
@@ -128,6 +138,7 @@ export class ApiFahrzeugStorage implements FahrzeugStorage {
       await this.worker.anfragen(`/api/fahrzeuge/${fahrzeugId}/ablesungen/${ablesungId}`, {
         method: 'DELETE',
       });
+      this.puffer.verwerfen();
     } catch (ursache) {
       if (ursache instanceof WorkerFehler && ursache.status === 409) {
         throw new AblesungHatKorrekturFehler(ablesungId);

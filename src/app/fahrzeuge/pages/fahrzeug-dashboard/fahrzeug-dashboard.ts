@@ -16,13 +16,13 @@ import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bil
 import { WartungenListe } from '../../components/wartungen-liste/wartungen-liste';
 import { FahrzeugListe } from '../fahrzeug-liste/fahrzeug-liste';
 import { KilometerUebersicht } from '../kilometer-uebersicht/kilometer-uebersicht';
-import { Fahrzeugstamm } from '../../models/fahrzeug.model';
-import { hatAbleseLuecke } from '../../services/ablesung-pruefung';
+import { Eigentuemer, Fahrzeugstamm } from '../../models/fahrzeug.model';
+import { hatAbleseLueckeNachTagen } from '../../services/ablesung-pruefung';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
-import { berechneJahresbilanz, KilometerJahresbilanz } from '../../services/kilometer-soll';
+import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
+import { KilometerJahresbilanz } from '../../services/kilometer-soll';
 import { ermittleWartungsstatus, Wartungsstatus } from '../../services/wartungsstatus';
-import { ApiFahrzeugStorage } from '../../storage/api-fahrzeug-storage';
 
 /** Anzahl der Termine in der kompakten Übersicht; die vollständige Liste steht im eigenen Tab. */
 const KOMPAKT_WARTUNGEN_ANZAHL = 5;
@@ -32,8 +32,13 @@ interface WartungMitFahrzeug {
   status: Wartungsstatus;
 }
 
-interface BilanzMitFahrzeug {
-  fahrzeug: Fahrzeugstamm;
+/** Eine Kilometerkarte der Übersicht, aufbereitet aus einer Berichtszeile. */
+interface BilanzKarte {
+  /** Fahrzeug-UUID für Verlinkung und `track`. */
+  id: string;
+  bezeichnung: string;
+  kennzeichen: string;
+  eigentuemer: Eigentuemer;
   bilanz: KilometerJahresbilanz;
   hatAbleseLuecke: boolean;
   /** ISO-Datum der letzten Ablesung, oder `null` ohne jede Ablesung. */
@@ -48,11 +53,18 @@ function tageBisFaelligText(tage: number): string {
 
 /**
  * Fuhrpark-Übersicht: nächste Wartungen und Kilometerbilanzen über alle
- * Fahrzeuge. Die Kilometerbilanzen laden je Fahrzeug eine eigene
- * Ablesungshistorie (kein zentraler Endpunkt vorgesehen, siehe
- * docs/konzept-fahrzeuge.md) – bei der erwarteten Fuhrparkgröße
- * unproblematisch. Ein einzelnes fehlgeschlagenes Fahrzeug blockiert nicht
- * die Bilanzen der übrigen.
+ * Fahrzeuge.
+ *
+ * Die Kilometerbilanzen kommen aus dem Kilometerstandsbericht
+ * (`GET /api/fahrzeuge/km-bericht`) – ein Aufruf für den gesamten Fuhrpark
+ * statt einer Ablesungshistorie je Fahrzeug. Das war ursprünglich anders
+ * gelöst, weil es beim Entwurf noch keinen Endpunkt über alle Fahrzeuge gab;
+ * seit AP-S1 gibt es ihn, und die Übersicht kostete sonst bei jedem Aufruf so
+ * viele Worker-Anfragen und D1-Abfragen, wie der Fuhrpark Fahrzeuge hat.
+ *
+ * Nebeneffekt: die Zahlen sind jetzt dieselben, die auch im versendeten
+ * Bericht und auf der Fahrzeugdetailseite stehen – korrigierte Ablesungen
+ * zählen nicht mehr doppelt, was die frühere Fassung hier übersah.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,7 +85,7 @@ function tageBisFaelligText(tage: number): string {
 })
 export class FahrzeugDashboard implements OnInit {
   private readonly store = inject(FahrzeugStoreService);
-  private readonly storage = inject(ApiFahrzeugStorage);
+  private readonly berichtStore = inject(KmBerichtStoreService);
   private readonly router = inject(Router);
 
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
@@ -85,11 +97,38 @@ export class FahrzeugDashboard implements OnInit {
   readonly listeFehler = this.store.listeFehler;
 
   private readonly heute = heuteIso();
-  readonly jahr = jahrVon(this.heute);
 
-  readonly bilanzen = signal<BilanzMitFahrzeug[]>([]);
-  readonly bilanzenLaedt = signal(false);
-  readonly bilanzenFehler = signal('');
+  /** Bezugsjahr des Berichts (Berliner Stichtag), bis dahin das lokale Jahr. */
+  readonly jahr = computed(() => this.berichtStore.bericht()?.jahr ?? jahrVon(this.heute));
+
+  readonly bilanzenLaedt = this.berichtStore.laedt;
+  readonly bilanzenFehler = this.berichtStore.ladeFehler;
+
+  readonly bilanzen = computed<BilanzKarte[]>(() => {
+    const bericht = this.berichtStore.bericht();
+    if (!bericht) return [];
+    return (
+      bericht.zeilen
+        .map((zeile) => ({
+          id: zeile.id,
+          bezeichnung: zeile.bezeichnung,
+          kennzeichen: zeile.kennzeichen,
+          eigentuemer: zeile.eigentuemer,
+          bilanz: {
+            jahr: bericht.jahr,
+            eigentuemer: zeile.eigentuemer,
+            sollKm: zeile.sollKm,
+            istKm: zeile.istKm,
+            restKm: zeile.restKm,
+            unvollstaendig: zeile.unvollstaendig,
+          },
+          hatAbleseLuecke: hatAbleseLueckeNachTagen(zeile.tageSeitAblesung),
+          letzteAblesungAm: zeile.abgelesenAm,
+        }))
+        // Der Bericht sortiert in SQL, hier soll die deutsche Sortierung gelten.
+        .sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung))
+    );
+  });
 
   readonly offeneWartungen = computed<WartungMitFahrzeug[]>(() => {
     const eintraege: WartungMitFahrzeug[] = [];
@@ -117,49 +156,9 @@ export class FahrzeugDashboard implements OnInit {
     void this.laden();
   }
 
+  /** Fahrzeugliste und Bericht hängen nicht voneinander ab – parallel abrufen. */
   private async laden(): Promise<void> {
-    await this.store.listeLaden();
-    await this.ladeBilanzen();
-  }
-
-  private async ladeBilanzen(): Promise<void> {
-    this.bilanzenLaedt.set(true);
-    this.bilanzenFehler.set('');
-    try {
-      const ergebnisse = await Promise.allSettled(
-        this.fahrzeuge().map(async (fahrzeug): Promise<BilanzMitFahrzeug> => {
-          const ablesungen = await this.storage.ladeAblesungen(fahrzeug.id);
-          const letzte =
-            ablesungen.length > 0
-              ? ablesungen.reduce((a, b) => (a.abgelesenAm > b.abgelesenAm ? a : b))
-              : null;
-          return {
-            fahrzeug,
-            bilanz: berechneJahresbilanz(fahrzeug, ablesungen, this.jahr),
-            hatAbleseLuecke: hatAbleseLuecke(letzte, this.heute),
-            letzteAblesungAm: letzte?.abgelesenAm ?? null,
-          };
-        }),
-      );
-      const erfolgreiche = ergebnisse
-        .filter((r): r is PromiseFulfilledResult<BilanzMitFahrzeug> => r.status === 'fulfilled')
-        .map((r) => r.value)
-        .sort((a, b) => a.fahrzeug.bezeichnung.localeCompare(b.fahrzeug.bezeichnung));
-      if (ergebnisse.some((r) => r.status === 'rejected')) {
-        this.bilanzenFehler.set(
-          'Für einzelne Fahrzeuge konnte die Kilometerbilanz nicht geladen werden.',
-        );
-      }
-      this.bilanzen.set(erfolgreiche);
-    } catch (fehler) {
-      this.bilanzenFehler.set(
-        fehler instanceof Error
-          ? fehler.message
-          : 'Kilometerbilanzen konnten nicht geladen werden.',
-      );
-    } finally {
-      this.bilanzenLaedt.set(false);
-    }
+    await Promise.all([this.store.listeLaden(), this.berichtStore.berichtLaden()]);
   }
 
   neuesFahrzeug(): void {

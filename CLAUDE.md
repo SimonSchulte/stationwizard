@@ -145,7 +145,7 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
 | `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
 | `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
-| `/api/fahrzeuge/km-bericht`               | GET        | Kilometerstandsbericht über alle Fahrzeuge als Vorschau; versendet nichts   |
+| `/api/fahrzeuge/km-bericht`               | GET        | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht          |
 | `/api/fahrzeuge/km-bericht/senden`        | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
 | `/api/benutzerverwaltung`                 | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
 | `/api/benutzerverwaltung/<E-Mail>`        | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
@@ -202,13 +202,33 @@ Der Mailversand (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern
 weil es eine bestätigte Zieladresse in Cloudflare Email Routing voraussetzt) und `resend`
 über einen **festen** HTTPS-Endpunkt. Keine konfigurierbare Ziel-URL – eine frei setzbare
 Adresse wäre ein Weiterleitungspunkt für das Token. SMTP ist in Workers nicht möglich.
-Upstream-Antworten werden nie weitergereicht: nur feste Codes
-(`MAIL_VERSANDWEG_NICHT_EINGERICHTET`, `MAIL_VERSAND_FEHLGESCHLAGEN`), im Log nur Status
+Upstream-Antworten werden nie weitergereicht: nur feste Codes, im Log nur Status
 beziehungsweise Fehlername. Ein weiterer Anbieter ist ein weiterer Adapter, keine Änderung
 an den Aufrufern.
 
+Jede Fehlerursache hat einen **eigenen** festen Code, weil die Oberfläche vom
+`WorkerClient` nur Status und `X-Stationwizard-Diagnose` zu sehen bekommt und den
+Meldungstext des Workers verwirft — ohne eigenen Code wäre ein abgelaufenes Token ohne
+Zugriff auf die Worker-Logs nicht von einem Netzwerkausfall zu unterscheiden:
+`MAIL_VERSANDWEG_NICHT_EINGERICHTET` (503), `MAIL_VERSAND_ZEITLIMIT` (504),
+`MAIL_VERSAND_NICHT_ERREICHBAR`, `MAIL_VERSAND_UMLEITUNG`,
+`MAIL_VERSAND_ZUGANG_ABGELEHNT`, `MAIL_VERSAND_ABGELEHNT` und
+`MAIL_VERSAND_FEHLGESCHLAGEN` (je 502, letzterer für Wege ohne HTTP-Antwort wie
+`email-routing`). Die Zuordnung steht in `VERSANDFEHLER_ANTWORTEN` in `km-bericht.ts`.
+Der Resend-Weg folgt demselben Muster wie EFS und Nextcloud: eigener `AbortController`
+statt `AbortSignal.timeout()` (nur so ist ein Zeitlimit von einem Verbindungsfehler zu
+unterscheiden) und `redirect: 'manual'` mit `istUmleitung()` statt `redirect: 'error'` —
+einer Weiterleitung wird weiterhin nicht gefolgt, sie ist aber keine ununterscheidbare
+Transportstörung mehr. Ein Token, das nicht aus sichtbaren ASCII-Zeichen besteht, gilt als
+Konfigurationsfehler und nicht als Anbieterproblem: es ließe `fetch()` schon beim Bauen der
+Anfrage scheitern.
+
 Der Kilometerstandsbericht (`worker/src/km-bericht.ts`) ist Fahrzeugfachlichkeit und liegt
-deshalb neben `fahrzeuge.ts`; die Systemkonfiguration sagt nur, wohin er geht. Er bildet
+deshalb neben `fahrzeuge.ts`; die Systemkonfiguration sagt nur, wohin er geht. Er ist
+zugleich die einzige Quelle der Kilometerbilanzen im Fuhrpark-Dashboard: ein Aufruf für den
+gesamten Fuhrpark statt einer Ablesungshistorie je Fahrzeug. Die Übersicht rechnet nichts
+nach und lädt keine Ablesungen je Fahrzeug nach; `BerichtZeile.id` trägt dafür die
+Fahrzeug-UUID. Er bildet
 die Kennzahlen aus `src/app/fahrzeuge/services/kilometer-soll.ts` serverseitig nach
 (Jahressoll, Jahresstartstand, „unvollständig"), damit Mail und Vorschau dieselben Zahlen
 zeigen. Beide Fassungen sind gemeinsam zu ändern; `worker/tests/km-bericht.spec.ts`
@@ -272,6 +292,22 @@ persistiert. Die Schreibweise „CALENDER" ist bewusst übernommen und wird nich
 - Lokale Datei-/JSON-Exporte als Rettungsweg erhalten. Ordnerfreigabe und
   Arbeitsmappenfreigabe getrennt konfigurieren; keine PEP-Dateien in die Excel-Freigabe
   schreiben.
+
+## Sparsamkeit im Free-Tier
+
+Der Betrieb läuft auf dem kostenlosen Cloudflare-Tarif: jede Worker-Anfrage – wegen
+`run_worker_first = true` auch jede Asset-Anfrage – und jede D1-Schreibung zählt gegen ein
+Tageskontingent. Neue Oberflächen deshalb nicht mit einem Abruf je Listeneintrag bauen,
+sondern mit einem Aufruf über den ganzen Bestand; wo es einen solchen Endpunkt schon gibt,
+diesen verwenden statt einen zweiten Weg zu erfinden. Wiederholte lesende Abrufe über
+`kern/abruf-puffer.ts` bündeln und nach jedem eigenen Schreibzugriff verwerfen; versionierte
+Einzelabrufe (ETag für ein späteres `If-Match`) bleiben ungepuffert. Inhalte, die selten
+angesehen werden, erst beim Öffnen laden. Wiederholte Schreibvorgänge ohne fachliche
+Änderung vermeiden, statt sie blind auszuführen. `worker/src/index.ts` setzt für Dateien mit
+Inhalts-Hash `Cache-Control: private, max-age=31536000, immutable`; `index.html` und die
+SPA-Ersatzantwort auf unbekannte Pfade bleiben ungepuffert – das so erhalten, sonst bliebe
+ein Deployment unbemerkt. Keine dieser Maßnahmen darf das Access-Gate, die Prüfung fremder
+Daten oder die Konfliktbehandlung mit `If-Match`/`If-None-Match` abschwächen.
 
 ## Tests und Arbeitsweise
 

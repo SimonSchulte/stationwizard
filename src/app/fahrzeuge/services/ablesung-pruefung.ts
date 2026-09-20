@@ -47,5 +47,14 @@ export function hatAbleseLuecke(
   if (letzteAblesung === null) {
     return true;
   }
-  return tageDifferenz(letzteAblesung.abgelesenAm, stichtagIso) > ABLESE_LUECKE_TAGE;
+  return hatAbleseLueckeNachTagen(tageDifferenz(letzteAblesung.abgelesenAm, stichtagIso));
+}
+
+/**
+ * Dieselbe Regel für Aufrufer, denen der Abstand bereits als Tageszahl
+ * vorliegt – etwa `tageSeitAblesung` aus dem Kilometerstandsbericht des
+ * Workers. `null` bedeutet dort "keine Ablesung" und damit immer eine Lücke.
+ */
+export function hatAbleseLueckeNachTagen(tageSeitAblesung: number | null): boolean {
+  return tageSeitAblesung === null || tageSeitAblesung > ABLESE_LUECKE_TAGE;
 }
