@@ -50,8 +50,23 @@ describe('registriereZugriff', () => {
     const db = new FakeBenutzerDb();
     await registriereZugriff(db as never, ANGEMELDET);
     const ersterZugriff = db.benutzer.get(ANGEMELDET)?.erster_zugriff_am;
+    db.benutzer.set(ANGEMELDET, {
+      ...db.benutzer.get(ANGEMELDET)!,
+      letzter_zugriff_am: '2020-01-01T00:00:00.000Z',
+    });
     await registriereZugriff(db as never, ANGEMELDET);
     expect(db.benutzer.get(ANGEMELDET)?.erster_zugriff_am).toBe(ersterZugriff);
+    expect(db.benutzer.get(ANGEMELDET)?.letzter_zugriff_am).not.toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('schreibt am selben Kalendertag kein zweites Mal', async () => {
+    const db = new FakeBenutzerDb();
+    await registriereZugriff(db as never, ANGEMELDET);
+    const nachErstemZugriff = db.benutzer.get(ANGEMELDET)?.letzter_zugriff_am;
+    await registriereZugriff(db as never, ANGEMELDET);
+    // Jeder Sitzungsstart kostet sonst eine D1-Schreibung, ohne dass sich der
+    // fachlich tagesgenaue Wert ändert.
+    expect(db.benutzer.get(ANGEMELDET)?.letzter_zugriff_am).toBe(nachErstemZugriff);
   });
 });
 

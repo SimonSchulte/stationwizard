@@ -40,6 +40,7 @@ function ablesungStoreMock(ueberschreibung: Record<string, unknown> = {}) {
 function aenderungsprotokollStoreMock(ueberschreibung: Record<string, unknown> = {}) {
   return {
     laden: vi.fn().mockResolvedValue(undefined),
+    zuruecksetzen: vi.fn(),
     eintraege: () => [],
     laedt: () => false,
     fehler: () => '',
@@ -224,7 +225,7 @@ describe('FahrzeugDetail', () => {
     expect(ablesungStore.laden).toHaveBeenCalledWith(fahrzeug.id);
   });
 
-  it('lädt das Änderungsprotokoll mit, sobald ein bestehendes Fahrzeug geöffnet wird', () => {
+  it('lädt das Änderungsprotokoll erst beim Aufklappen des Bereichs', () => {
     const fahrzeug = erzeugeTestfahrzeug();
     const store = {
       neuesFahrzeugBeginnen: vi.fn(),
@@ -234,11 +235,16 @@ describe('FahrzeugDetail', () => {
       istNeu: () => false,
     };
     const aenderungsprotokollStore = aenderungsprotokollStoreMock();
-    erzeugeDetail([
+    const detail = erzeugeDetail([
       { provide: FahrzeugStoreService, useValue: store },
       { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
       { provide: AenderungsprotokollStoreService, useValue: aenderungsprotokollStore },
     ]);
+    // Der Bereich ist zugeklappt: erst das Aufklappen kostet eine Anfrage.
+    expect(aenderungsprotokollStore.laden).not.toHaveBeenCalled();
+    expect(aenderungsprotokollStore.zuruecksetzen).toHaveBeenCalled();
+
+    detail.protokollOeffnen();
     expect(aenderungsprotokollStore.laden).toHaveBeenCalledWith(fahrzeug.id);
   });
 

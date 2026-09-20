@@ -70,6 +70,8 @@ describe('ladeKmBericht', () => {
     expect(bericht.jahr).toBe(2026);
     expect(bericht.zeilen).toHaveLength(1);
     const zeile = bericht.zeilen[0]!;
+    // Die Übersicht verlinkt über diese ID, ohne die Fahrzeugliste zu joinen.
+    expect(zeile.id).toBe('a');
     expect(zeile.letzterStand).toBe(12_000);
     expect(zeile.abgelesenAm).toBe('2026-06-01');
     expect(zeile.tageSeitAblesung).toBe(14);
@@ -359,6 +361,51 @@ describe('verarbeiteKmBericht', () => {
     expect(antwort.status).toBe(502);
     expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('MAIL_VERSAND_FEHLGESCHLAGEN');
     expect(await antwort.text()).not.toContain('unverified');
+  });
+
+  it('unterscheidet die Ursachen des Resend-Wegs im Diagnosecode', async () => {
+    // Die Oberfläche sieht vom Worker nur Status und Diagnosecode. Fielen alle
+    // Ursachen auf denselben Code, wäre ein abgelehntes Token ohne Zugriff auf
+    // die Worker-Logs nicht von einem Netzwerkausfall zu unterscheiden.
+    const faelle: [unknown, string, number][] = [
+      [new TypeError('connection failed'), 'MAIL_VERSAND_NICHT_ERREICHBAR', 502],
+      [{ ok: false, status: 403, body: null }, 'MAIL_VERSAND_ZUGANG_ABGELEHNT', 502],
+      [{ ok: false, status: 302, body: null }, 'MAIL_VERSAND_UMLEITUNG', 502],
+    ];
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    for (const [ergebnis, code, status] of faelle) {
+      const benutzerDb = new FakeBenutzerDb();
+      await empfaengerSetzen(benutzerDb, 'leitung@example.test');
+      benutzerDb.systemkonfiguration.set('km_bericht_versandweg', {
+        schluessel: 'km_bericht_versandweg',
+        wert: 'resend',
+        geaendert_am: '2026-01-01T00:00:00.000Z',
+        geaendert_von: IDENTITAET.email,
+      });
+      const umgebung = {
+        ...umgebungMit(new FakeFahrzeugeDb(), benutzerDb),
+        MAIL_API_TOKEN: 'geheimes-token',
+      };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          ergebnis instanceof Error
+            ? () => Promise.reject(ergebnis)
+            : () => Promise.resolve(ergebnis as Response),
+        ),
+      );
+
+      const antwort = await verarbeiteKmBericht(
+        anfrage('/api/fahrzeuge/km-bericht/senden', { method: 'POST' }),
+        umgebung,
+        IDENTITAET,
+      );
+
+      expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe(code);
+      expect(antwort.status).toBe(status);
+    }
+    vi.unstubAllGlobals();
   });
 
   it('weist einen Pfad mit Query-String ab', async () => {

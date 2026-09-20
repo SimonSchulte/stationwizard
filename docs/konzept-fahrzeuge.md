@@ -377,6 +377,11 @@ Beginnt erst nach der Entscheidung aus Abschnitt 6.
 - Nächste Wartungen über alle Fahrzeuge, nach Fälligkeit sortiert; Ampel über den je
   Termin eingestellten Vorlauf
 - Restkilometer je Fahrzeug, Organisation ohne Ampel, unvollständige Datenlage sichtbar
+- Die Kilometerbilanzen kommen aus dem Kilometerstandsbericht
+  (`GET /api/fahrzeuge/km-bericht`, AP-S1) – ein Aufruf für den gesamten Fuhrpark. Beim
+  Entwurf gab es diesen Endpunkt noch nicht, deshalb lud die erste Fassung eine
+  Ablesungshistorie je Fahrzeug; das kostete auf dem kostenlosen Cloudflare-Tarif je
+  Seitenaufruf so viele Anfragen, wie der Fuhrpark Fahrzeuge hat
 - Fahrzeuge ohne Ablesung in den letzten 30 Tagen
 - Prognose als solche beschriftet
 

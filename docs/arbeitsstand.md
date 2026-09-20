@@ -1282,6 +1282,154 @@ Wechsel) erwies sich als Fehler im Testskript selbst (per `addInitScript` erzwun
 Abschalten der Tab-Animation griff vor Angulars eigener Sichtbarkeitssteuerung) und nicht als
 Anwendungsfehler – mit normaler Animation und ausreichender Wartezeit verschwand es.
 
+## Mailversand: jede Fehlerursache mit eigenem Diagnosecode
+
+Der Versand des Kilometerstandsberichts scheiterte im Betrieb mit
+`{"code": "MAIL_VERSAND_FEHLGESCHLAGEN", "nachricht": "Der Mailanbieter war nicht
+erreichbar."}`. Diese Meldung entstand im `catch` um `fetch()` im Resend-Adapter und traf
+damit **vier völlig verschiedene Ursachen** gleichzeitig: eine tatsächlich nicht erreichbare
+Gegenstelle, eine Zeitüberschreitung, eine Weiterleitung (wegen `redirect: 'error'`) und
+einen ungültigen `Authorization`-Header, bei dem `fetch()` schon beim Bauen der Anfrage
+scheitert. Welche davon vorlag, war ohne Zugriff auf die Worker-Logs nicht feststellbar.
+
+- **Der Resend-Adapter folgt jetzt demselben Muster wie EFS, Nextcloud und der
+  HiOrg-Kalender** (`worker/src/efs.ts` als Vorbild): eigener `AbortController` mit
+  `setTimeout` statt `AbortSignal.timeout()` — nur so lässt sich nach dem Abbruch
+  feststellen, ob das Zeitlimit zuschlug oder die Verbindung selbst scheiterte — und
+  `redirect: 'manual'` mit `istUmleitung()` statt `redirect: 'error'`. Einer Weiterleitung
+  wird weiterhin nicht gefolgt (das Token darf nie an ein fremdes Ziel gehen), sie ist aber
+  keine ununterscheidbare Transportstörung mehr.
+- **Jede Ursache hat einen eigenen festen Diagnosecode.** Das ist nötig, weil die Oberfläche
+  vom `WorkerClient` nur HTTP-Status und `X-Stationwizard-Diagnose` angezeigt bekommt und
+  den Meldungstext des Workers verwirft — ein schärferer Text allein wäre nie sichtbar
+  geworden. Neu: `MAIL_VERSAND_ZEITLIMIT` (504), `MAIL_VERSAND_NICHT_ERREICHBAR`,
+  `MAIL_VERSAND_UMLEITUNG`, `MAIL_VERSAND_ZUGANG_ABGELEHNT`, `MAIL_VERSAND_ABGELEHNT`
+  (je 502). `MAIL_VERSAND_FEHLGESCHLAGEN` bleibt für Wege ohne HTTP-Antwort, also
+  `email-routing`; der bestehende Test dazu gilt unverändert.
+- **401 und 403 sind vom Rest getrennt** (`MAIL_VERSAND_ZUGANG_ABGELEHNT`), weil das der
+  mit Abstand häufigste Einrichtungsfehler ist: Token ungültig oder Absenderdomain beim
+  Anbieter nicht freigegeben. Weitergereicht wird davon nichts — im Log steht nur der
+  Status, nie der Antwortkörper.
+- **Ein nicht headertaugliches Token ist jetzt ein Konfigurationsfehler**, keine
+  Anbieterstörung. Ein Wert mit Zeilenumbruch, Steuerzeichen oder Umlaut lässt `fetch()`
+  scheitern, bevor eine Verbindung besteht. `versandwegVerfuegbar()` meldet den Weg
+  deshalb als nicht eingerichtet, und `waehleVersand()` nennt den Grund konkret, statt den
+  Versand erst beim Absenden scheitern zu lassen.
+- Geprüft: `npm run build` (einschließlich `worker:check`), `npm test`,
+  `npm run format:check` und `npm run deploy:dry-run`.
+
+### Offene Abnahmegrenzen
+
+- **Die eigentliche Ursache des gemeldeten Fehlers ist damit noch nicht bewiesen.** Diese
+  Runde macht sie unterscheidbar; welche der vier Ursachen vorlag, zeigt erst der nächste
+  Versuch am echten Worker (Diagnosecode in der Oberfläche) beziehungsweise die
+  Logzeile `MAIL_VERSAND_NICHT_ERREICHBAR …` im Worker-Log. Ein echter Mailversand hat
+  weiterhin nicht stattgefunden.
+- Keine Browserprüfung; die Änderung betrifft ausschließlich den Worker und ist durch
+  Worker-Tests belegt.
+
+### Nachtrag – tatsächliche Ursache bestätigt, Branch auf den gemergten Fix rebasiert
+
+Kurz nach dieser Runde bestätigten die Betreiberlogs die konkrete Ursache und PR #54 „Resend-
+Mailversand reparieren: `redirect: 'error'` ist in workerd nicht implementiert" ging
+direkt gegen `main`: `fetch()` mit `redirect: 'error'` wirft in Cloudflare Workers sofort
+einen `TypeError`, noch bevor überhaupt eine Verbindung aufgebaut wird – der Resend-Versand
+konnte dadurch nie erfolgreich sein, unabhängig von Token oder Absenderkonfiguration. Damit
+ist die oben offen gelassene Frage „welche der vier Ursachen lag vor" beantwortet: keine
+davon im engeren Sinn – der Fehler lag im Aufruf selbst, nicht bei Netzwerk, Zeitlimit oder
+Zugangsdaten.
+
+Dieser Branch stand zu dem Zeitpunkt bereits vor `main` (die vorige Runde hier hatte
+unabhängig denselben Wechsel auf `redirect: 'manual'` mit `istUmleitung()` vorgenommen, nur
+umfassender: eigener `AbortController` zur Trennung von Zeitlimit und Verbindungsfehler,
+je Ursache ein eigener Diagnosecode, 401/403 getrennt ausgewiesen, Prüfung auf
+headertaugliche Tokenwerte). Auf `main` rebasiert: ein echter Konflikt in
+`worker/src/mail-versand.ts` (zugunsten der umfassenderen Fassung aufgelöst, die den
+schlankeren Stand aus #54 als Sonderfall enthält) und ein inhaltlich überholter Testfall in
+`worker/tests/mail-versand.spec.ts` (erwartete für eine Weiterleitung noch den alten
+Sammelgrund `upstream`, der seit dieser Runde nur noch dem `email-routing`-Weg vorbehalten
+ist – entfernt als Duplikat des vorhandenen, korrekten Tests). Geprüft nach dem Rebase:
+`npm run build` (einschließlich `worker:check`), `npm test` (**558 Angular-Tests in
+69 Dateien**, **441 Worker-Tests in 11 Dateien**), `npm run format:check` und
+`npm run deploy:dry-run` – alle grün.
+
+Weiterhin offen: ein echter Versand über den reparierten Resend-Weg wurde in dieser Umgebung
+nicht ausgeführt; ob er jetzt tatsächlich ankommt, zeigt erst der Betrieb.
+
+## Sparsamer Umgang mit dem Cloudflare-Free-Tier
+
+Der Betrieb läuft auf dem kostenlosen Cloudflare-Tarif. Dort zählt jede einzelne Anfrage an
+den Worker – wegen `run_worker_first = true` auch jede Asset-Anfrage – und jede D1-Schreibung
+gegen ein Tageskontingent. Diese Runde senkt beides, ohne eine fachliche Regel, den
+Zugangsschutz oder die Konfliktbehandlung zu lockern.
+
+- **Fuhrpark-Übersicht: ein Aufruf statt einer je Fahrzeug.** Die Kilometerbilanzen kamen
+  bisher aus einer eigenen Ablesungshistorie je Fahrzeug (`1 + N` Worker-Anfragen, `1 + 2N`
+  D1-Abfragen je Aufruf der Seite). Sie kommen jetzt aus dem seit AP-S1 vorhandenen
+  Kilometerstandsbericht (`GET /api/fahrzeuge/km-bericht`, zwei D1-Abfragen für den gesamten
+  Fuhrpark). Bei 20 Fahrzeugen sind das 21 Anfragen weniger je Seitenaufruf. Fahrzeugliste
+  und Bericht werden jetzt parallel geladen statt nacheinander.
+  - Fachlicher Nebeneffekt: die Übersicht zeigt jetzt dieselben Zahlen wie Mail und
+    Detailseite. Die frühere Fassung rechnete korrigierte Ablesungen mit, der Bericht lässt
+    sie wie das Fahrzeugdetail draußen – die Übersicht war an dieser Stelle falsch.
+  - Dafür führt `BerichtZeile` jetzt die Fahrzeug-`id`, damit die Übersicht ohne einen
+    zweiten Abruf verlinken kann. Die Prüfung lehnt eine Zeile ohne ID ab.
+- **Dauerhafte Zwischenspeicherung der gehashten Bundles.** `worker/src/index.ts` setzt für
+  Dateinamen mit Inhalts-Hash (`main-UC6SXZZ6.js`, `media/…-LEZCGFVT.woff2`)
+  `Cache-Control: private, max-age=31536000, immutable`. Ohne diese Kopfzeile fragt der
+  Browser bei jedem Seitenaufruf alle Bundles erneut an, und jede dieser Rückfragen ist eine
+  Worker-Anfrage – bei gut sechzig Chunks der mit Abstand größte Posten. `index.html` bleibt
+  ungepuffert, ein Deployment bleibt dadurch nicht unbemerkt; die SPA-Ersatzantwort auf einen
+  unbekannten Pfad wird ausdrücklich nicht dauerhaft gepuffert. `private`, weil die Antworten
+  hinter Access liegen und in keinen gemeinsamen Zwischenspeicher gehören.
+- **Kurzlebiger Lesepuffer im Client** (`src/app/kern/abruf-puffer.ts`,
+  `src/app/fahrzeuge/storage/fahrzeug-abruf-puffer.ts`). Fahrzeugliste, Ablesungsverlauf und
+  Bericht werden 60 Sekunden lang wiederverwendet, gleichzeitige Abrufe desselben Schlüssels
+  zu einer Anfrage gebündelt. Jeder eigene Schreibzugriff verwirft alles; ein Ergebnis, das
+  während eines Schreibzugriffs unterwegs war, wird nicht mehr übernommen. `ladeFahrzeug()`
+  bleibt bewusst ungepuffert – dessen ETag ist die Bedingung des nächsten `If-Match`, ein
+  gepufferter ETag führte zu einem vermeidbaren 412.
+- **Änderungsprotokoll erst beim Aufklappen.** Der Bereich auf der Fahrzeugdetailseite ist
+  zugeklappt und wurde trotzdem bei jedem Seitenaufruf geladen. Jetzt lädt er beim Öffnen –
+  und dann jedes Mal neu, damit der angezeigte Stand nach eigenen Änderungen stimmt.
+- **`letzter_zugriff_am` höchstens einmal je Person und Tag.** `registriereZugriff()`
+  schreibt bei jedem `/api/benutzer` eine D1-Zeile. Die `WHERE`-Bedingung am Konfliktzweig
+  lässt den Schreibvorgang aus, wenn der gespeicherte Wert schon von heute ist. Fachlich
+  bleibt die Angabe tagesgenau – feiner war sie nie gemeint. Der D1-Fake in den Worker-Tests
+  bildet die Regel nach.
+- Der Bericht gruppiert die Ablesungen jetzt einmal nach Fahrzeug, statt je Fahrzeug erneut
+  über alle zu filtern; das bleibt linear und hält ihn auch bei wachsendem Verlauf innerhalb
+  der CPU-Grenze einer Worker-Anfrage.
+- Geprüft nach der Übernahme auf den gemergten Stand (PR #52): `npm run build`
+  (einschließlich `worker:check`), `npm test` (**558 Angular-Tests in 69 Dateien**,
+  **440 Worker-Tests in 11 Dateien**), `npm run format:check` und
+  `npm run deploy:dry-run` – alle grün. Die Übernahme hatte zwei Konflikte: die Importe
+  des Fahrzeug-Dashboards (beide Seiten übernommen, der Reiter „Kilometerübersicht" aus
+  #52 bleibt) und diese Datei. Beide Fassungen des Dashboards vertragen sich: Reiter und
+  Übersicht beziehen den Bericht jetzt aus demselben `KmBerichtStoreService`, der Puffer
+  bündelt das zu einem einzigen Abruf.
+
+### Offene Abnahmegrenzen dieser Runde
+
+- **Keine Browserprüfung durchgeführt.** Weder Desktop noch Mobil, weder die geänderte
+  Fuhrpark-Übersicht noch das nachgeladene Änderungsprotokoll wurden im Browser angesehen.
+  Die Änderungen sind nur durch Tests belegt. Das ist nach den Konventionen keine bestandene
+  Sichtprüfung und vor der Abnahme nachzuholen.
+- **Die Wirkung der Cache-Kopfzeile ist nicht am echten Worker gemessen.** Belegt ist nur,
+  dass der Worker sie für gehashte Dateien setzt und für `index.html` nicht. Ob die
+  Anfragezahl im Cloudflare-Dashboard tatsächlich fällt, zeigt erst der Betrieb.
+- **Die Erkennung des Inhalts-Hashes hängt an der Namensform des Angular-Builds**
+  (`-` plus acht Großbuchstaben/Ziffern vor der Endung). Ändert ein späteres Angular diese
+  Form, greift die Zwischenspeicherung stillschweigend nicht mehr – sie wird dann nur
+  wirkungslos, nie falsch.
+- Der Lesepuffer bedeutet, dass eine Erfassung aus einem **anderen** Browser bis zu eine
+  Minute später sichtbar wird. Eigene Änderungen wirken sofort.
+- ~~`npm run test:spa` schlägt weiterhin fehl~~ – das galt für diesen Branch für sich
+  genommen. AP-Ö (siehe unten) hat `worker/tests/spa-routing.mjs` unabhängig davon repariert
+  (`convertV4MiniflareOptions`, Ausgabe unter `dist/`, `routerConfig.has_user_worker`); nach
+  dem Zusammenführen beider Branches läuft `npm run test:spa` wieder erfolgreich gegen das
+  echte workerd-Bundle (geprüft am 2026-09-20).
+
 ## AP-Ö – Öffentliche Kilometermeldung per QR-Code mit Freigabe
 
 Auftrag: die Einstiegshürde für die Helferschaft senken. Wer den Kilometerstand am Fahrzeug

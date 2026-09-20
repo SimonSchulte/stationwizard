@@ -32,6 +32,8 @@ function istEigentuemer(wert: unknown): wert is Eigentuemer {
 function istBerichtZeile(wert: unknown): wert is BerichtZeile {
   return (
     istObjekt(wert) &&
+    istText(wert['id']) &&
+    wert['id'].length > 0 &&
     istText(wert['bezeichnung']) &&
     istText(wert['funkrufname']) &&
     istText(wert['kennzeichen']) &&

@@ -70,6 +70,12 @@ class FakeStatement {
       const [email, erster_zugriff_am, letzter_zugriff_am] = this.werte as [string, string, string];
       const bestehend = this.db.benutzer.get(email);
       if (bestehend) {
+        // Bildet die `WHERE`-Bedingung am Konfliktzweig nach: am selben
+        // Kalendertag wird nicht erneut geschrieben (siehe
+        // `registriereZugriff()` in worker/src/benutzer.ts).
+        if (bestehend.letzter_zugriff_am.slice(0, 10) >= letzter_zugriff_am.slice(0, 10)) {
+          return { success: true, meta: { changes: 0 }, results: [] };
+        }
         this.db.benutzer.set(email, { ...bestehend, letzter_zugriff_am });
       } else {
         this.db.benutzer.set(email, {

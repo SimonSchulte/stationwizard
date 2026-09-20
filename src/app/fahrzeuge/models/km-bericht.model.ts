@@ -8,6 +8,8 @@ import { Eigentuemer } from './fahrzeug.model';
  * nichts nach, sie zeigt genau das, was verschickt würde.
  */
 export interface BerichtZeile {
+  /** Fahrzeug-UUID; erlaubt der Übersicht die Verlinkung ohne zweiten Abruf. */
+  id: string;
   bezeichnung: string;
   funkrufname: string;
   kennzeichen: string;

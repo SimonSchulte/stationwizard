@@ -197,9 +197,24 @@ export class FahrzeugDetail {
       } else {
         void this.store.fahrzeugLaden(id);
         void this.ablesungStore.laden(id);
-        void this.aenderungsprotokollStore.laden(id);
+        // Das Änderungsprotokoll steht in einem zugeklappten Bereich und wird
+        // erst beim Öffnen geladen (siehe `protokollOeffnen()`); der alte
+        // Stand darf bis dahin nicht stehen bleiben.
+        this.aenderungsprotokollStore.zuruecksetzen();
       }
     });
+  }
+
+  /**
+   * Lädt das Änderungsprotokoll beim Aufklappen statt beim Öffnen der Seite.
+   * Es wird selten angesehen, kostet aber sonst bei jedem Seitenaufruf eine
+   * eigene Anfrage. Jedes Aufklappen lädt neu – so ist der angezeigte Stand
+   * immer der aktuelle, auch nach eigenen Änderungen.
+   */
+  protokollOeffnen(): void {
+    const id = this.routenId();
+    if (!id || id === 'neu') return;
+    void this.aenderungsprotokollStore.laden(id);
   }
 
   aktualisieren<K extends keyof Fahrzeugstamm>(feld: K, wert: Fahrzeugstamm[K]): void {
