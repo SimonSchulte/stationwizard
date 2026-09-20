@@ -192,6 +192,41 @@ describe('PUT /api/fahrzeuge/<id>', () => {
     );
     expect(antwort.status).toBe(428);
   });
+
+  // Cloudflare schwächt einen starken ETag zu `W/"1"` ab, sobald es die Antwort
+  // unterwegs komprimiert; der Browser schickt genau das zurück (siehe
+  // worker/src/etag.ts). Ohne diesen Fall scheiterte jedes Speichern in
+  // Produktion, ohne dass lokal etwas auffiel.
+  it('nimmt einen abgeschwächten ETag als If-Match an', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': 'W/"1"' },
+        body: JSON.stringify(fahrzeugKoerper({ bemerkung: 'aktualisiert' })),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(200);
+    expect(antwort.headers.get('ETag')).toBe('"2"');
+  });
+
+  it('erkennt einen Konflikt auch bei abgeschwächtem ETag', async () => {
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const antwort = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': 'W/"99"' },
+        body: JSON.stringify(fahrzeugKoerper()),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(412);
+  });
 });
 
 describe('Ablesungen', () => {

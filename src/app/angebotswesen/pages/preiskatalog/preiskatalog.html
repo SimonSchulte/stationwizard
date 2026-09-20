@@ -1,0 +1,103 @@
+<mat-toolbar class="preiskatalog-kopfleiste">
+  <a mat-icon-button routerLink="/angebotswesen" aria-label="Zurück zum Angebotswesen">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">Preiskatalog</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="neuerEintrag()">
+    <mat-icon>add</mat-icon> Neuer Eintrag
+  </button>
+</mat-toolbar>
+
+<div class="preiskatalog-content">
+  <p class="beschreibung">
+    Preise für Einsatzkräfte (je Stunde) und Fahrzeuge (Pauschale je Schicht/Tag). Änderungen hier
+    speichern sofort; eine bereits kalkulierte Position in einem Angebot übernimmt eine spätere
+    Änderung nicht automatisch.
+  </p>
+
+  @if (store.listeLaedt()) {
+    <p role="status">Preiskatalog wird geladen …</p>
+  }
+  @if (store.listeFehler()) {
+    <p class="error-hint" role="alert">{{ store.listeFehler() }}</p>
+  }
+  @if (store.speicherFehler()) {
+    <p class="error-hint" role="alert">
+      {{ store.speicherFehler() }}
+      @if (store.speicherKonflikt()) {
+        <button mat-button (click)="store.laden()">Aktuellen Stand laden</button>
+      }
+    </p>
+  }
+
+  @if (!store.listeLaedt() && store.eintraege().length === 0) {
+    <p class="empty-hint">Noch keine Einträge im Preiskatalog.</p>
+  } @else {
+    <div class="tabelle-rahmen">
+      <table class="bericht-tabelle">
+        <thead>
+          <tr>
+            <th scope="col">Bezeichnung</th>
+            <th scope="col">Art</th>
+            <th scope="col" class="rechts">Einzelpreis</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (eintrag of store.eintraege(); track eintrag.id) {
+            <tr>
+              <td>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <input
+                    matInput
+                    [value]="eintrag.bezeichnung"
+                    [disabled]="store.speichertId() === eintrag.id"
+                    (change)="bezeichnungAktualisieren(eintrag, $any($event.target).value)"
+                  />
+                </mat-form-field>
+              </td>
+              <td>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-select
+                    [value]="eintrag.art"
+                    [disabled]="store.speichertId() === eintrag.id"
+                    (selectionChange)="artAktualisieren(eintrag, $event.value)"
+                  >
+                    @for (art of PREISKATALOG_ARTEN; track art) {
+                      <mat-option [value]="art">{{ PREISKATALOG_ART_LABEL[art] }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </td>
+              <td class="rechts">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="preis-feld">
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    [value]="centZuEuroEingabe(eintrag.einzelpreisCent)"
+                    [disabled]="store.speichertId() === eintrag.id"
+                    (change)="preisAktualisieren(eintrag, $any($event.target).value)"
+                  />
+                  <span matSuffix>&nbsp;€</span>
+                </mat-form-field>
+              </td>
+              <td>
+                <button
+                  mat-icon-button
+                  [disabled]="store.loeschtId() === eintrag.id"
+                  (click)="eintragLoeschen(eintrag)"
+                  aria-label="Eintrag löschen"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

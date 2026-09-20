@@ -1,0 +1,109 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.detail-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.spacer {
+  flex: 1;
+}
+
+.detail-content {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.konflikt-hinweis {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--space-xs);
+  background: var(--surface-secondary);
+  color: var(--status-warn);
+
+  span {
+    flex: 1;
+  }
+}
+
+.abschnitt {
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+
+  h2 {
+    margin-top: 0;
+  }
+}
+
+.section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.feldraster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.bemerkung-feld {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
+.metadaten {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: var(--space-sm) 0 0;
+}
+
+.schicht-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.pauschalpreis-feld {
+  display: block;
+  width: 12em;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}

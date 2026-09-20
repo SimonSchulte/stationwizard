@@ -1,4 +1,5 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
+import { verarbeiteAngebotswesen, type AngebotswesenKonfiguration } from './angebotswesen';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import {
   registriereZugriff,
@@ -42,7 +43,8 @@ export interface Env
     BenutzerverwaltungKonfiguration,
     SystemkonfigurationKonfiguration,
     KmBerichtKonfiguration,
-    OeffentlicheErfassungKonfiguration {
+    OeffentlicheErfassungKonfiguration,
+    AngebotswesenKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -186,6 +188,10 @@ export default {
 
     if (url.pathname === '/api/fahrzeuge' || url.pathname.startsWith('/api/fahrzeuge/')) {
       return verarbeiteFahrzeuge(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === '/api/angebotswesen' || url.pathname.startsWith('/api/angebotswesen/')) {
+      return verarbeiteAngebotswesen(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {

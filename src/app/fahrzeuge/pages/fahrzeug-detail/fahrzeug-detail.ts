@@ -23,7 +23,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { DatePipe } from '@angular/common';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
+import {
+  heuteIso,
+  isoZuLokalesDatum,
+  jahrVon,
+  lokalesDatumZuIso,
+} from '../../../kern/kalender/datum';
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import {
   Aenderungseintrag,
@@ -55,19 +60,6 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     erinnerungTage: 30,
     erledigtAm: null,
   };
-}
-
-/** ISO-Datum (`YYYY-MM-DD`) → lokales `Date` für `mat-datepicker`, zeitzonenunabhängig. */
-function isoZuDatum(iso: string): Date | null {
-  if (!iso) return null;
-  const [jahr, monat, tag] = iso.split('-').map(Number);
-  return new Date(jahr, monat - 1, tag);
-}
-
-/** Gegenstück zu `isoZuDatum`: lokales `Date` aus dem Datepicker → ISO-Datum. */
-function datumZuIso(datum: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
 }
 
 @Component({
@@ -230,12 +222,12 @@ export class FahrzeugDetail {
 
   /** Für die Datepicker-Bindung: ISO-Datum-Signale/-Felder als `Date` darstellen. */
   alsDatum(iso: string): Date | null {
-    return isoZuDatum(iso);
+    return isoZuLokalesDatum(iso);
   }
 
   wartungDatumAktualisieren(id: string, event: MatDatepickerInputEvent<Date>): void {
     if (!event.value) return;
-    this.wartungAktualisieren(id, { faelligAm: datumZuIso(event.value) });
+    this.wartungAktualisieren(id, { faelligAm: lokalesDatumZuIso(event.value) });
   }
 
   wartungVorlaufAktualisieren(id: string, wert: string): void {
@@ -304,7 +296,7 @@ export class FahrzeugDetail {
   }
 
   korrekturDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
-    if (event.value) this.korrekturDatum.set(datumZuIso(event.value));
+    if (event.value) this.korrekturDatum.set(lokalesDatumZuIso(event.value));
   }
 
   async korrekturSpeichern(): Promise<void> {
@@ -355,7 +347,7 @@ export class FahrzeugDetail {
   }
 
   nachtragDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
-    if (event.value) this.nachtragDatum.set(datumZuIso(event.value));
+    if (event.value) this.nachtragDatum.set(lokalesDatumZuIso(event.value));
   }
 
   async nachtragSpeichern(): Promise<void> {

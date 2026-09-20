@@ -97,6 +97,14 @@
         <mat-icon aria-hidden="true">local_shipping</mat-icon> Fahrzeuge
       </a>
       <a
+        routerLink="/angebotswesen"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">request_quote</mat-icon> Angebotswesen
+      </a>
+      <a
         routerLink="/aufgaben"
         routerLinkActive="aktiv"
         ariaCurrentWhenActive="page"

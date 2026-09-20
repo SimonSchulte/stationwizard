@@ -280,6 +280,83 @@ npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER_DB` in
 `wrangler.toml` eintragen.
 
+### Angebotswesen (D1)
+
+`ANGEBOTSWESEN_DB` bindet eine eigene D1-Datenbank `stationwizard-angebotswesen` (getrennt
+von `FAHRZEUGE_DB`/`BENUTZER_DB`, damit die Fachdomäne getrennt bleibt). Schema in
+`worker/migrations/0008_angebotswesen.sql`, zwei Tabellen: `preiskatalog_eintraege` und
+`angebote`. Ohne dieses Binding antwortet `/api/angebotswesen*` mit 503
+(`ANGEBOTSWESEN_KONFIGURATION_FEHLT`) statt eines Absturzes.
+
+Der Preiskatalog (`src/app/angebotswesen/pages/preiskatalog/`) ist eine frei erweiterbare
+Liste, nicht die feste Systemkonfigurations-Schlüssel-Wert-Tabelle: Nutzer legen eigene
+Einträge an, benennen sie um und löschen sie. Jeder Eintrag trägt `art`
+(`einsatzkraft` – Stundensatz – oder `fahrzeug` – Pauschale je Schicht/Tag) und
+`einzelpreisCent` (Integer-Cent, nie Fließkomma-Euro). Anders als beim Fahrzeugmodul liegt
+die Version direkt als JSON-Feld in jeder Listenzeile statt nur im ETag einer
+Einzelabfrage – bei vielen kleinen, inline editierbaren Zeilen wäre ein Ladevorgang je
+Zeile vor jeder Änderung ein Verstoß gegen die Sparsamkeitsregel. Schreiben bleibt trotzdem
+über `If-Match`/`If-None-Match` und 412 bei Versionskonflikt.
+
+Die Versionsnummer aus `If-Match` liest für die eigenen D1-Module (Angebotswesen und
+Fahrzeuge) gemeinsam `worker/src/etag.ts`. Der Worker **gibt** seine Version immer als
+starken ETag aus (`"3"`), **nimmt** sie aber auch abgeschwächt (`W/"3"`) wieder an: der
+Cloudflare-Edge wandelt einen starken ETag in einen schwachen um, sobald er die Antwort
+unterwegs verändert – der Normalfall dafür ist die automatische Komprimierung, und das
+Abschalten („Respect Strong ETags") ist eine Enterprise-Einstellung, die auf dem
+kostenlosen Tarif nicht zur Verfügung steht. Der Browser bekommt also `W/"3"` zu sehen und
+schickt genau das zurück. Eine Prüfung auf ausschließlich starke ETags lehnte damit in
+Produktion **jedes** Speichern eines zuvor geladenen Datensatzes mit 428 ab, während
+workerd und alle Tests mit fest notiertem `"3"` unauffällig blieben. Die Sperre wird
+dadurch nicht schwächer: verglichen wird weiterhin die exakte Versionsnummer, ein
+veralteter Stand bleibt 412. Ein **fehlender** `If-Match`-Header ergibt weiterhin 428
+(`…_VORBEDINGUNG_FEHLT`), ein vorhandener, aber unlesbarer dagegen 400
+(`…_VORBEDINGUNG_UNGUELTIG`) – zwei Ursachen, zwei Codes, weil die Oberfläche nur Status
+und `X-Stationwizard-Diagnose` sieht.
+
+Ein Angebot (`src/app/angebotswesen/pages/angebot-detail/`) besteht aus mehreren Schichten
+(je ein Kalendertag mit `von`/`bis`-Zeitspanne; ein Dienst über Mitternacht wird als zwei
+Schichten erfasst) mit je mehreren Positionen. Eine Position speichert eine **eigene,
+editierbare Momentaufnahme** von Bezeichnung und Einzelpreis (`herkunftEintragId` verweist
+nur zur Nachverfolgung auf den Ursprungseintrag) – eine Anpassung bei der Kalkulation wirkt
+nie auf den Preiskatalog zurück, und ein späteres Löschen des Katalogeintrags kann ein
+gespeichertes Angebot nicht beschädigen. Schichten/Positionen liegen als JSON-Array in der
+Spalte `schichten`, analog zu `wartungstermine` im Fahrzeugmodul: ein Angebot wird immer als
+Ganzes geladen und gespeichert. Die eigentliche Kalkulation (Stunden- und
+Pauschalpreisberechnung, Rundung) ist reine Fachlogik ohne Worker-Bezug und lebt in
+`src/app/angebotswesen/services/angebot-kalkulation.ts`; der Worker validiert Eingaben nur
+strukturell (`bis > von`, `stunden` nur bei `art === 'einsatzkraft'` usw.), rechnet aber
+nichts nach. Eine Schicht lässt sich im Editor duplizieren (eigene Ids für Kopie und alle
+Positionen, direkt hinter dem Original einsortiert). Neben dem Pauschalpreis gibt es eine
+Materialpauschale pro Dienst (`materialpauschaleAktiv`/`materialpauschaleCent`, Spalten aus
+`worker/migrations/0009_angebot_materialpauschale.sql`, per `ALTER TABLE` zur bereits
+angelegten `angebote`-Tabelle ergänzt): sie ersetzt nichts, sondern fließt als zusätzliche,
+einmalige Position immer in die rechnerische Summe ein – auch wenn der Pauschalpreis danach
+die Gesamtsumme ersetzt. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/
+`pauschalpreisCent`) ersetzt ausschließlich die Gesamtsumme des ganzen Angebots, nie
+einzelner Schichten; die Einzelpositionen bleiben dabei immer berechnet und sichtbar.
+
+Beide Ressourcen sind vorerst ohne eigene Rollenprüfung: jede geprüft angemeldete Identität
+darf lesen und schreiben (dieselbe Übergangslösung „Rechte vorerst alle, Rollen später" wie
+ursprünglich bei Fahrzeugen/Benutzerverwaltung, siehe `docs/konzept-fahrzeuge.md`,
+Abschnitt 8). Eine spätere Admin-Rolle soll dies einschränken.
+
+Angelegt und Migration angewendet (`database_id` `a5fc7cbd-ad5e-4f07-a42d-5a23173a526a` in
+`wrangler.toml`, am 2026-09-20 über die Cloudflare-D1-API angelegt, nicht über die
+`wrangler`-CLI – dieser Sitzung stand kein `wrangler login`/`CLOUDFLARE_API_TOKEN` zur
+Verfügung). Für eine erneute Einrichtung an anderer Stelle:
+
+```bash
+npx wrangler d1 create stationwizard-angebotswesen --config worker/wrangler.toml
+npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
+  --file worker/migrations/0008_angebotswesen.sql
+npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
+  --file worker/migrations/0009_angebot_materialpauschale.sql
+```
+
+Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `ANGEBOTSWESEN_DB` in
+`wrangler.toml` eintragen (dort steht bis dahin ein Platzhalter aus lauter Nullen).
+
 ### HiOrg-Kalenderfeed
 
 `HIORGSERVER_CALENDER_FEED` darf beide Formen haben; `pruefeFeedZugang()` in

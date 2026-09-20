@@ -145,37 +145,41 @@ Prüfungen und offene Abnahmegrenzen.
 
 ### Erlaubte API-Oberfläche
 
-| Pfad                                            | Methode    | Vertrag                                                                     |
-| ----------------------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `/api/status`                                   | GET        | Worker-Status                                                               |
-| `/api/benutzer`                                 | GET        | Verifizierte E-Mail-Adresse                                                 |
-| `/api/benutzer/profilbild`                      | GET        | Best-effort Google-Profilbild-URL oder `null`, siehe unten                  |
-| `/api/efs/checkapikey`                          | POST       | JSON `{}`                                                                   |
-| `/api/efs/getveranstaltungen`                   | POST       | JSON `{}`                                                                   |
-| `/api/efs/getveranstaltung`                     | POST       | JSON mit ausschließlich `id`                                                |
-| `/api/nextcloud/arbeitsmappe`                   | GET / PUT  | Konfigurierte Excel-Dateifreigabe                                           |
-| `/api/nextcloud/planungen`                      | GET        | Liste aus UUID und ETag                                                     |
-| `/api/nextcloud/planungen/<UUID>`               | GET / PUT  | Einzelne versionierte PEP-Datei                                             |
-| `/api/hiorg/kalender`                           | GET        | HiOrg-Kalenderfeed, nur lesend                                              |
-| `/api/fahrzeuge`                                | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig  |
-| `/api/fahrzeuge/<UUID>`                         | GET / PUT  | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig        |
-| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                              |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist |
-| `/api/fahrzeuge/<UUID>/aenderungen`             | GET        | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff  |
-| `/api/fahrzeuge/km-bericht`                     | GET        | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht          |
-| `/api/fahrzeuge/km-bericht/senden`              | POST       | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld |
-| `/api/benutzerverwaltung`                       | GET        | Liste aller bereits geprüft angemeldeten Personen samt Rolle                |
-| `/api/benutzerverwaltung/<E-Mail>`              | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung |
-| `/api/systemkonfiguration`                      | GET / PUT  | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten       |
-| `/f/<UUID>`, `/f/<UUID>/km`                     | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                      |
-| `/api/fahrzeuge/erfassungslinks`                | GET        | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt       |
-| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig        |
-| `/e/<TOKEN>`                                    | GET        | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                     |
-| `/oeffentlich/<datei>`                          | GET        | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels            |
-| `/api/oeffentlich/meldung/<TOKEN>`              | GET / POST | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen           |
-| `/api/fahrzeuge/einreichungen`                  | GET        | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert    |
-| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST       | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung       |
-| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST       | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                      |
+| Pfad                                            | Methode            | Vertrag                                                                            |
+| ----------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------- |
+| `/api/status`                                   | GET                | Worker-Status                                                                      |
+| `/api/benutzer`                                 | GET                | Verifizierte E-Mail-Adresse                                                        |
+| `/api/benutzer/profilbild`                      | GET                | Best-effort Google-Profilbild-URL oder `null`, siehe unten                         |
+| `/api/efs/checkapikey`                          | POST               | JSON `{}`                                                                          |
+| `/api/efs/getveranstaltungen`                   | POST               | JSON `{}`                                                                          |
+| `/api/efs/getveranstaltung`                     | POST               | JSON mit ausschließlich `id`                                                       |
+| `/api/nextcloud/arbeitsmappe`                   | GET / PUT          | Konfigurierte Excel-Dateifreigabe                                                  |
+| `/api/nextcloud/planungen`                      | GET                | Liste aus UUID und ETag                                                            |
+| `/api/nextcloud/planungen/<UUID>`               | GET / PUT          | Einzelne versionierte PEP-Datei                                                    |
+| `/api/hiorg/kalender`                           | GET                | HiOrg-Kalenderfeed, nur lesend                                                     |
+| `/api/fahrzeuge`                                | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig         |
+| `/api/fahrzeuge/<UUID>`                         | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig               |
+| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                     |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE             | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist        |
+| `/api/fahrzeuge/<UUID>/aenderungen`             | GET                | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff         |
+| `/api/fahrzeuge/km-bericht`                     | GET                | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht                 |
+| `/api/fahrzeuge/km-bericht/senden`              | POST               | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld        |
+| `/api/benutzerverwaltung`                       | GET                | Liste aller bereits geprüft angemeldeten Personen samt Rolle                       |
+| `/api/benutzerverwaltung/<E-Mail>`              | PUT                | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung        |
+| `/api/systemkonfiguration`                      | GET / PUT          | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten              |
+| `/api/angebotswesen/preiskatalog`               | GET / POST         | Preiskatalog-Liste (mit Version je Zeile); Neuanlage nur mit `If-None-Match: *`    |
+| `/api/angebotswesen/preiskatalog/<UUID>`        | PUT / DELETE       | Einzelner Eintrag; Update nur mit `If-Match`                                       |
+| `/api/angebotswesen/angebote`                   | GET / POST         | Angebotsliste (vollständig, inkl. Schichten); Neuanlage nur mit `If-None-Match: *` |
+| `/api/angebotswesen/angebote/<UUID>`            | GET / PUT / DELETE | Einzelnes Angebot; Update nur mit `If-Match`                                       |
+| `/f/<UUID>`, `/f/<UUID>/km`                     | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                             |
+| `/api/fahrzeuge/erfassungslinks`                | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt              |
+| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig               |
+| `/e/<TOKEN>`                                    | GET                | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                            |
+| `/oeffentlich/<datei>`                          | GET                | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels                   |
+| `/api/oeffentlich/meldung/<TOKEN>`              | GET / POST         | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen                  |
+| `/api/fahrzeuge/einreichungen`                  | GET                | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert           |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST               | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung              |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                             |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
 Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schema in
@@ -221,6 +225,57 @@ Tabelle ist über die API lesbar. Absenderadresse (`MAIL_ABSENDER`), Anzeigename
 bleiben am Worker. `GET` meldet je bekanntem Versandweg nur ein Ja/Nein zur Verfügbarkeit,
 nie eine Bindingliste. Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte
 vorerst alle, Rollen später".
+
+Das Angebotswesen (`src/app/angebotswesen/`, `worker/src/angebotswesen.ts`) hält einen
+Preiskatalog und darauf aufbauende Angebote für Kostenkalkulationen von Sanitätsdiensten.
+Eigene D1-Datenbank `ANGEBOTSWESEN_DB`, Schema in `worker/migrations/0008_angebotswesen.sql`,
+zwei unabhängig versionierte Tabellen: `preiskatalog_eintraege` und `angebote`. Der
+Preiskatalog ist – anders als die Systemkonfiguration oben – keine feste Schlüsselliste,
+sondern eine frei erweiterbare Liste (Einträge anlegen/umbenennen/löschen), weil die
+Preiskategorien fachlich nicht abschließend feststehen; er ist deshalb Fahrzeuge-artig
+strukturiert (eigene D1-Tabelle, Version je Zeile), nicht Systemkonfiguration-artig. Jeder
+Eintrag hat eine `art` (`einsatzkraft` – Stundensatz – oder `fahrzeug` – Pauschale je
+Schicht/Tag) und einen `einzelpreisCent` (Integer-Cent, nie Fließkomma-Euro, um
+Rundungsdrift bei vielen Positionen zu vermeiden). Ein Angebot besteht aus mehreren
+Schichten (je ein Kalendertag mit `von`/`bis`; ein Dienst über Mitternacht wird als zwei
+Schichten erfasst) mit je mehreren Positionen; jede Position trägt eine **eigene,
+editierbare Momentaufnahme** von Bezeichnung und Preis (`herkunftEintragId` verweist nur
+zur Nachverfolgung auf den Preiskatalogeintrag) – eine Anpassung bei einer Kalkulation wirkt
+nie auf den Preiskatalog zurück, und ein späteres Löschen eines Katalogeintrags kann kein
+gespeichertes Angebot beschädigen. Eine Schicht lässt sich im Editor duplizieren
+(`SchichtEditor.schichtDupliziert`, `AngebotDetail.schichtDuplizieren()`); die Kopie erhält
+neue Ids für sich und alle Positionen und wird direkt hinter dem Original einsortiert. Neben
+dem Pauschalpreis gibt es eine **Materialpauschale pro Dienst**
+(`materialpauschaleAktiv`/`materialpauschaleCent`, Schema-Nachtrag in
+`worker/migrations/0009_angebot_materialpauschale.sql`): anders als der Pauschalpreis ersetzt
+sie nichts, sondern fließt als zusätzliche, einmalige Position (nicht je Schicht) immer in die
+rechnerische Summe ein (`materialpauschaleGesamtCent()`/`angebotRechnerischGesamtCent()` in
+`angebot-kalkulation.ts`) – auch wenn ein aktiver Pauschalpreis am Ende die Gesamtsumme
+ersetzt. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/`pauschalpreisCent`) ersetzt
+ausschließlich die Gesamtsumme des kompletten Angebots, nie einzelner Schichten; die
+Einzelpositionen bleiben dabei immer berechnet und sichtbar, auch in der als Word-Tabelle
+kopierbaren Kostenaufstellung (`src/app/angebotswesen/services/tabellen-zwischenablage.ts`,
+asynchrone Clipboard-API mit `text/html`- und `text/plain`-Eintrag, da Angular CDKs
+`Clipboard.copy()` nur Klartext unterstützt). Das Schichtdatum verwendet `mat-datepicker`
+über die gemeinsamen Umrechnungsfunktionen `isoZuLokalesDatum()`/`lokalesDatumZuIso()` in
+`kern/kalender/datum.ts` (auch vom Fahrzeugmodul genutzt, statt sie zweimal zu pflegen); Von/
+Bis verwenden analog `mat-timepicker` (`interval="15m"`) über das Gegenstückpaar
+`zeitZuLokalesDatum()`/`lokalesDatumZuZeit()` in derselben Datei. Beide Picker-Modellsignale
+melden auch die erste Zuweisung beim Rendern über ihr `valueChange` zurück, unabhängig von
+einer tatsächlichen Änderung; `SchichtEditor.datumAktualisieren()`/`vonAktualisieren()`/
+`bisAktualisieren()` vergleichen deshalb den umgerechneten Wert gegen den aktuellen
+Schicht-Wert und verwerfen ihn bei Gleichheit, statt bei jedem Rendern ungewollt zu emittieren.
+Ein Angebot lässt sich aus der Liste heraus löschen (`AngebotStoreService.angebotLoeschen()`,
+Löschknopf je Zeile in `angebot-liste.html` mit `DialogDienst.bestaetigen()`, mirrors das
+Preiskatalog-Löschen) – der Worker-Endpunkt dafür bestand bereits, war aber zunächst nicht aus
+der Oberfläche erreichbar. `AngebotDetail`s Routen-Effekt lädt ein Angebot nur nach, wenn es
+noch nicht mit derselben Id geladen ist (`this.store.geladen()?.daten.id !== id`) – nach dem
+Anlegen navigiert `speichern()` mit `replaceUrl: true` von `'neu'` zur echten Id, ohne die
+Komponente neu zu erzeugen, und der Effekt lief dadurch ein zweites Mal; ein per `void`
+unbeobachteter, zeitlich unabhängiger Zweit-Request konnte dabei kurz nach der Neuanlage
+`geladen`/`entwurf` mit einem zwischenzeitlich veralteten Stand überschreiben.
+Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
+Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
 
 Der Mailversand (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern:
 `email-routing` über das `send_email`-Binding (in `wrangler.toml` bewusst auskommentiert,
@@ -363,6 +418,17 @@ persistiert. Die Schreibweise „CALENDER" ist bewusst übernommen und wird nich
 - Geladene Dateien mit starkem ETag und `If-Match` speichern. Neue Dateien ausschließlich
   mit `If-None-Match: *` anlegen. Keine unbedingten PUTs, kein `If-Match: *` als Ersatz
   für eine konkrete Dateiversion und keine Kombination beider Bedingungen.
+- Der Worker **gibt** seine Version immer als starken ETag aus, **nimmt** sie in `If-Match`
+  aber auch abgeschwächt (`W/"3"`) an: Cloudflare wandelt einen starken ETag unterwegs in
+  einen schwachen um, sobald es die Antwort verändert (Normalfall: automatische
+  Komprimierung), und „Respect Strong ETags" ist eine Enterprise-Einstellung, die auf dem
+  kostenlosen Tarif fehlt. Die Versionsnummer liest für die eigenen D1-Module gemeinsam
+  `worker/src/etag.ts`; verglichen wird weiterhin die exakte Zahl, ein veralteter Stand
+  bleibt 412. Diese Annahme nicht wieder auf „nur starke ETags" verengen – genau das ließ
+  in Produktion jedes Speichern eines geladenen Datensatzes mit 428 scheitern, während
+  workerd und jeder Test mit fest notiertem `"1"` unauffällig blieb. Fehlender Header
+  bleibt 428 (`…_VORBEDINGUNG_FEHLT`), vorhandener aber unlesbarer wird 400
+  (`…_VORBEDINGUNG_UNGUELTIG`).
 - HTTP 412 bedeutet Konflikt: lokalen Stand erhalten, Kopie herunterladen lassen,
   aktuellen gespeicherten Stand bewusst laden und Änderungen zusammenführen.
 - Timeout oder unklarer Upstream-Erfolg darf keinen automatischen ungeschützten

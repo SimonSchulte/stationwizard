@@ -1561,3 +1561,341 @@ Gegenprobe wurde gemacht, mit `base-uri 'none'` schlägt der Lauf fehl.
   diesem Paket entstand nur der Bereich „Offene Aufgaben" als Anschlusspunkt. Der
   Mailversand ist produktiv weiterhin nie gelaufen (siehe AP-S1).
 - Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.
+
+## AP-A1 – Angebotswesen: Preiskatalog, Angebote und Kalkulation
+
+Neuer, eigenständiger Bereich `src/app/angebotswesen/` plus `worker/src/angebotswesen.ts`
+und eine eigene D1-Datenbank `ANGEBOTSWESEN_DB` (Schema in
+`worker/migrations/0008_angebotswesen.sql`). Zwei Fachressourcen:
+
+- **Preiskatalog** (`preiskatalog_eintraege`): frei erweiterbare Liste (nicht die feste
+  Systemkonfigurations-Schlüsselliste), vorbelegt mit den sieben in der Anfrage genannten
+  Startwerten (Sanitätshelfer 12 €, RH/RS 25 €, RS/NFS/Einsatzleiter 35 €, Notarzt 50 € je
+  Stunde; KTW/RTW 50 €, MTW 30 €, GW-San 50 € Pauschale je Schicht). Jede Zeile trägt ihre
+  Version direkt als JSON-Feld statt nur im ETag einer Einzelabfrage – bewusste Abweichung
+  vom Fahrzeuge-Muster, um bei vielen kleinen, inline editierbaren Zeilen keinen
+  Ladevorgang je Zeile vor jeder Änderung zu brauchen (Sparsamkeitsregel).
+- **Angebote** (`angebote`): serverseitig gespeicherte Liste (nicht nur ein
+  Rechner ohne Persistenz). Ein Angebot hat mehrere Schichten (je ein Kalendertag mit
+  `von`/`bis`; ein Dienst über Mitternacht wird bewusst als zwei Schichten erfasst, keine
+  Tagesüberlauf-Sonderbehandlung) mit je mehreren Positionen. Jede Position speichert eine
+  eigene editierbare Momentaufnahme von Bezeichnung/Preis statt live an den Katalog
+  zurückzubinden – eine Anpassung bei der Kalkulation wirkt nie auf den Preiskatalog
+  zurück, wie in der Anfrage gefordert.
+
+Getroffene Designentscheidungen, die über die wörtliche Anfrage hinausgehen und hier
+festgehalten werden:
+
+- Geld durchgehend als Integer-Cent (DB, Worker-JSON, Angular-Modelle), nie
+  Fließkomma-Euro, um Rundungsdrift bei vielen Positionen zu vermeiden;
+  `src/app/angebotswesen/services/waehrung.ts` ist der einzige Umrechnungsweg.
+- Bei einer Einsatzkraft-Position wird `stunden` beim Hinzufügen aus der Schichtdauer
+  vorbelegt, bleibt danach aber unabhängig editierbar (z. B. wenn eine Kraft nur einen Teil
+  der Schicht anwesend ist) – keine stille Nachführung bei späterer Änderung der
+  Schichtzeit.
+- `DELETE /api/angebotswesen/angebote/<UUID>` wurde ergänzt, obwohl die Anfrage nur
+  Kalkulation und Kopieren nennt – Grundhygiene für abgebrochene/doppelte Angebote,
+  analog zum übrigen CRUD.
+- Kein neues Rollenmodell: dieselbe Übergangslösung „Rechte vorerst alle, Rollen später"
+  wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
+- Die Kalkulationslogik (`angebot-kalkulation.ts`: Stunden aus Schichtzeit,
+  Positions-/Schicht-/Gesamtsumme, Pauschalpreis-Override) ist reine, DI-freie Fachlogik,
+  von Bildschirmanzeige (`angebot-kalkulationstabelle`) und Word-Export
+  (`angebot-word-export.ts`) gemeinsam genutzt, damit beide nie auseinanderlaufen.
+- Kopieren nach Word (`tabellen-zwischenablage.ts`) ist komplett neuer Code – es gab bisher
+  keine Zwischenablage-Funktion im Projekt. Die HTML-Tabelle wird aus derselben
+  Kalkulationsstruktur wie die Bildschirmanzeige aufgebaut (nicht aus dem gerenderten DOM
+  gelesen), mit Inline-`style` für Hervorhebungen, weil Word beim Einfügen keine extern
+  verlinkten Komponentenstile übernimmt.
+
+### Tatsächlich ausgeführte Prüfungen
+
+```bash
+npx npm@11 ci
+npm run build
+npm test
+npm run format:check
+npm run worker:check
+npm run worker:test
+npm run deploy:dry-run
+npm run test:spa
+```
+
+Alle sieben Kommandos liefen in dieser Runde erfolgreich durch (Angular: 701 Tests, 91
+Dateien; `oeffentlich`-Projekt: 13 Tests; Worker: 551 Tests, 17 Dateien; `deploy:dry-run`
+zeigt `env.ANGEBOTSWESEN_DB` korrekt als gebundene D1-Ressource; `test:spa` lief in dieser
+Umgebung anders als beim letzten Mal erfolgreich durch, siehe unten). Neue Tests decken
+insbesondere die Kalkulationsmathematik gegen die Beispielzeilen aus der Anfrage ab
+(12 € × 2 × 1 h = 24 €, 50 € Pauschale × 1 = 50 €), Bruchstunden-Rundung, gemischte
+Positionsarten je Schicht, Versionskonflikte in beiden Ressourcen sowie die
+Preiskatalog-/Angebots-Validierung im Worker (`worker/tests/angebotswesen.spec.ts`).
+
+### Offene Abnahmegrenzen von AP-A1
+
+- **Keine echte Browserprüfung.** Diese Umgebung hat keinen Browser; die Preiskatalog- und
+  Angebot-Editor-Seiten wurden nicht tatsächlich angeklickt, weder auf Desktop noch auf
+  Mobilgeräten. Das widerspricht der Regel „Ein blockierter Browserlauf ist keine bestandene
+  Sichtprüfung" – vor Abnahme nachholen.
+- **„Als Word-Tabelle kopieren" ist nicht gegen echtes Word geprüft.** Die HTML-Struktur ist
+  durch Unit-Tests abgesichert, aber ob Word (Desktop und/oder Web) daraus tatsächlich eine
+  formatierte Tabelle macht, ist aus dem Code allein nicht sicherzustellen und wurde in
+  dieser Runde nicht getestet.
+- **`ANGEBOTSWESEN_DB` ist noch nicht angelegt.** `wrangler.toml` trägt einen
+  Platzhalter-`database_id` aus lauter Nullen; `wrangler d1 create
+stationwizard-angebotswesen` und das Ausführen der Migration gegen die echte Datenbank
+  (siehe `worker/README.md`, Abschnitt „Angebotswesen (D1)") stehen noch aus. Ohne das
+  bleibt das Modul im produktiven Deployment mit 503 gesperrt.
+- **Keine Rollenprüfung.** Wie bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration
+  ursprünglich auch darf jede geprüfte Identität den Preiskatalog und alle Angebote lesen
+  und schreiben.
+- **Kein PDF-Export der Kalkulationstabelle.** Nur Bildschirmanzeige und
+  Word-Kopieren wurden gebaut; ein Export über `pdfmake` (analog zum Fahrzeug-Druckbogen)
+  ist ein möglicher, aber nicht umgesetzter Folgeschritt.
+- **Keine echte Nextcloud-/HiOrg-/produktive Google-Sitzung.** Wie bei allen vorherigen
+  Paketen gilt: nur tatsächlich ausgeführte Prüfungen oben gelten als geprüft.
+
+### Nachtrag in derselben Runde: echte D1-Datenbank angelegt
+
+Derselbe Ablauf wie bei AP-B1 („Nachtrag in derselben Runde: echte D1-Datenbank angelegt"):
+ein realer Deploy-Versuch scheiterte erwartungsgemäß mit `D1 binding 'ANGEBOTSWESEN_DB'
+references database '00000000-0000-0000-0000-000000000000' which was not found` – die
+Platzhalter-`database_id` existiert naturgemäß nicht, und `deploy:dry-run` prüft das nicht,
+weil er nur lokal gegen die Konfiguration validiert, nicht gegen das tatsächliche
+Cloudflare-Konto.
+
+Anders als bei den vorherigen Datenbanken stand dieser Sitzung dafür kein `wrangler
+login` und kein `CLOUDFLARE_API_TOKEN` zur Verfügung (`wrangler whoami` meldete
+„not authenticated"). Angelegt und migriert wurde stattdessen über die
+Cloudflare-Developer-Platform-MCP-Anbindung dieser Sitzung
+(`mcp__Cloudflare_Developer_Platform__d1_database_create`/`_query`) – ein anderer
+Werkzeugweg zum selben Cloudflare-Konto, keine andere Zugriffsebene. `d1_databases_list`
+bestätigte vorher dasselbe Konto (dieselben `database_id`s wie `FAHRZEUGE_DB`/`BENUTZER_DB`
+in `wrangler.toml`) und dass `stationwizard-angebotswesen` noch nicht existierte.
+
+Die Datenbank wurde angelegt (`stationwizard-angebotswesen`, `database_id`
+`a5fc7cbd-ad5e-4f07-a42d-5a23173a526a`), das Schema aus
+`worker/migrations/0008_angebotswesen.sql` einzeln ausgeführt (`CREATE TABLE
+preiskatalog_eintraege`, die sieben Startwerte, `CREATE TABLE angebote`,
+`CREATE INDEX idx_angebote_bezeichnung`) und per Abfrage bestätigt: `sqlite_master` zeigt
+genau die drei erwarteten Objekte, und alle sieben Preiskatalog-Zeilen stehen mit den
+richtigen Werten in der Tabelle. `worker/wrangler.toml` und `worker/README.md`, Abschnitt
+„Angebotswesen (D1)", wurden mit der echten `database_id` aktualisiert;
+`npm run deploy:dry-run` bestätigt das Binding erneut. Kein Bestand vorher, also keine
+Doubletten- oder Datenübernahmeprobleme.
+
+Nicht erneut ausgeführt in diesem Nachtrag: `npm test`/`build` (unverändert seit der
+vorherigen Prüfung in dieser Runde, da nur `wrangler.toml`- und Dokumentationstext
+geändert wurden) und keine erneute Browserprüfung.
+
+### Nachtrag – Schicht duplizieren, Datepicker, Materialpauschale, klebende Kopfleiste
+
+Vier kleine Ergänzungen aus derselben Runde, auf Zuruf während der laufenden Prüfung im
+Browser (echte Access-Sitzung, siehe Screenshot mit „Deutsche Meisterschaften im
+Trampolinturnen"):
+
+- **Schicht duplizieren.** `SchichtEditor` emittiert ein neues `schichtDupliziert`-Ereignis
+  (Button neben „Schicht entfernen"); `AngebotDetail.schichtDuplizieren()` fügt die Kopie
+  direkt hinter dem Original ein, mit neuen Ids für die Schicht selbst und jede ihrer
+  Positionen.
+- **Datepicker statt nativem `type="date"`.** `SchichtEditor` verwendet jetzt
+  `mat-datepicker`, wie der Rest der App (siehe Fahrzeugdetailseite). Die
+  ISO-↔-`Date`-Umrechnung (`isoZuDatum`/`datumZuIso`) war bisher privat in
+  `fahrzeug-detail.ts` dupliziert und wurde nach `kern/kalender/datum.ts` gezogen
+  (`isoZuLokalesDatum`/`lokalesDatumZuIso`), damit beide Stellen dieselbe Funktion nutzen –
+  `fahrzeug-detail.ts` entsprechend umgestellt, keine Verhaltensänderung dort.
+- **Materialpauschale pro Dienst.** Neue Spalten `materialpauschale_aktiv`/
+  `materialpauschale_cent` auf `angebote`, per `ALTER TABLE` ergänzt
+  (`worker/migrations/0009_angebot_materialpauschale.sql`) und **auf der bereits am selben
+  Tag angelegten Produktivdatenbank angewendet** (siehe Nachtrag oben, `database_id`
+  `a5fc7cbd-ad5e-4f07-a42d-5a23173a526a` – über dieselbe Cloudflare-D1-API-Anbindung, aus
+  demselben Grund kein `wrangler`-Login verfügbar). Anders als der bestehende Pauschalpreis
+  ersetzt die Materialpauschale nichts, sondern ist eine zusätzliche, einmalige Position pro
+  Angebot (nicht je Schicht), die immer in `angebotRechnerischGesamtCent()` einfließt – auch
+  wenn ein aktiver Pauschalpreis danach die Gesamtsumme ersetzt. In der Kalkulationstabelle
+  und im Word-Export erscheint dafür bei aktiver Pauschale eine eigene Zeile.
+- **Klebende Kopfleiste.** `.kopfleiste-basis()` in `kern/kopfleiste.less` (gemeinsame
+  Mixin aller Seiten-Werkzeugleisten) bekam `position: sticky; top: 0`, ausgelöst durch den
+  Wunsch, Titel und Speichern-Button der Angebotsdetailseite beim Scrollen durch viele
+  Schichten sichtbar zu halten. Wirkt sich auf alle Seiten aus, die die Mixin verwenden
+  (Fahrzeuge, Angebotswesen, Verwaltung usw.), nicht nur auf diese eine Seite.
+
+Geprüft: `npm run build` (inkl. `worker:check`), `npm test` (720 Angular-Tests, 91 Dateien;
+13 `oeffentlich`-Tests; 553 Worker-Tests, 17 Dateien), `npm run format:check`,
+`npm run worker:test`, `npm run deploy:dry-run` (bestätigt weiterhin `env.ANGEBOTSWESEN_DB`)
+— alle grün. Die beiden `ALTER TABLE`-Anweisungen wurden gegen die echte Produktivdatenbank
+ausgeführt und per `PRAGMA table_info(angebote)` bestätigt (zwölf Spalten inklusive der
+beiden neuen). Keine erneute vollständige Browserprüfung dieser vier Änderungen durch diese
+Sitzung selbst – der Anstoß kam aus einem Screenshot der produktiv laufenden Anwendung, was
+nahelegt, dass der Nutzer selbst dort weiterprüft.
+
+### Nachtrag – Timepicker für Von/Bis
+
+Die nativen `<input type="time">`-Felder für Von/Bis in `SchichtEditor` sind durch
+Angular Materials `mat-timepicker` ersetzt (`interval="15m"`), analog zum bereits
+eingebauten `mat-datepicker` fürs Schichtdatum. Neue Helfer `zeitZuLokalesDatum`/
+`lokalesDatumZuZeit` in `kern/kalender/datum.ts` (Gegenstück zu
+`isoZuLokalesDatum`/`lokalesDatumZuIso`) rechnen `HH:MM` auf einen festen Bezugstag
+(`2000-01-01`) und zurück, da `mat-timepicker` ein `Date` erwartet und nur die Uhrzeit
+fachlich relevant ist.
+
+Der Vollständigkeits-Build deckte dabei einen Fehler auf, statt ihn zu verschweigen:
+`mat-timepicker`/`mat-datepicker` binden `value` intern als Modellsignal und melden auch
+die _erste_ Zuweisung beim Rendern über `valueChange` zurück – unabhängig davon, ob sich
+der Wert tatsächlich geändert hat. Ein reiner `equal`-Vergleich im `computed()` (stabile
+`Date`-Referenz bei unverändertem Wert) löst nur das Problem neu erzeugter Objekte bei
+jedem Re-Render, nicht den Phantom-Aufruf beim allerersten Rendern. Die eigentliche
+Korrektur sitzt deshalb in `datumAktualisieren`/`vonAktualisieren`/`bisAktualisieren`
+selbst: Der aus dem Ereignis berechnete Wert wird vor dem `schichtGeaendert`-Emit gegen
+den aktuellen Wert der Schicht verglichen und bei Gleichheit verworfen. Das hat zwei
+zunächst rot laufende Tests aufgedeckt (`schicht-editor.spec.ts`, „ignoriert ein
+Datepicker-/Timepicker-Ereignis ohne Wert" – beim bloßen Rendern kamen zwei
+Phantom-Emissionen von den Von/Bis-Feldern hinzu, obwohl der Test gar keine Interaktion
+simuliert) und wurde vor dem Push behoben, nicht nur gemeldet.
+
+Geprüft: `npm run build` (inkl. `worker:check`), `npm test` (725 Angular-Tests, 91
+Dateien; 13 `oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle grün;
+`npm run format:check`, `npm run worker:check`, `npm run worker:test`,
+`npm run deploy:dry-run` sowie `npm run test:spa` (lief in dieser Sitzung erfolgreich
+durch, anders als beim früher dokumentierten Abbruch mit „network approval was
+cancelled"). Keine erneute Browserprüfung des Timepickers selbst durch diese Sitzung –
+nur die automatisierte Testsuite.
+
+### Nachtrag – Angebot löschen (UI) und Prüfung der gemeldeten 428-Fehlermeldung
+
+Auf Zuruf gemeldet: ein 428/`ANGEBOTSWESEN_VORBEDINGUNG_FEHLT` beim Speichern
+(„Zum Speichern zuerst laden und die aktuelle Version mitsenden.") sowie die fehlende
+Möglichkeit, ein Angebot wieder zu löschen.
+
+Zum Löschen: `DELETE /api/angebotswesen/angebote/<UUID>` existierte im Worker bereits
+seit AP-A1, war aber nirgends aus der Oberfläche erreichbar – `AngebotStoreService` hatte
+keine Löschmethode, `AngebotListe` keinen Löschknopf. Ergänzt: `angebotLoeschen(id)` in
+`AngebotStoreService` (mirrors `PreiskatalogStoreService.eintragLoeschen()`, eigenes
+`loeschtId`-Signal zum Sperren der betroffenen Zeile) sowie ein Löschknopf je Zeile in
+`angebot-liste.html`, mit derselben Bestätigung über `DialogDienst.bestaetigen()` wie
+beim bestehenden Preiskatalog-Löschen.
+
+Zum gemeldeten 428: Worker (`aktualisiereAngebot`/`aktualisierePreiskatalogEintrag` in
+`worker/src/angebotswesen.ts`), beide Storage-Adapter
+(`api-angebot-storage.ts`/`api-preiskatalog-storage.ts`, `If-Match` korrekt aus der
+zuletzt geladenen Version gebildet) und beide Store-Services wurden Zeile für Zeile
+gegen den ETag-/`If-Match`-Vertrag geprüft – kein Codepfad im aktuellen Stand dieses
+Branches (Commit `546c244` und neuer) liefert ein fehlendes oder leeres `If-Match` beim
+Aktualisieren eines bereits geladenen Angebots oder Preiskatalogeintrags; die
+bestehenden Tests (`angebot-store.service.spec.ts`, `api-angebot-storage.spec.ts`,
+`preiskatalog.spec.ts`, `angebotswesen.spec.ts`) decken den Rundlauf ab und laufen grün.
+Da `main` das Angebotswesen noch gar nicht enthält (Merge steht aus), lief die getestete
+Live-Instanz vermutlich auf einem älteren Stand dieses Branches – möglich, aber aus dem
+Code allein nicht bestätigt. **Nicht als behoben gemeldet, sondern als nicht
+reproduzierbar dokumentiert:** Sollte der Fehler nach einem erneuten Deployment des
+aktuellen Branch-Stands weiterhin auftreten, sind konkrete Reproduktionsschritte nötig
+(neues oder bestehendes Angebot, welches Feld, Preiskatalog oder Angebot betroffen).
+
+Geprüft: `npm run build` (inkl. `worker:check`), `npm test` (729 Angular-Tests, 91
+Dateien; 13 `oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle grün;
+`npm run format:check`, `npm run worker:check`, `npm run worker:test`. Keine
+Browserprüfung des neuen Löschknopfs durch diese Sitzung – nur die automatisierte
+Testsuite.
+
+### Nachtrag – 428 empirisch geprüft und eine reale Race-Bedingung behoben
+
+Konkretere Rückmeldung: „Ein grade angelegtes Angebot führt beim erneuten laden und
+speichern zu [428]." Die reine Code-Durchsicht aus dem vorigen Nachtrag reichte nicht
+aus, um das auszuschließen – deshalb diesmal ein empirischer Nachweis statt einer
+weiteren Lektüre.
+
+Mit demselben Werkzeug wie `test:spa` (workerd über Miniflare, der echte gebündelte
+Worker aus `wrangler deploy --dry-run`) wurde diesmal zusätzlich eine **echte
+D1-Datenbank** gebunden, die Migrationen `0008`/`0009` angewendet und der komplette
+Rundlauf über HTTP nachgestellt: `POST` anlegen → `GET` neu laden → `PUT` mit dem
+gelesenen `ETag` → nochmal `GET`/`PUT` → zwei parallele `GET`s auf dasselbe Angebot.
+Alle Schritte liefen sauber durch, korrekt hochzählende `ETag`s, kein einziges 428 –
+das schließt einen Fehler im Worker oder im D1-Zusammenspiel (z. B. eine verzögerte
+Sichtbarkeit gerade geschriebener Zeilen) aus. Das Diagnoseskript war ein
+Wegwerfskript außerhalb der Testsuite und wurde nach der Untersuchung wieder gelöscht.
+
+Damit verlagerte sich der Verdacht endgültig auf die Client-Seite, und dort fand sich
+eine echte, bisher übersehene Race-Bedingung: `AngebotDetail`s Konstruktor-`effect()`
+reagiert auf `routenId()` (Routen-Parameter `:id`). Nach dem Anlegen navigiert
+`speichern()` per `router.navigate(..., { replaceUrl: true })` von `'neu'` zur echten
+Id, **ohne dass die Komponente neu erzeugt wird** (Angular behält sie bei einer
+Parameteränderung derselben Route bei) – der `effect()` läuft dadurch ein zweites Mal
+und löste bisher einen **zusätzlichen, unbeobachteten** `store.angebotLaden(id)`-Aufruf
+aus, obwohl `store.speichern()` den frischen Stand (inklusive `ETag`) bereits selbst
+nachgeladen und in `geladen`/`entwurf` übernommen hatte. Dieser zweite, überflüssige
+GET-Aufruf lief nebenläufig zu allem, was der Nutzer direkt danach tat: löste er
+verzögert aus (Netzwerk-Jitter, oder weil der Nutzer zwischenzeitlich bereits erneut
+gespeichert hatte), überschrieb sein `uebernehmeStand()`-Callback `geladen`/`entwurf`
+mit einem inzwischen veralteten Stand – genau im Zeitfenster kurz nach dem Anlegen, das
+der Nutzer beschrieben hat. Das allein erklärt zwingend nur einen 412
+(Versionskonflikt), nicht beweisbar den gemeldeten 428, aber es ist die einzige
+tatsächlich nichtdeterministische Stelle in diesem Ablauf und verstößt außerdem gegen
+das Sparsamkeitsgebot (ein überflüssiger Request pro Neuanlage).
+
+Behoben: der `effect()` prüft jetzt zusätzlich, ob das angeforderte Angebot anhand
+seiner Id bereits geladen ist (`this.store.geladen()?.daten.id !== id`), bevor er
+`angebotLaden()` aufruft – der zweite, überflüssige Request entfällt vollständig, ohne
+den normalen Ladepfad beim Aufruf einer noch unbekannten Id zu berühren.
+
+Geprüft: dasselbe Miniflare+D1-Diagnoseskript (Wegwerfskript, gelöscht), `npm run build`
+(inkl. `worker:check`), `npm test` (730 Angular-Tests, 91 Dateien; 13
+`oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle grün;
+`npm run format:check`, `npm run worker:check`, `npm run worker:test`. **Weiterhin nicht
+bestätigt:** ob dies tatsächlich der Mechanismus hinter dem gemeldeten 428 war – dafür
+fehlt der Beweis, nur die begründete Vermutung. Keine Browserprüfung dieser Sitzung.
+
+### Nachtrag – Ursache des 428 gefunden: Cloudflare schwächt starke ETags ab
+
+Der Fehler trat nach den beiden vorigen Nachträgen unverändert weiter auf. Beide dort
+notierten Erklärungsversuche waren falsch und sind hiermit ausdrücklich zurückgezogen:
+weder war die Live-Instanz zu alt, noch war die behobene Race-Bedingung beim Reload nach
+der Neuanlage die Ursache. Der Fehler war deterministisch, nicht zeitabhängig.
+
+**Ursache.** Der Worker gibt seine Version als _starken_ ETag aus (`"1"`). Cloudflare
+wandelt einen starken ETag aber in einen _schwachen_ um (`W/"1"`), sobald es die Antwort
+unterwegs verändert – der Normalfall dafür ist die automatische Komprimierung, und das
+Abschalten dieser Umwandlung („Respect Strong ETags") ist eine Enterprise-Einstellung, die
+diesem Betrieb auf dem kostenlosen Tarif gar nicht zur Verfügung steht. Der Browser liest
+also `W/"1"`, legt das als Version ab und schickt genau das als `If-Match` zurück. Die
+Prüfung `istStarkerEtag()` verlangte ein führendes `"` und lehnte deshalb **jedes**
+Speichern eines zuvor geladenen Angebots mit 428 ab.
+
+Das erklärt alle Beobachtungen widerspruchsfrei: deterministisch statt sporadisch;
+Anlegen funktioniert (nutzt `If-None-Match: *`, keinen ETag), jedes spätere Speichern
+nicht; in workerd/Miniflare nicht reproduzierbar, weil dort kein Cloudflare-Edge
+dazwischenliegt; und in den Worker-Tests unsichtbar, weil die den ETag als `"1"` fest
+notieren, statt ihn aus einer Antwort zu übernehmen. Dass schwache ETags real vorkommen,
+war im Projekt übrigens schon bekannt – `nextcloud.ts` lässt sie beim Durchreichen einer
+fremden Dateiversion ausdrücklich zu.
+
+**Behoben** in der neuen gemeinsamen Datei `worker/src/etag.ts` (`starkesEtag()`,
+`versionAusEtag()`), verwendet von `angebotswesen.ts` und `fahrzeuge.ts`. Ausgegeben wird
+weiterhin immer ein starker ETag, angenommen werden beide Formen. Die optimistische Sperre
+wird dadurch nicht schwächer: verglichen wird unverändert die exakte Versionsnummer
+(`WHERE id = ? AND version = ?`), ein veralteter Stand bleibt 412. Zusätzlich sind die
+beiden bisher zusammengefassten Ursachen getrennt, wie es die Regel „jede Fehlerursache
+hat einen eigenen Code" ohnehin verlangt: fehlender Header weiterhin 428
+(`…_VORBEDINGUNG_FEHLT`), vorhandener aber unlesbarer jetzt 400
+(`…_VORBEDINGUNG_UNGUELTIG`). Genau diese Vermischung hatte die Ferndiagnose zuvor
+unnötig erschwert.
+
+**Das Fahrzeugmodul war identisch betroffen** (gleiche Prüfung, gleicher Client-Ablauf,
+gleicher Edge): `PUT /api/fahrzeuge/<UUID>` für Stammdaten muss in Produktion ebenso
+zuverlässig mit 428 gescheitert sein, nur hat es niemand gemeldet – vermutlich, weil
+Stammdaten selten bearbeitet werden (Import und Kilometererfassung laufen über POST ohne
+`If-Match`). Mitbehoben, nicht als getrennte Baustelle liegengelassen.
+
+Geprüft: neue Tests `worker/tests/etag.spec.ts` sowie Fälle in `angebotswesen.spec.ts`
+und `fahrzeuge.spec.ts` für `W/"1"` (200, Version erhöht), veraltetes `W/"99"` (weiterhin 412) und fehlendes `If-Match` (weiterhin 428). Zusätzlich am **echten gebündelten Worker**
+mit echter D1 (Miniflare/workerd, Wegwerfskript, danach gelöscht) nachgestellt: Anlegen
+201, Speichern mit `W/"1"` 200 mit ETag `"2"`, veraltetes `W/"1"` 412, ohne Header 428.
+`npm run build` (inkl. `worker:check`), `npm test` (730 Angular-Tests; 13
+`oeffentlich`-Tests; 563 Worker-Tests), `npm run format:check`, `npm run worker:check`,
+`npm run worker:test`, `npm run test:spa`, `npm run deploy:dry-run` – alle grün.
+
+**Offen:** Der direkte Nachweis am Produktiv-Edge fehlt, weil die Netzpolitik dieser
+Umgebung `hiorg-wache.com` sperrt (Proxy antwortet mit 403 auf CONNECT). Die Diagnose
+stützt sich daher auf das dokumentierte Cloudflare-Verhalten in Verbindung mit dem
+kostenlosen Tarif und darauf, dass sie als einzige alle Beobachtungen erklärt. Ob der
+Nextcloud-/PEP-Pfad dasselbe Problem hat, ist wahrscheinlich, aber ungeprüft: dort wird
+`If-Match` an Nextcloud weitergereicht, weshalb ein bloßes Aufweichen der Prüfung dort
+nicht ohne Test gegen echtes Nextcloud verantwortbar ist. Bewusst nicht mitgeändert.

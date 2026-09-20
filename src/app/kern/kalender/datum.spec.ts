@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   epochSekundenZuIsoDatum,
   isoWochennummer,
+  isoZuLokalesDatum,
   isoZuSerial,
   jahrVon,
+  lokalesDatumZuIso,
+  lokalesDatumZuZeit,
   serialZuIso,
   tageVonBis,
   versetzeTage,
@@ -11,6 +14,7 @@ import {
   wochenImJahr,
   wochentag,
   wochentageImJahr,
+  zeitZuLokalesDatum,
 } from './datum';
 
 describe('wochentageImJahr', () => {
@@ -158,5 +162,38 @@ describe('Tagesspannen', () => {
 
   it('deckelt absurde Spannen aus einer Fremdquelle', () => {
     expect(tageVonBis('2026-01-01', '2029-01-01', 5)).toHaveLength(5);
+  });
+});
+
+describe('isoZuLokalesDatum / lokalesDatumZuIso', () => {
+  it('rechnet ein ISO-Datum in ein lokales Date und zurück, ohne Verschiebung', () => {
+    const datum = isoZuLokalesDatum('2026-05-04');
+    expect(datum).not.toBeNull();
+    expect(lokalesDatumZuIso(datum!)).toBe('2026-05-04');
+  });
+
+  it('liefert null für ein leeres ISO-Datum', () => {
+    expect(isoZuLokalesDatum('')).toBeNull();
+  });
+
+  it('füllt Monat und Tag zweistellig', () => {
+    expect(lokalesDatumZuIso(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('zeitZuLokalesDatum / lokalesDatumZuZeit', () => {
+  it('rechnet eine Uhrzeit in ein lokales Date und zurück, ohne Verschiebung', () => {
+    const datum = zeitZuLokalesDatum('09:15');
+    expect(datum).not.toBeNull();
+    expect(lokalesDatumZuZeit(datum!)).toBe('09:15');
+  });
+
+  it('liefert null für eine ungültige Uhrzeit', () => {
+    expect(zeitZuLokalesDatum('abc')).toBeNull();
+    expect(zeitZuLokalesDatum('25:00')).toBeNull();
+  });
+
+  it('füllt Stunde und Minute zweistellig', () => {
+    expect(lokalesDatumZuZeit(new Date(2000, 0, 1, 8, 5))).toBe('08:05');
   });
 });

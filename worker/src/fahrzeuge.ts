@@ -1,5 +1,6 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { erzeugeErfassungToken } from './erfassung-token';
+import { starkesEtag, versionAusEtag } from './etag';
 import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
 import {
   freigabeGruppen,
@@ -383,14 +384,6 @@ export async function protokolliereAenderung(
     .run();
 }
 
-function starkesEtag(version: number): string {
-  return `"${version}"`;
-}
-
-function istStarkerEtag(wert: string): boolean {
-  return /^"[\x21\x23-\x7e\x80-\xff]*"$/.test(wert);
-}
-
 /**
  * Feste Fahrzeug-Endpunkte hinter der bereits geprüften Anmeldung. Kein
  * generischer Abfrageendpunkt: keine Query-Parameter, keine frei wählbaren
@@ -660,15 +653,15 @@ async function aktualisiereFahrzeug(
   identitaet: GeprueftesBenutzerkonto,
 ): Promise<Response> {
   const ifMatch = anfrage.headers.get('If-Match');
-  if (!ifMatch || !istStarkerEtag(ifMatch)) {
+  if (!ifMatch) {
     return fehlerAntwort(
       'FAHRZEUGE_VORBEDINGUNG_FEHLT',
       'Zum Speichern zuerst laden und die aktuelle Version mitsenden.',
       428,
     );
   }
-  const erwarteteVersion = Number(ifMatch.slice(1, -1));
-  if (!Number.isInteger(erwarteteVersion) || erwarteteVersion < 1) {
+  const erwarteteVersion = versionAusEtag(ifMatch);
+  if (erwarteteVersion === null) {
     return fehlerAntwort('FAHRZEUGE_VORBEDINGUNG_UNGUELTIG', 'Ungültige Dateiversion.', 400);
   }
   const koerper = await lesePruefeKoerper(anfrage, FAHRZEUG_KOERPER_GRENZE);
