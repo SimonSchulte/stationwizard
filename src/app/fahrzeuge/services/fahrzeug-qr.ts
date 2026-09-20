@@ -25,10 +25,19 @@ export interface FahrzeugQrZiele {
   oeffentlichUrl: string | null;
 }
 
+/**
+ * Die produktive Domain. Gedruckte Aufkleber sollen unabhängig davon
+ * funktionieren, von welchem Ursprung aus sie erzeugt wurden – insbesondere
+ * nicht von einem `workers.dev`- oder Vorschau-Worker, wo weder der
+ * öffentliche Bypass für `/e/<TOKEN>` greift (siehe CLAUDE.md) noch ein
+ * Deployment dauerhaft erreichbar bleibt.
+ */
+const PRODUKTIVE_BASIS_URL = 'https://hiorg-wache.com';
+
 export function fahrzeugQrZiele(
   fahrzeugId: string,
   erfassungToken: string | null = null,
-  basisUrl = window.location.origin,
+  basisUrl = PRODUKTIVE_BASIS_URL,
 ): FahrzeugQrZiele {
   return {
     uebersichtUrl: `${basisUrl}/f/${fahrzeugId}`,
