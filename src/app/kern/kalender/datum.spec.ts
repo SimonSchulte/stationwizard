@@ -6,6 +6,7 @@ import {
   isoZuSerial,
   jahrVon,
   lokalesDatumZuIso,
+  lokalesDatumZuZeit,
   serialZuIso,
   tageVonBis,
   versetzeTage,
@@ -13,6 +14,7 @@ import {
   wochenImJahr,
   wochentag,
   wochentageImJahr,
+  zeitZuLokalesDatum,
 } from './datum';
 
 describe('wochentageImJahr', () => {
@@ -176,5 +178,22 @@ describe('isoZuLokalesDatum / lokalesDatumZuIso', () => {
 
   it('füllt Monat und Tag zweistellig', () => {
     expect(lokalesDatumZuIso(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('zeitZuLokalesDatum / lokalesDatumZuZeit', () => {
+  it('rechnet eine Uhrzeit in ein lokales Date und zurück, ohne Verschiebung', () => {
+    const datum = zeitZuLokalesDatum('09:15');
+    expect(datum).not.toBeNull();
+    expect(lokalesDatumZuZeit(datum!)).toBe('09:15');
+  });
+
+  it('liefert null für eine ungültige Uhrzeit', () => {
+    expect(zeitZuLokalesDatum('abc')).toBeNull();
+    expect(zeitZuLokalesDatum('25:00')).toBeNull();
+  });
+
+  it('füllt Stunde und Minute zweistellig', () => {
+    expect(lokalesDatumZuZeit(new Date(2000, 0, 1, 8, 5))).toBe('08:05');
   });
 });

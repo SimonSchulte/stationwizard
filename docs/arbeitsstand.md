@@ -1727,3 +1727,35 @@ ausgeführt und per `PRAGMA table_info(angebote)` bestätigt (zwölf Spalten ink
 beiden neuen). Keine erneute vollständige Browserprüfung dieser vier Änderungen durch diese
 Sitzung selbst – der Anstoß kam aus einem Screenshot der produktiv laufenden Anwendung, was
 nahelegt, dass der Nutzer selbst dort weiterprüft.
+
+### Nachtrag – Timepicker für Von/Bis
+
+Die nativen `<input type="time">`-Felder für Von/Bis in `SchichtEditor` sind durch
+Angular Materials `mat-timepicker` ersetzt (`interval="15m"`), analog zum bereits
+eingebauten `mat-datepicker` fürs Schichtdatum. Neue Helfer `zeitZuLokalesDatum`/
+`lokalesDatumZuZeit` in `kern/kalender/datum.ts` (Gegenstück zu
+`isoZuLokalesDatum`/`lokalesDatumZuIso`) rechnen `HH:MM` auf einen festen Bezugstag
+(`2000-01-01`) und zurück, da `mat-timepicker` ein `Date` erwartet und nur die Uhrzeit
+fachlich relevant ist.
+
+Der Vollständigkeits-Build deckte dabei einen Fehler auf, statt ihn zu verschweigen:
+`mat-timepicker`/`mat-datepicker` binden `value` intern als Modellsignal und melden auch
+die *erste* Zuweisung beim Rendern über `valueChange` zurück – unabhängig davon, ob sich
+der Wert tatsächlich geändert hat. Ein reiner `equal`-Vergleich im `computed()` (stabile
+`Date`-Referenz bei unverändertem Wert) löst nur das Problem neu erzeugter Objekte bei
+jedem Re-Render, nicht den Phantom-Aufruf beim allerersten Rendern. Die eigentliche
+Korrektur sitzt deshalb in `datumAktualisieren`/`vonAktualisieren`/`bisAktualisieren`
+selbst: Der aus dem Ereignis berechnete Wert wird vor dem `schichtGeaendert`-Emit gegen
+den aktuellen Wert der Schicht verglichen und bei Gleichheit verworfen. Das hat zwei
+zunächst rot laufende Tests aufgedeckt (`schicht-editor.spec.ts`, „ignoriert ein
+Datepicker-/Timepicker-Ereignis ohne Wert" – beim bloßen Rendern kamen zwei
+Phantom-Emissionen von den Von/Bis-Feldern hinzu, obwohl der Test gar keine Interaktion
+simuliert) und wurde vor dem Push behoben, nicht nur gemeldet.
+
+Geprüft: `npm run build` (inkl. `worker:check`), `npm test` (725 Angular-Tests, 91
+Dateien; 13 `oeffentlich`-Tests, 3 Dateien; 553 Worker-Tests, 17 Dateien), alle grün;
+`npm run format:check`, `npm run worker:check`, `npm run worker:test`,
+`npm run deploy:dry-run` sowie `npm run test:spa` (lief in dieser Sitzung erfolgreich
+durch, anders als beim früher dokumentierten Abbruch mit „network approval was
+cancelled"). Keine erneute Browserprüfung des Timepickers selbst durch diese Sitzung –
+nur die automatisierte Testsuite.

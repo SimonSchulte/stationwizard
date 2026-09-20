@@ -4,7 +4,7 @@
     <input
       matInput
       [matDatepicker]="schichtDatumPicker"
-      [value]="isoZuLokalesDatum(schicht().datum)"
+      [value]="datumWert()"
       (dateChange)="datumAktualisieren($event)"
       placeholder="TT.MM.JJJJ"
     />
@@ -15,19 +15,23 @@
     <mat-label>Von</mat-label>
     <input
       matInput
-      type="time"
-      [value]="schicht().von"
-      (change)="vonAktualisieren($any($event.target).value)"
+      [matTimepicker]="vonPicker"
+      [value]="vonWert()"
+      (valueChange)="vonAktualisieren($event)"
     />
+    <mat-timepicker-toggle matSuffix [for]="vonPicker"></mat-timepicker-toggle>
+    <mat-timepicker #vonPicker interval="15m"></mat-timepicker>
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zeit-feld">
     <mat-label>Bis</mat-label>
     <input
       matInput
-      type="time"
-      [value]="schicht().bis"
-      (change)="bisAktualisieren($any($event.target).value)"
+      [matTimepicker]="bisPicker"
+      [value]="bisWert()"
+      (valueChange)="bisAktualisieren($event)"
     />
+    <mat-timepicker-toggle matSuffix [for]="bisPicker"></mat-timepicker-toggle>
+    <mat-timepicker #bisPicker interval="15m"></mat-timepicker>
   </mat-form-field>
   @if (stundenAnzeige(); as stunden) {
     <span class="stunden-anzeige">{{ stunden }} h</span>

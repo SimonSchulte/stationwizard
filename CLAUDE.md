@@ -258,7 +258,13 @@ kopierbaren Kostenaufstellung (`src/app/angebotswesen/services/tabellen-zwischen
 asynchrone Clipboard-API mit `text/html`- und `text/plain`-Eintrag, da Angular CDKs
 `Clipboard.copy()` nur Klartext unterstützt). Das Schichtdatum verwendet `mat-datepicker`
 über die gemeinsamen Umrechnungsfunktionen `isoZuLokalesDatum()`/`lokalesDatumZuIso()` in
-`kern/kalender/datum.ts` (auch vom Fahrzeugmodul genutzt, statt sie zweimal zu pflegen).
+`kern/kalender/datum.ts` (auch vom Fahrzeugmodul genutzt, statt sie zweimal zu pflegen); Von/
+Bis verwenden analog `mat-timepicker` (`interval="15m"`) über das Gegenstückpaar
+`zeitZuLokalesDatum()`/`lokalesDatumZuZeit()` in derselben Datei. Beide Picker-Modellsignale
+melden auch die erste Zuweisung beim Rendern über ihr `valueChange` zurück, unabhängig von
+einer tatsächlichen Änderung; `SchichtEditor.datumAktualisieren()`/`vonAktualisieren()`/
+`bisAktualisieren()` vergleichen deshalb den umgerechneten Wert gegen den aktuellen
+Schicht-Wert und verwerfen ihn bei Gleichheit, statt bei jedem Rendern ungewollt zu emittieren.
 Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
 Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
 

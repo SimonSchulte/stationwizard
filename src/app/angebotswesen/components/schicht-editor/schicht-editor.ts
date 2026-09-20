@@ -6,7 +6,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { isoZuLokalesDatum, lokalesDatumZuIso } from '../../../kern/kalender/datum';
+import { MatTimepickerModule } from '@angular/material/timepicker';
+import {
+  isoZuLokalesDatum,
+  lokalesDatumZuIso,
+  lokalesDatumZuZeit,
+  zeitZuLokalesDatum,
+} from '../../../kern/kalender/datum';
 import { schichtStundenGenau } from '../../services/angebot-kalkulation';
 import { Position, Schicht } from '../../models/angebot.model';
 import { PreiskatalogEintrag } from '../../models/preiskatalog.model';
@@ -53,6 +59,7 @@ function positionManuell(schicht: Schicht): Position {
     MatInputModule,
     MatNativeDateModule,
     MatSelectModule,
+    MatTimepickerModule,
   ],
   providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './schicht-editor.html',
@@ -67,7 +74,24 @@ export class SchichtEditor {
   readonly schichtDupliziert = output<void>();
 
   readonly centZuEuroEingabe = centZuEuroEingabe;
-  readonly isoZuLokalesDatum = isoZuLokalesDatum;
+
+  /**
+   * `mat-timepicker`/`mat-datepicker` binden `value` als Modellsignal und
+   * melden auch die erste Zuweisung beim Rendern über `valueChange` zurück –
+   * ohne stabile Objektreferenz würde außerdem jedes Neu-Rendern einen neuen
+   * `Date` erzeugen. Die `equal`-Prüfung hält die Referenz bei unverändertem
+   * `HH:MM`/ISO-Wert stabil; der Phantom-Aufruf beim ersten Rendern wird erst
+   * in den `*Aktualisieren()`-Methoden unten über den Wertevergleich abgefangen.
+   */
+  readonly datumWert = computed(() => isoZuLokalesDatum(this.schicht().datum), {
+    equal: (a, b) => a?.getTime() === b?.getTime(),
+  });
+  readonly vonWert = computed(() => zeitZuLokalesDatum(this.schicht().von), {
+    equal: (a, b) => a?.getTime() === b?.getTime(),
+  });
+  readonly bisWert = computed(() => zeitZuLokalesDatum(this.schicht().bis), {
+    equal: (a, b) => a?.getTime() === b?.getTime(),
+  });
 
   readonly zeitGueltig = computed(() => {
     const s = this.schicht();
@@ -85,17 +109,23 @@ export class SchichtEditor {
 
   datumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
     if (!event.value) return;
-    this.aktualisiereSchicht({ datum: lokalesDatumZuIso(event.value) });
+    const datum = lokalesDatumZuIso(event.value);
+    if (datum === this.schicht().datum) return;
+    this.aktualisiereSchicht({ datum });
   }
 
-  vonAktualisieren(wert: string): void {
+  vonAktualisieren(wert: Date | null): void {
     if (!wert) return;
-    this.aktualisiereSchicht({ von: wert });
+    const von = lokalesDatumZuZeit(wert);
+    if (von === this.schicht().von) return;
+    this.aktualisiereSchicht({ von });
   }
 
-  bisAktualisieren(wert: string): void {
+  bisAktualisieren(wert: Date | null): void {
     if (!wert) return;
-    this.aktualisiereSchicht({ bis: wert });
+    const bis = lokalesDatumZuZeit(wert);
+    if (bis === this.schicht().bis) return;
+    this.aktualisiereSchicht({ bis });
   }
 
   katalogPositionHinzufuegen(eintragId: string): void {

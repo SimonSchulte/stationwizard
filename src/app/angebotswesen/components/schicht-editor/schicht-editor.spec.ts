@@ -100,6 +100,25 @@ describe('SchichtEditor', () => {
     expect(emittiert).toHaveLength(0);
   });
 
+  it('aktualisiert von/bis aus dem Timepicker als HH:MM', () => {
+    const { komponente, emittiert } = erzeuge(
+      erzeugeTestSchicht({ von: '08:00', bis: '20:00', positionen: [] }),
+    );
+    komponente.vonAktualisieren(new Date(2000, 0, 1, 9, 15));
+    komponente.bisAktualisieren(new Date(2000, 0, 1, 17, 45));
+    expect(emittiert.at(-2)).toMatchObject({ von: '09:15' });
+    expect(emittiert.at(-1)).toMatchObject({ bis: '17:45' });
+  });
+
+  it('ignoriert ein Timepicker-Ereignis ohne Wert', () => {
+    const { komponente, emittiert } = erzeuge(
+      erzeugeTestSchicht({ von: '08:00', bis: '20:00', positionen: [] }),
+    );
+    komponente.vonAktualisieren(null);
+    komponente.bisAktualisieren(null);
+    expect(emittiert).toHaveLength(0);
+  });
+
   it('entfernt eine Position', () => {
     const schicht = erzeugeTestSchicht({
       positionen: [

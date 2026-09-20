@@ -273,3 +273,21 @@ export function isoZuLokalesDatum(iso: string): Date | null {
 export function lokalesDatumZuIso(datum: Date): string {
   return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
 }
+
+/**
+ * `HH:MM` → lokales `Date` für `mat-timepicker`, auf einen festen Bezugstag
+ * gesetzt – nur die Uhrzeit ist fachlich relevant, das Datum selbst wird nie
+ * ausgelesen.
+ */
+export function zeitZuLokalesDatum(zeit: string): Date | null {
+  const minuten = zeitAlsMinuten(zeit);
+  if (minuten === null) return null;
+  const datum = new Date(2000, 0, 1);
+  datum.setHours(Math.floor(minuten / 60), minuten % 60, 0, 0);
+  return datum;
+}
+
+/** Gegenstück zu `zeitZuLokalesDatum`: lokales `Date` aus dem Timepicker → `HH:MM`. */
+export function lokalesDatumZuZeit(datum: Date): string {
+  return `${pad(datum.getHours())}:${pad(datum.getMinutes())}`;
+}
