@@ -5,16 +5,9 @@ import {
   Versandweg,
   VersandwegStatus,
 } from '../models/systemkonfiguration.model';
+import { istObjekt, istText } from '../../kern/text/pruefung';
 
 /** Prüfungen für die Worker-Antwort, bevor sie als Domänentyp weiterläuft. */
-
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
-}
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
 
 export function istVersandweg(wert: unknown): wert is Versandweg {
   return istText(wert) && (VERSANDWEGE as readonly string[]).includes(wert);

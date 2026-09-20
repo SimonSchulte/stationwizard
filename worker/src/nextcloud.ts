@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
+import { istObjekt } from './json-lesen';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 export interface NextcloudKonfiguration {
@@ -312,10 +313,6 @@ function istZip(inhalt: Uint8Array): boolean {
     inhalt[2] === 3 &&
     inhalt[3] === 4
   );
-}
-
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return wert !== null && typeof wert === 'object' && !Array.isArray(wert);
 }
 
 function istPepDatei(inhalt: Uint8Array, id: string): boolean {

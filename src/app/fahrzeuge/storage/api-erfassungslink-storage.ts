@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { istObjekt, istText } from '../../kern/text/pruefung';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { FreigabeVerweigertFehler } from './einreichung-storage';
 import {
@@ -11,24 +12,21 @@ interface LinkListenAntwort {
   links: unknown[];
 }
 
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
-
 function istLink(wert: unknown): wert is Erfassungslink {
-  if (typeof wert !== 'object' || wert === null) return false;
-  const daten = wert as Record<string, unknown>;
+  if (!istObjekt(wert)) return false;
   return (
-    istText(daten['fahrzeugId']) &&
-    (daten['token'] === null || (istText(daten['token']) && daten['token'].length > 0))
+    istText(wert['fahrzeugId']) &&
+    (wert['token'] === null || (istText(wert['token']) && wert['token'].length > 0))
   );
 }
 
 function istLinkMitFahrzeug(wert: unknown): wert is ErfassungslinkMitFahrzeug {
-  if (!istLink(wert)) return false;
-  const daten = wert as unknown as Record<string, unknown>;
   return (
-    istText(daten['bezeichnung']) && istText(daten['funkrufname']) && istText(daten['kennzeichen'])
+    istLink(wert) &&
+    istObjekt(wert) &&
+    istText(wert['bezeichnung']) &&
+    istText(wert['funkrufname']) &&
+    istText(wert['kennzeichen'])
   );
 }
 

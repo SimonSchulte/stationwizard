@@ -5,24 +5,13 @@ import {
   SONDERROLLEN,
   Sonderrolle,
 } from '../models/benutzerkonto.model';
+import { istNichtleererText, istObjekt, istText } from '../../kern/text/pruefung';
 
 /**
  * Prüfungen für unbekannte externe Daten (Worker-Antworten), bevor sie als
  * Domänentyp weiterverwendet werden. Kein `any` und kein ungeprüfter Cast –
  * analog zu `fahrzeuge/services/fahrzeug-pruefung.ts`.
  */
-
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
-}
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
-
-function istNichtleererText(wert: unknown): wert is string {
-  return istText(wert) && wert.trim().length > 0;
-}
 
 export function istHauptrolle(wert: unknown): wert is Hauptrolle {
   return istText(wert) && (HAUPTROLLEN as readonly string[]).includes(wert);

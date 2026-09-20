@@ -1,5 +1,6 @@
 import { EIGENTUEMER, Eigentuemer } from '../models/fahrzeug.model';
 import { BerichtZeile, KmBericht, VersandQuittung } from '../models/km-bericht.model';
+import { istObjekt, istText } from '../../kern/text/pruefung';
 
 /**
  * Prüfungen für die Berichtsantwort des Workers, bevor sie als Domänentyp
@@ -8,14 +9,6 @@ import { BerichtZeile, KmBericht, VersandQuittung } from '../models/km-bericht.m
  */
 
 const ISO_DATUM = /^\d{4}-\d{2}-\d{2}$/;
-
-function istObjekt(wert: unknown): wert is Record<string, unknown> {
-  return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
-}
-
-function istText(wert: unknown): wert is string {
-  return typeof wert === 'string';
-}
 
 function istGanzzahl(wert: unknown): wert is number {
   return typeof wert === 'number' && Number.isInteger(wert);

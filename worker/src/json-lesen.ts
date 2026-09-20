@@ -13,6 +13,14 @@ export function istObjekt(wert: unknown): wert is JsonObjekt {
   return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
 }
 
+export function istText(wert: unknown): wert is string {
+  return typeof wert === 'string';
+}
+
+export function istNichtleererText(wert: unknown): wert is string {
+  return istText(wert) && wert.trim().length > 0;
+}
+
 export function istKennung(wert: unknown): wert is string | number {
   return typeof wert === 'string' || (typeof wert === 'number' && Number.isFinite(wert));
 }
