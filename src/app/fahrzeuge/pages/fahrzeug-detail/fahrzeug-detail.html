@@ -389,6 +389,9 @@
           @if (druckbogenFehler()) {
             <p class="error-hint" role="alert">{{ druckbogenFehler() }}</p>
           }
+          @if (qrErneuernFehler()) {
+            <p class="error-hint" role="alert">{{ qrErneuernFehler() }}</p>
+          }
           @if (qrLaedt()) {
             <mat-progress-spinner mode="indeterminate" diameter="32" />
           }
@@ -403,12 +406,42 @@
               </figure>
               <figure>
                 <img [src]="codes.km" alt="QR-Code zur Kilometerstanderfassung" width="160" />
-                <figcaption>Kilometerstand erfassen</figcaption>
+                <figcaption>
+                  Erfassen – mit Anmeldung
+                  <span class="qr-hinweis">gilt sofort</span>
+                </figcaption>
                 <button mat-stroked-button (click)="qrSvgHerunterladen('km')">
                   <mat-icon>download</mat-icon> Als SVG herunterladen
                 </button>
               </figure>
+              <figure>
+                @if (codes.oeffentlich; as oeffentlich) {
+                  <img
+                    [src]="oeffentlich"
+                    alt="Öffentlicher QR-Code zur Kilometermeldung ohne Anmeldung"
+                    width="160"
+                  />
+                  <figcaption>
+                    Melden – ohne Anmeldung
+                    <span class="qr-hinweis">wird freigegeben</span>
+                  </figcaption>
+                  <button mat-stroked-button (click)="qrSvgHerunterladen('oeffentlich')">
+                    <mat-icon>download</mat-icon> Als SVG herunterladen
+                  </button>
+                } @else {
+                  <figcaption>Melden – ohne Anmeldung</figcaption>
+                  <p class="qr-hinweis">Für dieses Fahrzeug ist noch kein Code erzeugt.</p>
+                }
+                <button mat-stroked-button (click)="qrErneuern()" [disabled]="qrErneuertGerade()">
+                  <mat-icon>autorenew</mat-icon>
+                  {{ qrErneuertGerade() ? 'Wird erneuert …' : 'Code erneuern' }}
+                </button>
+              </figure>
             </div>
+            <p class="qr-hinweis">
+              Der Code ohne Anmeldung ist ein Zugangsmerkmal: Wer ihn hat, kann für dieses Fahrzeug
+              melden. Beim Erneuern werden alle gedruckten Aufkleber ungültig.
+            </p>
           }
         </mat-expansion-panel>
 

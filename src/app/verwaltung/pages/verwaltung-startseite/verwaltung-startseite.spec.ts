@@ -4,54 +4,50 @@ import { describe, expect, it, vi } from 'vitest';
 import { VerwaltungStartseite } from './verwaltung-startseite';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { FahrzeugDruckbogenService } from '../../../fahrzeuge/services/fahrzeug-druckbogen.service';
-import { FahrzeugStoreService } from '../../../fahrzeuge/services/fahrzeug-store.service';
-import { Fahrzeugstamm, GRUPPE_STANDARD } from '../../../fahrzeuge/models/fahrzeug.model';
+import { ApiErfassungslinkStorage } from '../../../fahrzeuge/storage/api-erfassungslink-storage';
+import type { ErfassungslinkMitFahrzeug } from '../../../fahrzeuge/storage/erfassungslink-storage';
 
-function testfahrzeug(ueberschreibung: Partial<Fahrzeugstamm> = {}): Fahrzeugstamm {
+function testlink(
+  ueberschreibung: Partial<ErfassungslinkMitFahrzeug> = {},
+): ErfassungslinkMitFahrzeug {
   return {
-    id: 'f1',
+    fahrzeugId: 'f1',
+    token: 'a'.repeat(32),
     bezeichnung: 'RTW 1',
     funkrufname: 'Rotkreuz 1/83/1',
     kennzeichen: 'AB-CD 123',
-    fahrgestellnummer: null,
-    eigentuemer: 'organisation',
-    gruppe: GRUPPE_STANDARD,
-    bemerkung: '',
-    wartungstermine: [],
-    geaendertAm: '2026-01-01T00:00:00.000Z',
-    geaendertVon: '',
     ...ueberschreibung,
   };
 }
 
 function erzeugeSeite(
-  istZugfuehrung: boolean,
+  darfFreigeben: boolean,
   optionen: {
-    fahrzeuge?: Fahrzeugstamm[];
-    druckbogen?: (fahrzeuge: readonly Fahrzeugstamm[]) => Promise<void>;
+    links?: ErfassungslinkMitFahrzeug[];
+    druckbogen?: () => Promise<void>;
   } = {},
 ) {
   const benutzerverwaltungStore = {
     listeLaden: vi.fn().mockResolvedValue(undefined),
-    istZugfuehrung: () => istZugfuehrung,
+    darfFreigeben: () => darfFreigeben,
   };
-  const fahrzeugStore = {
-    listeLaden: vi.fn().mockResolvedValue(undefined),
-    fahrzeuge: () => optionen.fahrzeuge ?? [testfahrzeug()],
+  const linkStorage = {
+    ladeLinks: vi.fn(async () => optionen.links ?? [testlink()]),
   };
   const druckbogenService = {
     erzeugeUndSpeichereUebersicht: vi.fn(optionen.druckbogen ?? (async () => {})),
   };
+  TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       { provide: BenutzerverwaltungStoreService, useValue: benutzerverwaltungStore },
-      { provide: FahrzeugStoreService, useValue: fahrzeugStore },
+      { provide: ApiErfassungslinkStorage, useValue: linkStorage },
       { provide: FahrzeugDruckbogenService, useValue: druckbogenService },
     ],
   });
   const fixture = TestBed.createComponent(VerwaltungStartseite);
-  return { fixture, benutzerverwaltungStore, fahrzeugStore, druckbogenService };
+  return { fixture, benutzerverwaltungStore, linkStorage, druckbogenService };
 }
 
 describe('Verwaltungs-Startseite', () => {
@@ -65,35 +61,49 @@ describe('Verwaltungs-Startseite', () => {
     );
   });
 
-  it('blendet den QR-Übersichtsbogen ohne die Rolle Zugführung aus', async () => {
+  it('blendet die QR-Übersichtsbögen ohne Freigaberecht aus', async () => {
     const { fixture } = erzeugeSeite(false);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('button.aufgabe')).toBeNull();
   });
 
-  it('zeigt den QR-Übersichtsbogen für die Zugführung und erstellt ihn per Klick', async () => {
-    const fahrzeuge = [testfahrzeug({ id: 'f1' }), testfahrzeug({ id: 'f2' })];
-    const { fixture, fahrzeugStore, druckbogenService } = erzeugeSeite(true, { fahrzeuge });
+  it('zeigt beide Bogenvarianten und erstellt die öffentliche per Klick', async () => {
+    const links = [testlink({ fahrzeugId: 'f1' }), testlink({ fahrzeugId: 'f2' })];
+    const { fixture, linkStorage, druckbogenService } = erzeugeSeite(true, { links });
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const knopf = element.querySelector('button.aufgabe') as HTMLButtonElement;
-    expect(knopf).not.toBeNull();
+    const knoepfe = element.querySelectorAll('button.aufgabe');
+    expect(knoepfe).toHaveLength(2);
 
-    knopf.click();
+    (knoepfe[0] as HTMLButtonElement).click();
     await fixture.whenStable();
 
-    expect(fahrzeugStore.listeLaden).toHaveBeenCalledOnce();
-    expect(druckbogenService.erzeugeUndSpeichereUebersicht).toHaveBeenCalledWith(fahrzeuge);
+    expect(linkStorage.ladeLinks).toHaveBeenCalledOnce();
+    expect(druckbogenService.erzeugeUndSpeichereUebersicht).toHaveBeenCalledWith(
+      links,
+      'oeffentlich',
+    );
     expect(fixture.componentInstance.qrUebersichtFehler()).toBe('');
   });
 
-  it('meldet einen Fehler statt zu erstellen, wenn keine Fahrzeuge vorhanden sind', async () => {
-    const { fixture, druckbogenService } = erzeugeSeite(true, { fahrzeuge: [] });
-    await fixture.componentInstance.qrUebersichtErstellen();
+  it('erstellt über die zweite Kachel den internen Bogen', async () => {
+    const { fixture, druckbogenService } = erzeugeSeite(true);
+    await fixture.componentInstance.qrUebersichtErstellen('intern');
+    expect(druckbogenService.erzeugeUndSpeichereUebersicht).toHaveBeenCalledWith(
+      [testlink()],
+      'intern',
+    );
+  });
+
+  it('meldet einen Fehler statt zu erstellen, wenn keine Fahrzeuge erreichbar sind', async () => {
+    // Auch der Fall "Rolle reicht für kein Fahrzeug": der Worker liefert dann
+    // eine leere Liste statt einer Abweisung.
+    const { fixture, druckbogenService } = erzeugeSeite(true, { links: [] });
+    await fixture.componentInstance.qrUebersichtErstellen('oeffentlich');
     expect(druckbogenService.erzeugeUndSpeichereUebersicht).not.toHaveBeenCalled();
     expect(fixture.componentInstance.qrUebersichtFehler()).toBe(
-      'Es sind keine Fahrzeuge vorhanden.',
+      'Es sind keine Fahrzeuge vorhanden, für die du freigeben darfst.',
     );
   });
 
@@ -103,7 +113,7 @@ describe('Verwaltungs-Startseite', () => {
         throw new Error('PDF fehlgeschlagen');
       },
     });
-    await fixture.componentInstance.qrUebersichtErstellen();
+    await fixture.componentInstance.qrUebersichtErstellen('oeffentlich');
     expect(fixture.componentInstance.qrUebersichtFehler()).toBe('PDF fehlgeschlagen');
   });
 });

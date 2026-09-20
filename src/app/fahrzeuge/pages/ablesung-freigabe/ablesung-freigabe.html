@@ -1,0 +1,152 @@
+<section class="seite">
+  <header class="kopf">
+    <div>
+      <a class="zurueck" routerLink="/aufgaben">
+        <mat-icon aria-hidden="true">arrow_back</mat-icon> Offene Aufgaben
+      </a>
+      <h1>Kilometermeldungen freigeben</h1>
+    </div>
+    <button type="button" (click)="laden()" [disabled]="laedt()">
+      <mat-icon aria-hidden="true">refresh</mat-icon>
+      Aktualisieren
+    </button>
+  </header>
+
+  <p class="einordnung">
+    Diese Meldungen sind über den öffentlichen QR-Code am Fahrzeug eingegangen. Der angegebene Name
+    ist eine ungeprüfte Selbstauskunft. Erst mit der Freigabe wird der Wert zum Kilometerstand des
+    Fahrzeugs.
+  </p>
+
+  @if (ladeFehler()) {
+    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+  }
+  @if (meldung()) {
+    <p class="meldung" role="status">{{ meldung() }}</p>
+  }
+
+  @if (laedt()) {
+    <p class="empty-hint">Meldungen werden geladen …</p>
+  } @else if (leer()) {
+    <div class="empty-state">
+      <mat-icon aria-hidden="true">task_alt</mat-icon>
+      <p>Keine offenen Kilometermeldungen.</p>
+      <p class="empty-hint">
+        Hier erscheinen nur Fahrzeuge der Gruppen, für die du freigeben darfst.
+      </p>
+    </div>
+  } @else {
+    <ul class="liste">
+      @for (einreichung of einreichungen(); track einreichung.id) {
+        <li class="karte">
+          <div class="fahrzeug">
+            <h2>{{ einreichung.bezeichnung }}</h2>
+            @if (einreichung.kennzeichen) {
+              <span class="tag-chip">{{ einreichung.kennzeichen }}</span>
+            }
+          </div>
+
+          <dl class="daten">
+            <div>
+              <dt>Gemeldeter Stand</dt>
+              <dd class="stand">{{ einreichung.stand | number: '1.0-0' }} km</dd>
+            </div>
+            <div>
+              <dt>Bisher bekannt</dt>
+              <dd>
+                @if (einreichung.letzterStand === null) {
+                  <span class="leer">keine Ablesung</span>
+                } @else {
+                  {{ einreichung.letzterStand | number: '1.0-0' }} km
+                  @if (einreichung.letzterStandAm) {
+                    <span class="klein">
+                      ({{ einreichung.letzterStandAm | date: 'dd.MM.yyyy' }})
+                    </span>
+                  }
+                }
+              </dd>
+            </div>
+            @if (differenz(einreichung); as diff) {
+              <div>
+                <dt>Differenz</dt>
+                <dd>{{ diff | number: '1.0-0' }} km</dd>
+              </div>
+            }
+            <div>
+              <dt>Ablesetag</dt>
+              <dd>{{ einreichung.abgelesenAm | date: 'dd.MM.yyyy' }}</dd>
+            </div>
+            <div>
+              <dt>Gemeldet von</dt>
+              <dd>
+                „{{ einreichung.gemeldetVonName }}"
+                <span class="klein">(Selbstauskunft, nicht geprüft)</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Eingegangen</dt>
+              <dd>{{ einreichung.eingereichtAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr</dd>
+            </div>
+          </dl>
+
+          @if (einreichung.bemerkung) {
+            <p class="bemerkung">Bemerkung: {{ einreichung.bemerkung }}</p>
+          }
+
+          @if (hinweisFuer(einreichung); as hinweis) {
+            <p class="warnung" role="alert">
+              <mat-icon aria-hidden="true">warning</mat-icon>
+              {{ hinweisText(hinweis) }}
+            </p>
+          }
+
+          @if (lehntAb() === einreichung.id) {
+            <div class="ablehnung">
+              <label>
+                <span>Grund (optional, wird protokolliert)</span>
+                <textarea
+                  rows="2"
+                  maxlength="200"
+                  [value]="grund()"
+                  (input)="grund.set($any($event.target).value)"
+                ></textarea>
+              </label>
+              <div class="aktionen">
+                <button
+                  type="button"
+                  class="knopf-ablehnen"
+                  (click)="ablehnenBestaetigen(einreichung)"
+                  [disabled]="entscheidetGerade() === einreichung.id"
+                >
+                  Ablehnen bestätigen
+                </button>
+                <button type="button" class="knopf-schlicht" (click)="ablehnenAbbrechen()">
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          } @else {
+            <div class="aktionen">
+              <button
+                type="button"
+                class="knopf-freigeben"
+                (click)="freigeben(einreichung)"
+                [disabled]="entscheidetGerade() === einreichung.id"
+              >
+                Freigeben
+              </button>
+              <button
+                type="button"
+                class="knopf-schlicht"
+                (click)="ablehnenBeginnen(einreichung)"
+                [disabled]="entscheidetGerade() === einreichung.id"
+              >
+                Ablehnen
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

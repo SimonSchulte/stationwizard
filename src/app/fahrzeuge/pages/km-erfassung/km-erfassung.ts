@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { heuteIso } from '../../../kern/kalender/datum';
-import { KilometerQuelle, Fahrzeugstamm } from '../../models/fahrzeug.model';
+import { EingebbareQuelle, Fahrzeugstamm } from '../../models/fahrzeug.model';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
 import { AblesungHinweis, pruefeAblesungPlausibilitaet } from '../../services/ablesung-pruefung';
 import { ApiFahrzeugStorage } from '../../storage/api-fahrzeug-storage';
@@ -31,7 +31,7 @@ export class KmErfassung {
   readonly ablesungStore = inject(AblesungStoreService);
 
   private readonly fahrzeugId = this.route.snapshot.paramMap.get('id') ?? '';
-  private readonly quelle: KilometerQuelle =
+  private readonly quelle: EingebbareQuelle =
     this.route.snapshot.queryParamMap.get('quelle') === 'qr' ? 'qr' : 'formular';
 
   readonly fahrzeug = signal<Fahrzeugstamm | null>(null);

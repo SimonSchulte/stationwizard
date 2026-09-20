@@ -1,5 +1,6 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import type { GeprueftesBenutzerkonto } from './fahrzeuge';
+import { berlinerKalendertag } from './kalender';
 import {
   VersandFehler,
   waehleVersand,
@@ -86,17 +87,6 @@ export interface KmBericht {
   zeilen: BerichtZeile[];
   ohneAblesung: number;
   unterSoll: number;
-}
-
-/** Berliner Kalendertag, nie über eine UTC-Konvertierung (siehe CLAUDE.md). */
-export function berlinerKalendertag(zeitpunkt: Date): string {
-  const teile = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Berlin',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(zeitpunkt);
-  return teile;
 }
 
 /** Differenz zweier reiner Kalendertage in Tagen; beide Seiten sind `YYYY-MM-DD`. */

@@ -135,6 +135,11 @@ class FakeStatement {
       const [email] = this.werte as [string];
       return this.db.benutzer.has(email) ? ({ email } as T) : null;
     }
+    if (this.query.startsWith('SELECT rolle, sonderrollen FROM benutzer WHERE email = ?')) {
+      const [email] = this.werte as [string];
+      const zeile = this.db.benutzer.get(email);
+      return zeile ? ({ rolle: zeile.rolle, sonderrollen: zeile.sonderrollen } as T) : null;
+    }
     if (this.query.startsWith('SELECT * FROM benutzer WHERE email = ?')) {
       const [email] = this.werte as [string];
       return (this.db.benutzer.get(email) as T | undefined) ?? null;

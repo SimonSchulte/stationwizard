@@ -41,6 +41,7 @@ import { istGueltigeFin } from '../../services/fahrzeug-pruefung';
 import { berechneJahresbilanz, sollKmProJahr } from '../../services/kilometer-soll';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { FahrzeugDruckbogenService } from '../../services/fahrzeug-druckbogen.service';
+import { ApiErfassungslinkStorage } from '../../storage/api-erfassungslink-storage';
 import { erzeugeQrDataUrl, erzeugeQrSvg, fahrzeugQrZiele } from '../../services/fahrzeug-qr';
 import { ermittleWartungsstatus, WartungsAmpel } from '../../services/wartungsstatus';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
@@ -101,6 +102,7 @@ export class FahrzeugDetail {
   readonly ablesungStore = inject(AblesungStoreService);
   readonly aenderungsprotokollStore = inject(AenderungsprotokollStoreService);
   private readonly druckbogenService = inject(FahrzeugDruckbogenService);
+  private readonly linkStorage = inject(ApiErfassungslinkStorage);
 
   readonly EIGENTUEMER = EIGENTUEMER;
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
@@ -175,7 +177,15 @@ export class FahrzeugDetail {
   readonly nachtragBemerkung = signal('');
 
   readonly qrLaedt = signal(false);
-  readonly qrCodes = signal<{ uebersicht: string; km: string } | null>(null);
+  readonly qrCodes = signal<{
+    uebersicht: string;
+    km: string;
+    oeffentlich: string | null;
+  } | null>(null);
+  /** Das Erfassungstoken wird nur hier geladen, nicht mit der Fahrzeugliste. */
+  private readonly erfassungToken = signal<string | null>(null);
+  readonly qrErneuertGerade = signal(false);
+  readonly qrErneuernFehler = signal('');
   readonly druckbogenLaedt = signal(false);
   readonly druckbogenFehler = signal('');
 
@@ -367,15 +377,60 @@ export class FahrzeugDetail {
     const id = this.store.entwurf()?.id;
     if (!id || this.qrCodes()) return;
     this.qrLaedt.set(true);
+    this.qrErneuernFehler.set('');
     try {
-      const ziele = fahrzeugQrZiele(id);
-      const [uebersicht, km] = await Promise.all([
-        erzeugeQrDataUrl(ziele.uebersichtUrl),
-        erzeugeQrDataUrl(ziele.kmUrl),
-      ]);
-      this.qrCodes.set({ uebersicht, km });
+      // Das Token steht bewusst nicht in der Fahrzeugantwort; es wird erst
+      // hier, beim tatsächlichen Anzeigen der Codes, einzeln geholt.
+      const link = await this.linkStorage.ladeLink(id);
+      this.erfassungToken.set(link.token);
+      await this.qrCodesZeichnen(id, link.token);
+    } catch (fehler) {
+      this.qrErneuernFehler.set(
+        fehler instanceof Error ? fehler.message : 'Die QR-Codes konnten nicht geladen werden.',
+      );
     } finally {
       this.qrLaedt.set(false);
+    }
+  }
+
+  private async qrCodesZeichnen(id: string, token: string | null): Promise<void> {
+    const ziele = fahrzeugQrZiele(id, token);
+    const [uebersicht, km, oeffentlich] = await Promise.all([
+      erzeugeQrDataUrl(ziele.uebersichtUrl),
+      erzeugeQrDataUrl(ziele.kmUrl),
+      ziele.oeffentlichUrl ? erzeugeQrDataUrl(ziele.oeffentlichUrl) : Promise.resolve(null),
+    ]);
+    this.qrCodes.set({ uebersicht, km, oeffentlich });
+  }
+
+  /**
+   * Erzeugt ein neues Erfassungstoken. Alle bereits gedruckten öffentlichen
+   * Aufkleber dieses Fahrzeugs werden dadurch sofort ungültig – es gibt
+   * bewusst keine Übergangsfrist mit zwei gültigen Codes.
+   */
+  async qrErneuern(): Promise<void> {
+    const id = this.store.entwurf()?.id;
+    if (!id || this.qrErneuertGerade()) return;
+    const bestaetigt = await this.dialogDienst.bestaetigen(
+      'Alle bereits gedruckten öffentlichen QR-Codes dieses Fahrzeugs werden dadurch sofort ' +
+        'ungültig. Neue Aufkleber müssen ausgehängt werden.',
+      'QR-Code erneuern',
+      'Erneuern',
+    );
+    if (!bestaetigt) return;
+    this.qrErneuertGerade.set(true);
+    this.qrErneuernFehler.set('');
+    try {
+      const link = await this.linkStorage.erneuere(id);
+      this.erfassungToken.set(link.token);
+      await this.qrCodesZeichnen(id, link.token);
+      await this.aenderungsprotokollStore.laden(id);
+    } catch (fehler) {
+      this.qrErneuernFehler.set(
+        fehler instanceof Error ? fehler.message : 'Der QR-Code konnte nicht erneuert werden.',
+      );
+    } finally {
+      this.qrErneuertGerade.set(false);
     }
   }
 
@@ -384,18 +439,19 @@ export class FahrzeugDetail {
     return eintrag.beschreibung.split('\n');
   }
 
-  async qrSvgHerunterladen(ziel: 'uebersicht' | 'km'): Promise<void> {
+  async qrSvgHerunterladen(ziel: 'uebersicht' | 'km' | 'oeffentlich'): Promise<void> {
     const entwurf = this.store.entwurf();
     if (!entwurf) return;
-    const ziele = fahrzeugQrZiele(entwurf.id);
-    const url = ziel === 'uebersicht' ? ziele.uebersichtUrl : ziele.kmUrl;
+    const ziele = fahrzeugQrZiele(entwurf.id, this.erfassungToken());
+    const url =
+      ziel === 'uebersicht'
+        ? ziele.uebersichtUrl
+        : ziel === 'km'
+          ? ziele.kmUrl
+          : ziele.oeffentlichUrl;
+    if (!url) return;
     const svg = await erzeugeQrSvg(url);
-    const beschriftung = ziel === 'uebersicht' ? 'uebersicht' : 'km';
-    dateiHerunterladen(
-      svg,
-      `${entwurf.bezeichnung || 'fahrzeug'}-qr-${beschriftung}.svg`,
-      'image/svg+xml',
-    );
+    dateiHerunterladen(svg, `${entwurf.bezeichnung || 'fahrzeug'}-qr-${ziel}.svg`, 'image/svg+xml');
   }
 
   async druckbogenHerunterladen(): Promise<void> {
@@ -404,7 +460,10 @@ export class FahrzeugDetail {
     this.druckbogenLaedt.set(true);
     this.druckbogenFehler.set('');
     try {
-      await this.druckbogenService.erzeugeUndSpeichere(entwurf);
+      await this.druckbogenService.erzeugeUndSpeichere(
+        entwurf,
+        this.erfassungToken() ?? (await this.linkStorage.ladeLink(entwurf.id)).token,
+      );
     } catch (fehler) {
       this.druckbogenFehler.set(
         fehler instanceof Error ? fehler.message : 'Der Druckbogen konnte nicht erstellt werden.',

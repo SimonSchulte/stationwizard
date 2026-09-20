@@ -66,8 +66,14 @@ ausdrücklich vereinbarte Organisationsdomain.
 Der Worker verifiziert zusätzlich `Cf-Access-Jwt-Assertion` gegen die öffentlichen
 Access-Schlüssel, den konfigurierten Aussteller und die Audience. Abgelaufene oder ungültige
 Tokens werden abgewiesen. `run_worker_first = true` führt diese Prüfung vor **allen** Assets
-und APIs aus. Bei fehlender Konfiguration bleibt der Worker geschlossen; es gibt keinen
-produktiven Authentifizierungs-Bypass.
+und APIs aus. Bei fehlender Konfiguration bleibt der Worker geschlossen.
+
+Genau ein Weg führt bewusst daran vorbei: die öffentliche Kilometermeldung unter
+`/e/<Token>`, damit Helferinnen und Helfer ohne Google-Konto den Kilometerstand am Fahrzeug
+melden können. Der QR-Code trägt dafür ein unerratbares Token je Fahrzeug, die Seite ist ein
+eigenes, sehr kleines Build-Ziel ohne jeden Weg in die App, und eine Meldung wird erst durch
+die Freigabe der Zug- oder Gruppenführung zum echten Kilometerstand. Die zugehörige, eng
+begrenzte Access-Regel steht in [Einrichtung](docs/einrichtung.md).
 
 `ACCESS_TEAM_DOMAIN` und `ACCESS_AUD` sind Worker-Laufzeitvariablen. Nextcloud- und
 HiOrg-Zugangsdaten kommen aus Secrets-Store-Bindings oder klassischen Worker-Secrets.

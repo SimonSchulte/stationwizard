@@ -7,9 +7,16 @@
     (click)="seitenNav.toggle()"
     [attr.aria-expanded]="seitenNav.opened"
     aria-controls="hauptnavigation"
-    aria-label="Hauptnavigation öffnen"
+    [attr.aria-label]="
+      aufgaben.anzahl() > 0
+        ? 'Hauptnavigation öffnen, ' + aufgaben.anzahl() + ' offene Aufgaben'
+        : 'Hauptnavigation öffnen'
+    "
   >
     <mat-icon aria-hidden="true">menu</mat-icon>
+    @if (aufgaben.anzahl() > 0) {
+      <span class="aufgaben-marke" aria-hidden="true">{{ aufgaben.anzahl() }}</span>
+    }
   </button>
   <a class="marke" routerLink="/" aria-label="HiorgWache Startseite">
     <mat-icon aria-hidden="true">hub</mat-icon>
@@ -88,6 +95,17 @@
         (click)="seitenNav.close()"
       >
         <mat-icon aria-hidden="true">local_shipping</mat-icon> Fahrzeuge
+      </a>
+      <a
+        routerLink="/aufgaben"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">task_alt</mat-icon> Offene Aufgaben
+        @if (aufgaben.anzahl() > 0) {
+          <span class="aufgaben-marke">{{ aufgaben.anzahl() }}</span>
+        }
       </a>
       <a
         routerLink="/verwaltung"

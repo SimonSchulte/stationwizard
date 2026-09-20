@@ -147,27 +147,42 @@ Vorjahres`. Existiert keine, wird die erste Ablesung des laufenden Jahres verwen
 
 ## 4. QR-Codes
 
-Zwei Codes je Fahrzeug:
+Drei Codes je Fahrzeug:
 
-| Zweck                   | Ziel           |
-| ----------------------- | -------------- |
-| Fahrzeugübersicht       | `/f/<UUID>`    |
-| Kilometerstanderfassung | `/f/<UUID>/km` |
+| Zweck                           | Ziel           | Anmeldung | Wirkung                             |
+| ------------------------------- | -------------- | --------- | ----------------------------------- |
+| Fahrzeugübersicht               | `/f/<UUID>`    | nötig     | Fahrzeugdetailseite                 |
+| Kilometerstanderfassung, intern | `/f/<UUID>/km` | nötig     | Ablesung **sofort gültig**          |
+| Kilometermeldung, öffentlich    | `/e/<TOKEN>`   | keine     | Einreichung, **erst nach Freigabe** |
 
-### Identität: kein Token im Code
+### Identität: kein Token in den internen Codes
 
-Die Erfassung soll „im Namen des registrierten Benutzers" erfolgen. Das geschieht
-**ausschließlich** über die bestehende Cloudflare-Access-Sitzung des Scannenden. Der
-QR-Code enthält keine Kennung, kein Token und keinen Benutzerbezug — er ist ein an der
-Windschutzscheibe klebender, fotografierbarer Aufkleber und damit kein Geheimnis.
+**Diese Festlegung galt bis zum 16.09.2026 für alle QR-Codes. Sie gilt unverändert für die
+beiden internen Codes `/f/<UUID>` und `/f/<UUID>/km`; für den neuen öffentlichen Code wurde
+sie bewusst umgekehrt (siehe Abschnitt 10 und die Begründung am Ende dieses
+Unterabschnitts).**
+
+Die interne Erfassung soll „im Namen des registrierten Benutzers" erfolgen. Das geschieht
+**ausschließlich** über die bestehende Cloudflare-Access-Sitzung des Scannenden. Diese
+QR-Codes enthalten keine Kennung, kein Token und keinen Benutzerbezug — sie sind an der
+Windschutzscheibe klebende, fotografierbare Aufkleber und damit kein Geheimnis.
 
 Ablauf: Scan → Access prüft die Anmeldung (bei fehlender Sitzung Google-Anmeldung) →
 App öffnet das Erfassungsformular → der Worker schreibt `erfasstVon` aus der
 verifizierten JWT-Identität, **niemals** aus dem Anfragekörper. Ein im Körper
 mitgesendetes Benutzerfeld wird verworfen.
 
-Damit entsteht keine neue Authentifizierungsfläche und kein Sonderweg am Zugangsschutz
-vorbei. Der Preis: wer keinen Account hat, kann nichts erfassen. Das ist gewollt.
+Damit entsteht für diese beiden Wege keine neue Authentifizierungsfläche und kein Sonderweg
+am Zugangsschutz vorbei.
+
+**Warum das für den öffentlichen Code nicht reichte (Entscheidung vom 16.09.2026).** Der
+ursprünglich benannte Preis lautete: „wer keinen Account hat, kann nichts erfassen. Das ist
+gewollt." Genau dieser Preis hat sich als die eigentliche Einstiegshürde für die
+Helferschaft erwiesen. Wer ohne Sitzung melden soll, braucht ein anderes Zugangsmerkmal —
+ohne Token bliebe nur eine ungeschützte, allein über die UUID adressierbare Schreibfläche.
+Deshalb trägt der öffentliche Code ein unerratbares Zufallstoken, und deshalb wird seine
+Eingabe erst durch die Freigabe einer geprüften Identität wirksam. Die internen Codes
+bleiben unverändert; beide Erfassungswege stehen nebeneinander.
 
 ### Stabile Kurzpfade statt Hash-Routen
 
@@ -389,16 +404,17 @@ Entscheidung länger dauert.
 
 Abgestimmt am 12.09.2026.
 
-| Frage                   | Entscheidung                                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| Backend                 | Cloudflare D1, weil verfügbar. Domäne und Persistenz strikt getrennt, Wechsel bleibt ein Adaptertausch |
-| Bezugsfenster Soll      | Starr 1.1.–31.12., volles Jahressoll je Fahrzeug; Zu- und Abgänge vorerst nicht abgebildet             |
-| Anteiligkeit später     | Wenn nötig, monatsanteilig nach Monaten im Bestand — dafür eine eigene Funktion vorgesehen             |
-| Rechte                  | Vorerst dürfen alle Angemeldeten alles; der Schreibpfad bekommt eine Stelle für spätere Rollen         |
-| Fahrgestellnummer       | Optionales Feld, Prüfung auf 17 Zeichen ohne I/O/Q, in der Oberfläche nicht prominent                  |
-| Aufbewahrung Ablesungen | Unbegrenzt, `erfasstVon` bleibt erhalten; kein Löschlauf                                               |
-| Wartungsvorlauf         | Je Termin einstellbar, Vorgabe 30 Tage                                                                 |
-| Schwelle Ablese-Lücke   | 30 Tage ohne Eintrag                                                                                   |
+| Frage                   | Entscheidung                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Backend                 | Cloudflare D1, weil verfügbar. Domäne und Persistenz strikt getrennt, Wechsel bleibt ein Adaptertausch               |
+| Bezugsfenster Soll      | Starr 1.1.–31.12., volles Jahressoll je Fahrzeug; Zu- und Abgänge vorerst nicht abgebildet                           |
+| Anteiligkeit später     | Wenn nötig, monatsanteilig nach Monaten im Bestand — dafür eine eigene Funktion vorgesehen                           |
+| Rechte                  | Vorerst dürfen alle Angemeldeten alles; der Schreibpfad bekommt eine Stelle für spätere Rollen                       |
+| Freigabe von Meldungen  | **Nachtrag 16.09.2026:** `zugfuehrung` oder `gruppenfuehrung-<gruppe>` der Fahrzeuggruppe, serverseitig durchgesetzt |
+| Fahrgestellnummer       | Optionales Feld, Prüfung auf 17 Zeichen ohne I/O/Q, in der Oberfläche nicht prominent                                |
+| Aufbewahrung Ablesungen | Unbegrenzt, `erfasstVon` bleibt erhalten; kein Löschlauf                                                             |
+| Wartungsvorlauf         | Je Termin einstellbar, Vorgabe 30 Tage                                                                               |
+| Schwelle Ablese-Lücke   | 30 Tage ohne Eintrag                                                                                                 |
 
 ### Was das für die Trennung bedeutet
 
@@ -534,13 +550,161 @@ sich als CSV sichern.
   deren Dokumentation. Bis dahin manuelle Pflege.
 - Ob die HU-Fälligkeit zusätzlich aus einem Prüfbericht übernommen werden soll.
 - Format und Größe des Aufkleberbogens (Papiergröße, Anzahl je Blatt).
-- Anwenden von `0003_kennzeichen_eindeutig.sql` auf die produktive D1-Datenbank: steht im
-  Repository, ist aber noch nicht ausgeführt. Vorher den Bestand mit der Abfrage aus der
-  Migrationsdatei auf Doubletten prüfen.
+- ~~Anwenden von `0003_kennzeichen_eindeutig.sql` und `0007_oeffentliche_meldung.sql` auf
+  die produktive `stationwizard-fahrzeuge`-Datenbank~~ – **erledigt.** Eine Prüfabfrage am
+  2026-09-19 zeigte, dass `0003` (Kennzeichen-Unique-Index) dort bereits vorhanden war;
+  `0007` wurde an diesem Tag angewendet. `0005_systemkonfiguration.sql` betrifft die
+  getrennte `stationwizard-benutzer`-Datenbank und wurde dort bereits angewendet (siehe
+  Arbeitsstand, AP-S1). Auf `FAHRZEUGE_DB` ist damit keine Migration mehr offen.
+- **Durchsetzung der Rollenvergabe.** Seit Abschnitt 10 prüft der Worker die Rolle bei der
+  Freigabe wirklich; `PUT /api/benutzerverwaltung/<E-Mail>` steht aber weiterhin jeder
+  geprüften Identität offen. Solange das so ist, kann sich jede angemeldete Person selbst
+  die Rolle geben, die zum Freigeben nötig ist. Das ist die auffälligste verbleibende Lücke.
+- Datumskorrektur bei der Freigabe: die öffentliche Meldung setzt `abgelesenAm` serverseitig
+  auf den Berliner Kalendertag. Ob die freigebende Person den Tag korrigieren können soll,
+  ist offen.
+- Benachrichtigung bei neuer Meldung (Mail oder Popup). Der Bereich „Offene Aufgaben" ist
+  der vorgesehene Anschlusspunkt; der Mailversand ist produktiv noch nie gelaufen.
 - Ob der Import weitere Wartungstermine außer der HU aufnehmen soll.
-- Der Fahrzeug-QR-Übersichtsbogen im Verwaltungsbereich blendet sich nur für die Rolle
-  Zugführung ein (`BenutzerverwaltungStoreService.istZugfuehrung`, siehe Arbeitsstand,
-  „Fahrzeug-QR-Übersichtsbogen für die Zugführung“) – das ist die erste rollenbasierte
-  Einblendregel im Verwaltungsbereich, aber weiterhin ohne serverseitige Durchsetzung.
-  Eine echte Zugriffskontrolle bleibt an die künftige Admin-Rolle gebunden (Abschnitt 8,
-  „Rechte vorerst alle, Rollen später“).
+- Der Fahrzeug-QR-Übersichtsbogen war die erste rollenbasierte Einblendregel im
+  Verwaltungsbereich und hat seit Abschnitt 10 eine serverseitige Entsprechung:
+  `GET /api/fahrzeuge/erfassungslinks` liefert nur die Gruppen, für die die aufrufende
+  Person freigeben darf. Die Einblendung selbst (`BenutzerverwaltungStoreService.darfFreigeben`)
+  bleibt eine UI-Regel. Für alle übrigen Funktionen des Verwaltungsbereichs gilt weiterhin
+  „Rechte vorerst alle, Rollen später“ (Abschnitt 8).
+
+## 10. Öffentliche Kilometermeldung und Freigabe
+
+Nachtrag vom 16.09.2026. Dieser Abschnitt kehrt die Festlegung aus Abschnitt 4
+für **einen** der drei QR-Codes um und begründet, warum.
+
+### Anlass
+
+Abschnitt 4 nannte den Preis der Access-gebundenen Erfassung ausdrücklich: „wer
+keinen Account hat, kann nichts erfassen. Das ist gewollt." Genau dieser Preis
+ist die Einstiegshürde, an der die Nutzung in der Helferschaft scheitert. Wer
+den Kilometerstand am Fahrzeug melden soll, müsste vorher in die
+Cloudflare-Access-Zugriffsliste aufgenommen werden und sich bei Google anmelden.
+
+### Entscheidung
+
+Ein dritter, **öffentlich erreichbarer** QR-Code je Fahrzeug führt auf eine
+abgeschottete Meldeseite. Die dort abgegebene Meldung ist keine Ablesung,
+sondern eine Einreichung; erst die Freigabe durch die Zug- oder Gruppenführung
+macht daraus den echten Kilometerstand. Die beiden bisherigen Codes bleiben
+unverändert.
+
+### Token statt Access-Sitzung
+
+Ohne Sitzung braucht der Zugang ein anderes Merkmal. Ohne Token bliebe nur eine
+allein über die UUID adressierbare, ungeschützte Schreibfläche. Deshalb trägt
+der öffentliche Code ein Zufallstoken (16 Bytes als Hex, Spalte
+`fahrzeuge.erfassung_token`, Migration 0007) und der Pfad lautet `/e/<TOKEN>` —
+**ohne** Fahrzeug-UUID, damit ein Foto des Aufklebers keine interne Kennung
+hergibt.
+
+Das Token ist ein Geheimnis: es steht in keiner Fahrzeugantwort, keinem Log,
+keinem Fehlertext und keinem Protokolleintrag. Auslesbar ist es allein über
+`/api/fahrzeuge/<UUID>/erfassungslink` und `/api/fahrzeuge/erfassungslinks`.
+Erneuern macht alle gedruckten Aufkleber dieses Fahrzeugs sofort ungültig; eine
+Übergangsfrist mit zwei gültigen Token gibt es bewusst nicht, das wäre ein
+zweites Geheimnis ohne Ablaufüberwachung.
+
+### Eigenes Build-Ziel statt einer Route der App
+
+Die Seite ist ein zweites, sehr kleines Angular-Build-Ziel (`oeffentlich/`,
+ausgeliefert unter `/oeffentlich/`, rund 34 kB Übertragung). Der Grund ist der
+Zuschnitt des Access-Bypasses: die Dateinamen der Hauptanwendung tragen je Build
+einen neuen Hash, ein Bypass für eine Route der App hätte deshalb „alles außer
+`/api/*`" lauten müssen. So bleibt die App-Hülle vollständig geschützt und der
+Bypass auf drei Pfadmuster begrenzt.
+
+Die Seite hat keinen Router und keinen einzigen Verweis — die geforderte
+Abschottung ist damit strukturell, nicht nur optisch. Unter `/oeffentlich/`
+liefert der Worker nur eine feste Erlaubnisliste aus und verwirft eine
+HTML-Antwort auf eine `.js`/`.css`-Anfrage, damit die SPA-Rückfallebene nie die
+geschützte Hülle nach außen gibt.
+
+### Was die Seite zeigt — und was nicht
+
+Preisgegeben werden Bezeichnung, Funkrufname und Kennzeichen. Das Kennzeichen,
+damit der Meldende sicher ist, am richtigen Fahrzeug zu stehen; es ist am
+Fahrzeug ohnehin sichtbar, genau wie der Aufkleber. Das ist trotzdem eine
+bewusste Offenlegung organisationsbezogener Daten gegenüber einer nicht
+angemeldeten Person und gehört zum Datenschutzabschnitt dieses Dokuments.
+
+Nicht preisgegeben: die Fahrzeug-UUID, der letzte Kilometerstand, Jahresbilanz,
+Soll, Eigentümer, Gruppe, Wartungstermine, FIN, Bemerkung, jede E-Mail-Adresse,
+frühere Meldungen und das Änderungsprotokoll.
+
+Der letzte Stand fehlt aus zwei Gründen: er würde dem Meldenden erlauben, seine
+Zahl „passend" zu wählen, und er legte die Fahrzeugnutzung für jeden Scanner
+offen. **Die Plausibilitätsprüfung findet deshalb nicht auf der öffentlichen
+Seite statt, sondern bei der Freigabe** — dort, wo eine geprüfte Person mit
+vollem Kontext entscheidet.
+
+Ein Datumsfeld gibt es ebenfalls nicht; `abgelesen_am` setzt der Worker als
+Berliner Kalendertag. Das nimmt die Rückdatierung aus einer nicht angemeldeten
+Quelle als Angriffsfläche vollständig heraus, und am Fahrzeug wird ohnehin
+sofort gemeldet. Eine spätere Datumskorrektur durch die freigebende Person ist
+nicht Teil dieses Pakets (siehe Abschnitt 9).
+
+### Schutz ohne Access
+
+Weder Access noch die Ursprungsprüfung aus `index.ts` laufen vor diesem Zweig;
+beides erbringt `worker/src/oeffentliche-erfassung.ts` selbst. Unbekanntes
+Token, formal ungültiges Token und gelöschtes Fahrzeug liefern byteweise
+dieselbe Antwort — kein Orakel. Für `POST` muss `Origin` gleich der eigenen
+Origin sein, strenger als die globale Prüfung, die einen fehlenden `Origin`
+duldet. Körpergrenze 2 KiB, Name 2–60 Zeichen, Bemerkung 200, Stand als ganze
+Zahl bis 9 999 999.
+
+Die Mengenbremsen sind **fahrzeugbezogen, nicht IP-bezogen**: höchstens fünf
+offene Meldungen je Fahrzeug und höchstens eine pro Minute. Eine IP-Speicherung
+wäre eine neue personenbezogene Verarbeitung ohne fachlichen Auftrag und
+widerspräche der Datenschutzlinie dieses Moduls.
+
+### Einreichung und Freigabe
+
+Einreichungen liegen in einer **eigenen Tabelle** `ablesung_einreichungen`, nicht
+mit einem Statusfeld in `ablesungen`. Dort steht ausschließlich, was als echter
+Kilometerstand gilt, und jede Kennzahl — Jahresbilanz, Ablese-Lücke,
+Kilometerstandsbericht — liest diese Tabelle vollständig. Die Trennung macht
+„noch nicht freigegeben fließt nirgends ein" strukturell wahr statt nur
+verabredet.
+
+Nach der Freigabe steht in `ablesungen.erfasst_von` die geprüfte E-Mail der
+**freigebenden** Person. Die projektweite Zusage „`erfasstVon` ist immer eine
+geprüfte Access-Identität" bleibt damit unangetastet; die freigebende Person
+übernimmt die Verantwortung für den Wert — genau dafür gibt es die Freigabe.
+Der selbst angegebene Name steht daneben in `gemeldet_von_name` und wird in der
+Oberfläche wie im Protokolleintrag als Selbstauskunft kenntlich gemacht. Die
+`quelle` `oeffentlich` entsteht ausschließlich intern bei der Freigabe und ist
+über `POST /api/fahrzeuge/<UUID>/ablesungen` nicht einreichbar; sonst könnte
+jede angemeldete Person eine Freigabe fingieren.
+
+### Erste durchgesetzte Rolle
+
+`worker/src/rollen.ts` ist die erste Rollenprüfung des Projekts, die
+tatsächlich sperrt statt nur die Oberfläche zu steuern: freigeben darf
+`zugfuehrung` (alle Gruppen) oder `gruppenfuehrung-<gruppe>` genau der
+Fahrzeuggruppe. `gruppenfuehrung-verpflegung` trifft nie zu, weil für
+Verpflegung keine Fahrzeuge vorgesehen sind. Rollen liegen in `BENUTZER_DB`,
+Fahrzeuge in `FAHRZEUGE_DB` — zwei getrennte Datenbanken, also zwei Abfragen und
+der Vergleich in TypeScript. Fehlende Konfiguration sperrt.
+
+**Ehrliche Grenze:** die Prüfung ist nur so stark wie die Rollenvergabe, und
+`PUT /api/benutzerverwaltung/<E-Mail>` steht weiterhin jeder geprüften Identität
+offen. Wer sich selbst `zugfuehrung` setzt, darf anschließend freigeben. Das ist
+kein Grund, hier nichts zu prüfen — die Prüfung verhindert Versehen und ist der
+Andockpunkt —, aber es ist danach die auffälligste verbleibende Lücke.
+
+### Offene Aufgaben als Ort der Entscheidung
+
+Die Freigabe erfolgt im neuen, fachübergreifenden Bereich `/aufgaben`. Der
+Vertrag `kern/aufgaben/aufgabenquelle.ts` kennt keinen Fachtyp; jede Quelle
+liefert fertige Anzeigetexte. Die angekündigten Mail- und
+Popup-Benachrichtigungen sind damit eine weitere Quelle beziehungsweise ein
+Anschluss an diesen Bereich, kein Umbau. Mail ist in diesem Paket bewusst nicht
+gebaut: der Versandweg ist produktiv noch nie gelaufen (siehe Arbeitsstand,
+AP-S1).

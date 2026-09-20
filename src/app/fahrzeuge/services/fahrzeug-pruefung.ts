@@ -1,5 +1,6 @@
 import {
   AblesungEingabe,
+  Ablesungseinreichung,
   Aenderungseintrag,
   EIGENTUEMER,
   Eigentuemer,
@@ -19,7 +20,20 @@ import {
 
 const ISO_DATUM = /^\d{4}-\d{2}-\d{2}$/;
 const FIN_MUSTER = /^[A-HJ-NPR-Z0-9]{17}$/;
-const KILOMETER_QUELLEN: readonly KilometerQuelle[] = ['qr', 'formular', 'korrektur'];
+/** Beim Lesen vorkommende Quellen, einschließlich der nur serverseitig entstehenden. */
+const KILOMETER_QUELLEN: readonly KilometerQuelle[] = [
+  'qr',
+  'formular',
+  'korrektur',
+  'oeffentlich',
+];
+
+/**
+ * Was ein Client selbst angeben darf. `oeffentlich` fehlt absichtlich: der Wert
+ * entsteht ausschließlich bei der Freigabe einer öffentlichen Kilometermeldung,
+ * und der Worker weist ihn in einer Eingabe ab.
+ */
+const EINGEBBARE_QUELLEN: readonly KilometerQuelle[] = ['qr', 'formular', 'korrektur'];
 
 function istObjekt(wert: unknown): wert is Record<string, unknown> {
   return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
@@ -96,7 +110,9 @@ export function istKilometerstand(wert: unknown): wert is Kilometerstand {
     istText(wert['quelle']) &&
     (KILOMETER_QUELLEN as readonly string[]).includes(wert['quelle']) &&
     (wert['korrigiert'] === null || istNichtleererText(wert['korrigiert'])) &&
-    istText(wert['bemerkung'])
+    istText(wert['bemerkung']) &&
+    // Der Worker liefert das Feld immer, bei allen anderen Wegen leer.
+    istText(wert['gemeldetVonName'])
   );
 }
 
@@ -116,6 +132,33 @@ export function istAenderungseintrag(wert: unknown): wert is Aenderungseintrag {
   );
 }
 
+/**
+ * Prüft eine offene Kilometermeldung aus der Worker-Antwort. `letzterStand`
+ * darf `null` sein – ein Fahrzeug ohne jede Ablesung ist ein gültiger Fall und
+ * wird nicht stillschweigend als 0 gerechnet.
+ */
+export function istAblesungseinreichung(wert: unknown): wert is Ablesungseinreichung {
+  return (
+    istObjekt(wert) &&
+    istNichtleererText(wert['id']) &&
+    istNichtleererText(wert['fahrzeugId']) &&
+    istText(wert['bezeichnung']) &&
+    istText(wert['kennzeichen']) &&
+    istText(wert['gruppe']) &&
+    (GRUPPEN as readonly string[]).includes(wert['gruppe']) &&
+    istIsoDatum(wert['abgelesenAm']) &&
+    typeof wert['stand'] === 'number' &&
+    Number.isFinite(wert['stand']) &&
+    wert['stand'] >= 0 &&
+    istNichtleererText(wert['eingereichtAm']) &&
+    istNichtleererText(wert['gemeldetVonName']) &&
+    istText(wert['bemerkung']) &&
+    (wert['letzterStand'] === null ||
+      (typeof wert['letzterStand'] === 'number' && Number.isFinite(wert['letzterStand']))) &&
+    (wert['letzterStandAm'] === null || istIsoDatum(wert['letzterStandAm']))
+  );
+}
+
 export function istAblesungEingabe(wert: unknown): wert is AblesungEingabe {
   return (
     istObjekt(wert) &&
@@ -125,7 +168,7 @@ export function istAblesungEingabe(wert: unknown): wert is AblesungEingabe {
     Number.isFinite(wert['stand']) &&
     wert['stand'] >= 0 &&
     istText(wert['quelle']) &&
-    (KILOMETER_QUELLEN as readonly string[]).includes(wert['quelle']) &&
+    (EINGEBBARE_QUELLEN as readonly string[]).includes(wert['quelle']) &&
     (wert['korrigiert'] === null || istNichtleererText(wert['korrigiert'])) &&
     istText(wert['bemerkung'])
   );

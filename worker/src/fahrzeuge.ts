@@ -1,7 +1,19 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { erzeugeErfassungToken } from './erfassung-token';
 import { istObjekt, leseJsonBegrenzt } from './json-lesen';
+import {
+  freigabeGruppen,
+  leseRolle,
+  pruefeFreigabeRecht,
+  type RollenKonfiguration,
+} from './rollen';
 
-export interface FahrzeugeKonfiguration {
+/**
+ * Braucht neben der Fahrzeugdatenbank auch die Benutzerdatenbank: die
+ * Erfassungslink-Endpunkte prüfen die Rolle serverseitig, und Rollen liegen in
+ * einer getrennten D1-Datenbank (kein JOIN möglich, siehe `rollen.ts`).
+ */
+export interface FahrzeugeKonfiguration extends RollenKonfiguration {
   FAHRZEUGE_DB?: D1Database;
 }
 
@@ -19,11 +31,19 @@ const ABLESUNG_PFAD = new RegExp(
   'i',
 );
 const AENDERUNGEN_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})/aenderungen$`, 'i');
+const ERFASSUNGSLINKS_PFAD = '/api/fahrzeuge/erfassungslinks';
+const ERFASSUNGSLINK_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})/erfassungslink$`, 'i');
 
 const EIGENTUEMER = new Set(['land-nrw', 'bund', 'organisation']);
 const GRUPPEN = new Set(['betreuung', 'tesi', 'fuehrung', 'sanitaet']);
 const WARTUNGS_ARTEN = new Set(['hu', 'frei']);
-const KILOMETER_QUELLEN = new Set(['qr', 'formular', 'korrektur']);
+/**
+ * Quellen, die ein Client selbst angeben darf. 'oeffentlich' fehlt hier
+ * absichtlich: dieser Wert entsteht ausschließlich intern bei der Freigabe
+ * einer öffentlichen Kilometermeldung (siehe `einreichungen.ts`). Stünde er
+ * hier, könnte jede angemeldete Person eine Freigabe fingieren.
+ */
+const KILOMETER_QUELLEN_EINGABE = new Set(['qr', 'formular', 'korrektur']);
 const ISO_DATUM = /^\d{4}-\d{2}-\d{2}$/;
 const FIN_MUSTER = /^[A-HJ-NPR-Z0-9]{17}$/i;
 
@@ -124,7 +144,7 @@ function pruefeAblesungEingabe(wert: unknown): AblesungEingabe | null {
     !Number.isFinite(wert['stand']) ||
     wert['stand'] < 0 ||
     !istText(wert['quelle']) ||
-    !KILOMETER_QUELLEN.has(wert['quelle']) ||
+    !KILOMETER_QUELLEN_EINGABE.has(wert['quelle']) ||
     !(wert['korrigiert'] === null || istNichtleererText(wert['korrigiert'])) ||
     !istText(wert['bemerkung'])
   ) {
@@ -152,6 +172,15 @@ interface FahrzeugZeile {
   geaendert_am: string;
   geaendert_von: string;
   version: number;
+  /**
+   * Geheimnis: Ziel des öffentlichen QR-Codes. Steht hier, weil `SELECT *`
+   * die Spalte mitliest – wird von `zuFahrzeugJson()` aber bewusst NICHT
+   * übernommen, damit es nicht über die Fahrzeugliste bis in den
+   * Einsatzplaner reicht. Auslesbar allein über die
+   * Erfassungslink-Endpunkte. Ein Test sichert das ab.
+   */
+  erfassung_token: string | null;
+  erfassung_token_am: string | null;
 }
 
 function zuFahrzeugJson(zeile: FahrzeugZeile): Record<string, unknown> {
@@ -181,6 +210,7 @@ interface AblesungZeile {
   quelle: string;
   korrigiert: string | null;
   bemerkung: string;
+  gemeldet_von_name: string | null;
 }
 
 function zuAblesungJson(zeile: AblesungZeile): Record<string, unknown> {
@@ -194,6 +224,9 @@ function zuAblesungJson(zeile: AblesungZeile): Record<string, unknown> {
     quelle: zeile.quelle,
     korrigiert: zeile.korrigiert,
     bemerkung: zeile.bemerkung,
+    // Immer vorhanden, damit die Fachschicht das Feld nicht ungeprüft
+    // durchreichen muss: bei allen anderen Erfassungswegen ist es leer.
+    gemeldetVonName: zeile.gemeldet_von_name ?? '',
   };
 }
 
@@ -337,7 +370,13 @@ function diffFahrzeug(alt: FahrzeugZeile, neu: FahrzeugEingabe): string[] {
  * gibt keinen Endpunkt, über den ein Client direkt in diese Tabelle schreiben
  * könnte (siehe docs/konzept-fahrzeuge.md, Abschnitt „Änderungsprotokoll").
  */
-async function protokolliereAenderung(
+/**
+ * Der einzige Schreibpfad ins Änderungsprotokoll. Exportiert, damit auch
+ * `einreichungen.ts` ihn benutzt, statt einen zweiten anzulegen: `von` ist
+ * immer eine geprüfte Access-E-Mail, und die Beschreibung entsteht im Code,
+ * nie aus einer Client-Eingabe.
+ */
+export async function protokolliereAenderung(
   db: D1Database,
   fahrzeugId: string,
   von: string,
@@ -389,6 +428,25 @@ export async function verarbeiteFahrzeuge(
     if (url.pathname === FAHRZEUG_LISTE_PFAD) {
       if (anfrage.method === 'GET') return await listeFahrzeuge(db);
       if (anfrage.method === 'POST') return await legeFahrzeugAn(anfrage, db, identitaet);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'GET, POST',
+      });
+    }
+
+    // Ausdrücklich vor der UUID-Regex geprüft, auch wenn "erfassungslinks" sie
+    // ohnehin nicht trifft – dieselbe Vorsicht wie bei KM_BERICHT_PFAD.
+    if (url.pathname === ERFASSUNGSLINKS_PFAD) {
+      if (anfrage.method === 'GET') return await listeErfassungslinks(db, umgebung, identitaet);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'GET',
+      });
+    }
+
+    const linkFahrzeugId = ERFASSUNGSLINK_PFAD.exec(url.pathname)?.[1];
+    if (linkFahrzeugId) {
+      if (anfrage.method === 'GET') return await leseErfassungslink(db, linkFahrzeugId);
+      if (anfrage.method === 'POST')
+        return await erneuereErfassungslink(db, umgebung, linkFahrzeugId, identitaet);
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET, POST',
       });
@@ -462,7 +520,11 @@ async function leseFahrzeug(db: D1Database, id: string): Promise<Response> {
   return jsonAntwort(zuFahrzeugJson(zeile), 200, { ETag: starkesEtag(zeile.version) });
 }
 
-async function lesePruefeKoerper(
+/**
+ * Exportiert für `einreichungen.ts`: dieselben Grenzen und dieselbe
+ * Fehlerklassifikation für jeden Fahrzeug-Schreibendpunkt.
+ */
+export async function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {
@@ -560,8 +622,9 @@ async function legeFahrzeugAn(
       .prepare(
         `INSERT INTO fahrzeuge
            (id, bezeichnung, funkrufname, kennzeichen, fahrgestellnummer, eigentuemer,
-            gruppe, bemerkung, wartungstermine, geaendert_am, geaendert_von, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            gruppe, bemerkung, wartungstermine, geaendert_am, geaendert_von, version,
+            erfassung_token, erfassung_token_am)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       )
       .bind(
         eingabe.id,
@@ -575,6 +638,10 @@ async function legeFahrzeugAn(
         JSON.stringify(eingabe.wartungstermine),
         jetzt,
         identitaet.email,
+        // Sofort vergeben, damit ein neues Fahrzeug ohne Zwischenschritt
+        // bedruckbar ist – genau wie der Bestand aus Migration 0007.
+        erzeugeErfassungToken(),
+        jetzt,
       )
       .run();
   } catch (fehler) {
@@ -839,6 +906,120 @@ async function loescheAblesung(
  * Angular-Routing, ändert sich nur diese eine Stelle, nicht jeder Aufkleber.
  * Nur GET; Access-Prüfung erfolgt bereits vorher im Router.
  */
+/**
+ * Erfassungslinks aller Fahrzeuge, auf die eigenen Freigabegruppen begrenzt.
+ * Grundlage des QR-Übersichtsbogens.
+ *
+ * Anders als die Einzelabfrage ist das eine Sammlung von Geheimnissen, deshalb
+ * die serverseitige Rollenprüfung: Zugführung sieht alle Fahrzeuge, eine
+ * Gruppenführung nur die ihrer Gruppe. Ohne passende Rolle ist die Liste leer
+ * statt abgewiesen – der Übersichtsbogen soll für jeden aufrufbar und dann
+ * ehrlich leer sein.
+ */
+async function listeErfassungslinks(
+  db: D1Database,
+  umgebung: FahrzeugeKonfiguration,
+  identitaet: GeprueftesBenutzerkonto,
+): Promise<Response> {
+  const benutzerDb = umgebung.BENUTZER_DB;
+  if (!benutzerDb) {
+    return fehlerAntwort(
+      'ROLLEN_KONFIGURATION_FEHLT',
+      'Die Rollenverwaltung ist noch nicht eingerichtet.',
+      503,
+    );
+  }
+  const zuordnung = await leseRolle(benutzerDb, identitaet.email);
+  const gruppen = freigabeGruppen(zuordnung?.rolle ?? null);
+  if (gruppen.length === 0) {
+    return jsonAntwort({ links: [] });
+  }
+  const platzhalter = gruppen.map(() => '?').join(', ');
+  const ergebnis = await db
+    .prepare(
+      `SELECT id, bezeichnung, funkrufname, kennzeichen, gruppe, erfassung_token
+         FROM fahrzeuge
+        WHERE gruppe IN (${platzhalter})
+        ORDER BY bezeichnung`,
+    )
+    .bind(...gruppen)
+    .all<ErfassungslinkZeile>();
+  return jsonAntwort({ links: ergebnis.results.map(zuErfassungslinkJson) });
+}
+
+interface ErfassungslinkZeile {
+  id: string;
+  bezeichnung: string;
+  funkrufname: string;
+  kennzeichen: string;
+  gruppe: string;
+  erfassung_token: string | null;
+}
+
+function zuErfassungslinkJson(zeile: ErfassungslinkZeile): Record<string, unknown> {
+  return {
+    fahrzeugId: zeile.id,
+    bezeichnung: zeile.bezeichnung,
+    funkrufname: zeile.funkrufname,
+    kennzeichen: zeile.kennzeichen,
+    gruppe: zeile.gruppe,
+    token: zeile.erfassung_token,
+  };
+}
+
+/**
+ * Erfassungslink eines einzelnen Fahrzeugs. Steht jeder geprüften Identität
+ * offen: wer das Fahrzeug ohnehin sehen und intern erfassen darf, darf auch
+ * den Aufkleber dieses einen Fahrzeugs drucken.
+ */
+async function leseErfassungslink(db: D1Database, fahrzeugId: string): Promise<Response> {
+  const zeile = await db
+    .prepare('SELECT erfassung_token FROM fahrzeuge WHERE id = ?')
+    .bind(fahrzeugId)
+    .first<{ erfassung_token: string | null }>();
+  if (!zeile) {
+    return fehlerAntwort('FAHRZEUG_NICHT_GEFUNDEN', 'Fahrzeug nicht gefunden.', 404);
+  }
+  return jsonAntwort({ fahrzeugId, token: zeile.erfassung_token });
+}
+
+/**
+ * Erzeugt ein neues Token und macht damit alle bereits gedruckten Aufkleber
+ * dieses Fahrzeugs ungültig. Bewusst keine Übergangsfrist mit zwei gültigen
+ * Token – das wäre ein zweites Geheimnis ohne Ablaufüberwachung.
+ *
+ * Der Protokolleintrag nennt das Token nicht.
+ */
+async function erneuereErfassungslink(
+  db: D1Database,
+  umgebung: FahrzeugeKonfiguration,
+  fahrzeugId: string,
+  identitaet: GeprueftesBenutzerkonto,
+): Promise<Response> {
+  const zeile = await db
+    .prepare('SELECT gruppe FROM fahrzeuge WHERE id = ?')
+    .bind(fahrzeugId)
+    .first<{ gruppe: string }>();
+  if (!zeile) {
+    return fehlerAntwort('FAHRZEUG_NICHT_GEFUNDEN', 'Fahrzeug nicht gefunden.', 404);
+  }
+  const verweigert = await pruefeFreigabeRecht(umgebung, identitaet, zeile.gruppe);
+  if (verweigert) return verweigert;
+
+  const token = erzeugeErfassungToken();
+  await db
+    .prepare('UPDATE fahrzeuge SET erfassung_token = ?, erfassung_token_am = ? WHERE id = ?')
+    .bind(token, new Date().toISOString(), fahrzeugId)
+    .run();
+  await protokolliereAenderung(
+    db,
+    fahrzeugId,
+    identitaet.email,
+    'Öffentlicher Erfassungs-QR-Code erneuert (bisher gedruckte Aufkleber sind ungültig)',
+  );
+  return jsonAntwort({ fahrzeugId, token });
+}
+
 export function kurzlinkWeiterleitung(pfad: string): Response | null {
   const uebersicht = new RegExp(`^/f/(${UUID_MUSTER})$`, 'i').exec(pfad);
   if (uebersicht) {

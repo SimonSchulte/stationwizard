@@ -1,0 +1,120 @@
+<main class="seite">
+  <header class="kopf">
+    <h1>Kilometerstand melden</h1>
+  </header>
+
+  @switch (zustand()) {
+    @case ('laedt') {
+      <p class="hinweis">Fahrzeug wird geladen …</p>
+    }
+
+    @case ('unbekannt') {
+      <section class="karte" role="alert">
+        <h2>Dieser Code funktioniert nicht</h2>
+        <p>
+          Der QR-Code gehört zu keinem Fahrzeug, oder er wurde erneuert. Bitte wende dich an die
+          Zug- oder Gruppenführung.
+        </p>
+      </section>
+    }
+
+    @case ('gesendet') {
+      <section class="karte erfolg">
+        <h2>Danke, die Meldung ist eingegangen</h2>
+        <p>
+          Der Kilometerstand wird noch von der Zug- oder Gruppenführung freigegeben.
+          <strong>Erst danach ist er der neue Stand des Fahrzeugs.</strong>
+        </p>
+        <button type="button" class="knopf-zweitrangig" (click)="weitereMeldung()">
+          Weitere Meldung
+        </button>
+      </section>
+    }
+
+    @default {
+      @if (fahrzeug(); as fz) {
+        <section class="karte fahrzeug">
+          <h2>{{ fz.bezeichnung }}</h2>
+          <p class="fahrzeug-zeile">
+            <span>{{ fz.funkrufname }}</span>
+            @if (fz.kennzeichen) {
+              <span class="kennzeichen">{{ fz.kennzeichen }}</span>
+            }
+          </p>
+        </section>
+      }
+
+      <form class="karte" (submit)="$event.preventDefault(); absenden()">
+        <label class="feld">
+          <span class="feld-name">Dein Name</span>
+          <input
+            type="text"
+            name="name"
+            autocomplete="name"
+            enterkeyhint="next"
+            [value]="name()"
+            (input)="name.set($any($event.target).value)"
+          />
+          <span class="feld-hilfe">
+            Wird auf diesem Gerät gemerkt, damit du ihn nicht jedes Mal eingeben musst.
+          </span>
+          @if (name() && !nameOk()) {
+            <span class="feld-fehler">Bitte zwei bis 60 Zeichen angeben.</span>
+          }
+        </label>
+
+        <label class="feld">
+          <span class="feld-name">Kilometerstand</span>
+          <span class="zahl-feld">
+            <input
+              type="number"
+              name="stand"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              enterkeyhint="done"
+              [value]="standRoh()"
+              (input)="standRoh.set($any($event.target).value)"
+            />
+            <span class="einheit">km</span>
+          </span>
+          @if (standRoh() && stand() === null) {
+            <span class="feld-fehler">Bitte eine ganze Zahl ohne Nachkommastellen angeben.</span>
+          }
+        </label>
+
+        <label class="feld">
+          <span class="feld-name">Bemerkung <span class="feld-optional">(optional)</span></span>
+          <textarea
+            name="bemerkung"
+            rows="2"
+            [value]="bemerkung()"
+            (input)="bemerkung.set($any($event.target).value)"
+          ></textarea>
+          @if (bemerkungZuLang()) {
+            <span class="feld-fehler">Höchstens 200 Zeichen.</span>
+          }
+        </label>
+
+        @if (fehler()) {
+          <p class="feld-fehler" role="alert">{{ fehler() }}</p>
+        }
+
+        <p class="freigabe-hinweis">
+          Die Meldung wird unter deinem Namen protokolliert und von der Zug- oder Gruppenführung
+          freigegeben.
+        </p>
+
+        <button type="submit" class="knopf" [disabled]="!absendbar()">
+          {{ zustand() === 'sendet' ? 'Wird gesendet …' : 'Melden' }}
+        </button>
+
+        @if (name()) {
+          <button type="button" class="knopf-schlicht" (click)="namenVergessen()">
+            Namen vergessen
+          </button>
+        }
+      </form>
+    }
+  }
+</main>

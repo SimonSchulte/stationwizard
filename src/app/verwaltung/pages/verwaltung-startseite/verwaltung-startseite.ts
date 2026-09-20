@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { FahrzeugDruckbogenService } from '../../../fahrzeuge/services/fahrzeug-druckbogen.service';
-import { FahrzeugStoreService } from '../../../fahrzeuge/services/fahrzeug-store.service';
+import { ApiErfassungslinkStorage } from '../../../fahrzeuge/storage/api-erfassungslink-storage';
 
 @Component({
   selector: 'app-verwaltung-startseite',
@@ -15,15 +15,16 @@ import { FahrzeugStoreService } from '../../../fahrzeuge/services/fahrzeug-store
 })
 export class VerwaltungStartseite {
   private readonly benutzerverwaltungStore = inject(BenutzerverwaltungStoreService);
-  private readonly fahrzeugStore = inject(FahrzeugStoreService);
+  private readonly linkStorage = inject(ApiErfassungslinkStorage);
   private readonly druckbogenService = inject(FahrzeugDruckbogenService);
 
   /**
-   * Nur eine Einblendregel für die Zugführung, kein Zugriffsschutz – der
-   * Verwaltungsbereich kennt weiterhin kein durchgesetztes Rollenmodell
-   * (siehe CLAUDE.md „Rechte vorerst alle, Rollen später“).
+   * Einblendregel für Zugführung und Gruppenführungen, kein Zugriffsschutz. Die
+   * eigentliche Begrenzung geschieht serverseitig: `/api/fahrzeuge/erfassungslinks`
+   * liefert nur die Gruppen, für die die Person freigeben darf – ohne passende
+   * Rolle eine leere Liste.
    */
-  readonly istZugfuehrung = this.benutzerverwaltungStore.istZugfuehrung;
+  readonly darfFreigeben = this.benutzerverwaltungStore.darfFreigeben;
 
   readonly qrUebersichtLaedt = signal(false);
   readonly qrUebersichtFehler = signal('');
@@ -32,18 +33,19 @@ export class VerwaltungStartseite {
     void this.benutzerverwaltungStore.listeLaden();
   }
 
-  async qrUebersichtErstellen(): Promise<void> {
-    if (!this.istZugfuehrung() || this.qrUebersichtLaedt()) return;
+  async qrUebersichtErstellen(art: 'intern' | 'oeffentlich'): Promise<void> {
+    if (!this.darfFreigeben() || this.qrUebersichtLaedt()) return;
     this.qrUebersichtLaedt.set(true);
     this.qrUebersichtFehler.set('');
     try {
-      await this.fahrzeugStore.listeLaden();
-      const fahrzeuge = this.fahrzeugStore.fahrzeuge();
-      if (fahrzeuge.length === 0) {
-        this.qrUebersichtFehler.set('Es sind keine Fahrzeuge vorhanden.');
+      const links = await this.linkStorage.ladeLinks();
+      if (links.length === 0) {
+        this.qrUebersichtFehler.set(
+          'Es sind keine Fahrzeuge vorhanden, für die du freigeben darfst.',
+        );
         return;
       }
-      await this.druckbogenService.erzeugeUndSpeichereUebersicht(fahrzeuge);
+      await this.druckbogenService.erzeugeUndSpeichereUebersicht(links, art);
     } catch (fehler) {
       this.qrUebersichtFehler.set(
         fehler instanceof Error

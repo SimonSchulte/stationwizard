@@ -73,6 +73,70 @@
           "builder": "@angular/build:unit-test"
         }
       }
+    },
+    "oeffentlich": {
+      "projectType": "application",
+      "root": "oeffentlich",
+      "sourceRoot": "oeffentlich/src",
+      "prefix": "oeff",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "less"
+        }
+      },
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "oeffentlich/src/main.ts",
+            "index": "oeffentlich/src/index.html",
+            "tsConfig": "oeffentlich/tsconfig.app.json",
+            "inlineStyleLanguage": "less",
+            "styles": ["oeffentlich/src/styles.less"],
+            "outputPath": {
+              "base": "dist/stationwizard/browser/oeffentlich",
+              "browser": ""
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "150kB",
+                  "maximumError": "250kB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "outputHashing": "none",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "oeffentlich/tsconfig.spec.json"
+          }
+        }
+      }
     }
   }
 }

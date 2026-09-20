@@ -833,6 +833,15 @@ Sache der Access-Zugriffsliste außerhalb dieser App.
 - **Sechs Hauptrollen** wie vom Auftraggeber benannt: Zugführung, Gruppenführung Sanität,
   Gruppenführung Betreuung, Gruppenführung TeSi, Gruppenführung Führung, Helfer. Die
   Sonderrolle Verwaltungshelfer ist unabhängig von der Hauptrolle kombinierbar.
+
+  **Nachtrag 16.09.2026, hier bisher nicht festgehalten:** inzwischen gibt es eine siebte
+  Hauptrolle `gruppenfuehrung-verpflegung` und eine zweite Sonderrolle `sanitaetsdienste`
+  (für die Einsatzplanung/PEP). Für Verpflegung sind fachlich keine Fahrzeuge vorgesehen —
+  diese Gruppenführung kann deshalb keine Kilometermeldung freigeben (siehe AP-Ö).
+  Ebenfalls nachgetragen: Fahrzeuge haben seit `worker/migrations/0006_fahrzeug_gruppe.sql`
+  ein Pflichtfeld `gruppe` (Betreuung, TeSi, Führung, Sanität, Vorgabe Führung). Es ist die
+  Grundlage dafür, dass eine Gruppenführung genau die Fahrzeuge ihrer Gruppe freigeben kann.
+
 - **`worker/src/benutzer.ts`**: `registriereZugriff()` merkt eine Anmeldung vor (erster
   Zugriff legt die Zeile an, jeder weitere aktualisiert nur den Zeitstempel) und wird
   best-effort aus dem bestehenden `GET /api/benutzer` aufgerufen — die Shell ruft diesen
@@ -1415,10 +1424,140 @@ Zugangsschutz oder die Konfliktbehandlung zu lockern.
   wirkungslos, nie falsch.
 - Der Lesepuffer bedeutet, dass eine Erfassung aus einem **anderen** Browser bis zu eine
   Minute später sichtbar wird. Eigene Änderungen wirken sofort.
-- `npm run test:spa` schlägt weiterhin fehl, inzwischen aber aus einem anderen Grund als
-  bisher dokumentiert: nicht mehr an der Netzwerkfreigabe, sondern schon beim Aufbau der
-  Laufzeit (`MiniflareCoreError [ERR_VALIDATION] … workers: undefined` in
-  `worker/tests/spa-routing.mjs`). Das betrifft den Testaufbau selbst, nicht den Worker, und
-  besteht unabhängig von dieser Runde. Damit bleibt der Laufzeitnachweis offen und das
-  Hash-Routing erhalten.
+- ~~`npm run test:spa` schlägt weiterhin fehl~~ – das galt für diesen Branch für sich
+  genommen. AP-Ö (siehe unten) hat `worker/tests/spa-routing.mjs` unabhängig davon repariert
+  (`convertV4MiniflareOptions`, Ausgabe unter `dist/`, `routerConfig.has_user_worker`); nach
+  dem Zusammenführen beider Branches läuft `npm run test:spa` wieder erfolgreich gegen das
+  echte workerd-Bundle (geprüft am 2026-09-20).
+
+## AP-Ö – Öffentliche Kilometermeldung per QR-Code mit Freigabe
+
+Auftrag: die Einstiegshürde für die Helferschaft senken. Wer den Kilometerstand am Fahrzeug
+melden soll, musste bisher in der Cloudflare-Access-Zugriffsliste stehen. Konzept und
+Begründung stehen in [Konzept Fahrzeuge](konzept-fahrzeuge.md), Abschnitt 10; Abschnitt 4
+ist entsprechend umgeschrieben.
+
+### Zuerst: `npm run test:spa` wieder lauffähig
+
+Der Lauf war seit AP7 blockiert und damit als Nachweis wertlos. Da dieses Paket erstmals
+eine Bypass-Regel am echten Bundle nachweisen muss, war das der erste Schritt. Drei
+Ursachen, alle in der Testdatei, keine im Worker:
+
+- Die installierte Miniflare-Fassung verlangt im Konstruktor die Mehr-Worker-Form. Statt
+  deren interne Struktur nachzubauen, läuft die lesbare Ein-Worker-Schreibweise jetzt durch
+  den dafür ausgelieferten, öffentlich exportierten Übersetzer `convertV4MiniflareOptions`.
+- Das Testbundle lag im Systemtempverzeichnis; workerd löst Module relativ zur Projektwurzel
+  auf und lehnt einen Pfad ab, der über sie hinausführt. Die Ausgabe liegt jetzt unter
+  `dist/` und wird weiterhin aufgeräumt.
+- Der Static-Assets-Weiterleitung fehlte `routerConfig.has_user_worker`. Ohne dieses
+  Kennzeichen ruft sie den Worker überhaupt nicht auf – also genau das, was der Test
+  nachweisen soll.
+
+### Der eine Weg am Zugangsschutz vorbei
+
+Drei feste Pfadmuster, kein Präfixabgleich: `/e/<token>`, `/oeffentlich/<datei>` und
+`/api/oeffentlich/meldung/<token>`. Der Worker prüft sie unabhängig von Access noch einmal
+selbst – eine zu weit gefasste Access-Regel macht die Anwendung deshalb trotzdem nicht
+öffentlich. Die zugehörige Access-Regel steht vollständig in
+[Einrichtung](einrichtung.md), einschließlich der Auflage, sie **nicht** auf `workers.dev`
+und nicht auf Vorschau-URLs zu setzen.
+
+Die Seite ist ein **zweites, sehr kleines Angular-Build-Ziel** (34 kB Übertragung) statt
+einer Route der Hauptanwendung. Sonst hätte der Bypass „alles außer `/api/*`" lauten müssen,
+weil die Bundle-Dateinamen je Build wechseln. Unter `/oeffentlich/` liefert der Worker nur
+eine feste Erlaubnisliste aus und verwirft eine HTML-Antwort auf eine `.js`/`.css`-Anfrage,
+damit die SPA-Rückfallebene nie die geschützte App-Hülle nach außen gibt; `npm run test:spa`
+prüft die Liste gegen das echte Build-Ergebnis.
+
+Die Tests behaupten nicht mehr, es gebe keinen Bypass, sondern sichern positiv ab, dass er
+genau diese drei Muster trifft: dreizehn Beinahetreffer (`/e/`, `/e/<token>/extra`,
+`/ef/<token>`, `/oeffentlich/unter/main.js` …) liefern weiterhin 401.
+
+### Freigabe und erste durchgesetzte Rolle
+
+Eine Meldung liegt in `ablesung_einreichungen` und ist **kein** Kilometerstand; erst die
+Freigabe erzeugt eine Zeile in `ablesungen`. Die eigene Tabelle macht „noch nicht
+freigegeben fließt nirgends ein" strukturell wahr, statt es an einen Filter zu binden, den
+eine künftige Abfrage vergessen könnte.
+
+`worker/src/rollen.ts` ist die erste Rollenprüfung des Projekts, die tatsächlich sperrt
+(403) statt nur die Oberfläche zu steuern. Gegen das Rennen zweier Freigebender dient der
+Statuswechsel selbst als Wächter; die zweite Anfrage bekommt 409 und es entsteht keine
+zweite Ablesung.
+
+Zwei Dinge, die ohne diese Arbeit unbemerkt geblieben wären:
+
+- `quelle: 'oeffentlich'` war über `POST /api/fahrzeuge/<UUID>/ablesungen` einreichbar. Wäre
+  das so geblieben, hätte jede angemeldete Person eine Freigabe fingieren können. Die
+  Quellenmenge ist jetzt in „eingebbar" und „lesbar" geteilt, auf beiden Seiten; der
+  Compiler hat daraufhin zwei Stellen gefunden, die den weiteren Typ benutzten.
+- `WorkerClient` setzte bei 401 **und** 403 den Zustand `sitzung-abgelaufen`. Bis hierher kam
+  403 nur vom Ursprungsschutz und ließ sich so zusammenfassen; für ein fachliches 403 aus der
+  Rollenprüfung wäre „Sitzung abgelaufen" eine Falschmeldung gewesen. Nur noch 401 setzt den
+  Zustand.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npx npm@11 ci`, `npm run build`, `npm test` (569 Angular, 13 öffentliches Build-Ziel,
+  508 Worker), `npm run format:check`, `npm run worker:check`, `npm run deploy:dry-run` –
+  alle grün.
+- **`npm run test:spa` läuft wieder** und weist am echten workerd-Bundle nach: Access vor
+  allen Assets, die drei öffentlichen Muster ohne Anmeldung erreichbar, jeder Beinahetreffer
+  gesperrt, die Erlaubnisliste deckt sich mit dem Build, und Richtlinie und HTML passen
+  zusammen (siehe unten).
+- **Echter Lauf gegen `wrangler dev --local`** mit workerd und lokaler D1. Migrationen
+  0001–0003, 0006 und 0007 angewendet – **0007 läuft sauber gegen echtes SQLite**,
+  einschließlich `lower(hex(randomblob(16)))` und des partiellen eindeutigen Index.
+  Testfahrzeug mit ausschließlich erfundenen Daten. Ohne jede Anmeldung belegt: `/` und
+  `/api/fahrzeuge` bleiben gesperrt, `/e/<token>` lädt; die Antwort nennt nur Bezeichnung,
+  Funkrufname und Kennzeichen; eine Meldung landet in `ablesung_einreichungen` mit Status
+  `offen` und `ablesungen` bleibt leer; `abgelesen_am` ist der Berliner Kalendertag; eine
+  zweite Meldung sofort danach ergibt 429, ein fremder Ursprung 403, ein unbekanntes Token 404.
+- **Browserprüfung der öffentlichen Seite** (Chromium, gegen denselben lokalen Worker).
+  Mobil 390×844 und Desktop 1280×900: rendert fehlerfrei, Absenden ist gesperrt, solange
+  Name oder Stand fehlen, die Dankeseite nennt die ausstehende Freigabe, der Name ist beim
+  zweiten Besuch vorbelegt – und die Seite enthält **null** Verweise, es gibt keinen Weg
+  zurück in die App.
+- **Browserprüfung der App-Seiten** (Chromium gegen `ng serve`, `/api/*`-Antworten lokal
+  abgefangen mit erfundenen Daten – kein echter Worker). Desktop 1280×900 und Mobil 390×844:
+  Aufgabenübersicht und Freigabeseite rendern fehlerfrei, die Marke am Burger-Knopf zeigt
+  die Zahl, ein Rückschritt wird als Warnung hervorgehoben, der gemeldete Name trägt überall
+  den Zusatz „Selbstauskunft, nicht geprüft". Dabei kam nebenbei heraus, dass eine
+  ausgefallene Aufgabenquelle korrekt benannt wird, statt als leere Liste zu erscheinen.
+
+**Ein Fehler, den erst der Browser gefunden hat.** Die Seite blieb zunächst leer: die
+Richtlinie `base-uri 'none'` verbot das `<base href="/oeffentlich/">` der Seite, sodass Stil
+und Skript gegen `/e/` aufgelöst wurden; zusätzlich fügte Angular die Komponentenstile zur
+Laufzeit als inline `<style>` ein, was `style-src 'self'` verbietet. Kein Einzeltest der
+beiden Seiten konnte das bemerken. Behoben mit `base-uri 'self'` (erlaubt nur eine Basis
+derselben Origin) und global statt komponentenweise gepflegten Stilen – die Richtlinie bleibt
+damit ohne `unsafe-inline`. `npm run test:spa` hält Richtlinie und HTML jetzt zusammen; die
+Gegenprobe wurde gemacht, mit `base-uri 'none'` schlägt der Lauf fehl.
+
+### Offene Abnahmegrenzen von AP-Ö
+
+- **Die Access-Bypass-Regel selbst ist ungeprüft.** Sie lässt sich nur in der produktiven
+  Zero-Trust-Konfiguration einrichten und prüfen. Die Prüfliste dafür steht in
+  [Einrichtung](einrichtung.md).
+- ~~Migration 0007 ist nicht auf die produktive Datenbank angewendet~~ – **am
+  2026-09-19 auf der produktiven `stationwizard-fahrzeuge`-Datenbank angewendet.** Eine
+  Prüfabfrage vor dem Anwenden zeigte, dass 0001–0003 und 0006 dort bereits vorhanden
+  waren (der Kennzeichen-Unique-Index aus 0003 existierte bereits); 0007 war die einzige
+  noch offene Migration für `FAHRZEUGE_DB` (0005 betrifft die getrennte `BENUTZER_DB` und
+  wurde am 2026-09-15 bereits angewendet, siehe AP-S1). Alle 23 vorhandenen Fahrzeuge haben
+  jetzt ein `erfassung_token`, `ablesung_einreichungen` existiert (leer). Damit sind auf
+  `FAHRZEUGE_DB` keine Migrationen mehr offen.
+- **Kein Lauf mit echter Access-Sitzung und echten Fahrzeugdaten.** Die App-Seiten wurden
+  gegen abgefangene Antworten geprüft, nicht gegen den produktiven Worker.
+- **Kein echter Scan mit einem Telefon.** Geprüft wurde im Browser bei Telefonmaßen, nicht
+  mit einer Kamera an einem Fahrzeug.
+- **Die erzeugten PDFs wurden nicht ausgedruckt.** Papierformat und Stückzahl je Blatt
+  bleiben die offene Fachfrage aus Konzept Abschnitt 9.
+- **Die Rollenprüfung ist nur so stark wie die Rollenvergabe.**
+  `PUT /api/benutzerverwaltung/<E-Mail>` steht weiterhin jeder geprüften Identität offen: wer
+  sich selbst `zugfuehrung` setzt, darf anschließend freigeben. Das ist nach diesem Paket die
+  auffälligste verbleibende Lücke.
+- **Keine Benachrichtigung.** Der Auftrag nennt Mail und Popups als spätere Ausbaustufe; in
+  diesem Paket entstand nur der Bereich „Offene Aufgaben" als Anschlusspunkt. Der
+  Mailversand ist produktiv weiterhin nie gelaufen (siehe AP-S1).
 - Node 24 stand nicht zur Verfügung; alle Läufe erfolgten unter Node 22.22.2 mit npm 11.
