@@ -97,6 +97,14 @@
         <mat-icon aria-hidden="true">local_shipping</mat-icon> Fahrzeuge
       </a>
       <a
+        routerLink="/material"
+        routerLinkActive="aktiv"
+        ariaCurrentWhenActive="page"
+        (click)="seitenNav.close()"
+      >
+        <mat-icon aria-hidden="true">inventory_2</mat-icon> Materialverwaltung
+      </a>
+      <a
         routerLink="/angebotswesen"
         routerLinkActive="aktiv"
         ariaCurrentWhenActive="page"

@@ -1,0 +1,87 @@
+<mat-toolbar class="listen-kopfleiste">
+  <mat-icon class="kopfleiste-icon" aria-hidden="true">inventory_2</mat-icon>
+  <span class="toolbar-title">Materialverwaltung</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="neuerBehaelter()">
+    <mat-icon>add</mat-icon> Neuer Behälter
+  </button>
+</mat-toolbar>
+
+<div class="listen-inhalt">
+  <p class="beschreibung">
+    Behälter sind einzeln geführte Ausrüstungsstücke eines Fahrzeugs – ein Gerätewagen trägt mehrere
+    Notfallrucksäcke, jeder wird für sich geprüft. Jeder Behälter folgt einer Prüfvorlage.
+  </p>
+
+  @if (anzahlBehaelter() > 0) {
+    <p class="kennzahlen">
+      {{ anzahlBehaelter() }} Behälter
+      @if (nieGeprueft() > 0) {
+        · <strong>{{ nieGeprueft() }} noch nie geprüft</strong>
+      }
+    </p>
+  }
+
+  <label class="suchfeld">
+    <span class="visuell-versteckt">Behälter durchsuchen</span>
+    <input
+      type="search"
+      placeholder="Behälter oder Fahrzeug suchen …"
+      [value]="suche()"
+      (input)="suche.set($any($event.target).value)"
+    />
+  </label>
+
+  @if (laedt()) {
+    <p role="status">Behälter werden geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (!laedt() && !fehler() && gruppen().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon" aria-hidden="true">inventory_2</mat-icon>
+      <p class="empty-hint">
+        @if (suche()) {
+          Kein Behälter passt zur Suche.
+        } @else {
+          Noch kein Behälter angelegt.
+        }
+      </p>
+      @if (!suche()) {
+        <button mat-raised-button color="primary" (click)="neuerBehaelter()">
+          Ersten Behälter anlegen
+        </button>
+      }
+    </div>
+  } @else {
+    @for (gruppe of gruppen(); track gruppe.fahrzeugId) {
+      <section class="fahrzeug" [attr.aria-label]="'Behälter von ' + gruppe.bezeichnung">
+        <h2 class="fahrzeug-titel">{{ gruppe.bezeichnung }}</h2>
+        <ul class="behaelter">
+          @for (eintrag of gruppe.behaelter; track eintrag.id) {
+            <li class="behaelter-zeile">
+              <a class="behaelter-link" [routerLink]="['/material/behaelter', eintrag.id]">
+                <span class="behaelter-name">{{ eintrag.bezeichnung }}</span>
+                <span class="behaelter-vorlage">{{ eintrag.vorlageBezeichnung }}</span>
+                <span class="behaelter-stand">
+                  @if (eintrag.zuletztGeprueftAm) {
+                    zuletzt geprüft {{ eintrag.zuletztGeprueftAm | date: 'dd.MM.yyyy' }}
+                  } @else {
+                    noch nie geprüft
+                  }
+                </span>
+                @if (befund(eintrag)) {
+                  <span class="behaelter-befund" [class.beanstandet]="istBeanstandet(eintrag)">
+                    {{ befund(eintrag) }}
+                  </span>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+</div>
