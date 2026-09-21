@@ -2,6 +2,7 @@ import { fehlerAntwort, jsonAntwort } from './antwort';
 import { ERFASSUNG_TOKEN_MUSTER, gleichInKonstanterZeit } from './erfassung-token';
 import { istObjekt, leseJsonBegrenzt } from './json-lesen';
 import { berlinerKalendertag } from './kalender';
+import { verarbeiteOeffentlichenCheck } from './oeffentlicher-check';
 
 /**
  * Öffentliche Kilometermeldung – der einzige Teil des Workers, der ohne
@@ -31,6 +32,10 @@ export interface OeffentlicheErfassungKonfiguration {
 const SEITEN_PFAD = /^\/e\/([0-9a-f]{32})$/;
 const API_PFAD = /^\/api\/oeffentlich\/meldung\/([0-9a-f]{32})$/;
 const DATEI_PFAD = /^\/oeffentlich\/([A-Za-z0-9._-]+)$/;
+// Der Fahrzeugcheck (AP-M6) nutzt dieselbe Mechanik mit eigenen Mustern und
+// eigenem Token je Behälter; die Fachlogik liegt in `oeffentlicher-check.ts`.
+const CHECK_SEITEN_PFAD = /^\/c\/([0-9a-f]{32})$/;
+const CHECK_API_PFAD = /^\/api\/oeffentlich\/check\/([0-9a-f]{32})$/;
 
 /**
  * Feste Erlaubnisliste statt eines Präfixabgleichs. Das zweite Build-Ziel läuft
@@ -65,7 +70,7 @@ const MAX_OFFENE_JE_FAHRZEUG = 5;
 const WIEDERHOLFENSTER_MS = 60_000;
 
 /** Header jeder öffentlichen Antwort. */
-const SCHUTZ_HEADER: Readonly<Record<string, string>> = {
+export const SCHUTZ_HEADER: Readonly<Record<string, string>> = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
@@ -89,8 +94,26 @@ const SEITEN_CSP =
   "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; " +
   "img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'";
 
+/**
+ * **Die vollständige Aufzählung dessen, was ohne Cloudflare Access erreichbar
+ * ist.** Jedes Muster ist exakt verankert; es gibt bewusst keinen
+ * Präfixabgleich, damit der Bypass nicht über Pfadvarianten wachsen kann.
+ *
+ * Wer hier ein Muster ergänzt, muss den Anzahltest in
+ * `worker/tests/oeffentliche-erfassung.spec.ts` anfassen – und damit auch die
+ * Beschreibung der Access-Bypass-Anwendung in `docs/einrichtung.md` und den
+ * Absatz in CLAUDE.md.
+ */
+export const OEFFENTLICHE_MUSTER: readonly RegExp[] = [
+  SEITEN_PFAD,
+  API_PFAD,
+  DATEI_PFAD,
+  CHECK_SEITEN_PFAD,
+  CHECK_API_PFAD,
+];
+
 export function istOeffentlicherPfad(pfad: string): boolean {
-  return SEITEN_PFAD.test(pfad) || API_PFAD.test(pfad) || DATEI_PFAD.test(pfad);
+  return OEFFENTLICHE_MUSTER.some((muster) => muster.test(pfad));
 }
 
 /**
@@ -124,6 +147,17 @@ export async function verarbeiteOeffentlicheErfassung(
   const datei = DATEI_PFAD.exec(url.pathname)?.[1];
   if (datei !== undefined) {
     return liefereDatei(anfrage, umgebung, url, datei);
+  }
+
+  // Der Fahrzeugcheck teilt sich Seitenauslieferung, Schutzheader und
+  // Ursprungsprüfung mit der Kilometermeldung, hält seine Fachlogik aber in
+  // einem eigenen Modul – sonst würde diese Datei zum Sammelbecken.
+  if (CHECK_SEITEN_PFAD.test(url.pathname)) {
+    return liefereDatei(anfrage, umgebung, url, 'index.html', SEITEN_CSP);
+  }
+  const checkToken = CHECK_API_PFAD.exec(url.pathname)?.[1];
+  if (checkToken !== undefined) {
+    return verarbeiteOeffentlichenCheck(anfrage, umgebung, url, checkToken);
   }
 
   if (SEITEN_PFAD.test(url.pathname)) {
@@ -220,7 +254,7 @@ async function liefereDatei(
  * fehlender `Origin` wird nicht geduldet, weil die Meldung garantiert aus einem
  * Browser derselben Origin abgeschickt wird.
  */
-function pruefeUrsprung(anfrage: Request, url: URL): Response | null {
+export function pruefeUrsprung(anfrage: Request, url: URL): Response | null {
   const ursprung = anfrage.headers.get('Origin');
   const site = anfrage.headers.get('Sec-Fetch-Site');
   if (ursprung !== url.origin || (site !== null && site !== 'same-origin')) {

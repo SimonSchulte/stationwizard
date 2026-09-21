@@ -52,6 +52,21 @@ export interface CheckZeile {
   abgelaufen: number;
 }
 
+export interface EinreichungZeile {
+  id: string;
+  behaelter_id: string;
+  geprueft_am: string;
+  positionen: string;
+  positionen_gesamt: number;
+  positionen_geprueft: number;
+  fehlmengen: number;
+  unbrauchbar: number;
+  abgelaufen: number;
+  eingereicht_am: string;
+  eingereicht_von_name: string;
+  status: string;
+}
+
 export interface FahrzeugStammZeile {
   id: string;
   bezeichnung: string;
@@ -63,6 +78,7 @@ export class FakeMaterialDb {
   vorlagen = new Map<string, VorlageZeile>();
   behaelter = new Map<string, BehaelterZeile>();
   checks: CheckZeile[] = [];
+  einreichungen: EinreichungZeile[] = [];
   fahrzeuge = new Map<string, FahrzeugStammZeile>();
 
   /** Zähler statt Zufall, damit ein Test das erzeugte Prüftoken kennt. */
@@ -285,6 +301,71 @@ class FakeStatement {
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
+    if (this.query.startsWith('INSERT INTO check_einreichungen')) {
+      const [
+        id,
+        behaelter_id,
+        ,
+        ,
+        ,
+        ,
+        geprueft_am,
+        ,
+        ,
+        positionen,
+        positionen_gesamt,
+        positionen_geprueft,
+        fehlmengen,
+        unbrauchbar,
+        abgelaufen,
+        eingereicht_am,
+        eingereicht_von_name,
+      ] = this.werte as [
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+        number,
+        number,
+        number,
+        number,
+        number,
+        string,
+        string,
+      ];
+      this.db.einreichungen.push({
+        id,
+        behaelter_id,
+        geprueft_am,
+        positionen,
+        positionen_gesamt,
+        positionen_geprueft,
+        fehlmengen,
+        unbrauchbar,
+        abgelaufen,
+        eingereicht_am,
+        eingereicht_von_name,
+        // `status` steht als Literal 'offen' in der Anweisung, nicht unter den
+        // Bindewerten: eine Einreichung entsteht nie als bereits entschieden.
+        status: 'offen',
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    if (this.query.startsWith('UPDATE behaelter SET check_token = ?')) {
+      const [check_token, check_token_am, id] = this.werte as [string, string, string];
+      const zeile = this.db.behaelter.get(id);
+      if (!zeile) return { success: true, meta: { changes: 0 }, results: [] };
+      Object.assign(zeile, { check_token, check_token_am });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     throw new Error(`FakeMaterialDb: unbekannte run()-Anweisung: ${this.query}`);
   }
 
@@ -315,7 +396,13 @@ class FakeStatement {
       const treffer = this.db.checks.some((c) => c.behaelter_id === behaelterId);
       return treffer ? ({ treffer: 1 } as T) : null;
     }
-    if (this.query.includes('v.inhalt AS vorlage_inhalt')) {
+    // Beide Abfragen lesen die Vorlage mit; unterschieden werden sie an der
+    // WHERE-Bedingung – die eine sucht über die Behälter-Id, die andere über
+    // das Prüftoken.
+    if (
+      this.query.includes('v.inhalt AS vorlage_inhalt') &&
+      this.query.includes('WHERE b.id = ?')
+    ) {
       const [id] = this.werte as [string];
       const b = this.db.behaelter.get(id);
       if (!b) return null;
@@ -351,6 +438,56 @@ class FakeStatement {
     if (this.query.startsWith('SELECT * FROM materialchecks WHERE id = ?')) {
       const [id] = this.werte as [string];
       return (this.db.checks.find((c) => c.id === id) ?? null) as T | null;
+    }
+    if (
+      this.query.includes('v.inhalt AS vorlage_inhalt') &&
+      this.query.includes('b.check_token = ?')
+    ) {
+      const [token] = this.werte as [string];
+      const b = [...this.db.behaelter.values()].find((zeile) => zeile.check_token === token);
+      if (!b) return null;
+      const fahrzeug = this.db.fahrzeuge.get(b.fahrzeug_id);
+      const vorlage = this.db.vorlagen.get(b.vorlage_id);
+      if (!fahrzeug || !vorlage) return null;
+      return {
+        id: b.id,
+        bezeichnung: b.bezeichnung,
+        check_token: b.check_token,
+        fahrzeug_bezeichnung: fahrzeug.bezeichnung,
+        fahrzeug_funkrufname: fahrzeug.funkrufname,
+        vorlage_id: vorlage.id,
+        vorlage_version: vorlage.version,
+        vorlage_bezeichnung: vorlage.bezeichnung,
+        vorlage_grundlage: vorlage.grundlage,
+        vorlage_inhalt: vorlage.inhalt,
+      } as T;
+    }
+    if (this.query.includes('count(*) AS anzahl FROM check_einreichungen')) {
+      const [behaelterId] = this.werte as [string];
+      const anzahl = this.db.einreichungen.filter(
+        (e) => e.behaelter_id === behaelterId && e.status === 'offen',
+      ).length;
+      return { anzahl } as T;
+    }
+    if (this.query.includes('SELECT eingereicht_am FROM check_einreichungen')) {
+      const [behaelterId] = this.werte as [string];
+      const letzte = this.db.einreichungen
+        .filter((e) => e.behaelter_id === behaelterId)
+        .sort((a, b) => a.eingereicht_am.localeCompare(b.eingereicht_am))
+        .at(-1);
+      return letzte ? ({ eingereicht_am: letzte.eingereicht_am } as T) : null;
+    }
+    if (this.query.includes('b.check_token, b.check_token_am, f.gruppe')) {
+      const [id] = this.werte as [string];
+      const b = this.db.behaelter.get(id);
+      if (!b) return null;
+      const fahrzeug = this.db.fahrzeuge.get(b.fahrzeug_id);
+      if (!fahrzeug) return null;
+      return {
+        check_token: b.check_token,
+        check_token_am: b.check_token_am,
+        gruppe: fahrzeug.gruppe,
+      } as T;
     }
     throw new Error(`FakeMaterialDb: unbekannte first()-Anweisung: ${this.query}`);
   }
