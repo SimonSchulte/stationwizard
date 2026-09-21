@@ -1,0 +1,96 @@
+<mat-toolbar class="ansicht-kopfleiste">
+  <a mat-icon-button routerLink="/material" aria-label="Zurück zur Materialverwaltung">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">Fahrzeugcheck</span>
+</mat-toolbar>
+
+<div class="ansicht-inhalt">
+  @if (laedt()) {
+    <p role="status">Check wird geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (check(); as c) {
+    <section class="kopf" aria-labelledby="kopf-titel">
+      <h2 id="kopf-titel">{{ c.vorlageBezeichnung }}</h2>
+      <dl class="kopfdaten">
+        <dt>Geprüft am</dt>
+        <dd>{{ c.geprueftAm | date: 'dd.MM.yyyy' }}</dd>
+        <dt>Erfasst von</dt>
+        <dd>
+          {{ c.erfasstVon }}
+          @if (c.gemeldetVonName) {
+            <span class="quelle">gemeldet von {{ c.gemeldetVonName }} (Selbstauskunft)</span>
+          }
+        </dd>
+        <dt>Umfang</dt>
+        <dd>{{ c.positionenGeprueft }} von {{ c.positionenGesamt }} Positionen geprüft</dd>
+      </dl>
+
+      <div class="kennzahlen">
+        <span class="kennzahl" [class.warnung]="c.fehlmengen > 0">
+          {{ c.fehlmengen }} Fehlmengen
+        </span>
+        <span class="kennzahl" [class.warnung]="c.unbrauchbar > 0">
+          {{ c.unbrauchbar }} unbrauchbar
+        </span>
+        <span class="kennzahl" [class.fehler]="c.abgelaufen > 0">
+          {{ c.abgelaufen }} abgelaufen
+        </span>
+      </div>
+
+      @if (c.bemerkung) {
+        <p class="bemerkung">{{ c.bemerkung }}</p>
+      }
+    </section>
+
+    <section aria-labelledby="positionen-titel">
+      <div class="positionen-kopf">
+        <h2 id="positionen-titel">
+          @if (alleZeigen()) {
+            Alle Positionen
+          } @else {
+            Abweichungen ({{ abweichungen().length }})
+          }
+        </h2>
+        <button mat-stroked-button (click)="alleZeigen.set(!alleZeigen())">
+          @if (alleZeigen()) {
+            Nur Abweichungen
+          } @else {
+            Alle {{ c.positionenGesamt }} Positionen
+          }
+        </button>
+      </div>
+
+      @if (faecher().length === 0) {
+        <p class="empty-hint">Keine Abweichung – der Behälter war vollständig.</p>
+      }
+
+      @for (fach of faecher(); track fach.fachId) {
+        <h3 class="fach-titel">{{ fach.fach }}</h3>
+        <ul class="positionen">
+          @for (position of fach.positionen; track position.artikelId) {
+            <li class="position" [class.abweichend]="istAbweichung(position)">
+              <span class="herkunft" [class]="'herkunft h-' + position.herkunft">
+                {{ herkunftLabel[position.herkunft] }}
+              </span>
+              <span class="name">{{ position.bezeichnung }}</span>
+              <span class="befund">
+                @if (befund(position)) {
+                  {{ befund(position) }}
+                } @else {
+                  in Ordnung
+                }
+              </span>
+            </li>
+          }
+        </ul>
+      }
+
+      <p class="grundlage">{{ c.grundlage }}</p>
+    </section>
+  }
+</div>

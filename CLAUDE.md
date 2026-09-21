@@ -113,13 +113,25 @@ Prüfungen und offene Abnahmegrenzen.
 - Keine realen Personal-, Planungs-, Fahrzeug- oder Zugangsdaten in Repository, Fixtures,
   Screenshots, Logs oder Fehlertexte aufnehmen. Fachlich erforderliche Daten nicht in
   `localStorage` persistieren. API-Zugangsdaten bleiben vollständig im Worker.
-  Genau eine aufgezählte Ausnahme von der `localStorage`-Regel: der Schlüssel
+  Genau zwei aufgezählte Ausnahmen von der `localStorage`-Regel. **Erstens** der Schlüssel
   `stationwizard.erfassung.name` auf der öffentlichen Meldeseite
   (`oeffentlich/src/app/gemerkter-name.ts`). Gespeichert wird ausschließlich eine
   Selbstauskunft des Geräteinhabers über sich selbst, keine Fachdaten – die führende
   Fassung jeder Meldung liegt in D1. Die Seite liegt außerhalb der Angular-App, jeder
-  Zugriff ist gekapselt, und ein sichtbarer Knopf löscht den Namen. Die allgemeine Regel
-  bleibt unverändert; weitere Ausnahmen werden hier aufgezählt oder es gibt sie nicht.
+  Zugriff ist gekapselt, und ein sichtbarer Knopf löscht den Namen. **Zweitens** die
+  Schlüssel `stationwizard.materialcheck.<behaelterId>` für den Zwischenstand eines
+  laufenden Fahrzeugchecks (`src/app/material/services/check-entwurf.ts`). Ein Check hat
+  gut hundert Positionen und dauert leicht zwanzig Minuten; sperrt das Telefon und
+  verwirft der Browser die Seite, wäre die Arbeit sonst verloren – in der Praxis der
+  Rückfall aufs Papier. Gespeichert wird ein **unfertiger Arbeitsstand des
+  Geräteinhabers**, nie eine Quelle für eine Kennzahl: die führende Fassung jedes Checks
+  liegt in D1. Jeder Zugriff ist gekapselt, ein sichtbarer Knopf verwirft den Entwurf, er
+  wird beim Einreichen gelöscht, ein Eintrag älter als sieben Tage gilt als verfallen, und
+  ein Entwurf, der nicht mehr zur Prüfvorlage passt, wird verworfen statt halb übernommen.
+  Geschrieben wird entprellt und nur lokal – serverseitig gesichert wird ein Zwischenstand
+  ausschließlich auf ausdrücklichen Wunsch, weil ein Schreibvorgang je Änderung gegen das
+  Tageskontingent liefe. Die allgemeine Regel bleibt unverändert; weitere Ausnahmen werden
+  hier aufgezählt oder es gibt sie nicht.
 - Keine unbereinigten Upstream-Fehler oder Auth-Header durchreichen. Fehler über
   `fehlerAntwort()` mit festen Codes und `X-Stationwizard-Diagnose`; keine Secretwerte,
   Secretlängen oder vollständigen Bindinglisten veröffentlichen.

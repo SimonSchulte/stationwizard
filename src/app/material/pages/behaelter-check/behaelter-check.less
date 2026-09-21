@@ -1,0 +1,147 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.check-kopfleiste {
+  .kopfleiste-basis();
+  // Bewusst **nicht** klebend, anders als auf den übrigen Seiten: sonst
+  // klebten Werkzeugleiste und Fortschritt beide bei `top: 0` übereinander und
+  // die Werkzeugleiste verdeckte den Fortschritt. Bei gut hundert Positionen
+  // ist der Fortschritt das Wichtigere – er bleibt, die Werkzeugleiste scrollt
+  // weg. Ihre Höhe schwankt zudem mit dem Umbruch des Titels, ein fester
+  // Versatz wäre also ohnehin nur geraten.
+  position: static;
+}
+
+.toolbar-title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.spacer {
+  flex: 1;
+}
+
+// Der Fortschritt bleibt beim Scrollen sichtbar: bei gut hundert Positionen ist
+// er sonst nach zwei Wischern weg, und man weiß nicht mehr, wo man steht.
+.fortschrittsleiste {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-light);
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--elevation-1);
+}
+
+.check-inhalt {
+  padding: var(--space-md);
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  // Platz für die feste Fußleiste, damit sie nichts verdeckt.
+  padding-bottom: calc(var(--space-2xl) + var(--space-xl));
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.entwurf-hinweis {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-base);
+  margin-bottom: var(--space-base);
+  border-radius: var(--radius-md);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  font-size: var(--font-size-sm);
+}
+
+.vorlage-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-base);
+}
+
+.vorlage-name {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.fach-fertig {
+  color: var(--status-ok);
+  margin-right: var(--space-xs);
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.bemerkung {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin-top: var(--space-lg);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+
+  textarea {
+    padding: var(--space-sm);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1rem;
+    resize: vertical;
+  }
+}
+
+.fussleiste {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  // Auf dem Telefon nicht unter die Systemleiste rutschen.
+  padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom));
+  background: var(--surface-primary);
+  border-top: 1px solid var(--border-light);
+  box-shadow: var(--elevation-2);
+}
+
+.abschliessen {
+  flex: 1;
+  min-height: var(--tap-ziel);
+}
+
+@media (max-width: 780px) {
+  .toolbar-title {
+    flex: 1 0 100%;
+  }
+
+  .check-inhalt {
+    padding: var(--space-sm);
+    padding-bottom: calc(var(--space-2xl) + var(--space-xl));
+  }
+
+  .fortschrittsleiste {
+    padding: var(--space-sm);
+  }
+}

@@ -113,10 +113,20 @@
 }
 
 .behaelter-zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   border-bottom: 1px solid var(--border-light);
 }
 
+.check-knopf {
+  flex: none;
+  min-height: var(--tap-ziel);
+}
+
 .behaelter-link {
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
   align-items: baseline;

@@ -78,6 +78,13 @@
                   </span>
                 }
               </a>
+              <a
+                mat-stroked-button
+                class="check-knopf"
+                [routerLink]="['/material/behaelter', eintrag.id, 'check']"
+              >
+                <mat-icon>fact_check</mat-icon> Check
+              </a>
             </li>
           }
         </ul>

@@ -94,6 +94,18 @@
     </section>
 
     @if (!istNeu()) {
+      <section class="pruefung" aria-labelledby="pruefung-titel">
+        <h2 id="pruefung-titel">Bestand prüfen</h2>
+        <a
+          mat-raised-button
+          color="primary"
+          class="check-starten"
+          [routerLink]="['/material/behaelter', behaelter.id, 'check']"
+        >
+          <mat-icon>fact_check</mat-icon> Fahrzeugcheck starten
+        </a>
+      </section>
+
       <section class="gefahrenzone" aria-labelledby="loeschen-titel">
         <h2 id="loeschen-titel">Behälter entfernen</h2>
         <p class="hinweis">
