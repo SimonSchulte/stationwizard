@@ -33,8 +33,20 @@ export interface BehaelterZeile {
 export interface CheckZeile {
   id: string;
   behaelter_id: string;
+  vorlage_id?: string;
+  vorlage_version?: number;
+  vorlage_bezeichnung?: string;
+  grundlage?: string;
   geprueft_am: string;
   erfasst_am: string;
+  erfasst_von?: string;
+  gemeldet_von_name?: string | null;
+  quelle?: string;
+  verfallsdatum_erfasst?: number;
+  bemerkung?: string;
+  positionen?: string;
+  positionen_gesamt?: number;
+  positionen_geprueft?: number;
   fehlmengen: number;
   unbrauchbar: number;
   abgelaufen: number;
@@ -208,6 +220,71 @@ class FakeStatement {
       };
     }
 
+    if (this.query.startsWith('INSERT INTO materialchecks')) {
+      const [
+        id,
+        behaelter_id,
+        vorlage_id,
+        vorlage_version,
+        vorlage_bezeichnung,
+        grundlage,
+        geprueft_am,
+        erfasst_am,
+        erfasst_von,
+        verfallsdatum_erfasst,
+        bemerkung,
+        positionen,
+        positionen_gesamt,
+        positionen_geprueft,
+        fehlmengen,
+        unbrauchbar,
+        abgelaufen,
+      ] = this.werte as [
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+        number,
+        number,
+        number,
+        number,
+        number,
+      ];
+      this.db.checks.push({
+        id,
+        behaelter_id,
+        vorlage_id,
+        vorlage_version,
+        vorlage_bezeichnung,
+        grundlage,
+        geprueft_am,
+        erfasst_am,
+        erfasst_von,
+        // `gemeldet_von_name` und `quelle` stehen als Literale in der Anweisung,
+        // nicht unter den Bindewerten: die Quelle 'oeffentlich' darf über diesen
+        // Weg gar nicht erst einreichbar sein.
+        gemeldet_von_name: null,
+        quelle: 'angemeldet',
+        verfallsdatum_erfasst,
+        bemerkung,
+        positionen,
+        positionen_gesamt,
+        positionen_geprueft,
+        fehlmengen,
+        unbrauchbar,
+        abgelaufen,
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     throw new Error(`FakeMaterialDb: unbekannte run()-Anweisung: ${this.query}`);
   }
 
@@ -237,6 +314,29 @@ class FakeStatement {
       const [behaelterId] = this.werte as [string];
       const treffer = this.db.checks.some((c) => c.behaelter_id === behaelterId);
       return treffer ? ({ treffer: 1 } as T) : null;
+    }
+    if (this.query.includes('v.inhalt AS vorlage_inhalt')) {
+      const [id] = this.werte as [string];
+      const b = this.db.behaelter.get(id);
+      if (!b) return null;
+      const fahrzeug = this.db.fahrzeuge.get(b.fahrzeug_id);
+      const vorlage = this.db.vorlagen.get(b.vorlage_id);
+      // JOIN, kein LEFT JOIN: ohne Fahrzeug oder Vorlage keine Zeile.
+      if (!fahrzeug || !vorlage) return null;
+      return {
+        ...b,
+        fahrzeug_bezeichnung: fahrzeug.bezeichnung,
+        fahrzeug_funkrufname: fahrzeug.funkrufname,
+        fahrzeug_gruppe: fahrzeug.gruppe,
+        vorlage_bezeichnung: vorlage.bezeichnung,
+        vorlage_grundlage: vorlage.grundlage,
+        vorlage_inhalt: vorlage.inhalt,
+        vorlage_version: vorlage.version,
+      } as T;
+    }
+    if (this.query.startsWith('SELECT * FROM materialchecks WHERE id = ?')) {
+      const [id] = this.werte as [string];
+      return (this.db.checks.find((c) => c.id === id) ?? null) as T | null;
     }
     throw new Error(`FakeMaterialDb: unbekannte first()-Anweisung: ${this.query}`);
   }
@@ -280,6 +380,15 @@ class FakeStatement {
           (a, b) =>
             a.fahrzeug_bezeichnung.localeCompare(b.fahrzeug_bezeichnung) ||
             a.bezeichnung.localeCompare(b.bezeichnung),
+        );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT * FROM materialchecks WHERE behaelter_id = ?')) {
+      const [behaelterId] = this.werte as [string];
+      const zeilen = this.db.checks
+        .filter((c) => c.behaelter_id === behaelterId)
+        .sort((a, b) =>
+          `${b.geprueft_am}T${b.erfasst_am}`.localeCompare(`${a.geprueft_am}T${a.erfasst_am}`),
         );
       return { success: true, results: zeilen as unknown as T[] };
     }

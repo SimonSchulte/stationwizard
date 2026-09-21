@@ -402,3 +402,202 @@ describe('Behälter', () => {
     expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('MATERIAL_BEHAELTER_IN_BENUTZUNG');
   });
 });
+
+describe('Fahrzeugcheck', () => {
+  const CHECK_ID = '99999999-8888-4777-8666-555555555555';
+
+  function checkKoerper(ueberschreibung: Record<string, unknown> = {}) {
+    return {
+      id: CHECK_ID,
+      verfallsdatumErfasst: true,
+      bemerkung: '',
+      positionen: [
+        {
+          artikelId: ARTIKEL_ID,
+          geprueft: true,
+          istMenge: 2,
+          unbrauchbar: false,
+          verfallsdaten: ['2027-05', null],
+        },
+      ],
+      ...ueberschreibung,
+    };
+  }
+
+  async function reicheEin(datenbank: FakeMaterialDb, koerper = checkKoerper(), etag = '*') {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (etag) headers['If-None-Match'] = etag;
+    return verarbeite(datenbank, `/api/material/behaelter/${BEHAELTER_ID}/checks`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(koerper),
+    });
+  }
+
+  it('liefert Behälter, Fahrzeug und Vorlage in einem einzigen Aufruf', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await verarbeite(
+      datenbank,
+      `/api/material/behaelter/${BEHAELTER_ID}/pruefauftrag`,
+    );
+    expect(antwort.status).toBe(200);
+    const inhalt = (await antwort.json()) as {
+      behaelter: { fahrzeugBezeichnung: string };
+      vorlage: { faecher: unknown[]; version: number };
+    };
+    expect(inhalt.behaelter.fahrzeugBezeichnung).toBe('GW SAN Übung');
+    expect(inhalt.vorlage.faecher).toHaveLength(1);
+    expect(inhalt.vorlage.version).toBe(1);
+  });
+
+  it('gibt auch im Prüfauftrag das Prüftoken nicht preis', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await verarbeite(
+      datenbank,
+      `/api/material/behaelter/${BEHAELTER_ID}/pruefauftrag`,
+    );
+    const token = datenbank.behaelter.get(BEHAELTER_ID)?.check_token ?? '';
+    expect(token).not.toBe('');
+    expect(await antwort.text()).not.toContain(token);
+  });
+
+  it('nimmt einen Check an und setzt Identität, Zeitpunkt und Quelle serverseitig', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await reicheEin(datenbank, {
+      ...checkKoerper(),
+      erfasstVon: 'vorgetaeuscht@example.test',
+      quelle: 'oeffentlich',
+      geprueftAm: '1999-01-01',
+    });
+    expect(antwort.status).toBe(201);
+    const gespeichert = datenbank.checks[0];
+    expect(gespeichert?.erfasst_von).toBe(IDENTITAET.email);
+    expect(gespeichert?.quelle).toBe('angemeldet');
+    expect(gespeichert?.geprueft_am).not.toBe('1999-01-01');
+  });
+
+  it('berechnet die Kennzahlen selbst und übernimmt keine aus dem Anfragekörper', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await reicheEin(datenbank, {
+      ...checkKoerper({
+        positionen: [
+          {
+            artikelId: ARTIKEL_ID,
+            geprueft: true,
+            istMenge: 1,
+            unbrauchbar: true,
+            verfallsdaten: ['2020-01', null],
+          },
+        ],
+      }),
+      fehlmengen: 0,
+      unbrauchbar: 0,
+      abgelaufen: 0,
+    });
+    const gespeichert = datenbank.checks[0];
+    expect(gespeichert?.fehlmengen).toBe(1);
+    expect(gespeichert?.unbrauchbar).toBe(1);
+    expect(gespeichert?.abgelaufen).toBe(1);
+  });
+
+  it('schreibt den ganzen Check als eine einzige Zeile', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await reicheEin(datenbank);
+    expect(datenbank.checks).toHaveLength(1);
+    expect(JSON.parse(datenbank.checks[0]?.positionen ?? '[]')).toHaveLength(1);
+  });
+
+  it('weist einen Check ohne eine einzige geprüfte Position ab', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await reicheEin(
+      datenbank,
+      checkKoerper({
+        positionen: [
+          {
+            artikelId: ARTIKEL_ID,
+            geprueft: false,
+            istMenge: 2,
+            unbrauchbar: false,
+            verfallsdaten: [null, null],
+          },
+        ],
+      }),
+    );
+    expect(antwort.status).toBe(400);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('MATERIAL_CHECK_OHNE_PRUEFUNG');
+    expect(datenbank.checks).toHaveLength(0);
+  });
+
+  it('weist einen Check mit einem der Vorlage unbekannten Artikel ab', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await reicheEin(
+      datenbank,
+      checkKoerper({
+        positionen: [
+          {
+            artikelId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            geprueft: true,
+            istMenge: 1,
+            unbrauchbar: false,
+            verfallsdaten: [null],
+          },
+        ],
+      }),
+    );
+    expect(antwort.status).toBe(400);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe(
+      'MATERIAL_CHECK_POSITIONEN_UNGUELTIG',
+    );
+  });
+
+  it('weist einen Check ohne If-None-Match ab', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await reicheEin(datenbank, checkKoerper(), '');
+    expect(antwort.status).toBe(428);
+  });
+
+  it('weist einen Check auf einem unbekannten Behälter ab', async () => {
+    const datenbank = db();
+    const antwort = await reicheEin(datenbank);
+    expect(antwort.status).toBe(404);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe(
+      'MATERIAL_BEHAELTER_NICHT_GEFUNDEN',
+    );
+  });
+
+  it('führt die Historie ohne Positionen, den Einzelabruf mit', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await reicheEin(datenbank);
+
+    const historie = await verarbeite(datenbank, `/api/material/behaelter/${BEHAELTER_ID}/checks`);
+    const liste = (await historie.json()) as { checks: Record<string, unknown>[] };
+    expect(liste.checks).toHaveLength(1);
+    expect(liste.checks[0]?.['positionen']).toBeUndefined();
+
+    const einzeln = await verarbeite(datenbank, `/api/material/checks/${CHECK_ID}`);
+    const check = (await einzeln.json()) as { positionen: unknown[] };
+    expect(check.positionen).toHaveLength(1);
+  });
+
+  it('erlaubt kein Ändern eines Checks – ein Check wird nie überschrieben', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await reicheEin(datenbank);
+    const antwort = await verarbeite(datenbank, `/api/material/checks/${CHECK_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+      body: JSON.stringify(checkKoerper()),
+    });
+    expect(antwort.status).toBe(405);
+    expect(antwort.headers.get('Allow')).toBe('GET');
+  });
+});

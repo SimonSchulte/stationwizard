@@ -2,6 +2,8 @@ import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { starkesEtag, versionAusEtag } from './etag';
 import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
+import { berlinerKalendertag } from './kalender';
+import { Checkposition, VorlagenFach, pruefePositionen, zaehleKennzahlen } from './material-check';
 
 /**
  * Materialverwaltung, Punkt "Fahrzeugcheck" (AP-M1).
@@ -29,6 +31,12 @@ const VORLAGEN_LISTE_PFAD = '/api/material/vorlagen';
 const VORLAGE_PFAD = new RegExp(`^/api/material/vorlagen/(${UUID_MUSTER})$`, 'i');
 const BEHAELTER_LISTE_PFAD = '/api/material/behaelter';
 const BEHAELTER_PFAD = new RegExp(`^/api/material/behaelter/(${UUID_MUSTER})$`, 'i');
+const PRUEFAUFTRAG_PFAD = new RegExp(
+  `^/api/material/behaelter/(${UUID_MUSTER})/pruefauftrag$`,
+  'i',
+);
+const CHECKS_PFAD = new RegExp(`^/api/material/behaelter/(${UUID_MUSTER})/checks$`, 'i');
+const CHECK_PFAD = new RegExp(`^/api/material/checks/(${UUID_MUSTER})$`, 'i');
 
 export const HERKUENFTE = new Set(['seg', 'land', 'beide']);
 
@@ -36,6 +44,9 @@ export const HERKUENFTE = new Set(['seg', 'land', 'beide']);
 // NFR-EE-Liste mit 125 Artikeln liegt bei rund 21 kB.
 const VORLAGE_KOERPER_GRENZE = 256 * 1024;
 const BEHAELTER_KOERPER_GRENZE = 8 * 1024;
+// Rund 125 Positionen mit Verfallsdaten je Stück liegen bei etwa 35 kB; die
+// Grenze lässt Luft, bleibt aber weit unter der Zeilengrenze von D1.
+const CHECK_KOERPER_GRENZE = 256 * 1024;
 
 const BEZEICHNUNG_MAX = 200;
 const TEXT_MAX = 2000;
@@ -660,6 +671,264 @@ async function loescheBehaelter(db: D1Database, id: string): Promise<Response> {
 }
 
 /* -------------------------------------------------------------------- */
+/* Fahrzeugcheck                                                         */
+/* -------------------------------------------------------------------- */
+
+interface CheckZeile {
+  id: string;
+  behaelter_id: string;
+  vorlage_id: string;
+  vorlage_version: number;
+  vorlage_bezeichnung: string;
+  grundlage: string;
+  geprueft_am: string;
+  erfasst_am: string;
+  erfasst_von: string;
+  gemeldet_von_name: string | null;
+  quelle: string;
+  verfallsdatum_erfasst: number;
+  bemerkung: string;
+  positionen: string;
+  positionen_gesamt: number;
+  positionen_geprueft: number;
+  fehlmengen: number;
+  unbrauchbar: number;
+  abgelaufen: number;
+}
+
+/** Kopfdaten ohne `positionen`: die Historie zeigt den Inhalt nie. */
+function zuCheckKopfJson(zeile: CheckZeile): Record<string, unknown> {
+  return {
+    id: zeile.id,
+    behaelterId: zeile.behaelter_id,
+    vorlageId: zeile.vorlage_id,
+    vorlageBezeichnung: zeile.vorlage_bezeichnung,
+    geprueftAm: zeile.geprueft_am,
+    erfasstAm: zeile.erfasst_am,
+    erfasstVon: zeile.erfasst_von,
+    gemeldetVonName: zeile.gemeldet_von_name,
+    quelle: zeile.quelle,
+    verfallsdatumErfasst: zeile.verfallsdatum_erfasst === 1,
+    bemerkung: zeile.bemerkung,
+    positionenGesamt: zeile.positionen_gesamt,
+    positionenGeprueft: zeile.positionen_geprueft,
+    fehlmengen: zeile.fehlmengen,
+    unbrauchbar: zeile.unbrauchbar,
+    abgelaufen: zeile.abgelaufen,
+  };
+}
+
+function zuCheckJson(zeile: CheckZeile): Record<string, unknown> {
+  return {
+    ...zuCheckKopfJson(zeile),
+    grundlage: zeile.grundlage,
+    vorlageVersion: zeile.vorlage_version,
+    // In der Spalte liegt bereits geprüftes JSON aus einem früheren Schreibvorgang.
+    positionen: JSON.parse(zeile.positionen),
+  };
+}
+
+interface BehaelterMitVorlageZeile extends BehaelterZeile {
+  fahrzeug_bezeichnung: string;
+  fahrzeug_funkrufname: string;
+  fahrzeug_gruppe: string;
+  vorlage_bezeichnung: string;
+  vorlage_grundlage: string;
+  vorlage_inhalt: string;
+  vorlage_version: number;
+}
+
+const BEHAELTER_MIT_VORLAGE = `
+  SELECT b.*, f.bezeichnung AS fahrzeug_bezeichnung, f.funkrufname AS fahrzeug_funkrufname,
+         f.gruppe AS fahrzeug_gruppe, v.bezeichnung AS vorlage_bezeichnung,
+         v.grundlage AS vorlage_grundlage, v.inhalt AS vorlage_inhalt,
+         v.version AS vorlage_version
+  FROM behaelter b
+  JOIN fahrzeuge f ON f.id = b.fahrzeug_id
+  JOIN pruefvorlagen v ON v.id = b.vorlage_id
+  WHERE b.id = ?`;
+
+async function ladeBehaelterMitVorlage(
+  db: D1Database,
+  behaelterId: string,
+): Promise<BehaelterMitVorlageZeile | null> {
+  return db.prepare(BEHAELTER_MIT_VORLAGE).bind(behaelterId).first<BehaelterMitVorlageZeile>();
+}
+
+/**
+ * Alles, was die Prüfseite braucht, in **einem** Aufruf: Behälter, Fahrzeug und
+ * die vollständige Vorlage. Zwei getrennte Abrufe wären zwei Worker-Anfragen
+ * gegen das Tageskontingent, für Daten, die immer zusammen gebraucht werden.
+ */
+async function lesePruefauftrag(db: D1Database, behaelterId: string): Promise<Response> {
+  const zeile = await ladeBehaelterMitVorlage(db, behaelterId);
+  if (!zeile) {
+    return fehlerAntwort('MATERIAL_BEHAELTER_NICHT_GEFUNDEN', 'Behälter nicht gefunden.', 404);
+  }
+  return jsonAntwort({
+    behaelter: {
+      ...zuBehaelterJson(zeile),
+      fahrzeugBezeichnung: zeile.fahrzeug_bezeichnung,
+      fahrzeugFunkrufname: zeile.fahrzeug_funkrufname,
+      fahrzeugGruppe: zeile.fahrzeug_gruppe,
+    },
+    vorlage: {
+      id: zeile.vorlage_id,
+      bezeichnung: zeile.vorlage_bezeichnung,
+      grundlage: zeile.vorlage_grundlage,
+      version: zeile.vorlage_version,
+      faecher: JSON.parse(zeile.vorlage_inhalt),
+    },
+  });
+}
+
+async function listeChecks(db: D1Database, behaelterId: string): Promise<Response> {
+  const ergebnis = await db
+    .prepare(
+      `SELECT * FROM materialchecks WHERE behaelter_id = ?
+       ORDER BY geprueft_am DESC, erfasst_am DESC`,
+    )
+    .bind(behaelterId)
+    .all<CheckZeile>();
+  return jsonAntwort({ checks: ergebnis.results.map(zuCheckKopfJson) });
+}
+
+async function leseCheck(db: D1Database, id: string): Promise<Response> {
+  const zeile = await db
+    .prepare('SELECT * FROM materialchecks WHERE id = ?')
+    .bind(id)
+    .first<CheckZeile>();
+  if (!zeile) {
+    return fehlerAntwort('MATERIAL_CHECK_NICHT_GEFUNDEN', 'Check nicht gefunden.', 404);
+  }
+  return jsonAntwort(zuCheckJson(zeile));
+}
+
+const POSITIONEN_FEHLERTEXT: Readonly<Record<string, string>> = {
+  unlesbar: 'Die Positionen sind nicht lesbar.',
+  'unbekannter-artikel': 'Der Check enthält einen Artikel, den die Prüfvorlage nicht kennt.',
+  'artikel-doppelt': 'Ein Artikel kommt im Check mehrfach vor.',
+  'artikel-fehlt': 'Der Check deckt nicht alle Artikel der Prüfvorlage ab.',
+  'stueckzahl-passt-nicht': 'Die Zahl der Verfallsdaten passt nicht zur Sollmenge.',
+};
+
+/**
+ * Nimmt einen Check entgegen. Der Vorgang ist **ein** Schreibvorgang: alle
+ * Positionen liegen als JSON in einer Zeile, die Kennzahlen daneben in eigenen
+ * Spalten. Eine Zeile je Position wären gut hundert Schreibvorgänge je Prüfung
+ * gegen das Tageskontingent des kostenlosen Tarifs.
+ */
+async function legeCheckAn(
+  anfrage: Request,
+  db: D1Database,
+  behaelterId: string,
+  identitaet: Benutzer,
+): Promise<Response> {
+  if (anfrage.headers.get('If-None-Match') !== '*') {
+    return fehlerAntwort(
+      'MATERIAL_VORBEDINGUNG_FEHLT',
+      'Zum Anlegen ausdrücklich If-None-Match: * senden.',
+      428,
+    );
+  }
+  const zeile = await ladeBehaelterMitVorlage(db, behaelterId);
+  if (!zeile) {
+    return fehlerAntwort('MATERIAL_BEHAELTER_NICHT_GEFUNDEN', 'Behälter nicht gefunden.', 404);
+  }
+  const koerper = await lesePruefeKoerper(anfrage, CHECK_KOERPER_GRENZE);
+  if (koerper instanceof Response) return koerper;
+  const inhalt = koerper.inhalt;
+  if (
+    !istObjekt(inhalt) ||
+    !istNichtleererText(inhalt['id']) ||
+    !UUID_REGEX.test(inhalt['id']) ||
+    typeof inhalt['verfallsdatumErfasst'] !== 'boolean' ||
+    !istKurztext(inhalt['bemerkung'], TEXT_MAX)
+  ) {
+    return fehlerAntwort('MATERIAL_DATEI_UNGUELTIG', 'Ungültiger Check.', 400);
+  }
+
+  const faecher: VorlagenFach[] = JSON.parse(zeile.vorlage_inhalt);
+  const geprueft = pruefePositionen(inhalt['positionen'], faecher);
+  if ('fehler' in geprueft) {
+    return fehlerAntwort(
+      'MATERIAL_CHECK_POSITIONEN_UNGUELTIG',
+      POSITIONEN_FEHLERTEXT[geprueft.fehler] ?? 'Ungültige Positionen.',
+      400,
+    );
+  }
+
+  const jetzt = new Date();
+  // Berliner Kalendertag, serverseitig: die Seite hat bewusst kein Datumsfeld.
+  const geprueftAm = berlinerKalendertag(jetzt);
+  const kennzahlen = zaehleKennzahlen(geprueft.positionen, geprueftAm);
+  if (kennzahlen.geprueft === 0) {
+    return fehlerAntwort(
+      'MATERIAL_CHECK_OHNE_PRUEFUNG',
+      'Ein Check ohne eine einzige geprüfte Position ist kein Nachweis.',
+      400,
+    );
+  }
+
+  const erfasstAm = jetzt.toISOString();
+  await db
+    .prepare(
+      `INSERT INTO materialchecks
+         (id, behaelter_id, vorlage_id, vorlage_version, vorlage_bezeichnung, grundlage,
+          geprueft_am, erfasst_am, erfasst_von, gemeldet_von_name, quelle,
+          verfallsdatum_erfasst, bemerkung, positionen, positionen_gesamt,
+          positionen_geprueft, fehlmengen, unbrauchbar, abgelaufen)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'angemeldet', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      inhalt['id'],
+      behaelterId,
+      zeile.vorlage_id,
+      zeile.vorlage_version,
+      zeile.vorlage_bezeichnung,
+      zeile.vorlage_grundlage,
+      geprueftAm,
+      erfasstAm,
+      // Immer die geprüfte Identität, nie eine Angabe aus dem Anfragekörper.
+      identitaet.email,
+      inhalt['verfallsdatumErfasst'] ? 1 : 0,
+      inhalt['bemerkung'],
+      JSON.stringify(geprueft.positionen),
+      kennzahlen.gesamt,
+      kennzahlen.geprueft,
+      kennzahlen.fehlmengen,
+      kennzahlen.unbrauchbar,
+      kennzahlen.abgelaufen,
+    )
+    .run();
+
+  return jsonAntwort(
+    {
+      id: inhalt['id'],
+      behaelterId,
+      vorlageId: zeile.vorlage_id,
+      vorlageVersion: zeile.vorlage_version,
+      vorlageBezeichnung: zeile.vorlage_bezeichnung,
+      grundlage: zeile.vorlage_grundlage,
+      geprueftAm,
+      erfasstAm,
+      erfasstVon: identitaet.email,
+      gemeldetVonName: null,
+      quelle: 'angemeldet',
+      verfallsdatumErfasst: inhalt['verfallsdatumErfasst'],
+      bemerkung: inhalt['bemerkung'],
+      positionen: geprueft.positionen,
+      positionenGesamt: kennzahlen.gesamt,
+      positionenGeprueft: kennzahlen.geprueft,
+      fehlmengen: kennzahlen.fehlmengen,
+      unbrauchbar: kennzahlen.unbrauchbar,
+      abgelaufen: kennzahlen.abgelaufen,
+    },
+    201,
+  );
+}
+
+/* -------------------------------------------------------------------- */
 /* Gemeinsames                                                           */
 /* -------------------------------------------------------------------- */
 
@@ -752,6 +1021,34 @@ export async function verarbeiteMaterial(
       if (anfrage.method === 'POST') return await legeBehaelterAn(anfrage, db, identitaet);
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET, POST',
+      });
+    }
+
+    // Die festen Unterpfade stehen vor dem UUID-Pfad des Behälters, sonst
+    // liefe `/behaelter/<UUID>/checks` in dessen Nichttreffer.
+    const auftragId = PRUEFAUFTRAG_PFAD.exec(url.pathname)?.[1];
+    if (auftragId) {
+      if (anfrage.method === 'GET') return await lesePruefauftrag(db, auftragId);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'GET',
+      });
+    }
+
+    const checksBehaelterId = CHECKS_PFAD.exec(url.pathname)?.[1];
+    if (checksBehaelterId) {
+      if (anfrage.method === 'GET') return await listeChecks(db, checksBehaelterId);
+      if (anfrage.method === 'POST')
+        return await legeCheckAn(anfrage, db, checksBehaelterId, identitaet);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'GET, POST',
+      });
+    }
+
+    const checkId = CHECK_PFAD.exec(url.pathname)?.[1];
+    if (checkId) {
+      if (anfrage.method === 'GET') return await leseCheck(db, checkId);
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'GET',
       });
     }
 
