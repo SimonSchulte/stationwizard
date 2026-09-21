@@ -106,6 +106,36 @@
         </a>
       </section>
 
+      <section class="qr" aria-labelledby="qr-titel">
+        <h2 id="qr-titel">QR-Code für die Prüfung ohne Anmeldung</h2>
+        <p class="hinweis">
+          Wer diesen Code scannt, kann ohne Anmeldung eine Prüfung melden. Die Meldung wird erst
+          durch eine Freigabe zu einem gültigen Check. Der Aufkleber ist deshalb ein Geheimnis – wer
+          ihn hat, darf melden.
+        </p>
+
+        @if (qrFehler()) {
+          <p class="error-hint" role="alert">{{ qrFehler() }}</p>
+        }
+
+        @if (qrDataUrl()) {
+          <img class="qr-bild" [src]="qrDataUrl()" alt="QR-Code zur öffentlichen Prüfung" />
+          <p class="qr-ziel">{{ qrZiel() }}</p>
+          <button mat-stroked-button [disabled]="qrLaedt()" (click)="qrErneuern()">
+            <mat-icon>autorenew</mat-icon> Prüfcode erneuern
+          </button>
+        } @else {
+          <button mat-stroked-button [disabled]="qrLaedt()" (click)="qrAnzeigen()">
+            <mat-icon>qr_code_2</mat-icon>
+            @if (qrLaedt()) {
+              Wird geladen …
+            } @else {
+              QR-Code anzeigen
+            }
+          </button>
+        }
+      </section>
+
       <section class="gefahrenzone" aria-labelledby="loeschen-titel">
         <h2 id="loeschen-titel">Behälter entfernen</h2>
         <p class="hinweis">

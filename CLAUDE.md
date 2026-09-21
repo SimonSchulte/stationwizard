@@ -82,8 +82,12 @@ Prüfungen und offene Abnahmegrenzen.
   `redirect: 'error'` und `X-Requested-With: XMLHttpRequest` erhalten. Der Client darf
   keine Upstream-URL, kein `apikey` und keine Nextcloud-Freigabedaten benötigen.
 - `worker/src/index.ts` prüft die Anmeldung vor allen Assets und APIs, mit genau einer
-  Ausnahme: den drei festen Pfadmustern der öffentlichen Kilometermeldung (`/e/<TOKEN>`,
-  `/oeffentlich/<datei>`, `/api/oeffentlich/meldung/<TOKEN>`, siehe unten).
+  Ausnahme: den **fünf** festen Pfadmustern der öffentlichen Erfassungsseiten – der
+  Kilometermeldung (`/e/<TOKEN>`, `/api/oeffentlich/meldung/<TOKEN>`), dem Fahrzeugcheck
+  (`/c/<TOKEN>`, `/api/oeffentlich/check/<TOKEN>`) und `/oeffentlich/<datei>`, siehe unten.
+  Sie stehen vollständig in `OEFFENTLICHE_MUSTER`
+  (`worker/src/oeffentliche-erfassung.ts`); ein Test hält die Anzahl fest, damit der Bypass
+  nicht unbemerkt wächst.
   `run_worker_first = true` in `worker/wrangler.toml` muss erhalten bleiben.
   Unbekannte `/api/*`-Pfade liefern JSON/404, niemals die Angular-Startseite.
 - Access-JWTs serverseitig in `worker/src/anmeldung.ts` verifizieren: öffentliche
@@ -93,15 +97,17 @@ Prüfungen und offene Abnahmegrenzen.
 - Fehlende Konfiguration oder nicht prüfbare Tokens sperren den Zugriff. Niemals einen
   Development-Auth-Bypass, ein festes Testtoken oder bloßes Vertrauen in den Header in
   Produktivcode einbauen. Isolierte Test-JWKS bleiben in Testcode. Die öffentliche
-  Kilometermeldung ist keins von dreien: ein dauerhafter, fachlich beauftragter Pfad mit
-  einem eigenen Geheimnis je Fahrzeug, der keiner Identität glaubt und dessen Eingabe erst
-  durch die Freigabe einer geprüften Identität wirksam wird.
+  Kilometermeldung und der öffentliche Fahrzeugcheck sind keins von dreien: dauerhafte,
+  fachlich beauftragte Pfade mit einem eigenen Geheimnis je Fahrzeug beziehungsweise je
+  Behälter, die keiner Identität glauben und deren Eingabe erst durch die Freigabe einer
+  geprüften Identität wirksam wird.
 - Access schützt mit **All traffic** Produktion, `workers.dev` und Vorschauen. Eine
   Google-Anmeldung allein ist keine Zugriffserlaubnis; die Richtlinie braucht die konkrete
   vereinbarte Zugriffsliste. Kein `Everyone` und kein **stiller** `Bypass`. Es gibt genau
-  eine benannte Bypass-Anwendung, ausschließlich für die drei Pfadmuster der öffentlichen
-  Kilometermeldung und ausschließlich auf der produktiven Domain – nicht auf `workers.dev`
-  und nicht auf Vorschau-URLs. Sie ist in `docs/einrichtung.md` vollständig beschrieben.
+  eine benannte Bypass-Anwendung, ausschließlich für die vier Pfadmuster der öffentlichen
+  Erfassungsseiten (`/e/*`, `/c/*`, `/oeffentlich/*`, `/api/oeffentlich/*`) und
+  ausschließlich auf der produktiven Domain – nicht auf `workers.dev` und nicht auf
+  Vorschau-URLs. Sie ist in `docs/einrichtung.md` vollständig beschrieben.
   Der Worker prüft dieselben Muster unabhängig davon noch einmal selbst: eine zu weit
   gefasste Access-Regel macht die Anwendung deshalb trotzdem nicht öffentlich.
 - `worker/src/zugangsdaten.ts` enthält `leseZugangsdatum()`: klassische Secret-Strings
@@ -118,20 +124,24 @@ Prüfungen und offene Abnahmegrenzen.
   (`oeffentlich/src/app/gemerkter-name.ts`). Gespeichert wird ausschließlich eine
   Selbstauskunft des Geräteinhabers über sich selbst, keine Fachdaten – die führende
   Fassung jeder Meldung liegt in D1. Die Seite liegt außerhalb der Angular-App, jeder
-  Zugriff ist gekapselt, und ein sichtbarer Knopf löscht den Namen. **Zweitens** die
-  Schlüssel `stationwizard.materialcheck.<behaelterId>` für den Zwischenstand eines
-  laufenden Fahrzeugchecks (`src/app/material/services/check-entwurf.ts`). Ein Check hat
-  gut hundert Positionen und dauert leicht zwanzig Minuten; sperrt das Telefon und
-  verwirft der Browser die Seite, wäre die Arbeit sonst verloren – in der Praxis der
-  Rückfall aufs Papier. Gespeichert wird ein **unfertiger Arbeitsstand des
-  Geräteinhabers**, nie eine Quelle für eine Kennzahl: die führende Fassung jedes Checks
-  liegt in D1. Jeder Zugriff ist gekapselt, ein sichtbarer Knopf verwirft den Entwurf, er
-  wird beim Einreichen gelöscht, ein Eintrag älter als sieben Tage gilt als verfallen, und
-  ein Entwurf, der nicht mehr zur Prüfvorlage passt, wird verworfen statt halb übernommen.
-  Geschrieben wird entprellt und nur lokal – serverseitig gesichert wird ein Zwischenstand
-  ausschließlich auf ausdrücklichen Wunsch, weil ein Schreibvorgang je Änderung gegen das
-  Tageskontingent liefe. Die allgemeine Regel bleibt unverändert; weitere Ausnahmen werden
-  hier aufgezählt oder es gibt sie nicht.
+  Zugriff ist gekapselt, und ein sichtbarer Knopf löscht den Namen. **Zweitens** der
+  Zwischenstand eines laufenden Fahrzeugchecks, in zwei gekapselten Fassungen: im
+  angemeldeten Bereich unter `stationwizard.materialcheck.<behaelterId>`
+  (`src/app/material/services/check-entwurf.ts`, sieben Tage Verfall) und auf der
+  öffentlichen Checkseite unter `stationwizard.check.entwurf.<token>`
+  (`oeffentlich/src/app/gemerkter-check.ts`, 24 Stunden Verfall). Ein Check hat gut
+  hundert Positionen und dauert leicht zwanzig Minuten; sperrt das Telefon und verwirft
+  der Browser die Seite, wäre die Arbeit sonst verloren – in der Praxis der Rückfall aufs
+  Papier. Gespeichert wird ein **unfertiger Arbeitsstand des Geräteinhabers**, nie eine
+  Quelle für eine Kennzahl: die führende Fassung jedes Checks liegt in D1. Jeder Zugriff
+  ist gekapselt, ein sichtbarer Knopf verwirft den Entwurf, er wird beim Einreichen
+  gelöscht, ein abgelaufener Eintrag wird beim Lesen verworfen, und ein Entwurf, der nicht
+  mehr zum Behälter beziehungsweise zur Prüfvorlage passt, wird verworfen statt halb
+  übernommen. Geschrieben wird entprellt und ausschließlich lokal: einen serverseitigen
+  Zwischenstand gibt es derzeit **nicht**, weil ein Schreibvorgang je Änderung gegen das
+  Tageskontingent liefe und ein ausdrücklicher Knopf dafür noch aussteht (siehe
+  Arbeitsstand). Die allgemeine Regel bleibt unverändert; weitere Ausnahmen werden hier
+  aufgezählt oder es gibt sie nicht.
 - Keine unbereinigten Upstream-Fehler oder Auth-Header durchreichen. Fehler über
   `fehlerAntwort()` mit festen Codes und `X-Stationwizard-Diagnose`; keine Secretwerte,
   Secretlängen oder vollständigen Bindinglisten veröffentlichen.
@@ -157,41 +167,58 @@ Prüfungen und offene Abnahmegrenzen.
 
 ### Erlaubte API-Oberfläche
 
-| Pfad                                            | Methode            | Vertrag                                                                            |
-| ----------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------- |
-| `/api/status`                                   | GET                | Worker-Status                                                                      |
-| `/api/benutzer`                                 | GET                | Verifizierte E-Mail-Adresse                                                        |
-| `/api/benutzer/profilbild`                      | GET                | Best-effort Google-Profilbild-URL oder `null`, siehe unten                         |
-| `/api/efs/checkapikey`                          | POST               | JSON `{}`                                                                          |
-| `/api/efs/getveranstaltungen`                   | POST               | JSON `{}`                                                                          |
-| `/api/efs/getveranstaltung`                     | POST               | JSON mit ausschließlich `id`                                                       |
-| `/api/nextcloud/arbeitsmappe`                   | GET / PUT          | Konfigurierte Excel-Dateifreigabe                                                  |
-| `/api/nextcloud/planungen`                      | GET                | Liste aus UUID und ETag                                                            |
-| `/api/nextcloud/planungen/<UUID>`               | GET / PUT          | Einzelne versionierte PEP-Datei                                                    |
-| `/api/hiorg/kalender`                           | GET                | HiOrg-Kalenderfeed, nur lesend                                                     |
-| `/api/fahrzeuge`                                | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig         |
-| `/api/fahrzeuge/<UUID>`                         | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig               |
-| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                     |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE             | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist        |
-| `/api/fahrzeuge/<UUID>/aenderungen`             | GET                | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff         |
-| `/api/fahrzeuge/km-bericht`                     | GET                | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht                 |
-| `/api/fahrzeuge/km-bericht/senden`              | POST               | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld        |
-| `/api/benutzerverwaltung`                       | GET                | Liste aller bereits geprüft angemeldeten Personen samt Rolle                       |
-| `/api/benutzerverwaltung/<E-Mail>`              | PUT                | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung        |
-| `/api/systemkonfiguration`                      | GET / PUT          | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten              |
-| `/api/angebotswesen/preiskatalog`               | GET / POST         | Preiskatalog-Liste (mit Version je Zeile); Neuanlage nur mit `If-None-Match: *`    |
-| `/api/angebotswesen/preiskatalog/<UUID>`        | PUT / DELETE       | Einzelner Eintrag; Update nur mit `If-Match`                                       |
-| `/api/angebotswesen/angebote`                   | GET / POST         | Angebotsliste (vollständig, inkl. Schichten); Neuanlage nur mit `If-None-Match: *` |
-| `/api/angebotswesen/angebote/<UUID>`            | GET / PUT / DELETE | Einzelnes Angebot; Update nur mit `If-Match`                                       |
-| `/f/<UUID>`, `/f/<UUID>/km`                     | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                             |
-| `/api/fahrzeuge/erfassungslinks`                | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt              |
-| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig               |
-| `/e/<TOKEN>`                                    | GET                | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                            |
-| `/oeffentlich/<datei>`                          | GET                | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels                   |
-| `/api/oeffentlich/meldung/<TOKEN>`              | GET / POST         | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen                  |
-| `/api/fahrzeuge/einreichungen`                  | GET                | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert           |
-| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST               | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung              |
-| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                             |
+| Pfad                                               | Methode            | Vertrag                                                                                  |
+| -------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| `/api/status`                                      | GET                | Worker-Status                                                                            |
+| `/api/benutzer`                                    | GET                | Verifizierte E-Mail-Adresse                                                              |
+| `/api/benutzer/profilbild`                         | GET                | Best-effort Google-Profilbild-URL oder `null`, siehe unten                               |
+| `/api/efs/checkapikey`                             | POST               | JSON `{}`                                                                                |
+| `/api/efs/getveranstaltungen`                      | POST               | JSON `{}`                                                                                |
+| `/api/efs/getveranstaltung`                        | POST               | JSON mit ausschließlich `id`                                                             |
+| `/api/nextcloud/arbeitsmappe`                      | GET / PUT          | Konfigurierte Excel-Dateifreigabe                                                        |
+| `/api/nextcloud/planungen`                         | GET                | Liste aus UUID und ETag                                                                  |
+| `/api/nextcloud/planungen/<UUID>`                  | GET / PUT          | Einzelne versionierte PEP-Datei                                                          |
+| `/api/hiorg/kalender`                              | GET                | HiOrg-Kalenderfeed, nur lesend                                                           |
+| `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
+| `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
+| `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`          | DELETE             | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist              |
+| `/api/fahrzeuge/<UUID>/aenderungen`                | GET                | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff               |
+| `/api/fahrzeuge/km-bericht`                        | GET                | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht                       |
+| `/api/fahrzeuge/km-bericht/senden`                 | POST               | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld              |
+| `/api/benutzerverwaltung`                          | GET                | Liste aller bereits geprüft angemeldeten Personen samt Rolle                             |
+| `/api/benutzerverwaltung/<E-Mail>`                 | PUT                | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung              |
+| `/api/systemkonfiguration`                         | GET / PUT          | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten                    |
+| `/api/angebotswesen/preiskatalog`                  | GET / POST         | Preiskatalog-Liste (mit Version je Zeile); Neuanlage nur mit `If-None-Match: *`          |
+| `/api/angebotswesen/preiskatalog/<UUID>`           | PUT / DELETE       | Einzelner Eintrag; Update nur mit `If-Match`                                             |
+| `/api/angebotswesen/angebote`                      | GET / POST         | Angebotsliste (vollständig, inkl. Schichten); Neuanlage nur mit `If-None-Match: *`       |
+| `/api/angebotswesen/angebote/<UUID>`               | GET / PUT / DELETE | Einzelnes Angebot; Update nur mit `If-Match`                                             |
+| `/f/<UUID>`, `/f/<UUID>/km`                        | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                   |
+| `/api/fahrzeuge/erfassungslinks`                   | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt                    |
+| `/api/fahrzeuge/<UUID>/erfassungslink`             | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                     |
+| `/e/<TOKEN>`                                       | GET                | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                                  |
+| `/oeffentlich/<datei>`                             | GET                | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels                         |
+| `/api/oeffentlich/meldung/<TOKEN>`                 | GET / POST         | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen                        |
+| `/api/material/vorlagen`                           | GET / POST         | Prüfvorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`          |
+| `/api/material/vorlagen/<UUID>`                    | GET / PUT / DELETE | Einzelne Vorlage samt Baum; Update nur mit `If-Match`; Löschen gesperrt bei Nutzung      |
+| `/api/material/behaelter`                          | GET / POST         | Alle Behälter mit Fahrzeug, Vorlage und letztem Check; Neuanlage mit `If-None-Match: *`  |
+| `/api/material/behaelter/<UUID>`                   | GET / PUT / DELETE | Einzelner Behälter; Update nur mit `If-Match`; Löschen gesperrt, solange Checks bestehen |
+| `/api/material/behaelter/<UUID>/pruefauftrag`      | GET                | Behälter, Fahrzeug und vollständige Vorlage in einem Aufruf                              |
+| `/api/material/behaelter/<UUID>/checks`            | GET / POST         | Checkhistorie ohne Positionen; POST legt einen Check an, kein Update                     |
+| `/api/material/behaelter/<UUID>/pruefcode`         | GET / POST         | Prüftoken lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                 |
+| `/api/material/pruefcodes`                         | GET                | Alle Prüftoken, auf die eigenen Freigabegruppen begrenzt                                 |
+| `/api/material/checks/<UUID>`                      | GET                | Einzelner Check vollständig, inklusive Positionen                                        |
+| `/api/material/checks/<UUID>/bericht/<art>`        | GET                | Bestellschein oder Mängelanzeige als Text; `art` im Pfad, nie als Query                  |
+| `/api/material/checks/<UUID>/bericht/<art>/senden` | POST               | Versendet denselben Bericht; nur Empfänger im Körper, nie ein Text                       |
+| `/api/material/einreichungen`                      | GET                | Offene Check-Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert           |
+| `/api/material/einreichungen/<UUID>`               | GET                | Einzelne Meldung samt Positionen, für die Durchsicht vor der Freigabe                    |
+| `/api/material/einreichungen/freigabe`             | POST               | Mehrfachfreigabe; Ergebnis je Eintrag, höchstens 50 je Aufruf                            |
+| `/api/material/einreichungen/<UUID>/ablehnung`     | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                   |
+| `/c/<TOKEN>`                                       | GET                | **Ohne Anmeldung.** Öffentliche Checkseite                                               |
+| `/api/oeffentlich/check/<TOKEN>`                   | GET / POST         | **Ohne Anmeldung.** Behälter und Soll-Liste lesen bzw. Prüfung einreichen                |
+| `/api/fahrzeuge/einreichungen`                     | GET                | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert                 |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`     | POST               | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung                    |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung`    | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                   |
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
 Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schema in
@@ -288,6 +315,101 @@ unbeobachteter, zeitlich unabhängiger Zweit-Request konnte dabei kurz nach der 
 `geladen`/`entwurf` mit einem zwischenzeitlich veralteten Stand überschreiben.
 Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
 Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
+
+Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
+Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte
+offen angelegt, aber nicht dafür gebaut, jede Materialfrage aufzunehmen. Konzept und
+Begründungen stehen in `docs/konzept-material.md`. Die Tabellen liegen bewusst in
+`FAHRZEUGE_DB` (`worker/migrations/0010_material.sql`) und **nicht** in einer eigenen
+Datenbank: ein Behälter hängt an genau einem `fahrzeuge.id`, die Freigabeberechtigung eines
+Checks ergibt sich aus `fahrzeuge.gruppe`, und die Behälterübersicht braucht in einem Aufruf
+Behälter samt Fahrzeugangaben – zwei Datenbanken kosteten den Fremdschlüssel und verdoppelten
+jede Abfrage. Präzedenzfall ist `systemkonfiguration` in `BENUTZER_DB`. Kein neues
+`[[d1_databases]]`-Binding.
+
+Eine **Prüfvorlage** (`pruefvorlagen`) führt Fächer und Artikel als JSON in der Spalte
+`inhalt`, eine Zeile je Vorlage mit eigener `version` – dasselbe Muster wie `angebote` mit
+seinen Schichten. Startbestand ist die NFR-EE-Liste (11 Fächer, 125 Artikel, feste Ids), als
+ein `INSERT` in der Migration; eine zweite Vorlage braucht keine Migration, sondern
+`POST /api/material/vorlagen`. Vorlagen sind vollständig in der Oberfläche pflegbar. Welche
+Artikel `verfallsdatumPflicht` tragen, ist eine fachliche Festlegung des Startbestands, kein
+nachgewiesener Vertrag – sie ist in der Oberfläche korrigierbar.
+
+Ein **Behälter** (`behaelter`) ist ein physisches Einzelstück mit eigener Identität: ein GW SAN
+trägt zehn Notfallrucksäcke, jeder KTW-B einen; jeder wird einzeln geprüft. Ein Check prüft
+genau einen Behälter.
+
+Ein **Check** (`materialchecks`) ist eine Zeile mit `positionen` als JSON, nicht eine Zeile je
+Position: ein Check hat gut hundert Positionen, und eine Zeile je Position wäre ein
+Schreibvorgang je Position gegen das Tageskontingent. Zulässig ist das, weil ein
+abgeschlossener Check eine **unveränderliche Momentaufnahme** ist – es gibt kein Bearbeiten
+einzelner Positionen und keine Auswertung quer über Positionen verschiedener Checks. Für die
+Listen stehen die Kennzahlen zusätzlich als eigene Spalten (`positionen_gesamt`,
+`positionen_geprueft`, `fehlmengen`, `unbrauchbar`, `abgelaufen`), damit die Übersicht kein
+JSON parsen muss; sie setzt ausschließlich der Worker über `zaehleKennzahlen()`. Wie eine
+Angebotsposition trägt jede Checkposition ihre **eigene Momentaufnahme** von Bezeichnung,
+Sollmenge, Einheit und Herkunft; `vorlage_id`/`vorlage_version` verweisen nur zur
+Nachverfolgung. Ein späteres Umbenennen oder Löschen eines Vorlagenartikels kann damit keinen
+gespeicherten Check beschädigen. `pruefePositionen()` in `worker/src/material-check.ts` prüft
+jede eingereichte Position gegen die **gespeicherte** Vorlage; unbekannte Artikel-Ids werden
+abgelehnt, und Bezeichnung, Sollmenge, Einheit und Herkunft kommen aus der Vorlage, nie aus dem
+Anfragekörper. `erfasstVon`, `erfasstAm`, `geprueftAm` (Berliner Kalendertag) und `quelle` setzt
+ausschließlich der Worker.
+
+Die reine Statuslogik steht **zweimal**: `worker/src/material-check.ts` und
+`src/app/material/services/check-status.ts` (`verfallsdatumStatus()`, `WARNFRIST_TAGE = 90`,
+Monatsende als Stichtag). Das ist dieselbe bewusste Verdopplung wie beim Kilometerbericht und
+aus demselben Grund unvermeidbar: die Rückmeldung beim Ausfüllen darf keinen Serveraufruf
+kosten. Beide Fassungen sind gemeinsam zu ändern. Die **Berichtslogik** dagegen steht nur
+serverseitig (`worker/src/material-bericht.ts`, Arten `bestellschein`, `maengel-land`,
+`maengel-seg`, Land-Block vor SEG-Block, Fußzeile aus `pruefvorlagen.grundlage`); die Vorschau
+holt denselben Text über den Berichtsendpunkt, statt ihn ein zweites Mal zu berechnen. Das ist
+eine bewusste Abweichung vom ursprünglichen Plan, der ein Frontend-Gegenstück vorsah.
+
+Der **öffentliche Check** (`/c/<TOKEN>`, `worker/src/oeffentlicher-check.ts`) ist der zweite
+Weg am Zugangsschutz vorbei und folgt der öffentlichen Kilometermeldung Zug um Zug: eigenes
+unerratbares Zufallstoken je Behälter (`behaelter.check_token`, Geheimnis – nie in einer
+Behälterantwort, nie in einem Log, nie in einem Fehlertext, auslesbar allein über die
+Prüfcode-Endpunkte), byteweise gleiche 404 `CHECK_UNBEKANNT` für ungültiges, unbekanntes und
+gelöschtes Token, behälterbezogene statt IP-bezogene Mengenbremsen
+(`MAX_OFFENE_JE_BEHAELTER = 3`, `WIEDERHOLFENSTER_MS = 300_000`). Die Seite gibt nur
+Behälterbezeichnung, Fahrzeugbezeichnung und Funkrufname preis – keine UUID, keinen früheren
+Check, kein Kennzeichen, keine E-Mail-Adresse. Die Körpergrenze liegt bei 256 KB statt der
+2 KB der Kilometermeldung; das ist der eine Punkt, an dem der öffentliche Weg mehr zulässt, und
+wird dadurch aufgewogen, dass der Inhalt gegen die gespeicherte Vorlage geprüft wird, bevor
+irgendetwas geschrieben wird. Die Seite läuft im **bestehenden** Build-Ziel `oeffentlich` mit:
+`OEFFENTLICHE_DATEIEN` und damit die gefährlichste Stelle bleiben unangetastet, Preis ist, dass
+die Kilometerseite den Checkcode mitlädt. Die fünf Muster stehen gemeinsam in
+`OEFFENTLICHE_MUSTER`; `istOeffentlicherPfad()` prüft sie exakt verankert, weiterhin ohne
+Präfixabgleich.
+
+Eine öffentliche Meldung wird nie von selbst ein Check. Sie liegt in `check_einreichungen` und
+wird erst durch **Freigabe** zum Eintrag in `materialchecks` – aus demselben Grund wie bei den
+Ablesungen: in `materialchecks` steht ausschließlich, was als geprüfter Stand gilt. Nach der
+Freigabe nennt `erfasst_von` die geprüfte E-Mail der **freigebenden** Person, der selbst
+angegebene Name steht daneben in `gemeldet_von_name`. `quelle = 'oeffentlich'` entsteht
+ausschließlich intern bei der Freigabe und ist über `POST …/checks` nicht einreichbar. Die
+Rollenprüfung ist dieselbe wie bei den Ablesungen (`worker/src/rollen.ts`, `pruefeFreigabeRecht`);
+`GET /api/material/einreichungen` ist serverseitig auf die eigenen Freigabegruppen gefiltert und
+liefert ohne Rolle eine leere Liste. Freigegeben wird über **eine** Sammelanfrage
+(`POST /api/material/einreichungen/freigabe`, höchstens 50 Einträge): sie antwortet mit 200 und
+einem Ergebnis **je Eintrag** (`freigegeben`, `nicht-erlaubt`, `nicht-gefunden`,
+`nicht-offen`) statt die ganze Anfrage abzulehnen – ein einzelner Fehlschlag darf die
+übrigen Freigaben nicht verwerfen. Die Freigabe selbst ist über
+`WHERE id = ? AND status = 'offen'` gegen ein Rennen abgesichert.
+
+Der Versand der Materialberichte liegt **ausschließlich im angemeldeten Bereich**; die
+öffentliche Seite verschickt nichts. Die Standardwerte stehen in der Systemkonfiguration
+(`materialBestellscheinEmpfaenger`, `materialMaengelLandEmpfaenger`,
+`materialMaengelSegEmpfaenger`, `materialVersandweg`, `materialBetreff`) und sind die ersten
+Schlüssel mit einer **Rollenschranke je Schlüssel**: `Beschreibung.erfordertRolle` nennt
+`MATERIAL_ROLLEN = ['zugfuehrung', 'gruppenfuehrung-sanitaet']`. `PUT /api/systemkonfiguration`
+nimmt seit dieser Änderung einen **Teilkörper** (fehlende Schlüssel bleiben unverändert),
+schreibt nur tatsächlich geänderte Schlüssel und liest die Rolle nur dann, wenn ein
+geschützter Schlüssel **geändert** wird; die Kilometer-Schlüssel ändern ihr Verhalten nicht.
+Fehlende `BENUTZER_DB` sperrt zu. Diese Schranke ist so stark wie die Rollenvergabe, und
+`PUT /api/benutzerverwaltung/<E-Mail>` steht weiterhin jeder geprüften Identität offen – kein
+Grund, hier nicht zu prüfen, aber ehrlich zu benennen.
 
 Der Mailversand (`worker/src/mail-versand.ts`) ist ein Vertrag mit zwei Adaptern:
 `email-routing` über das `send_email`-Binding (in `wrangler.toml` bewusst auskommentiert,

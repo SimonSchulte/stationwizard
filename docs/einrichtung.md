@@ -94,24 +94,30 @@ Ohne diese Laufzeitvariablen antwortet der Worker bewusst mit
 Anwendung. Die einzige Ausnahme ist die öffentliche Kilometermeldung – sie ist im nächsten
 Abschnitt vollständig beschrieben und ausdrücklich nicht still.
 
-## Access-Bypass für die öffentliche Kilometermeldung
+## Access-Bypass für die öffentlichen Erfassungsseiten
 
-Damit Helferinnen und Helfer ohne Google-Konto den Kilometerstand am Fahrzeug melden können,
-braucht genau ein Weg eine Ausnahme vom Access-Gate. Sie ist eng, benannt und an ein
-unerratbares Token je Fahrzeug gebunden (siehe `docs/konzept-fahrzeuge.md`, Abschnitt 10).
+Damit Helferinnen und Helfer ohne Google-Konto am Fahrzeug melden können, brauchen genau
+zwei Wege eine Ausnahme vom Access-Gate: die **Kilometermeldung** (siehe
+`docs/konzept-fahrzeuge.md`, Abschnitt 10) und der **Fahrzeugcheck** (siehe
+`docs/konzept-material.md`). Beide sind eng, benannt und an ein unerratbares Token
+gebunden – je Fahrzeug beziehungsweise je Behälter.
 
-**Freizugeben sind ausschließlich diese drei Pfadmuster:**
+**Freizugeben sind ausschließlich diese vier Pfadmuster:**
 
 ```
 /e/*
+/c/*
 /oeffentlich/*
 /api/oeffentlich/*
 ```
 
+`/api/oeffentlich/*` deckt beide Datenendpunkte ab; gegenüber der reinen Kilometermeldung
+kommt also **genau ein** Muster hinzu: `/c/*`.
+
 Einrichtung:
 
 1. In **Zero Trust → Access → Applications** eine **zusätzliche** Self-hosted-Anwendung
-   anlegen, die genau diese drei Pfade der produktiven Domain umfasst, und ihr eine
+   anlegen, die genau diese vier Pfade der produktiven Domain umfasst, und ihr eine
    **Bypass**-Richtlinie (`Everyone`) geben.
 2. Diese Anwendung muss in der Liste **vor** der All-traffic-Anwendung stehen; Access
    wertet die erste passende Anwendung aus. Steht sie dahinter, greift sie nicht.
@@ -121,10 +127,26 @@ Einrichtung:
 4. Die All-traffic-Anwendung bleibt unverändert. Sie schützt weiterhin die App-Hülle, alle
    übrigen Assets und alle anderen `/api/*`-Pfade.
 
-Der Worker prüft dieselben drei Muster unabhängig von Access noch einmal selbst
-(`istOeffentlicherPfad()` in `worker/src/oeffentliche-erfassung.ts`). Eine versehentlich zu
-weit gefasste Bypass-Regel macht die Anwendung deshalb nicht öffentlich – sie bliebe
-trotzdem hinter der JWT-Prüfung des Workers.
+Der Worker prüft unabhängig von Access noch einmal selbst, und zwar strenger: er kennt
+**fünf** exakt verankerte Muster (`OEFFENTLICHE_MUSTER` in
+`worker/src/oeffentliche-erfassung.ts`), weil `/api/oeffentlich/*` dort in die beiden
+konkreten Endpunkte mit jeweils 32-stelligem Hex-Token zerfällt. Eine versehentlich zu weit
+gefasste Bypass-Regel macht die Anwendung deshalb nicht öffentlich – sie bliebe trotzdem
+hinter der JWT-Prüfung des Workers. Ein Test in
+`worker/tests/oeffentliche-erfassung.spec.ts` hält die Anzahl fest: wer ein sechstes Muster
+ergänzt, muss ihn anfassen und damit auch diesen Abschnitt.
+
+**Prüfliste nach der Einrichtung** (privates Fenster, nicht angemeldet):
+
+| Aufruf                              | Erwartung                        |
+| ----------------------------------- | -------------------------------- |
+| `/`                                 | Access-Anmeldung erscheint       |
+| `/e/<gültiges Token>`               | Meldeseite lädt                  |
+| `/c/<gültiges Token>`               | Checkseite lädt                  |
+| `/c/<erfundenes Token>`             | „Dieser Code funktioniert nicht" |
+| `/c/` und `/c/<31 Zeichen>`         | Access-Anmeldung erscheint       |
+| `/oeffentlich/main.js`              | liefert JavaScript, niemals HTML |
+| `/oeffentlich/3rdpartylicenses.txt` | 404                              |
 
 Reihenfolge der Inbetriebnahme:
 

@@ -1899,3 +1899,144 @@ kostenlosen Tarif und darauf, dass sie als einzige alle Beobachtungen erklärt. 
 Nextcloud-/PEP-Pfad dasselbe Problem hat, ist wahrscheinlich, aber ungeprüft: dort wird
 `If-Match` an Nextcloud weitergereicht, weshalb ein bloßes Aufweichen der Prüfung dort
 nicht ohne Test gegen echtes Nextcloud verantwortbar ist. Bewusst nicht mitgeändert.
+
+## AP-M1 bis AP-M7 – Materialverwaltung mit Fahrzeugcheck
+
+Neues viertes Fachmodul. Die Einheit prüfte den Bestand ihrer Notfallrucksäcke bisher mit
+einer statischen HTML-Seite, die nichts speichert: ein Check war nach dem Schließen des Tabs
+verloren, niemand wusste, wer wann was geprüft hatte, und die Soll-Liste stand im Quelltext.
+Konzept, Begründungen und der Stand der offenen Punkte stehen in `docs/konzept-material.md`;
+`CLAUDE.md` hat einen eigenen Modulabschnitt bekommen.
+
+Sieben Arbeitspakete, jeweils eigener Commit auf `claude/funny-cannon-j35k2h`:
+
+- **AP-M1** – Migration `0010_material.sql` mit fünf Tabellen in `FAHRZEUGE_DB`
+  (`pruefvorlagen`, `behaelter`, `materialchecks`, `check_einreichungen`, `check_entwuerfe`),
+  NFR-EE-Startbestand mit 11 Fächern und 125 Artikeln als ein `INSERT`, Vorlagen-Endpunkte
+  im Worker, Angular-Gerüst und Vorlageneditor.
+- **AP-M2/M3** – Behälter-Endpunkte, Behälterübersicht und -stammdaten, Materialdashboard,
+  Hauptnavigation, Startseitenkachel, Abschnitt im Fahrzeugdetail.
+- **AP-M4a/b** – Fahrzeugcheck: Prüfauftrag, Erfassung und Historie im Worker
+  (`material-check.ts`), die Check-Oberfläche mit klebrigem Fortschritt, Fächern und
+  Positionszeilen, Checkansicht, lokaler Zwischenstand.
+- **AP-M5** – Berichte (Bestellschein, Mängelanzeige Land, Mängelanzeige SEG), Mailversand
+  und die erste **Rollenschranke je Einstellungsschlüssel**.
+- **AP-M6a/b/c** – Öffentlicher Check per QR-Code unter `/c/<TOKEN>` und die Mehrfachfreigabe
+  der Einreichungen.
+- **AP-M7** – QR-Anzeige auf der Behälterdetailseite und die Dokumentation.
+
+### Drei Entscheidungen, die nicht selbsterklärend sind
+
+**Material liegt in `FAHRZEUGE_DB`, nicht in einer eigenen Datenbank.** Die Konvention „eine
+Datenbank je Fachdomäne" trägt hier nicht: ein Behälter hängt an `fahrzeuge.id`, die
+Freigabeberechtigung ergibt sich aus `fahrzeuge.gruppe`, und die Behälterübersicht braucht in
+einem Aufruf Behälter samt Fahrzeugangaben. Zwei Datenbanken kosteten den Fremdschlüssel und
+verdoppelten jede Abfrage. Präzedenzfall ist `systemkonfiguration` in `BENUTZER_DB`.
+
+**Die Berichtslogik steht nur serverseitig** – eine bewusste Abweichung vom genehmigten Plan,
+der ein Frontend-Gegenstück vorsah und die Verdopplung selbst als Risiko benannte. Die
+Vorschau holt denselben Text über den Berichtsendpunkt. Verdoppelt bleibt nur die reine
+Statuslogik für die Rückmeldung beim Ausfüllen (`worker/src/material-check.ts` und
+`src/app/material/services/check-status.ts`); sie ist ohne Serveraufruf je Tastendruck nicht
+zu haben und in beiden Dateien als gemeinsam zu ändern gekennzeichnet.
+
+**Die öffentliche Checkseite läuft im bestehenden Build-Ziel `oeffentlich` mit.** Ein drittes
+Build-Ziel hätte neue Dateinamen gebracht und damit `OEFFENTLICHE_DATEIEN` angefasst – die
+gefährlichste Stelle des Repositorys. Das Bündel wuchs dadurch von 145,65 kB auf 151,43 kB;
+angehoben wurde deshalb nur die **Warnschwelle** in `angular.json` von 150 kB auf 200 kB, die
+Fehlerschwelle blieb bei 250 kB. Der ursprüngliche Plan sah 250 kB/400 kB vor; das wäre mehr
+gewesen als nötig.
+
+### Zuerst: `npm run test:spa` läuft in dieser Umgebung wieder
+
+`CLAUDE.md` und frühere Einträge notieren den Test als blockiert (`network approval was
+cancelled before a decision was returned`). In dieser Runde lief er durch. Das ist wesentlich,
+weil die Erweiterung von `istOeffentlicherPfad()` die sicherheitskritischste Änderung des
+Repositorys ist und `test:spa` der einzige Nachweis am **echten Worker-Bündel in workerd**.
+Die Notiz in `CLAUDE.md` bleibt trotzdem stehen: sie beschreibt eine Umgebung, nicht diesen
+Lauf.
+
+Dabei ist ein eigener Fehlgriff aufgefallen und behoben: ein `| tail -1` in meinem
+Aufrufwrapper verdeckte den Exit-Code, sodass ein Lauf mit Exit 1 (`ENOENT` auf
+`dist/.../oeffentlich`) wie ein Erfolg aussah. Ursache war, dass `npx ng build` allein das
+zweite Build-Ziel aus `dist` entfernt; `test:spa` braucht den vollständigen
+`npm run build` davor. Commit 80b41a2 wurde deswegen nachträglich korrigiert.
+
+### Der zweite Weg am Zugangsschutz vorbei
+
+`OEFFENTLICHE_MUSTER` führt jetzt **fünf** exakt verankerte Muster statt drei; `/c/<TOKEN>`
+und `/api/oeffentlich/check/<TOKEN>` sind dazugekommen, weiterhin ohne Präfixabgleich.
+`OEFFENTLICHE_DATEIEN` und die Inhaltstyp-Gegenprüfung sind unverändert.
+
+Zwei Abweichungen vom Vorbild „öffentliche Kilometermeldung", beide im Konzept einzeln
+begründet: die Körpergrenze liegt bei 256 KB statt 2 KB (ein Check mit hundert Positionen
+passt nicht in 2 KB; Gegengewicht sind die behälterbezogenen Mengenbremsen und die
+vollständige Prüfung gegen die gespeicherte Vorlage, bevor irgendetwas geschrieben wird), und
+die Freigabe ist eine Sammelanfrage mit einem Ergebnis je Eintrag statt einer Einzelfreigabe.
+
+`docs/einrichtung.md` beschreibt die Bypass-Anwendung jetzt mit vier Pfadmustern (`/e/*`,
+`/c/*`, `/oeffentlich/*`, `/api/oeffentlich/*`) und hat eine Prüftabelle für die Abnahme
+bekommen. Der Worker prüft dieselben Muster unabhängig davon noch einmal selbst.
+
+### Die erste Rollenschranke je Einstellungsschlüssel
+
+`Beschreibung.erfordertRolle` ist neu; die fünf Materialschlüssel der Systemkonfiguration
+sind die ersten, die sie tragen (`zugfuehrung`, `gruppenfuehrung-sanitaet`). Dafür musste
+`PUT /api/systemkonfiguration` auf einen **Teilkörper** umgestellt werden: fehlende Schlüssel
+bleiben unverändert, geschrieben werden nur tatsächlich geänderte, und die Rolle wird nur
+gelesen, wenn ein geschützter Schlüssel geändert wird. Die Kilometerschlüssel ändern ihr
+Verhalten dadurch nicht.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` (einschließlich `worker:check`) – erfolgreich.
+- `npm test` – 809 Angular-Tests, 29 `oeffentlich`-Tests, 695 Worker-Tests, alle grün.
+- `npm run format:check` – sauber.
+- `npm run test:spa` – erfolgreich, Exit 0, nach vollständigem `npm run build`. Der Lauf
+  bestätigt am echten Worker-Bündel in workerd: Access-Pflicht für die App, der eng begrenzte
+  Bypass für Kilometermeldung **und Fahrzeugcheck**, JavaScript-Auslieferung unter
+  `/oeffentlich/` und JSON-404 für unbekannte `/api/*`-Pfade.
+- `npm run deploy:dry-run` – erfolgreich.
+- **Alle zehn Migrationen gegen echtes SQLite** (`node:sqlite`, Wegwerfskript) angewendet und
+  die riskanteste Abfrage (`BEHAELTER_UEBERSICHT` mit dem Unterabfrage-Join auf den neuesten
+  Check je Behälter) dort ausgeführt. Der handgeschriebene D1-Doppelgänger in den
+  Worker-Tests kann SQL-Fehler nicht finden; dieser Schritt kann es.
+- **Sichtprüfung im echten Chromium** auf 1400×900 und 390×844 für jede neue Seite. Vier
+  dabei gefundene Fehler wurden behoben: NG0950 im Vorlageneditor (der Router läuft ohne
+  `withComponentInputBinding()`, `input.required()` wird deshalb nie gesetzt – nur im Browser
+  sichtbar, in keinem Test), ein auf dem Telefon mitten im Wort abgeschnittener Titel, ein
+  doppelt und irreführend grün angezeigtes „noch nie geprüft", und ein unter der Kopfleiste
+  verschwundener klebriger Fortschrittsbalken. Zusätzlich zeigte der Fortschritt
+  „Verfallsdaten ohne Befund", bevor überhaupt etwas erfasst war; er meldet jetzt neutral
+  „Verfallsdaten offen".
+- QR-Anzeige auf der Behälterdetailseite im Browser geprüft: anfangs verborgen, nach Klick
+  sichtbar, 240×240, Ziel-URL `https://hiorg-wache.com/c/<token>`, keine Seitenfehler.
+
+### Offene Abnahmegrenzen
+
+- **„Zwischenstand speichern" fehlt.** Der Nutzer hat ausdrücklich einen Knopf verlangt, der
+  den Zwischenstand **serverseitig** ablegt, damit ein Check auf einem anderen Gerät
+  fortgesetzt werden kann. Umgesetzt ist bisher nur der automatische lokale Entwurf auf dem
+  Gerät. Die Tabelle `check_entwuerfe` existiert, die Endpunkte `…/entwurf` nicht. Das ist
+  der nächste fällige Schritt und keine Nebensache.
+- **Kein Aufkleberbogen.** Der QR-Code eines Behälters ist auf der Detailseite sichtbar; ein Bogen über alle Behälter – analog `fahrzeug-druckbogen.service.ts` – fehlt.
+- **Kein echtes Telefon.** Geprüft wurde im emulierten Chromium auf 390×844. Der öffentliche
+  Weg findet zu 99 % auf Telefonen statt; eine Prüfung am echten Gerät mit einem echten
+  QR-Scan steht aus.
+- **Kein Lauf gegen echtes D1 und den Produktiv-Edge.** Migration 0010 ist gegen SQLite und
+  gegen den D1-Doppelgänger geprüft, aber nicht angewendet. Vor der Abnahme ist sie
+  auszuführen; die Netzpolitik dieser Umgebung sperrt `hiorg-wache.com`.
+- **Die Access-Bypass-Anwendung ist nicht erweitert.** `docs/einrichtung.md` beschreibt die
+  vier Muster, gesetzt sind sie in Cloudflare Zero Trust noch nicht. Bis dahin verlangt
+  `/c/<TOKEN>` eine Anmeldung – der Worker lässt den Pfad durch, Access davor nicht.
+- **Die Rollenschranke bleibt so stark wie die Rollenvergabe.**
+  `PUT /api/benutzerverwaltung/<E-Mail>` steht weiterhin jeder geprüften Identität offen: wer
+  sich selbst `zugfuehrung` setzt, darf anschließend freigeben und die Mailempfänger ändern.
+  Das ist die auffälligste verbleibende Lücke des Projekts und war es schon vor diesem Modul.
+- **Verfallsdatumpflicht des Startbestands ist ungeprüft.** Welche der 125 NFR-EE-Artikel
+  `verfallsdatumPflicht` tragen, habe ich nach bestem Wissen festgelegt. Die Liste ist in der
+  Oberfläche korrigierbar und sollte vor dem ersten echten Check einmal durchgesehen werden.
+- **Kein Bericht gegen die Textausgabe des Prototyps verglichen.** Aufbau und Wortlaut sind
+  übernommen, ein zeichengenauer Abgleich mit einem echten Ausdruck steht aus.
+- Vorlagen pflegen, Behälter anlegen und ändern steht weiterhin jeder geprüften Identität
+  offen – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später".

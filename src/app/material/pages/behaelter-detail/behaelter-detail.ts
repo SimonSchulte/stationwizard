@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { distinctUntilChanged, map } from 'rxjs';
@@ -9,6 +16,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { behaelterCheckUrl } from '../../services/behaelter-qr';
+import { ApiPruefcodeStorage } from '../../storage/api-pruefcode-storage';
 import { FahrzeugStoreService } from '../../../fahrzeuge/services/fahrzeug-store.service';
 import { BehaelterStoreService } from '../../services/behaelter-store.service';
 import { PruefvorlageStoreService } from '../../services/pruefvorlage-store.service';
@@ -44,6 +53,7 @@ export class BehaelterDetail {
   private readonly store = inject(BehaelterStoreService);
   private readonly fahrzeugStore = inject(FahrzeugStoreService);
   private readonly vorlagenStore = inject(PruefvorlageStoreService);
+  private readonly pruefcodeStorage = inject(ApiPruefcodeStorage);
 
   readonly entwurf = this.store.entwurf;
   readonly laedt = this.store.ladeLaeuft;
@@ -64,6 +74,11 @@ export class BehaelterDetail {
     ),
     { initialValue: this.route.snapshot.paramMap.get('id') },
   );
+
+  readonly qrDataUrl = signal('');
+  readonly qrZiel = signal('');
+  readonly qrLaedt = signal(false);
+  readonly qrFehler = signal('');
 
   readonly speicherbar = computed(() => {
     const entwurf = this.entwurf();
@@ -100,6 +115,63 @@ export class BehaelterDetail {
     if (!(await this.store.speichern()) || !entwurf) return;
     if (warNeu) {
       void this.router.navigate(['/material/behaelter', entwurf.id], { replaceUrl: true });
+    }
+  }
+
+  /**
+   * Holt das Prüftoken und erzeugt den QR-Code. Bewusst erst auf Knopfdruck:
+   * das Token ist ein Geheimnis und soll nicht nebenbei mit den Stammdaten über
+   * die Leitung gehen. Die QR-Bibliothek wird dabei dynamisch geladen.
+   */
+  async qrAnzeigen(): Promise<void> {
+    const entwurf = this.entwurf();
+    if (!entwurf) return;
+    this.qrLaedt.set(true);
+    this.qrFehler.set('');
+    try {
+      const pruefcode = await this.pruefcodeStorage.lesePruefcode(entwurf.id);
+      const ziel = behaelterCheckUrl(pruefcode.token);
+      if (!ziel) {
+        this.qrFehler.set('Für diesen Behälter liegt kein Prüfcode vor.');
+        return;
+      }
+      const { erzeugeQrDataUrl } = await import('../../../fahrzeuge/services/fahrzeug-qr');
+      this.qrZiel.set(ziel);
+      this.qrDataUrl.set(await erzeugeQrDataUrl(ziel));
+    } catch (ursache) {
+      this.qrFehler.set(
+        ursache instanceof Error ? ursache.message : 'Der Prüfcode konnte nicht geladen werden.',
+      );
+    } finally {
+      this.qrLaedt.set(false);
+    }
+  }
+
+  async qrErneuern(): Promise<void> {
+    const entwurf = this.entwurf();
+    if (!entwurf) return;
+    const bestaetigt = await this.dialogDienst.bestaetigen(
+      'Alle bereits gedruckten Aufkleber dieses Behälters werden dadurch sofort ungültig. ' +
+        'Es gibt bewusst keine Übergangsfrist mit zwei gültigen Codes.',
+      'Prüfcode erneuern',
+      'Erneuern',
+    );
+    if (!bestaetigt) return;
+    this.qrLaedt.set(true);
+    this.qrFehler.set('');
+    try {
+      const pruefcode = await this.pruefcodeStorage.erneuerePruefcode(entwurf.id);
+      const ziel = behaelterCheckUrl(pruefcode.token);
+      if (!ziel) return;
+      const { erzeugeQrDataUrl } = await import('../../../fahrzeuge/services/fahrzeug-qr');
+      this.qrZiel.set(ziel);
+      this.qrDataUrl.set(await erzeugeQrDataUrl(ziel));
+    } catch (ursache) {
+      this.qrFehler.set(
+        ursache instanceof Error ? ursache.message : 'Der Prüfcode konnte nicht erneuert werden.',
+      );
+    } finally {
+      this.qrLaedt.set(false);
     }
   }
 
