@@ -6,6 +6,11 @@ const GUELTIG = {
     kmBerichtEmpfaenger: 'leitung@example.test',
     kmBerichtVersandweg: 'email-routing',
     kmBerichtBetreff: 'Kilometerstandsbericht',
+    materialBestellscheinEmpfaenger: '',
+    materialMaengelLandEmpfaenger: '',
+    materialMaengelSegEmpfaenger: '',
+    materialVersandweg: 'email-routing',
+    materialBetreff: 'Materialmeldung',
   },
   versandwege: [
     { weg: 'email-routing', verfuegbar: true },

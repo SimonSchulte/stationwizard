@@ -3,6 +3,12 @@
     <mat-icon>arrow_back</mat-icon>
   </a>
   <span class="toolbar-title">Fahrzeugcheck</span>
+  <span class="spacer"></span>
+  @if (check()) {
+    <button mat-raised-button color="primary" (click)="belegeOeffnen()">
+      <mat-icon>description</mat-icon> Belege
+    </button>
+  }
 </mat-toolbar>
 
 <div class="ansicht-inhalt">

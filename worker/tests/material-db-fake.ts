@@ -334,6 +334,20 @@ class FakeStatement {
         vorlage_version: vorlage.version,
       } as T;
     }
+    if (this.query.includes('b.bezeichnung AS behaelter_bezeichnung')) {
+      const [id] = this.werte as [string];
+      const check = this.db.checks.find((c) => c.id === id);
+      if (!check) return null;
+      const behaelter = this.db.behaelter.get(check.behaelter_id);
+      const fahrzeug = behaelter ? this.db.fahrzeuge.get(behaelter.fahrzeug_id) : undefined;
+      // JOIN, kein LEFT JOIN: ohne Behälter oder Fahrzeug keine Zeile.
+      if (!behaelter || !fahrzeug) return null;
+      return {
+        ...check,
+        behaelter_bezeichnung: behaelter.bezeichnung,
+        fahrzeug_bezeichnung: fahrzeug.bezeichnung,
+      } as T;
+    }
     if (this.query.startsWith('SELECT * FROM materialchecks WHERE id = ?')) {
       const [id] = this.werte as [string];
       return (this.db.checks.find((c) => c.id === id) ?? null) as T | null;

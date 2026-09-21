@@ -2,7 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { CheckKopf, Fahrzeugcheck, Pruefauftrag } from '../models/check.model';
 import { istCheckKopf, istFahrzeugcheck, istPruefauftrag } from '../services/check-pruefung';
-import { CheckEingabe, CheckStorage, CheckUnschluessigFehler } from './check-storage';
+import {
+  Berichtsart,
+  CheckEingabe,
+  CheckStorage,
+  CheckUnschluessigFehler,
+  EmpfaengerFehltFehler,
+  Versandbestaetigung,
+} from './check-storage';
 import { MaterialAbrufPuffer } from './material-abruf-puffer';
 
 @Injectable({ providedIn: 'root' })
@@ -70,5 +77,40 @@ export class ApiCheckStorage implements CheckStorage {
     // Ein neuer Check ändert auch die Behälterübersicht.
     this.puffer.verwerfen();
     return inhalt;
+  }
+
+  async ladeBericht(checkId: string, art: Berichtsart): Promise<string> {
+    const antwort = await this.worker.json<{ text?: unknown }>(
+      `/api/material/checks/${checkId}/bericht/${art}`,
+    );
+    if (typeof antwort.text !== 'string') {
+      throw new WorkerFehler('Der Server hat keinen gültigen Bericht geliefert.', 502);
+    }
+    return antwort.text;
+  }
+
+  async sendeBericht(
+    checkId: string,
+    art: Berichtsart,
+    empfaenger: string,
+  ): Promise<Versandbestaetigung> {
+    try {
+      const antwort = await this.worker.anfragen(
+        `/api/material/checks/${checkId}/bericht/${art}/senden`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empfaenger }),
+        },
+      );
+      return (await antwort.json()) as Versandbestaetigung;
+    } catch (ursache) {
+      // 409 hat an diesem Endpunkt genau eine Ursache; sie verdient einen
+      // eigenen, handlungsleitenden Text statt der rohen Serverantwort.
+      if (ursache instanceof WorkerFehler && ursache.status === 409) {
+        throw new EmpfaengerFehltFehler();
+      }
+      throw ursache;
+    }
   }
 }

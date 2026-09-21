@@ -11,8 +11,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { distinctUntilChanged, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { BerichtDialog, BerichtDialogDaten } from '../../components/bericht-dialog/bericht-dialog';
 import { Checkposition } from '../../models/check.model';
 import { HERKUNFT_LABEL } from '../../models/pruefvorlage.model';
 import { CheckStoreService } from '../../services/check-store.service';
@@ -37,6 +39,7 @@ interface FachAnsicht {
 })
 export class CheckAnsicht {
   private readonly route = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
   private readonly store = inject(CheckStoreService);
 
   readonly check = this.store.geladenerCheck;
@@ -82,6 +85,24 @@ export class CheckAnsicht {
       const id = this.routenId();
       if (id === null) return;
       if (this.store.geladenerCheck()?.id !== id) void this.store.checkLaden(id);
+    });
+  }
+
+  /** Öffnet Vorschau und Versand der Belege; der Text kommt erst dabei vom Worker. */
+  belegeOeffnen(): void {
+    const check = this.check();
+    if (!check) return;
+    const daten: BerichtDialogDaten = {
+      checkId: check.id,
+      behaelterBezeichnung: check.vorlageBezeichnung,
+      geprueftAm: check.geprueftAm,
+    };
+    this.dialog.open(BerichtDialog, {
+      data: daten,
+      width: '720px',
+      maxWidth: '94vw',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
     });
   }
 

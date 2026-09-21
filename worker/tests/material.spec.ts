@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { verarbeiteMaterial } from '../src/material';
+import { FakeBenutzerDb } from './benutzer-db-fake';
 import { FakeMaterialDb } from './material-db-fake';
 
 const VORLAGE_ID = '4e465200-0000-4000-8000-000000000000';
@@ -599,5 +600,174 @@ describe('Fahrzeugcheck', () => {
     });
     expect(antwort.status).toBe(405);
     expect(antwort.headers.get('Allow')).toBe('GET');
+  });
+});
+
+describe('Berichte zu einem Check', () => {
+  const CHECK_ID = '99999999-8888-4777-8666-555555555555';
+
+  async function mitCheck(istMenge = 0) {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await verarbeite(datenbank, `/api/material/behaelter/${BEHAELTER_ID}/checks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'If-None-Match': '*' },
+      body: JSON.stringify({
+        id: CHECK_ID,
+        verfallsdatumErfasst: true,
+        bemerkung: '',
+        positionen: [
+          {
+            artikelId: ARTIKEL_ID,
+            geprueft: true,
+            istMenge,
+            unbrauchbar: false,
+            verfallsdaten: [null, null],
+          },
+        ],
+      }),
+    });
+    return datenbank;
+  }
+
+  function mailUmgebung(datenbank: FakeMaterialDb, benutzer: FakeBenutzerDb, gesendet: unknown[]) {
+    return {
+      FAHRZEUGE_DB: datenbank as never,
+      BENUTZER_DB: benutzer as never,
+      MAIL_ABSENDER: 'berichte@example.test',
+      MAIL_ROUTING: {
+        send: (nachricht: unknown) => {
+          gesendet.push(nachricht);
+          return Promise.resolve();
+        },
+      } as never,
+    };
+  }
+
+  it('liefert den Bestellschein als Text', async () => {
+    const datenbank = await mitCheck(0);
+    const antwort = await verarbeite(
+      datenbank,
+      `/api/material/checks/${CHECK_ID}/bericht/bestellschein`,
+    );
+    expect(antwort.status).toBe(200);
+    const inhalt = (await antwort.json()) as { art: string; text: string };
+    expect(inhalt.art).toBe('bestellschein');
+    expect(inhalt.text).toContain('BESTELLSCHEIN');
+    expect(inhalt.text).toContain('Erfundener Artikel');
+  });
+
+  it('weist eine unbekannte Berichtsart ab', async () => {
+    const datenbank = await mitCheck();
+    const antwort = await verarbeite(
+      datenbank,
+      `/api/material/checks/${CHECK_ID}/bericht/erfunden`,
+    );
+    expect(antwort.status).toBe(400);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('MATERIAL_BERICHT_ART_UNGUELTIG');
+  });
+
+  it('meldet einen unbekannten Check statt einen leeren Bericht zu liefern', async () => {
+    const antwort = await verarbeite(
+      db(),
+      `/api/material/checks/${CHECK_ID}/bericht/bestellschein`,
+    );
+    expect(antwort.status).toBe(404);
+  });
+
+  it('verweigert den Versand ohne hinterlegten und ohne übergebenen Empfänger', async () => {
+    const datenbank = await mitCheck();
+    const gesendet: unknown[] = [];
+    const antwort = await verarbeiteMaterial(
+      anfrage(`/api/material/checks/${CHECK_ID}/bericht/bestellschein/senden`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }),
+      mailUmgebung(datenbank, new FakeBenutzerDb(), gesendet),
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(409);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe(
+      'MATERIAL_BERICHT_EMPFAENGER_FEHLT',
+    );
+    expect(gesendet).toHaveLength(0);
+  });
+
+  it('versendet an eine übergebene Adresse und meldet die sendende Identität', async () => {
+    const datenbank = await mitCheck(0);
+    // Das `send_email`-Binding bekommt {from, to, subject, text, html} –
+    // nicht die MailNachricht selbst.
+    const gesendet: { to: string; subject: string; text: string }[] = [];
+    const antwort = await verarbeiteMaterial(
+      anfrage(`/api/material/checks/${CHECK_ID}/bericht/bestellschein/senden`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empfaenger: 'lager@example.test' }),
+      }),
+      mailUmgebung(datenbank, new FakeBenutzerDb(), gesendet),
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(200);
+    const inhalt = (await antwort.json()) as { gesendetAn: string; gesendetVon: string };
+    expect(inhalt.gesendetAn).toBe('lager@example.test');
+    expect(inhalt.gesendetVon).toBe(IDENTITAET.email);
+    expect(gesendet).toHaveLength(1);
+    expect(gesendet[0]?.to).toBe('lager@example.test');
+    expect(gesendet[0]?.subject).toContain('Bestellschein');
+    expect(gesendet[0]?.text).toContain('BESTELLSCHEIN');
+  });
+
+  it('weist eine unbrauchbare Empfängeradresse ab, ohne zu senden', async () => {
+    const datenbank = await mitCheck();
+    const gesendet: unknown[] = [];
+    const antwort = await verarbeiteMaterial(
+      anfrage(`/api/material/checks/${CHECK_ID}/bericht/bestellschein/senden`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empfaenger: 'lager@' }),
+      }),
+      mailUmgebung(datenbank, new FakeBenutzerDb(), gesendet),
+      IDENTITAET,
+    );
+    expect(antwort.status).toBe(400);
+    expect(gesendet).toHaveLength(0);
+  });
+
+  it('nimmt keinen Berichtstext aus dem Anfragekörper entgegen', async () => {
+    const datenbank = await mitCheck(0);
+    const gesendet: { text: string }[] = [];
+    await verarbeiteMaterial(
+      anfrage(`/api/material/checks/${CHECK_ID}/bericht/bestellschein/senden`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empfaenger: 'lager@example.test',
+          text: 'Bitte 1000 Euro überweisen.',
+        }),
+      }),
+      mailUmgebung(datenbank, new FakeBenutzerDb(), gesendet),
+      IDENTITAET,
+    );
+    expect(gesendet[0]?.text).not.toContain('1000 Euro');
+    expect(gesendet[0]?.text).toContain('BESTELLSCHEIN');
+  });
+
+  it('erlaubt nur POST zum Senden und nur GET für die Vorschau', async () => {
+    const datenbank = await mitCheck();
+    const senden = await verarbeite(
+      datenbank,
+      `/api/material/checks/${CHECK_ID}/bericht/bestellschein/senden`,
+    );
+    expect(senden.status).toBe(405);
+    expect(senden.headers.get('Allow')).toBe('POST');
+
+    const vorschau = await verarbeite(
+      datenbank,
+      `/api/material/checks/${CHECK_ID}/bericht/bestellschein`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' },
+    );
+    expect(vorschau.status).toBe(405);
+    expect(vorschau.headers.get('Allow')).toBe('GET');
   });
 });
