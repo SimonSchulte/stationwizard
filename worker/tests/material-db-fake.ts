@@ -65,6 +65,16 @@ export interface EinreichungZeile {
   eingereicht_am: string;
   eingereicht_von_name: string;
   status: string;
+  vorlage_id?: string;
+  vorlage_version?: number;
+  vorlage_bezeichnung?: string;
+  grundlage?: string;
+  verfallsdatum_erfasst?: number;
+  bemerkung?: string;
+  entschieden_am?: string | null;
+  entschieden_von?: string | null;
+  ablehnungsgrund?: string | null;
+  check_id?: string | null;
 }
 
 export interface FahrzeugStammZeile {
@@ -236,6 +246,77 @@ class FakeStatement {
       };
     }
 
+    // Die Freigabe einer Einreichung bindet `gemeldet_von_name` und trägt
+    // 'oeffentlich' als Literal; der angemeldete Weg bindet stattdessen weniger
+    // Werte und hat NULL und 'angemeldet' als Literale. Unterschieden wird
+    // daran, sonst läge die Quelle jedes freigegebenen Checks falsch.
+    if (
+      this.query.startsWith('INSERT INTO materialchecks') &&
+      this.query.includes("'oeffentlich'")
+    ) {
+      const [
+        id,
+        behaelter_id,
+        vorlage_id,
+        vorlage_version,
+        vorlage_bezeichnung,
+        grundlage,
+        geprueft_am,
+        erfasst_am,
+        erfasst_von,
+        gemeldet_von_name,
+        verfallsdatum_erfasst,
+        bemerkung,
+        positionen,
+        positionen_gesamt,
+        positionen_geprueft,
+        fehlmengen,
+        unbrauchbar,
+        abgelaufen,
+      ] = this.werte as [
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+        string,
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+        number,
+        number,
+        number,
+        number,
+        number,
+      ];
+      this.db.checks.push({
+        id,
+        behaelter_id,
+        vorlage_id,
+        vorlage_version,
+        vorlage_bezeichnung,
+        grundlage,
+        geprueft_am,
+        erfasst_am,
+        erfasst_von,
+        gemeldet_von_name,
+        quelle: 'oeffentlich',
+        verfallsdatum_erfasst,
+        bemerkung,
+        positionen,
+        positionen_gesamt,
+        positionen_geprueft,
+        fehlmengen,
+        unbrauchbar,
+        abgelaufen,
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     if (this.query.startsWith('INSERT INTO materialchecks')) {
       const [
         id,
@@ -351,6 +432,12 @@ class FakeStatement {
         abgelaufen,
         eingereicht_am,
         eingereicht_von_name,
+        vorlage_id: this.werte[2] as string,
+        vorlage_version: this.werte[3] as number,
+        vorlage_bezeichnung: this.werte[4] as string,
+        grundlage: this.werte[5] as string,
+        verfallsdatum_erfasst: this.werte[7] as number,
+        bemerkung: this.werte[8] as string,
         // `status` steht als Literal 'offen' in der Anweisung, nicht unter den
         // Bindewerten: eine Einreichung entsteht nie als bereits entschieden.
         status: 'offen',
@@ -363,6 +450,37 @@ class FakeStatement {
       const zeile = this.db.behaelter.get(id);
       if (!zeile) return { success: true, meta: { changes: 0 }, results: [] };
       Object.assign(zeile, { check_token, check_token_am });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    if (this.query.startsWith("UPDATE check_einreichungen SET status = 'freigegeben'")) {
+      const [entschieden_am, entschieden_von, check_id, id] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      const zeile = this.db.einreichungen.find((e) => e.id === id && e.status === 'offen');
+      if (!zeile) return { success: true, meta: { changes: 0 }, results: [] };
+      Object.assign(zeile, { status: 'freigegeben', entschieden_am, entschieden_von, check_id });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    if (this.query.startsWith("UPDATE check_einreichungen SET status = 'abgelehnt'")) {
+      const [entschieden_am, entschieden_von, ablehnungsgrund, id] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      const zeile = this.db.einreichungen.find((e) => e.id === id && e.status === 'offen');
+      if (!zeile) return { success: true, meta: { changes: 0 }, results: [] };
+      Object.assign(zeile, {
+        status: 'abgelehnt',
+        entschieden_am,
+        entschieden_von,
+        ablehnungsgrund,
+      });
       return { success: true, meta: { changes: 1 }, results: [] };
     }
 
@@ -421,7 +539,12 @@ class FakeStatement {
         vorlage_version: vorlage.version,
       } as T;
     }
-    if (this.query.includes('b.bezeichnung AS behaelter_bezeichnung')) {
+    // Auch die Einreichungsabfrage benennt `b.bezeichnung AS
+    // behaelter_bezeichnung`; unterschieden wird an der Quelltabelle.
+    if (
+      this.query.includes('b.bezeichnung AS behaelter_bezeichnung') &&
+      this.query.includes('FROM materialchecks c')
+    ) {
       const [id] = this.werte as [string];
       const check = this.db.checks.find((c) => c.id === id);
       if (!check) return null;
@@ -489,6 +612,23 @@ class FakeStatement {
         gruppe: fahrzeug.gruppe,
       } as T;
     }
+    if (
+      this.query.includes('FROM check_einreichungen e') &&
+      this.query.includes('WHERE e.id = ?')
+    ) {
+      const [id] = this.werte as [string];
+      const e = this.db.einreichungen.find((zeile) => zeile.id === id);
+      if (!e) return null;
+      const behaelter = this.db.behaelter.get(e.behaelter_id);
+      const fahrzeug = behaelter ? this.db.fahrzeuge.get(behaelter.fahrzeug_id) : undefined;
+      if (!behaelter || !fahrzeug) return null;
+      return {
+        ...e,
+        behaelter_bezeichnung: behaelter.bezeichnung,
+        fahrzeug_bezeichnung: fahrzeug.bezeichnung,
+        fahrzeug_gruppe: fahrzeug.gruppe,
+      } as T;
+    }
     throw new Error(`FakeMaterialDb: unbekannte first()-Anweisung: ${this.query}`);
   }
 
@@ -541,6 +681,26 @@ class FakeStatement {
         .sort((a, b) =>
           `${b.geprueft_am}T${b.erfasst_am}`.localeCompare(`${a.geprueft_am}T${a.erfasst_am}`),
         );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.includes('FROM check_einreichungen e')) {
+      const gruppen = this.werte as string[];
+      const zeilen = this.db.einreichungen
+        .filter((e) => e.status === 'offen')
+        .flatMap((e) => {
+          const behaelter = this.db.behaelter.get(e.behaelter_id);
+          const fahrzeug = behaelter ? this.db.fahrzeuge.get(behaelter.fahrzeug_id) : undefined;
+          if (!behaelter || !fahrzeug || !gruppen.includes(fahrzeug.gruppe)) return [];
+          return [
+            {
+              ...e,
+              behaelter_bezeichnung: behaelter.bezeichnung,
+              fahrzeug_bezeichnung: fahrzeug.bezeichnung,
+              fahrzeug_gruppe: fahrzeug.gruppe,
+            },
+          ];
+        })
+        .sort((a, b) => a.eingereicht_am.localeCompare(b.eingereicht_am));
       return { success: true, results: zeilen as unknown as T[] };
     }
     throw new Error(`FakeMaterialDb: unbekannte all()-Anweisung: ${this.query}`);
