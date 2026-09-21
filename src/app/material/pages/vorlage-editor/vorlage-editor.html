@@ -1,0 +1,214 @@
+<mat-toolbar class="editor-kopfleiste">
+  <a mat-icon-button routerLink="/material/vorlagen" aria-label="Zurück zu den Prüfvorlagen">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <mat-icon class="kopfleiste-icon" aria-hidden="true">checklist</mat-icon>
+  <span class="toolbar-title">
+    @if (entwurf()) {
+      {{ entwurf()!.bezeichnung || 'Neue Prüfvorlage' }}
+    } @else {
+      Prüfvorlage
+    }
+  </span>
+  <span class="spacer"></span>
+  <button
+    mat-raised-button
+    color="primary"
+    [disabled]="!speicherbar() || !hatAenderungen() || speichertGerade()"
+    (click)="speichern()"
+  >
+    <mat-icon>save</mat-icon> Speichern
+  </button>
+</mat-toolbar>
+
+<div class="editor-inhalt">
+  @if (laedt()) {
+    <p role="status">Prüfvorlage wird geladen …</p>
+  }
+  @if (ladeFehler()) {
+    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+  }
+  @if (speicherFehler()) {
+    <p class="error-hint" role="alert">
+      {{ speicherFehler() }}
+      @if (speicherKonflikt()) {
+        <button mat-button (click)="standAnzeigen()">Gespeicherten Stand ansehen</button>
+      }
+    </p>
+  }
+
+  @if (entwurf(); as vorlage) {
+    <section class="kopfdaten" aria-labelledby="kopfdaten-titel">
+      <h2 id="kopfdaten-titel">Kopfdaten</h2>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bezeichnung</mat-label>
+        <input
+          matInput
+          [value]="vorlage.bezeichnung"
+          (input)="kopfAendern('bezeichnung', $any($event.target).value)"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Beschreibung</mat-label>
+        <input
+          matInput
+          [value]="vorlage.beschreibung"
+          (input)="kopfAendern('beschreibung', $any($event.target).value)"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Grundlage (Fußzeile der Berichte)</mat-label>
+        <textarea
+          matInput
+          rows="2"
+          [value]="vorlage.grundlage"
+          (input)="kopfAendern('grundlage', $any($event.target).value)"
+        ></textarea>
+      </mat-form-field>
+      <p class="umfang">{{ vorlage.faecher.length }} Fächer · {{ artikelGesamt() }} Artikel</p>
+    </section>
+
+    <section aria-labelledby="faecher-titel">
+      <div class="faecher-kopf">
+        <h2 id="faecher-titel">Fächer</h2>
+        <button mat-stroked-button (click)="fachHinzufuegen()">
+          <mat-icon>add</mat-icon> Fach hinzufügen
+        </button>
+      </div>
+
+      @if (vorlage.faecher.length === 0) {
+        <div class="empty-state">
+          <mat-icon class="empty-state-icon" aria-hidden="true">inventory_2</mat-icon>
+          <p class="empty-hint">Noch kein Fach angelegt.</p>
+        </div>
+      }
+
+      <mat-accordion multi>
+        @for (fach of vorlage.faecher; track fach.id; let ersteszeile = $first, letztes = $last) {
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>{{ fach.bezeichnung || 'Neues Fach' }}</mat-panel-title>
+              <mat-panel-description>{{ fach.artikel.length }} Artikel</mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <div class="fach-kopf">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Bezeichnung des Fachs</mat-label>
+                <input
+                  matInput
+                  [value]="fach.bezeichnung"
+                  (input)="fachAendern(fach.id, $any($event.target).value)"
+                />
+              </mat-form-field>
+              <button
+                mat-icon-button
+                [disabled]="ersteszeile"
+                (click)="fachVerschieben(fach.id, -1)"
+                aria-label="Fach nach oben"
+              >
+                <mat-icon>arrow_upward</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                [disabled]="letztes"
+                (click)="fachVerschieben(fach.id, 1)"
+                aria-label="Fach nach unten"
+              >
+                <mat-icon>arrow_downward</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                (click)="fachEntfernen(fach.id, fach.bezeichnung)"
+                aria-label="Fach entfernen"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+
+            <ul class="artikel">
+              @for (artikel of fach.artikel; track artikel.id) {
+                <li class="artikel-zeile">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-name">
+                    <mat-label>Artikel</mat-label>
+                    <input
+                      matInput
+                      [value]="artikel.bezeichnung"
+                      (input)="
+                        artikelAendern(
+                          fach.id,
+                          artikel.id,
+                          'bezeichnung',
+                          $any($event.target).value
+                        )
+                      "
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-soll">
+                    <mat-label>Soll</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="1"
+                      inputmode="numeric"
+                      [value]="artikel.sollMenge"
+                      (input)="sollmengeAendern(fach.id, artikel.id, $any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="feld-einheit"
+                  >
+                    <mat-label>Einheit</mat-label>
+                    <input
+                      matInput
+                      placeholder="Stück"
+                      [value]="artikel.einheit"
+                      (input)="
+                        artikelAendern(fach.id, artikel.id, 'einheit', $any($event.target).value)
+                      "
+                    />
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="feld-herkunft"
+                  >
+                    <mat-label>Herkunft</mat-label>
+                    <mat-select
+                      [value]="artikel.herkunft"
+                      (selectionChange)="herkunftAendern(fach.id, artikel.id, $event.value)"
+                    >
+                      @for (herkunft of herkuenfte; track herkunft) {
+                        <mat-option [value]="herkunft">{{ herkunftLabel[herkunft] }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-checkbox
+                    [checked]="artikel.verfallsdatumPflicht"
+                    (change)="
+                      artikelAendern(fach.id, artikel.id, 'verfallsdatumPflicht', $event.checked)
+                    "
+                  >
+                    Verfallsdatum
+                  </mat-checkbox>
+                  <button
+                    mat-icon-button
+                    (click)="artikelEntfernen(fach.id, artikel.id)"
+                    aria-label="Artikel entfernen"
+                  >
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </li>
+              }
+            </ul>
+
+            <button mat-stroked-button (click)="artikelHinzufuegen(fach.id)">
+              <mat-icon>add</mat-icon> Artikel hinzufügen
+            </button>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    </section>
+  }
+</div>

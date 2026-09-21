@@ -29,6 +29,11 @@ export const routes: Routes = [
     title: 'Angebotswesen · HiorgWache',
   },
   {
+    path: 'material',
+    loadChildren: () => import('./material/material.routes').then((m) => m.materialRouten),
+    title: 'Materialverwaltung · HiorgWache',
+  },
+  {
     path: 'aufgaben',
     loadChildren: () => import('./aufgaben/aufgaben.routes').then((m) => m.aufgabenRouten),
     title: 'Offene Aufgaben · HiorgWache',

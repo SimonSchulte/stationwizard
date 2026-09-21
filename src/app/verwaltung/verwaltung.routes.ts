@@ -33,6 +33,11 @@ export const verwaltungRouten: Routes = [
       ),
   },
   {
+    path: 'pruefvorlagen',
+    loadComponent: () =>
+      import('../material/pages/vorlage-liste/vorlage-liste').then((modul) => modul.VorlageListe),
+  },
+  {
     path: 'benutzer',
     loadComponent: () =>
       import('../benutzerverwaltung/pages/benutzer-liste/benutzer-liste').then(
