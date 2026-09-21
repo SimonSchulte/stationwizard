@@ -20,6 +20,7 @@ import {
   verarbeiteKmBericht,
   type KmBerichtKonfiguration,
 } from './km-bericht';
+import { verarbeiteMaterial, type MaterialKonfiguration } from './material';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 import {
   istOeffentlicherPfad,
@@ -44,7 +45,8 @@ export interface Env
     SystemkonfigurationKonfiguration,
     KmBerichtKonfiguration,
     OeffentlicheErfassungKonfiguration,
-    AngebotswesenKonfiguration {
+    AngebotswesenKonfiguration,
+    MaterialKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -188,6 +190,10 @@ export default {
 
     if (url.pathname === '/api/fahrzeuge' || url.pathname.startsWith('/api/fahrzeuge/')) {
       return verarbeiteFahrzeuge(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === '/api/material' || url.pathname.startsWith('/api/material/')) {
+      return verarbeiteMaterial(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === '/api/angebotswesen' || url.pathname.startsWith('/api/angebotswesen/')) {
