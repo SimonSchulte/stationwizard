@@ -821,18 +821,22 @@ async function ergaenzeAblesung(
       ? `Kilometerstand korrigiert: ${eingabe.stand} km am ${eingabe.abgelesenAm}`
       : `Kilometerstand erfasst: ${eingabe.stand} km am ${eingabe.abgelesenAm}`,
   );
+  // Über `zuAblesungJson()` statt einer eigenen Objektform, damit die Antwort
+  // dieselben Felder trägt wie die Liste – ein fehlendes Feld lässt die
+  // Clientprüfung eine erfolgreich gespeicherte Ablesung verwerfen.
   return jsonAntwort(
-    {
+    zuAblesungJson({
       id,
-      fahrzeugId,
-      abgelesenAm: eingabe.abgelesenAm,
+      fahrzeug_id: fahrzeugId,
+      abgelesen_am: eingabe.abgelesenAm,
       stand: eingabe.stand,
-      erfasstAm,
-      erfasstVon: identitaet.email,
+      erfasst_am: erfasstAm,
+      erfasst_von: identitaet.email,
       quelle: eingabe.quelle,
       korrigiert: eingabe.korrigiert,
       bemerkung: eingabe.bemerkung,
-    },
+      gemeldet_von_name: null,
+    }),
     201,
   );
 }

@@ -1899,3 +1899,22 @@ kostenlosen Tarif und darauf, dass sie als einzige alle Beobachtungen erklärt. 
 Nextcloud-/PEP-Pfad dasselbe Problem hat, ist wahrscheinlich, aber ungeprüft: dort wird
 `If-Match` an Nextcloud weitergereicht, weshalb ein bloßes Aufweichen der Prüfung dort
 nicht ohne Test gegen echtes Nextcloud verantwortbar ist. Bewusst nicht mitgeändert.
+
+## Fehlerbehebung – „Der Server hat eine ungültige Ablesung geliefert"
+
+Beim Speichern eines neuen Kilometerstands meldete die Oberfläche „Der Server hat eine
+ungültige Ablesung geliefert.", obwohl die Ablesung in D1 bereits gespeichert war.
+Ursache: `POST /api/fahrzeuge/<UUID>/ablesungen` baute seine Antwort als eigenes Objekt
+statt über `zuAblesungJson()`. Mit der öffentlichen Kilometermeldung (#53) kam
+`gemeldetVonName` hinzu; die Liste lieferte das Feld, die POST-Antwort nicht, und
+`istKilometerstand()` verlangt es. Die Antwort entsteht jetzt über `zuAblesungJson()`
+(`gemeldetVonName` leer), damit beide Wege nicht wieder auseinanderlaufen.
+
+Wer den Fehler gesehen und erneut gespeichert hat, hat die Ablesung wahrscheinlich
+doppelt angelegt; im Verlauf des Fahrzeugs prüfen und die Dublette gegebenenfalls löschen.
+
+Geprüft: neuer Fall in `worker/tests/fahrzeuge.spec.ts` (POST-Antwort gleich dem
+Listeneintrag, `gemeldetVonName` vorhanden) – ohne die Änderung rot, mit ihr grün.
+`npm run build` (inkl. `worker:check`), `npm test` (730 Angular-, 13 `oeffentlich`-,
+564 Worker-Tests), `npm run format:check`, `npm run worker:test` – alle grün. Am
+Produktivsystem nicht nachgeprüft.
