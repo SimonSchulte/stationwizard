@@ -2023,9 +2023,10 @@ Verhalten dadurch nicht.
 - **Kein echtes Telefon.** Geprüft wurde im emulierten Chromium auf 390×844. Der öffentliche
   Weg findet zu 99 % auf Telefonen statt; eine Prüfung am echten Gerät mit einem echten
   QR-Scan steht aus.
-- **Kein Lauf gegen echtes D1 und den Produktiv-Edge.** Migration 0010 ist gegen SQLite und
-  gegen den D1-Doppelgänger geprüft, aber nicht angewendet. Vor der Abnahme ist sie
-  auszuführen; die Netzpolitik dieser Umgebung sperrt `hiorg-wache.com`.
+- ~~**Kein Lauf gegen echtes D1 und den Produktiv-Edge.** Migration 0010 ist gegen SQLite
+  und gegen den D1-Doppelgänger geprüft, aber nicht angewendet.~~ – **Migration am
+  2026-09-22 angewendet**, siehe den Nachtrag am Ende dieses Dokuments. Der Produktiv-Edge
+  bleibt ungeprüft: die Netzpolitik dieser Umgebung sperrt `hiorg-wache.com`.
 - **Die Access-Bypass-Anwendung ist nicht erweitert.** `docs/einrichtung.md` beschreibt die
   vier Muster, gesetzt sind sie in Cloudflare Zero Trust noch nicht. Bis dahin verlangt
   `/c/<TOKEN>` eine Anmeldung – der Worker lässt den Pfad durch, Access davor nicht.
@@ -2187,9 +2188,10 @@ allem in der Fortschrittspille, die künftig „n von 222 Verfallsdaten" nennt.
 
 ### Umsetzung
 
-Migration 0010 ist noch nicht auf echtes D1 angewendet, der Startbestand wurde deshalb
-**direkt geändert** – eine Nachtragsmigration hätte einen Zustand korrigiert, den es
-nirgends gibt. Die Artikel-Ids laufen durch von `…000000000001` bis `…125`; geändert wurde
+Migration 0010 war zu diesem Zeitpunkt noch nicht auf echtes D1 angewendet, der
+Startbestand wurde deshalb **direkt geändert** – eine Nachtragsmigration hätte einen
+Zustand korrigiert, den es nirgends gab. (Seit dem 2026-09-22 ist sie angewendet; dieser
+Weg steht damit nicht mehr offen, siehe den Nachtrag am Ende.) Die Artikel-Ids laufen durch von `…000000000001` bis `…125`; geändert wurde
 gezielt je Id, nicht durch Neuschreiben des JSON-Literals. Kein Code, kein Test und keine
 Oberfläche war betroffen: `verfallsdatumPflicht` ist ein Datenfeld der Vorlage, und die
 Worker-Tests bauen ihre eigene Vorlage statt den Startbestand zu lesen.
@@ -2219,3 +2221,72 @@ Worker-Tests bauen ihre eigene Vorlage statt den Startbestand zu lesen.
   verloren, ohne dass ihre Druckbehälterprüfung irgendwo anders aufgehoben wäre. Fahrzeuge
   haben Wartungstermine, Behälter nicht; ob sie welche brauchen, ist fachlich zu klären.
 - Die übrigen Grenzen aus AP-M1 bis AP-M8 gelten unverändert weiter.
+
+## Migration 0010 auf die Produktivdatenbank angewendet – 2026-09-22
+
+Die letzte offene Migration ist angewendet. Damit entfällt die Abnahmegrenze „Migration 0010
+ist gegen SQLite und gegen den D1-Doppelgänger geprüft, aber nicht angewendet", die seit
+AP-M1 im Arbeitsstand stand.
+
+### Weg: Cloudflare-Connector statt `wrangler d1 execute`
+
+`worker/README.md` nennt `npx wrangler d1 execute --remote --file` als den Weg, und so lief
+auch Migration 0007 am 2026-09-19. **In dieser Umgebung ist Wrangler nicht angemeldet**
+(`wrangler whoami` meldet „not authenticated"), und `wrangler login` braucht einen
+interaktiven Browser, den der Container nicht hat. Angewendet wurde deshalb über den
+Cloudflare-Connector (`d1_database_query`) gegen
+`stationwizard-fahrzeuge` / `698facb9-4c99-45de-8879-d262c2144144` – dieselbe UUID, die in
+`worker/wrangler.toml` steht. Der dokumentierte `d1 execute`-Weg bleibt der führende; dies
+ist die Notiz eines zweiten Wegs, kein Ersatz.
+
+**Kein `wrangler d1 migrations apply`**, und das ist keine Bequemlichkeit: die zehn Dateien
+in `worker/migrations/` gehören zu **drei** Datenbanken (0004/0005 zu
+`stationwizard-benutzer`, 0008/0009 zu `stationwizard-angebotswesen`, der Rest zu
+`stationwizard-fahrzeuge`), und `wrangler.toml` setzt bewusst kein `migrations_dir`. Ein
+`migrations apply` würde alle zehn Dateien auf eine einzige Datenbank werfen.
+
+Angewendet wurde **Anweisung für Anweisung** (elf Stück), nicht die Datei am Stück: die
+D1-Query-API führt mehrere Anweisungen sequenziell und nicht atomar aus, und 0010 ist nicht
+idempotent (`CREATE TABLE` ohne `IF NOT EXISTS`, einfaches `INSERT`). Bei einem Abbruch in
+der Mitte hätte sonst niemand sagen können, wo. Der Startbestand ging als **gebundener
+Parameter** statt als SQL-Literal hinein, damit die Anführungszeichen-Maskierung keine
+Fehlerquelle ist.
+
+### Vorher geprüft
+
+Vor dem ersten Schreibzugriff lesend erhoben: `stationwizard-fahrzeuge` trug `fahrzeuge`,
+`ablesungen`, `fahrzeug_aenderungen` und `ablesung_einreichungen` samt Indizes und die
+Spalte `gruppe` – also 0001, 0002, 0003, 0006 und 0007. **Keine** der fünf Tabellen aus 0010
+existierte; 0010 war nachweislich offen und kein zweites Mal angewendet worden.
+
+### Tatsächlich ausgeführte Prüfungen, nach dem Lauf
+
+- **Objekte vollzählig:** `sqlite_master` listet `pruefvorlagen`, `behaelter`,
+  `materialchecks`, `check_einreichungen`, `check_entwuerfe` sowie die vier neuen Indizes.
+  Die vorher vorhandenen Tabellen und Indizes stehen unverändert daneben.
+- **Startbestand korrekt angekommen:** eine Abfrage über `json_each` auf der echten
+  Datenbank ergibt **11 Fächer, 125 Artikel, 125 eindeutige Artikel-Ids, 83 markiert,
+  222 Monatsfelder**, `json_valid = 1`, `version = 1`, `geaendert_von = 'migration'`. Das
+  sind genau die Zahlen, die in AP-M9 gegen lokales SQLite belegt wurden.
+- **Übertragung unverfälscht:** das JSON wurde beim Senden neu getippt, deshalb zusätzlich
+  `length(inhalt)` und drei `substr`-Stichproben (Position 1, 10 000 und 21 418) gegen die
+  Datei im Repository verglichen – 21 477 Zeichen, alle drei Stichproben zeichengleich.
+- **Bestand unberührt:** weiterhin 23 Fahrzeuge, 37 Ablesungen, 59 Protokolleinträge,
+  0 offene Kilometermeldungen. Die vier neuen Folgetabellen sind erwartungsgemäß leer.
+
+### Was sich dadurch ändert – und was nicht
+
+- **Migration 0010 ist ab jetzt eingefroren.** Bis eben durfte die Datei geändert werden
+  (AP-M9 hat genau das getan); ab jetzt läuft jede Korrektur am Startbestand über die
+  Vorlagenpflege in der Oberfläche oder über eine Migration 0011. Die Regel für
+  `verfallsdatumPflicht` ist mit dem Betreiber abgestimmt, die **einzelnen 125 Artikel** sind
+  es nicht – Abweichungen sind künftig in der Oberfläche zu korrigieren.
+- **Kein Deployment.** Der produktiv laufende Worker ist weiterhin der alte, ohne
+  Materialmodul. Die Tabellen stehen bereit, ohne dass etwas sie benutzt. Das ist die
+  richtige Reihenfolge (Schema vor Code), aber die Materialverwaltung ist dadurch **nicht**
+  live.
+- **Access unverändert.** Die Bypass-Anwendung für `/c/*` ist nicht eingerichtet; der
+  öffentliche Fahrzeugcheck verlangt bis dahin eine Anmeldung.
+- Die übrigen Abnahmegrenzen aus AP-M1 bis AP-M9 gelten unverändert weiter, darunter der
+  fehlende Aufkleberbogen, der fehlende Test am echten Telefon und die Lücke bei der
+  Rollenvergabe.

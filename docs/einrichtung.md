@@ -155,10 +155,16 @@ Reihenfolge der Inbetriebnahme:
    waren (0005 betrifft die getrennte `stationwizard-benutzer`-Datenbank und ist dort
    bereits angewendet); 0007 war die einzige noch offene Migration und wurde angewendet:
    `npx wrangler d1 execute stationwizard-fahrzeuge --remote --file worker/migrations/0007_oeffentliche_meldung.sql`
-2. Worker deployen (`npm run build && npm run deploy`).
-3. Bypass-Anwendung wie oben anlegen.
-4. Prüfliste unten abarbeiten.
-5. Erst danach Aufkleber drucken.
+2. ~~Migration 0010 anwenden~~ (Materialverwaltung) – **erledigt am 2026-09-22.** Eine
+   Prüfabfrage vorab zeigte, dass keine der fünf Tabellen aus 0010 bestand. Angewendet über
+   den Cloudflare-Connector statt über Wrangler, weil Wrangler in der Arbeitsumgebung nicht
+   angemeldet ist; Einzelheiten und die Nachprüfungen stehen im Arbeitsstand. Danach: 11
+   Fächer, 125 Artikel, 83 mit Verfallsdatumpflicht; Fahrzeuge, Ablesungen und
+   Änderungsprotokoll unverändert.
+3. Worker deployen (`npm run build && npm run deploy`).
+4. Bypass-Anwendung wie oben anlegen.
+5. Prüfliste unten abarbeiten.
+6. Erst danach Aufkleber drucken.
 
 Prüfliste, jeweils in einem privaten Fenster **ohne** Anmeldung:
 
