@@ -41,7 +41,13 @@ erzeugten Berichte, etwa „NFR EE, Stand 25.10.2012"), und ein Baum aus **Fäch
 **Behälter** – ein physisches Einzelstück mit eigener Identität, das an genau einem Fahrzeug
 hängt und nach genau einer Vorlage geprüft wird. Das ist die zentrale fachliche Festlegung:
 ein GW SAN trägt zehn Notfallrucksäcke, jeder KTW-B einen, und jeder davon wird **einzeln**
-geprüft. „NFR 3 auf dem GW SAN 01" ist ein Behälter, nicht eine Rolle des Fahrzeugs.
+geprüft. „NFR 3 auf dem GW SAN 01" ist ein Behälter, nicht eine Rolle des Fahrzeugs. Die
+drei Fahrzeuge aus dem Prototyp (Abschnitt 1) sind mit ihren Behältern inzwischen real
+angelegt: der GW Sanintätsdienst (Funkrufname 72 GW-SAN 01) mit zehn Behältern „NFR 1" bis
+„NFR 10", die beiden KTW-B je mit einem Behälter „NFR" – die Behälterbezeichnung folgt
+also dem Fahrzeug, nicht einer eigenen, dem Prototyp entlehnten Nummerierung „GW SAN 01…10",
+die dort irreführend zehn verschiedene Fahrzeuge suggerierte, obwohl es sich um zehn
+Behälter desselben Fahrzeugs handelt.
 
 **Check** – das Ergebnis einer Prüfung genau eines Behälters zu genau einem Zeitpunkt, durch
 genau eine Person. Eine Checkposition trägt Ist-Menge, „geprüft", „unbrauchbar" und

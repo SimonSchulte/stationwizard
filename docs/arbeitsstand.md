@@ -2290,3 +2290,71 @@ existierte; 0010 war nachweislich offen und kein zweites Mal angewendet worden.
 - Die übrigen Abnahmegrenzen aus AP-M1 bis AP-M9 gelten unverändert weiter, darunter der
   fehlende Aufkleberbogen, der fehlende Test am echten Telefon und die Lücke bei der
   Rollenvergabe.
+
+## NFR-EE-Daten aus dem Prototyp verifiziert, Beschreibung ergänzt, Behälter für die realen Fahrzeuge angelegt – 2026-09-22
+
+Auftrag: „Migriere die Daten aus dem HTML in die App" – gemeint das ursprünglich
+hochgeladene `11e72f8b-nfr-ee-checkliste.html`, dessen `DATA`-Array Grundlage des
+NFR-EE-Startbestands war.
+
+### Programmatischer Abgleich statt Vertrauen auf die Handarbeit von AP-M1
+
+Das `DATA`-Array wurde per Node-Skript sicher aus der Original-HTML-Datei ausgewertet (kein
+Browserkontext nötig, reine Array-Literale) und **Feld für Feld** – Bezeichnung, Sollmenge,
+Einheit, Herkunft, über alle 125 Artikel – gegen die in Migration 0010 stehende und bereits
+auf `stationwizard-fahrzeuge` angewendete Prüfvorlage verglichen. **Ergebnis: keine einzige
+Abweichung.** Das war bisher nur einmal beim Bau der Migration von Hand geprüft; jetzt zum
+ersten Mal automatisiert bestätigt.
+
+### Eine Lücke gefunden und behoben: die Kopfzeile
+
+Die gespeicherte `beschreibung` der Vorlage war gegenüber der HTML-Unterzeile gekürzt: Es
+fehlte „— antippen zum Abhaken, Menge bei Bedarf korrigieren." Per `UPDATE` auf der
+Produktivdatenbank ergänzt (optimistisch gegen `version = 1` geschrieben, `version` dabei
+auf 2 erhöht). Rein kosmetischer Text ohne fachliche Wirkung, aber Teil dessen, was „im
+HTML" stand und noch nicht vollständig übernommen war.
+
+### Die zweite Datenquelle im Prototyp: die Rucksack-/Fahrzeugauswahl
+
+Der Prototyp hat neben der Checkliste noch die `VEHICLES`-Liste für die Rucksackauswahl
+(„KTW-B 01", „KTW-B 02", „GW SAN 01" … „GW SAN 10"). Diese Liste ist im Prototyp selbst
+**irreführend benannt** – sie tut so, als gäbe es zehn verschiedene Fahrzeuge „GW SAN 01"
+bis „GW SAN 10". Das war exakt das Missverständnis, das zu Beginn dieses Projekts geklärt
+wurde: „GW SAN 03 ist der NFR 3 auf dem 72 GW SAN 01 (insgesamt hat der 10 Stück). Die
+KTW-B haben jeweils einen NFR." Es gibt **ein** Fahrzeug GW SAN mit zehn Behältern (NFR 1–10)
+und zwei KTW-B mit je einem Behälter – exakt das Datenmodell, das `behaelter.fahrzeug_id`
+abbildet.
+
+Ein Abgleich gegen die echten Fahrzeuge in `stationwizard-fahrzeuge` ergab einen
+**eindeutigen, unambigen Treffer** für alle drei:
+
+| Prototyp-Bezeichnung | Reales Fahrzeug    | Funkrufname        |
+| -------------------- | ------------------ | ------------------ |
+| GW SAN 01…10         | GW Sanintätsdienst | 72 GW-SAN 01       |
+| KTW-B 01             | KTW-B Land         | JUH BI 72 KTW-B 01 |
+| KTW-B 02             | KTW-B 02 Bund      | 72 KTW-B 02        |
+
+Daraufhin wurden **12 Behälter** angelegt, alle mit `vorlage_id` der NFR-EE-Vorlage,
+`check_token IS NULL` (kein Aufkleber-Token vergeben – das bleibt ein gesonderter Schritt
+über die Oberfläche, sobald der Worker deployt ist), `bemerkung = ''`, `version = 1`:
+
+- **GW Sanintätsdienst**: 10 Behälter „NFR 1" … „NFR 10".
+- **KTW-B Land** und **KTW-B 02 Bund**: je 1 Behälter „NFR" (kein Suffix – es gibt nur
+  einen, eine Nummerierung wäre eine erfundene Unterscheidung ohne Gegenstück).
+
+Angelegt als **ein** `INSERT … VALUES` mit zwölf Wertetupeln über den
+Cloudflare-Connector, gebundene Parameter statt SQL-Literale – dasselbe Vorgehen wie beim
+Anwenden von Migration 0010.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Zurückgelesen: 12 Behälter, korrekt verteilt (10× GW Sanintätsdienst, je 1× beide KTW-B),
+  alle mit der richtigen `vorlage_id`, alle `check_token IS NULL`, alle `version = 1`.
+- Bestand unberührt: weiterhin 23 Fahrzeuge, 37 Ablesungen, 59 Protokolleinträge.
+- Kein Code, kein Test, keine Migrationsdatei geändert – reine Produktivdaten.
+
+### Was noch aussteht
+
+- **Keine Prüftoken vergeben.** QR-Aufkleber für die zwölf Behälter sind ein gesonderter
+  Schritt über die Oberfläche, sobald der Worker deployt ist.
+- Alle übrigen Abnahmegrenzen aus AP-M1 bis AP-M9 gelten unverändert weiter.
