@@ -1899,3 +1899,462 @@ kostenlosen Tarif und darauf, dass sie als einzige alle Beobachtungen erklärt. 
 Nextcloud-/PEP-Pfad dasselbe Problem hat, ist wahrscheinlich, aber ungeprüft: dort wird
 `If-Match` an Nextcloud weitergereicht, weshalb ein bloßes Aufweichen der Prüfung dort
 nicht ohne Test gegen echtes Nextcloud verantwortbar ist. Bewusst nicht mitgeändert.
+
+## AP-M1 bis AP-M7 – Materialverwaltung mit Fahrzeugcheck
+
+Neues viertes Fachmodul. Die Einheit prüfte den Bestand ihrer Notfallrucksäcke bisher mit
+einer statischen HTML-Seite, die nichts speichert: ein Check war nach dem Schließen des Tabs
+verloren, niemand wusste, wer wann was geprüft hatte, und die Soll-Liste stand im Quelltext.
+Konzept, Begründungen und der Stand der offenen Punkte stehen in `docs/konzept-material.md`;
+`CLAUDE.md` hat einen eigenen Modulabschnitt bekommen.
+
+Sieben Arbeitspakete, jeweils eigener Commit auf `claude/funny-cannon-j35k2h`:
+
+- **AP-M1** – Migration `0010_material.sql` mit fünf Tabellen in `FAHRZEUGE_DB`
+  (`pruefvorlagen`, `behaelter`, `materialchecks`, `check_einreichungen`, `check_entwuerfe`),
+  NFR-EE-Startbestand mit 11 Fächern und 125 Artikeln als ein `INSERT`, Vorlagen-Endpunkte
+  im Worker, Angular-Gerüst und Vorlageneditor.
+- **AP-M2/M3** – Behälter-Endpunkte, Behälterübersicht und -stammdaten, Materialdashboard,
+  Hauptnavigation, Startseitenkachel, Abschnitt im Fahrzeugdetail.
+- **AP-M4a/b** – Fahrzeugcheck: Prüfauftrag, Erfassung und Historie im Worker
+  (`material-check.ts`), die Check-Oberfläche mit klebrigem Fortschritt, Fächern und
+  Positionszeilen, Checkansicht, lokaler Zwischenstand.
+- **AP-M5** – Berichte (Bestellschein, Mängelanzeige Land, Mängelanzeige SEG), Mailversand
+  und die erste **Rollenschranke je Einstellungsschlüssel**.
+- **AP-M6a/b/c** – Öffentlicher Check per QR-Code unter `/c/<TOKEN>` und die Mehrfachfreigabe
+  der Einreichungen.
+- **AP-M7** – QR-Anzeige auf der Behälterdetailseite und die Dokumentation.
+
+### Drei Entscheidungen, die nicht selbsterklärend sind
+
+**Material liegt in `FAHRZEUGE_DB`, nicht in einer eigenen Datenbank.** Die Konvention „eine
+Datenbank je Fachdomäne" trägt hier nicht: ein Behälter hängt an `fahrzeuge.id`, die
+Freigabeberechtigung ergibt sich aus `fahrzeuge.gruppe`, und die Behälterübersicht braucht in
+einem Aufruf Behälter samt Fahrzeugangaben. Zwei Datenbanken kosteten den Fremdschlüssel und
+verdoppelten jede Abfrage. Präzedenzfall ist `systemkonfiguration` in `BENUTZER_DB`.
+
+**Die Berichtslogik steht nur serverseitig** – eine bewusste Abweichung vom genehmigten Plan,
+der ein Frontend-Gegenstück vorsah und die Verdopplung selbst als Risiko benannte. Die
+Vorschau holt denselben Text über den Berichtsendpunkt. Verdoppelt bleibt nur die reine
+Statuslogik für die Rückmeldung beim Ausfüllen (`worker/src/material-check.ts` und
+`src/app/material/services/check-status.ts`); sie ist ohne Serveraufruf je Tastendruck nicht
+zu haben und in beiden Dateien als gemeinsam zu ändern gekennzeichnet.
+
+**Die öffentliche Checkseite läuft im bestehenden Build-Ziel `oeffentlich` mit.** Ein drittes
+Build-Ziel hätte neue Dateinamen gebracht und damit `OEFFENTLICHE_DATEIEN` angefasst – die
+gefährlichste Stelle des Repositorys. Das Bündel wuchs dadurch von 145,65 kB auf 151,43 kB;
+angehoben wurde deshalb nur die **Warnschwelle** in `angular.json` von 150 kB auf 200 kB, die
+Fehlerschwelle blieb bei 250 kB. Der ursprüngliche Plan sah 250 kB/400 kB vor; das wäre mehr
+gewesen als nötig.
+
+### Zuerst: `npm run test:spa` läuft in dieser Umgebung wieder
+
+`CLAUDE.md` und frühere Einträge notieren den Test als blockiert (`network approval was
+cancelled before a decision was returned`). In dieser Runde lief er durch. Das ist wesentlich,
+weil die Erweiterung von `istOeffentlicherPfad()` die sicherheitskritischste Änderung des
+Repositorys ist und `test:spa` der einzige Nachweis am **echten Worker-Bündel in workerd**.
+Die Notiz in `CLAUDE.md` bleibt trotzdem stehen: sie beschreibt eine Umgebung, nicht diesen
+Lauf.
+
+Dabei ist ein eigener Fehlgriff aufgefallen und behoben: ein `| tail -1` in meinem
+Aufrufwrapper verdeckte den Exit-Code, sodass ein Lauf mit Exit 1 (`ENOENT` auf
+`dist/.../oeffentlich`) wie ein Erfolg aussah. Ursache war, dass `npx ng build` allein das
+zweite Build-Ziel aus `dist` entfernt; `test:spa` braucht den vollständigen
+`npm run build` davor. Commit 80b41a2 wurde deswegen nachträglich korrigiert.
+
+### Der zweite Weg am Zugangsschutz vorbei
+
+`OEFFENTLICHE_MUSTER` führt jetzt **fünf** exakt verankerte Muster statt drei; `/c/<TOKEN>`
+und `/api/oeffentlich/check/<TOKEN>` sind dazugekommen, weiterhin ohne Präfixabgleich.
+`OEFFENTLICHE_DATEIEN` und die Inhaltstyp-Gegenprüfung sind unverändert.
+
+Zwei Abweichungen vom Vorbild „öffentliche Kilometermeldung", beide im Konzept einzeln
+begründet: die Körpergrenze liegt bei 256 KB statt 2 KB (ein Check mit hundert Positionen
+passt nicht in 2 KB; Gegengewicht sind die behälterbezogenen Mengenbremsen und die
+vollständige Prüfung gegen die gespeicherte Vorlage, bevor irgendetwas geschrieben wird), und
+die Freigabe ist eine Sammelanfrage mit einem Ergebnis je Eintrag statt einer Einzelfreigabe.
+
+`docs/einrichtung.md` beschreibt die Bypass-Anwendung jetzt mit vier Pfadmustern (`/e/*`,
+`/c/*`, `/oeffentlich/*`, `/api/oeffentlich/*`) und hat eine Prüftabelle für die Abnahme
+bekommen. Der Worker prüft dieselben Muster unabhängig davon noch einmal selbst.
+
+### Die erste Rollenschranke je Einstellungsschlüssel
+
+`Beschreibung.erfordertRolle` ist neu; die fünf Materialschlüssel der Systemkonfiguration
+sind die ersten, die sie tragen (`zugfuehrung`, `gruppenfuehrung-sanitaet`). Dafür musste
+`PUT /api/systemkonfiguration` auf einen **Teilkörper** umgestellt werden: fehlende Schlüssel
+bleiben unverändert, geschrieben werden nur tatsächlich geänderte, und die Rolle wird nur
+gelesen, wenn ein geschützter Schlüssel geändert wird. Die Kilometerschlüssel ändern ihr
+Verhalten dadurch nicht.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` (einschließlich `worker:check`) – erfolgreich.
+- `npm test` – 809 Angular-Tests, 29 `oeffentlich`-Tests, 695 Worker-Tests, alle grün.
+- `npm run format:check` – sauber.
+- `npm run test:spa` – erfolgreich, Exit 0, nach vollständigem `npm run build`. Der Lauf
+  bestätigt am echten Worker-Bündel in workerd: Access-Pflicht für die App, der eng begrenzte
+  Bypass für Kilometermeldung **und Fahrzeugcheck**, JavaScript-Auslieferung unter
+  `/oeffentlich/` und JSON-404 für unbekannte `/api/*`-Pfade.
+- `npm run deploy:dry-run` – erfolgreich.
+- **Alle zehn Migrationen gegen echtes SQLite** (`node:sqlite`, Wegwerfskript) angewendet und
+  die riskanteste Abfrage (`BEHAELTER_UEBERSICHT` mit dem Unterabfrage-Join auf den neuesten
+  Check je Behälter) dort ausgeführt. Der handgeschriebene D1-Doppelgänger in den
+  Worker-Tests kann SQL-Fehler nicht finden; dieser Schritt kann es.
+- **Sichtprüfung im echten Chromium** auf 1400×900 und 390×844 für jede neue Seite. Vier
+  dabei gefundene Fehler wurden behoben: NG0950 im Vorlageneditor (der Router läuft ohne
+  `withComponentInputBinding()`, `input.required()` wird deshalb nie gesetzt – nur im Browser
+  sichtbar, in keinem Test), ein auf dem Telefon mitten im Wort abgeschnittener Titel, ein
+  doppelt und irreführend grün angezeigtes „noch nie geprüft", und ein unter der Kopfleiste
+  verschwundener klebriger Fortschrittsbalken. Zusätzlich zeigte der Fortschritt
+  „Verfallsdaten ohne Befund", bevor überhaupt etwas erfasst war; er meldet jetzt neutral
+  „Verfallsdaten offen".
+- QR-Anzeige auf der Behälterdetailseite im Browser geprüft: anfangs verborgen, nach Klick
+  sichtbar, 240×240, Ziel-URL `https://hiorg-wache.com/c/<token>`, keine Seitenfehler.
+
+### Offene Abnahmegrenzen
+
+- **„Zwischenstand speichern" fehlt.** Der Nutzer hat ausdrücklich einen Knopf verlangt, der
+  den Zwischenstand **serverseitig** ablegt, damit ein Check auf einem anderen Gerät
+  fortgesetzt werden kann. Umgesetzt ist bisher nur der automatische lokale Entwurf auf dem
+  Gerät. Die Tabelle `check_entwuerfe` existiert, die Endpunkte `…/entwurf` nicht. Das ist
+  der nächste fällige Schritt und keine Nebensache.
+- **Kein Aufkleberbogen.** Der QR-Code eines Behälters ist auf der Detailseite sichtbar; ein Bogen über alle Behälter – analog `fahrzeug-druckbogen.service.ts` – fehlt.
+- **Kein echtes Telefon.** Geprüft wurde im emulierten Chromium auf 390×844. Der öffentliche
+  Weg findet zu 99 % auf Telefonen statt; eine Prüfung am echten Gerät mit einem echten
+  QR-Scan steht aus.
+- ~~**Kein Lauf gegen echtes D1 und den Produktiv-Edge.** Migration 0010 ist gegen SQLite
+  und gegen den D1-Doppelgänger geprüft, aber nicht angewendet.~~ – **Migration am
+  2026-09-22 angewendet**, siehe den Nachtrag am Ende dieses Dokuments. Der Produktiv-Edge
+  bleibt ungeprüft: die Netzpolitik dieser Umgebung sperrt `hiorg-wache.com`.
+- **Die Access-Bypass-Anwendung ist nicht erweitert.** `docs/einrichtung.md` beschreibt die
+  vier Muster, gesetzt sind sie in Cloudflare Zero Trust noch nicht. Bis dahin verlangt
+  `/c/<TOKEN>` eine Anmeldung – der Worker lässt den Pfad durch, Access davor nicht.
+- **Die Rollenschranke bleibt so stark wie die Rollenvergabe.**
+  `PUT /api/benutzerverwaltung/<E-Mail>` steht weiterhin jeder geprüften Identität offen: wer
+  sich selbst `zugfuehrung` setzt, darf anschließend freigeben und die Mailempfänger ändern.
+  Das ist die auffälligste verbleibende Lücke des Projekts und war es schon vor diesem Modul.
+- **Verfallsdatumpflicht des Startbestands ist ungeprüft.** Welche der 125 NFR-EE-Artikel
+  `verfallsdatumPflicht` tragen, habe ich nach bestem Wissen festgelegt. Die Liste ist in der
+  Oberfläche korrigierbar und sollte vor dem ersten echten Check einmal durchgesehen werden.
+- **Kein Bericht gegen die Textausgabe des Prototyps verglichen.** Aufbau und Wortlaut sind
+  übernommen, ein zeichengenauer Abgleich mit einem echten Ausdruck steht aus.
+- Vorlagen pflegen, Behälter anlegen und ändern steht weiterhin jeder geprüften Identität
+  offen – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später".
+
+## AP-M8 – Zwischenstand eines Checks serverseitig sichern
+
+Die letzte offene Anforderung aus dem ursprünglichen Auftrag. Auf die Rückfrage zum
+Zwischenstand lautete die Antwort: „1 und eine Option ‚Zwischenstand Speichern', welche dann
+serverseitig speichert". Umgesetzt war bisher nur der erste Teil – der automatische, auf dem
+Gerät gesicherte Entwurf. Ein angefangener Check ließ sich damit nicht auf einem anderen
+Gerät fortsetzen, also genau das nicht, wofür der Knopf gedacht war.
+
+Die Tabelle `check_entwuerfe` stand seit Migration 0010 bereit; **eine Migration war nicht
+nötig**. Dazugekommen sind `PUT` und `DELETE` auf
+`/api/material/behaelter/<UUID>/entwurf`, `pruefeEntwurf()` in `material-check.ts`, die
+beiden Portmethoden samt Adapter, der Zuwachs im `CheckStoreService` und der Knopf in der
+Fußleiste.
+
+### Drei Entscheidungen
+
+**Kein `GET`.** Der Zwischenstand reist im bestehenden `GET …/pruefauftrag` mit. Ein eigener
+Abruf wäre eine zweite Worker-Anfrage gegen das Tageskontingent für Daten, die immer
+zusammen gebraucht werden – dieselbe Begründung, aus der der Prüfauftrag überhaupt ein
+einzelner Aufruf ist. Ein Test hält fest, dass `GET …/entwurf` mit 405 und
+`Allow: PUT, DELETE` antwortet.
+
+**`pruefeEntwurf()` ist absichtlich laxer als `pruefePositionen()`.** Ein Entwurf ist
+unfertig; Vollständigkeit zu verlangen hieße, ihn gar nicht speichern zu können. Streng
+bleibt, was die Zuordnung sichert: jede Artikel-Id muss in der gespeicherten Vorlage
+vorkommen, die Verfallsdatenliste muss zur Sollmenge passen, und ein Wert, dessen
+`artikelId` dem Schlüssel widerspricht, wird abgewiesen statt stillschweigend geheilt. Eine
+Momentaufnahme aus der Vorlage entsteht hier nicht – ein Entwurf ist Arbeitsstand, kein
+Nachweis.
+
+**Nur im angemeldeten Bereich.** Der ursprüngliche Plan sah auch
+`/api/oeffentlich/check/<TOKEN>/entwurf` vor; dieser Endpunkt entfällt ersatzlos, nach
+Rückfrage und Entscheidung des Nutzers. Auf der öffentlichen Seite wäre `inhaber` leer, der
+Zwischenstand also je Behälter geteilt: jeder Scan des Aufklebers könnte den halbfertigen
+Stand einer anderen Person lesen und überschreiben. Dazu wäre ein sechstes Muster im
+Access-Bypass nötig gewesen und ein unangemeldeter D1-Schreibzugriff, der keine Einreichung
+ist. **Der Bypass führt unverändert fünf Muster**; `npm run test:spa` bestätigt das.
+
+Beim Wiedereinstieg kann es beide Fassungen geben. Übernommen wird die **neuere**, die
+andere bleibt im Speicher und ist mit einem Knopf erreichbar – ohne weiteren Serveraufruf,
+weil beide bereits geladen sind. „Entwurf verwerfen" löscht jetzt **beide** Fassungen; ein
+Entwurf, der nur halb verschwindet, käme auf dem anderen Gerät wieder hoch. Das Abschließen
+eines Checks räumt den serverseitigen Stand in derselben `db.batch()`-Folge weg, in der der
+Check entsteht. Gespeichert wird nur, was sich seit dem letzten Sichern geändert hat.
+
+### Zwei nebenbei gefundene Fehler, beide behoben
+
+**Die Fußleiste war kein Antippziel.** `min-height: var(--tap-ziel)` stand nur am
+Abschließen-Knopf; der neue Knopf kam mit 32 px heraus, gemessen im Browser. Jetzt gilt die
+Mindesthöhe für alle Knöpfe der Leiste. Außerdem war auf 390 px der Sekundärknopf breiter
+als die Hauptaktion (212 px gegen 138 px), weil seine Beschriftung länger ist – genau
+verkehrt herum; auf dem Telefon teilen sich beide die Zeile jetzt zu gleichen Teilen
+(176 px zu 174 px).
+
+**Der Fortschritt behauptete „vollständig", bevor irgendetwas geprüft war.** Bei null
+geprüften Positionen zeigte der klebende Kopf eine grüne Pille „vollständig" und darunter
+„keine Abweichung" – eine Aussage über einen Check, der noch nicht stattgefunden hatte.
+Jetzt steht dort neutral „noch nichts geprüft" beziehungsweise „noch keine Eingabe". Das ist
+derselbe Fehler, der in dieser Reihe schon zweimal auftrat (beim Status „noch nie geprüft"
+der Behälterübersicht und bei „Verfallsdaten ohne Befund"); er stammt aus AP-M4b und wurde
+erst durch die Sichtprüfung dieser Runde sichtbar.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` (einschließlich `worker:check`) – erfolgreich.
+- `npm test` – 825 Angular-Tests, 29 `oeffentlich`-Tests, 712 Worker-Tests, alle grün.
+  Neu: 16 Angular-Tests (Entwurfswahl, Wechsel, kein Schreiben ohne Änderung, Fehlerfall,
+  Verwerfen beider Fassungen, `istServerEntwurfOderNull`) und 17 Worker-Tests.
+- `npm run format:check`, `npm run test:spa` (Exit 0, fünf Bypass-Muster bestätigt) und
+  `npm run deploy:dry-run` – alle erfolgreich.
+- **Gegen echtes SQLite** (`node:sqlite`, Wegwerfskript): alle zehn Migrationen angewendet
+  und die neuen Anweisungen ausgeführt. Bestätigt: `ON CONFLICT` ersetzt die Zeile statt sie
+  zu verdoppeln (zwei Speichervorgänge derselben Person, eine Zeile), der Stand einer
+  zweiten Person bleibt daneben unberührt, und `DELETE` ist idempotent (1 Zeile, dann 0).
+  Der handgeschriebene D1-Doppelgänger in den Tests kann SQL-Fehler nicht finden; dieser
+  Schritt kann es.
+- **Sichtprüfung im echten Chromium** auf 1400×900 und 390×844, gegen einen
+  Attrappen-Server: zwei Positionen abhaken → „2 von 5 geprüft"; „Zwischenstand speichern" →
+  Statuszeile „Zwischenstand gesichert · … · auf jedem Gerät fortsetzbar"; `localStorage`
+  leeren und neu laden → weiterhin „2 von 5 geprüft", Hinweis „… vom Server fortgesetzt";
+  „Verwerfen" → „0 von 5 geprüft", nach erneutem Laden kein Hinweis mehr. Mit beiden
+  Fassungen nebeneinander erscheint der Knopf auf die jeweils andere. Kein Querscroll, keine
+  Seitenfehler.
+
+### Offene Abnahmegrenzen
+
+- **Kein echter zweiter Rechner.** „Auf einem anderen Gerät fortsetzen" wurde ersatzweise
+  geprüft, indem der `localStorage` geleert und neu geladen wurde. Serverseitig ist das
+  derselbe Weg, aber es ist kein Nachweis mit zwei Geräten und zwei Browsern.
+- **Kein Lauf gegen echtes D1 und den Produktiv-Edge.** Die Sichtprüfung lief gegen einen
+  Attrappen-Server, die Worker-Logik gegen Doppelgänger und SQLite. Die Netzpolitik dieser
+  Umgebung sperrt `hiorg-wache.com`.
+- **Kein echtes Telefon.** Emuliertes Chromium auf 390×844.
+- Die übrigen Grenzen aus AP-M1 bis AP-M7 gelten unverändert weiter, darunter der fehlende
+  Aufkleberbogen, die noch nicht erweiterte Access-Bypass-Anwendung, die ungeprüfte
+  Verfallsdatumpflicht des Startbestands und die Lücke bei der Rollenvergabe.
+
+## AP-M9 – Verfallsdatumpflicht des NFR-EE-Startbestands nach einheitlicher Regel
+
+Der Betreiber hat die fachliche Festlegung durchgesehen, die im Arbeitsstand als offener
+Punkt notiert war: welche der 125 NFR-EE-Artikel `verfallsdatumPflicht` tragen.
+
+### Der Befund
+
+Meine erste Fassung war nicht nur unsicher, sondern **in sich widersprüchlich**.
+Verbandmaterial war fast vollständig markiert (Kompressen, Verbandpäckchen, Pflaster),
+steril verpacktes Einmalmaterial dagegen fast gar nicht:
+
+- **Alle 10 Endotrachealtuben und 3 Larynxtuben** trugen keine Pflicht.
+- Ebenso Spritzen, Venenkatheter, Sicherheitsvenenverweilkanülen, Kanülen, Absaugkatheter,
+  Guedeltuben, Einmalskalpell, Klimafilter, Beatmungsmasken.
+- Gleichzeitig war „Pflaster für Venenkatheter" markiert – der Katheter daneben nicht.
+
+Dazu eine sachlich falsche Markierung: die **Sauerstoffflasche mit Druckminderer** trägt
+einen Prüftermin (Druckbehälterprüfung), kein Verfallsdatum. Das ist eine andere Art von
+Fälligkeit und gehört fachlich zu den Wartungsterminen, die dieses Modul bewusst nicht
+abbildet.
+
+### Die Regel
+
+Markiert ist, was ein **aufgedrucktes Verfalls- oder Haltbarkeitsdatum trägt und verbraucht
+wird**: steriles Einmalmaterial, Flüssigkeiten und Chemikalien, unsteriles
+Verbrauchsmaterial mit Haltbarkeitsangabe. Nicht markiert sind Geräte und
+Mehrweginstrumente, Textilien ohne Sterilverpackung, Papier, Behälter und Beutel sowie
+Schienenmaterial. Das ergibt **83 statt 34** der 125 Artikel: 50 kamen dazu, eine
+(Sauerstoffflasche) fiel weg.
+
+Vier Grenzfälle sind bewusst entschieden und im Migrationskommentar begründet: das
+**Blutzuckermessgerät** bleibt markiert, weil die 15 Safety-Lanzetten derselben Zeile
+verfallen (die Zeile wird nicht aufgeteilt, sie stammt so aus der Vorlage); die
+**Blockerspritzen** der Tubensätze und der **Einmalrasierer** bleiben unmarkiert; die
+**Beatmungsbeutel „ggf. Einweg"** werden markiert, weil bei der Mehrwegvariante das Feld
+einfach leer bleibt.
+
+### Was das den Check kostet
+
+Die Zahl der einzelnen Monatsfelder steigt von **115 auf 222** – die Summe der Sollmengen
+aller markierten Artikel. Das ist der ehrliche Preis der Konsistenz. Abgefedert ist er
+dreifach, und keine dieser Abfederungen musste dafür geändert werden: eine Markierung
+erzwingt **keine** Eingabe (ein nicht erfasstes Feld bleibt `null`, der Check lässt sich
+trotzdem abschließen), der globale Schalter blendet die Verfallsdatenerfassung vollständig
+aus, und je Artikel gibt es „für alle Stück übernehmen". Sichtbar wird die Änderung vor
+allem in der Fortschrittspille, die künftig „n von 222 Verfallsdaten" nennt.
+
+### Umsetzung
+
+Migration 0010 war zu diesem Zeitpunkt noch nicht auf echtes D1 angewendet, der
+Startbestand wurde deshalb **direkt geändert** – eine Nachtragsmigration hätte einen
+Zustand korrigiert, den es nirgends gab. (Seit dem 2026-09-22 ist sie angewendet; dieser
+Weg steht damit nicht mehr offen, siehe den Nachtrag am Ende.) Die Artikel-Ids laufen durch von `…000000000001` bis `…125`; geändert wurde
+gezielt je Id, nicht durch Neuschreiben des JSON-Literals. Kein Code, kein Test und keine
+Oberfläche war betroffen: `verfallsdatumPflicht` ist ein Datenfeld der Vorlage, und die
+Worker-Tests bauen ihre eigene Vorlage statt den Startbestand zu lesen.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- **Ergebnis zurückgelesen statt nachgezählt:** ein Wegwerfskript liest den Startbestand
+  aus der Migration und zählt je Fach. Erwartet und bestätigt: 18 / 13 / 20 / 2 / 1 / 3 /
+  2 / 0 / 0 / 9 / 15 = 83 Artikel, 222 Monatsfelder.
+- **Gegen echtes SQLite** (`node:sqlite`): alle zehn Migrationen angewendet und die Vorlage
+  aus der Datenbank zurückgelesen – 11 Fächer, 125 Artikel, 83 markiert, 222 Monatsfelder,
+  Artikel-Ids eindeutig. Damit ist belegt, dass das geänderte JSON-Literal gültiges SQL und
+  gültiges JSON geblieben ist; ein verunglücktes Anführungszeichen wäre sonst erst beim
+  echten Anwenden aufgefallen. Stichproben aus dem Datenbankinhalt: Endotrachealtubus 7,0
+  und Venenkatheter rosa markiert, Sauerstoffflasche, Magillzange und Dreiecktuch nicht.
+- `npm run build`, `npm test`, `npm run format:check`, `npm run worker:check`,
+  `npm run worker:test`, `npm run test:spa`, `npm run deploy:dry-run` – alle erfolgreich.
+- **Sichtprüfung im echten Chromium** auf 1400×900 und 390×844.
+
+### Offene Abnahmegrenzen
+
+- **Die Regel ist abgestimmt, die Einzelfälle sind es nicht.** Der Betreiber hat die Regel
+  gewählt, nicht jeden der 125 Artikel einzeln bestätigt. Wo ein Artikel in der Praxis
+  anders gehandhabt wird, ist er in der Oberfläche zu korrigieren – dafür ist die
+  Vorlagenpflege da.
+- **Prüftermine sind kein Thema dieses Moduls.** Die Sauerstoffflasche hat ihre Markierung
+  verloren, ohne dass ihre Druckbehälterprüfung irgendwo anders aufgehoben wäre. Fahrzeuge
+  haben Wartungstermine, Behälter nicht; ob sie welche brauchen, ist fachlich zu klären.
+- Die übrigen Grenzen aus AP-M1 bis AP-M8 gelten unverändert weiter.
+
+## Migration 0010 auf die Produktivdatenbank angewendet – 2026-09-22
+
+Die letzte offene Migration ist angewendet. Damit entfällt die Abnahmegrenze „Migration 0010
+ist gegen SQLite und gegen den D1-Doppelgänger geprüft, aber nicht angewendet", die seit
+AP-M1 im Arbeitsstand stand.
+
+### Weg: Cloudflare-Connector statt `wrangler d1 execute`
+
+`worker/README.md` nennt `npx wrangler d1 execute --remote --file` als den Weg, und so lief
+auch Migration 0007 am 2026-09-19. **In dieser Umgebung ist Wrangler nicht angemeldet**
+(`wrangler whoami` meldet „not authenticated"), und `wrangler login` braucht einen
+interaktiven Browser, den der Container nicht hat. Angewendet wurde deshalb über den
+Cloudflare-Connector (`d1_database_query`) gegen
+`stationwizard-fahrzeuge` / `698facb9-4c99-45de-8879-d262c2144144` – dieselbe UUID, die in
+`worker/wrangler.toml` steht. Der dokumentierte `d1 execute`-Weg bleibt der führende; dies
+ist die Notiz eines zweiten Wegs, kein Ersatz.
+
+**Kein `wrangler d1 migrations apply`**, und das ist keine Bequemlichkeit: die zehn Dateien
+in `worker/migrations/` gehören zu **drei** Datenbanken (0004/0005 zu
+`stationwizard-benutzer`, 0008/0009 zu `stationwizard-angebotswesen`, der Rest zu
+`stationwizard-fahrzeuge`), und `wrangler.toml` setzt bewusst kein `migrations_dir`. Ein
+`migrations apply` würde alle zehn Dateien auf eine einzige Datenbank werfen.
+
+Angewendet wurde **Anweisung für Anweisung** (elf Stück), nicht die Datei am Stück: die
+D1-Query-API führt mehrere Anweisungen sequenziell und nicht atomar aus, und 0010 ist nicht
+idempotent (`CREATE TABLE` ohne `IF NOT EXISTS`, einfaches `INSERT`). Bei einem Abbruch in
+der Mitte hätte sonst niemand sagen können, wo. Der Startbestand ging als **gebundener
+Parameter** statt als SQL-Literal hinein, damit die Anführungszeichen-Maskierung keine
+Fehlerquelle ist.
+
+### Vorher geprüft
+
+Vor dem ersten Schreibzugriff lesend erhoben: `stationwizard-fahrzeuge` trug `fahrzeuge`,
+`ablesungen`, `fahrzeug_aenderungen` und `ablesung_einreichungen` samt Indizes und die
+Spalte `gruppe` – also 0001, 0002, 0003, 0006 und 0007. **Keine** der fünf Tabellen aus 0010
+existierte; 0010 war nachweislich offen und kein zweites Mal angewendet worden.
+
+### Tatsächlich ausgeführte Prüfungen, nach dem Lauf
+
+- **Objekte vollzählig:** `sqlite_master` listet `pruefvorlagen`, `behaelter`,
+  `materialchecks`, `check_einreichungen`, `check_entwuerfe` sowie die vier neuen Indizes.
+  Die vorher vorhandenen Tabellen und Indizes stehen unverändert daneben.
+- **Startbestand korrekt angekommen:** eine Abfrage über `json_each` auf der echten
+  Datenbank ergibt **11 Fächer, 125 Artikel, 125 eindeutige Artikel-Ids, 83 markiert,
+  222 Monatsfelder**, `json_valid = 1`, `version = 1`, `geaendert_von = 'migration'`. Das
+  sind genau die Zahlen, die in AP-M9 gegen lokales SQLite belegt wurden.
+- **Übertragung unverfälscht:** das JSON wurde beim Senden neu getippt, deshalb zusätzlich
+  `length(inhalt)` und drei `substr`-Stichproben (Position 1, 10 000 und 21 418) gegen die
+  Datei im Repository verglichen – 21 477 Zeichen, alle drei Stichproben zeichengleich.
+- **Bestand unberührt:** weiterhin 23 Fahrzeuge, 37 Ablesungen, 59 Protokolleinträge,
+  0 offene Kilometermeldungen. Die vier neuen Folgetabellen sind erwartungsgemäß leer.
+
+### Was sich dadurch ändert – und was nicht
+
+- **Migration 0010 ist ab jetzt eingefroren.** Bis eben durfte die Datei geändert werden
+  (AP-M9 hat genau das getan); ab jetzt läuft jede Korrektur am Startbestand über die
+  Vorlagenpflege in der Oberfläche oder über eine Migration 0011. Die Regel für
+  `verfallsdatumPflicht` ist mit dem Betreiber abgestimmt, die **einzelnen 125 Artikel** sind
+  es nicht – Abweichungen sind künftig in der Oberfläche zu korrigieren.
+- **Kein Deployment.** Der produktiv laufende Worker ist weiterhin der alte, ohne
+  Materialmodul. Die Tabellen stehen bereit, ohne dass etwas sie benutzt. Das ist die
+  richtige Reihenfolge (Schema vor Code), aber die Materialverwaltung ist dadurch **nicht**
+  live.
+- **Access unverändert.** Die Bypass-Anwendung für `/c/*` ist nicht eingerichtet; der
+  öffentliche Fahrzeugcheck verlangt bis dahin eine Anmeldung.
+- Die übrigen Abnahmegrenzen aus AP-M1 bis AP-M9 gelten unverändert weiter, darunter der
+  fehlende Aufkleberbogen, der fehlende Test am echten Telefon und die Lücke bei der
+  Rollenvergabe.
+
+## NFR-EE-Daten aus dem Prototyp verifiziert, Beschreibung ergänzt, Behälter für die realen Fahrzeuge angelegt – 2026-09-22
+
+Auftrag: „Migriere die Daten aus dem HTML in die App" – gemeint das ursprünglich
+hochgeladene `11e72f8b-nfr-ee-checkliste.html`, dessen `DATA`-Array Grundlage des
+NFR-EE-Startbestands war.
+
+### Programmatischer Abgleich statt Vertrauen auf die Handarbeit von AP-M1
+
+Das `DATA`-Array wurde per Node-Skript sicher aus der Original-HTML-Datei ausgewertet (kein
+Browserkontext nötig, reine Array-Literale) und **Feld für Feld** – Bezeichnung, Sollmenge,
+Einheit, Herkunft, über alle 125 Artikel – gegen die in Migration 0010 stehende und bereits
+auf `stationwizard-fahrzeuge` angewendete Prüfvorlage verglichen. **Ergebnis: keine einzige
+Abweichung.** Das war bisher nur einmal beim Bau der Migration von Hand geprüft; jetzt zum
+ersten Mal automatisiert bestätigt.
+
+### Eine Lücke gefunden und behoben: die Kopfzeile
+
+Die gespeicherte `beschreibung` der Vorlage war gegenüber der HTML-Unterzeile gekürzt: Es
+fehlte „— antippen zum Abhaken, Menge bei Bedarf korrigieren." Per `UPDATE` auf der
+Produktivdatenbank ergänzt (optimistisch gegen `version = 1` geschrieben, `version` dabei
+auf 2 erhöht). Rein kosmetischer Text ohne fachliche Wirkung, aber Teil dessen, was „im
+HTML" stand und noch nicht vollständig übernommen war.
+
+### Die zweite Datenquelle im Prototyp: die Rucksack-/Fahrzeugauswahl
+
+Der Prototyp hat neben der Checkliste noch die `VEHICLES`-Liste für die Rucksackauswahl
+(„KTW-B 01", „KTW-B 02", „GW SAN 01" … „GW SAN 10"). Diese Liste ist im Prototyp selbst
+**irreführend benannt** – sie tut so, als gäbe es zehn verschiedene Fahrzeuge „GW SAN 01"
+bis „GW SAN 10". Das war exakt das Missverständnis, das zu Beginn dieses Projekts geklärt
+wurde: „GW SAN 03 ist der NFR 3 auf dem 72 GW SAN 01 (insgesamt hat der 10 Stück). Die
+KTW-B haben jeweils einen NFR." Es gibt **ein** Fahrzeug GW SAN mit zehn Behältern (NFR 1–10)
+und zwei KTW-B mit je einem Behälter – exakt das Datenmodell, das `behaelter.fahrzeug_id`
+abbildet.
+
+Ein Abgleich gegen die echten Fahrzeuge in `stationwizard-fahrzeuge` ergab einen
+**eindeutigen, unambigen Treffer** für alle drei:
+
+| Prototyp-Bezeichnung | Reales Fahrzeug    | Funkrufname        |
+| -------------------- | ------------------ | ------------------ |
+| GW SAN 01…10         | GW Sanintätsdienst | 72 GW-SAN 01       |
+| KTW-B 01             | KTW-B Land         | JUH BI 72 KTW-B 01 |
+| KTW-B 02             | KTW-B 02 Bund      | 72 KTW-B 02        |
+
+Daraufhin wurden **12 Behälter** angelegt, alle mit `vorlage_id` der NFR-EE-Vorlage,
+`check_token IS NULL` (kein Aufkleber-Token vergeben – das bleibt ein gesonderter Schritt
+über die Oberfläche, sobald der Worker deployt ist), `bemerkung = ''`, `version = 1`:
+
+- **GW Sanintätsdienst**: 10 Behälter „NFR 1" … „NFR 10".
+- **KTW-B Land** und **KTW-B 02 Bund**: je 1 Behälter „NFR" (kein Suffix – es gibt nur
+  einen, eine Nummerierung wäre eine erfundene Unterscheidung ohne Gegenstück).
+
+Angelegt als **ein** `INSERT … VALUES` mit zwölf Wertetupeln über den
+Cloudflare-Connector, gebundene Parameter statt SQL-Literale – dasselbe Vorgehen wie beim
+Anwenden von Migration 0010.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Zurückgelesen: 12 Behälter, korrekt verteilt (10× GW Sanintätsdienst, je 1× beide KTW-B),
+  alle mit der richtigen `vorlage_id`, alle `check_token IS NULL`, alle `version = 1`.
+- Bestand unberührt: weiterhin 23 Fahrzeuge, 37 Ablesungen, 59 Protokolleinträge.
+- Kein Code, kein Test, keine Migrationsdatei geändert – reine Produktivdaten.
+
+### Was noch aussteht
+
+- **Keine Prüftoken vergeben.** QR-Aufkleber für die zwölf Behälter sind ein gesonderter
+  Schritt über die Oberfläche, sobald der Worker deployt ist.
+- Alle übrigen Abnahmegrenzen aus AP-M1 bis AP-M9 gelten unverändert weiter.

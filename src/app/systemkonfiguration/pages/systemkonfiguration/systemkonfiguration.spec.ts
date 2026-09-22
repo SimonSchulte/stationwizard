@@ -10,6 +10,11 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     kmBerichtEmpfaenger: 'leitung@example.test',
     kmBerichtVersandweg: 'email-routing',
     kmBerichtBetreff: 'Kilometerstandsbericht',
+    materialBestellscheinEmpfaenger: '',
+    materialMaengelLandEmpfaenger: '',
+    materialMaengelSegEmpfaenger: '',
+    materialVersandweg: 'email-routing',
+    materialBetreff: 'Materialmeldung',
     ...ueberschreibung,
   };
 }

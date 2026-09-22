@@ -1,0 +1,74 @@
+<mat-toolbar class="listen-kopfleiste">
+  <a mat-icon-button routerLink="/verwaltung" aria-label="Zurück zur Verwaltung">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <mat-icon class="kopfleiste-icon" aria-hidden="true">checklist</mat-icon>
+  <span class="toolbar-title">Prüfvorlagen</span>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="neueVorlage()">
+    <mat-icon>add</mat-icon> Neue Vorlage
+  </button>
+</mat-toolbar>
+
+<div class="listen-inhalt">
+  <p class="beschreibung">
+    Eine Prüfvorlage ist die Soll-Liste eines Behältertyps: Fächer, Artikel, Sollmengen und die
+    Herkunft. Sie wird beim Check als Momentaufnahme mitgespeichert – eine spätere Änderung hier
+    verändert deshalb keinen bereits durchgeführten Check.
+  </p>
+
+  <label class="suchfeld">
+    <span class="visuell-versteckt">Vorlagen durchsuchen</span>
+    <input
+      type="search"
+      placeholder="Vorlage suchen …"
+      [value]="suche()"
+      (input)="suche.set($any($event.target).value)"
+    />
+  </label>
+
+  @if (laedt()) {
+    <p role="status">Prüfvorlagen werden geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+  @if (loeschFehler()) {
+    <p class="error-hint" role="alert">{{ loeschFehler() }}</p>
+  }
+
+  @if (!laedt() && !fehler() && gefiltert().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon" aria-hidden="true">checklist</mat-icon>
+      <p class="empty-hint">
+        @if (suche()) {
+          Keine Vorlage passt zur Suche.
+        } @else {
+          Noch keine Prüfvorlage angelegt.
+        }
+      </p>
+    </div>
+  } @else {
+    <ul class="vorlagen">
+      @for (kopf of gefiltert(); track kopf.id) {
+        <li class="vorlage">
+          <a class="vorlage-zeile" [routerLink]="['/material/vorlagen', kopf.id]">
+            <span class="vorlage-bezeichnung">{{ kopf.bezeichnung }}</span>
+            <span class="vorlage-umfang">
+              {{ kopf.anzahlFaecher }} Fächer · {{ kopf.anzahlArtikel }} Artikel
+            </span>
+            <span class="vorlage-geaendert">{{ kopf.geaendertAm | date: 'dd.MM.yyyy' }}</span>
+          </a>
+          <button
+            mat-icon-button
+            [disabled]="loeschtId() === kopf.id"
+            (click)="vorlageLoeschen(kopf)"
+            [attr.aria-label]="'Prüfvorlage ' + kopf.bezeichnung + ' löschen'"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

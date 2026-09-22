@@ -227,10 +227,21 @@ Kommentar in der Migrationsdatei.
 
 Migrationen werden nicht automatisch angewendet (kein `wrangler d1 migrations apply`,
 kein CI-Schritt) – jede neue Datei in `worker/migrations/` muss hier **und** gegen die
-bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden. Ein
+bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden.
+`migrations apply` ist dabei kein Versehen, sondern ausgeschlossen: die Dateien gehören zu
+**drei** Datenbanken, und `wrangler.toml` setzt deshalb bewusst kein `migrations_dir` – ein
+`migrations apply` würde alle Dateien auf eine einzige Datenbank werfen. Ein
 Vergessen bleibt sonst unbemerkt: `SELECT *` liefert weiterhin Zeilen, nur ohne die neue
 Spalte, und eine clientseitige Prüfung kann dadurch scheinbar leere Listen zeigen, obwohl
 die Daten unverändert in D1 liegen.
+
+Ist Wrangler nicht angemeldet (in einer Arbeitsumgebung ohne interaktiven Browser lässt
+sich `wrangler login` nicht ausführen), lässt sich eine Migration auch über den
+Cloudflare-Connector anwenden – Anweisung für Anweisung, weil die D1-Query-API mehrere
+Anweisungen sequenziell und nicht atomar ausführt und die Migrationen nicht idempotent sind
+(`CREATE TABLE` ohne `IF NOT EXISTS`). Große Textwerte dabei als gebundenen Parameter
+übergeben statt als SQL-Literal. Der Weg über `d1 execute --file` bleibt der führende; so
+wurde 0010 am 2026-09-22 angewendet, siehe `docs/arbeitsstand.md`.
 
 Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 

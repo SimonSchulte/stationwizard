@@ -1,0 +1,179 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+  margin-right: var(--space-sm);
+}
+
+.toolbar-title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.listen-inhalt {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.beschreibung {
+  color: var(--text-secondary);
+  max-width: 70ch;
+  margin-top: 0;
+}
+
+.kennzahlen {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.suchfeld {
+  display: block;
+  margin-bottom: var(--space-md);
+
+  input {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--space-sm) var(--space-base);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font: inherit;
+  }
+}
+
+.visuell-versteckt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) 0;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--text-disabled);
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.fahrzeug {
+  margin-bottom: var(--space-lg);
+}
+
+.fahrzeug-titel {
+  font-size: 1rem;
+  margin: 0 0 var(--space-sm);
+  padding-bottom: var(--space-2xs);
+  border-bottom: 2px solid var(--border-light);
+}
+
+.behaelter {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.behaelter-zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.check-knopf {
+  flex: none;
+  min-height: var(--tap-ziel);
+}
+
+.behaelter-link {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--space-md);
+  padding: var(--space-base) var(--space-sm);
+  color: inherit;
+  text-decoration: none;
+  // Große Trefferfläche, damit die Zeile auch auf dem Tablet sicher zu treffen ist.
+  min-height: 48px;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.behaelter-name {
+  font-weight: 600;
+}
+
+.behaelter-vorlage,
+.behaelter-stand {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.behaelter-befund {
+  font-size: var(--font-size-sm);
+  color: var(--status-ok);
+  white-space: nowrap;
+
+  &.beanstandet {
+    color: var(--status-warn);
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 780px) {
+  .listen-inhalt {
+    padding: var(--space-md);
+  }
+
+  .behaelter-link {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xs);
+  }
+
+  .behaelter-befund {
+    white-space: normal;
+  }
+}

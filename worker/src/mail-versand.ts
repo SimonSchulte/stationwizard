@@ -289,3 +289,23 @@ class ResendVersand implements MailVersand {
     }
   }
 }
+
+/**
+ * Fester Code und Status je Fehlergrund. Die Oberfläche bekommt vom
+ * `WorkerClient` nur Status und Diagnosecode zu sehen, nicht den Meldungstext
+ * – ohne eigenen Code je Ursache wäre ein abgelaufenes Token von einem
+ * Netzwerkausfall nur im Worker-Log zu unterscheiden.
+ *
+ * Liegt hier und nicht beim Kilometerbericht: die Zuordnung ist Mailfachlichkeit
+ * und gilt für jeden Bericht, der über diesen Vertrag versendet wird.
+ */
+export const VERSANDFEHLER_ANTWORTEN: Record<VersandFehlerGrund, { code: string; status: number }> =
+  {
+    'konfiguration-fehlt': { code: 'MAIL_VERSANDWEG_NICHT_EINGERICHTET', status: 503 },
+    zeitlimit: { code: 'MAIL_VERSAND_ZEITLIMIT', status: 504 },
+    'nicht-erreichbar': { code: 'MAIL_VERSAND_NICHT_ERREICHBAR', status: 502 },
+    umleitung: { code: 'MAIL_VERSAND_UMLEITUNG', status: 502 },
+    'zugang-abgelehnt': { code: 'MAIL_VERSAND_ZUGANG_ABGELEHNT', status: 502 },
+    abgelehnt: { code: 'MAIL_VERSAND_ABGELEHNT', status: 502 },
+    upstream: { code: 'MAIL_VERSAND_FEHLGESCHLAGEN', status: 502 },
+  };

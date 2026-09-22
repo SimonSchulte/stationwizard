@@ -1,0 +1,138 @@
+<mat-toolbar class="listen-kopfleiste">
+  <a mat-icon-button routerLink="/aufgaben" aria-label="Zurück zu den offenen Aufgaben">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <mat-icon class="kopfleiste-icon" aria-hidden="true">fact_check</mat-icon>
+  <span class="toolbar-title">Fahrzeugchecks freigeben</span>
+</mat-toolbar>
+
+<div class="listen-inhalt">
+  <p class="beschreibung">
+    Per QR-Code gemeldete Prüfungen. Sie zählen erst nach der Freigabe: bis dahin ändern sie nichts
+    am gespeicherten Stand. Als erfassende Person wird bei der Freigabe die freigebende geprüfte
+    Identität eingetragen, der selbst angegebene Name bleibt daneben erhalten.
+  </p>
+
+  @if (laedt()) {
+    <p role="status">Meldungen werden geladen …</p>
+  }
+  @if (fehler()) {
+    <p class="error-hint" role="alert">{{ fehler() }}</p>
+  }
+  @if (meldung()) {
+    <p class="meldung" role="status">{{ meldung() }}</p>
+  }
+
+  @if (!laedt() && offene().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-state-icon" aria-hidden="true">inbox</mat-icon>
+      <p class="empty-hint">Keine offenen Meldungen.</p>
+    </div>
+  } @else {
+    <div class="werkzeuge">
+      <mat-checkbox [checked]="alleAusgewaehlt()" (change)="store.alleUmschalten()">
+        Alle auswählen
+      </mat-checkbox>
+    </div>
+
+    <ul class="meldungen">
+      @for (eintrag of offene(); track eintrag.id) {
+        <li class="meldung-karte">
+          <div class="karte-kopf">
+            <mat-checkbox
+              [checked]="istAusgewaehlt(eintrag.id)"
+              (change)="store.auswahlUmschalten(eintrag.id)"
+              [attr.aria-label]="'Meldung ' + eintrag.behaelterBezeichnung + ' auswählen'"
+            />
+            <div class="karte-text">
+              <span class="karte-titel">
+                {{ eintrag.behaelterBezeichnung }} · {{ eintrag.fahrzeugBezeichnung }}
+              </span>
+              <span class="karte-neben">
+                {{ eintrag.positionenGeprueft }} von {{ eintrag.positionenGesamt }} geprüft ·
+                gemeldet von {{ eintrag.eingereichtVonName }} ·
+                {{ eintrag.eingereichtAm | date: 'dd.MM.yyyy, HH:mm' }}
+              </span>
+              @if (eintrag.bemerkung) {
+                <span class="karte-bemerkung">„{{ eintrag.bemerkung }}"</span>
+              }
+            </div>
+            <span class="befund" [class.beanstandet]="istBeanstandet(eintrag)">
+              {{ befunde(eintrag) }}
+            </span>
+          </div>
+
+          <div class="karte-aktionen">
+            @if (aufgeklappt().has(eintrag.id)) {
+              <button mat-button (click)="zuklappen(eintrag.id)">Abweichungen verbergen</button>
+            } @else {
+              <button mat-button (click)="aufklappen(eintrag.id)">Abweichungen ansehen</button>
+            }
+            @if (ablehnungFuer() !== eintrag.id) {
+              <button mat-button (click)="ablehnungBeginnen(eintrag.id)">Ablehnen</button>
+            }
+          </div>
+
+          @if (aufgeklappt().has(eintrag.id)) {
+            @if (abweichungen(eintrag.id).length === 0) {
+              <p class="empty-hint">Keine Abweichung – der Behälter war vollständig.</p>
+            } @else {
+              <ul class="abweichungen">
+                @for (position of abweichungen(eintrag.id); track position.artikelId) {
+                  <li>
+                    <span class="herkunft" [class]="'herkunft h-' + position.herkunft">
+                      {{ herkunftLabel[position.herkunft] }}
+                    </span>
+                    <span class="position-name">{{ position.bezeichnung }}</span>
+                    <span class="position-befund">{{ befundEinerPosition(position) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          }
+
+          @if (ablehnungFuer() === eintrag.id) {
+            <div class="ablehnung">
+              <label>
+                <span>Grund der Ablehnung</span>
+                <textarea
+                  rows="2"
+                  [value]="ablehnungsgrund()"
+                  (input)="ablehnungsgrund.set($any($event.target).value)"
+                ></textarea>
+              </label>
+              <div class="ablehnung-aktionen">
+                <button mat-button (click)="ablehnungAbbrechen()">Abbrechen</button>
+                <button
+                  mat-raised-button
+                  color="primary"
+                  [disabled]="!ablehnungsgrund().trim() || arbeitet()"
+                  (click)="ablehnungBestaetigen(eintrag)"
+                >
+                  Ablehnen
+                </button>
+              </div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@if (hatAuswahl()) {
+  <div class="fussleiste">
+    <button mat-raised-button color="primary" [disabled]="arbeitet()" (click)="freigeben()">
+      @if (arbeitet()) {
+        Wird freigegeben …
+      } @else {
+        {{ anzahlAusgewaehlt() }}
+        @if (anzahlAusgewaehlt() === 1) {
+          Prüfung freigeben
+        } @else {
+          Prüfungen freigeben
+        }
+      }
+    </button>
+  </div>
+}

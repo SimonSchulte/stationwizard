@@ -7,6 +7,12 @@
     "outDir": "../out-tsc/oeffentlich",
     "types": []
   },
-  "include": ["src/**/*.ts", "../src/app/kern/kalender/datum.ts"],
+  "include": [
+    "src/**/*.ts",
+    "../src/app/kern/kalender/datum.ts",
+    "../src/app/material/models/pruefvorlage.model.ts",
+    "../src/app/material/models/check.model.ts",
+    "../src/app/material/services/check-status.ts"
+  ],
   "exclude": ["src/**/*.spec.ts"]
 }

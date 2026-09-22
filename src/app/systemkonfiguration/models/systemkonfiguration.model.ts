@@ -32,7 +32,23 @@ export interface Einstellungen {
   kmBerichtEmpfaenger: string;
   kmBerichtVersandweg: Versandweg;
   kmBerichtBetreff: string;
+  /**
+   * Standardempfänger der Materialberichte. Sie sind im Sendedialog vorbelegt
+   * und dort überschreibbar; ändern darf sie serverseitig nur die Zugführung
+   * oder die Gruppenführung Sanität (`worker/src/systemkonfiguration.ts`).
+   */
+  materialBestellscheinEmpfaenger: string;
+  materialMaengelLandEmpfaenger: string;
+  materialMaengelSegEmpfaenger: string;
+  materialVersandweg: Versandweg;
+  materialBetreff: string;
 }
+
+/**
+ * Hauptrollen, die die Materialeinstellungen ändern dürfen. Reine
+ * Einblendregel – durchgesetzt wird sie im Worker.
+ */
+export const MATERIAL_ROLLEN: readonly string[] = ['zugfuehrung', 'gruppenfuehrung-sanitaet'];
 
 /** Ob ein Versandweg am Worker tatsächlich eingerichtet ist. */
 export interface VersandwegStatus {

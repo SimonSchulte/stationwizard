@@ -1,0 +1,85 @@
+.fortschritt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-base);
+  flex-wrap: wrap;
+}
+
+.ring {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  transform: rotate(-90deg);
+}
+
+.ring-spur {
+  fill: none;
+  stroke: var(--border-light);
+  stroke-width: 3;
+}
+
+.ring-fuellung {
+  fill: none;
+  stroke: var(--status-ok);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--transition-normal) ease;
+}
+
+.ring-text {
+  // Der Ring selbst ist gedreht; die Beschriftung wird zurückgedreht.
+  transform: rotate(90deg);
+  transform-origin: 18px 18px;
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--text-primary);
+}
+
+.zaehler {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.zaehler-haupt {
+  font-weight: 600;
+}
+
+.zaehler-neben {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.pillen {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.pille {
+  padding: var(--space-2xs) var(--space-base);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--status-ok-bg);
+  color: var(--status-ok);
+
+  &.warnung,
+  &.verfall-warnung {
+    background: var(--status-warn-bg);
+    color: var(--status-warn);
+  }
+
+  // Neutral statt grün, solange nichts erfasst ist: dieselbe Stufe für den
+  // Befund der Positionen wie für die Verfallsdaten.
+  &.offen,
+  &.verfall-offen {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+  }
+
+  &.verfall-abgelaufen {
+    background: var(--status-error-bg);
+    color: var(--status-error);
+  }
+}

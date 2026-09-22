@@ -1,0 +1,103 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.detail-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+  margin-right: var(--space-sm);
+}
+
+.toolbar-title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.detail-inhalt {
+  padding: var(--space-lg);
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.stammdaten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+}
+
+.hinweis {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.pruefung {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.check-starten {
+  min-height: var(--tap-ziel);
+}
+
+.qr {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.qr-bild {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  margin: var(--space-base) 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+}
+
+.qr-ziel {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin: 0 0 var(--space-base);
+}
+
+.gefahrenzone {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}
+
+@media (max-width: 780px) {
+  .detail-inhalt {
+    padding: var(--space-md);
+  }
+
+  .toolbar-title {
+    flex: 1 0 100%;
+  }
+}

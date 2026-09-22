@@ -77,6 +77,37 @@
   --status-warn: #e65100;
   --status-error: #c62828;
 
+  /*
+   * Flächige Entsprechungen der Statusfarben, für Pillen und hinterlegte
+   * Zeilen. Eingeführt mit der Materialverwaltung (Fahrzeugcheck), wo
+   * Fortschritt, Fehlmengen und Verfallsdaten nebeneinander lesbar bleiben
+   * müssen; zentral hier, damit keine Komponente eigene Flächenfarben erfindet.
+   */
+  --status-ok-bg: #e7f4ea;
+  --status-warn-bg: #fbeee0;
+  --status-error-bg: #fbe4e9;
+
+  /*
+   * Eigene Stufe zwischen "ok" und "Fehler": ein Verfallsdatum, das innerhalb
+   * der Warnfrist liegt, ist noch verwendbar, aber nachzubestellen.
+   */
+  --verfall-warn: #9a6a00;
+  --verfall-warn-bg: #fff3d6;
+
+  /* Herkunft eines Artikels: SEG-Liste, Landesliste oder beide. */
+  --herkunft-seg-bg: #e6e9f5;
+  --herkunft-seg-text: #3b4a9e;
+  --herkunft-land-bg: #e3f2ec;
+  --herkunft-land-text: #0f7a52;
+  --herkunft-beide-bg: #f3e6f7;
+  --herkunft-beide-text: #7a2ea3;
+
+  /*
+   * Mindestgröße einer Trefferfläche am Finger. Als Token, weil die Regel im
+   * Fahrzeugcheck an einem Dutzend Stellen und in beiden Build-Zielen gilt.
+   */
+  --tap-ziel: 48px;
+
   /* Spacing */
   --space-unit: 1px;
   --space-2xs: 2px;

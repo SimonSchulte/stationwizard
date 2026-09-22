@@ -1,0 +1,256 @@
+.zeile {
+  border-bottom: 1px solid var(--border-light);
+  border-left: 4px solid transparent;
+  padding: var(--space-xs) var(--space-sm);
+
+  &.geprueft {
+    background: var(--status-ok-bg);
+  }
+
+  &.abweichend {
+    background: var(--status-warn-bg);
+  }
+
+  &.bald {
+    border-left-color: var(--verfall-warn);
+  }
+
+  &.abgelaufen {
+    border-left-color: var(--status-error);
+  }
+}
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+// Die ganze Zeile hakt ab, nicht nur das Kästchen: am Finger ist das der
+// Unterschied zwischen zügig und mühsam.
+.haken-flaeche {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap-ziel);
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.haken {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-compact);
+  border: 2px solid var(--border-medium);
+  background: var(--surface-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--surface-primary);
+  }
+}
+
+.geprueft .haken {
+  background: var(--status-ok);
+  border-color: var(--status-ok);
+}
+
+.text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  line-height: 1.35;
+}
+
+.herkunft {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 1px var(--space-compact);
+  border-radius: var(--radius-xs);
+  margin-right: var(--space-xs);
+  vertical-align: middle;
+  text-transform: uppercase;
+
+  &.h-seg {
+    background: var(--herkunft-seg-bg);
+    color: var(--herkunft-seg-text);
+  }
+
+  &.h-land {
+    background: var(--herkunft-land-bg);
+    color: var(--herkunft-land-text);
+  }
+
+  &.h-beide {
+    background: var(--herkunft-beide-bg);
+    color: var(--herkunft-beide-text);
+  }
+}
+
+.soll {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.fehlt {
+  color: var(--status-warn);
+}
+
+.menge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex: none;
+}
+
+.mengenknopf {
+  width: var(--tap-ziel);
+  height: var(--tap-ziel);
+  border: 1px solid var(--border-medium);
+  background: var(--surface-primary);
+  border-radius: var(--radius-md);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-primary);
+  touch-action: manipulation;
+}
+
+.mengenfeld {
+  width: 56px;
+  height: var(--tap-ziel);
+  text-align: center;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  // 16px verhindert, dass iOS beim Fokussieren hineinzoomt.
+  font-size: 1rem;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+}
+
+.unbrauchbar {
+  flex: none;
+  width: var(--tap-ziel);
+  height: var(--tap-ziel);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+
+  &.aktiv {
+    background: var(--status-error);
+    border-color: var(--status-error);
+    color: var(--surface-primary);
+  }
+}
+
+.verfall {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0 var(--space-sm) calc(26px + var(--space-sm));
+}
+
+.verfall-feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.verfall-label {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.monat {
+  min-height: var(--tap-ziel);
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 1rem;
+
+  &.monat-laeuft-ab {
+    border-color: var(--verfall-warn);
+    background: var(--verfall-warn-bg);
+    color: var(--verfall-warn);
+  }
+
+  &.monat-abgelaufen {
+    border-color: var(--status-error);
+    background: var(--status-error-bg);
+    color: var(--status-error);
+  }
+}
+
+.uneinheitlich {
+  font-size: var(--font-size-sm);
+  color: var(--status-warn);
+  align-self: center;
+}
+
+.uebernehmen {
+  min-height: var(--tap-ziel);
+  padding: 0 var(--space-base);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .kopf {
+    flex-wrap: wrap;
+  }
+
+  // Auf dem Telefon bekommt der Name die volle Breite, Menge und Meldeknopf
+  // rutschen darunter – nie in einen waagerechten Lauf.
+  .haken-flaeche {
+    flex: 1 0 100%;
+  }
+
+  .menge {
+    margin-left: calc(26px + var(--space-sm));
+  }
+
+  .verfall {
+    padding-left: 0;
+  }
+}

@@ -2,11 +2,12 @@
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <title>Kilometerstand melden</title>
+    <title>Johanniter</title>
     <!--
-      Absolute Basis, weil die Seite unter /e/<token> ausgeliefert wird: die
-      Skript- und Stilverweise müssen auf /oeffentlich/ zeigen, nicht auf den
-      Aufrufpfad.
+      Absolute Basis, weil die Seiten unter /e/<token> und /c/<token>
+      ausgeliefert werden: die Skript- und Stilverweise müssen auf
+      /oeffentlich/ zeigen, nicht auf den Aufrufpfad. Der Titel wird zur
+      Laufzeit gesetzt, je nachdem welche Seite erscheint.
     -->
     <base href="/oeffentlich/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,6 +15,6 @@
     <meta name="robots" content="noindex, nofollow" />
   </head>
   <body>
-    <oeff-meldung></oeff-meldung>
+    <oeff-seite></oeff-seite>
   </body>
 </html>

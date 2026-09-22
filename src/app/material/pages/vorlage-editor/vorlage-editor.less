@@ -1,0 +1,151 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.editor-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+  margin-right: var(--space-sm);
+}
+
+.toolbar-title {
+  // Lange Vorlagennamen kappen statt sie am Rand abzuschneiden. `min-width: 0`
+  // erlaubt dem Flex-Element überhaupt erst, unter seine Textbreite zu
+  // schrumpfen.
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.spacer {
+  flex: 1;
+}
+
+.editor-inhalt {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.kopfdaten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+  margin-bottom: var(--space-lg);
+}
+
+.umfang {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.faecher-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.fach-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-base);
+
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.artikel {
+  list-style: none;
+  margin: 0 0 var(--space-base);
+  padding: 0;
+}
+
+.artikel-zeile {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.feld-name {
+  flex: 1 1 260px;
+}
+
+.feld-soll {
+  width: 88px;
+}
+
+.feld-einheit {
+  width: 120px;
+}
+
+.feld-herkunft {
+  width: 140px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl) 0;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--text-disabled);
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+@media (max-width: 780px) {
+  .toolbar-title {
+    // Eigene, volle Zeile: neben Zurück-Pfeil, Symbol und Speichern-Knopf
+    // blieben dem Namen sonst rund 60 Pixel.
+    flex: 1 0 100%;
+  }
+
+  .editor-inhalt {
+    padding: var(--space-md);
+  }
+
+  .artikel-zeile {
+    // Auf dem Telefon untereinander statt in einen waagerechten Lauf gedrängt.
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feld-soll,
+  .feld-einheit,
+  .feld-herkunft,
+  .feld-name {
+    width: auto;
+    flex: none;
+  }
+}

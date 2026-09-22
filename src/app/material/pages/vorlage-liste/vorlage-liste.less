@@ -1,0 +1,148 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+  margin-right: var(--space-sm);
+}
+
+.toolbar-title {
+  // Lange Vorlagennamen kappen statt sie am Rand abzuschneiden. `min-width: 0`
+  // erlaubt dem Flex-Element überhaupt erst, unter seine Textbreite zu
+  // schrumpfen.
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.spacer {
+  flex: 1;
+}
+
+.listen-inhalt {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.beschreibung {
+  color: var(--text-secondary);
+  max-width: 70ch;
+  margin-top: 0;
+}
+
+.suchfeld {
+  display: block;
+  margin-bottom: var(--space-md);
+
+  input {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--space-sm) var(--space-base);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font: inherit;
+  }
+}
+
+.visuell-versteckt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.error-hint {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) 0;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--text-disabled);
+}
+
+.empty-hint {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.vorlagen {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vorlage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.vorlage-zeile {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: var(--space-md);
+  padding: var(--space-base) var(--space-sm);
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.vorlage-bezeichnung {
+  font-weight: 600;
+}
+
+.vorlage-umfang,
+.vorlage-geaendert {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 600px) {
+  .toolbar-title {
+    // Eigene, volle Zeile: neben Zurück-Pfeil, Symbol und Speichern-Knopf
+    // blieben dem Namen sonst rund 60 Pixel.
+    flex: 1 0 100%;
+  }
+
+  .listen-inhalt {
+    padding: var(--space-md);
+  }
+
+  .vorlage-zeile {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xs);
+  }
+}

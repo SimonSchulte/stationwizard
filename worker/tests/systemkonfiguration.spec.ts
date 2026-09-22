@@ -8,11 +8,23 @@ import { FakeBenutzerDb } from './benutzer-db-fake';
 
 const IDENTITAET = { email: 'person@example.test' };
 
-const VOLLSTAENDIG = {
+/** Nur die Kilometer-Schlüssel; die übrigen bleiben auf ihrem Standard. */
+const KILOMETER = {
   kmBerichtEmpfaenger: 'leitung@example.test',
   kmBerichtVersandweg: 'email-routing',
   kmBerichtBetreff: 'Kilometerstände',
 };
+
+/** Die Standardwerte der Materialeinstellungen, wie `leseEinstellungen` sie ergänzt. */
+const MATERIAL_STANDARD = {
+  materialBestellscheinEmpfaenger: '',
+  materialMaengelLandEmpfaenger: '',
+  materialMaengelSegEmpfaenger: '',
+  materialVersandweg: 'email-routing',
+  materialBetreff: 'Materialmeldung',
+};
+
+const VOLLSTAENDIG = { ...KILOMETER, ...MATERIAL_STANDARD };
 
 function anfrage(init?: RequestInit): Request {
   return new Request('https://stationwizard.example.test/api/systemkonfiguration', init);
@@ -103,7 +115,7 @@ describe('PUT /api/systemkonfiguration', () => {
     const db = new FakeBenutzerDb();
 
     const antwort = await verarbeiteSystemkonfiguration(
-      speichern(VOLLSTAENDIG),
+      speichern(KILOMETER),
       umgebung(db),
       IDENTITAET,
     );
@@ -121,7 +133,7 @@ describe('PUT /api/systemkonfiguration', () => {
     const db = new FakeBenutzerDb();
 
     const antwort = await verarbeiteSystemkonfiguration(
-      speichern({ ...VOLLSTAENDIG, kmBerichtEmpfaenger: '  ' }),
+      speichern({ ...KILOMETER, kmBerichtEmpfaenger: '  ' }),
       umgebung(db),
       IDENTITAET,
     );
@@ -140,7 +152,7 @@ describe('PUT /api/systemkonfiguration', () => {
     const db = new FakeBenutzerDb();
 
     const antwort = await verarbeiteSystemkonfiguration(
-      speichern({ ...VOLLSTAENDIG, ...abweichung }),
+      speichern({ ...KILOMETER, ...abweichung }),
       umgebung(db),
       IDENTITAET,
     );
@@ -153,7 +165,7 @@ describe('PUT /api/systemkonfiguration', () => {
     const db = new FakeBenutzerDb();
 
     const antwort = await verarbeiteSystemkonfiguration(
-      speichern({ ...VOLLSTAENDIG, apiToken: 'geheim' }),
+      speichern({ ...KILOMETER, apiToken: 'geheim' }),
       umgebung(db),
       IDENTITAET,
     );
@@ -170,6 +182,126 @@ describe('PUT /api/systemkonfiguration', () => {
     );
 
     expect(antwort.status).toBe(415);
+  });
+});
+
+describe('Rollenschranke der Materialeinstellungen', () => {
+  function mitRolle(rolle: string | null): FakeBenutzerDb {
+    const db = new FakeBenutzerDb();
+    db.benutzer.set(IDENTITAET.email, {
+      email: IDENTITAET.email,
+      rolle,
+      sonderrollen: '[]',
+      erster_zugriff_am: '2026-01-01T00:00:00.000Z',
+      letzter_zugriff_am: '2026-01-01T00:00:00.000Z',
+      rolle_geaendert_am: null,
+      rolle_geaendert_von: null,
+    });
+    return db;
+  }
+
+  it('lässt einen Helfer die Kilometer-Adresse weiterhin ändern', async () => {
+    const db = mitRolle('helfer');
+
+    const antwort = await verarbeiteSystemkonfiguration(
+      speichern({ kmBerichtEmpfaenger: 'neu@example.test' }),
+      umgebung(db),
+      IDENTITAET,
+    );
+
+    expect(antwort.status).toBe(200);
+    expect((await leseEinstellungen(db as never)).kmBerichtEmpfaenger).toBe('neu@example.test');
+  });
+
+  it('verwehrt einem Helfer die Bestellschein-Adresse, ohne etwas zu speichern', async () => {
+    const db = mitRolle('helfer');
+
+    const antwort = await verarbeiteSystemkonfiguration(
+      speichern({ materialBestellscheinEmpfaenger: 'lager@example.test' }),
+      umgebung(db),
+      IDENTITAET,
+    );
+
+    expect(antwort.status).toBe(403);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('SYSTEMKONFIGURATION_ROLLE_FEHLT');
+    expect(db.systemkonfiguration.has('material_bestellschein_empfaenger')).toBe(false);
+  });
+
+  it('verwehrt sie auch einer Person ganz ohne Rolle', async () => {
+    const antwort = await verarbeiteSystemkonfiguration(
+      speichern({ materialVersandweg: 'resend' }),
+      umgebung(new FakeBenutzerDb()),
+      IDENTITAET,
+    );
+
+    expect(antwort.status).toBe(403);
+  });
+
+  it.each([['zugfuehrung'], ['gruppenfuehrung-sanitaet']])(
+    'lässt %s die Materialeinstellungen ändern',
+    async (rolle) => {
+      const db = mitRolle(rolle);
+
+      const antwort = await verarbeiteSystemkonfiguration(
+        speichern({ materialBestellscheinEmpfaenger: 'lager@example.test' }),
+        umgebung(db),
+        IDENTITAET,
+      );
+
+      expect(antwort.status).toBe(200);
+      expect((await leseEinstellungen(db as never)).materialBestellscheinEmpfaenger).toBe(
+        'lager@example.test',
+      );
+    },
+  );
+
+  it('verwehrt sie der Gruppenführung einer anderen Gruppe', async () => {
+    const antwort = await verarbeiteSystemkonfiguration(
+      speichern({ materialBetreff: 'Neuer Betreff' }),
+      umgebung(mitRolle('gruppenfuehrung-betreuung')),
+      IDENTITAET,
+    );
+
+    expect(antwort.status).toBe(403);
+  });
+
+  it('löst keine Rollenprüfung aus, wenn ein geschützter Schlüssel unverändert mitgesendet wird', async () => {
+    const db = mitRolle('helfer');
+
+    const antwort = await verarbeiteSystemkonfiguration(
+      // Der Standardwert ist '' – der Schlüssel kommt vor, ändert sich aber nicht.
+      speichern({ materialBestellscheinEmpfaenger: '', kmBerichtBetreff: 'Neu' }),
+      umgebung(db),
+      IDENTITAET,
+    );
+
+    expect(antwort.status).toBe(200);
+    expect((await leseEinstellungen(db as never)).kmBerichtBetreff).toBe('Neu');
+  });
+
+  it('schreibt nur die tatsächlich geänderten Schlüssel', async () => {
+    const db = mitRolle('helfer');
+
+    await verarbeiteSystemkonfiguration(
+      speichern({ kmBerichtBetreff: 'Nur dieser' }),
+      umgebung(db),
+      IDENTITAET,
+    );
+
+    expect([...db.systemkonfiguration.keys()]).toEqual(['km_bericht_betreff']);
+  });
+
+  it('sperrt zu, wenn die Rollenverwaltung nicht eingerichtet ist', async () => {
+    const db = new FakeBenutzerDb();
+    const ohneRollen = { ...umgebung(db), BENUTZER_DB: db as never };
+    // Ohne Zeile in `benutzer` gilt: keine Rolle, also kein Zugriff.
+    const antwort = await verarbeiteSystemkonfiguration(
+      speichern({ materialMaengelLandEmpfaenger: 'land@example.test' }),
+      ohneRollen,
+      IDENTITAET,
+    );
+
+    expect(antwort.status).toBe(403);
   });
 });
 

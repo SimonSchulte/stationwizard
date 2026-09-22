@@ -18,7 +18,12 @@ function istEinstellungen(wert: unknown): wert is Einstellungen {
     istObjekt(wert) &&
     istText(wert['kmBerichtEmpfaenger']) &&
     istVersandweg(wert['kmBerichtVersandweg']) &&
-    istText(wert['kmBerichtBetreff'])
+    istText(wert['kmBerichtBetreff']) &&
+    istText(wert['materialBestellscheinEmpfaenger']) &&
+    istText(wert['materialMaengelLandEmpfaenger']) &&
+    istText(wert['materialMaengelSegEmpfaenger']) &&
+    istVersandweg(wert['materialVersandweg']) &&
+    istText(wert['materialBetreff'])
   );
 }
 
