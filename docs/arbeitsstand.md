@@ -2137,3 +2137,85 @@ erst durch die Sichtprüfung dieser Runde sichtbar.
 - Die übrigen Grenzen aus AP-M1 bis AP-M7 gelten unverändert weiter, darunter der fehlende
   Aufkleberbogen, die noch nicht erweiterte Access-Bypass-Anwendung, die ungeprüfte
   Verfallsdatumpflicht des Startbestands und die Lücke bei der Rollenvergabe.
+
+## AP-M9 – Verfallsdatumpflicht des NFR-EE-Startbestands nach einheitlicher Regel
+
+Der Betreiber hat die fachliche Festlegung durchgesehen, die im Arbeitsstand als offener
+Punkt notiert war: welche der 125 NFR-EE-Artikel `verfallsdatumPflicht` tragen.
+
+### Der Befund
+
+Meine erste Fassung war nicht nur unsicher, sondern **in sich widersprüchlich**.
+Verbandmaterial war fast vollständig markiert (Kompressen, Verbandpäckchen, Pflaster),
+steril verpacktes Einmalmaterial dagegen fast gar nicht:
+
+- **Alle 10 Endotrachealtuben und 3 Larynxtuben** trugen keine Pflicht.
+- Ebenso Spritzen, Venenkatheter, Sicherheitsvenenverweilkanülen, Kanülen, Absaugkatheter,
+  Guedeltuben, Einmalskalpell, Klimafilter, Beatmungsmasken.
+- Gleichzeitig war „Pflaster für Venenkatheter" markiert – der Katheter daneben nicht.
+
+Dazu eine sachlich falsche Markierung: die **Sauerstoffflasche mit Druckminderer** trägt
+einen Prüftermin (Druckbehälterprüfung), kein Verfallsdatum. Das ist eine andere Art von
+Fälligkeit und gehört fachlich zu den Wartungsterminen, die dieses Modul bewusst nicht
+abbildet.
+
+### Die Regel
+
+Markiert ist, was ein **aufgedrucktes Verfalls- oder Haltbarkeitsdatum trägt und verbraucht
+wird**: steriles Einmalmaterial, Flüssigkeiten und Chemikalien, unsteriles
+Verbrauchsmaterial mit Haltbarkeitsangabe. Nicht markiert sind Geräte und
+Mehrweginstrumente, Textilien ohne Sterilverpackung, Papier, Behälter und Beutel sowie
+Schienenmaterial. Das ergibt **83 statt 34** der 125 Artikel: 50 kamen dazu, eine
+(Sauerstoffflasche) fiel weg.
+
+Vier Grenzfälle sind bewusst entschieden und im Migrationskommentar begründet: das
+**Blutzuckermessgerät** bleibt markiert, weil die 15 Safety-Lanzetten derselben Zeile
+verfallen (die Zeile wird nicht aufgeteilt, sie stammt so aus der Vorlage); die
+**Blockerspritzen** der Tubensätze und der **Einmalrasierer** bleiben unmarkiert; die
+**Beatmungsbeutel „ggf. Einweg"** werden markiert, weil bei der Mehrwegvariante das Feld
+einfach leer bleibt.
+
+### Was das den Check kostet
+
+Die Zahl der einzelnen Monatsfelder steigt von **115 auf 222** – die Summe der Sollmengen
+aller markierten Artikel. Das ist der ehrliche Preis der Konsistenz. Abgefedert ist er
+dreifach, und keine dieser Abfederungen musste dafür geändert werden: eine Markierung
+erzwingt **keine** Eingabe (ein nicht erfasstes Feld bleibt `null`, der Check lässt sich
+trotzdem abschließen), der globale Schalter blendet die Verfallsdatenerfassung vollständig
+aus, und je Artikel gibt es „für alle Stück übernehmen". Sichtbar wird die Änderung vor
+allem in der Fortschrittspille, die künftig „n von 222 Verfallsdaten" nennt.
+
+### Umsetzung
+
+Migration 0010 ist noch nicht auf echtes D1 angewendet, der Startbestand wurde deshalb
+**direkt geändert** – eine Nachtragsmigration hätte einen Zustand korrigiert, den es
+nirgends gibt. Die Artikel-Ids laufen durch von `…000000000001` bis `…125`; geändert wurde
+gezielt je Id, nicht durch Neuschreiben des JSON-Literals. Kein Code, kein Test und keine
+Oberfläche war betroffen: `verfallsdatumPflicht` ist ein Datenfeld der Vorlage, und die
+Worker-Tests bauen ihre eigene Vorlage statt den Startbestand zu lesen.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- **Ergebnis zurückgelesen statt nachgezählt:** ein Wegwerfskript liest den Startbestand
+  aus der Migration und zählt je Fach. Erwartet und bestätigt: 18 / 13 / 20 / 2 / 1 / 3 /
+  2 / 0 / 0 / 9 / 15 = 83 Artikel, 222 Monatsfelder.
+- **Gegen echtes SQLite** (`node:sqlite`): alle zehn Migrationen angewendet und die Vorlage
+  aus der Datenbank zurückgelesen – 11 Fächer, 125 Artikel, 83 markiert, 222 Monatsfelder,
+  Artikel-Ids eindeutig. Damit ist belegt, dass das geänderte JSON-Literal gültiges SQL und
+  gültiges JSON geblieben ist; ein verunglücktes Anführungszeichen wäre sonst erst beim
+  echten Anwenden aufgefallen. Stichproben aus dem Datenbankinhalt: Endotrachealtubus 7,0
+  und Venenkatheter rosa markiert, Sauerstoffflasche, Magillzange und Dreiecktuch nicht.
+- `npm run build`, `npm test`, `npm run format:check`, `npm run worker:check`,
+  `npm run worker:test`, `npm run test:spa`, `npm run deploy:dry-run` – alle erfolgreich.
+- **Sichtprüfung im echten Chromium** auf 1400×900 und 390×844.
+
+### Offene Abnahmegrenzen
+
+- **Die Regel ist abgestimmt, die Einzelfälle sind es nicht.** Der Betreiber hat die Regel
+  gewählt, nicht jeden der 125 Artikel einzeln bestätigt. Wo ein Artikel in der Praxis
+  anders gehandhabt wird, ist er in der Oberfläche zu korrigieren – dafür ist die
+  Vorlagenpflege da.
+- **Prüftermine sind kein Thema dieses Moduls.** Die Sauerstoffflasche hat ihre Markierung
+  verloren, ohne dass ihre Druckbehälterprüfung irgendwo anders aufgehoben wäre. Fahrzeuge
+  haben Wartungstermine, Behälter nicht; ob sie welche brauchen, ist fachlich zu klären.
+- Die übrigen Grenzen aus AP-M1 bis AP-M8 gelten unverändert weiter.

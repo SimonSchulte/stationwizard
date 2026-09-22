@@ -54,11 +54,28 @@ Bezeichnung, Sollmenge, Einheit und Herkunft.
 Landesmaterial. Sie steuert, in welchem der beiden Mängelberichte eine Position erscheint,
 und ist deshalb Teil der Vorlage und nicht eine Anzeigeeigenschaft.
 
-### Nicht abschließend geklärt
+### Welche Artikel ein Verfallsdatum tragen
 
-Welche NFR-EE-Artikel verfallsdatumpflichtig sind, ist eine fachliche Festlegung des
-Startbestands nach bestem Wissen, kein nachgewiesener Vertrag. Sie ist in der Oberfläche
-korrigierbar und sollte vor dem ersten echten Check einmal durchgesehen werden.
+`verfallsdatumPflicht` folgt einer mit dem Betreiber abgestimmten Regel: markiert ist, was
+ein **aufgedrucktes Verfalls- oder Haltbarkeitsdatum trägt und verbraucht wird** – steril
+verpacktes Einmalmaterial (Tuben, Katheter, Kanülen, Spritzen, Kompressen, Verbandmaterial,
+Masken, Filter), Flüssigkeiten und Chemikalien (Infusion, Gleitgel, Desinfektion,
+Kontrolllösung, Batterien) sowie unsteriles Verbrauchsmaterial mit Haltbarkeitsangabe
+(Klebeband, Einweghandschuhe, Brechbeutel, Rettungsdecke, Kühlpack). Nicht markiert sind
+Geräte und Mehrweginstrumente, Textilien ohne Sterilverpackung, Papier, Behälter und Beutel
+sowie Schienenmaterial. Das ergibt 83 der 125 Artikel.
+
+Vier Grenzfälle sind bewusst entschieden: das **Blutzuckermessgerät** bleibt markiert, weil
+die 15 Safety-Lanzetten derselben Zeile verfallen – die Zeile wird nicht aufgeteilt, sie
+stammt so aus der Vorlage. Die **Blockerspritzen** der Tubensätze bleiben unmarkiert
+(Mehrwegzubehör), ebenso der **Einmalrasierer** (Einmalprodukt ohne Verfallsdatum). Die
+**Sauerstoffflasche** ist nicht markiert, weil sie einen Prüftermin trägt
+(Druckbehälterprüfung) und kein Verfallsdatum – eine Fälligkeit, die fachlich zu den
+Wartungsterminen gehört und im Modul bewusst noch nicht abgebildet ist.
+
+Die Regel steht ausführlich im Kommentar über dem `INSERT` in Migration 0010 und ist dort
+gemeinsam mit den Daten zu ändern. Eine Markierung erzwingt keine Eingabe: ein nicht
+erfasstes Feld bleibt `null`, und der Check lässt sich trotzdem abschließen.
 
 ## 3. Statuslogik und Verfallsdaten
 
@@ -229,5 +246,4 @@ unveränderte Dateierlaubnisliste samt Inhaltstyp-Gegenprüfung.
   `PUT /api/benutzerverwaltung/<E-Mail>` steht jeder geprüften Identität offen, wer sich
   selbst `zugfuehrung` setzt, kann auch die Empfänger ändern. Kein Grund, nicht zu prüfen,
   aber ehrlich zu benennen.
-- **Verfallsdatumpflicht des Startbestands** ist fachlich zu bestätigen (Abschnitt 2).
 - **Prüfung am echten Telefon** steht aus; geprüft wurde im emulierten Chromium auf 390×844.

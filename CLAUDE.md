@@ -335,8 +335,14 @@ Eine **Prüfvorlage** (`pruefvorlagen`) führt Fächer und Artikel als JSON in d
 seinen Schichten. Startbestand ist die NFR-EE-Liste (11 Fächer, 125 Artikel, feste Ids), als
 ein `INSERT` in der Migration; eine zweite Vorlage braucht keine Migration, sondern
 `POST /api/material/vorlagen`. Vorlagen sind vollständig in der Oberfläche pflegbar. Welche
-Artikel `verfallsdatumPflicht` tragen, ist eine fachliche Festlegung des Startbestands, kein
-nachgewiesener Vertrag – sie ist in der Oberfläche korrigierbar.
+Artikel `verfallsdatumPflicht` tragen, folgt einer mit dem Betreiber abgestimmten Regel:
+markiert ist, was ein aufgedrucktes Verfalls- oder Haltbarkeitsdatum trägt und verbraucht
+wird – steriles Einmalmaterial, Flüssigkeiten und Chemikalien, unsteriles Verbrauchsmaterial
+mit Haltbarkeitsangabe; nicht markiert sind Geräte und Mehrweginstrumente, Textilien ohne
+Sterilverpackung, Papier, Behälter und Schienenmaterial. Das sind 83 der 125 Artikel; die
+Regel samt ihrer vier Grenzfälle steht im Kommentar über dem `INSERT` der Migration und ist
+dort gemeinsam zu ändern. Eine Markierung erzwingt keine Eingabe – ein nicht erfasstes Feld
+bleibt `null`, und der Check lässt sich trotzdem abschließen.
 
 Ein **Behälter** (`behaelter`) ist ein physisches Einzelstück mit eigener Identität: ein GW SAN
 trägt zehn Notfallrucksäcke, jeder KTW-B einen; jeder wird einzeln geprüft. Ein Check prüft
