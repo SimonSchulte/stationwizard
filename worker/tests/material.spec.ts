@@ -771,3 +771,186 @@ describe('Berichte zu einem Check', () => {
     expect(vorschau.headers.get('Allow')).toBe('GET');
   });
 });
+
+describe('Zwischenstand eines laufenden Checks', () => {
+  const CHECK_ID = '99999999-8888-4777-8666-555555555555';
+  const ENTWURF_PFAD = `/api/material/behaelter/${BEHAELTER_ID}/entwurf`;
+
+  function entwurfKoerper(ueberschreibung: Record<string, unknown> = {}) {
+    return {
+      verfallsdatumErfasst: false,
+      bemerkung: 'halb fertig',
+      positionen: {
+        [ARTIKEL_ID]: {
+          artikelId: ARTIKEL_ID,
+          geprueft: true,
+          istMenge: 1,
+          unbrauchbar: false,
+          verfallsdaten: ['2027-05', null],
+        },
+      },
+      ...ueberschreibung,
+    };
+  }
+
+  function speichere(datenbank: FakeMaterialDb, koerper: unknown = entwurfKoerper()) {
+    return verarbeite(datenbank, ENTWURF_PFAD, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(koerper),
+    });
+  }
+
+  it('speichert den Stand und liefert den Zeitpunkt zurück', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await speichere(datenbank);
+    expect(antwort.status).toBe(200);
+    const inhalt = (await antwort.json()) as { gespeichertAm: string };
+    expect(Number.isFinite(Date.parse(inhalt.gespeichertAm))).toBe(true);
+    expect(datenbank.entwuerfe.size).toBe(1);
+  });
+
+  it('setzt den Inhaber aus der geprüften Anmeldung, nie aus dem Anfragekörper', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await speichere(datenbank, entwurfKoerper({ inhaber: 'vorgetaeuscht@example.test' }));
+    const [zeile] = [...datenbank.entwuerfe.values()];
+    expect(zeile?.inhaber).toBe(IDENTITAET.email);
+  });
+
+  it('ersetzt beim zweiten Speichern dieselbe Zeile, statt eine zweite anzulegen', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await speichere(datenbank);
+    await speichere(datenbank, entwurfKoerper({ bemerkung: 'weiter' }));
+    expect(datenbank.entwuerfe.size).toBe(1);
+    const [zeile] = [...datenbank.entwuerfe.values()];
+    expect(JSON.parse(zeile?.inhalt ?? '{}').bemerkung).toBe('weiter');
+  });
+
+  it('weist einen Artikel ab, den die Prüfvorlage nicht kennt', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await speichere(datenbank, {
+      ...entwurfKoerper(),
+      positionen: {
+        'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee': {
+          artikelId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+          geprueft: true,
+          istMenge: 1,
+          unbrauchbar: false,
+          verfallsdaten: [],
+        },
+      },
+    });
+    expect(antwort.status).toBe(400);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('MATERIAL_ENTWURF_UNGUELTIG');
+    expect(datenbank.entwuerfe.size).toBe(0);
+  });
+
+  it('weist einen Stand ab, dessen Verfallsdaten nicht zur Sollmenge passen', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await speichere(datenbank, {
+      ...entwurfKoerper(),
+      positionen: {
+        [ARTIKEL_ID]: {
+          artikelId: ARTIKEL_ID,
+          geprueft: true,
+          istMenge: 1,
+          unbrauchbar: false,
+          verfallsdaten: ['2027-05'],
+        },
+      },
+    });
+    expect(antwort.status).toBe(400);
+    expect(datenbank.entwuerfe.size).toBe(0);
+  });
+
+  it('antwortet für einen unbekannten Behälter mit 404', async () => {
+    const antwort = await verarbeite(
+      db(),
+      '/api/material/behaelter/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/entwurf',
+      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}' },
+    );
+    expect(antwort.status).toBe(404);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe(
+      'MATERIAL_BEHAELTER_NICHT_GEFUNDEN',
+    );
+  });
+
+  it('löscht idempotent: zweimal DELETE ergibt zweimal 204', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await speichere(datenbank);
+    const erste = await verarbeite(datenbank, ENTWURF_PFAD, { method: 'DELETE' });
+    const zweite = await verarbeite(datenbank, ENTWURF_PFAD, { method: 'DELETE' });
+    expect(erste.status).toBe(204);
+    expect(zweite.status).toBe(204);
+    expect(datenbank.entwuerfe.size).toBe(0);
+  });
+
+  it('bietet bewusst kein GET an: der Stand reist im Prüfauftrag mit', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    const antwort = await verarbeite(datenbank, ENTWURF_PFAD);
+    expect(antwort.status).toBe(405);
+    expect(antwort.headers.get('Allow')).toBe('PUT, DELETE');
+  });
+
+  it('liefert den eigenen Stand im Prüfauftrag mit', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await speichere(datenbank);
+    const antwort = await verarbeite(
+      datenbank,
+      `/api/material/behaelter/${BEHAELTER_ID}/pruefauftrag`,
+    );
+    const inhalt = (await antwort.json()) as {
+      entwurf: { gespeichertAm: string; stand: { behaelterId: string; bemerkung: string } } | null;
+    };
+    expect(inhalt.entwurf?.stand.bemerkung).toBe('halb fertig');
+    // Die Behälter-Id steht nicht in der Spalte, sondern im Schlüssel der Zeile.
+    expect(inhalt.entwurf?.stand.behaelterId).toBe(BEHAELTER_ID);
+  });
+
+  it('zeigt den Stand einer anderen Person nicht', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await speichere(datenbank);
+    const antwort = await verarbeiteMaterial(
+      anfrage(`/api/material/behaelter/${BEHAELTER_ID}/pruefauftrag`),
+      { FAHRZEUGE_DB: datenbank as never },
+      { email: 'jemand.anderes@example.test' },
+    );
+    const inhalt = (await antwort.json()) as { entwurf: unknown };
+    expect(inhalt.entwurf).toBeNull();
+  });
+
+  it('räumt den eigenen Stand beim Abschließen des Checks weg', async () => {
+    const datenbank = db();
+    await legeBehaelterAn(datenbank);
+    await speichere(datenbank);
+    const antwort = await verarbeite(datenbank, `/api/material/behaelter/${BEHAELTER_ID}/checks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'If-None-Match': '*' },
+      body: JSON.stringify({
+        id: CHECK_ID,
+        verfallsdatumErfasst: true,
+        bemerkung: '',
+        positionen: [
+          {
+            artikelId: ARTIKEL_ID,
+            geprueft: true,
+            istMenge: 2,
+            unbrauchbar: false,
+            verfallsdaten: ['2027-05', null],
+          },
+        ],
+      }),
+    });
+    expect(antwort.status).toBe(201);
+    expect(datenbank.entwuerfe.size).toBe(0);
+  });
+});

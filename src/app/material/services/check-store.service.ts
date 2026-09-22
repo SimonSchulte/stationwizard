@@ -19,6 +19,28 @@ function fehlermeldung(fehler: unknown, ersatz: string): string {
 /** Wie lange nach der letzten Änderung der Entwurf auf dem Gerät gesichert wird. */
 const ENTPRELLUNG_MS = 2000;
 
+/** Woher ein übernommener Zwischenstand stammt. */
+export type Entwurfsquelle = 'geraet' | 'server';
+
+export interface AndererEntwurf {
+  quelle: Entwurfsquelle;
+  gespeichertAm: string;
+  stand: Checkstand;
+}
+
+/**
+ * Vergleichsform des Stands. Sie entscheidet allein darüber, ob ein
+ * serverseitiges Speichern überhaupt etwas ändert – gespeichert wird nur, was
+ * sich unterscheidet.
+ */
+function standAlsText(stand: Checkstand): string {
+  return JSON.stringify({
+    verfallsdatumErfasst: stand.verfallsdatumErfasst,
+    bemerkung: stand.bemerkung,
+    positionen: stand.positionen,
+  });
+}
+
 /**
  * Zustand des laufenden Fahrzeugchecks. Der Stand lebt im Speicher und wird
  * entprellt auf dem Gerät gesichert; serverseitig geschrieben wird erst beim
@@ -44,8 +66,25 @@ export class CheckStoreService {
   readonly checkLaedt = signal(false);
   readonly checkFehler = signal('');
 
-  /** Zeitpunkt eines auf dem Gerät vorgefundenen Entwurfs, für den Hinweis beim Einstieg. */
+  /** Zeitpunkt des beim Einstieg übernommenen Entwurfs, für den Hinweis. */
   readonly entwurfGefundenAm = signal<string | null>(null);
+
+  /** Woher der übernommene Entwurf stammt – der Hinweis nennt es ausdrücklich. */
+  readonly entwurfQuelle = signal<Entwurfsquelle | null>(null);
+
+  /**
+   * Die jeweils andere, ältere Fassung, falls es beide gab. Sie liegt schon im
+   * Speicher; der Wechsel kostet deshalb keinen weiteren Serveraufruf.
+   */
+  readonly andererEntwurf = signal<AndererEntwurf | null>(null);
+
+  readonly entwurfSpeichert = signal(false);
+  readonly entwurfFehler = signal('');
+  /** Zeitpunkt der letzten ausdrücklichen serverseitigen Sicherung. */
+  readonly entwurfGesichertAm = signal<string | null>(null);
+
+  /** Was zuletzt serverseitig lag – verhindert ein Speichern ohne Änderung. */
+  private zuletztGesichert = '';
 
   private entpreller: ReturnType<typeof setTimeout> | null = null;
 
@@ -96,20 +135,107 @@ export class CheckStoreService {
         return;
       }
       this.auftrag.set(auftrag);
-      const entwurf = leseEntwurf(behaelterId);
-      if (entwurf && this.passtZurVorlage(entwurf.stand, auftrag)) {
-        this.stand.set(entwurf.stand);
-        this.entwurfGefundenAm.set(entwurf.gespeichertAm);
-      } else {
-        // Ein Entwurf, der nicht mehr zur Vorlage passt, wird verworfen statt
-        // halb übernommen – sonst fehlten oder blieben Positionen übrig.
-        if (entwurf) vergissEntwurf(behaelterId);
-        this.stand.set(leererStand(behaelterId, auftrag.vorlage.faecher));
-      }
+      this.entwurfUebernehmen(behaelterId, auftrag);
     } catch (fehler) {
       this.ladeFehler.set(fehlermeldung(fehler, 'Der Prüfauftrag konnte nicht geladen werden.'));
     } finally {
       this.laedt.set(false);
+    }
+  }
+
+  /**
+   * Wählt zwischen Gerätestand und Serverstand. Genommen wird der **neuere**;
+   * der andere bleibt im Speicher, damit ein Wechsel keinen weiteren Aufruf
+   * kostet. Ein Stand, der nicht mehr zur Vorlage passt, wird verworfen statt
+   * halb übernommen – sonst fehlten oder blieben Positionen übrig.
+   */
+  private entwurfUebernehmen(behaelterId: string, auftrag: Pruefauftrag): void {
+    this.andererEntwurf.set(null);
+    this.entwurfQuelle.set(null);
+    this.entwurfGesichertAm.set(auftrag.entwurf?.gespeichertAm ?? null);
+    this.zuletztGesichertSetzen(auftrag);
+
+    const geraet = leseEntwurf(behaelterId);
+    if (geraet && !this.passtZurVorlage(geraet.stand, auftrag)) vergissEntwurf(behaelterId);
+
+    const kandidaten: AndererEntwurf[] = [];
+    if (geraet && this.passtZurVorlage(geraet.stand, auftrag)) {
+      kandidaten.push({
+        quelle: 'geraet',
+        gespeichertAm: geraet.gespeichertAm,
+        stand: geraet.stand,
+      });
+    }
+    const server = auftrag.entwurf;
+    if (server && this.passtZurVorlage(server.stand, auftrag)) {
+      kandidaten.push({
+        quelle: 'server',
+        gespeichertAm: server.gespeichertAm,
+        stand: server.stand,
+      });
+    }
+
+    if (kandidaten.length === 0) {
+      this.entwurfGefundenAm.set(null);
+      this.stand.set(leererStand(behaelterId, auftrag.vorlage.faecher));
+      return;
+    }
+
+    kandidaten.sort((a, b) => Date.parse(b.gespeichertAm) - Date.parse(a.gespeichertAm));
+    const [neuester, aelterer] = kandidaten;
+    if (!neuester) return;
+    this.stand.set(neuester.stand);
+    this.entwurfGefundenAm.set(neuester.gespeichertAm);
+    this.entwurfQuelle.set(neuester.quelle);
+    this.andererEntwurf.set(aelterer ?? null);
+  }
+
+  private zuletztGesichertSetzen(auftrag: Pruefauftrag): void {
+    this.zuletztGesichert = auftrag.entwurf ? standAlsText(auftrag.entwurf.stand) : '';
+  }
+
+  /** Wechselt auf die andere, ältere Fassung – ohne weiteren Serveraufruf. */
+  anderenEntwurfVerwenden(): void {
+    const anderer = this.andererEntwurf();
+    const aktuellerStand = this.stand();
+    const quelle = this.entwurfQuelle();
+    const gefundenAm = this.entwurfGefundenAm();
+    if (!anderer || !aktuellerStand || !quelle || !gefundenAm) return;
+    this.stand.set(anderer.stand);
+    this.entwurfQuelle.set(anderer.quelle);
+    this.entwurfGefundenAm.set(anderer.gespeichertAm);
+    // Der Tausch geht in beide Richtungen: die bisherige Fassung ist jetzt die
+    // andere, sonst wäre der Wechsel eine Einbahnstraße.
+    this.andererEntwurf.set({ quelle, gespeichertAm: gefundenAm, stand: aktuellerStand });
+    this.entwurfSichern();
+  }
+
+  /**
+   * Sichert den Stand serverseitig – ausdrücklich, nie automatisch. Nur so
+   * lässt sich ein Check auf einem anderen Gerät fortsetzen. Ohne Änderung
+   * gegenüber dem zuletzt gesicherten Stand geschieht nichts: ein
+   * Schreibvorgang ohne fachliche Änderung zählt trotzdem gegen das
+   * Tageskontingent.
+   */
+  async zwischenstandSpeichern(): Promise<boolean> {
+    const stand = this.stand();
+    const auftrag = this.auftrag();
+    if (!stand || !auftrag) return false;
+    this.entwurfFehler.set('');
+    if (standAlsText(stand) === this.zuletztGesichert) return true;
+    this.entwurfSpeichert.set(true);
+    try {
+      const gespeichertAm = await this.storage.speichereEntwurf(auftrag.behaelter.id, stand);
+      this.zuletztGesichert = standAlsText(stand);
+      this.entwurfGesichertAm.set(gespeichertAm);
+      return true;
+    } catch (fehler) {
+      this.entwurfFehler.set(
+        fehlermeldung(fehler, 'Der Zwischenstand konnte nicht gespeichert werden.'),
+      );
+      return false;
+    } finally {
+      this.entwurfSpeichert.set(false);
     }
   }
 
@@ -202,13 +328,32 @@ export class CheckStoreService {
     this.entwurfSichern();
   }
 
-  /** Verwirft den auf dem Gerät gesicherten Entwurf und beginnt von vorn. */
-  entwurfVerwerfen(): void {
+  /**
+   * Verwirft den Entwurf und beginnt von vorn – **beide** Fassungen, die auf
+   * dem Gerät und die serverseitige. Das ist eine ausdrückliche Handlung; ein
+   * Entwurf, der nur halb verschwindet, käme auf dem anderen Gerät wieder hoch.
+   */
+  async entwurfVerwerfen(): Promise<void> {
     const auftrag = this.auftrag();
     if (!auftrag) return;
+    if (this.entpreller !== null) clearTimeout(this.entpreller);
     vergissEntwurf(auftrag.behaelter.id);
     this.entwurfGefundenAm.set(null);
+    this.entwurfQuelle.set(null);
+    this.andererEntwurf.set(null);
     this.stand.set(leererStand(auftrag.behaelter.id, auftrag.vorlage.faecher));
+    this.entwurfFehler.set('');
+    try {
+      await this.storage.loescheEntwurf(auftrag.behaelter.id);
+      this.entwurfGesichertAm.set(null);
+      this.zuletztGesichert = '';
+    } catch (fehler) {
+      // Der lokale Stand ist bereits weg; der Hinweis benennt nur, dass der
+      // serverseitige stehen blieb, statt ein stilles Halbergebnis zu lassen.
+      this.entwurfFehler.set(
+        fehlermeldung(fehler, 'Der serverseitige Zwischenstand konnte nicht gelöscht werden.'),
+      );
+    }
   }
 
   private entwurfSichern(): void {
@@ -234,6 +379,12 @@ export class CheckStoreService {
       if (this.entpreller !== null) clearTimeout(this.entpreller);
       vergissEntwurf(auftrag.behaelter.id);
       this.entwurfGefundenAm.set(null);
+      this.entwurfQuelle.set(null);
+      this.andererEntwurf.set(null);
+      // Den serverseitigen Zwischenstand räumt der Worker in derselben
+      // Anweisungsfolge wie das Anlegen des Checks weg.
+      this.entwurfGesichertAm.set(null);
+      this.zuletztGesichert = '';
       this.stand.set(null);
       return check;
     } catch (fehler) {

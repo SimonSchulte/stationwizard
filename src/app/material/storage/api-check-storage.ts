@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { CheckKopf, Fahrzeugcheck, Pruefauftrag } from '../models/check.model';
+import { CheckKopf, Checkstand, Fahrzeugcheck, Pruefauftrag } from '../models/check.model';
 import { istCheckKopf, istFahrzeugcheck, istPruefauftrag } from '../services/check-pruefung';
 import {
   Berichtsart,
@@ -77,6 +77,33 @@ export class ApiCheckStorage implements CheckStorage {
     // Ein neuer Check ändert auch die Behälterübersicht.
     this.puffer.verwerfen();
     return inhalt;
+  }
+
+  async speichereEntwurf(behaelterId: string, stand: Checkstand): Promise<string> {
+    // `behaelterId` steht im Pfad und ist der Schlüssel der Zeile; im Körper
+    // wäre sie eine zweite, abweichbare Wahrheit.
+    const antwort = await this.worker.json<{ gespeichertAm?: unknown }>(
+      `/api/material/behaelter/${behaelterId}/entwurf`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verfallsdatumErfasst: stand.verfallsdatumErfasst,
+          bemerkung: stand.bemerkung,
+          positionen: stand.positionen,
+        }),
+      },
+    );
+    if (typeof antwort.gespeichertAm !== 'string') {
+      throw new WorkerFehler('Der Server hat den Zwischenstand nicht bestätigt.', 502);
+    }
+    return antwort.gespeichertAm;
+  }
+
+  async loescheEntwurf(behaelterId: string): Promise<void> {
+    await this.worker.anfragen(`/api/material/behaelter/${behaelterId}/entwurf`, {
+      method: 'DELETE',
+    });
   }
 
   async ladeBericht(checkId: string, art: Berichtsart): Promise<string> {

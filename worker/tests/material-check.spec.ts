@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   VorlagenFach,
+  pruefeEntwurf,
   pruefePositionen,
   verfallsdatumStatus,
   zaehleKennzahlen,
@@ -172,5 +173,54 @@ describe('zaehleKennzahlen', () => {
     );
     if (!('positionen' in ergebnis)) throw new Error('Positionen erwartet');
     expect(zaehleKennzahlen(ergebnis.positionen, HEUTE).fehlmengen).toBe(0);
+  });
+});
+
+describe('pruefeEntwurf', () => {
+  function entwurf(positionen: Record<string, unknown>) {
+    return { verfallsdatumErfasst: false, bemerkung: 'halb fertig', positionen };
+  }
+
+  it('lässt einen unfertigen Stand zu: Vollständigkeit ist keine Bedingung', () => {
+    const ergebnis = pruefeEntwurf(entwurf({ a1: position() }), faecher());
+    expect('entwurf' in ergebnis).toBe(true);
+    if (!('entwurf' in ergebnis)) return;
+    expect(Object.keys(ergebnis.entwurf.positionen)).toEqual(['a1']);
+    expect(ergebnis.entwurf.bemerkung).toBe('halb fertig');
+  });
+
+  it('nimmt auch einen vollständig leeren Stand an – so beginnt jeder Check', () => {
+    expect(pruefeEntwurf(entwurf({}), faecher())).toEqual({
+      entwurf: { verfallsdatumErfasst: false, bemerkung: 'halb fertig', positionen: {} },
+    });
+  });
+
+  it('weist einen Artikel ab, den die Vorlage nicht kennt', () => {
+    const ergebnis = pruefeEntwurf(
+      entwurf({ unbekannt: position({ artikelId: 'unbekannt' }) }),
+      faecher(),
+    );
+    expect(ergebnis).toEqual({ fehler: 'unbekannter-artikel' });
+  });
+
+  it('weist eine Verfallsdatenliste ab, die nicht zur Sollmenge passt', () => {
+    const ergebnis = pruefeEntwurf(entwurf({ a1: position({ verfallsdaten: [null] }) }), faecher());
+    expect(ergebnis).toEqual({ fehler: 'stueckzahl-passt-nicht' });
+  });
+
+  it('weist einen Wert ab, dessen artikelId dem Schlüssel widerspricht', () => {
+    // Zwei Wahrheiten über dieselbe Position wären ein Zuordnungsfehler und
+    // nicht stillschweigend zu heilen.
+    const ergebnis = pruefeEntwurf(
+      entwurf({ a1: position({ artikelId: 'a2', verfallsdaten: [null, null] }) }),
+      faecher(),
+    );
+    expect(ergebnis).toEqual({ fehler: 'unlesbar' });
+  });
+
+  it('weist eine fehlende oder unlesbare Hülle ab', () => {
+    expect(pruefeEntwurf(null, faecher())).toEqual({ fehler: 'unlesbar' });
+    expect(pruefeEntwurf({ positionen: {} }, faecher())).toEqual({ fehler: 'unlesbar' });
+    expect(pruefeEntwurf(entwurf([] as never), faecher())).toEqual({ fehler: 'unlesbar' });
   });
 });

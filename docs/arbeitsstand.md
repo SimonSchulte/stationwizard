@@ -2040,3 +2040,100 @@ Verhalten dadurch nicht.
   übernommen, ein zeichengenauer Abgleich mit einem echten Ausdruck steht aus.
 - Vorlagen pflegen, Behälter anlegen und ändern steht weiterhin jeder geprüften Identität
   offen – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später".
+
+## AP-M8 – Zwischenstand eines Checks serverseitig sichern
+
+Die letzte offene Anforderung aus dem ursprünglichen Auftrag. Auf die Rückfrage zum
+Zwischenstand lautete die Antwort: „1 und eine Option ‚Zwischenstand Speichern', welche dann
+serverseitig speichert". Umgesetzt war bisher nur der erste Teil – der automatische, auf dem
+Gerät gesicherte Entwurf. Ein angefangener Check ließ sich damit nicht auf einem anderen
+Gerät fortsetzen, also genau das nicht, wofür der Knopf gedacht war.
+
+Die Tabelle `check_entwuerfe` stand seit Migration 0010 bereit; **eine Migration war nicht
+nötig**. Dazugekommen sind `PUT` und `DELETE` auf
+`/api/material/behaelter/<UUID>/entwurf`, `pruefeEntwurf()` in `material-check.ts`, die
+beiden Portmethoden samt Adapter, der Zuwachs im `CheckStoreService` und der Knopf in der
+Fußleiste.
+
+### Drei Entscheidungen
+
+**Kein `GET`.** Der Zwischenstand reist im bestehenden `GET …/pruefauftrag` mit. Ein eigener
+Abruf wäre eine zweite Worker-Anfrage gegen das Tageskontingent für Daten, die immer
+zusammen gebraucht werden – dieselbe Begründung, aus der der Prüfauftrag überhaupt ein
+einzelner Aufruf ist. Ein Test hält fest, dass `GET …/entwurf` mit 405 und
+`Allow: PUT, DELETE` antwortet.
+
+**`pruefeEntwurf()` ist absichtlich laxer als `pruefePositionen()`.** Ein Entwurf ist
+unfertig; Vollständigkeit zu verlangen hieße, ihn gar nicht speichern zu können. Streng
+bleibt, was die Zuordnung sichert: jede Artikel-Id muss in der gespeicherten Vorlage
+vorkommen, die Verfallsdatenliste muss zur Sollmenge passen, und ein Wert, dessen
+`artikelId` dem Schlüssel widerspricht, wird abgewiesen statt stillschweigend geheilt. Eine
+Momentaufnahme aus der Vorlage entsteht hier nicht – ein Entwurf ist Arbeitsstand, kein
+Nachweis.
+
+**Nur im angemeldeten Bereich.** Der ursprüngliche Plan sah auch
+`/api/oeffentlich/check/<TOKEN>/entwurf` vor; dieser Endpunkt entfällt ersatzlos, nach
+Rückfrage und Entscheidung des Nutzers. Auf der öffentlichen Seite wäre `inhaber` leer, der
+Zwischenstand also je Behälter geteilt: jeder Scan des Aufklebers könnte den halbfertigen
+Stand einer anderen Person lesen und überschreiben. Dazu wäre ein sechstes Muster im
+Access-Bypass nötig gewesen und ein unangemeldeter D1-Schreibzugriff, der keine Einreichung
+ist. **Der Bypass führt unverändert fünf Muster**; `npm run test:spa` bestätigt das.
+
+Beim Wiedereinstieg kann es beide Fassungen geben. Übernommen wird die **neuere**, die
+andere bleibt im Speicher und ist mit einem Knopf erreichbar – ohne weiteren Serveraufruf,
+weil beide bereits geladen sind. „Entwurf verwerfen" löscht jetzt **beide** Fassungen; ein
+Entwurf, der nur halb verschwindet, käme auf dem anderen Gerät wieder hoch. Das Abschließen
+eines Checks räumt den serverseitigen Stand in derselben `db.batch()`-Folge weg, in der der
+Check entsteht. Gespeichert wird nur, was sich seit dem letzten Sichern geändert hat.
+
+### Zwei nebenbei gefundene Fehler, beide behoben
+
+**Die Fußleiste war kein Antippziel.** `min-height: var(--tap-ziel)` stand nur am
+Abschließen-Knopf; der neue Knopf kam mit 32 px heraus, gemessen im Browser. Jetzt gilt die
+Mindesthöhe für alle Knöpfe der Leiste. Außerdem war auf 390 px der Sekundärknopf breiter
+als die Hauptaktion (212 px gegen 138 px), weil seine Beschriftung länger ist – genau
+verkehrt herum; auf dem Telefon teilen sich beide die Zeile jetzt zu gleichen Teilen
+(176 px zu 174 px).
+
+**Der Fortschritt behauptete „vollständig", bevor irgendetwas geprüft war.** Bei null
+geprüften Positionen zeigte der klebende Kopf eine grüne Pille „vollständig" und darunter
+„keine Abweichung" – eine Aussage über einen Check, der noch nicht stattgefunden hatte.
+Jetzt steht dort neutral „noch nichts geprüft" beziehungsweise „noch keine Eingabe". Das ist
+derselbe Fehler, der in dieser Reihe schon zweimal auftrat (beim Status „noch nie geprüft"
+der Behälterübersicht und bei „Verfallsdaten ohne Befund"); er stammt aus AP-M4b und wurde
+erst durch die Sichtprüfung dieser Runde sichtbar.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` (einschließlich `worker:check`) – erfolgreich.
+- `npm test` – 825 Angular-Tests, 29 `oeffentlich`-Tests, 712 Worker-Tests, alle grün.
+  Neu: 16 Angular-Tests (Entwurfswahl, Wechsel, kein Schreiben ohne Änderung, Fehlerfall,
+  Verwerfen beider Fassungen, `istServerEntwurfOderNull`) und 17 Worker-Tests.
+- `npm run format:check`, `npm run test:spa` (Exit 0, fünf Bypass-Muster bestätigt) und
+  `npm run deploy:dry-run` – alle erfolgreich.
+- **Gegen echtes SQLite** (`node:sqlite`, Wegwerfskript): alle zehn Migrationen angewendet
+  und die neuen Anweisungen ausgeführt. Bestätigt: `ON CONFLICT` ersetzt die Zeile statt sie
+  zu verdoppeln (zwei Speichervorgänge derselben Person, eine Zeile), der Stand einer
+  zweiten Person bleibt daneben unberührt, und `DELETE` ist idempotent (1 Zeile, dann 0).
+  Der handgeschriebene D1-Doppelgänger in den Tests kann SQL-Fehler nicht finden; dieser
+  Schritt kann es.
+- **Sichtprüfung im echten Chromium** auf 1400×900 und 390×844, gegen einen
+  Attrappen-Server: zwei Positionen abhaken → „2 von 5 geprüft"; „Zwischenstand speichern" →
+  Statuszeile „Zwischenstand gesichert · … · auf jedem Gerät fortsetzbar"; `localStorage`
+  leeren und neu laden → weiterhin „2 von 5 geprüft", Hinweis „… vom Server fortgesetzt";
+  „Verwerfen" → „0 von 5 geprüft", nach erneutem Laden kein Hinweis mehr. Mit beiden
+  Fassungen nebeneinander erscheint der Knopf auf die jeweils andere. Kein Querscroll, keine
+  Seitenfehler.
+
+### Offene Abnahmegrenzen
+
+- **Kein echter zweiter Rechner.** „Auf einem anderen Gerät fortsetzen" wurde ersatzweise
+  geprüft, indem der `localStorage` geleert und neu geladen wurde. Serverseitig ist das
+  derselbe Weg, aber es ist kein Nachweis mit zwei Geräten und zwei Browsern.
+- **Kein Lauf gegen echtes D1 und den Produktiv-Edge.** Die Sichtprüfung lief gegen einen
+  Attrappen-Server, die Worker-Logik gegen Doppelgänger und SQLite. Die Netzpolitik dieser
+  Umgebung sperrt `hiorg-wache.com`.
+- **Kein echtes Telefon.** Emuliertes Chromium auf 390×844.
+- Die übrigen Grenzen aus AP-M1 bis AP-M7 gelten unverändert weiter, darunter der fehlende
+  Aufkleberbogen, die noch nicht erweiterte Access-Bypass-Anwendung, die ungeprüfte
+  Verfallsdatumpflicht des Startbestands und die Lücke bei der Rollenvergabe.

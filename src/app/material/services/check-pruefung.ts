@@ -3,8 +3,10 @@ import {
   CheckKopf,
   Checkposition,
   Checkquelle,
+  Checkstand,
   Fahrzeugcheck,
   Pruefauftrag,
+  ServerEntwurf,
 } from '../models/check.model';
 import { istHerkunft, istPruefFach } from './material-pruefung';
 
@@ -88,6 +90,24 @@ export function istPruefauftrag(wert: unknown): wert is Pruefauftrag {
     istText(vorlage['grundlage']) &&
     istGanzzahlAb(vorlage['version'], 1) &&
     Array.isArray(vorlage['faecher']) &&
-    vorlage['faecher'].every(istPruefFach)
+    vorlage['faecher'].every(istPruefFach) &&
+    istServerEntwurfOderNull(wert['entwurf'])
+  );
+}
+
+function istCheckstand(wert: unknown): wert is Checkstand {
+  return (
+    istObjekt(wert) &&
+    istNichtleererText(wert['behaelterId']) &&
+    typeof wert['verfallsdatumErfasst'] === 'boolean' &&
+    istText(wert['bemerkung']) &&
+    istObjekt(wert['positionen'])
+  );
+}
+
+export function istServerEntwurfOderNull(wert: unknown): wert is ServerEntwurf | null {
+  if (wert === null) return true;
+  return (
+    istObjekt(wert) && istNichtleererText(wert['gespeichertAm']) && istCheckstand(wert['stand'])
   );
 }

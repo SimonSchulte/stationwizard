@@ -137,10 +137,12 @@ Prüfungen und offene Abnahmegrenzen.
   ist gekapselt, ein sichtbarer Knopf verwirft den Entwurf, er wird beim Einreichen
   gelöscht, ein abgelaufener Eintrag wird beim Lesen verworfen, und ein Entwurf, der nicht
   mehr zum Behälter beziehungsweise zur Prüfvorlage passt, wird verworfen statt halb
-  übernommen. Geschrieben wird entprellt und ausschließlich lokal: einen serverseitigen
-  Zwischenstand gibt es derzeit **nicht**, weil ein Schreibvorgang je Änderung gegen das
-  Tageskontingent liefe und ein ausdrücklicher Knopf dafür noch aussteht (siehe
-  Arbeitsstand). Die allgemeine Regel bleibt unverändert; weitere Ausnahmen werden hier
+  übernommen. Geschrieben wird entprellt und ausschließlich lokal. Serverseitig gesichert
+  wird ein Zwischenstand nur auf ausdrücklichen Knopfdruck
+  (`PUT /api/material/behaelter/<UUID>/entwurf`, Tabelle `check_entwuerfe`) – automatisch
+  nie, weil ein Schreibvorgang je Änderung gegen das Tageskontingent liefe. Diesen Knopf
+  gibt es **nur im angemeldeten Bereich**; auf der öffentlichen Checkseite bleibt es beim
+  Gerätestand. Die allgemeine Regel bleibt unverändert; weitere Ausnahmen werden hier
   aufgezählt oder es gibt sie nicht.
 - Keine unbereinigten Upstream-Fehler oder Auth-Header durchreichen. Fehler über
   `fehlerAntwort()` mit festen Codes und `X-Stationwizard-Diagnose`; keine Secretwerte,
@@ -205,6 +207,7 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/material/behaelter/<UUID>`                   | GET / PUT / DELETE | Einzelner Behälter; Update nur mit `If-Match`; Löschen gesperrt, solange Checks bestehen |
 | `/api/material/behaelter/<UUID>/pruefauftrag`      | GET                | Behälter, Fahrzeug und vollständige Vorlage in einem Aufruf                              |
 | `/api/material/behaelter/<UUID>/checks`            | GET / POST         | Checkhistorie ohne Positionen; POST legt einen Check an, kein Update                     |
+| `/api/material/behaelter/<UUID>/entwurf`           | PUT / DELETE       | Eigener Zwischenstand eines laufenden Checks; **kein GET** – er reist im Prüfauftrag mit |
 | `/api/material/behaelter/<UUID>/pruefcode`         | GET / POST         | Prüftoken lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                 |
 | `/api/material/pruefcodes`                         | GET                | Alle Prüftoken, auf die eigenen Freigabegruppen begrenzt                                 |
 | `/api/material/checks/<UUID>`                      | GET                | Einzelner Check vollständig, inklusive Positionen                                        |
@@ -365,6 +368,24 @@ serverseitig (`worker/src/material-bericht.ts`, Arten `bestellschein`, `maengel-
 `maengel-seg`, Land-Block vor SEG-Block, Fußzeile aus `pruefvorlagen.grundlage`); die Vorschau
 holt denselben Text über den Berichtsendpunkt, statt ihn ein zweites Mal zu berechnen. Das ist
 eine bewusste Abweichung vom ursprünglichen Plan, der ein Frontend-Gegenstück vorsah.
+
+Der **Zwischenstand** eines laufenden Checks liegt zweifach. Automatisch und entprellt auf
+dem Gerät (`localStorage`, siehe oben), und auf ausdrücklichen Knopfdruck zusätzlich in
+`check_entwuerfe` – nur so lässt sich ein Check auf einem anderen Gerät fortsetzen. Der
+zusammengesetzte Schlüssel aus `behaelter_id` und `inhaber` sorgt dafür, dass jedes
+Speichern ein `INSERT … ON CONFLICT DO UPDATE` ist und niemand beliebig viele Zeilen anlegen
+kann; `inhaber` ist ausschließlich die geprüfte E-Mail, ein fremder Stand ist über keinen
+Weg lesbar. Gelesen wird der Stand **nicht** über einen eigenen Endpunkt, sondern als Feld
+des Prüfauftrags – ein zweiter Abruf wäre eine weitere Worker-Anfrage für Daten, die immer
+zusammen gebraucht werden; `PUT` und `DELETE` gibt es, `GET` bewusst nicht. Geprüft wird der
+Entwurf mit `pruefeEntwurf()` (`material-check.ts`), das absichtlich laxer ist als
+`pruefePositionen()`: ein Entwurf ist unfertig, Vollständigkeit darf er nicht verlangen –
+streng bleibt, dass jede Artikel-Id in der Vorlage vorkommt. Beim Abschließen eines Checks
+räumt der Worker den eigenen Entwurf in derselben `db.batch()`-Folge weg. Auf der
+öffentlichen Checkseite gibt es diesen Weg **nicht**: dort wäre `inhaber` leer, der
+Zwischenstand also je Behälter geteilt und für jeden Scan des Aufklebers les- und
+überschreibbar; dazu käme ein weiteres Muster im Access-Bypass und ein unangemeldeter
+Schreibzugriff, der keine Einreichung ist.
 
 Der **öffentliche Check** (`/c/<TOKEN>`, `worker/src/oeffentlicher-check.ts`) ist der zweite
 Weg am Zugangsschutz vorbei und folgt der öffentlichen Kilometermeldung Zug um Zug: eigenes

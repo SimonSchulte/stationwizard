@@ -42,9 +42,14 @@
     <div class="entwurf-hinweis" role="status">
       <mat-icon aria-hidden="true">history</mat-icon>
       <span>
-        Zwischenstand vom {{ gesichertAm | date: 'dd.MM.yyyy, HH:mm' }} auf diesem Gerät
+        Zwischenstand vom {{ gesichertAm | date: 'dd.MM.yyyy, HH:mm' }} {{ quellentext() }}
         fortgesetzt.
       </span>
+      @if (andererEntwurf(); as anderer) {
+        <button mat-button (click)="store.anderenEntwurfVerwenden()">
+          Stand vom {{ anderer.gespeichertAm | date: 'dd.MM., HH:mm' }} verwenden
+        </button>
+      }
       <button mat-button (click)="entwurfVerwerfen()">Verwerfen</button>
     </div>
   }
@@ -115,7 +120,13 @@
 
 @if (auftrag()) {
   <div class="fussleiste">
-    <button mat-stroked-button (click)="allesAufSoll()">Alles auf Soll</button>
+    <button mat-stroked-button [disabled]="entwurfSpeichert()" (click)="zwischenstandSpeichern()">
+      @if (entwurfSpeichert()) {
+        Wird gesichert …
+      } @else {
+        Zwischenstand speichern
+      }
+    </button>
     <button
       mat-raised-button
       color="primary"
@@ -129,5 +140,12 @@
         Check abschließen
       }
     </button>
+    @if (entwurfFehler(); as fehler) {
+      <p class="entwurf-status fehler" role="alert">{{ fehler }}</p>
+    } @else if (entwurfGesichertAm(); as gesichertAm) {
+      <p class="entwurf-status" role="status">
+        Zwischenstand gesichert · {{ gesichertAm | date: 'HH:mm' }} · auf jedem Gerät fortsetzbar
+      </p>
+    }
   </div>
 }

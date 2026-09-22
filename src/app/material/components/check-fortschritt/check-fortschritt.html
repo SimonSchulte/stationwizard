@@ -21,7 +21,9 @@
   <div class="zaehler">
     <div class="zaehler-haupt">{{ stand().geprueft }} von {{ stand().gesamt }} geprüft</div>
     <div class="zaehler-neben">
-      @if (unvollstaendig() === 0) {
+      @if (befund() === 'offen') {
+        noch keine Eingabe
+      } @else if (unvollstaendig() === 0) {
         keine Abweichung
       } @else {
         @if (stand().fehlmengen > 0) {
@@ -38,11 +40,21 @@
   </div>
 
   <div class="pillen">
-    <span class="pille" [class.warnung]="unvollstaendig() > 0">
-      @if (unvollstaendig() > 0) {
-        {{ unvollstaendig() }} zu melden
-      } @else {
-        vollständig
+    <span
+      class="pille"
+      [class.warnung]="befund() === 'zu-melden'"
+      [class.offen]="befund() === 'offen'"
+    >
+      @switch (befund()) {
+        @case ('zu-melden') {
+          {{ unvollstaendig() }} zu melden
+        }
+        @case ('offen') {
+          noch nichts geprüft
+        }
+        @default {
+          vollständig
+        }
       }
     </span>
     @if (verfallsdatumErfasst()) {

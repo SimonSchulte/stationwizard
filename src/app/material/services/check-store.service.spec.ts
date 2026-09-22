@@ -1,13 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Pruefauftrag } from '../models/check.model';
+import { Checkstand, Pruefauftrag, ServerEntwurf } from '../models/check.model';
 import { ApiCheckStorage } from '../storage/api-check-storage';
 import { CheckUnschluessigFehler } from '../storage/check-storage';
 import { CheckStoreService } from './check-store.service';
 import { merkeEntwurf } from './check-entwurf';
 
-function auftrag(): Pruefauftrag {
+function auftrag(entwurf: ServerEntwurf | null = null): Pruefauftrag {
   return {
+    entwurf,
     behaelter: {
       id: 'b1',
       bezeichnung: 'NFR 1',
@@ -55,6 +56,8 @@ describe('CheckStoreService', () => {
     ladeHistorie: vi.fn(),
     ladeCheck: vi.fn(),
     reicheCheckEin: vi.fn(),
+    speichereEntwurf: vi.fn(),
+    loescheEntwurf: vi.fn(),
   };
   let service: CheckStoreService;
 
@@ -203,5 +206,115 @@ describe('CheckStoreService', () => {
     expect(localStorage.getItem('stationwizard.materialcheck.b1')).toBeNull();
     vi.advanceTimersByTime(2500);
     expect(localStorage.getItem('stationwizard.materialcheck.b1')).not.toBeNull();
+  });
+  /** Ein zur Vorlage passender Stand, mit einer erkennbaren Markierung. */
+  function stand(bemerkung: string): Checkstand {
+    return {
+      behaelterId: 'b1',
+      verfallsdatumErfasst: false,
+      bemerkung,
+      positionen: {
+        a1: {
+          artikelId: 'a1',
+          geprueft: true,
+          istMenge: 2,
+          unbrauchbar: false,
+          verfallsdaten: [null, null],
+        },
+        a2: {
+          artikelId: 'a2',
+          geprueft: false,
+          istMenge: 0,
+          unbrauchbar: false,
+          verfallsdaten: [null],
+        },
+      },
+    };
+  }
+
+  it('nimmt den serverseitigen Zwischenstand auf, wenn es auf dem Gerät keinen gibt', async () => {
+    storage.ladePruefauftrag.mockResolvedValue(
+      auftrag({ gespeichertAm: '2026-09-22T08:00:00.000Z', stand: stand('vom Server') }),
+    );
+    await service.auftragLaden('b1');
+    expect(service.stand()?.bemerkung).toBe('vom Server');
+    expect(service.entwurfQuelle()).toBe('server');
+    expect(service.andererEntwurf()).toBeNull();
+  });
+
+  it('nimmt bei zwei Fassungen die neuere und hält die andere bereit', async () => {
+    merkeEntwurf(stand('vom Gerät'));
+    storage.ladePruefauftrag.mockResolvedValue(
+      // Der Gerätestand trägt den Zeitpunkt des Schreibens, ist also jünger.
+      auftrag({ gespeichertAm: '2020-01-01T00:00:00.000Z', stand: stand('vom Server') }),
+    );
+    await service.auftragLaden('b1');
+    expect(service.stand()?.bemerkung).toBe('vom Gerät');
+    expect(service.entwurfQuelle()).toBe('geraet');
+    expect(service.andererEntwurf()?.quelle).toBe('server');
+
+    service.anderenEntwurfVerwenden();
+    expect(service.stand()?.bemerkung).toBe('vom Server');
+    // Der Wechsel geht in beide Richtungen.
+    expect(service.andererEntwurf()?.quelle).toBe('geraet');
+  });
+
+  it('speichert den Zwischenstand serverseitig und meldet den Zeitpunkt', async () => {
+    storage.ladePruefauftrag.mockResolvedValue(auftrag());
+    await service.auftragLaden('b1');
+    service.positionAendern('a1', { geprueft: true });
+    storage.speichereEntwurf.mockResolvedValue('2026-09-22T09:30:00.000Z');
+
+    expect(await service.zwischenstandSpeichern()).toBe(true);
+    expect(storage.speichereEntwurf).toHaveBeenCalledTimes(1);
+    expect(service.entwurfGesichertAm()).toBe('2026-09-22T09:30:00.000Z');
+  });
+
+  it('schreibt nicht noch einmal, wenn sich seit dem Sichern nichts geändert hat', async () => {
+    storage.ladePruefauftrag.mockResolvedValue(auftrag());
+    await service.auftragLaden('b1');
+    service.positionAendern('a1', { geprueft: true });
+    storage.speichereEntwurf.mockResolvedValue('2026-09-22T09:30:00.000Z');
+    await service.zwischenstandSpeichern();
+    await service.zwischenstandSpeichern();
+    expect(storage.speichereEntwurf).toHaveBeenCalledTimes(1);
+
+    // Nach einer echten Änderung wieder.
+    service.positionAendern('a2', { geprueft: true });
+    await service.zwischenstandSpeichern();
+    expect(storage.speichereEntwurf).toHaveBeenCalledTimes(2);
+  });
+
+  it('schreibt gar nicht, solange der geladene Serverstand unverändert ist', async () => {
+    storage.ladePruefauftrag.mockResolvedValue(
+      auftrag({ gespeichertAm: '2026-09-22T08:00:00.000Z', stand: stand('vom Server') }),
+    );
+    await service.auftragLaden('b1');
+    expect(await service.zwischenstandSpeichern()).toBe(true);
+    expect(storage.speichereEntwurf).not.toHaveBeenCalled();
+  });
+
+  it('meldet einen gescheiterten Zwischenstand, statt ihn als gesichert auszugeben', async () => {
+    storage.ladePruefauftrag.mockResolvedValue(auftrag());
+    await service.auftragLaden('b1');
+    service.positionAendern('a1', { geprueft: true });
+    storage.speichereEntwurf.mockRejectedValue(new Error('Netz weg'));
+
+    expect(await service.zwischenstandSpeichern()).toBe(false);
+    expect(service.entwurfFehler()).toBe('Netz weg');
+    expect(service.entwurfGesichertAm()).toBeNull();
+  });
+
+  it('verwirft beim Verwerfen beide Fassungen, Gerät und Server', async () => {
+    merkeEntwurf(stand('vom Gerät'));
+    storage.ladePruefauftrag.mockResolvedValue(auftrag());
+    storage.loescheEntwurf.mockResolvedValue(undefined);
+    await service.auftragLaden('b1');
+    expect(service.stand()?.bemerkung).toBe('vom Gerät');
+
+    await service.entwurfVerwerfen();
+    expect(localStorage.getItem('stationwizard.materialcheck.b1')).toBeNull();
+    expect(storage.loescheEntwurf).toHaveBeenCalledWith('b1');
+    expect(service.stand()?.bemerkung).toBe('');
   });
 });

@@ -197,3 +197,71 @@ export function zaehleKennzahlen(positionen: readonly Checkposition[], heute: st
   }
   return { gesamt: positionen.length, geprueft, fehlmengen, unbrauchbar, abgelaufen, laeuftAb };
 }
+
+/** Obergrenze für die Bemerkung eines Entwurfs; wie beim fertigen Check. */
+const ENTWURF_BEMERKUNG_MAX = 2000;
+
+/** Der Zwischenstand, wie er in `check_entwuerfe.inhalt` liegt. */
+export interface Entwurf {
+  verfallsdatumErfasst: boolean;
+  bemerkung: string;
+  positionen: Record<string, PositionEingabe>;
+}
+
+export type EntwurfFehler = 'unlesbar' | 'unbekannter-artikel' | 'stueckzahl-passt-nicht';
+
+/**
+ * Prüft einen Zwischenstand gegen die gespeicherte Vorlage.
+ *
+ * Bewusst **laxer** als `pruefePositionen()`: ein Entwurf ist unfertig, also
+ * darf er nicht jeden Artikel der Vorlage enthalten müssen. Streng bleibt, was
+ * die Zuordnung sichert – jede genannte Artikel-Id muss es in der Vorlage
+ * geben, und die Liste der Verfallsdaten muss zur Sollmenge passen. Eine
+ * unbekannte Id wird abgewiesen, bevor irgendetwas geschrieben wird.
+ *
+ * Es entsteht hier **keine** Momentaufnahme aus der Vorlage: ein Entwurf ist
+ * Arbeitsstand, kein Nachweis. Bezeichnung, Sollmenge, Einheit und Herkunft
+ * kommen erst beim Einreichen dazu, und dann wie gehabt aus der Vorlage.
+ */
+export function pruefeEntwurf(
+  wert: unknown,
+  faecher: readonly VorlagenFach[],
+): { entwurf: Entwurf } | { fehler: EntwurfFehler } {
+  if (
+    !istObjekt(wert) ||
+    typeof wert['verfallsdatumErfasst'] !== 'boolean' ||
+    !istText(wert['bemerkung']) ||
+    wert['bemerkung'].length > ENTWURF_BEMERKUNG_MAX ||
+    !istObjekt(wert['positionen'])
+  ) {
+    return { fehler: 'unlesbar' };
+  }
+
+  const nachId = new Map<string, VorlagenArtikel>();
+  for (const fach of faecher) {
+    for (const artikel of fach.artikel) nachId.set(artikel.id, artikel);
+  }
+
+  const positionen: Record<string, PositionEingabe> = {};
+  for (const [artikelId, roh] of Object.entries(wert['positionen'])) {
+    const artikel = nachId.get(artikelId);
+    if (!artikel) return { fehler: 'unbekannter-artikel' };
+    const eingabe = pruefePositionEingabe(roh);
+    if (!eingabe) return { fehler: 'unlesbar' };
+    // Der Schlüssel führt: eine abweichende `artikelId` im Wert wäre ein
+    // Zuordnungsfehler und nicht stillschweigend zu heilen.
+    if (eingabe.artikelId !== artikelId) return { fehler: 'unlesbar' };
+    if (eingabe.verfallsdaten.length !== artikel.sollMenge) {
+      return { fehler: 'stueckzahl-passt-nicht' };
+    }
+    positionen[artikelId] = eingabe;
+  }
+
+  return {
+    entwurf: {
+      verfallsdatumErfasst: wert['verfallsdatumErfasst'],
+      bemerkung: wert['bemerkung'],
+      positionen,
+    },
+  };
+}

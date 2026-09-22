@@ -11,7 +11,14 @@ import {
   type Berichtsart,
   type BerichtsQuelle,
 } from './material-bericht';
-import { Checkposition, VorlagenFach, pruefePositionen, zaehleKennzahlen } from './material-check';
+import {
+  Checkposition,
+  VorlagenFach,
+  pruefeEntwurf,
+  pruefePositionen,
+  zaehleKennzahlen,
+  type EntwurfFehler,
+} from './material-check';
 import {
   VERSANDFEHLER_ANTWORTEN,
   VersandFehler,
@@ -54,6 +61,7 @@ const PRUEFAUFTRAG_PFAD = new RegExp(
   'i',
 );
 const CHECKS_PFAD = new RegExp(`^/api/material/behaelter/(${UUID_MUSTER})/checks$`, 'i');
+const ENTWURF_PFAD = new RegExp(`^/api/material/behaelter/(${UUID_MUSTER})/entwurf$`, 'i');
 const CHECK_PFAD = new RegExp(`^/api/material/checks/(${UUID_MUSTER})$`, 'i');
 // `art` steht im Pfad und nicht als Query-Parameter: der Verteiler weist jede
 // Anfrage mit Query-String ab.
@@ -791,12 +799,35 @@ async function ladeBehaelterMitVorlage(
  * die vollständige Vorlage. Zwei getrennte Abrufe wären zwei Worker-Anfragen
  * gegen das Tageskontingent, für Daten, die immer zusammen gebraucht werden.
  */
-async function lesePruefauftrag(db: D1Database, behaelterId: string): Promise<Response> {
+async function lesePruefauftrag(
+  db: D1Database,
+  behaelterId: string,
+  identitaet: Benutzer,
+): Promise<Response> {
   const zeile = await ladeBehaelterMitVorlage(db, behaelterId);
   if (!zeile) {
     return fehlerAntwort('MATERIAL_BEHAELTER_NICHT_GEFUNDEN', 'Behälter nicht gefunden.', 404);
   }
+  // Der eigene Zwischenstand reist mit: ein zweiter Abruf wäre eine weitere
+  // Worker-Anfrage gegen das Tageskontingent. `inhaber` ist die geprüfte
+  // E-Mail, der Stand einer anderen Person ist über keinen Weg lesbar.
+  const entwurfZeile = await db
+    .prepare(
+      `SELECT inhalt, gespeichert_am FROM check_entwuerfe
+        WHERE behaelter_id = ? AND inhaber = ?`,
+    )
+    .bind(behaelterId, identitaet.email)
+    .first<EntwurfZeile>();
   return jsonAntwort({
+    entwurf: entwurfZeile
+      ? {
+          gespeichertAm: entwurfZeile.gespeichert_am,
+          // `behaelterId` steht nicht in der Spalte: sie ist der Schlüssel der
+          // Zeile. Ergänzt wird sie hier, damit die Antwort unmittelbar den
+          // `Checkstand` der Oberfläche ergibt.
+          stand: { behaelterId, ...JSON.parse(entwurfZeile.inhalt) },
+        }
+      : null,
     behaelter: {
       ...zuBehaelterJson(zeile),
       fahrzeugBezeichnung: zeile.fahrzeug_bezeichnung,
@@ -811,6 +842,84 @@ async function lesePruefauftrag(db: D1Database, behaelterId: string): Promise<Re
       faecher: JSON.parse(zeile.vorlage_inhalt),
     },
   });
+}
+
+interface EntwurfZeile {
+  inhalt: string;
+  gespeichert_am: string;
+}
+
+const ENTWURF_KOERPER_GRENZE = 256 * 1024;
+
+const ENTWURF_FEHLERTEXT: Readonly<Record<EntwurfFehler, string>> = {
+  unlesbar: 'Der Zwischenstand ist unlesbar.',
+  'unbekannter-artikel': 'Der Zwischenstand nennt einen Artikel, den die Prüfvorlage nicht hat.',
+  'stueckzahl-passt-nicht': 'Die Verfallsdaten passen nicht zur Sollmenge eines Artikels.',
+};
+
+/**
+ * Speichert den Zwischenstand eines laufenden Checks – ausdrücklich, nie
+ * automatisch: ein Schreibvorgang je Änderung liefe gegen das Tageskontingent.
+ *
+ * Zusammengesetzter Schlüssel aus Behälter und `inhaber`, jedes Speichern ein
+ * `INSERT … ON CONFLICT DO UPDATE`. So gibt es je Person und Behälter genau
+ * eine Zeile, und niemand kann beliebig viele anlegen. `inhaber` ist
+ * ausschließlich die geprüfte E-Mail, nie eine Angabe aus dem Anfragekörper.
+ *
+ * Es gibt diesen Weg bewusst **nur** im angemeldeten Bereich. Auf der
+ * öffentlichen Checkseite wäre `inhaber` leer, der Zwischenstand also je
+ * Behälter geteilt und für jeden Scan des Aufklebers les- und überschreibbar;
+ * dort bleibt es beim Entwurf auf dem Gerät.
+ */
+async function speichereEntwurf(
+  anfrage: Request,
+  db: D1Database,
+  behaelterId: string,
+  identitaet: Benutzer,
+): Promise<Response> {
+  const zeile = await ladeBehaelterMitVorlage(db, behaelterId);
+  if (!zeile) {
+    return fehlerAntwort('MATERIAL_BEHAELTER_NICHT_GEFUNDEN', 'Behälter nicht gefunden.', 404);
+  }
+  const koerper = await lesePruefeKoerper(anfrage, ENTWURF_KOERPER_GRENZE);
+  if (koerper instanceof Response) return koerper;
+
+  const faecher: VorlagenFach[] = JSON.parse(zeile.vorlage_inhalt);
+  const geprueft = pruefeEntwurf(koerper.inhalt, faecher);
+  if ('fehler' in geprueft) {
+    return fehlerAntwort('MATERIAL_ENTWURF_UNGUELTIG', ENTWURF_FEHLERTEXT[geprueft.fehler], 400);
+  }
+
+  const gespeichertAm = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO check_entwuerfe
+         (behaelter_id, inhaber, inhalt, gespeichert_am, gespeichert_von_name)
+       VALUES (?, ?, ?, ?, '')
+       ON CONFLICT (behaelter_id, inhaber)
+       DO UPDATE SET inhalt = excluded.inhalt, gespeichert_am = excluded.gespeichert_am`,
+    )
+    .bind(behaelterId, identitaet.email, JSON.stringify(geprueft.entwurf), gespeichertAm)
+    .run();
+
+  return jsonAntwort({ gespeichertAm });
+}
+
+/**
+ * Verwirft den eigenen Zwischenstand. Antwortet immer 204, auch wenn nichts da
+ * war: Löschen ist idempotent, und ein 404 wäre hier nur ein Orakel darüber,
+ * ob jemand einen Entwurf hatte.
+ */
+async function loescheEntwurf(
+  db: D1Database,
+  behaelterId: string,
+  identitaet: Benutzer,
+): Promise<Response> {
+  await db
+    .prepare('DELETE FROM check_entwuerfe WHERE behaelter_id = ? AND inhaber = ?')
+    .bind(behaelterId, identitaet.email)
+    .run();
+  return new Response(null, { status: 204 });
 }
 
 async function listeChecks(db: D1Database, behaelterId: string): Promise<Response> {
@@ -902,36 +1011,42 @@ async function legeCheckAn(
   }
 
   const erfasstAm = jetzt.toISOString();
-  await db
-    .prepare(
-      `INSERT INTO materialchecks
+  // Zusammen mit dem Check verschwindet der eigene Zwischenstand: sonst käme er
+  // beim nächsten Öffnen des Behälters wieder hoch, obwohl er erledigt ist.
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO materialchecks
          (id, behaelter_id, vorlage_id, vorlage_version, vorlage_bezeichnung, grundlage,
           geprueft_am, erfasst_am, erfasst_von, gemeldet_von_name, quelle,
           verfallsdatum_erfasst, bemerkung, positionen, positionen_gesamt,
           positionen_geprueft, fehlmengen, unbrauchbar, abgelaufen)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'angemeldet', ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      inhalt['id'],
-      behaelterId,
-      zeile.vorlage_id,
-      zeile.vorlage_version,
-      zeile.vorlage_bezeichnung,
-      zeile.vorlage_grundlage,
-      geprueftAm,
-      erfasstAm,
-      // Immer die geprüfte Identität, nie eine Angabe aus dem Anfragekörper.
-      identitaet.email,
-      inhalt['verfallsdatumErfasst'] ? 1 : 0,
-      inhalt['bemerkung'],
-      JSON.stringify(geprueft.positionen),
-      kennzahlen.gesamt,
-      kennzahlen.geprueft,
-      kennzahlen.fehlmengen,
-      kennzahlen.unbrauchbar,
-      kennzahlen.abgelaufen,
-    )
-    .run();
+      )
+      .bind(
+        inhalt['id'],
+        behaelterId,
+        zeile.vorlage_id,
+        zeile.vorlage_version,
+        zeile.vorlage_bezeichnung,
+        zeile.vorlage_grundlage,
+        geprueftAm,
+        erfasstAm,
+        // Immer die geprüfte Identität, nie eine Angabe aus dem Anfragekörper.
+        identitaet.email,
+        inhalt['verfallsdatumErfasst'] ? 1 : 0,
+        inhalt['bemerkung'],
+        JSON.stringify(geprueft.positionen),
+        kennzahlen.gesamt,
+        kennzahlen.geprueft,
+        kennzahlen.fehlmengen,
+        kennzahlen.unbrauchbar,
+        kennzahlen.abgelaufen,
+      ),
+    db
+      .prepare('DELETE FROM check_entwuerfe WHERE behaelter_id = ? AND inhaber = ?')
+      .bind(behaelterId, identitaet.email),
+  ]);
 
   return jsonAntwort(
     {
@@ -1370,9 +1485,23 @@ export async function verarbeiteMaterial(
     // liefe `/behaelter/<UUID>/checks` in dessen Nichttreffer.
     const auftragId = PRUEFAUFTRAG_PFAD.exec(url.pathname)?.[1];
     if (auftragId) {
-      if (anfrage.method === 'GET') return await lesePruefauftrag(db, auftragId);
+      if (anfrage.method === 'GET') return await lesePruefauftrag(db, auftragId, identitaet);
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET',
+      });
+    }
+
+    const entwurfBehaelterId = ENTWURF_PFAD.exec(url.pathname)?.[1];
+    if (entwurfBehaelterId) {
+      if (anfrage.method === 'PUT')
+        return await speichereEntwurf(anfrage, db, entwurfBehaelterId, identitaet);
+      if (anfrage.method === 'DELETE')
+        return await loescheEntwurf(db, entwurfBehaelterId, identitaet);
+      // Bewusst kein GET: der Zwischenstand reist im Prüfauftrag mit, ein
+      // eigener Abruf wäre eine zweite Worker-Anfrage für Daten, die immer
+      // zusammen gebraucht werden.
+      return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
+        Allow: 'PUT, DELETE',
       });
     }
 

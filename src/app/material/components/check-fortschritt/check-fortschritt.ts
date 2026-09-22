@@ -27,6 +27,17 @@ export class CheckFortschritt {
 
   readonly unvollstaendig = computed(() => this.stand().fehlmengen + this.stand().unbrauchbar);
 
+  /**
+   * Vor der ersten Eingabe ist "vollständig" keine Aussage, sondern eine
+   * Behauptung über einen Check, der noch nicht stattgefunden hat – und grün
+   * die falscheste aller Farben dafür. Dieselbe Überlegung wie bei
+   * `verfallstext()` und beim Status "noch nie geprüft" der Behälterübersicht.
+   */
+  readonly befund = computed<'offen' | 'zu-melden' | 'vollstaendig'>(() => {
+    if (this.unvollstaendig() > 0) return 'zu-melden';
+    return this.stand().geprueft === 0 ? 'offen' : 'vollstaendig';
+  });
+
   readonly verfallstext = computed(() => {
     const stand = this.stand();
     if (stand.abgelaufen > 0) {

@@ -63,6 +63,11 @@ export class BehaelterCheck {
   readonly fortschritt = this.store.fortschritt;
   readonly einreichbar = this.store.einreichbar;
   readonly entwurfGefundenAm = this.store.entwurfGefundenAm;
+  readonly entwurfQuelle = this.store.entwurfQuelle;
+  readonly andererEntwurf = this.store.andererEntwurf;
+  readonly entwurfSpeichert = this.store.entwurfSpeichert;
+  readonly entwurfFehler = this.store.entwurfFehler;
+  readonly entwurfGesichertAm = this.store.entwurfGesichertAm;
   readonly heute = this.store.heutigerTag;
 
   /** Welche Fächer offen sind; anfangs alle zu, damit die Seite nicht erschlägt. */
@@ -146,13 +151,23 @@ export class BehaelterCheck {
     if (bestaetigt) this.store.zuruecksetzen();
   }
 
+  /** Beschreibt die Herkunft des übernommenen Stands; der Hinweis nennt sie. */
+  readonly quellentext = computed(() =>
+    this.entwurfQuelle() === 'server' ? 'vom Server' : 'auf diesem Gerät',
+  );
+
   async entwurfVerwerfen(): Promise<void> {
     const bestaetigt = await this.dialogDienst.bestaetigen(
-      'Der auf diesem Gerät gesicherte Zwischenstand wird gelöscht und der Check beginnt von vorn.',
+      'Der Zwischenstand wird gelöscht – auf diesem Gerät und auf dem Server – und der Check ' +
+        'beginnt von vorn.',
       'Zwischenstand verwerfen',
       'Verwerfen',
     );
-    if (bestaetigt) this.store.entwurfVerwerfen();
+    if (bestaetigt) await this.store.entwurfVerwerfen();
+  }
+
+  async zwischenstandSpeichern(): Promise<void> {
+    await this.store.zwischenstandSpeichern();
   }
 
   async einreichen(): Promise<void> {

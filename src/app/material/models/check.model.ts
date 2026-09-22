@@ -59,8 +59,24 @@ export interface Fahrzeugcheck extends CheckKopf {
   positionen: Checkposition[];
 }
 
+/**
+ * Ein serverseitig gesicherter Zwischenstand. Er entsteht ausschließlich auf
+ * ausdrücklichen Wunsch und gehört immer der angemeldeten Person; ein fremder
+ * Stand ist über keinen Weg lesbar.
+ */
+export interface ServerEntwurf {
+  gespeichertAm: string;
+  stand: Checkstand;
+}
+
 /** Alles, was die Prüfseite braucht – vom Worker in einem Aufruf geliefert. */
 export interface Pruefauftrag {
+  /**
+   * Der eigene serverseitige Zwischenstand, falls vorhanden. Er reist hier mit,
+   * statt einen zweiten Abruf zu kosten – dieselbe Sparsamkeit wie beim
+   * Prüfauftrag selbst.
+   */
+  entwurf: ServerEntwurf | null;
   behaelter: {
     id: string;
     bezeichnung: string;

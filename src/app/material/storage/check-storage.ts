@@ -1,6 +1,7 @@
 import {
   CheckKopf,
   CheckpositionEingabe,
+  Checkstand,
   Fahrzeugcheck,
   Pruefauftrag,
 } from '../models/check.model';
@@ -49,6 +50,17 @@ export interface CheckStorage {
 
   /** Legt den Check an; ein Check wird nie überschrieben. */
   reicheCheckEin(behaelterId: string, check: CheckEingabe): Promise<Fahrzeugcheck>;
+
+  /**
+   * Sichert den Zwischenstand serverseitig und liefert den Zeitpunkt zurück.
+   * Nur auf ausdrücklichen Wunsch aufzurufen – automatisch wäre das ein
+   * Schreibvorgang je Änderung gegen das Tageskontingent. Gelesen wird der
+   * Stand nicht hier, sondern als Teil des Prüfauftrags.
+   */
+  speichereEntwurf(behaelterId: string, stand: Checkstand): Promise<string>;
+
+  /** Verwirft den eigenen serverseitigen Zwischenstand; idempotent. */
+  loescheEntwurf(behaelterId: string): Promise<void>;
 
   /**
    * Berichtstext zur Vorschau. Er entsteht ausschließlich im Worker – die

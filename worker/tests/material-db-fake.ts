@@ -77,6 +77,14 @@ export interface EinreichungZeile {
   check_id?: string | null;
 }
 
+export interface EntwurfZeile {
+  behaelter_id: string;
+  inhaber: string;
+  inhalt: string;
+  gespeichert_am: string;
+  gespeichert_von_name: string;
+}
+
 export interface FahrzeugStammZeile {
   id: string;
   bezeichnung: string;
@@ -84,11 +92,17 @@ export interface FahrzeugStammZeile {
   gruppe: string;
 }
 
+function entwurfSchluessel(behaelterId: string, inhaber: string): string {
+  return `${behaelterId}\u0000${inhaber}`;
+}
+
 export class FakeMaterialDb {
   vorlagen = new Map<string, VorlageZeile>();
   behaelter = new Map<string, BehaelterZeile>();
   checks: CheckZeile[] = [];
   einreichungen: EinreichungZeile[] = [];
+  /** Schlüssel: `<behaelter_id>\u0000<inhaber>`, wie der zusammengesetzte Primärschlüssel. */
+  entwuerfe = new Map<string, EntwurfZeile>();
   fahrzeuge = new Map<string, FahrzeugStammZeile>();
 
   /** Zähler statt Zufall, damit ein Test das erzeugte Prüftoken kennt. */
@@ -132,6 +146,30 @@ class FakeStatement {
     meta: { changes: number };
     results: T[];
   }> {
+    if (this.query.startsWith('INSERT INTO check_entwuerfe')) {
+      const [behaelterId, inhaber, inhalt, gespeichertAm] = this.werte as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      // ON CONFLICT DO UPDATE: derselbe Schlüssel ersetzt, er verdoppelt nicht.
+      this.db.entwuerfe.set(entwurfSchluessel(behaelterId, inhaber), {
+        behaelter_id: behaelterId,
+        inhaber,
+        inhalt,
+        gespeichert_am: gespeichertAm,
+        gespeichert_von_name: '',
+      });
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
+    if (this.query.startsWith('DELETE FROM check_entwuerfe')) {
+      const [behaelterId, inhaber] = this.werte as [string, string];
+      const entfernt = this.db.entwuerfe.delete(entwurfSchluessel(behaelterId, inhaber));
+      return { success: true, meta: { changes: entfernt ? 1 : 0 }, results: [] };
+    }
+
     if (this.query.startsWith('INSERT INTO pruefvorlagen')) {
       const [id, bezeichnung, beschreibung, grundlage, inhalt, geaendert_am, geaendert_von] = this
         .werte as [string, string, string, string, string, string, string];
@@ -488,6 +526,11 @@ class FakeStatement {
   }
 
   async first<T = Record<string, unknown>>(): Promise<T | null> {
+    if (this.query.startsWith('SELECT inhalt, gespeichert_am FROM check_entwuerfe')) {
+      const [behaelterId, inhaber] = this.werte as [string, string];
+      return (this.db.entwuerfe.get(entwurfSchluessel(behaelterId, inhaber)) ?? null) as T | null;
+    }
+
     if (this.query.startsWith('SELECT * FROM pruefvorlagen WHERE id = ?')) {
       const [id] = this.werte as [string];
       return (this.db.vorlagen.get(id) ?? null) as T | null;

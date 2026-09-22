@@ -80,6 +80,11 @@ Verdopplung selbst als Risiko; die Vorschau holt denselben Text stattdessen übe
 Berichtsendpunkt. Der Unterschied zur Statuslogik: ein Bericht wird selten und bewusst
 erzeugt, ein Serveraufruf ist dabei nicht störend.
 
+Beim Wiedereinstieg kann es zwei Zwischenstände geben, den auf dem Gerät und den
+serverseitigen. Übernommen wird der **neuere**; der andere bleibt im Speicher und ist mit
+einem Knopf erreichbar, ohne dass ein weiterer Serveraufruf nötig wäre. Ein Stand, der nicht
+mehr zur Prüfvorlage passt, wird verworfen statt halb übernommen.
+
 Ein globaler Schalter beim Check überspringt die Verfallsdatenerfassung vollständig
 (`verfallsdatum_erfasst`). Es gibt bewusst **keine Fälligkeit und keine Ampel** je Behälter:
 angezeigt wird nur „zuletzt geprüft am …". Eine Fälligkeitsregel ohne fachliche Festlegung
@@ -157,9 +162,24 @@ Spalten geführt, damit keine Übersicht JSON parsen muss.
 derselbe Grund wie bei `ablesung_einreichungen`: in `materialchecks` steht ausschließlich, was
 als geprüfter Stand gilt, und jede Kennzahl liest diese Tabelle vollständig.
 
-`check_entwuerfe` ist als Ersetzungstabelle mit zusammengesetztem Schlüssel
-(`behaelter_id`, `inhaber`) angelegt, damit ein serverseitiger Zwischenstand nicht beliebig
-viele Zeilen anlegen kann. **Die Tabelle wird derzeit nicht beschrieben** – siehe Abschnitt 8.
+`check_entwuerfe` ist eine Ersetzungstabelle mit zusammengesetztem Schlüssel
+(`behaelter_id`, `inhaber`): jedes Speichern ist ein `INSERT … ON CONFLICT DO UPDATE`, je
+Person und Behälter gibt es genau eine Zeile, und niemand kann beliebig viele anlegen.
+`inhaber` ist ausschließlich die geprüfte E-Mail; ein fremder Stand ist über keinen Weg
+lesbar. Geschrieben wird nur auf ausdrücklichen Knopfdruck – automatisch wäre das ein
+Schreibvorgang je Änderung gegen das Tageskontingent. Gelesen wird der Stand **nicht** über
+einen eigenen Endpunkt, sondern als Feld des Prüfauftrags, aus demselben Grund, aus dem der
+Prüfauftrag überhaupt ein einzelner Aufruf ist. Beim Abschließen eines Checks räumt der
+Worker den eigenen Entwurf in derselben Anweisungsfolge weg, sonst käme er beim nächsten
+Öffnen wieder hoch.
+
+Den serverseitigen Zwischenstand gibt es **nur im angemeldeten Bereich**. Auf der
+öffentlichen Checkseite wäre `inhaber` leer, der Stand also je Behälter geteilt: jeder Scan
+des Aufklebers könnte den halbfertigen Stand einer anderen Person lesen und überschreiben.
+Dazu käme ein weiteres Muster im Access-Bypass und ein unangemeldeter Schreibzugriff, der
+keine Einreichung ist. Dort bleibt es beim Gerätestand – für den Anwendungsfall „am Telefon
+angefangen, am Rechner weiter" ist das kein Verlust, weil ein öffentlicher Check ohnehin an
+den Aufkleber in der Hand gebunden ist.
 
 ### Optimistische Sperre
 
@@ -201,11 +221,6 @@ unveränderte Dateierlaubnisliste samt Inhaltstyp-Gegenprüfung.
 
 ## 8. Noch offen
 
-- **„Zwischenstand speichern" serverseitig.** Die Tabelle `check_entwuerfe` und die
-  Endpunkte `…/entwurf` sind geplant, der Knopf ist in der Oberfläche **nicht** vorhanden.
-  Derzeit existiert nur der automatische lokale Entwurf auf dem Gerät. Ein Check lässt sich
-  damit **nicht** auf einem anderen Gerät fortsetzen. Das war eine ausdrückliche Anforderung
-  und ist der nächste fällige Schritt.
 - **Aufkleberbogen.** Der QR-Code eines Behälters ist auf der Detailseite sichtbar; ein
   druckbarer Bogen über alle Behälter – analog `fahrzeug-druckbogen.service.ts` – fehlt.
 - **Rollen jenseits der Freigabe.** Vorlagen pflegen, Behälter anlegen und ändern
