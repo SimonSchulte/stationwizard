@@ -67,6 +67,14 @@ export class Systemkonfiguration implements OnInit {
     this.store.entwurfAendern({ kmBerichtVersandweg: wert });
   }
 
+  ampelGelbAendern(wert: number): void {
+    this.store.entwurfAendern({ kmAmpelSchwellenwertGelbMonate: wert });
+  }
+
+  ampelRotAendern(wert: number): void {
+    this.store.entwurfAendern({ kmAmpelSchwellenwertRotMonate: wert });
+  }
+
   istVerfuegbar(weg: Versandweg): boolean {
     return this.store.istVerfuegbar(weg);
   }

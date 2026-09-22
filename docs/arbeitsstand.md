@@ -1918,3 +1918,49 @@ Listeneintrag, `gemeldetVonName` vorhanden) – ohne die Änderung rot, mit ihr 
 `npm run build` (inkl. `worker:check`), `npm test` (730 Angular-, 13 `oeffentlich`-,
 564 Worker-Tests), `npm run format:check`, `npm run worker:test` – alle grün. Am
 Produktivsystem nicht nachgeprüft.
+
+## Kilometer-Ampel und Standardfilter in der Kilometerübersicht
+
+Ampel je Fahrzeug (`gruen`/`gelb`/`rot`) für die Kilometerbilanz: Grundlage ist
+`ermittleKilometerAmpel()` in `fahrzeuge/services/kilometer-soll.ts`. Grün bleibt es,
+solange die Rest-km eines Fahrzeugs beim Mindesttempo seines Eigentümers über die
+verbleibenden Monate des Bilanzjahres (`restmonateImJahr()`, Stichtagsmonat zählt noch
+mit) noch aufholbar sind; darüber hinaus ein Schwellenwert-Puffer in Monaten, konfigurierbar
+über zwei neue Systemkonfigurations-Werte `kmAmpelSchwellenwertGelbMonate`/
+`kmAmpelSchwellenwertRotMonate` (Default 1 bzw. 3, eigener Tab „Kilometerübersicht" in der
+Systemkonfigurationsseite). Die Ampel wird bewusst **client-seitig** berechnet (wie
+`ermittleWartungsstatus()` für Wartungstermine) statt im Worker: sie ist eine reine
+Darstellungsableitung aus den vom Bericht bereits gelieferten Kennzahlen
+(`sollKm`/`istKm`/`restKm`) plus einem UI-Schwellenwert, keine neue Kennzahl, die Mail und
+Vorschau übereinstimmend zeigen müssten. Angezeigt in der gemeinsamen `KilometerBilanz`
+(neue `ampel`-Eingabe, ohne sie unverändert wie zuvor) – damit im Fuhrpark-Dashboard – sowie
+zusätzlich mit eigenem Punkt in der Berichtstabelle der Kilometerübersicht.
+
+Kilometerübersicht (Fuhrpark-Dashboard, Kilometerbilanz-Karten) und der Bericht
+(Kilometerübersicht-Tab/Vorschau) filtern jetzt standardmäßig auf Fahrzeuge mit
+vorgeschriebener Laufleistung (`sollKm > 0`, also nicht `organisation`); je eine eigene
+Checkbox „Alle Fahrzeuge anzeigen" schaltet das ab. Bewusste Entscheidung, ohne
+Rückfrage getroffen, weil die Aufgabenbeschreibung nicht eindeutig war: gefiltert wird nur
+die **Anzeige** an beiden Stellen, nicht der tatsächlich versendete Bericht
+(`POST /api/fahrzeuge/km-bericht/senden` bleibt unverändert – voller Fuhrpark). Der
+Worker und `worker/src/km-bericht.ts` sind unverändert; nur `worker/src/systemkonfiguration.ts`
+bekam die beiden neuen Schlüssel (`km_ampel_schwellenwert_gelb_monate`/`…_rot_monate`,
+Ganzzahl 0–36, in der Text-Spalte gespeichert und beim Lesen sowohl als Zahl aus der
+Eingabe-JSON als auch als aus D1 zurückgelesene Zeichenkette akzeptiert). Falls „der
+Bericht" in der Aufgabe eigentlich den tatsächlichen Mailversand meinte, ist das noch
+nachzuholen.
+
+Geprüft: neue/angepasste Tests in `kilometer-soll.spec.ts` (Ampel- und
+Restmonate-Berechnung), `kilometer-bilanz.spec.ts` (neue `ampel`-Eingabe ist optional, plus
+neue DOM-Prüfung per TestBed/jsdom: kein Ampelpunkt ohne Eingabe, `.ampel-gruen`/`-gelb`/
+`-rot` mit ihr – ein echter, wenn auch kopfloser Renderdurchlauf, kein reiner
+Berechnungstest), `fahrzeug-dashboard.spec.ts` und `kilometer-uebersicht.spec.ts` (Filter,
+Ampelberechnung mit injizierter Systemkonfiguration), `systemkonfiguration-pruefung.spec.ts`,
+`systemkonfiguration-store.service.spec.ts`, `systemkonfiguration.spec.ts` (Seite),
+`api-systemkonfiguration-storage.spec.ts`, `worker/tests/systemkonfiguration.spec.ts`
+(neue Defaults und Validierungsfälle). `npm run build` (inkl. `worker:check`), `npm test`
+(751 Angular-, 13 `oeffentlich`-, 567 Worker-Tests), `npm run format:check` – alle grün.
+Keine echte Browserprüfung dieser Sitzung (reine Cloud-Sitzung ohne Zugriff auf einen
+angemeldeten Worker-Backend-Stand für echte Fahrzeugdaten); die jsdom-Renderprüfung deckt
+CSS-Klassenbindung und Sichtbarkeit ab, nicht Layout/Kontrast/mobile Darstellung im
+tatsächlichen Browser.

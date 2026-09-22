@@ -1,9 +1,29 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
+import { BerichtZeile } from '../../models/km-bericht.model';
 import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
+import {
+  ermittleKilometerAmpel,
+  KILOMETER_AMPEL_SCHWELLENWERTE_STANDARD,
+  KilometerAmpel,
+  restmonateImJahr,
+} from '../../services/kilometer-soll';
+
+interface AnzeigeZeile {
+  zeile: BerichtZeile;
+  ampel: KilometerAmpel | null;
+}
 
 /**
  * Fuhrpark-weite Kilometerübersicht: Vorschau und Versand des
@@ -14,7 +34,7 @@ import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-kilometer-uebersicht',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [MatButtonModule, MatCheckboxModule, MatIconModule],
   templateUrl: './kilometer-uebersicht.html',
   styleUrl: './kilometer-uebersicht.less',
 })
@@ -46,6 +66,47 @@ export class KilometerUebersicht implements OnInit {
 
   readonly versandMoeglich = computed(
     () => this.empfaengerGesetzt() && this.gewaehlterWegVerfuegbar(),
+  );
+
+  /**
+   * Standardmäßig nur Fahrzeuge mit vorgeschriebener Laufleistung
+   * (`sollKm > 0`) – der Bericht dient der Kontrolle dieser Vorgabe,
+   * Fahrzeuge der Organisation ohne Vorgabe würden ihn nur unnötig füllen.
+   */
+  readonly alleFahrzeugeAnzeigen = signal(false);
+
+  private readonly ampelSchwellenwerte = computed(() => {
+    const einstellungen = this.gespeicherteEinstellungen();
+    return einstellungen
+      ? {
+          gelbMonate: einstellungen.kmAmpelSchwellenwertGelbMonate,
+          rotMonate: einstellungen.kmAmpelSchwellenwertRotMonate,
+        }
+      : KILOMETER_AMPEL_SCHWELLENWERTE_STANDARD;
+  });
+
+  readonly angezeigteZeilen = computed<AnzeigeZeile[]>(() => {
+    const bericht = this.bericht();
+    if (!bericht) return [];
+    const schwellenwerte = this.ampelSchwellenwerte();
+    const restMonate = restmonateImJahr(bericht.stichtag, bericht.jahr);
+    return bericht.zeilen
+      .filter((zeile) => this.alleFahrzeugeAnzeigen() || zeile.sollKm > 0)
+      .map((zeile) => ({
+        zeile,
+        ampel: ermittleKilometerAmpel(zeile, restMonate, schwellenwerte),
+      }));
+  });
+
+  readonly angezeigteOhneAblesung = computed(
+    () => this.angezeigteZeilen().filter((eintrag) => eintrag.zeile.letzterStand === null).length,
+  );
+
+  readonly angezeigteUnterSoll = computed(
+    () =>
+      this.angezeigteZeilen().filter(
+        (eintrag) => eintrag.zeile.sollKm > 0 && (eintrag.zeile.restKm ?? eintrag.zeile.sollKm) > 0,
+      ).length,
   );
 
   /** Gleiche Darstellung wie im Mailtext (`worker/src/km-bericht.ts`). */

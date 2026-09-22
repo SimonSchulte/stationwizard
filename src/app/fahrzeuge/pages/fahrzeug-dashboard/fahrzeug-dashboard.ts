@@ -8,10 +8,12 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { formatiereDatum, heuteIso, jahrVon } from '../../../kern/kalender/datum';
+import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import { WartungenListe } from '../../components/wartungen-liste/wartungen-liste';
 import { FahrzeugListe } from '../fahrzeug-liste/fahrzeug-liste';
@@ -21,7 +23,13 @@ import { hatAbleseLueckeNachTagen } from '../../services/ablesung-pruefung';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
-import { KilometerJahresbilanz } from '../../services/kilometer-soll';
+import {
+  ermittleKilometerAmpel,
+  KILOMETER_AMPEL_SCHWELLENWERTE_STANDARD,
+  KilometerAmpel,
+  KilometerJahresbilanz,
+  restmonateImJahr,
+} from '../../services/kilometer-soll';
 import { ermittleWartungsstatus, Wartungsstatus } from '../../services/wartungsstatus';
 
 /** Anzahl der Termine in der kompakten Übersicht; die vollständige Liste steht im eigenen Tab. */
@@ -40,6 +48,7 @@ interface BilanzKarte {
   kennzeichen: string;
   eigentuemer: Eigentuemer;
   bilanz: KilometerJahresbilanz;
+  ampel: KilometerAmpel | null;
   hatAbleseLuecke: boolean;
   /** ISO-Datum der letzten Ablesung, oder `null` ohne jede Ablesung. */
   letzteAblesungAm: string | null;
@@ -72,6 +81,7 @@ function tageBisFaelligText(tage: number): string {
   imports: [
     RouterLink,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatTabsModule,
     MatToolbarModule,
@@ -86,6 +96,7 @@ function tageBisFaelligText(tage: number): string {
 export class FahrzeugDashboard implements OnInit {
   private readonly store = inject(FahrzeugStoreService);
   private readonly berichtStore = inject(KmBerichtStoreService);
+  private readonly konfiguration = inject(SystemkonfigurationStoreService);
   private readonly router = inject(Router);
 
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
@@ -104,27 +115,51 @@ export class FahrzeugDashboard implements OnInit {
   readonly bilanzenLaedt = this.berichtStore.laedt;
   readonly bilanzenFehler = this.berichtStore.ladeFehler;
 
+  /**
+   * Standardmäßig nur Fahrzeuge mit vorgeschriebener Laufleistung
+   * (`sollKm > 0`); Fahrzeuge der Organisation haben keine Vorgabe und damit
+   * auch keine Ampel, sie würden die Übersicht nur unnötig füllen.
+   */
+  readonly alleFahrzeugeAnzeigen = signal(false);
+
+  private readonly ampelSchwellenwerte = computed(() => {
+    const einstellungen = this.konfiguration.gespeicherteEinstellungen();
+    return einstellungen
+      ? {
+          gelbMonate: einstellungen.kmAmpelSchwellenwertGelbMonate,
+          rotMonate: einstellungen.kmAmpelSchwellenwertRotMonate,
+        }
+      : KILOMETER_AMPEL_SCHWELLENWERTE_STANDARD;
+  });
+
   readonly bilanzen = computed<BilanzKarte[]>(() => {
     const bericht = this.berichtStore.bericht();
     if (!bericht) return [];
+    const schwellenwerte = this.ampelSchwellenwerte();
+    const restMonate = restmonateImJahr(bericht.stichtag, bericht.jahr);
     return (
       bericht.zeilen
-        .map((zeile) => ({
-          id: zeile.id,
-          bezeichnung: zeile.bezeichnung,
-          kennzeichen: zeile.kennzeichen,
-          eigentuemer: zeile.eigentuemer,
-          bilanz: {
+        .filter((zeile) => this.alleFahrzeugeAnzeigen() || zeile.sollKm > 0)
+        .map((zeile) => {
+          const bilanz: KilometerJahresbilanz = {
             jahr: bericht.jahr,
             eigentuemer: zeile.eigentuemer,
             sollKm: zeile.sollKm,
             istKm: zeile.istKm,
             restKm: zeile.restKm,
             unvollstaendig: zeile.unvollstaendig,
-          },
-          hatAbleseLuecke: hatAbleseLueckeNachTagen(zeile.tageSeitAblesung),
-          letzteAblesungAm: zeile.abgelesenAm,
-        }))
+          };
+          return {
+            id: zeile.id,
+            bezeichnung: zeile.bezeichnung,
+            kennzeichen: zeile.kennzeichen,
+            eigentuemer: zeile.eigentuemer,
+            bilanz,
+            ampel: ermittleKilometerAmpel(bilanz, restMonate, schwellenwerte),
+            hatAbleseLuecke: hatAbleseLueckeNachTagen(zeile.tageSeitAblesung),
+            letzteAblesungAm: zeile.abgelesenAm,
+          };
+        })
         // Der Bericht sortiert in SQL, hier soll die deutsche Sortierung gelten.
         .sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung))
     );
@@ -156,9 +191,13 @@ export class FahrzeugDashboard implements OnInit {
     void this.laden();
   }
 
-  /** Fahrzeugliste und Bericht hängen nicht voneinander ab – parallel abrufen. */
+  /** Fahrzeugliste, Bericht und Ampel-Schwellenwerte hängen nicht voneinander ab – parallel abrufen. */
   private async laden(): Promise<void> {
-    await Promise.all([this.store.listeLaden(), this.berichtStore.berichtLaden()]);
+    await Promise.all([
+      this.store.listeLaden(),
+      this.berichtStore.berichtLaden(),
+      this.konfiguration.laden(),
+    ]);
   }
 
   neuesFahrzeug(): void {

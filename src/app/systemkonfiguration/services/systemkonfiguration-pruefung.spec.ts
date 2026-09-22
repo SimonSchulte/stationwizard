@@ -6,6 +6,8 @@ const GUELTIG = {
     kmBerichtEmpfaenger: 'leitung@example.test',
     kmBerichtVersandweg: 'email-routing',
     kmBerichtBetreff: 'Kilometerstandsbericht',
+    kmAmpelSchwellenwertGelbMonate: 1,
+    kmAmpelSchwellenwertRotMonate: 3,
   },
   versandwege: [
     { weg: 'email-routing', verfuegbar: true },
@@ -44,6 +46,14 @@ describe('istSystemkonfiguration', () => {
 
   it('lehnt eine fehlende Verfügbarkeitsangabe ab', () => {
     expect(istSystemkonfiguration({ ...GUELTIG, versandwege: [{ weg: 'resend' }] })).toBe(false);
+  });
+
+  it('lehnt einen nicht-ganzzahligen Ampel-Schwellenwert ab', () => {
+    const nichtGanzzahl = {
+      ...GUELTIG,
+      einstellungen: { ...GUELTIG.einstellungen, kmAmpelSchwellenwertGelbMonate: 1.5 },
+    };
+    expect(istSystemkonfiguration(nichtGanzzahl)).toBe(false);
   });
 
   it('lehnt Nicht-Objekte ab', () => {

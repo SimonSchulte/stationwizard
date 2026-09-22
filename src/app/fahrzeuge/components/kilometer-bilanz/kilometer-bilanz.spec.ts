@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
+import { KilometerAmpel, KilometerJahresbilanz } from '../../services/kilometer-soll';
 import { KilometerBilanz } from './kilometer-bilanz';
-import { KilometerJahresbilanz } from '../../services/kilometer-soll';
 
 function bilanz(ueberschreibung: Partial<KilometerJahresbilanz> = {}): KilometerJahresbilanz {
   return {
@@ -15,11 +15,16 @@ function bilanz(ueberschreibung: Partial<KilometerJahresbilanz> = {}): Kilometer
   };
 }
 
-function erzeuge(wert: KilometerJahresbilanz): KilometerBilanz {
+function erzeugeFixture(wert: KilometerJahresbilanz, ampel: KilometerAmpel | null = null) {
   const fixture = TestBed.createComponent(KilometerBilanz);
   fixture.componentRef.setInput('bilanz', wert);
+  fixture.componentRef.setInput('ampel', ampel);
   fixture.detectChanges();
-  return fixture.componentInstance;
+  return fixture;
+}
+
+function erzeuge(wert: KilometerJahresbilanz): KilometerBilanz {
+  return erzeugeFixture(wert).componentInstance;
 }
 
 describe('KilometerBilanz', () => {
@@ -42,5 +47,21 @@ describe('KilometerBilanz', () => {
     expect(erzeuge(bilanz({ restKm: 0 })).zielErreicht()).toBe(true);
     expect(erzeuge(bilanz({ restKm: 50 })).zielErreicht()).toBe(false);
     expect(erzeuge(bilanz({ restKm: null })).zielErreicht()).toBe(false);
+  });
+
+  it('zeigt ohne Ampel-Eingabe keinen Ampelpunkt', () => {
+    const fixture = erzeugeFixture(bilanz());
+    expect(fixture.nativeElement.querySelector('.ampel-punkt')).toBeNull();
+  });
+
+  it.each([
+    ['gruen', 'ampel-gruen'],
+    ['gelb', 'ampel-gelb'],
+    ['rot', 'ampel-rot'],
+  ] as const)('rendert einen Ampelpunkt mit Klasse %s → %s', (farbe, klasse) => {
+    const fixture = erzeugeFixture(bilanz(), farbe);
+    const punkt = fixture.nativeElement.querySelector('.ampel-punkt');
+    expect(punkt).not.toBeNull();
+    expect(punkt.classList.contains(klasse)).toBe(true);
   });
 });

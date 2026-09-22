@@ -13,12 +13,18 @@ export function istVersandweg(wert: unknown): wert is Versandweg {
   return istText(wert) && (VERSANDWEGE as readonly string[]).includes(wert);
 }
 
+function istGanzzahl(wert: unknown): wert is number {
+  return typeof wert === 'number' && Number.isInteger(wert);
+}
+
 function istEinstellungen(wert: unknown): wert is Einstellungen {
   return (
     istObjekt(wert) &&
     istText(wert['kmBerichtEmpfaenger']) &&
     istVersandweg(wert['kmBerichtVersandweg']) &&
-    istText(wert['kmBerichtBetreff'])
+    istText(wert['kmBerichtBetreff']) &&
+    istGanzzahl(wert['kmAmpelSchwellenwertGelbMonate']) &&
+    istGanzzahl(wert['kmAmpelSchwellenwertRotMonate'])
   );
 }
 

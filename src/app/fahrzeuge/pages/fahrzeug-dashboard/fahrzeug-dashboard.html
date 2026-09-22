@@ -59,7 +59,15 @@
           </section>
 
           <section class="karte kilometer" aria-labelledby="kilometer-titel">
-            <h2 id="kilometer-titel">Kilometerbilanz {{ jahr() }}</h2>
+            <div class="karten-kopf">
+              <h2 id="kilometer-titel">Kilometerbilanz {{ jahr() }}</h2>
+              <mat-checkbox
+                [checked]="alleFahrzeugeAnzeigen()"
+                (change)="alleFahrzeugeAnzeigen.set($event.checked)"
+              >
+                Alle Fahrzeuge (auch ohne Vorgabe)
+              </mat-checkbox>
+            </div>
             @if (bilanzenLaedt()) {
               <p role="status">Kilometerbilanzen werden geladen …</p>
             }
@@ -83,7 +91,7 @@
                         EIGENTUEMER_LABEL[eintrag.eigentuemer]
                       }}</span>
                     </div>
-                    <app-kilometer-bilanz [bilanz]="eintrag.bilanz" />
+                    <app-kilometer-bilanz [bilanz]="eintrag.bilanz" [ampel]="eintrag.ampel" />
                     @if (eintrag.hatAbleseLuecke) {
                       <span class="tag-chip bilanz-luecke">
                         @if (eintrag.letzteAblesungAm) {
@@ -96,6 +104,15 @@
                   </div>
                 }
               </div>
+            }
+            @if (!bilanzenLaedt() && bilanzen().length === 0) {
+              <p class="empty-hint">
+                @if (alleFahrzeugeAnzeigen()) {
+                  Keine Fahrzeuge erfasst.
+                } @else {
+                  Keine Fahrzeuge mit vorgeschriebener Laufleistung.
+                }
+              </p>
             }
           </section>
         </div>

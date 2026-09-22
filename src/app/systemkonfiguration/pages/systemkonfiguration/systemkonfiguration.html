@@ -11,9 +11,9 @@
     <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
   }
 
-  <mat-tab-group>
-    <mat-tab label="Email Versand">
-      @if (entwurf(); as werte) {
+  @if (entwurf(); as werte) {
+    <mat-tab-group>
+      <mat-tab label="Email Versand">
         <div class="tab-inhalt">
           <p class="beschreibung">
             Wohin und worüber der Kilometerstandsbericht versendet wird. Zugangsdaten stehen bewusst
@@ -70,35 +70,72 @@
               Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.
             </p>
           }
-
-          @if (speicherFehler()) {
-            <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
-          }
-          @if (gespeichert() && !ungespeichert()) {
-            <p class="erfolg-hint" role="status">Einstellungen gespeichert.</p>
-          }
-
-          <div class="aktionen">
-            <button
-              mat-raised-button
-              color="primary"
-              type="button"
-              [disabled]="!ungespeichert() || speichert()"
-              (click)="speichern()"
-            >
-              {{ speichert() ? 'Speichern …' : 'Speichern' }}
-            </button>
-            <button
-              mat-button
-              type="button"
-              [disabled]="!ungespeichert() || speichert()"
-              (click)="verwerfen()"
-            >
-              Verwerfen
-            </button>
-          </div>
         </div>
-      }
-    </mat-tab>
-  </mat-tab-group>
+      </mat-tab>
+
+      <mat-tab label="Kilometerübersicht">
+        <div class="tab-inhalt">
+          <p class="beschreibung">
+            Ab wann die Ampel je Fahrzeug in der Kilometerübersicht auf Gelb bzw. Rot springt: ein
+            Puffer in Monaten auf den Rückstand, den ein Fahrzeug beim Mindesttempo seines
+            Eigentümers gegenüber den verbleibenden Monaten des Jahres haben darf, bevor es
+            auffällt.
+          </p>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Ampel Gelb ab (Monate Rückstand)</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="36"
+              step="1"
+              [value]="werte.kmAmpelSchwellenwertGelbMonate"
+              (input)="ampelGelbAendern($any($event.target).valueAsNumber)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Ampel Rot ab (Monate Rückstand)</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="36"
+              step="1"
+              [value]="werte.kmAmpelSchwellenwertRotMonate"
+              (input)="ampelRotAendern($any($event.target).valueAsNumber)"
+            />
+          </mat-form-field>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+
+    @if (speicherFehler()) {
+      <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+    }
+    @if (gespeichert() && !ungespeichert()) {
+      <p class="erfolg-hint" role="status">Einstellungen gespeichert.</p>
+    }
+
+    <div class="aktionen">
+      <button
+        mat-raised-button
+        color="primary"
+        type="button"
+        [disabled]="!ungespeichert() || speichert()"
+        (click)="speichern()"
+      >
+        {{ speichert() ? 'Speichern …' : 'Speichern' }}
+      </button>
+      <button
+        mat-button
+        type="button"
+        [disabled]="!ungespeichert() || speichert()"
+        (click)="verwerfen()"
+      >
+        Verwerfen
+      </button>
+    </div>
+  }
 </div>

@@ -7,6 +7,7 @@ import {
   VersandwegStatus,
 } from '../../../systemkonfiguration/models/systemkonfiguration.model';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
+import { BerichtZeile, KmBericht } from '../../models/km-bericht.model';
 import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
 import { KilometerUebersicht } from './kilometer-uebersicht';
 
@@ -15,6 +16,26 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     kmBerichtEmpfaenger: 'leitung@example.test',
     kmBerichtVersandweg: 'email-routing',
     kmBerichtBetreff: 'Kilometerstandsbericht',
+    kmAmpelSchwellenwertGelbMonate: 1,
+    kmAmpelSchwellenwertRotMonate: 3,
+    ...ueberschreibung,
+  };
+}
+
+function berichtZeile(ueberschreibung: Partial<BerichtZeile> = {}): BerichtZeile {
+  return {
+    id: 'f-1',
+    bezeichnung: 'MTW',
+    funkrufname: 'Florian 1',
+    kennzeichen: 'K-XY 123',
+    eigentuemer: 'land-nrw',
+    letzterStand: 12_000,
+    abgelesenAm: '2026-06-01',
+    tageSeitAblesung: 5,
+    sollKm: 1800,
+    istKm: 900,
+    restKm: 900,
+    unvollstaendig: false,
     ...ueberschreibung,
   };
 }
@@ -38,7 +59,7 @@ function aufbau(optionen: {
   const berichtStore = {
     berichtLaden: vi.fn(),
     senden: vi.fn().mockResolvedValue(true),
-    bericht: signal(null),
+    bericht: signal<KmBericht | null>(null),
     laedt: signal(false),
     ladeFehler: signal(''),
     sendet: signal(false),
@@ -112,5 +133,55 @@ describe('KilometerUebersicht', () => {
     const { seite, dialog } = aufbau({});
     await seite.senden();
     expect(dialog.bestaetigen.mock.calls[0][0]).toContain('leitung@example.test');
+  });
+
+  it('blendet standardmäßig Fahrzeuge ohne vorgeschriebene Laufleistung aus', () => {
+    const { seite, berichtStore } = aufbau({});
+    const bericht: KmBericht = {
+      stichtag: '2026-06-15',
+      jahr: 2026,
+      zeilen: [
+        berichtZeile({ id: 'mit-vorgabe', bezeichnung: 'Mit Vorgabe' }),
+        berichtZeile({
+          id: 'ohne-vorgabe',
+          bezeichnung: 'Ohne Vorgabe',
+          eigentuemer: 'organisation',
+          sollKm: 0,
+          istKm: null,
+          restKm: null,
+        }),
+      ],
+      ohneAblesung: 0,
+      unterSoll: 0,
+    };
+    berichtStore.bericht.set(bericht);
+
+    expect(seite.angezeigteZeilen().map((e) => e.zeile.bezeichnung)).toEqual(['Mit Vorgabe']);
+
+    seite.alleFahrzeugeAnzeigen.set(true);
+    expect(seite.angezeigteZeilen().map((e) => e.zeile.bezeichnung)).toEqual([
+      'Mit Vorgabe',
+      'Ohne Vorgabe',
+    ]);
+  });
+
+  it('berechnet die Ampel je Zeile aus den gespeicherten Schwellenwerten', () => {
+    const { seite, berichtStore } = aufbau({
+      gespeichert: einstellungen({
+        kmAmpelSchwellenwertGelbMonate: 1,
+        kmAmpelSchwellenwertRotMonate: 3,
+      }),
+    });
+    const bericht: KmBericht = {
+      stichtag: '2026-06-15',
+      jahr: 2026,
+      zeilen: [berichtZeile({ sollKm: 1800, istKm: 900, restKm: 900 })],
+      ohneAblesung: 0,
+      unterSoll: 0,
+    };
+    berichtStore.bericht.set(bericht);
+
+    // 150 km/Monat, Stichtag Juni → 7 Restmonate → 1200 km Grenze bis gelb; 900 km Rest ist grün.
+    expect(seite.angezeigteZeilen()[0].ampel).toBe('gruen');
   });
 });

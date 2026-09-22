@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
+import { Einstellungen } from '../../../systemkonfiguration/models/systemkonfiguration.model';
+import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
 import { FahrzeugDashboard } from './fahrzeug-dashboard';
 import { BerichtZeile, KmBericht } from '../../models/km-bericht.model';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
@@ -49,14 +52,19 @@ function konfiguriere(
     ladeFehler: () => '',
     berichtLaden: vi.fn().mockResolvedValue(undefined),
   };
+  const konfigurationStore = {
+    laden: vi.fn().mockResolvedValue(undefined),
+    gespeicherteEinstellungen: signal<Einstellungen | null>(null),
+  };
   TestBed.configureTestingModule({
     providers: [
       { provide: FahrzeugStoreService, useValue: store },
       { provide: KmBerichtStoreService, useValue: berichtStore },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationStore },
       ...extra,
     ],
   });
-  return { store, berichtStore };
+  return { store, berichtStore, konfigurationStore };
 }
 
 async function erzeugeUndWarte(): Promise<FahrzeugDashboard> {
@@ -145,6 +153,51 @@ describe('FahrzeugDashboard', () => {
     expect(langeHer.letzteAblesungAm).toBe('2026-01-02');
     expect(ohne.hatAbleseLuecke).toBe(true);
     expect(ohne.letzteAblesungAm).toBeNull();
+  });
+
+  it('blendet standardmäßig Fahrzeuge ohne vorgeschriebene Laufleistung aus', async () => {
+    konfiguriere([erzeugeTestfahrzeug()], {
+      stichtag: '2026-06-15',
+      jahr: 2026,
+      zeilen: [
+        berichtZeile({ id: 'mit-vorgabe', bezeichnung: 'Mit Vorgabe', sollKm: 1800 }),
+        berichtZeile({
+          id: 'ohne-vorgabe',
+          bezeichnung: 'Ohne Vorgabe',
+          eigentuemer: 'organisation',
+          sollKm: 0,
+          istKm: null,
+          restKm: null,
+        }),
+      ],
+      ohneAblesung: 0,
+      unterSoll: 0,
+    });
+    const dashboard = await erzeugeUndWarte();
+    expect(dashboard.bilanzen().map((e) => e.bezeichnung)).toEqual(['Mit Vorgabe']);
+
+    dashboard.alleFahrzeugeAnzeigen.set(true);
+    expect(dashboard.bilanzen().map((e) => e.bezeichnung)).toEqual(['Mit Vorgabe', 'Ohne Vorgabe']);
+  });
+
+  it('berechnet die Ampel je Fahrzeug aus Bericht und Systemkonfiguration', async () => {
+    const { konfigurationStore } = konfiguriere([erzeugeTestfahrzeug()], {
+      stichtag: '2026-06-15',
+      jahr: 2026,
+      zeilen: [berichtZeile({ id: 'f-1', sollKm: 1800, istKm: 900, restKm: 900 })],
+      ohneAblesung: 0,
+      unterSoll: 0,
+    });
+    konfigurationStore.gespeicherteEinstellungen.set({
+      kmBerichtEmpfaenger: '',
+      kmBerichtVersandweg: 'email-routing',
+      kmBerichtBetreff: '',
+      kmAmpelSchwellenwertGelbMonate: 1,
+      kmAmpelSchwellenwertRotMonate: 3,
+    });
+    const dashboard = await erzeugeUndWarte();
+    // 150 km/Monat, Stichtag Juni → 7 Restmonate → 1200 km Grenze bis gelb; 900 km Rest ist grün.
+    expect(dashboard.bilanzen()[0].ampel).toBe('gruen');
   });
 
   it('zeigt keine Bilanzen, solange kein Bericht vorliegt', async () => {

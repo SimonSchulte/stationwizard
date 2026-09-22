@@ -10,6 +10,8 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     kmBerichtEmpfaenger: 'leitung@example.test',
     kmBerichtVersandweg: 'email-routing',
     kmBerichtBetreff: 'Kilometerstandsbericht',
+    kmAmpelSchwellenwertGelbMonate: 1,
+    kmAmpelSchwellenwertRotMonate: 3,
     ...ueberschreibung,
   };
 }
@@ -61,6 +63,15 @@ describe('Systemkonfiguration', () => {
 
     seite.versandwegAendern('resend');
     expect(store.entwurfAendern).toHaveBeenCalledWith({ kmBerichtVersandweg: 'resend' });
+  });
+
+  it('ändert die Ampel-Schwellenwerte im Entwurf', () => {
+    const { seite, store } = aufbau({});
+    seite.ampelGelbAendern(2);
+    expect(store.entwurfAendern).toHaveBeenCalledWith({ kmAmpelSchwellenwertGelbMonate: 2 });
+
+    seite.ampelRotAendern(5);
+    expect(store.entwurfAendern).toHaveBeenCalledWith({ kmAmpelSchwellenwertRotMonate: 5 });
   });
 
   it('speichert und verwirft über den Store', () => {

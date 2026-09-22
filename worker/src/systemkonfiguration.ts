@@ -35,6 +35,9 @@ export interface Einstellungen {
   kmBerichtEmpfaenger: string;
   kmBerichtVersandweg: Versandweg;
   kmBerichtBetreff: string;
+  /** Ampel-Schwellenwerte der Kilometerübersicht in Monaten Puffer, siehe Frontend-Modell. */
+  kmAmpelSchwellenwertGelbMonate: number;
+  kmAmpelSchwellenwertRotMonate: number;
 }
 
 interface Beschreibung<S extends keyof Einstellungen> {
@@ -79,6 +82,21 @@ function pruefeBetreff(wert: unknown): string | null {
   return betreff;
 }
 
+/** Obergrenze in Monaten – schon drei Jahre Puffer sind fachlich sinnlos, aber technisch ungefährlich. */
+const AMPEL_SCHWELLENWERT_GRENZE = 36;
+
+/**
+ * Ganzzahliger Monatswert zwischen 0 und `AMPEL_SCHWELLENWERT_GRENZE`. Anders
+ * als die übrigen Felder in Text gespeichert (`wert TEXT`), deshalb hier auch
+ * die aus D1 zurückgelesene Zeichenkette annehmen, nicht nur die Zahl aus der
+ * Eingabe-JSON.
+ */
+function pruefeAmpelSchwellenwert(wert: unknown): number | null {
+  const zahl = typeof wert === 'number' ? wert : typeof wert === 'string' ? Number(wert) : NaN;
+  if (!Number.isInteger(zahl) || zahl < 0 || zahl > AMPEL_SCHWELLENWERT_GRENZE) return null;
+  return zahl;
+}
+
 const EINSTELLUNGEN: { [S in keyof Einstellungen]: Beschreibung<S> } = {
   kmBerichtEmpfaenger: {
     schluessel: 'km_bericht_empfaenger',
@@ -94,6 +112,16 @@ const EINSTELLUNGEN: { [S in keyof Einstellungen]: Beschreibung<S> } = {
     schluessel: 'km_bericht_betreff',
     standard: 'Kilometerstandsbericht',
     pruefe: pruefeBetreff,
+  },
+  kmAmpelSchwellenwertGelbMonate: {
+    schluessel: 'km_ampel_schwellenwert_gelb_monate',
+    standard: 1,
+    pruefe: pruefeAmpelSchwellenwert,
+  },
+  kmAmpelSchwellenwertRotMonate: {
+    schluessel: 'km_ampel_schwellenwert_rot_monate',
+    standard: 3,
+    pruefe: pruefeAmpelSchwellenwert,
   },
 };
 

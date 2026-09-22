@@ -1,3 +1,4 @@
+import { jahrVon } from '../../kern/kalender/datum';
 import {
   Eigentuemer,
   Fahrzeugstamm,
@@ -106,4 +107,64 @@ export function berechneJahresbilanz(
     restKm,
     unvollstaendig: start.unvollstaendig,
   };
+}
+
+export type KilometerAmpel = 'gruen' | 'gelb' | 'rot';
+
+export interface KilometerAmpelSchwellenwerte {
+  /** Ab so vielen Monaten Rückstand auf den bei Mindesttempo nötigen Stand wird die Ampel gelb. */
+  gelbMonate: number;
+  /** Ab so vielen Monaten Rückstand wird die Ampel rot (geht gelb vor). */
+  rotMonate: number;
+}
+
+export const KILOMETER_AMPEL_SCHWELLENWERTE_STANDARD: KilometerAmpelSchwellenwerte = {
+  gelbMonate: 1,
+  rotMonate: 3,
+};
+
+/**
+ * Verbleibende Monate des Bilanzjahres, vom Stichtag aus gezählt – der
+ * Monat des Stichtags selbst zählt noch mit (im Dezember ist also noch 1
+ * Monat übrig, nicht 0). Liegt das Bilanzjahr bereits vollständig vor dem
+ * Stichtag, bleiben 0 Monate; liegt es noch vollständig davor, alle 12 –
+ * beides kommt in der Praxis kaum vor, macht die Funktion aber für jedes
+ * Bilanzjahr verwendbar, nicht nur das laufende.
+ */
+export function restmonateImJahr(stichtagIso: string, jahr: number): number {
+  const stichtagJahr = jahrVon(stichtagIso);
+  if (jahr < stichtagJahr) return 0;
+  if (jahr > stichtagJahr) return 12;
+  const monat = Number(stichtagIso.slice(5, 7));
+  return 13 - monat;
+}
+
+/**
+ * Ampelfarbe aus der Jahresbilanz: reicht die verbleibende Zeit bis
+ * Jahresende bei der Mindestlaufleistung des Eigentümers noch aus, um die
+ * Rest-km einzuholen? `null` ohne Vorgabe (`sollKm === 0`) oder ohne
+ * berechenbaren Stand – `KilometerBilanz` zeigt in diesen Fällen ohnehin
+ * schon einen eigenen Hinweistext statt eines Fortschritts (siehe
+ * `kilometer-bilanz.html`), keine Ampel.
+ *
+ * Die Schwellenwerte sind ein Puffer in Monaten: bis zu `gelbMonate` Monate
+ * hinter dem bei Mindesttempo nötigen Stand bleibt es grün, darüber gelb, ab
+ * `rotMonate` rot. Die km-Grenze ergibt sich ohne Division aus
+ * `kmProMonat * (restMonate + schwellenwert)` – die Menge, die bei
+ * Mindesttempo über die verbleibende Zeit zzgl. Puffer noch offen sein darf.
+ */
+export function ermittleKilometerAmpel(
+  bilanz: Pick<KilometerJahresbilanz, 'eigentuemer' | 'sollKm' | 'istKm' | 'restKm'>,
+  restMonate: number,
+  schwellenwerte: KilometerAmpelSchwellenwerte,
+): KilometerAmpel | null {
+  if (bilanz.sollKm === 0 || bilanz.istKm === null || bilanz.restKm === null) {
+    return null;
+  }
+  const kmProMonat = MINDEST_KM_PRO_MONAT[bilanz.eigentuemer];
+  const grenzeRot = kmProMonat * (restMonate + schwellenwerte.rotMonate);
+  if (bilanz.restKm > grenzeRot) return 'rot';
+  const grenzeGelb = kmProMonat * (restMonate + schwellenwerte.gelbMonate);
+  if (bilanz.restKm > grenzeGelb) return 'gelb';
+  return 'gruen';
 }

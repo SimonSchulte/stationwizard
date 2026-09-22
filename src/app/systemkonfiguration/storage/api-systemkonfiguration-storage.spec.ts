@@ -8,6 +8,8 @@ const ANTWORT = {
     kmBerichtEmpfaenger: 'leitung@example.test',
     kmBerichtVersandweg: 'email-routing',
     kmBerichtBetreff: 'Kilometerstandsbericht',
+    kmAmpelSchwellenwertGelbMonate: 1,
+    kmAmpelSchwellenwertRotMonate: 3,
   },
   versandwege: [
     { weg: 'email-routing', verfuegbar: true },
