@@ -95,19 +95,18 @@ binding = "HIORGSERVER_CALENDER_FEED"
 store_id = "36762a3b5aa547bea7f547b1d66c30ee"
 secret_name = "HIORGSERVER_CALENDER_FEED"
 
-# HiOrg-Server-API (OAuth, worker/src/hiorg-api.ts). Nur nötig, wenn Client-ID
-# und Client-Secret im Secrets Store liegen; als klassische Worker-Secrets
-# (`wrangler secret put`) braucht es diese Blöcke nicht. Erst anlegen, dann
-# einkommentieren – ein Binding auf ein fehlendes Secret bricht den Deploy ab.
-# [[secrets_store_secrets]]
-# binding = "HIORG_SERVER_CLIENTID"
-# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-# secret_name = "HIORG_SERVER_CLIENTID"
-#
-# [[secrets_store_secrets]]
-# binding = "HIORG_SERVER_CLIENTSECRET"
-# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-# secret_name = "HIORG_SERVER_CLIENTSECRET"
+# HiOrg-Server-API (OAuth, worker/src/hiorg-api.ts). Setzt voraus, dass
+# Client-ID und Client-Secret bereits im Secrets Store angelegt sind – ein
+# Binding auf ein fehlendes Secret bricht den Deploy ab.
+[[secrets_store_secrets]]
+binding = "HIORG_SERVER_CLIENTID"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORG_SERVER_CLIENTID"
+
+[[secrets_store_secrets]]
+binding = "HIORG_SERVER_CLIENTSECRET"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORG_SERVER_CLIENTSECRET"
 
 # Mailversand des Kilometerstandsberichts (AP-S1).
 #
