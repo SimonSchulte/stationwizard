@@ -214,3 +214,20 @@
     margin-inline: 0;
   }
 }
+
+.hiorg-rueckmeldung {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-lg);
+  padding: var(--space-sm) var(--space-base);
+  background: var(--warning-bg);
+  border-left: 4px solid var(--status-warn);
+  border-radius: var(--radius-sm);
+
+  &.erfolg {
+    background: var(--surface-secondary);
+    border-left-color: var(--status-ok);
+  }
+}

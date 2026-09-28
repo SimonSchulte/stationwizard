@@ -26,4 +26,11 @@ export const aufgabenRouten: Routes = [
         (modul) => modul.AblesungFreigabe,
       ),
   },
+  {
+    path: 'fahrzeugchecks',
+    loadComponent: () =>
+      import('../material/pages/check-freigabe/check-freigabe').then(
+        (modul) => modul.CheckFreigabe,
+      ),
+  },
 ];

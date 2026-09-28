@@ -12,6 +12,11 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     kmBerichtBetreff: 'Kilometerstandsbericht',
     kmAmpelSchwellenwertGelbMonate: 1,
     kmAmpelSchwellenwertRotMonate: 3,
+    materialBestellscheinEmpfaenger: '',
+    materialMaengelLandEmpfaenger: '',
+    materialMaengelSegEmpfaenger: '',
+    materialVersandweg: 'email-routing',
+    materialBetreff: 'Materialmeldung',
     ...ueberschreibung,
   };
 }

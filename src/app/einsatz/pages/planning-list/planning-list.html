@@ -26,6 +26,19 @@
 </mat-toolbar>
 
 <div class="list-content">
+  @if (hiorgRueckmeldung()) {
+    <p class="hiorg-rueckmeldung" [class.erfolg]="hiorgVerbunden()" role="status">
+      <span>
+        {{ hiorgRueckmeldung() }}
+        @if (hiorgVerbunden()) {
+          Personal übernimmst du im Editor über „Personal aus HiOrg-Server übernehmen“.
+        }
+      </span>
+      <button mat-icon-button matTooltip="Ausblenden" (click)="hiorgRueckmeldung.set('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </p>
+  }
   <section class="cloud-planungen" aria-labelledby="cloud-planungen-titel">
     <div class="section-header">
       <h2 id="cloud-planungen-titel">Gespeicherte Einsatzpläne</h2>

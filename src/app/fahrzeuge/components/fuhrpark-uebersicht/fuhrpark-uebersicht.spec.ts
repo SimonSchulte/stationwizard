@@ -149,6 +149,11 @@ describe('FuhrparkUebersicht', () => {
       kmBerichtBetreff: '',
       kmAmpelSchwellenwertGelbMonate: 1,
       kmAmpelSchwellenwertRotMonate: 3,
+      materialBestellscheinEmpfaenger: '',
+      materialMaengelLandEmpfaenger: '',
+      materialMaengelSegEmpfaenger: '',
+      materialVersandweg: 'email-routing',
+      materialBetreff: '',
     });
     const komponente = await erzeugeUebersicht([
       { provide: FahrzeugStoreService, useValue: fahrzeugeStoreMock([kritisch]) },

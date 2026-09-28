@@ -18,6 +18,11 @@ export const routes: Routes = [
     title: 'Einsatzplanung · HiorgWache',
   },
   {
+    path: 'personal',
+    loadChildren: () => import('./personal/personal.routes').then((m) => m.personalRouten),
+    title: 'Personal · HiorgWache',
+  },
+  {
     path: 'fahrzeuge',
     loadChildren: () => import('./fahrzeuge/fahrzeuge.routes').then((m) => m.fahrzeugeRoutes),
     title: 'Fahrzeuge · HiorgWache',
@@ -27,6 +32,11 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./angebotswesen/angebotswesen.routes').then((m) => m.angebotswesenRoutes),
     title: 'Angebotswesen · HiorgWache',
+  },
+  {
+    path: 'material',
+    loadChildren: () => import('./material/material.routes').then((m) => m.materialRouten),
+    title: 'Materialverwaltung · HiorgWache',
   },
   {
     path: 'aufgaben',

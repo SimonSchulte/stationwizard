@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  istOeffentlicherPfad,
   OEFFENTLICHE_DATEIEN,
+  OEFFENTLICHE_MUSTER,
+  istOeffentlicherPfad,
   verarbeiteOeffentlicheErfassung,
 } from '../src/oeffentliche-erfassung';
 import { FakeFahrzeugeDb } from './fahrzeug-db-fake';
@@ -392,5 +393,41 @@ describe('Meldung annehmen', () => {
     );
     expect(antwort.status).toBe(405);
     expect(antwort.headers.get('Allow')).toBe('GET, HEAD, POST');
+  });
+});
+
+describe('Umfang des Access-Bypass', () => {
+  it('kennt genau fünf öffentliche Pfadmuster', () => {
+    // Dieser Test ist mit Absicht stur. Jedes weitere Muster erweitert die
+    // einzige Stelle, die ohne Cloudflare Access erreichbar ist – wer ihn
+    // anpasst, muss auch die benannte Bypass-Anwendung in
+    // docs/einrichtung.md und den Absatz in CLAUDE.md nachziehen.
+    expect(OEFFENTLICHE_MUSTER).toHaveLength(5);
+  });
+
+  it.each([
+    ['/e/' + 'a'.repeat(32)],
+    ['/c/' + 'a'.repeat(32)],
+    ['/oeffentlich/main.js'],
+    ['/api/oeffentlich/meldung/' + 'a'.repeat(32)],
+    ['/api/oeffentlich/check/' + 'a'.repeat(32)],
+  ])('lässt %s ohne Anmeldung zu', (pfad) => {
+    expect(istOeffentlicherPfad(pfad)).toBe(true);
+  });
+
+  it.each([
+    ['/c/'],
+    ['/c/' + 'a'.repeat(31)],
+    ['/c/' + 'a'.repeat(33)],
+    ['/c/' + 'a'.repeat(32) + '/extra'],
+    ['/cc/' + 'a'.repeat(32)],
+    ['/C/' + 'a'.repeat(32)],
+    ['/c/' + 'A'.repeat(32)],
+    ['/api/oeffentlich/check'],
+    ['/api/oeffentlich/check/' + 'a'.repeat(32) + '/extra'],
+    ['/api/oeffentlich/checkx/' + 'a'.repeat(32)],
+    ['/oeffentlich/unterordner/main.js'],
+  ])('verlangt für %s weiterhin eine Anmeldung', (pfad) => {
+    expect(istOeffentlicherPfad(pfad)).toBe(false);
   });
 });

@@ -1,0 +1,75 @@
+<h2 mat-dialog-title>
+  @if (gewaehlt(); as art) {
+    {{ titel[art] }}
+  } @else {
+    Belege
+  }
+</h2>
+
+<mat-dialog-content>
+  @if (!gewaehlt()) {
+    <p class="einleitung">{{ daten.behaelterBezeichnung }} · geprüft am {{ daten.geprueftAm }}</p>
+    <div class="auswahl">
+      @for (art of arten; track art) {
+        <button type="button" class="belegknopf" (click)="waehle(art)">
+          <span class="belegtitel">{{ titel[art] }}</span>
+          <span class="belegtext">{{ erklaerung[art] }}</span>
+        </button>
+      }
+    </div>
+  } @else {
+    @if (laedt()) {
+      <p role="status" class="laedt">
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+        Bericht wird erstellt …
+      </p>
+    }
+    @if (fehler()) {
+      <p class="error-hint" role="alert">{{ fehler() }}</p>
+    }
+    @if (gesendetAn()) {
+      <p class="erfolg" role="status">
+        <mat-icon aria-hidden="true">mark_email_read</mat-icon>
+        Gesendet an {{ gesendetAn() }}.
+      </p>
+    }
+    @if (text()) {
+      <pre class="bericht">{{ text() }}</pre>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="empfaengerfeld">
+        <mat-label>Empfänger</mat-label>
+        <input
+          matInput
+          type="email"
+          inputmode="email"
+          placeholder="leer lassen für den hinterlegten Standardempfänger"
+          [value]="empfaenger()"
+          (input)="empfaenger.set($any($event.target).value)"
+        />
+      </mat-form-field>
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (gewaehlt()) {
+    <button mat-button (click)="zurueck()">Andere Auswahl</button>
+    <button mat-button [disabled]="!text()" (click)="kopieren()">
+      @if (kopiert()) {
+        Kopiert
+      } @else {
+        Kopieren
+      }
+    </button>
+    <button mat-button [disabled]="!text()" (click)="herunterladen()">Herunterladen</button>
+    <button mat-raised-button color="primary" [disabled]="!text() || sendet()" (click)="senden()">
+      @if (sendet()) {
+        Wird gesendet …
+      } @else {
+        Per Mail senden
+      }
+    </button>
+  } @else {
+    <button mat-button (click)="schliessen()">Schließen</button>
+  }
+</mat-dialog-actions>

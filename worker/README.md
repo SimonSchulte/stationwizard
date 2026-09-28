@@ -227,10 +227,21 @@ Kommentar in der Migrationsdatei.
 
 Migrationen werden nicht automatisch angewendet (kein `wrangler d1 migrations apply`,
 kein CI-Schritt) – jede neue Datei in `worker/migrations/` muss hier **und** gegen die
-bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden. Ein
+bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden.
+`migrations apply` ist dabei kein Versehen, sondern ausgeschlossen: die Dateien gehören zu
+**drei** Datenbanken, und `wrangler.toml` setzt deshalb bewusst kein `migrations_dir` – ein
+`migrations apply` würde alle Dateien auf eine einzige Datenbank werfen. Ein
 Vergessen bleibt sonst unbemerkt: `SELECT *` liefert weiterhin Zeilen, nur ohne die neue
 Spalte, und eine clientseitige Prüfung kann dadurch scheinbar leere Listen zeigen, obwohl
 die Daten unverändert in D1 liegen.
+
+Ist Wrangler nicht angemeldet (in einer Arbeitsumgebung ohne interaktiven Browser lässt
+sich `wrangler login` nicht ausführen), lässt sich eine Migration auch über den
+Cloudflare-Connector anwenden – Anweisung für Anweisung, weil die D1-Query-API mehrere
+Anweisungen sequenziell und nicht atomar ausführt und die Migrationen nicht idempotent sind
+(`CREATE TABLE` ohne `IF NOT EXISTS`). Große Textwerte dabei als gebundenen Parameter
+übergeben statt als SQL-Literal. Der Weg über `d1 execute --file` bleibt der führende; so
+wurde 0010 am 2026-09-22 angewendet, siehe `docs/arbeitsstand.md`.
 
 Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 
@@ -500,6 +511,54 @@ Antworten benötigen `status: "OK"` und die erwartete Form. Nur die vom übernom
 Client benötigten Felder werden weitergereicht; Qualifikationsstrings bleiben für das
 bestehende Mapping unverändert. Ein in Nutzdaten zurückgespiegelter API-Key wird
 abgewiesen. Rohfehler von HiOrg gelangen nicht in die Browserantwort.
+
+### HiOrg-Server-API (OAuth)
+
+Zweiter HiOrg-Weg neben EFS (`src/hiorg-api.ts`), Einrichtung in
+[docs/einrichtung.md](../docs/einrichtung.md#hiorg-server-api-oauth-optional).
+
+| Pfad                         | Methode    | Vertrag                                                                                                                                      |
+| ---------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/hiorg/verbinden`           | GET        | Seitenaufruf; setzt `state`-Cookie, 302 zur festen HiOrg-Anmeldeseite; `?ziel=einsatz` oder `personal` (feste Liste) wählt das Rückkehrmodul |
+| `/hiorg/rueckruf`            | GET        | Redirect-URI; prüft `state`, tauscht Code, 303 auf `/#/<ziel>?hiorg=<…>`                                                                     |
+| `/api/hiorg/verbindung/code` | POST       | Manueller Rückruf: JSON `{ adresse }` mit der kopierten Access-Callback-Adresse; prüft `state`, tauscht Code                                 |
+| `/api/hiorg/verbindung`      | GET/DELETE | `{ eingerichtet, verbunden, modus }` ohne HiOrg-Aufruf; DELETE verwirft das Token                                                            |
+| `/api/hiorg/personal`        | GET        | Aktives Personal, nur Name, Gruppen, Qualifikationen und Handy                                                                               |
+
+Redirect-URI: ohne Angabe der Access-Callback der Team-Domain (`manuell`, Adresse wird
+kopiert), mit Laufzeitvariable `HIORG_SERVER_REDIRECT_URI = <Origin>/hiorg/rueckruf`
+automatisch; `GET /api/hiorg/verbindung` meldet `modus`. Beide Seitenpfade liegen hinter Access. Ziele (`/oauth/v1/authorize`, `/oauth/v1/token`,
+`/core/v1/personal?filter[status]=aktiv`) sind fest im Code. Client-ID und -Secret gehen
+als `client_secret_post` an den Token-Endpunkt. Token liegen AES-GCM-verschlüsselt
+(Schlüssel per HKDF aus dem Client-Secret, E-Mail als zusätzliche authentifizierte Angabe)
+in `hiorg_verbindungen` (`BENUTZER_DB`, Migration 0011). Ein abgelaufenes Token wird mit
+dem Refresh-Token erneuert; nur dann wird geschrieben. Anschrift, Geburtsdaten,
+Bankverbindung, Ernährung, Allergien, Führerscheindaten, Rechte und benutzerdefinierte
+Felder verlassen den Worker nie; eine unerwartete Form verwirft die ganze Antwort.
+
+| Code                                                                          | HTTP | Bedeutung                                                    |
+| ----------------------------------------------------------------------------- | ---- | ------------------------------------------------------------ |
+| `HIORG_API_KONFIGURATION_FEHLT`                                               | 503  | Client-ID/-Secret oder `BENUTZER_DB` fehlen                  |
+| `HIORG_NICHT_VERBUNDEN`                                                       | 409  | Für diese Identität besteht keine Verbindung                 |
+| `HIORG_VERBINDUNG_ABGELAUFEN`                                                 | 409  | Token/Refresh-Token abgelehnt; Verbindung verworfen          |
+| `HIORG_API_BERECHTIGUNG_FEHLT`                                                | 403  | Das HiOrg-Konto darf `/personal` nicht lesen                 |
+| `HIORG_API_FUNKTION_GESPERRT`                                                 | 502  | HiOrg meldet 423 (Lizenz)                                    |
+| `HIORG_API_ZEITLIMIT`                                                         | 504  | Keine Antwort binnen 15 Sekunden                             |
+| `HIORG_API_NICHT_ERREICHBAR` / `_UMLEITUNG`                                   | 502  | Transportfehler bzw. Weiterleitung                           |
+| `HIORG_API_ABRUF_FEHLGESCHLAGEN` / `_ANTWORT_UNGUELTIG` / `_ANTWORT_ZU_GROSS` | 502  | Upstream-Fehler, Form ungültig, > 8 MiB                      |
+| `HIORG_ADRESSE_UNGUELTIG`                                                     | 400  | Eingefügte Adresse ist nicht die Redirect-URI oder ohne Code |
+| `HIORG_ANMELDUNG_VERALTET`                                                    | 400  | `state` passt nicht zur zuletzt geöffneten Anmeldung         |
+| `HIORG_ANMELDUNG_ABGEBROCHEN`                                                 | 400  | HiOrg meldet `error` statt Code                              |
+| `HIORG_CODE_ABGELEHNT`                                                        | 400  | Code abgelaufen oder bereits eingelöst                       |
+| `HIORG_ADRESSE_UNGUELTIG`                                                     | 400  | Eingefügte Adresse ist nicht die Redirect-URI oder ohne Code |
+| `HIORG_ANMELDUNG_VERALTET`                                                    | 400  | `state` passt nicht zur zuletzt geöffneten Anmeldung         |
+| `HIORG_ANMELDUNG_ABGEBROCHEN`                                                 | 400  | HiOrg meldet `error` statt Code                              |
+| `HIORG_CODE_ABGELEHNT`                                                        | 400  | Code abgelaufen oder bereits eingelöst                       |
+| `HIORG_SPEICHER_FEHLER`                                                       | 500  | D1 nicht lesbar                                              |
+
+Bewusst **nicht** gebaut: keine Schreib-Scopes, kein generischer Proxy, keine
+Paginierung (in der OpenAPI-Beschreibung für `/personal` nicht dokumentiert), kein PKCE
+(nicht dokumentiert).
 
 ### Öffentliche Kilometermeldung (ohne Anmeldung)
 

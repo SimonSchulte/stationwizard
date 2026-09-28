@@ -49,6 +49,46 @@ Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **W
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
+## HiOrg-Server-API (OAuth, optional)
+
+Zweiter HiOrg-Weg neben EFS: die HiOrg-Server-API (`api.hiorg-server.de`) mit
+OAuth2 Authorization Code. Jede Person verbindet ihr **eigenes** HiOrg-Konto; die
+Personalliste im PEP-Editor („Personal aus HiOrg-Server übernehmen") zeigt dann genau das
+Personal, das dieses HiOrg-Konto sehen darf. Ohne Einrichtung meldet der Dialog das
+ehrlich; EFS bleibt davon unberührt.
+
+1. **Redirect-URI:** Standard ist die bereits bei HiOrg registrierte Access-Callback-URI
+   `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback` (abgeleitet aus
+   `ACCESS_TEAM_DOMAIN`, keine weitere Einstellung). Die Anwendungsdomain wird HiOrg damit
+   nicht genannt. Ablauf („manuell"): In der App „HiOrg-Anmeldung in neuem Tab öffnen", bei
+   HiOrg anmelden; der Tab endet auf einer Fehlerseite von Cloudflare Access – das ist
+   erwartet, Access kennt diese Anmeldung nicht und löst den Code nicht ein. Die komplette
+   Adresse aus der Adresszeile (`…/cdn-cgi/access/callback?code=…&state=…`) zügig in das
+   Feld der App kopieren; der Worker prüft `state` und tauscht den Code. Danach erneuert der
+   Worker das Token selbst, das Kopieren ist nur beim ersten Verbinden bzw. nach Ablauf des
+   Refresh-Tokens nötig.
+   Optional („automatisch"): `https://<Domain>/hiorg/rueckruf` zusätzlich bei HiOrg
+   registrieren und genau diesen Wert als Laufzeitvariable `HIORG_SERVER_REDIRECT_URI` am
+   Worker setzen; dann leitet HiOrg direkt zur App zurück. Jede andere Adresse gilt als nicht
+   eingerichtet.
+   Wird HiOrg später **zusätzlich** als Anmeldeweg in Cloudflare Access eingetragen, teilt
+   sich dieser dieselbe Callback-URI; ob Access dann fremde Codes weiterhin unangetastet
+   lässt, ist ungeprüft.
+2. **Scopes:** `openid personal:read` – genau die freigegebenen; mehr fordert der Worker nicht an.
+3. **Secrets:** `HIORG_SERVER_CLIENTID` und `HIORG_SERVER_CLIENTSECRET`. Als klassische
+   Worker-Secrets (`wrangler secret put …`) gesetzt, braucht es keine weitere Zeile; liegen
+   sie im Secrets Store, die beiden vorbereiteten Blöcke in `worker/wrangler.toml`
+   einkommentieren (erst anlegen, dann einkommentieren, sonst scheitert der Deploy). Ein
+   neues Client-Secret macht alle gespeicherten Verbindungen unlesbar; sie werden beim
+   nächsten Abruf verworfen und müssen neu hergestellt werden.
+4. **D1-Migration** `worker/migrations/0011_hiorg_verbindungen.sql` auf `BENUTZER_DB`
+   anwenden (`wrangler d1 migrations apply stationwizard-benutzer --remote`, oder die Datei
+   über die D1-Konsole ausführen).
+
+Zugriffs- und Refresh-Token liegen ausschließlich AES-GCM-verschlüsselt in D1, an die
+geprüfte Access-E-Mail gebunden. HiOrg dokumentiert keinen Widerrufsendpunkt; „Verbindung
+trennen" verwirft das Token nur im Worker. Den Zugriff endgültig entzieht man in HiOrg.
+
 ## Mailversand des Kilometerstandsberichts (optional)
 
 Der Versand ist erst möglich, wenn ein Versandweg eingerichtet ist; alle zugehörigen Blöcke
@@ -94,24 +134,30 @@ Ohne diese Laufzeitvariablen antwortet der Worker bewusst mit
 Anwendung. Die einzige Ausnahme ist die öffentliche Kilometermeldung – sie ist im nächsten
 Abschnitt vollständig beschrieben und ausdrücklich nicht still.
 
-## Access-Bypass für die öffentliche Kilometermeldung
+## Access-Bypass für die öffentlichen Erfassungsseiten
 
-Damit Helferinnen und Helfer ohne Google-Konto den Kilometerstand am Fahrzeug melden können,
-braucht genau ein Weg eine Ausnahme vom Access-Gate. Sie ist eng, benannt und an ein
-unerratbares Token je Fahrzeug gebunden (siehe `docs/konzept-fahrzeuge.md`, Abschnitt 10).
+Damit Helferinnen und Helfer ohne Google-Konto am Fahrzeug melden können, brauchen genau
+zwei Wege eine Ausnahme vom Access-Gate: die **Kilometermeldung** (siehe
+`docs/konzept-fahrzeuge.md`, Abschnitt 10) und der **Fahrzeugcheck** (siehe
+`docs/konzept-material.md`). Beide sind eng, benannt und an ein unerratbares Token
+gebunden – je Fahrzeug beziehungsweise je Behälter.
 
-**Freizugeben sind ausschließlich diese drei Pfadmuster:**
+**Freizugeben sind ausschließlich diese vier Pfadmuster:**
 
 ```
 /e/*
+/c/*
 /oeffentlich/*
 /api/oeffentlich/*
 ```
 
+`/api/oeffentlich/*` deckt beide Datenendpunkte ab; gegenüber der reinen Kilometermeldung
+kommt also **genau ein** Muster hinzu: `/c/*`.
+
 Einrichtung:
 
 1. In **Zero Trust → Access → Applications** eine **zusätzliche** Self-hosted-Anwendung
-   anlegen, die genau diese drei Pfade der produktiven Domain umfasst, und ihr eine
+   anlegen, die genau diese vier Pfade der produktiven Domain umfasst, und ihr eine
    **Bypass**-Richtlinie (`Everyone`) geben.
 2. Diese Anwendung muss in der Liste **vor** der All-traffic-Anwendung stehen; Access
    wertet die erste passende Anwendung aus. Steht sie dahinter, greift sie nicht.
@@ -121,10 +167,26 @@ Einrichtung:
 4. Die All-traffic-Anwendung bleibt unverändert. Sie schützt weiterhin die App-Hülle, alle
    übrigen Assets und alle anderen `/api/*`-Pfade.
 
-Der Worker prüft dieselben drei Muster unabhängig von Access noch einmal selbst
-(`istOeffentlicherPfad()` in `worker/src/oeffentliche-erfassung.ts`). Eine versehentlich zu
-weit gefasste Bypass-Regel macht die Anwendung deshalb nicht öffentlich – sie bliebe
-trotzdem hinter der JWT-Prüfung des Workers.
+Der Worker prüft unabhängig von Access noch einmal selbst, und zwar strenger: er kennt
+**fünf** exakt verankerte Muster (`OEFFENTLICHE_MUSTER` in
+`worker/src/oeffentliche-erfassung.ts`), weil `/api/oeffentlich/*` dort in die beiden
+konkreten Endpunkte mit jeweils 32-stelligem Hex-Token zerfällt. Eine versehentlich zu weit
+gefasste Bypass-Regel macht die Anwendung deshalb nicht öffentlich – sie bliebe trotzdem
+hinter der JWT-Prüfung des Workers. Ein Test in
+`worker/tests/oeffentliche-erfassung.spec.ts` hält die Anzahl fest: wer ein sechstes Muster
+ergänzt, muss ihn anfassen und damit auch diesen Abschnitt.
+
+**Prüfliste nach der Einrichtung** (privates Fenster, nicht angemeldet):
+
+| Aufruf                              | Erwartung                        |
+| ----------------------------------- | -------------------------------- |
+| `/`                                 | Access-Anmeldung erscheint       |
+| `/e/<gültiges Token>`               | Meldeseite lädt                  |
+| `/c/<gültiges Token>`               | Checkseite lädt                  |
+| `/c/<erfundenes Token>`             | „Dieser Code funktioniert nicht" |
+| `/c/` und `/c/<31 Zeichen>`         | Access-Anmeldung erscheint       |
+| `/oeffentlich/main.js`              | liefert JavaScript, niemals HTML |
+| `/oeffentlich/3rdpartylicenses.txt` | 404                              |
 
 Reihenfolge der Inbetriebnahme:
 
@@ -133,10 +195,16 @@ Reihenfolge der Inbetriebnahme:
    waren (0005 betrifft die getrennte `stationwizard-benutzer`-Datenbank und ist dort
    bereits angewendet); 0007 war die einzige noch offene Migration und wurde angewendet:
    `npx wrangler d1 execute stationwizard-fahrzeuge --remote --file worker/migrations/0007_oeffentliche_meldung.sql`
-2. Worker deployen (`npm run build && npm run deploy`).
-3. Bypass-Anwendung wie oben anlegen.
-4. Prüfliste unten abarbeiten.
-5. Erst danach Aufkleber drucken.
+2. ~~Migration 0010 anwenden~~ (Materialverwaltung) – **erledigt am 2026-09-22.** Eine
+   Prüfabfrage vorab zeigte, dass keine der fünf Tabellen aus 0010 bestand. Angewendet über
+   den Cloudflare-Connector statt über Wrangler, weil Wrangler in der Arbeitsumgebung nicht
+   angemeldet ist; Einzelheiten und die Nachprüfungen stehen im Arbeitsstand. Danach: 11
+   Fächer, 125 Artikel, 83 mit Verfallsdatumpflicht; Fahrzeuge, Ablesungen und
+   Änderungsprotokoll unverändert.
+3. Worker deployen (`npm run build && npm run deploy`).
+4. Bypass-Anwendung wie oben anlegen.
+5. Prüfliste unten abarbeiten.
+6. Erst danach Aufkleber drucken.
 
 Prüfliste, jeweils in einem privaten Fenster **ohne** Anmeldung:
 
@@ -200,6 +268,9 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | Nextcloud-Fehler                     | Freigabe, Token, Passwort und Schreibrechte prüfen, danach das Secrets-Store-Binding am Worker.                                             |
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
 | `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
+| `?hiorg=nicht-eingerichtet`          | `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET` oder `BENUTZER_DB` fehlen am Worker.                                                    |
+| `HIORG_CODE_ABGELEHNT`               | Anmeldecode abgelaufen oder schon benutzt: Anmeldung erneut öffnen und die Adresse zügig einfügen.                                          |
+| HiOrg lehnt die Anmeldung ab         | Die verwendete Redirect-URI ist bei HiOrg nicht registriert; `HIORG_SERVER_REDIRECT_URI` weglassen, um den Access-Callback zu nutzen.       |
 | `MAIL_VERSANDWEG_NICHT_EINGERICHTET` | Kein `MAIL_ABSENDER`, kein `send_email`-Binding beziehungsweise kein `MAIL_API_TOKEN` für den gewählten Weg.                                |
 | `MAIL_VERSAND_FEHLGESCHLAGEN`        | Der Anbieter hat abgelehnt – bei Email Routing meist eine nicht bestätigte Zieladresse. Details stehen nur im Betreiberlog.                 |
 | `KM_BERICHT_EMPFAENGER_FEHLT`        | Unter Verwaltung → Systemkonfiguration ist keine Empfängeradresse gespeichert.                                                              |

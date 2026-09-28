@@ -1,6 +1,8 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import type { GeprueftesBenutzerkonto } from './fahrzeuge';
 import { berlinerKalendertag } from './kalender';
+import { VERSANDFEHLER_ANTWORTEN } from './mail-versand';
+import { MAIL_FARBEN, datum, kopfzelle, maskiere, zahl, zelle } from './mail-format';
 import {
   VersandFehler,
   waehleVersand,
@@ -193,34 +195,6 @@ export async function ladeKmBericht(db: D1Database, stichtag: string): Promise<K
  * PDF-Export stehen deshalb aufgelöste Werte statt Tokennamen (siehe CLAUDE.md,
  * "Darstellung") – dieselben Werte, keine zweite Palette.
  */
-const MAIL_FARBEN = {
-  dunkelblau: '#000548',
-  weiss: '#FFFFFF',
-  text: '#333333',
-  sekundaer: '#666666',
-  hellgrau: '#C7CCD9',
-  alternierendeZeile: '#F5F6FA',
-  rot: '#EB003C',
-  gruen: '#2F8F68',
-} as const;
-
-function maskiere(wert: string): string {
-  return wert
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-function zahl(wert: number): string {
-  return wert.toLocaleString('de-DE');
-}
-
-function datum(tag: string): string {
-  const [jahr, monat, tagImMonat] = tag.split('-');
-  return `${tagImMonat}.${monat}.${jahr}`;
-}
-
 function standText(zeile: BerichtZeile): string {
   return zeile.letzterStand === null ? 'keine Ablesung' : `${zahl(zeile.letzterStand)} km`;
 }
@@ -261,21 +235,6 @@ export function berichtAlsText(bericht: KmBericht): string {
     ].join('\n'),
   );
   return [...kopf, ...zeilen].join('\n');
-}
-
-function kopfzelle(inhalt: string, ausrichtung = 'left'): string {
-  return (
-    `<th style="padding:8px 10px;text-align:${ausrichtung};font-size:12px;` +
-    `letter-spacing:0.04em;text-transform:uppercase;color:${MAIL_FARBEN.weiss};` +
-    `background-color:${MAIL_FARBEN.dunkelblau};">${inhalt}</th>`
-  );
-}
-
-function zelle(inhalt: string, ausrichtung = 'left', farbe: string = MAIL_FARBEN.text): string {
-  return (
-    `<td style="padding:8px 10px;text-align:${ausrichtung};font-size:13px;color:${farbe};` +
-    `border-bottom:1px solid ${MAIL_FARBEN.hellgrau};">${inhalt}</td>`
-  );
 }
 
 export function berichtAlsHtml(bericht: KmBericht): string {
@@ -387,22 +346,6 @@ export async function verarbeiteKmBericht(
   }
   return sendeBericht(bericht, umgebung, identitaet);
 }
-
-/**
- * Fester Code und Status je Fehlergrund. Die Oberfläche bekommt vom
- * `WorkerClient` nur Status und Diagnosecode zu sehen, nicht den Meldungstext
- * – ohne eigenen Code je Ursache wäre ein abgelaufenes Token von einem
- * Netzwerkausfall nur im Worker-Log zu unterscheiden.
- */
-const VERSANDFEHLER_ANTWORTEN: Record<VersandFehlerGrund, { code: string; status: number }> = {
-  'konfiguration-fehlt': { code: 'MAIL_VERSANDWEG_NICHT_EINGERICHTET', status: 503 },
-  zeitlimit: { code: 'MAIL_VERSAND_ZEITLIMIT', status: 504 },
-  'nicht-erreichbar': { code: 'MAIL_VERSAND_NICHT_ERREICHBAR', status: 502 },
-  umleitung: { code: 'MAIL_VERSAND_UMLEITUNG', status: 502 },
-  'zugang-abgelehnt': { code: 'MAIL_VERSAND_ZUGANG_ABGELEHNT', status: 502 },
-  abgelehnt: { code: 'MAIL_VERSAND_ABGELEHNT', status: 502 },
-  upstream: { code: 'MAIL_VERSAND_FEHLGESCHLAGEN', status: 502 },
-};
 
 async function sendeBericht(
   bericht: KmBericht,

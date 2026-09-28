@@ -7,6 +7,8 @@ export class WorkerFehler extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Fester Diagnosecode des Workers, sofern er einen geliefert hat. */
+    readonly diagnose?: string,
   ) {
     super(message);
     this.name = 'WorkerFehler';
@@ -14,9 +16,14 @@ export class WorkerFehler extends Error {
 }
 
 /** Fester Diagnosecode des Workers; er enthält nie Zugangsdaten oder Upstream-Texte. */
-function diagnoseZusatz(antwort: Response): string {
+function diagnoseCode(antwort: Response): string | undefined {
   const code = antwort.headers.get('X-Stationwizard-Diagnose') ?? '';
-  return /^[A-Z][A-Z0-9_]{2,63}$/.test(code) ? ` Diagnose: ${code}.` : '';
+  return /^[A-Z][A-Z0-9_]{2,63}$/.test(code) ? code : undefined;
+}
+
+function diagnoseZusatz(antwort: Response): string {
+  const code = diagnoseCode(antwort);
+  return code ? ` Diagnose: ${code}.` : '';
 }
 
 /** Gemeinsamer Client: ausschließlich API-Pfade derselben Origin, keine Zugangsdaten. */
@@ -65,7 +72,11 @@ export class WorkerClient {
               : antwort.status === 503
                 ? 'Die Verbindung ist noch nicht vollständig eingerichtet.'
                 : `Die Anfrage konnte nicht ausgeführt werden (HTTP ${antwort.status}).`;
-        throw new WorkerFehler(meldung + diagnoseZusatz(antwort), antwort.status);
+        throw new WorkerFehler(
+          meldung + diagnoseZusatz(antwort),
+          antwort.status,
+          diagnoseCode(antwort),
+        );
       }
       this.fehler.set('');
       return antwort;

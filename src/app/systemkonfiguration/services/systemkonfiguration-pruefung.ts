@@ -24,7 +24,12 @@ function istEinstellungen(wert: unknown): wert is Einstellungen {
     istVersandweg(wert['kmBerichtVersandweg']) &&
     istText(wert['kmBerichtBetreff']) &&
     istGanzzahl(wert['kmAmpelSchwellenwertGelbMonate']) &&
-    istGanzzahl(wert['kmAmpelSchwellenwertRotMonate'])
+    istGanzzahl(wert['kmAmpelSchwellenwertRotMonate']) &&
+    istText(wert['materialBestellscheinEmpfaenger']) &&
+    istText(wert['materialMaengelLandEmpfaenger']) &&
+    istText(wert['materialMaengelSegEmpfaenger']) &&
+    istVersandweg(wert['materialVersandweg']) &&
+    istText(wert['materialBetreff'])
   );
 }
 

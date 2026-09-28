@@ -13,6 +13,17 @@ import {
   verarbeiteFahrzeuge,
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
+import {
+  HIORG_CODE_PFAD,
+  HIORG_PERSONAL_PFAD,
+  HIORG_RUECKRUF_PFAD,
+  HIORG_VERBINDEN_PFAD,
+  HIORG_VERBINDUNG_PFAD,
+  verarbeiteHiorgApi,
+  verarbeiteHiorgRueckruf,
+  verarbeiteHiorgVerbinden,
+  type HiorgApiKonfiguration,
+} from './hiorg-api';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
 import {
   KM_BERICHT_PFAD,
@@ -20,6 +31,12 @@ import {
   verarbeiteKmBericht,
   type KmBerichtKonfiguration,
 } from './km-bericht';
+import { verarbeiteMaterial, type MaterialKonfiguration } from './material';
+import {
+  MATERIAL_EINREICHUNGEN_PFAD,
+  verarbeiteMaterialEinreichungen,
+  type MaterialEinreichungenKonfiguration,
+} from './material-einreichungen';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 import {
   istOeffentlicherPfad,
@@ -39,12 +56,15 @@ export interface Env
     NextcloudKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
+    HiorgApiKonfiguration,
     FahrzeugeKonfiguration,
     BenutzerverwaltungKonfiguration,
     SystemkonfigurationKonfiguration,
     KmBerichtKonfiguration,
     OeffentlicheErfassungKonfiguration,
-    AngebotswesenKonfiguration {
+    AngebotswesenKonfiguration,
+    MaterialKonfiguration,
+    MaterialEinreichungenKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -166,6 +186,16 @@ export default {
       return verarbeiteEfs(anfrage, umgebung);
     }
 
+    // HiOrg-Server-API (OAuth) vor dem Kalenderfeed, der alle übrigen
+    // /api/hiorg/-Pfade als unbekannt beantwortet.
+    if (
+      url.pathname === HIORG_VERBINDUNG_PFAD ||
+      url.pathname === HIORG_CODE_PFAD ||
+      url.pathname === HIORG_PERSONAL_PFAD
+    ) {
+      return verarbeiteHiorgApi(anfrage, umgebung, benutzer);
+    }
+
     if (url.pathname.startsWith('/api/hiorg/')) {
       return verarbeiteHiorgKalender(anfrage, umgebung);
     }
@@ -190,6 +220,19 @@ export default {
       return verarbeiteFahrzeuge(anfrage, umgebung, benutzer);
     }
 
+    // Wie bei den Fahrzeugen vor der Materialverarbeitung: deren UUID-Pfade
+    // wiesen "einreichungen" sonst als unbekannt ab.
+    if (
+      url.pathname === MATERIAL_EINREICHUNGEN_PFAD ||
+      url.pathname.startsWith(`${MATERIAL_EINREICHUNGEN_PFAD}/`)
+    ) {
+      return verarbeiteMaterialEinreichungen(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === '/api/material' || url.pathname.startsWith('/api/material/')) {
+      return verarbeiteMaterial(anfrage, umgebung, benutzer);
+    }
+
     if (url.pathname === '/api/angebotswesen' || url.pathname.startsWith('/api/angebotswesen/')) {
       return verarbeiteAngebotswesen(anfrage, umgebung, benutzer);
     }
@@ -205,6 +248,16 @@ export default {
       const weiterleitung = kurzlinkWeiterleitung(url.pathname);
       if (weiterleitung) return weiterleitung;
       return fehlerAntwort('FAHRZEUGE_KURZLINK_UNGUELTIG', 'Unbekannter Kurzlink.', 404);
+    }
+
+    // OAuth-Anmeldung bei HiOrg: beides sind Seitenaufrufe (Weiterleitungen),
+    // keine API-Aufrufe, und liegen deshalb außerhalb von /api/. Access ist
+    // bereits geprüft; die Token bleiben vollständig im Worker (hiorg-api.ts).
+    if (url.pathname === HIORG_VERBINDEN_PFAD) {
+      return verarbeiteHiorgVerbinden(anfrage, umgebung);
+    }
+    if (url.pathname === HIORG_RUECKRUF_PFAD) {
+      return verarbeiteHiorgRueckruf(anfrage, umgebung, benutzer);
     }
 
     if (anfrage.method !== 'GET' && anfrage.method !== 'HEAD') {

@@ -8,6 +8,11 @@ const GUELTIG = {
     kmBerichtBetreff: 'Kilometerstandsbericht',
     kmAmpelSchwellenwertGelbMonate: 1,
     kmAmpelSchwellenwertRotMonate: 3,
+    materialBestellscheinEmpfaenger: '',
+    materialMaengelLandEmpfaenger: '',
+    materialMaengelSegEmpfaenger: '',
+    materialVersandweg: 'email-routing',
+    materialBetreff: 'Materialmeldung',
   },
   versandwege: [
     { weg: 'email-routing', verfuegbar: true },

@@ -111,3 +111,40 @@ export async function pruefeFreigabeRecht(
   }
   return null;
 }
+
+/**
+ * Reine Prüfung gegen eine Aufzählung erlaubter Hauptrollen. `zugfuehrung` ist
+ * hier **nicht** implizit enthalten: wo sie gelten soll, steht sie in der
+ * Aufzählung. Das hält die Regel an der Aufrufstelle sichtbar, statt sie in
+ * dieser Funktion zu verstecken.
+ */
+export function hatEineRolle(rolle: string | null, erlaubte: readonly string[]): boolean {
+  return rolle !== null && erlaubte.includes(rolle);
+}
+
+/**
+ * Durchsetzung für Aufrufe, die an eine Hauptrolle gebunden sind. Liefert
+ * `null`, wenn erlaubt, sonst die abweisende Antwort. Schließt bei fehlender
+ * Konfiguration zu, wie `pruefeFreigabeRecht`.
+ */
+export async function pruefeRollenRecht(
+  umgebung: RollenKonfiguration,
+  identitaet: Benutzer,
+  erlaubte: readonly string[],
+  nachricht: string,
+  code: string,
+): Promise<Response | null> {
+  const db = umgebung.BENUTZER_DB;
+  if (!db) {
+    return fehlerAntwort(
+      'ROLLEN_KONFIGURATION_FEHLT',
+      'Die Rollenverwaltung ist noch nicht eingerichtet; diese Aktion ist deshalb nicht möglich.',
+      503,
+    );
+  }
+  const zuordnung = await leseRolle(db, identitaet.email);
+  if (!hatEineRolle(zuordnung?.rolle ?? null, erlaubte)) {
+    return fehlerAntwort(code, nachricht, 403);
+  }
+  return null;
+}

@@ -8,6 +8,7 @@ import {
   FahrzeugRef,
 } from '../models/planung.model';
 import { FahrzeugeQuelleService } from './fahrzeuge-quelle.service';
+import { MEDIZINISCHE_BEZEICHNUNGEN, TAKTISCHE_BEZEICHNUNGEN } from './qualifikation-zuordnung';
 
 // Raw response shapes from the HiOrg EFS-API
 interface EfsApiEnvelope {
@@ -224,25 +225,8 @@ export class EfsApiService {
 
   private qualToAusbildungen(e: EfsApiEinsatzkraft): string[] {
     const result: string[] = [];
-    const medMap: Record<string, string> = {
-      'Erste-Hilfe': 'EH',
-      'Sanitätshelfer/in': 'SanH',
-      'Rettungshelfer/in': 'RH',
-      'Rettungssanitäter/in': 'RS',
-      'Rettungsassistent/in': 'RA',
-      'Notfallsanitäter/in': 'NotSan',
-      'Arzt/Ärztin': 'A',
-      Notarzt: 'NA',
-      'Notarzt / Notärztin': 'NA',
-    };
-    const taktMap: Record<string, string> = {
-      'Helfer:in in Ausbildung': 'H',
-      'Gruppenführer:in': 'GF',
-      'Zugführer:in': 'ZF',
-      'ZF mit Stabsausbildung': 'ZF',
-      'Verbandsführer:in': 'VF',
-      'Verbandführer:in': 'VF',
-    };
+    const medMap = MEDIZINISCHE_BEZEICHNUNGEN;
+    const taktMap = TAKTISCHE_BEZEICHNUNGEN;
     if (e.med_qual) result.push(medMap[e.med_qual] ?? e.med_qual);
     if (e.fuehr_qual) result.push(taktMap[e.fuehr_qual] ?? e.fuehr_qual);
     if (e.fw_qual) result.push(e.fw_qual);
