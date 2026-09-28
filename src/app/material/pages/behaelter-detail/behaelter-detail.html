@@ -1,0 +1,151 @@
+<mat-toolbar class="detail-kopfleiste">
+  <a mat-icon-button routerLink="/material" aria-label="Zurück zur Materialverwaltung">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <mat-icon class="kopfleiste-icon" aria-hidden="true">inventory_2</mat-icon>
+  <span class="toolbar-title">
+    @if (istNeu()) {
+      Neuer Behälter
+    } @else {
+      {{ entwurf()?.bezeichnung || 'Behälter' }}
+    }
+  </span>
+  <span class="spacer"></span>
+  <button
+    mat-raised-button
+    color="primary"
+    [disabled]="!speicherbar() || !hatAenderungen() || speichertGerade()"
+    (click)="speichern()"
+  >
+    <mat-icon>save</mat-icon> Speichern
+  </button>
+</mat-toolbar>
+
+<div class="detail-inhalt">
+  @if (laedt()) {
+    <p role="status">Behälter wird geladen …</p>
+  }
+  @if (ladeFehler()) {
+    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+  }
+  @if (speicherFehler()) {
+    <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+  }
+  @if (loeschFehler()) {
+    <p class="error-hint" role="alert">{{ loeschFehler() }}</p>
+  }
+
+  @if (entwurf(); as behaelter) {
+    <section class="stammdaten" aria-labelledby="stammdaten-titel">
+      <h2 id="stammdaten-titel">Stammdaten</h2>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bezeichnung</mat-label>
+        <input
+          matInput
+          placeholder="zum Beispiel NFR 3"
+          [value]="behaelter.bezeichnung"
+          (input)="feldAendern('bezeichnung', $any($event.target).value)"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Fahrzeug</mat-label>
+        <mat-select
+          [value]="behaelter.fahrzeugId"
+          (selectionChange)="feldAendern('fahrzeugId', $event.value)"
+        >
+          @for (fahrzeug of fahrzeuge(); track fahrzeug.id) {
+            <mat-option [value]="fahrzeug.id">
+              {{ fahrzeug.bezeichnung }} · {{ fahrzeug.funkrufname }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Prüfvorlage</mat-label>
+        <mat-select
+          [value]="behaelter.vorlageId"
+          (selectionChange)="feldAendern('vorlageId', $event.value)"
+        >
+          @for (vorlage of vorlagen(); track vorlage.id) {
+            <mat-option [value]="vorlage.id">
+              {{ vorlage.bezeichnung }} ({{ vorlage.anzahlArtikel }} Artikel)
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bemerkung</mat-label>
+        <textarea
+          matInput
+          rows="2"
+          [value]="behaelter.bemerkung"
+          (input)="feldAendern('bemerkung', $any($event.target).value)"
+        ></textarea>
+      </mat-form-field>
+
+      <p class="hinweis">
+        Ein Wechsel der Prüfvorlage wirkt nur auf künftige Checks. Bereits durchgeführte Checks
+        behalten ihre eigene Momentaufnahme der Liste.
+      </p>
+    </section>
+
+    @if (!istNeu()) {
+      <section class="pruefung" aria-labelledby="pruefung-titel">
+        <h2 id="pruefung-titel">Bestand prüfen</h2>
+        <a
+          mat-raised-button
+          color="primary"
+          class="check-starten"
+          [routerLink]="['/material/behaelter', behaelter.id, 'check']"
+        >
+          <mat-icon>fact_check</mat-icon> Fahrzeugcheck starten
+        </a>
+      </section>
+
+      <section class="qr" aria-labelledby="qr-titel">
+        <h2 id="qr-titel">QR-Code für die Prüfung ohne Anmeldung</h2>
+        <p class="hinweis">
+          Wer diesen Code scannt, kann ohne Anmeldung eine Prüfung melden. Die Meldung wird erst
+          durch eine Freigabe zu einem gültigen Check. Der Aufkleber ist deshalb ein Geheimnis – wer
+          ihn hat, darf melden.
+        </p>
+
+        @if (qrFehler()) {
+          <p class="error-hint" role="alert">{{ qrFehler() }}</p>
+        }
+
+        @if (qrDataUrl()) {
+          <img class="qr-bild" [src]="qrDataUrl()" alt="QR-Code zur öffentlichen Prüfung" />
+          <p class="qr-ziel">{{ qrZiel() }}</p>
+          <button mat-stroked-button [disabled]="qrLaedt()" (click)="qrErneuern()">
+            <mat-icon>autorenew</mat-icon> Prüfcode erneuern
+          </button>
+        } @else {
+          <button mat-stroked-button [disabled]="qrLaedt()" (click)="qrAnzeigen()">
+            <mat-icon>qr_code_2</mat-icon>
+            @if (qrLaedt()) {
+              Wird geladen …
+            } @else {
+              QR-Code anzeigen
+            }
+          </button>
+        }
+      </section>
+
+      <section class="gefahrenzone" aria-labelledby="loeschen-titel">
+        <h2 id="loeschen-titel">Behälter entfernen</h2>
+        <p class="hinweis">
+          Möglich, solange für diesen Behälter noch kein Check erfasst wurde – ein durchgeführter
+          Check ist ein Nachweis und darf nicht mit dem Behälter verschwinden.
+        </p>
+        <button mat-stroked-button (click)="loeschen()">
+          <mat-icon>delete</mat-icon> Behälter löschen
+        </button>
+      </section>
+    }
+  }
+</div>

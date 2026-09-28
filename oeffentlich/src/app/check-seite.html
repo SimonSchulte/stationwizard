@@ -1,0 +1,255 @@
+@switch (zustand()) {
+  @case ('laedt') {
+    <main class="seite">
+      <p class="hinweis" role="status">Liste wird geladen …</p>
+    </main>
+  }
+
+  @case ('unbekannt') {
+    <main class="seite">
+      <h1>Dieser Code funktioniert nicht</h1>
+      <p class="hinweis">
+        Der QR-Code gehört zu keinem Behälter. Möglicherweise wurde der Aufkleber erneuert. Bitte
+        bei der Zug- oder Gruppenführung melden.
+      </p>
+    </main>
+  }
+
+  @case ('gesendet') {
+    <main class="seite">
+      <h1>Danke</h1>
+      @if (quittung(); as q) {
+        <p class="quittung">
+          {{ q.positionenGeprueft }} von {{ q.positionenGesamt }} Positionen geprüft.
+        </p>
+        <ul class="quittungsliste">
+          <li>{{ q.fehlmengen }} Fehlmengen</li>
+          <li>{{ q.unbrauchbar }} unbrauchbar</li>
+          <li>{{ q.abgelaufen }} abgelaufen</li>
+        </ul>
+      }
+      <p class="hinweis">
+        Die Prüfung gilt erst nach der Freigabe durch die Zug- oder Gruppenführung. Bis dahin ändert
+        sie nichts am gespeicherten Stand.
+      </p>
+    </main>
+  }
+
+  @default {
+    @if (behaelter(); as b) {
+      <div class="checkkopf">
+        @if (kennzahlen(); as k) {
+          <div class="fortschritt">
+            <div class="ring" [style.--anteil]="k.prozent">
+              <span>{{ k.prozent }}%</span>
+            </div>
+            <div class="zaehler">
+              <strong>{{ k.geprueft }} von {{ k.gesamt }} geprüft</strong>
+              <span class="klein">{{ b.behaelterBezeichnung }} · {{ b.fahrzeugBezeichnung }}</span>
+            </div>
+          </div>
+          <div class="pillen">
+            <span class="pille" [class.warnung]="k.fehlmengen + k.unbrauchbar > 0">
+              @if (k.fehlmengen + k.unbrauchbar > 0) {
+                {{ k.fehlmengen + k.unbrauchbar }} zu melden
+              } @else {
+                vollständig
+              }
+            </span>
+            <span class="pille" [class]="'pille verfall-' + verfallsstufe()">
+              {{ verfallstext() }}
+            </span>
+          </div>
+        }
+      </div>
+
+      <main class="seite">
+        @if (entwurfGefundenAm()) {
+          <p class="entwurf" role="status">
+            Auf diesem Gerät gesicherter Zwischenstand fortgesetzt.
+            <button type="button" class="textknopf" (click)="entwurfVerwerfen()">
+              Verwerfen und neu beginnen
+            </button>
+          </p>
+        }
+
+        @if (fehler()) {
+          <p class="fehler" role="alert">{{ fehler() }}</p>
+        }
+
+        @for (fach of faecher(); track fach.id) {
+          <details class="fach" [open]="fachOffen(fach.id)">
+            <summary (click)="fachUmschalten(fach.id)">
+              <span class="fachname">{{ fach.bezeichnung }}</span>
+              <span class="fachstand">{{ fachZusammenfassung(fach) }}</span>
+            </summary>
+
+            @for (artikel of fach.artikel; track artikel.id) {
+              @if (position(artikel.id); as p) {
+                <div
+                  class="zeile"
+                  [class.geprueft]="p.geprueft"
+                  [class.abweichend]="fehlmenge(artikel) > 0 || p.unbrauchbar"
+                >
+                  <button
+                    type="button"
+                    class="haken-flaeche"
+                    [attr.aria-pressed]="p.geprueft"
+                    (click)="umschalten(artikel.id)"
+                  >
+                    <span class="haken" [class.an]="p.geprueft" aria-hidden="true"></span>
+                    <span class="text">
+                      <span class="name">
+                        <span class="herkunft" [class]="'herkunft h-' + artikel.herkunft">
+                          {{ artikel.herkunft === 'beide' ? 'SEG+Land' : artikel.herkunft }}
+                        </span>
+                        {{ artikel.bezeichnung }}
+                      </span>
+                      <span class="soll">
+                        Soll: {{ artikel.sollMenge }} {{ einheit(artikel) }}
+                        @if (fehlmenge(artikel) > 0) {
+                          · <strong>{{ fehlmenge(artikel) }} fehlen</strong>
+                        }
+                        @if (p.unbrauchbar) {
+                          · <strong>unbrauchbar</strong>
+                        }
+                      </span>
+                    </span>
+                  </button>
+
+                  <div class="steller">
+                    <button
+                      type="button"
+                      class="mengenknopf"
+                      aria-label="Menge verringern"
+                      (click)="mengeAendern(artikel.id, p.istMenge - 1)"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      inputmode="numeric"
+                      min="0"
+                      class="mengenfeld"
+                      [attr.aria-label]="'Istmenge ' + artikel.bezeichnung"
+                      [value]="p.istMenge"
+                      (change)="mengeEingeben(artikel.id, $any($event.target).value)"
+                    />
+                    <button
+                      type="button"
+                      class="mengenknopf"
+                      aria-label="Menge erhöhen"
+                      (click)="mengeAendern(artikel.id, p.istMenge + 1)"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      class="meldeknopf"
+                      [class.an]="p.unbrauchbar"
+                      [attr.aria-pressed]="p.unbrauchbar"
+                      [attr.aria-label]="'Als unbrauchbar melden: ' + artikel.bezeichnung"
+                      (click)="unbrauchbarUmschalten(artikel.id)"
+                    >
+                      ⚠
+                    </button>
+                  </div>
+
+                  @if (zeigtVerfallsdaten(artikel)) {
+                    <div class="verfall">
+                      @if (artikel.sollMenge > 1 && !einzeln().has(artikel.id)) {
+                        <label class="verfallsfeld">
+                          <span>Verfallsdatum · alle {{ artikel.sollMenge }} Stück</span>
+                          <input
+                            type="month"
+                            [value]="gemeinsamesDatum(artikel.id)"
+                            [class]="'monat monat-' + verfallsstatusVon(artikel.id)"
+                            (change)="verfallsdatumFuerAlle(artikel.id, $any($event.target).value)"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          class="textknopf"
+                          (click)="einzelnUmschalten(artikel.id)"
+                        >
+                          Je Stück erfassen
+                        </button>
+                      } @else {
+                        @for (datum of p.verfallsdaten; track $index) {
+                          <label class="verfallsfeld">
+                            <span>
+                              @if (artikel.sollMenge > 1) {
+                                Stück {{ $index + 1 }} von {{ artikel.sollMenge }}
+                              } @else {
+                                Verfallsdatum
+                              }
+                            </span>
+                            <input
+                              type="month"
+                              [value]="datum ?? ''"
+                              [class]="'monat monat-' + statusEinesStuecks(artikel.id, $index)"
+                              (change)="
+                                verfallsdatumEinzeln(artikel.id, $index, $any($event.target).value)
+                              "
+                            />
+                          </label>
+                        }
+                        @if (artikel.sollMenge > 1) {
+                          <button
+                            type="button"
+                            class="textknopf"
+                            (click)="einzelnUmschalten(artikel.id)"
+                          >
+                            Gemeinsam erfassen
+                          </button>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </details>
+        }
+
+        <label class="feld">
+          <span>Ihr Name</span>
+          <input
+            type="text"
+            autocomplete="name"
+            [value]="name()"
+            (input)="name.set($any($event.target).value)"
+          />
+        </label>
+
+        <label class="feld">
+          <span>Bemerkung (freiwillig)</span>
+          <textarea
+            rows="2"
+            [value]="bemerkung()"
+            (input)="bemerkungSetzen($any($event.target).value)"
+          ></textarea>
+        </label>
+
+        <p class="hinweis">
+          Die Prüfung gilt erst nach der Freigabe durch die Zug- oder Gruppenführung.
+        </p>
+      </main>
+
+      <div class="fuss">
+        <button
+          type="button"
+          class="absenden"
+          [disabled]="!absendbar() || zustand() === 'sendet'"
+          (click)="absenden()"
+        >
+          @if (zustand() === 'sendet') {
+            Wird gesendet …
+          } @else {
+            Prüfung absenden
+          }
+        </button>
+      </div>
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { istObjekt, leseJsonBegrenzt } from './json-lesen';
+import { hatEineRolle, leseRolle, type RollenKonfiguration } from './rollen';
 import {
   istVersandweg,
   versandwegVerfuegbar,
@@ -20,7 +21,8 @@ import {
  * `EINSTELLUNGEN`. Ein unbekannter Schlüssel wird abgelehnt, nie gespeichert.
  */
 
-export interface SystemkonfigurationKonfiguration extends MailVersandKonfiguration {
+export interface SystemkonfigurationKonfiguration
+  extends MailVersandKonfiguration, RollenKonfiguration {
   BENUTZER_DB?: D1Database;
 }
 
@@ -35,13 +37,34 @@ export interface Einstellungen {
   kmBerichtEmpfaenger: string;
   kmBerichtVersandweg: Versandweg;
   kmBerichtBetreff: string;
+  /** Standardempfänger der Materialberichte; im Sendedialog überschreibbar. */
+  materialBestellscheinEmpfaenger: string;
+  materialMaengelLandEmpfaenger: string;
+  materialMaengelSegEmpfaenger: string;
+  materialVersandweg: Versandweg;
+  materialBetreff: string;
 }
+
+/**
+ * Wer die Materialeinstellungen ändern darf. Erste an eine Hauptrolle gebundene
+ * Einstellung des Projekts: eine Standard-Empfängeradresse bestimmt, wohin
+ * Bestellscheine und Mängelanzeigen gehen, und das ist eine Führungsentscheidung.
+ * `zugfuehrung` steht ausdrücklich in der Aufzählung, nicht implizit.
+ */
+const MATERIAL_ROLLEN: readonly string[] = ['zugfuehrung', 'gruppenfuehrung-sanitaet'];
 
 interface Beschreibung<S extends keyof Einstellungen> {
   /** Spaltenwert in der Tabelle; bewusst stabil und unabhängig vom Feldnamen. */
   schluessel: string;
   standard: Einstellungen[S];
   pruefe(wert: unknown): Einstellungen[S] | null;
+  /**
+   * Hauptrollen, die diesen Schlüssel **ändern** dürfen. Fehlt die Angabe, darf
+   * jede geprüfte Identität schreiben – der Bestand bleibt damit unverändert
+   * ("Rechte vorerst alle, Rollen später"). Gelesen werden alle Schlüssel von
+   * jeder geprüften Identität; in dieser Tabelle stehen keine Zugangsdaten.
+   */
+  erfordertRolle?: readonly string[];
 }
 
 /**
@@ -95,6 +118,36 @@ const EINSTELLUNGEN: { [S in keyof Einstellungen]: Beschreibung<S> } = {
     standard: 'Kilometerstandsbericht',
     pruefe: pruefeBetreff,
   },
+  materialBestellscheinEmpfaenger: {
+    schluessel: 'material_bestellschein_empfaenger',
+    standard: '',
+    pruefe: pruefeEmpfaenger,
+    erfordertRolle: MATERIAL_ROLLEN,
+  },
+  materialMaengelLandEmpfaenger: {
+    schluessel: 'material_maengel_land_empfaenger',
+    standard: '',
+    pruefe: pruefeEmpfaenger,
+    erfordertRolle: MATERIAL_ROLLEN,
+  },
+  materialMaengelSegEmpfaenger: {
+    schluessel: 'material_maengel_seg_empfaenger',
+    standard: '',
+    pruefe: pruefeEmpfaenger,
+    erfordertRolle: MATERIAL_ROLLEN,
+  },
+  materialVersandweg: {
+    schluessel: 'material_versandweg',
+    standard: 'email-routing',
+    pruefe: (wert) => (istVersandweg(wert) ? wert : null),
+    erfordertRolle: MATERIAL_ROLLEN,
+  },
+  materialBetreff: {
+    schluessel: 'material_betreff',
+    standard: 'Materialmeldung',
+    pruefe: pruefeBetreff,
+    erfordertRolle: MATERIAL_ROLLEN,
+  },
 };
 
 const FELDER = Object.keys(EINSTELLUNGEN) as (keyof Einstellungen)[];
@@ -123,13 +176,20 @@ export async function leseEinstellungen(db: D1Database): Promise<Einstellungen> 
   return einstellungen;
 }
 
-function pruefeEingabe(wert: unknown): Einstellungen | null {
+/**
+ * Ein unbekannter Schlüssel wird abgewiesen, nie gespeichert. Ein **fehlender**
+ * Schlüssel heißt dagegen "unverändert": die Oberfläche soll nicht jedes Mal
+ * alle Einstellungen kennen müssen, und ein neuer Schlüssel darf einen älteren
+ * Aufrufer nicht scheitern lassen.
+ */
+function pruefeEingabe(wert: unknown): Partial<Einstellungen> | null {
   if (!istObjekt(wert)) return null;
   const unbekannt = Object.keys(wert).some((schluessel) => !FELDER.includes(schluessel as never));
   if (unbekannt) return null;
 
-  const einstellungen = {} as Einstellungen;
+  const einstellungen: Partial<Einstellungen> = {};
   for (const feld of FELDER) {
+    if (!(feld in wert)) continue;
     const geprueft = EINSTELLUNGEN[feld].pruefe(wert[feld]);
     if (geprueft === null) return null;
     Object.assign(einstellungen, { [feld]: geprueft });
@@ -152,8 +212,10 @@ async function antwortMitEinstellungen(
 
 /**
  * Feste Systemkonfigurations-Endpunkte hinter der bereits geprüften Anmeldung.
- * Ändern ist vorerst jeder geprüften Identität möglich (siehe Migration 0005,
- * "Rechte vorerst alle, Rollen später").
+ * Lesen darf jede geprüfte Identität – in dieser Tabelle stehen ausdrücklich
+ * keine Zugangsdaten. Ändern ist es ebenfalls, **außer** für Schlüssel mit
+ * `erfordertRolle`; die Materialeinstellungen sind die ersten davon. Für alle
+ * übrigen gilt weiter "Rechte vorerst alle, Rollen später" (Migration 0005).
  */
 export async function verarbeiteSystemkonfiguration(
   anfrage: Request,
@@ -221,16 +283,44 @@ async function speichere(
       ? fehlerAntwort('SYSTEMKONFIGURATION_DATEI_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
       : fehlerAntwort('SYSTEMKONFIGURATION_DATEI_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
   }
-  const eingabe = pruefeEingabe(gelesen.inhalt);
-  if (!eingabe) {
+  const teilEingabe = pruefeEingabe(gelesen.inhalt);
+  if (!teilEingabe) {
     return fehlerAntwort('SYSTEMKONFIGURATION_DATEI_UNGUELTIG', 'Ungültige Einstellungen.', 400);
+  }
+
+  // Nur tatsächlich geänderte Schlüssel schreiben. Das erfüllt die
+  // Sparsamkeitsregel („wiederholte Schreibvorgänge ohne fachliche Änderung
+  // vermeiden") und ist zugleich die Grundlage der Rollenprüfung: die
+  // Oberfläche sendet immer das vollständige Objekt, ein Wächter auf „Schlüssel
+  // kommt im Körper vor" würde deshalb auch die Kilometer-Einstellungen für
+  // Helfer sperren, obwohl sie die Materialadressen gar nicht anfassen.
+  const bestand = await leseEinstellungen(db);
+  const eingabe: Einstellungen = { ...bestand, ...teilEingabe };
+  const geaendert = FELDER.filter((feld) => eingabe[feld] !== bestand[feld]);
+  if (geaendert.length === 0) return antwortMitEinstellungen(bestand, umgebung);
+
+  const geschuetzt = geaendert.filter((feld) => EINSTELLUNGEN[feld].erfordertRolle);
+  if (geschuetzt.length > 0) {
+    // Die Rolle wird genau einmal gelesen, und nur wenn ein geschützter
+    // Schlüssel überhaupt betroffen ist.
+    const zuordnung = await leseRolle(db, identitaet.email);
+    const erlaubt = geschuetzt.every((feld) =>
+      hatEineRolle(zuordnung?.rolle ?? null, EINSTELLUNGEN[feld].erfordertRolle ?? []),
+    );
+    if (!erlaubt) {
+      return fehlerAntwort(
+        'SYSTEMKONFIGURATION_ROLLE_FEHLT',
+        'Diese Einstellung darf nur die Zugführung oder die Gruppenführung Sanität ändern.',
+        403,
+      );
+    }
   }
 
   const jetzt = new Date().toISOString();
   // Gemeinsam schreiben: ein halb übernommener Satz Einstellungen wäre ein
   // Zustand, den niemand eingestellt hat.
   await db.batch(
-    FELDER.map((feld) =>
+    geaendert.map((feld) =>
       db
         .prepare(
           `INSERT INTO systemkonfiguration (schluessel, wert, geaendert_am, geaendert_von)

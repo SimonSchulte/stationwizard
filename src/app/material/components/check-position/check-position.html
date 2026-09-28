@@ -1,0 +1,127 @@
+<div
+  class="zeile"
+  [class.geprueft]="position().geprueft"
+  [class.abweichend]="fehlmenge() > 0 || position().unbrauchbar"
+  [class.abgelaufen]="zeigtVerfallsdaten() && verfallsstatus() === 'abgelaufen'"
+  [class.bald]="zeigtVerfallsdaten() && verfallsstatus() === 'laeuft-ab'"
+>
+  <div class="kopf">
+    <button
+      type="button"
+      class="haken-flaeche"
+      [attr.aria-pressed]="position().geprueft"
+      (click)="umschalten.emit()"
+    >
+      <span class="haken" aria-hidden="true">
+        @if (position().geprueft) {
+          <mat-icon>check</mat-icon>
+        }
+      </span>
+      <span class="text">
+        <span class="name">
+          <span class="herkunft" [class]="'herkunft h-' + artikel().herkunft">
+            {{ herkunftLabel[artikel().herkunft] }}
+          </span>
+          {{ artikel().bezeichnung }}
+        </span>
+        <span class="soll">
+          Soll: {{ artikel().sollMenge }} {{ einheitText() }}
+          @if (fehlmenge() > 0) {
+            · <strong class="fehlt">{{ fehlmenge() }} fehlen</strong>
+          }
+          @if (position().unbrauchbar) {
+            · <strong class="fehlt">unbrauchbar</strong>
+          }
+        </span>
+      </span>
+    </button>
+
+    <div class="menge">
+      <button
+        type="button"
+        class="mengenknopf"
+        (click)="mengeVerringern()"
+        aria-label="Menge verringern"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        inputmode="numeric"
+        min="0"
+        class="mengenfeld"
+        [attr.aria-label]="'Istmenge ' + artikel().bezeichnung"
+        [value]="position().istMenge"
+        (change)="mengeEingeben($any($event.target).value)"
+      />
+      <button
+        type="button"
+        class="mengenknopf"
+        (click)="mengeErhoehen()"
+        aria-label="Menge erhöhen"
+      >
+        +
+      </button>
+    </div>
+
+    <button
+      type="button"
+      class="unbrauchbar"
+      [class.aktiv]="position().unbrauchbar"
+      [attr.aria-pressed]="position().unbrauchbar"
+      [attr.aria-label]="'Als unbrauchbar melden: ' + artikel().bezeichnung"
+      (click)="unbrauchbarGeaendert.emit(!position().unbrauchbar)"
+    >
+      <mat-icon>report_problem</mat-icon>
+    </button>
+  </div>
+
+  @if (zeigtVerfallsdaten()) {
+    <div class="verfall">
+      @if (mehrereStueck() && !einzelerfassung()) {
+        <label class="verfall-feld">
+          <span class="verfall-label">
+            Verfallsdatum · gilt für alle {{ artikel().sollMenge }} Stück
+          </span>
+          <input
+            type="month"
+            [value]="gemeinsamesDatum()"
+            [class]="'monat monat-' + verfallsstatus()"
+            (change)="verfallsdatumFuerAlle.emit($any($event.target).value)"
+          />
+        </label>
+        <button type="button" class="uebernehmen" (click)="einzelerfassung.set(true)">
+          Je Stück erfassen
+        </button>
+        @if (datenUneinheitlich()) {
+          <span class="uneinheitlich">Die Stücke haben unterschiedliche Daten.</span>
+        }
+      } @else {
+        @for (datum of position().verfallsdaten; track $index) {
+          <label class="verfall-feld">
+            <span class="verfall-label">
+              @if (mehrereStueck()) {
+                Stück {{ $index + 1 }} von {{ artikel().sollMenge }}
+              } @else {
+                Verfallsdatum
+              }
+            </span>
+            <input
+              type="month"
+              [value]="datum ?? ''"
+              [class]="'monat monat-' + statusEinesStuecks($index)"
+              (change)="
+                verfallsdatumGeaendert.emit({ index: $index, monat: $any($event.target).value })
+              "
+            />
+          </label>
+        }
+        @if (mehrereStueck()) {
+          <button type="button" class="uebernehmen" (click)="einzelerfassung.set(false)">
+            Gemeinsam erfassen
+          </button>
+        }
+      }
+    </div>
+  }
+</div>
