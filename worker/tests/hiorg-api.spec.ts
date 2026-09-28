@@ -10,6 +10,8 @@ import {
 } from '../src/hiorg-api';
 
 const ORIGIN = 'https://stationwizard.example';
+const TEAM_DOMAIN = 'https://erfundenes-team.cloudflareaccess.com';
+const ACCESS_CALLBACK = `${TEAM_DOMAIN}/cdn-cgi/access/callback`;
 const CLIENT_ID = 'erfundene-client-id';
 const CLIENT_SECRET = 'erfundenes-client-secret-0123456789';
 const BENUTZER = { email: 'person@example.invalid' };
@@ -113,6 +115,8 @@ beforeEach(() => {
   umgebung = {
     HIORG_SERVER_CLIENTID: CLIENT_ID,
     HIORG_SERVER_CLIENTSECRET: CLIENT_SECRET,
+    ACCESS_TEAM_DOMAIN: TEAM_DOMAIN,
+    HIORG_SERVER_REDIRECT_URI: `${ORIGIN}/hiorg/rueckruf`,
     BENUTZER_DB: db as unknown as D1Database,
   };
 });
@@ -268,15 +272,27 @@ describe('HiOrg-API: Verbindungsstatus', () => {
   it('meldet eingerichtet/verbunden ohne HiOrg-Aufruf und trennt auf Wunsch', async () => {
     const status = () =>
       verarbeiteHiorgApi(new Request(`${ORIGIN}/api/hiorg/verbindung`), umgebung, BENUTZER);
-    expect(await (await status()).json()).toEqual({ eingerichtet: true, verbunden: false });
+    expect(await (await status()).json()).toEqual({
+      eingerichtet: true,
+      verbunden: false,
+      modus: 'automatisch',
+    });
     await verbinden();
-    expect(await (await status()).json()).toEqual({ eingerichtet: true, verbunden: true });
+    expect(await (await status()).json()).toEqual({
+      eingerichtet: true,
+      verbunden: true,
+      modus: 'automatisch',
+    });
     const trennen = await verarbeiteHiorgApi(
       new Request(`${ORIGIN}/api/hiorg/verbindung`, { method: 'DELETE' }),
       umgebung,
       BENUTZER,
     );
-    expect(await trennen.json()).toEqual({ eingerichtet: true, verbunden: false });
+    expect(await trennen.json()).toEqual({
+      eingerichtet: true,
+      verbunden: false,
+      modus: 'automatisch',
+    });
     expect(db.zeilen.size).toBe(0);
     expect(abrufen).not.toHaveBeenCalled();
   });
@@ -288,7 +304,7 @@ describe('HiOrg-API: Verbindungsstatus', () => {
       umgebung,
       BENUTZER,
     );
-    expect(await antwort.json()).toEqual({ eingerichtet: false, verbunden: false });
+    expect(await antwort.json()).toEqual({ eingerichtet: false, verbunden: false, modus: null });
   });
 });
 
@@ -392,5 +408,122 @@ describe('HiOrg-API: Personal', () => {
       BENUTZER,
     );
     expect(antwort.status).toBe(400);
+  });
+});
+
+describe('HiOrg-API: manueller Rückruf über den Access-Callback', () => {
+  function codeAnfrage(adresse: unknown, cookie: string | undefined = COOKIE): Request {
+    return new Request(`${ORIGIN}/api/hiorg/verbindung/code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+      body: JSON.stringify({ adresse }),
+    });
+  }
+
+  beforeEach(() => {
+    umgebung.HIORG_SERVER_REDIRECT_URI = undefined;
+  });
+
+  it('nutzt ohne weitere Angabe den Access-Callback und meldet den manuellen Modus', async () => {
+    const start = await verarbeiteHiorgVerbinden(
+      new Request(`${ORIGIN}/hiorg/verbinden?ziel=personal`),
+      umgebung,
+    );
+    const ziel = new URL(start.headers.get('Location') ?? '');
+    expect(ziel.searchParams.get('redirect_uri')).toBe(ACCESS_CALLBACK);
+    // Die Anwendungsdomain erscheint in keinem Parameter an HiOrg.
+    expect(start.headers.get('Location')).not.toContain('stationwizard.example');
+    const status = await verarbeiteHiorgApi(
+      new Request(`${ORIGIN}/api/hiorg/verbindung`),
+      umgebung,
+      BENUTZER,
+    );
+    expect(await status.json()).toEqual({ eingerichtet: true, verbunden: false, modus: 'manuell' });
+  });
+
+  it('tauscht den Code aus der eingefügten Adresse mit genau dieser Redirect-URI', async () => {
+    abrufen.mockResolvedValueOnce(tokenAntwort());
+    const antwort = await verarbeiteHiorgApi(
+      codeAnfrage(`  ${ACCESS_CALLBACK}?code=abc123&state=${STATE}  `),
+      umgebung,
+      BENUTZER,
+    );
+    expect(antwort.status).toBe(200);
+    expect(await antwort.json()).toEqual({ eingerichtet: true, verbunden: true, modus: 'manuell' });
+    expect(antwort.headers.get('Set-Cookie')).toContain('Max-Age=0');
+    expect(
+      Object.fromEntries(new URLSearchParams(String(abrufen.mock.calls[0][1]?.body))),
+    ).toMatchObject({
+      grant_type: 'authorization_code',
+      code: 'abc123',
+      redirect_uri: ACCESS_CALLBACK,
+    });
+    expect(db.zeilen.get(BENUTZER.email)?.token_daten).toMatch(/^v1\./);
+  });
+
+  it.each([
+    ['fremder Host', `https://fremd.example/cdn-cgi/access/callback?code=a&state=${STATE}`],
+    ['anderer Pfad', `${TEAM_DOMAIN}/anderes?code=a&state=${STATE}`],
+    ['keine Adresse', 'nur-text'],
+    ['kein Text', 42],
+  ])(
+    'lehnt %s ab, ohne HiOrg aufzurufen oder das Cookie zu verbrauchen',
+    async (_fall, adresse) => {
+      const antwort = await verarbeiteHiorgApi(codeAnfrage(adresse), umgebung, BENUTZER);
+      expect(antwort.status).toBe(400);
+      expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_ADRESSE_UNGUELTIG');
+      expect(antwort.headers.get('Set-Cookie')).toBeNull();
+      expect(abrufen).not.toHaveBeenCalled();
+    },
+  );
+
+  it('verlangt den state der zuletzt geöffneten Anmeldung', async () => {
+    const antwort = await verarbeiteHiorgApi(
+      codeAnfrage(`${ACCESS_CALLBACK}?code=a&state=${'B'.repeat(43)}`),
+      umgebung,
+      BENUTZER,
+    );
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_ANMELDUNG_VERALTET');
+    expect(abrufen).not.toHaveBeenCalled();
+    const ohneCookie = await verarbeiteHiorgApi(
+      codeAnfrage(`${ACCESS_CALLBACK}?code=a&state=${STATE}`, ''),
+      umgebung,
+      BENUTZER,
+    );
+    expect(ohneCookie.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_ANMELDUNG_VERALTET');
+  });
+
+  it('meldet einen abgelaufenen Code mit eigenem Diagnosecode', async () => {
+    abrufen.mockResolvedValueOnce(Response.json({ error: 'invalid_grant' }, { status: 400 }));
+    const antwort = await verarbeiteHiorgApi(
+      codeAnfrage(`${ACCESS_CALLBACK}?code=alt&state=${STATE}`),
+      umgebung,
+      BENUTZER,
+    );
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_CODE_ABGELEHNT');
+    expect(db.zeilen.size).toBe(0);
+  });
+
+  it('nimmt den automatischen Rückrufpfad im manuellen Modus nicht an', async () => {
+    const antwort = await verarbeiteHiorgRueckruf(
+      new Request(`${ORIGIN}/hiorg/rueckruf?code=abc&state=${STATE}`, {
+        headers: { Cookie: COOKIE },
+      }),
+      umgebung,
+      BENUTZER,
+    );
+    expect(antwort.headers.get('Location')).toBe('/#/einsatz?hiorg=nicht-eingerichtet');
+    expect(abrufen).not.toHaveBeenCalled();
+  });
+
+  it('gilt mit einer unbekannten Redirect-URI als nicht eingerichtet', async () => {
+    umgebung.HIORG_SERVER_REDIRECT_URI = 'https://fremd.example/rueckruf';
+    const antwort = await verarbeiteHiorgApi(
+      codeAnfrage(`https://fremd.example/rueckruf?code=a&state=${STATE}`),
+      umgebung,
+      BENUTZER,
+    );
+    expect(antwort.status).toBe(503);
+    expect(abrufen).not.toHaveBeenCalled();
   });
 });

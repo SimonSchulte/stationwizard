@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -7,13 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
-import {
-  hiorgVerbindenAdresse,
-  HiorgPersonalService,
-  type HiorgPerson,
-} from '../../../kern/hiorg/hiorg-personal.service';
+import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
+import { HiorgPersonalService, type HiorgPerson } from '../../../kern/hiorg/hiorg-personal.service';
 import { ImportService } from '../../services/import.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
 
@@ -22,6 +16,7 @@ import { PlanungStoreService } from '../../services/planung-store.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-hiorg-personal-dialog',
   imports: [
+    HiorgVerbinden,
     MatButtonModule,
     MatCheckboxModule,
     MatDialogModule,
@@ -37,9 +32,6 @@ export class HiorgPersonalDialog {
   private readonly hiorg = inject(HiorgPersonalService);
   private readonly importService = inject(ImportService);
   private readonly store = inject(PlanungStoreService);
-  private readonly dialogDienst = inject(DialogDienst);
-  private readonly verlassenSchutz = inject(VerlassenSchutz);
-  private readonly dokument = inject(DOCUMENT);
   readonly dialogRef = inject(MatDialogRef<HiorgPersonalDialog>);
 
   readonly verbindung = this.hiorg.verbindung;
@@ -120,21 +112,6 @@ export class HiorgPersonalDialog {
     const gewaehlt = this.personen().filter((person) => this.auswahl().has(person.id));
     this.store.mergeEfsEinsatzkraefte(gewaehlt.map((p) => this.importService.mapHiorgPerson(p)));
     this.dialogRef.close();
-  }
-
-  async verbinden(): Promise<void> {
-    // Die Anmeldung bei HiOrg verlässt die Seite; ungesicherte Planungen gingen verloren.
-    if (
-      this.verlassenSchutz.hatUngesicherteAenderungen() &&
-      !(await this.dialogDienst.bestaetigen(
-        'Für die Anmeldung beim HiOrg-Server wird die Seite verlassen. Ungesicherte Änderungen gehen dabei verloren. Bitte vorher speichern oder eine Kopie herunterladen.',
-        'Mit HiOrg-Server verbinden',
-        'Trotzdem verbinden',
-      ))
-    ) {
-      return;
-    }
-    this.dokument.location.assign(hiorgVerbindenAdresse('einsatz'));
   }
 
   async trennen(): Promise<void> {

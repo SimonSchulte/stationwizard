@@ -14,6 +14,7 @@ import {
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
 import {
+  HIORG_CODE_PFAD,
   HIORG_PERSONAL_PFAD,
   HIORG_RUECKRUF_PFAD,
   HIORG_VERBINDEN_PFAD,
@@ -179,7 +180,11 @@ export default {
 
     // HiOrg-Server-API (OAuth) vor dem Kalenderfeed, der alle übrigen
     // /api/hiorg/-Pfade als unbekannt beantwortet.
-    if (url.pathname === HIORG_VERBINDUNG_PFAD || url.pathname === HIORG_PERSONAL_PFAD) {
+    if (
+      url.pathname === HIORG_VERBINDUNG_PFAD ||
+      url.pathname === HIORG_CODE_PFAD ||
+      url.pathname === HIORG_PERSONAL_PFAD
+    ) {
       return verarbeiteHiorgApi(anfrage, umgebung, benutzer);
     }
 

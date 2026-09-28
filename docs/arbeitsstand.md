@@ -1970,3 +1970,24 @@ Produktivsystem nicht nachgeprüft.
   `systemkonfiguration` unverändert.
 - Weiterhin offen: Redirect-URI bei HiOrg, Erreichbarkeit der beiden Secrets am Worker,
   Deployment des Branches.
+
+## HiOrg-Anmeldung über den Access-Callback (manueller Rückruf)
+
+- Anlass: Bei HiOrg ist nur `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback`
+  registriert, und die Anwendungsdomain soll HiOrg nicht genannt werden. Cloudflare Access
+  gibt IdP-Token laut Dokumentation nie an Anwendungen weiter; unter der Team-Domain läuft
+  kein eigener Code.
+- Umsetzung: Standard-Redirect-URI ist jetzt dieser Access-Callback (aus `ACCESS_TEAM_DOMAIN`).
+  Die HiOrg-Anmeldung öffnet sich in einem neuen Tab, endet auf der Access-Fehlerseite, und
+  die Person kopiert deren Adresse in die App. `POST /api/hiorg/verbindung/code` nimmt
+  ausschließlich genau diese URI an, prüft `state` gegen das HttpOnly-Cookie (verbraucht es
+  erst bei passendem `state`) und tauscht den Code. Der automatische Rückruf bleibt über
+  `HIORG_SERVER_REDIRECT_URI` wählbar. Gemeinsamer Baustein `kern/hiorg/hiorg-verbinden/`
+  für Personal und Einsatzplanung; `WorkerFehler` trägt jetzt den Diagnosecode.
+- Ungeprüft gegen echte Systeme: dass Access den ihm unbekannten Code tatsächlich nicht
+  einlöst und die Adresse sichtbar bleibt, wie lange HiOrg-Codes gültig sind, und das
+  Zusammenspiel mit einem später eingetragenen HiOrg-Anmeldeweg in Access.
+- Geprüft: `npm run build`, `npm test` (95 Angular-Testdateien, 600 Worker-Tests),
+  `npm run test:spa`, `npm run format:check`; Sichtprüfung im Headless-Chromium Desktop
+  und Mobil mit nachgebildeten API-Antworten (Schrittfolge, Fehlerhinweis bei falscher
+  Adresse, Tabelle nach erfolgreicher Verbindung).

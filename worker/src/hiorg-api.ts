@@ -28,20 +28,35 @@ import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
  * Die einzige HiOrg-Adresse, die er zu sehen bekommt, ist die Anmeldeseite,
  * auf die der Worker ihn weiterleitet – das ist der Kern des OAuth-Ablaufs.
  *
- * Die Redirect-URI ist `<Origin>/hiorg/rueckruf` und muss genau so bei HiOrg
- * für den Client registriert sein (siehe docs/einrichtung.md). Eine auf
- * `…cloudflareaccess.com/cdn-cgi/access/callback` registrierte URI gehört zu
- * einer Access-Anmeldung über HiOrg und liefert dem Worker nie ein Token.
+ * Zwei Rückrufwege, je nach bei HiOrg registrierter Redirect-URI:
+ *
+ * - **manuell** (Standard): Redirect-URI ist der Access-Callback der
+ *   Team-Domain (`<ACCESS_TEAM_DOMAIN>/cdn-cgi/access/callback`) – so bleibt
+ *   die Anwendungsdomain gegenüber HiOrg ungenannt. Dort läuft nur
+ *   Cloudflare-Code; Access lehnt den ihm unbekannten `state` ab und zeigt eine
+ *   Fehlerseite, in deren Adresszeile `code` und `state` stehen. Die Person
+ *   kopiert diese Adresse in die App, `POST /api/hiorg/verbindung/code` prüft
+ *   `state` gegen das Cookie und tauscht den Code mit genau dieser URI.
+ * - **automatisch**: Die Laufzeitvariable `HIORG_SERVER_REDIRECT_URI` ist
+ *   `<Origin>/hiorg/rueckruf` und dort registriert; HiOrg leitet direkt zum
+ *   Worker zurück.
+ *
+ * Eine andere Redirect-URI gilt als nicht eingerichtet – der Worker tauscht
+ * nie Codes für Adressen, die er nicht selbst kennt.
  */
 export interface HiorgApiKonfiguration {
   HIORG_SERVER_CLIENTID?: Zugangsdatum;
   HIORG_SERVER_CLIENTSECRET?: Zugangsdatum;
+  /** Optional; ohne Angabe gilt der Access-Callback der Team-Domain (manuell). */
+  HIORG_SERVER_REDIRECT_URI?: string;
+  ACCESS_TEAM_DOMAIN?: string;
   BENUTZER_DB?: D1Database;
 }
 
 export const HIORG_VERBINDEN_PFAD = '/hiorg/verbinden';
 export const HIORG_RUECKRUF_PFAD = '/hiorg/rueckruf';
 export const HIORG_VERBINDUNG_PFAD = '/api/hiorg/verbindung';
+export const HIORG_CODE_PFAD = '/api/hiorg/verbindung/code';
 export const HIORG_PERSONAL_PFAD = '/api/hiorg/personal';
 
 /** Feste Ziele aus der offiziellen OpenAPI-Beschreibung; nie aus Konfiguration abgeleitet. */
@@ -63,6 +78,10 @@ const STATE_MUSTER = /^[A-Za-z0-9_-]{43}$/;
 /** Ein Token gilt kurz vor seinem angekündigten Ablauf schon als abgelaufen. */
 const ABLAUF_PUFFER_MS = 60_000;
 const TOKEN_FORMAT = 'v1';
+const MAX_CODE_ANFRAGE_BYTES = 8 * 1024;
+const TEAM_DOMAIN_MUSTER =
+  /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/;
+const ACCESS_CALLBACK_PFAD = '/cdn-cgi/access/callback';
 /**
  * Feste Rückkehrziele nach der Anmeldung; `?ziel=` wählt nur aus dieser Liste,
  * damit der Rückruf nie auf eine frei gewählte Adresse weiterleitet.
@@ -91,19 +110,50 @@ type TokenErgebnis =
       ursache: 'abgelehnt' | 'zeitlimit' | 'nicht-erreichbar' | 'umleitung' | 'ungueltig';
     };
 
+export type HiorgRueckrufModus = 'manuell' | 'automatisch';
+
 interface Zugang {
   clientId: string;
   clientSecret: string;
   db: D1Database;
+  redirectUri: string;
+  modus: HiorgRueckrufModus;
 }
 
-async function leseZugang(umgebung: HiorgApiKonfiguration): Promise<Zugang | undefined> {
+/**
+ * Redirect-URI samt Modus; nur die beiden bekannten Formen sind zulässig.
+ * Beide stammen aus Laufzeitkonfiguration, nie aus der Anfrage.
+ */
+function leseRueckruf(
+  umgebung: HiorgApiKonfiguration,
+  anfrage: Request,
+): { redirectUri: string; modus: HiorgRueckrufModus } | undefined {
+  const teamDomain = umgebung.ACCESS_TEAM_DOMAIN;
+  const accessCallback =
+    typeof teamDomain === 'string' && TEAM_DOMAIN_MUSTER.test(teamDomain)
+      ? `${teamDomain}${ACCESS_CALLBACK_PFAD}`
+      : undefined;
+  const workerRueckruf = `${new URL(anfrage.url).origin}${HIORG_RUECKRUF_PFAD}`;
+  const konfiguriert = umgebung.HIORG_SERVER_REDIRECT_URI?.trim() || accessCallback;
+  if (!konfiguriert) return undefined;
+  if (konfiguriert === accessCallback) return { redirectUri: konfiguriert, modus: 'manuell' };
+  if (konfiguriert === workerRueckruf) return { redirectUri: konfiguriert, modus: 'automatisch' };
+  return undefined;
+}
+
+async function leseZugang(
+  umgebung: HiorgApiKonfiguration,
+  anfrage: Request,
+): Promise<Zugang | undefined> {
   const [clientId, clientSecret] = await Promise.all([
     leseZugangsdatum(umgebung.HIORG_SERVER_CLIENTID),
     leseZugangsdatum(umgebung.HIORG_SERVER_CLIENTSECRET),
   ]);
-  if (!umgebung.BENUTZER_DB || !istSauber(clientId) || !istSauber(clientSecret)) return undefined;
-  return { clientId, clientSecret, db: umgebung.BENUTZER_DB };
+  const rueckruf = leseRueckruf(umgebung, anfrage);
+  if (!umgebung.BENUTZER_DB || !rueckruf || !istSauber(clientId) || !istSauber(clientSecret)) {
+    return undefined;
+  }
+  return { clientId, clientSecret, db: umgebung.BENUTZER_DB, ...rueckruf };
 }
 
 /** Nur sichtbare ASCII-Zeichen; ein anderes Secret ist ein Konfigurationsfehler. */
@@ -138,10 +188,6 @@ function ausBase64Url(text: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-function redirectUri(anfrage: Request): string {
-  return `${new URL(anfrage.url).origin}${HIORG_RUECKRUF_PFAD}`;
-}
-
 /** Schritt 1: Seitenaufruf, leitet mit frischem `state` zur HiOrg-Anmeldung. */
 export async function verarbeiteHiorgVerbinden(
   anfrage: Request,
@@ -154,7 +200,7 @@ export async function verarbeiteHiorgVerbinden(
   const rueckkehrZiel = Object.hasOwn(RUECKKEHR_ZIELE, zielParameter)
     ? zielParameter
     : STANDARD_ZIEL;
-  const zugang = await leseZugang(umgebung);
+  const zugang = await leseZugang(umgebung, anfrage);
   if (!zugang) return rueckkehr('nicht-eingerichtet', rueckkehrZiel);
 
   const state = base64Url(crypto.getRandomValues(new Uint8Array(32)));
@@ -162,7 +208,7 @@ export async function verarbeiteHiorgVerbinden(
   ziel.search = new URLSearchParams({
     response_type: 'code',
     client_id: zugang.clientId,
-    redirect_uri: redirectUri(anfrage),
+    redirect_uri: zugang.redirectUri,
     scope: HIORG_SCOPE,
     state,
   }).toString();
@@ -209,30 +255,37 @@ export async function verarbeiteHiorgRueckruf(
   const ziel =
     cookieZiel && Object.hasOwn(RUECKKEHR_ZIELE, cookieZiel) ? cookieZiel : STANDARD_ZIEL;
   const erhalten = parameter.get('state');
-  if (
-    !erwartet ||
-    !erhalten ||
-    !STATE_MUSTER.test(erwartet) ||
-    !STATE_MUSTER.test(erhalten) ||
-    !gleich(erwartet, erhalten)
-  ) {
+  if (!stateGueltig(erwartet, erhalten)) {
     return rueckkehr('ungueltig', ziel, loeschen);
   }
   if (parameter.has('error')) return rueckkehr('abgebrochen', ziel, loeschen);
   const code = parameter.get('code');
   if (!code || !/^[\x21-\x7e]{1,2048}$/.test(code)) return rueckkehr('ungueltig', ziel, loeschen);
 
-  const zugang = await leseZugang(umgebung);
-  if (!zugang) return rueckkehr('nicht-eingerichtet', ziel, loeschen);
+  const zugang = await leseZugang(umgebung, anfrage);
+  // Nur im automatischen Modus ist dieser Pfad die registrierte Redirect-URI.
+  if (!zugang || zugang.modus !== 'automatisch') {
+    return rueckkehr('nicht-eingerichtet', ziel, loeschen);
+  }
 
+  const ergebnis = await codeEinloesen(zugang, code, benutzer.email);
+  return rueckkehr(ergebnis === 'verbunden' ? 'verbunden' : 'fehlgeschlagen', ziel, loeschen);
+}
+
+/** Tauscht den Code gegen Token und speichert sie verschlüsselt. */
+async function codeEinloesen(
+  zugang: Zugang,
+  code: string,
+  email: string,
+): Promise<'verbunden' | Extract<TokenErgebnis, { erfolg: false }>['ursache'] | 'speicher'> {
   const ergebnis = await tokenAnfordern(zugang, {
     grant_type: 'authorization_code',
     code,
-    redirect_uri: redirectUri(anfrage),
+    redirect_uri: zugang.redirectUri,
   });
   if (!ergebnis.erfolg) {
     console.error('HIORG_TOKEN_TAUSCH_FEHLGESCHLAGEN', ergebnis.ursache);
-    return rueckkehr('fehlgeschlagen', ziel, loeschen);
+    return ergebnis.ursache;
   }
   try {
     const jetzt = new Date().toISOString();
@@ -243,18 +296,127 @@ export async function verarbeiteHiorgRueckruf(
          ON CONFLICT(email) DO UPDATE SET token_daten = excluded.token_daten,
            verbunden_am = excluded.verbunden_am, aktualisiert_am = excluded.aktualisiert_am`,
       )
-      .bind(
-        benutzer.email,
-        await verschluesseln(ergebnis.token, zugang.clientSecret, benutzer.email),
-        jetzt,
-        jetzt,
-      )
+      .bind(email, await verschluesseln(ergebnis.token, zugang.clientSecret, email), jetzt, jetzt)
       .run();
   } catch (ursache) {
     console.error('HIORG_VERBINDUNG_SPEICHERN_FEHLGESCHLAGEN', ursachenText(ursache));
-    return rueckkehr('fehlgeschlagen', ziel, loeschen);
+    return 'speicher';
   }
-  return rueckkehr('verbunden', ziel, loeschen);
+  return 'verbunden';
+}
+
+function stateGueltig(erwartet: string | undefined, erhalten: string | null): boolean {
+  return (
+    !!erwartet &&
+    !!erhalten &&
+    STATE_MUSTER.test(erwartet) &&
+    STATE_MUSTER.test(erhalten) &&
+    gleich(erwartet, erhalten)
+  );
+}
+
+/**
+ * Manueller Rückruf: die Person fügt die Adresse aus der Adresszeile der
+ * Access-Fehlerseite ein. Angenommen wird ausschließlich genau die
+ * konfigurierte Redirect-URI mit `state` und `code` beziehungsweise `error`.
+ * Das state-Cookie wird erst verbraucht, wenn `state` passt – ein
+ * Tippfehler in der eingefügten Adresse erzwingt keine neue Anmeldung.
+ */
+async function codeAusAdresse(
+  anfrage: Request,
+  umgebung: HiorgApiKonfiguration,
+  benutzer: Benutzer,
+): Promise<Response> {
+  if (anfrage.method !== 'POST') {
+    return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, { Allow: 'POST' });
+  }
+  if (
+    anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json'
+  ) {
+    return fehlerAntwort('HIORG_INHALTSTYP_UNGUELTIG', 'JSON als Anfrageformat erforderlich.', 415);
+  }
+  const zugang = await leseZugang(umgebung, anfrage);
+  if (!zugang) {
+    return fehlerAntwort(
+      'HIORG_API_KONFIGURATION_FEHLT',
+      'Die HiOrg-Server-API ist noch nicht eingerichtet.',
+      503,
+    );
+  }
+  const gelesen = await leseJsonBegrenzt(anfrage, MAX_CODE_ANFRAGE_BYTES);
+  const adresseRoh =
+    gelesen.erfolg && istObjekt(gelesen.inhalt) && Object.keys(gelesen.inhalt).length === 1
+      ? gelesen.inhalt['adresse']
+      : undefined;
+  let adresse: URL | undefined;
+  try {
+    adresse = istText(adresseRoh) ? new URL(adresseRoh.trim()) : undefined;
+  } catch {
+    adresse = undefined;
+  }
+  if (!adresse || `${adresse.origin}${adresse.pathname}` !== zugang.redirectUri) {
+    return fehlerAntwort(
+      'HIORG_ADRESSE_UNGUELTIG',
+      'Die eingefügte Adresse ist nicht die Rückmeldung der HiOrg-Anmeldung.',
+      400,
+    );
+  }
+
+  const [erwartet] = (leseStateCookie(anfrage) ?? '').split('.');
+  if (!stateGueltig(erwartet, adresse.searchParams.get('state'))) {
+    return fehlerAntwort(
+      'HIORG_ANMELDUNG_VERALTET',
+      'Die Rückmeldung gehört nicht zur zuletzt geöffneten HiOrg-Anmeldung. Bitte die Anmeldung erneut öffnen.',
+      400,
+    );
+  }
+  const verbraucht = { 'Set-Cookie': stateCookie('', 0) };
+  if (adresse.searchParams.has('error')) {
+    return fehlerAntwort(
+      'HIORG_ANMELDUNG_ABGEBROCHEN',
+      'Die Anmeldung beim HiOrg-Server wurde abgebrochen.',
+      400,
+      verbraucht,
+    );
+  }
+  const code = adresse.searchParams.get('code');
+  if (!code || !/^[\x21-\x7e]{1,2048}$/.test(code)) {
+    return fehlerAntwort(
+      'HIORG_ADRESSE_UNGUELTIG',
+      'Die eingefügte Adresse enthält keinen Anmeldecode.',
+      400,
+      verbraucht,
+    );
+  }
+
+  const ergebnis = await codeEinloesen(zugang, code, benutzer.email);
+  switch (ergebnis) {
+    case 'verbunden':
+      return jsonAntwort(
+        { eingerichtet: true, verbunden: true, modus: zugang.modus },
+        200,
+        verbraucht,
+      );
+    case 'abgelehnt':
+      return fehlerAntwort(
+        'HIORG_CODE_ABGELEHNT',
+        'HiOrg hat den Anmeldecode abgelehnt, meist weil er abgelaufen ist. Bitte die Anmeldung erneut öffnen.',
+        400,
+        verbraucht,
+      );
+    case 'speicher':
+      return fehlerAntwort(
+        'HIORG_SPEICHER_FEHLER',
+        'Die HiOrg-Verbindung konnte nicht gespeichert werden.',
+        500,
+        verbraucht,
+      );
+    default: {
+      const fehler = transportFehler(ergebnis);
+      fehler.headers.append('Set-Cookie', verbraucht['Set-Cookie']);
+      return fehler;
+    }
+  }
 }
 
 /** Schritt 3 und Verbindungsverwaltung unter `/api/hiorg/`. */
@@ -264,23 +426,24 @@ export async function verarbeiteHiorgApi(
   benutzer: Benutzer,
 ): Promise<Response> {
   const pfad = new URL(anfrage.url).pathname;
+  if (pfad === HIORG_CODE_PFAD) return codeAusAdresse(anfrage, umgebung, benutzer);
   if (pfad === HIORG_VERBINDUNG_PFAD) {
     if (anfrage.method !== 'GET' && anfrage.method !== 'DELETE') {
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET, DELETE',
       });
     }
-    const zugang = await leseZugang(umgebung);
-    if (!zugang) return jsonAntwort({ eingerichtet: false, verbunden: false });
+    const zugang = await leseZugang(umgebung, anfrage);
+    if (!zugang) return jsonAntwort({ eingerichtet: false, verbunden: false, modus: null });
     try {
       if (anfrage.method === 'DELETE') {
         // HiOrg dokumentiert keinen Widerrufsendpunkt; das Token wird hier
         // nur verworfen und läuft bei HiOrg von selbst ab.
         await verbindungLoeschen(zugang.db, benutzer.email);
-        return jsonAntwort({ eingerichtet: true, verbunden: false });
+        return jsonAntwort({ eingerichtet: true, verbunden: false, modus: zugang.modus });
       }
       const zeile = await verbindungLesen(zugang.db, benutzer.email);
-      return jsonAntwort({ eingerichtet: true, verbunden: zeile !== null });
+      return jsonAntwort({ eingerichtet: true, verbunden: zeile !== null, modus: zugang.modus });
     } catch (ursache) {
       console.error('HIORG_VERBINDUNG_DB_FEHLER', ursachenText(ursache));
       return fehlerAntwort(
@@ -300,7 +463,7 @@ export async function verarbeiteHiorgApi(
     if (new URL(anfrage.url).search !== '') {
       return fehlerAntwort('HIORG_ANFRAGE_UNGUELTIG', 'Keine URL-Parameter erlaubt.', 400);
     }
-    const zugang = await leseZugang(umgebung);
+    const zugang = await leseZugang(umgebung, anfrage);
     if (!zugang) {
       return fehlerAntwort(
         'HIORG_API_KONFIGURATION_FEHLT',

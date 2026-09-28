@@ -17,6 +17,24 @@ export interface HiorgPerson {
 
 export type HiorgVerbindung = 'ungeprueft' | 'nicht-eingerichtet' | 'getrennt' | 'verbunden';
 
+/**
+ * `manuell`: die HiOrg-Anmeldung endet auf der Access-Fehlerseite, deren
+ * Adresse die Person in die App kopiert. `automatisch`: HiOrg leitet direkt
+ * zum Worker zurück (siehe `worker/src/hiorg-api.ts`).
+ */
+export type HiorgRueckrufModus = 'manuell' | 'automatisch';
+
+/** Verständliche Texte zu den festen Diagnosecodes beim Einfügen der Adresse. */
+const CODE_FEHLERTEXTE: Readonly<Record<string, string>> = {
+  HIORG_ADRESSE_UNGUELTIG:
+    'Das ist nicht die Adresse der HiOrg-Rückmeldung. Bitte die vollständige Adresse aus der Adresszeile des geöffneten Tabs kopieren.',
+  HIORG_ANMELDUNG_VERALTET:
+    'Die Adresse gehört nicht zur zuletzt geöffneten Anmeldung. Bitte die Anmeldung erneut öffnen.',
+  HIORG_ANMELDUNG_ABGEBROCHEN: 'Die Anmeldung beim HiOrg-Server wurde abgebrochen.',
+  HIORG_CODE_ABGELEHNT:
+    'HiOrg hat den Anmeldecode abgelehnt, meist weil er schon abgelaufen ist. Bitte die Anmeldung erneut öffnen und die Adresse zügig einfügen.',
+};
+
 /** Module, in die der Worker nach der HiOrg-Anmeldung zurückführt (feste Liste im Worker). */
 export type HiorgRueckkehrZiel = 'einsatz' | 'personal';
 
@@ -74,6 +92,7 @@ export class HiorgPersonalService {
   private readonly worker = inject(WorkerClient);
 
   readonly verbindung = signal<HiorgVerbindung>('ungeprueft');
+  readonly modus = signal<HiorgRueckrufModus | null>(null);
 
   async verbindungLaden(): Promise<HiorgVerbindung> {
     const antwort = await this.worker.json<unknown>('/api/hiorg/verbindung');
@@ -87,6 +106,8 @@ export class HiorgPersonalService {
         502,
       );
     }
+    const modus = antwort['modus'];
+    this.modus.set(modus === 'manuell' || modus === 'automatisch' ? modus : null);
     const zustand: HiorgVerbindung = !antwort['eingerichtet']
       ? 'nicht-eingerichtet'
       : antwort['verbunden']
@@ -122,6 +143,27 @@ export class HiorgPersonalService {
       (a, b) =>
         a.nachname.localeCompare(b.nachname, 'de') || a.vorname.localeCompare(b.vorname, 'de'),
     );
+  }
+
+  /** Manueller Rückruf: die aus dem Anmelde-Tab kopierte Adresse an den Worker geben. */
+  async adresseEinreichen(adresse: string): Promise<void> {
+    try {
+      await this.worker.json<unknown>('/api/hiorg/verbindung/code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adresse }),
+      });
+    } catch (fehler) {
+      const text =
+        fehler instanceof WorkerFehler && fehler.diagnose
+          ? CODE_FEHLERTEXTE[fehler.diagnose]
+          : undefined;
+      if (text && fehler instanceof WorkerFehler) {
+        throw new WorkerFehler(text, fehler.status, fehler.diagnose);
+      }
+      throw fehler;
+    }
+    this.verbindung.set('verbunden');
   }
 
   async trennen(): Promise<void> {

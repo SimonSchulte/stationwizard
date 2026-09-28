@@ -57,15 +57,23 @@ Personalliste im PEP-Editor („Personal aus HiOrg-Server übernehmen") zeigt da
 Personal, das dieses HiOrg-Konto sehen darf. Ohne Einrichtung meldet der Dialog das
 ehrlich; EFS bleibt davon unberührt.
 
-1. **Redirect-URI bei HiOrg registrieren lassen:** `https://hiorg-wache.com/hiorg/rueckruf`
-   (Anfrage an `support@hiorg-server.de`, Client „JUH RV Ostwestfalen - Personal-Export").
-   Die bisher registrierte URI
-   `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback` ist die
-   Rückrufadresse von **Cloudflare Access** und gehört zu einer Access-Anmeldung _über_
-   HiOrg (generischer OIDC-Anbieter). Mit ihr landet der Code bei Access, nie beim Worker –
-   der Worker bekäme so nie ein API-Token. Solange nur diese URI registriert ist, lehnt
-   HiOrg die Anmeldung aus der App ab. Vorschau- und `workers.dev`-Adressen werden bewusst
-   nicht registriert; dort endet der Ablauf bei HiOrg mit einem Fehler.
+1. **Redirect-URI:** Standard ist die bereits bei HiOrg registrierte Access-Callback-URI
+   `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback` (abgeleitet aus
+   `ACCESS_TEAM_DOMAIN`, keine weitere Einstellung). Die Anwendungsdomain wird HiOrg damit
+   nicht genannt. Ablauf („manuell"): In der App „HiOrg-Anmeldung in neuem Tab öffnen", bei
+   HiOrg anmelden; der Tab endet auf einer Fehlerseite von Cloudflare Access – das ist
+   erwartet, Access kennt diese Anmeldung nicht und löst den Code nicht ein. Die komplette
+   Adresse aus der Adresszeile (`…/cdn-cgi/access/callback?code=…&state=…`) zügig in das
+   Feld der App kopieren; der Worker prüft `state` und tauscht den Code. Danach erneuert der
+   Worker das Token selbst, das Kopieren ist nur beim ersten Verbinden bzw. nach Ablauf des
+   Refresh-Tokens nötig.
+   Optional („automatisch"): `https://<Domain>/hiorg/rueckruf` zusätzlich bei HiOrg
+   registrieren und genau diesen Wert als Laufzeitvariable `HIORG_SERVER_REDIRECT_URI` am
+   Worker setzen; dann leitet HiOrg direkt zur App zurück. Jede andere Adresse gilt als nicht
+   eingerichtet.
+   Wird HiOrg später **zusätzlich** als Anmeldeweg in Cloudflare Access eingetragen, teilt
+   sich dieser dieselbe Callback-URI; ob Access dann fremde Codes weiterhin unangetastet
+   lässt, ist ungeprüft.
 2. **Scopes:** `openid personal:read` – genau die freigegebenen; mehr fordert der Worker nicht an.
 3. **Secrets:** `HIORG_SERVER_CLIENTID` und `HIORG_SERVER_CLIENTSECRET`. Als klassische
    Worker-Secrets (`wrangler secret put …`) gesetzt, braucht es keine weitere Zeile; liegen
@@ -233,7 +241,8 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
 | `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
 | `?hiorg=nicht-eingerichtet`          | `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET` oder `BENUTZER_DB` fehlen am Worker.                                                    |
-| HiOrg lehnt die Anmeldung ab         | Redirect-URI `https://hiorg-wache.com/hiorg/rueckruf` ist bei HiOrg nicht registriert (siehe „HiOrg-Server-API").                           |
+| `HIORG_CODE_ABGELEHNT`               | Anmeldecode abgelaufen oder schon benutzt: Anmeldung erneut öffnen und die Adresse zügig einfügen.                                          |
+| HiOrg lehnt die Anmeldung ab         | Die verwendete Redirect-URI ist bei HiOrg nicht registriert; `HIORG_SERVER_REDIRECT_URI` weglassen, um den Access-Callback zu nutzen.       |
 | `MAIL_VERSANDWEG_NICHT_EINGERICHTET` | Kein `MAIL_ABSENDER`, kein `send_email`-Binding beziehungsweise kein `MAIL_API_TOKEN` für den gewählten Weg.                                |
 | `MAIL_VERSAND_FEHLGESCHLAGEN`        | Der Anbieter hat abgelehnt – bei Email Routing meist eine nicht bestätigte Zieladresse. Details stehen nur im Betreiberlog.                 |
 | `KM_BERICHT_EMPFAENGER_FEHLT`        | Unter Verwaltung → Systemkonfiguration ist keine Empfängeradresse gespeichert.                                                              |

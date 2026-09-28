@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
@@ -7,7 +6,6 @@ import { WorkerClient } from '../../../kern/worker-client';
 import { PersonalUebersicht } from './personal-uebersicht';
 
 function aufbauen(antworten: Record<string, unknown>, abfrage: Record<string, string> = {}) {
-  const assign = vi.fn();
   const json = vi.fn(async (pfad: string) => antworten[pfad]);
   TestBed.configureTestingModule({
     providers: [
@@ -18,28 +16,25 @@ function aufbauen(antworten: Record<string, unknown>, abfrage: Record<string, st
         useValue: { snapshot: { queryParamMap: convertToParamMap(abfrage) } },
       },
       { provide: DialogDienst, useValue: { bestaetigen: vi.fn().mockResolvedValue(true) } },
-      { provide: DOCUMENT, useValue: { location: { assign } } },
     ],
   });
   const seite = TestBed.runInInjectionContext(() => new PersonalUebersicht());
-  return { seite, json, assign };
+  return { seite, json };
 }
 
 describe('PersonalUebersicht', () => {
-  it('ruft ohne Verbindung kein Personal ab und startet die Anmeldung mit Rückkehr hierher', async () => {
-    const { seite, json, assign } = aufbauen({
-      '/api/hiorg/verbindung': { eingerichtet: true, verbunden: false },
+  it('ruft ohne Verbindung kein Personal ab und merkt sich den Rückrufmodus', async () => {
+    const { seite, json } = aufbauen({
+      '/api/hiorg/verbindung': { eingerichtet: true, verbunden: false, modus: 'manuell' },
     });
     await seite.laden();
     expect(seite.verbindung()).toBe('getrennt');
     expect(json).not.toHaveBeenCalledWith('/api/hiorg/personal');
-    await seite.verbinden();
-    expect(assign).toHaveBeenCalledWith('/hiorg/verbinden?ziel=personal');
   });
 
   it('filtert nach Name, Gruppe und Qualifikation', async () => {
     const { seite } = aufbauen({
-      '/api/hiorg/verbindung': { eingerichtet: true, verbunden: true },
+      '/api/hiorg/verbindung': { eingerichtet: true, verbunden: true, modus: 'manuell' },
       '/api/hiorg/personal': {
         personen: [
           {

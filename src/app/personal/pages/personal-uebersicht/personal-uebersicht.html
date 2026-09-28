@@ -15,10 +15,6 @@
       <mat-icon>refresh</mat-icon> Aktualisieren
     </button>
     <button mat-button (click)="trennen()" [disabled]="laedt()">Verbindung trennen</button>
-  } @else if (verbindung() === 'getrennt') {
-    <button mat-raised-button color="primary" (click)="verbinden()">
-      <mat-icon>login</mat-icon> Mit HiOrg-Server verbinden
-    </button>
   }
 </mat-toolbar>
 
@@ -53,10 +49,7 @@
         </p>
       }
       @case ('getrennt') {
-        <p class="leer">
-          Melde dich einmalig mit deinem eigenen HiOrg-Konto an. Angezeigt wird anschließend genau
-          das aktive Personal, das dein HiOrg-Konto sehen darf.
-        </p>
+        <app-hiorg-verbinden class="verbinden" ziel="personal" (verbunden)="laden()" />
       }
       @case ('verbunden') {
         <div class="werkzeuge">

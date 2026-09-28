@@ -18,10 +18,7 @@
         </p>
       }
       @case ('getrennt') {
-        <p class="hinweis">
-          Für die Personalliste meldest du dich einmalig mit deinem eigenen HiOrg-Konto an. Du
-          siehst anschließend genau das Personal, das dein HiOrg-Konto sehen darf.
-        </p>
+        <app-hiorg-verbinden ziel="einsatz" (verbunden)="laden()" />
       }
       @case ('verbunden') {
         <mat-form-field class="volle-breite">
@@ -71,11 +68,7 @@
     </button>
   }
   <button mat-button (click)="dialogRef.close()">Abbrechen</button>
-  @if (verbindung() === 'getrennt') {
-    <button mat-raised-button color="primary" (click)="verbinden()">
-      <mat-icon>login</mat-icon> Mit HiOrg-Server verbinden
-    </button>
-  } @else if (verbindung() === 'verbunden') {
+  @if (verbindung() === 'verbunden') {
     <button
       mat-raised-button
       color="primary"

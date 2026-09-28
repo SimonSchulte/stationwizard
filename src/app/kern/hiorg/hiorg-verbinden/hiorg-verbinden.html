@@ -1,0 +1,59 @@
+@switch (modus()) {
+  @case ('automatisch') {
+    <p class="hinweis">
+      Melde dich einmalig mit deinem eigenen HiOrg-Konto an. Du siehst anschließend genau das
+      Personal, das dein HiOrg-Konto sehen darf.
+    </p>
+    <button mat-raised-button color="primary" (click)="automatischVerbinden()">
+      <mat-icon>login</mat-icon> Mit HiOrg-Server verbinden
+    </button>
+  }
+  @case ('manuell') {
+    <p class="hinweis">
+      Melde dich einmalig mit deinem eigenen HiOrg-Konto an. Du siehst anschließend genau das
+      Personal, das dein HiOrg-Konto sehen darf.
+    </p>
+    <ol class="schritte">
+      <li>
+        <a
+          mat-stroked-button
+          [href]="anmeldeAdresse()"
+          target="_blank"
+          rel="noopener noreferrer"
+          (click)="geoeffnet.set(true)"
+        >
+          <mat-icon>open_in_new</mat-icon> HiOrg-Anmeldung in neuem Tab öffnen
+        </a>
+      </li>
+      <li>
+        Nach der Anmeldung zeigt der neue Tab eine Fehlerseite von Cloudflare Access. Das ist
+        erwartet: Kopiere die <strong>komplette Adresse aus der Adresszeile</strong> dieses Tabs
+        (sie enthält <code>code=</code>) und füge sie hier zügig ein – der Code ist nur kurz gültig.
+        Den Tab danach schließen.
+      </li>
+      <li>
+        <mat-form-field class="adresse" subscriptSizing="dynamic">
+          <mat-label>Adresse aus dem Anmelde-Tab</mat-label>
+          <input
+            matInput
+            autocomplete="off"
+            [value]="adresse()"
+            (input)="adresse.set($any($event.target).value)"
+            (keydown.enter)="abschliessen()"
+          />
+        </mat-form-field>
+        <button
+          mat-raised-button
+          color="primary"
+          [disabled]="!adresse().trim() || sendet()"
+          (click)="abschliessen()"
+        >
+          {{ sendet() ? 'Wird verbunden…' : 'Verbindung abschließen' }}
+        </button>
+      </li>
+    </ol>
+    @if (fehler()) {
+      <p class="fehler" role="alert">{{ fehler() }}</p>
+    }
+  }
+}

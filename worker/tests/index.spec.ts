@@ -398,7 +398,7 @@ describe('Fahrzeuge-Routing und QR-Kurzlinks', () => {
   it('meldet die HiOrg-API ohne Client als nicht eingerichtet statt als Kalenderpfad', async () => {
     const antwort = await anfragen('/api/hiorg/verbindung', await tokenFuer());
     expect(antwort.status).toBe(200);
-    expect(await antwort.json()).toEqual({ eingerichtet: false, verbunden: false });
+    expect(await antwort.json()).toEqual({ eingerichtet: false, verbunden: false, modus: null });
   });
 
   it('lässt einen schreibenden Aufruf auf den Kurzlink nicht durch (nur GET vorgesehen)', async () => {

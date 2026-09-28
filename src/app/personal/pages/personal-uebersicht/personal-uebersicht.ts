@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,10 +19,9 @@ import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
   HIORG_ERGEBNIS_TEXTE,
   HiorgPersonalService,
-  hiorgVerbindenAdresse,
   type HiorgPerson,
 } from '../../../kern/hiorg/hiorg-personal.service';
-import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
+import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
 
 /**
  * Übersicht über das gesamte aktive Personal, das das verbundene HiOrg-Konto
@@ -35,6 +33,7 @@ import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-personal-uebersicht',
   imports: [
+    HiorgVerbinden,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -52,8 +51,6 @@ export class PersonalUebersicht implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialogDienst = inject(DialogDienst);
-  private readonly verlassenSchutz = inject(VerlassenSchutz);
-  private readonly dokument = inject(DOCUMENT);
 
   readonly spalten = ['name', 'gruppen', 'qualifikationen', 'telefon'];
   readonly verbindung = this.hiorg.verbindung;
@@ -120,21 +117,6 @@ export class PersonalUebersicht implements OnInit {
         q.name && q.kurz && q.name !== q.kurz ? `${q.name} (${q.kurz})` : (q.name ?? q.kurz ?? '');
       return q.liste ? `${q.liste}: ${bezeichnung}` : bezeichnung;
     });
-  }
-
-  async verbinden(): Promise<void> {
-    // Die Anmeldung bei HiOrg verlässt die Seite; ungesicherte Planungen gingen verloren.
-    if (
-      this.verlassenSchutz.hatUngesicherteAenderungen() &&
-      !(await this.dialogDienst.bestaetigen(
-        'Für die Anmeldung beim HiOrg-Server wird die Seite verlassen. Ungesicherte Änderungen in anderen Bereichen gehen dabei verloren.',
-        'Mit HiOrg-Server verbinden',
-        'Trotzdem verbinden',
-      ))
-    ) {
-      return;
-    }
-    this.dokument.location.assign(hiorgVerbindenAdresse('personal'));
   }
 
   async trennen(): Promise<void> {
