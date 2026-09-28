@@ -10,6 +10,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, withHashLocation } from '@angular/router';
 import { provideAufgabenquelle } from './kern/aufgaben/aufgabenquelle';
 import { FahrzeugAufgabenquelle } from './fahrzeuge/services/fahrzeug-aufgabenquelle';
+import { CheckAufgabenquelle } from './material/services/check-aufgabenquelle';
 import { routes } from './app.routes';
 
 registerLocaleData(localeDe);
@@ -24,5 +25,6 @@ export const appConfig: ApplicationConfig = {
     // Fachquellen für den Bereich "Offene Aufgaben". Eine weitere Aufgabenart
     // ist eine weitere Zeile hier, kein Umbau.
     provideAufgabenquelle(FahrzeugAufgabenquelle),
+    provideAufgabenquelle(CheckAufgabenquelle),
   ],
 };

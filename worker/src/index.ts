@@ -20,6 +20,12 @@ import {
   verarbeiteKmBericht,
   type KmBerichtKonfiguration,
 } from './km-bericht';
+import { verarbeiteMaterial, type MaterialKonfiguration } from './material';
+import {
+  MATERIAL_EINREICHUNGEN_PFAD,
+  verarbeiteMaterialEinreichungen,
+  type MaterialEinreichungenKonfiguration,
+} from './material-einreichungen';
 import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 import {
   istOeffentlicherPfad,
@@ -44,7 +50,9 @@ export interface Env
     SystemkonfigurationKonfiguration,
     KmBerichtKonfiguration,
     OeffentlicheErfassungKonfiguration,
-    AngebotswesenKonfiguration {
+    AngebotswesenKonfiguration,
+    MaterialKonfiguration,
+    MaterialEinreichungenKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -188,6 +196,19 @@ export default {
 
     if (url.pathname === '/api/fahrzeuge' || url.pathname.startsWith('/api/fahrzeuge/')) {
       return verarbeiteFahrzeuge(anfrage, umgebung, benutzer);
+    }
+
+    // Wie bei den Fahrzeugen vor der Materialverarbeitung: deren UUID-Pfade
+    // wiesen "einreichungen" sonst als unbekannt ab.
+    if (
+      url.pathname === MATERIAL_EINREICHUNGEN_PFAD ||
+      url.pathname.startsWith(`${MATERIAL_EINREICHUNGEN_PFAD}/`)
+    ) {
+      return verarbeiteMaterialEinreichungen(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === '/api/material' || url.pathname.startsWith('/api/material/')) {
+      return verarbeiteMaterial(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === '/api/angebotswesen' || url.pathname.startsWith('/api/angebotswesen/')) {

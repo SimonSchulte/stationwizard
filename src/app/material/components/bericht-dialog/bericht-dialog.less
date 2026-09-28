@@ -1,0 +1,85 @@
+.einleitung {
+  color: var(--text-secondary);
+  margin-top: 0;
+}
+
+.auswahl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.belegknopf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--space-base);
+  min-height: var(--tap-ziel);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.belegtitel {
+  font-weight: 600;
+}
+
+.belegtext {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.laedt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.error-hint {
+  color: var(--status-error);
+}
+
+.erfolg {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--status-ok);
+  font-weight: 600;
+}
+
+.bericht {
+  max-height: 46vh;
+  overflow: auto;
+  padding: var(--space-base);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.empfaengerfeld {
+  width: 100%;
+  margin-top: var(--space-base);
+}
+
+@media (max-width: 600px) {
+  // Der Bericht ist ein Festbreitentext; etwas kleiner passen die Zeilen des
+  // Bestellscheins auch auf ein Telefon, ohne mitten im Artikel umzubrechen.
+  .bericht {
+    font-size: 0.6875rem;
+    padding: var(--space-sm);
+  }
+}

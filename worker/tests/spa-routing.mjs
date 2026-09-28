@@ -4,7 +4,8 @@
  * erzeugten öffentlichen Testschlüssel.
  *
  * Es gibt genau einen eng begrenzten, dokumentierten Bypass: die öffentliche
- * Kilometermeldung unter `/e/<token>`, `/oeffentlich/<datei>` und
+ * Kilometermeldung unter `/e/<token>`, den Fahrzeugcheck unter `/c/<token>`,
+ * `/oeffentlich/<datei>` und
  * `/api/oeffentlich/meldung/<token>` (siehe docs/einrichtung.md für die
  * zugehörige Access-Regel). Alles andere, einschließlich sämtlicher Assets und
  * aller übrigen `/api/*`-Pfade, verlangt ein verifiziertes Access-JWT. Beides
@@ -161,6 +162,15 @@ try {
     '/oeffentlich/unter/main.js',
     '/api/oeffentlich/meldung',
     '/api/oeffentlich/anderes',
+    // Dieselben Beinahetreffer für den Fahrzeugcheck.
+    '/c',
+    '/c/',
+    '/c/zu-kurz',
+    `/c/${oeffentlichesToken}/extra`,
+    `/cc/${oeffentlichesToken}`,
+    '/api/oeffentlich/check',
+    `/api/oeffentlich/checkx/${oeffentlichesToken}`,
+    `/api/oeffentlich/check/${oeffentlichesToken}/extra`,
   ]) {
     const antwort = await laufzeit.dispatchFetch(`${basisUrl}${pfad}`, {
       headers: { 'Sec-Fetch-Mode': 'navigate' },
@@ -178,9 +188,16 @@ try {
   assert.equal(oeffentlicheApi.status, 503, 'öffentliche Meldung ohne Anmeldung erreichbar');
   assert.equal((await oeffentlicheApi.json()).code, 'MELDUNG_KONFIGURATION_FEHLT');
 
+  const oeffentlicherCheck = await laufzeit.dispatchFetch(
+    `${basisUrl}/api/oeffentlich/check/${oeffentlichesToken}`,
+  );
+  assert.equal(oeffentlicherCheck.status, 503, 'öffentlicher Check ohne Anmeldung erreichbar');
+  assert.equal((await oeffentlicherCheck.json()).code, 'CHECK_KONFIGURATION_FEHLT');
+
   // Die Meldeseite und ihre beiden Dateien kommen ohne Anmeldung aus den Assets.
   for (const [pfad, typ] of [
     [`/e/${oeffentlichesToken}`, /html/],
+    [`/c/${oeffentlichesToken}`, /html/],
     ['/oeffentlich/main.js', /javascript/],
     ['/oeffentlich/styles.css', /css/],
   ]) {
@@ -195,7 +212,18 @@ try {
   const meldeseite = await laufzeit.dispatchFetch(`${basisUrl}/e/${oeffentlichesToken}`);
   const meldeseiteInhalt = await meldeseite.text();
   assert.notEqual(meldeseiteInhalt, index, 'öffentliche Seite liefert die geschützte App-Hülle');
-  assert.match(meldeseiteInhalt, /oeff-meldung/, 'öffentliche Seite ist nicht die Meldeseite');
+  assert.match(meldeseiteInhalt, /oeff-seite/, 'öffentliche Seite ist nicht die Hülle');
+
+  // Der Fahrzeugcheck liefert dieselbe Hülle – und ebenso wenig die geschützte App.
+  const checkseite = await laufzeit.dispatchFetch(`${basisUrl}/c/${oeffentlichesToken}`);
+  const checkseiteInhalt = await checkseite.text();
+  assert.notEqual(checkseiteInhalt, index, 'Checkseite liefert die geschützte App-Hülle');
+  assert.equal(checkseiteInhalt, meldeseiteInhalt, 'Checkseite und Meldeseite teilen eine Hülle');
+  assert.equal(
+    checkseite.headers.get('Content-Security-Policy'),
+    meldeseite.headers.get('Content-Security-Policy'),
+    'Checkseite und Meldeseite tragen dieselbe Richtlinie',
+  );
 
   // Die Richtlinie muss zum ausgelieferten HTML passen. Beides wird an
   // verschiedenen Stellen gepflegt (Worker und Angular-Build); passt es nicht
@@ -259,7 +287,8 @@ try {
   assert.equal(schluesselAbrufe, 1, 'Öffentliche JWKS werden pro Worker zwischengespeichert.');
   console.log(
     'workerd: SPA-Direkteinstiege, JavaScript, Access-Pflicht, der eng begrenzte ' +
-      'Bypass der öffentlichen Kilometermeldung und API-404 erfolgreich geprüft.',
+      'Bypass der öffentlichen Kilometermeldung und des Fahrzeugchecks sowie ' +
+      'API-404 erfolgreich geprüft.',
   );
 } finally {
   await laufzeit?.dispose();

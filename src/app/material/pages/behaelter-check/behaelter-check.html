@@ -1,0 +1,151 @@
+<mat-toolbar class="check-kopfleiste">
+  <a mat-icon-button routerLink="/material" aria-label="Zurück zur Materialverwaltung">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="toolbar-title">
+    @if (auftrag(); as a) {
+      {{ a.behaelter.bezeichnung }} · {{ a.behaelter.fahrzeugBezeichnung }}
+    } @else {
+      Fahrzeugcheck
+    }
+  </span>
+  <span class="spacer"></span>
+  <button mat-icon-button [matMenuTriggerFor]="menue" aria-label="Weitere Aktionen">
+    <mat-icon>more_vert</mat-icon>
+  </button>
+  <mat-menu #menue="matMenu">
+    <button mat-menu-item (click)="alleFaecher(true)">Alle Fächer öffnen</button>
+    <button mat-menu-item (click)="alleFaecher(false)">Alle Fächer schließen</button>
+    <button mat-menu-item (click)="allesAufSoll()">Alles auf Soll setzen</button>
+    <button mat-menu-item (click)="zuruecksetzen()">Check zurücksetzen</button>
+  </mat-menu>
+</mat-toolbar>
+
+@if (fortschritt(); as kennzahlen) {
+  <div class="fortschrittsleiste">
+    <app-check-fortschritt [stand]="kennzahlen" [verfallsdatumErfasst]="verfallsdatumErfasst()" />
+  </div>
+}
+
+<div class="check-inhalt">
+  @if (laedt()) {
+    <p role="status">Prüfauftrag wird geladen …</p>
+  }
+  @if (ladeFehler()) {
+    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+  }
+  @if (einreichFehler()) {
+    <p class="error-hint" role="alert">{{ einreichFehler() }}</p>
+  }
+
+  @if (entwurfGefundenAm(); as gesichertAm) {
+    <div class="entwurf-hinweis" role="status">
+      <mat-icon aria-hidden="true">history</mat-icon>
+      <span>
+        Zwischenstand vom {{ gesichertAm | date: 'dd.MM.yyyy, HH:mm' }} {{ quellentext() }}
+        fortgesetzt.
+      </span>
+      @if (andererEntwurf(); as anderer) {
+        <button mat-button (click)="store.anderenEntwurfVerwenden()">
+          Stand vom {{ anderer.gespeichertAm | date: 'dd.MM., HH:mm' }} verwenden
+        </button>
+      }
+      <button mat-button (click)="entwurfVerwerfen()">Verwerfen</button>
+    </div>
+  }
+
+  @if (auftrag(); as a) {
+    <div class="vorlage-zeile">
+      <span class="vorlage-name">{{ a.vorlage.bezeichnung }}</span>
+      <mat-slide-toggle
+        [checked]="verfallsdatumErfasst()"
+        (change)="store.verfallsdatumErfassungUmschalten($event.checked)"
+      >
+        Verfallsdaten erfassen
+      </mat-slide-toggle>
+    </div>
+
+    <mat-accordion multi>
+      @for (fach of faecher(); track fach.id) {
+        <mat-expansion-panel
+          [expanded]="fachOffen(fach.id)"
+          (opened)="fachUmschalten(fach.id, true)"
+          (closed)="fachUmschalten(fach.id, false)"
+        >
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              @if (kennzahlen(fach); as k) {
+                @if (k.vollstaendigGeprueft) {
+                  <mat-icon class="fach-fertig" aria-label="vollständig geprüft">
+                    check_circle
+                  </mat-icon>
+                }
+              }
+              {{ fach.bezeichnung }}
+            </mat-panel-title>
+            <mat-panel-description>{{ fachZusammenfassung(fach) }}</mat-panel-description>
+          </mat-expansion-panel-header>
+
+          @for (artikel of fach.artikel; track artikel.id) {
+            @if (position(artikel.id); as p) {
+              <app-check-position
+                [artikel]="artikel"
+                [position]="p"
+                [verfallsdatumErfassung]="verfallsdatumErfasst()"
+                [heute]="heute"
+                (umschalten)="umschalten(artikel.id)"
+                (mengeGeaendert)="store.positionAendern(artikel.id, { istMenge: $event })"
+                (unbrauchbarGeaendert)="store.positionAendern(artikel.id, { unbrauchbar: $event })"
+                (verfallsdatumGeaendert)="
+                  store.verfallsdatumSetzen(artikel.id, $event.index, $event.monat)
+                "
+                (verfallsdatumFuerAlle)="store.verfallsdatumFuerAlle(artikel.id, $event)"
+              />
+            }
+          }
+        </mat-expansion-panel>
+      }
+    </mat-accordion>
+
+    <label class="bemerkung">
+      <span>Bemerkung zum Check (freiwillig)</span>
+      <textarea
+        rows="2"
+        [value]="stand()?.bemerkung ?? ''"
+        (input)="store.bemerkungSetzen($any($event.target).value)"
+      ></textarea>
+    </label>
+  }
+</div>
+
+@if (auftrag()) {
+  <div class="fussleiste">
+    <button mat-stroked-button [disabled]="entwurfSpeichert()" (click)="zwischenstandSpeichern()">
+      @if (entwurfSpeichert()) {
+        Wird gesichert …
+      } @else {
+        Zwischenstand speichern
+      }
+    </button>
+    <button
+      mat-raised-button
+      color="primary"
+      class="abschliessen"
+      [disabled]="!einreichbar() || reichtEin()"
+      (click)="einreichen()"
+    >
+      @if (reichtEin()) {
+        Wird gespeichert …
+      } @else {
+        Check abschließen
+      }
+    </button>
+    @if (entwurfFehler(); as fehler) {
+      <p class="entwurf-status fehler" role="alert">{{ fehler }}</p>
+    } @else if (entwurfGesichertAm(); as gesichertAm) {
+      <p class="entwurf-status" role="status">
+        Zwischenstand gesichert · {{ gesichertAm | date: 'HH:mm' }} · auf jedem Gerät fortsetzbar
+      </p>
+    }
+  </div>
+}

@@ -100,5 +100,95 @@
         </div>
       }
     </mat-tab>
+
+    <mat-tab label="Materialberichte">
+      @if (entwurf(); as werte) {
+        <div class="tab-inhalt">
+          <p class="beschreibung">
+            Standardempfänger der Belege zum Fahrzeugcheck. Sie sind im Sendedialog vorbelegt und
+            lassen sich dort für einen einzelnen Versand überschreiben. Diese Einstellungen dürfen
+            nur die Zugführung und die Gruppenführung Sanität ändern; die Sperre setzt der Worker
+            durch, nicht diese Seite.
+          </p>
+
+          @if (!darfMaterialAendern()) {
+            <p class="hinweis" role="status">
+              <mat-icon aria-hidden="true">lock</mat-icon>
+              Nur lesbar: dafür fehlt die Rolle „Zugführung" oder „Gruppenführung Sanität".
+            </p>
+          }
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Bestellschein an</mat-label>
+            <input
+              matInput
+              type="email"
+              autocomplete="off"
+              [disabled]="!darfMaterialAendern()"
+              [value]="werte.materialBestellscheinEmpfaenger"
+              (input)="
+                materialAendern('materialBestellscheinEmpfaenger', $any($event.target).value)
+              "
+              placeholder="lager@example.org"
+            />
+            <mat-hint>Leer lassen: der Empfänger muss dann beim Senden angegeben werden.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Mängelanzeige Land an</mat-label>
+            <input
+              matInput
+              type="email"
+              autocomplete="off"
+              [disabled]="!darfMaterialAendern()"
+              [value]="werte.materialMaengelLandEmpfaenger"
+              (input)="materialAendern('materialMaengelLandEmpfaenger', $any($event.target).value)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Mängelanzeige SEG an</mat-label>
+            <input
+              matInput
+              type="email"
+              autocomplete="off"
+              [disabled]="!darfMaterialAendern()"
+              [value]="werte.materialMaengelSegEmpfaenger"
+              (input)="materialAendern('materialMaengelSegEmpfaenger', $any($event.target).value)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Betreff</mat-label>
+            <input
+              matInput
+              [disabled]="!darfMaterialAendern()"
+              [value]="werte.materialBetreff"
+              (input)="materialAendern('materialBetreff', $any($event.target).value)"
+            />
+            <mat-hint>Berichtsart, Behälter und Prüftag werden automatisch angehängt.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Versandweg</mat-label>
+            <mat-select
+              [disabled]="!darfMaterialAendern()"
+              [value]="werte.materialVersandweg"
+              (selectionChange)="materialVersandwegAendern($event.value)"
+            >
+              @for (weg of versandwege; track weg) {
+                <mat-option [value]="weg">
+                  {{ versandwegLabel[weg] }}
+                  @if (!istVerfuegbar(weg)) {
+                    – nicht eingerichtet
+                  }
+                </mat-option>
+              }
+            </mat-select>
+            <mat-hint>{{ versandwegHinweis[werte.materialVersandweg] }}</mat-hint>
+          </mat-form-field>
+        </div>
+      }
+    </mat-tab>
   </mat-tab-group>
 </div>
