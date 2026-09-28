@@ -1,0 +1,238 @@
+<div class="filterzeile">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
+    <mat-label>Suche</mat-label>
+    <input
+      matInput
+      [value]="suche()"
+      (input)="suche.set($any($event.target).value)"
+      placeholder="Bezeichnung, Funkrufname oder Kennzeichen"
+    />
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+
+  <div class="eigentuemer-pillen" role="group" aria-label="Nach Eigentümer filtern">
+    <button
+      type="button"
+      class="pille"
+      [class.pille--aktiv]="eigentuemerFilter() === 'alle'"
+      (click)="eigentuemerFilter.set('alle')"
+    >
+      Alle
+    </button>
+    @for (wert of EIGENTUEMER; track wert) {
+      <button
+        type="button"
+        class="pille"
+        [class.pille--aktiv]="eigentuemerFilter() === wert"
+        (click)="eigentuemerFilter.set(wert)"
+      >
+        {{ EIGENTUEMER_LABEL[wert] }}
+      </button>
+    }
+  </div>
+
+  <span class="anzahl-hinweis">{{ gefiltert().length }} von {{ gesamtAnzahl() }} Fahrzeugen</span>
+</div>
+
+<div class="split">
+  <div class="master">
+    @for (eintrag of gefiltert(); track eintrag.fahrzeug.id) {
+      <button
+        type="button"
+        class="zeile"
+        [class.zeile--ausgewaehlt]="eintrag.fahrzeug.id === ausgewaehltId()"
+        (click)="auswaehlen(eintrag.fahrzeug.id)"
+      >
+        <span class="zeile-name">{{ eintrag.fahrzeug.bezeichnung }}</span>
+        <span class="zeile-sub"
+          >{{ eintrag.fahrzeug.kennzeichen || 'ohne Kennzeichen' }} ·
+          {{ EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer] }}</span
+        >
+        <span class="zeile-chips">
+          <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.kmAmpel)">Kilometer</span>
+          <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.leitTermin.ampel)">{{
+            eintrag.leitTermin.bezeichnung
+          }}</span>
+        </span>
+      </button>
+    }
+    @if (gefiltert().length === 0) {
+      <p class="leer-hinweis">Keine Treffer.</p>
+    }
+  </div>
+
+  <div class="detail">
+    @if (ladeLaeuft()) {
+      <p role="status">Fahrzeug wird geladen …</p>
+    }
+    @if (ladeFehler()) {
+      <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+    }
+    @if (speicherKonflikt()) {
+      <div class="konflikt-hinweis" role="alert">
+        <mat-icon>warning</mat-icon>
+        <span>{{ speicherFehler() }}</span>
+        <button mat-stroked-button (click)="nachKonfliktNeuLaden()">Aktuellen Stand laden</button>
+      </div>
+    } @else if (speicherFehler()) {
+      <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+    }
+
+    @if (ausgewaehltesFahrzeug(); as fahrzeug) {
+      <header class="detail-kopf">
+        <div>
+          <h2 class="detail-titel">{{ fahrzeug.bezeichnung }}</h2>
+          <div class="detail-meta">
+            <span class="tag-chip tag-zusatz">{{
+              fahrzeug.kennzeichen || 'ohne Kennzeichen'
+            }}</span>
+            <span class="tag-chip tag-zusatz">{{ GRUPPE_LABEL[fahrzeug.gruppe] }}</span>
+            <span>{{ fahrzeug.funkrufname }} · {{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</span>
+          </div>
+        </div>
+        <a mat-stroked-button [routerLink]="['/fahrzeuge', fahrzeug.id]">Stammdaten bearbeiten</a>
+      </header>
+
+      <section class="abschnitt">
+        <h3 class="abschnitt-titel">Stammdaten</h3>
+        <dl class="stammdaten-raster">
+          <div>
+            <dt>Fahrgestellnummer (FIN)</dt>
+            <dd>{{ fahrzeug.fahrgestellnummer || '–' }}</dd>
+          </div>
+          <div>
+            <dt>Eigentümer</dt>
+            <dd>{{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</dd>
+          </div>
+          <div>
+            <dt>Gruppe</dt>
+            <dd>{{ GRUPPE_LABEL[fahrzeug.gruppe] }}</dd>
+          </div>
+        </dl>
+        @if (fahrzeug.bemerkung) {
+          <p class="bemerkung">{{ fahrzeug.bemerkung }}</p>
+        }
+      </section>
+
+      <section class="abschnitt">
+        <h3 class="abschnitt-titel">Kilometerbilanz</h3>
+        @if (ausgewaehlteBilanz(); as bilanz) {
+          <app-kilometer-bilanz [bilanz]="bilanz" [ampel]="ausgewaehlteAmpel()" />
+          @if (bilanz.sollKm > 0) {
+            <div class="schnellformular">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-datum">
+                <mat-label>Datum</mat-label>
+                <input
+                  matInput
+                  type="date"
+                  [value]="kmDatum()"
+                  (change)="kmDatum.set($any($event.target).value)"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-km">
+                <mat-label>Neuer Kilometerstand</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  [value]="kmEingabe()"
+                  (input)="kmEingabe.set($any($event.target).value)"
+                />
+                <span matSuffix>km</span>
+              </mat-form-field>
+              <button
+                mat-raised-button
+                color="primary"
+                (click)="kmErfassen()"
+                [disabled]="kmEingabeZahl() === null || ablesungStore.erfasstGerade()"
+              >
+                Erfassen
+              </button>
+            </div>
+            @if (kmHinweis() === 'rueckschritt') {
+              <p class="hinweis-warnung" role="alert">
+                Dieser Stand liegt unter dem letzten bekannten Wert.
+              </p>
+            } @else if (kmHinweis() === 'unplausibler-sprung') {
+              <p class="hinweis-warnung" role="alert">Große Differenz zum letzten Stand.</p>
+            }
+            @if (ablesungStore.erfassungsFehler()) {
+              <p class="error-hint" role="alert">{{ ablesungStore.erfassungsFehler() }}</p>
+            }
+            @if (kmBestaetigung(); as bestaetigung) {
+              <p class="bestaetigung">
+                <mat-icon>check_circle</mat-icon>
+                {{ bestaetigung.wert }} km erfasst zum {{ bestaetigung.datum | date: 'dd.MM.yyyy' }}
+              </p>
+            }
+          }
+        }
+      </section>
+
+      <section class="abschnitt">
+        <h3 class="abschnitt-titel">Wartungstermine</h3>
+        @if (ausgewaehlteTermine().length === 0) {
+          <p class="leer-hinweis">Noch keine Wartungstermine erfasst.</p>
+        }
+        <ul class="termin-liste">
+          @for (eintrag of ausgewaehlteTermine(); track eintrag.status.termin.id) {
+            <li class="termin-zeile">
+              <span
+                class="ampel-punkt"
+                [class]="'ampel-' + ampelKlasse(eintrag.status.ampel)"
+              ></span>
+              <span class="termin-bezeichnung">{{ eintrag.status.termin.bezeichnung }}</span>
+              <span class="termin-text">{{ eintrag.text }}</span>
+              @if (eintrag.status.termin.erledigtAm === null) {
+                <button
+                  type="button"
+                  class="termin-aktion"
+                  (click)="terminAlsErledigtMelden(eintrag.status.termin.id)"
+                >
+                  Erledigt melden
+                </button>
+              }
+            </li>
+          }
+        </ul>
+
+        <div class="schnellformular">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-text">
+            <mat-label>Neuer Termin</mat-label>
+            <input
+              matInput
+              [value]="neuerTerminBezeichnung()"
+              (input)="neuerTerminBezeichnung.set($any($event.target).value)"
+              placeholder="Bezeichnung"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-datum">
+            <mat-label>Fällig am</mat-label>
+            <input
+              matInput
+              type="date"
+              [value]="neuerTerminDatum()"
+              (change)="neuerTerminDatum.set($any($event.target).value)"
+            />
+          </mat-form-field>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="neuerTerminHinzufuegen()"
+            [disabled]="!neuerTerminBezeichnung().trim() || speichertGerade()"
+          >
+            Hinzufügen
+          </button>
+        </div>
+      </section>
+
+      <p class="footer-meta">
+        Zuletzt geändert {{ fahrzeug.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+        @if (fahrzeug.geaendertVon) {
+          von {{ fahrzeug.geaendertVon }}
+        }
+      </p>
+    }
+  </div>
+</div>
