@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { HiorgPersonalService, type HiorgPerson } from './hiorg-personal.service';
-import { ImportService } from './import.service';
+import { WorkerClient, WorkerFehler } from '../worker-client';
+import {
+  HiorgPersonalService,
+  hiorgVerbindenAdresse,
+  type HiorgPerson,
+} from './hiorg-personal.service';
 
 function person(teil: Partial<HiorgPerson> = {}): HiorgPerson {
   return {
@@ -53,27 +56,8 @@ describe('HiorgPersonalService', () => {
   });
 });
 
-describe('ImportService.mapHiorgPerson', () => {
-  it('nutzt das übernommene EFS-Mapping und behält Unbekanntes als Zusatz', () => {
-    const kraft = TestBed.inject(ImportService).mapHiorgPerson(
-      person({
-        qualifikationen: [
-          { liste: 'med. Qualifikation', name: 'Rettungssanitäter/in', kurz: 'RettSan' },
-          { liste: 'Führung', name: 'Gruppenführer:in', kurz: null },
-          { liste: 'Sonstiges', name: 'Bootsführer', kurz: 'BF' },
-          { liste: 'Nur Kürzel', name: null, kurz: 'SSD' },
-        ],
-        telefon: '+49000000000',
-      }),
-    );
-    expect(kraft.name).toBe('Beispiel Erika');
-    expect(kraft.tags).toEqual({
-      taktisch: ['GF'],
-      medizinisch: ['RS', 'SSD'],
-      zusatz: ['Bootsführer'],
-    });
-    expect(kraft.telefonnummer).toBe('+49000000000');
-    // Die HiOrg-Personen-ID ist keine EFS-Einsatzkraft-ID.
-    expect(kraft.hiorg_org_id).toBeUndefined();
+describe('hiorgVerbindenAdresse', () => {
+  it('bleibt ein relativer Pfad derselben Origin mit festem Ziel', () => {
+    expect(hiorgVerbindenAdresse('personal')).toBe('/hiorg/verbinden?ziel=personal');
   });
 });

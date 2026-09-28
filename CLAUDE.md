@@ -409,7 +409,10 @@ Access-Identität ein eigenes HiOrg-Konto, Token nur AES-GCM-verschlüsselt in
 `hiorg_verbindungen` (`BENUTZER_DB`). Redirect-URI ist `<Origin>/hiorg/rueckruf`; die
 Access-Callback-URI der Team-Domain liefert dem Worker kein Token. Nur Scope
 `openid personal:read`, feste Ziele, feste Feldauswahl ohne Anschrift, Bank-, Gesundheits-
-oder Führerscheindaten. Qualifikationsbezeichnungen laufen über dasselbe übernommene
+oder Führerscheindaten. `?ziel=` an `/hiorg/verbinden` wählt nur aus der festen Liste
+`einsatz`/`personal` das Rückkehrmodul. Gemeinsamer Client unter
+`kern/hiorg/hiorg-personal.service.ts`; das Modul Personal (`src/app/personal/`, Route
+`/personal`) zeigt die Liste nur an und speichert nichts. Qualifikationsbezeichnungen laufen über dasselbe übernommene
 EFS-Mapping (`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten
 HiOrg-Listen werden nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach
 Nachweis gegen die echte API.

@@ -7,7 +7,7 @@ import {
   Taktisch,
   TAKTISCH_ORDER,
 } from '../models/planung.model';
-import type { HiorgPerson } from './hiorg-personal.service';
+import type { HiorgPerson } from '../../kern/hiorg/hiorg-personal.service';
 import { bezeichnungZuKuerzel } from './qualifikation-zuordnung';
 
 @Injectable({ providedIn: 'root' })

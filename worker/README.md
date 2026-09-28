@@ -506,12 +506,12 @@ abgewiesen. Rohfehler von HiOrg gelangen nicht in die Browserantwort.
 Zweiter HiOrg-Weg neben EFS (`src/hiorg-api.ts`), Einrichtung in
 [docs/einrichtung.md](../docs/einrichtung.md#hiorg-server-api-oauth-optional).
 
-| Pfad                    | Methode    | Vertrag                                                                    |
-| ----------------------- | ---------- | -------------------------------------------------------------------------- |
-| `/hiorg/verbinden`      | GET        | Seitenaufruf; setzt `state`-Cookie, 302 zur festen HiOrg-Anmeldeseite      |
-| `/hiorg/rueckruf`       | GET        | Redirect-URI; prüft `state`, tauscht Code, 303 auf `/#/einsatz?hiorg=<…>`  |
-| `/api/hiorg/verbindung` | GET/DELETE | `{ eingerichtet, verbunden }` ohne HiOrg-Aufruf; DELETE verwirft das Token |
-| `/api/hiorg/personal`   | GET        | Aktives Personal, nur Name, Gruppen, Qualifikationen und Handy             |
+| Pfad                    | Methode    | Vertrag                                                                                                                                      |
+| ----------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/hiorg/verbinden`      | GET        | Seitenaufruf; setzt `state`-Cookie, 302 zur festen HiOrg-Anmeldeseite; `?ziel=einsatz` oder `personal` (feste Liste) wählt das Rückkehrmodul |
+| `/hiorg/rueckruf`       | GET        | Redirect-URI; prüft `state`, tauscht Code, 303 auf `/#/<ziel>?hiorg=<…>`                                                                     |
+| `/api/hiorg/verbindung` | GET/DELETE | `{ eingerichtet, verbunden }` ohne HiOrg-Aufruf; DELETE verwirft das Token                                                                   |
+| `/api/hiorg/personal`   | GET        | Aktives Personal, nur Name, Gruppen, Qualifikationen und Handy                                                                               |
 
 Beide Seitenpfade liegen hinter Access. Ziele (`/oauth/v1/authorize`, `/oauth/v1/token`,
 `/core/v1/personal?filter[status]=aktiv`) sind fest im Code. Client-ID und -Secret gehen

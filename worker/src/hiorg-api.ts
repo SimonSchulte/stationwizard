@@ -63,7 +63,15 @@ const STATE_MUSTER = /^[A-Za-z0-9_-]{43}$/;
 /** Ein Token gilt kurz vor seinem angekündigten Ablauf schon als abgelaufen. */
 const ABLAUF_PUFFER_MS = 60_000;
 const TOKEN_FORMAT = 'v1';
-const RUECKKEHR_ZIEL = '/#/einsatz';
+/**
+ * Feste Rückkehrziele nach der Anmeldung; `?ziel=` wählt nur aus dieser Liste,
+ * damit der Rückruf nie auf eine frei gewählte Adresse weiterleitet.
+ */
+const RUECKKEHR_ZIELE: Readonly<Record<string, string>> = {
+  einsatz: '/#/einsatz',
+  personal: '/#/personal',
+};
+const STANDARD_ZIEL = 'einsatz';
 
 /** Ergebnis eines Verbindungsversuchs, als `?hiorg=` an die Einsatzplanung zurückgegeben. */
 export type HiorgVerbindungsergebnis =
@@ -103,9 +111,9 @@ function istSauber(wert: unknown, hoechstlaenge = 512): wert is string {
   return typeof wert === 'string' && wert.length <= hoechstlaenge && /^[\x21-\x7e]+$/.test(wert);
 }
 
-function rueckkehr(ergebnis: HiorgVerbindungsergebnis, cookie?: string): Response {
+function rueckkehr(ergebnis: HiorgVerbindungsergebnis, ziel: string, cookie?: string): Response {
   const kopfzeilen = new Headers({
-    Location: `${RUECKKEHR_ZIEL}?hiorg=${ergebnis}`,
+    Location: `${RUECKKEHR_ZIELE[ziel] ?? RUECKKEHR_ZIELE[STANDARD_ZIEL]}?hiorg=${ergebnis}`,
     'Cache-Control': 'no-store',
     'Referrer-Policy': 'no-referrer',
   });
@@ -142,8 +150,12 @@ export async function verarbeiteHiorgVerbinden(
   if (anfrage.method !== 'GET') {
     return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, { Allow: 'GET' });
   }
+  const zielParameter = new URL(anfrage.url).searchParams.get('ziel') ?? STANDARD_ZIEL;
+  const rueckkehrZiel = Object.hasOwn(RUECKKEHR_ZIELE, zielParameter)
+    ? zielParameter
+    : STANDARD_ZIEL;
   const zugang = await leseZugang(umgebung);
-  if (!zugang) return rueckkehr('nicht-eingerichtet');
+  if (!zugang) return rueckkehr('nicht-eingerichtet', rueckkehrZiel);
 
   const state = base64Url(crypto.getRandomValues(new Uint8Array(32)));
   const ziel = new URL(HIORG_AUTORISIERUNG_URL);
@@ -160,7 +172,8 @@ export async function verarbeiteHiorgVerbinden(
       Location: ziel.href,
       'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',
-      'Set-Cookie': stateCookie(state, STATE_GUELTIGKEIT_S),
+      // Das Rückkehrziel reist im selben HttpOnly-Cookie mit, nie über HiOrg.
+      'Set-Cookie': stateCookie(`${state}.${rueckkehrZiel}`, STATE_GUELTIGKEIT_S),
     },
   });
 }
@@ -192,7 +205,9 @@ export async function verarbeiteHiorgRueckruf(
   // Das state-Cookie ist einmalig: es wird bei jedem Ausgang des Rückrufs gelöscht.
   const loeschen = stateCookie('', 0);
   const parameter = new URL(anfrage.url).searchParams;
-  const erwartet = leseStateCookie(anfrage);
+  const [erwartet, cookieZiel] = (leseStateCookie(anfrage) ?? '').split('.');
+  const ziel =
+    cookieZiel && Object.hasOwn(RUECKKEHR_ZIELE, cookieZiel) ? cookieZiel : STANDARD_ZIEL;
   const erhalten = parameter.get('state');
   if (
     !erwartet ||
@@ -201,14 +216,14 @@ export async function verarbeiteHiorgRueckruf(
     !STATE_MUSTER.test(erhalten) ||
     !gleich(erwartet, erhalten)
   ) {
-    return rueckkehr('ungueltig', loeschen);
+    return rueckkehr('ungueltig', ziel, loeschen);
   }
-  if (parameter.has('error')) return rueckkehr('abgebrochen', loeschen);
+  if (parameter.has('error')) return rueckkehr('abgebrochen', ziel, loeschen);
   const code = parameter.get('code');
-  if (!code || !/^[\x21-\x7e]{1,2048}$/.test(code)) return rueckkehr('ungueltig', loeschen);
+  if (!code || !/^[\x21-\x7e]{1,2048}$/.test(code)) return rueckkehr('ungueltig', ziel, loeschen);
 
   const zugang = await leseZugang(umgebung);
-  if (!zugang) return rueckkehr('nicht-eingerichtet', loeschen);
+  if (!zugang) return rueckkehr('nicht-eingerichtet', ziel, loeschen);
 
   const ergebnis = await tokenAnfordern(zugang, {
     grant_type: 'authorization_code',
@@ -217,7 +232,7 @@ export async function verarbeiteHiorgRueckruf(
   });
   if (!ergebnis.erfolg) {
     console.error('HIORG_TOKEN_TAUSCH_FEHLGESCHLAGEN', ergebnis.ursache);
-    return rueckkehr('fehlgeschlagen', loeschen);
+    return rueckkehr('fehlgeschlagen', ziel, loeschen);
   }
   try {
     const jetzt = new Date().toISOString();
@@ -237,9 +252,9 @@ export async function verarbeiteHiorgRueckruf(
       .run();
   } catch (ursache) {
     console.error('HIORG_VERBINDUNG_SPEICHERN_FEHLGESCHLAGEN', ursachenText(ursache));
-    return rueckkehr('fehlgeschlagen', loeschen);
+    return rueckkehr('fehlgeschlagen', ziel, loeschen);
   }
-  return rueckkehr('verbunden', loeschen);
+  return rueckkehr('verbunden', ziel, loeschen);
 }
 
 /** Schritt 3 und Verbindungsverwaltung unter `/api/hiorg/`. */

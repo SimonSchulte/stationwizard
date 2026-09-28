@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 
 /**
- * Zweiter HiOrg-Weg neben EFS: die HiOrg-Server-API mit persönlicher
+ * Gemeinsam für Einsatzplanung und Personalmodul. Zweiter HiOrg-Weg neben EFS: die HiOrg-Server-API mit persönlicher
  * OAuth-Anmeldung. Anmeldung, Token und Upstream-Adressen liegen vollständig im
  * Worker (`worker/src/hiorg-api.ts`); hier gibt es nur relative Pfade.
  */
@@ -17,10 +17,15 @@ export interface HiorgPerson {
 
 export type HiorgVerbindung = 'ungeprueft' | 'nicht-eingerichtet' | 'getrennt' | 'verbunden';
 
-/** Seitenaufruf (kein API-Aufruf): der Worker leitet von dort zur HiOrg-Anmeldung. */
-export const HIORG_VERBINDEN_ADRESSE = '/hiorg/verbinden';
+/** Module, in die der Worker nach der HiOrg-Anmeldung zurückführt (feste Liste im Worker). */
+export type HiorgRueckkehrZiel = 'einsatz' | 'personal';
 
-/** Rückmeldung des Workers nach der Anmeldung als `?hiorg=` an der Einsatzplanung. */
+/** Seitenaufruf (kein API-Aufruf): der Worker leitet von dort zur HiOrg-Anmeldung. */
+export function hiorgVerbindenAdresse(ziel: HiorgRueckkehrZiel): string {
+  return `/hiorg/verbinden?ziel=${ziel}`;
+}
+
+/** Rückmeldung des Workers nach der Anmeldung als `?hiorg=` am Rückkehrziel. */
 export const HIORG_ERGEBNIS_TEXTE: Readonly<Record<string, string>> = {
   verbunden: 'Die Verbindung zum HiOrg-Server wurde hergestellt.',
   abgebrochen: 'Die Anmeldung beim HiOrg-Server wurde abgebrochen.',

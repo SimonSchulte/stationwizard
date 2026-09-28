@@ -141,7 +141,7 @@ describe('HiOrg-API: Verbinden', () => {
     });
     expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/);
     const cookie = antwort.headers.get('Set-Cookie') ?? '';
-    expect(cookie).toContain(`__Host-stationwizard-hiorg-state=${state}`);
+    expect(cookie).toContain(`__Host-stationwizard-hiorg-state=${state}.einsatz`);
     expect(cookie).toMatch(/HttpOnly/);
     expect(cookie).toMatch(/Secure/);
     // Das Client-Secret verlässt den Worker nie Richtung Browser.
@@ -156,6 +156,36 @@ describe('HiOrg-API: Verbinden', () => {
       umgebung,
     );
     expect(antwort.status).toBe(303);
+    expect(antwort.headers.get('Location')).toBe('/#/einsatz?hiorg=nicht-eingerichtet');
+  });
+});
+
+describe('HiOrg-API: Rückkehrziel', () => {
+  it('führt nach der Anmeldung in das Modul zurück, aus dem sie gestartet wurde', async () => {
+    const start = await verarbeiteHiorgVerbinden(
+      new Request(`${ORIGIN}/hiorg/verbinden?ziel=personal`),
+      umgebung,
+    );
+    const cookie = (start.headers.get('Set-Cookie') ?? '').split(';')[0];
+    const state = new URL(start.headers.get('Location') ?? '').searchParams.get('state');
+    expect(cookie.endsWith('.personal')).toBe(true);
+    abrufen.mockResolvedValueOnce(tokenAntwort());
+    const antwort = await verarbeiteHiorgRueckruf(
+      new Request(`${ORIGIN}/hiorg/rueckruf?code=abc&state=${state}`, {
+        headers: { Cookie: cookie },
+      }),
+      umgebung,
+      BENUTZER,
+    );
+    expect(antwort.headers.get('Location')).toBe('/#/personal?hiorg=verbunden');
+  });
+
+  it('ersetzt ein unbekanntes Ziel durch die Einsatzplanung statt frei weiterzuleiten', async () => {
+    umgebung.HIORG_SERVER_CLIENTID = undefined;
+    const antwort = await verarbeiteHiorgVerbinden(
+      new Request(`${ORIGIN}/hiorg/verbinden?ziel=//fremd.example`),
+      umgebung,
+    );
     expect(antwort.headers.get('Location')).toBe('/#/einsatz?hiorg=nicht-eingerichtet');
   });
 });

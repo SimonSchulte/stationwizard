@@ -1943,3 +1943,20 @@ Produktivsystem nicht nachgeprüft.
   `npm run test:spa`, `npm run deploy:dry-run`, `npm run format:check`. Sichtprüfung im
   Headless-Chromium (Desktop 1400 px, Mobil 390 px) mit nachgebildeten API-Antworten:
   Rückmeldung auf der Übersicht, Dialog, Auswahl und Übernahme in den Helferpool.
+
+## Modul Personal – Übersicht aus der HiOrg-Server-API
+
+- Neues Modul `src/app/personal/` (Route `/personal`, Navigation und Startseite): Seite
+  „Übersicht" ruft über `GET /api/hiorg/personal` das gesamte aktive Personal ab, das das
+  verbundene HiOrg-Konto sehen darf, und zeigt Name, Gruppen, Qualifikationen (Liste:
+  Bezeichnung (Kürzel)) und Handy als Tabelle mit Suche. Verbinden/Trennen direkt dort.
+  Dient zugleich als Prüfstand für die Anbindung.
+- `HiorgPersonalService` nach `src/app/kern/hiorg/` verschoben (von Einsatz und Personal
+  genutzt). Der Worker führt nach der Anmeldung über `?ziel=` (feste Liste
+  `einsatz`/`personal`, im HttpOnly-State-Cookie mitgeführt) ins startende Modul zurück.
+- Keine Speicherung im Browser, ein Abruf je Öffnen bzw. „Aktualisieren".
+- Geprüft: `npm run build`, `npm test`, `npm run worker:test`, `npm run test:spa`,
+  `npm run format:check`; Sichtprüfung im Headless-Chromium Desktop (1400 px) und Mobil
+  (390 px, Tabelle scrollt kontrolliert horizontal, Seite nicht) mit nachgebildeten
+  API-Antworten. Gegen die echte HiOrg-API weiterhin nicht geprüft (Redirect-URI,
+  Migration, Secrets siehe oben).

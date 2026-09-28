@@ -18,6 +18,11 @@ export const routes: Routes = [
     title: 'Einsatzplanung · HiorgWache',
   },
   {
+    path: 'personal',
+    loadChildren: () => import('./personal/personal.routes').then((m) => m.personalRouten),
+    title: 'Personal · HiorgWache',
+  },
+  {
     path: 'fahrzeuge',
     loadChildren: () => import('./fahrzeuge/fahrzeuge.routes').then((m) => m.fahrzeugeRoutes),
     title: 'Fahrzeuge · HiorgWache',

@@ -15,6 +15,20 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
       'fetch',
       vi.fn(async (pfad: string) => {
         if (pfad === '/api/nextcloud/planungen') return Response.json({ dateien: [] });
+        if (pfad === '/api/hiorg/verbindung')
+          return Response.json({ eingerichtet: true, verbunden: true });
+        if (pfad === '/api/hiorg/personal')
+          return Response.json({
+            personen: [
+              {
+                id: 'p1',
+                vorname: 'Erika',
+                nachname: 'Beispiel',
+                gruppen: ['Bereitschaft'],
+                qualifikationen: [{ liste: 'med', name: 'Rettungssanitäter/in', kurz: 'RS' }],
+              },
+            ],
+          });
         if (pfad === '/api/efs/getveranstaltungen')
           return Response.json({ status: 'OK', einsaetze: [] });
         if (pfad.startsWith('https://feiertage-api.de'))
@@ -43,6 +57,18 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
     const ansicht = await RouterTestingHarness.create('/einsatz');
     expect(ansicht.routeNativeElement?.textContent).toContain('Gespeicherte Einsatzpläne');
     expect(ansicht.routeNativeElement?.textContent).toContain('Veranstaltungen (HiOrg-Server)');
+  });
+
+  it('zeigt im Personalmodul das vom HiOrg-Server gelieferte Personal als Tabelle', async () => {
+    const ansicht = await RouterTestingHarness.create('/personal');
+    await vi.waitFor(() => {
+      expect(ansicht.routeNativeElement?.querySelector('table')).toBeTruthy();
+    });
+    ansicht.detectChanges();
+    const text = ansicht.routeNativeElement?.textContent ?? '';
+    expect(text).toContain('Beispiel');
+    expect(text).toContain('Rettungssanitäter/in (RS)');
+    expect(text).toContain('1 von 1 Personen');
   });
 
   it('öffnet einen lokalen Einsatzplan im Editor', async () => {

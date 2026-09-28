@@ -10,10 +10,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
 import {
-  HIORG_VERBINDEN_ADRESSE,
+  hiorgVerbindenAdresse,
   HiorgPersonalService,
   type HiorgPerson,
-} from '../../services/hiorg-personal.service';
+} from '../../../kern/hiorg/hiorg-personal.service';
 import { ImportService } from '../../services/import.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
 
@@ -134,7 +134,7 @@ export class HiorgPersonalDialog {
     ) {
       return;
     }
-    this.dokument.location.assign(HIORG_VERBINDEN_ADRESSE);
+    this.dokument.location.assign(hiorgVerbindenAdresse('einsatz'));
   }
 
   async trennen(): Promise<void> {
