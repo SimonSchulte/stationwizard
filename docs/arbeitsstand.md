@@ -1960,3 +1960,13 @@ Produktivsystem nicht nachgeprüft.
   (390 px, Tabelle scrollt kontrolliert horizontal, Seite nicht) mit nachgebildeten
   API-Antworten. Gegen die echte HiOrg-API weiterhin nicht geprüft (Redirect-URI,
   Migration, Secrets siehe oben).
+
+## Migration 0010 angewendet
+
+- `worker/migrations/0010_hiorg_verbindungen.sql` am 2026-09-28 über die Cloudflare-D1-API
+  auf `stationwizard-benutzer` (`BENUTZER_DB`) ausgeführt, wie die bisherigen Migrationen
+  (keine `d1_migrations`-Buchführung in dieser Datenbank). Vorher geprüft: Tabelle fehlte;
+  danach vorhanden mit dem Schema aus der Datei, leer. Bestehende Tabellen `benutzer` und
+  `systemkonfiguration` unverändert.
+- Weiterhin offen: Redirect-URI bei HiOrg, Erreichbarkeit der beiden Secrets am Worker,
+  Deployment des Branches.
