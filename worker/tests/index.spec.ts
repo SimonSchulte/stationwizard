@@ -98,6 +98,10 @@ describe('Access vor sämtlichen Assets und APIs außer der öffentlichen Kilome
     '/api/nextcloud/planungen',
     '/api/efs/getveranstaltungen',
     '/api/hiorg/kalender',
+    '/api/hiorg/verbindung',
+    '/api/hiorg/personal',
+    '/hiorg/verbinden',
+    '/hiorg/rueckruf',
     '/api/fahrzeuge',
     '/f/01234567-89ab-4cde-8fab-0123456789ab',
     // Beinahetreffer der öffentlichen Muster. Sie sind der eigentliche Wert
@@ -382,6 +386,19 @@ describe('Fahrzeuge-Routing und QR-Kurzlinks', () => {
     expect(antwort.status).toBe(404);
     expect(await antwort.json()).toMatchObject({ code: 'FAHRZEUGE_KURZLINK_UNGUELTIG' });
     expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
+  it('führt die HiOrg-Anmeldung ohne eingerichteten Client zurück in die Einsatzplanung', async () => {
+    const antwort = await anfragen('/hiorg/verbinden', await tokenFuer());
+    expect(antwort.status).toBe(303);
+    expect(antwort.headers.get('Location')).toBe('/#/einsatz?hiorg=nicht-eingerichtet');
+    expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
+  it('meldet die HiOrg-API ohne Client als nicht eingerichtet statt als Kalenderpfad', async () => {
+    const antwort = await anfragen('/api/hiorg/verbindung', await tokenFuer());
+    expect(antwort.status).toBe(200);
+    expect(await antwort.json()).toEqual({ eingerichtet: false, verbunden: false });
   });
 
   it('lässt einen schreibenden Aufruf auf den Kurzlink nicht durch (nur GET vorgesehen)', async () => {

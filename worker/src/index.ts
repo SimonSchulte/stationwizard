@@ -13,6 +13,16 @@ import {
   verarbeiteFahrzeuge,
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
+import {
+  HIORG_PERSONAL_PFAD,
+  HIORG_RUECKRUF_PFAD,
+  HIORG_VERBINDEN_PFAD,
+  HIORG_VERBINDUNG_PFAD,
+  verarbeiteHiorgApi,
+  verarbeiteHiorgRueckruf,
+  verarbeiteHiorgVerbinden,
+  type HiorgApiKonfiguration,
+} from './hiorg-api';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
 import {
   KM_BERICHT_PFAD,
@@ -39,6 +49,7 @@ export interface Env
     NextcloudKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
+    HiorgApiKonfiguration,
     FahrzeugeKonfiguration,
     BenutzerverwaltungKonfiguration,
     SystemkonfigurationKonfiguration,
@@ -166,6 +177,12 @@ export default {
       return verarbeiteEfs(anfrage, umgebung);
     }
 
+    // HiOrg-Server-API (OAuth) vor dem Kalenderfeed, der alle übrigen
+    // /api/hiorg/-Pfade als unbekannt beantwortet.
+    if (url.pathname === HIORG_VERBINDUNG_PFAD || url.pathname === HIORG_PERSONAL_PFAD) {
+      return verarbeiteHiorgApi(anfrage, umgebung, benutzer);
+    }
+
     if (url.pathname.startsWith('/api/hiorg/')) {
       return verarbeiteHiorgKalender(anfrage, umgebung);
     }
@@ -205,6 +222,16 @@ export default {
       const weiterleitung = kurzlinkWeiterleitung(url.pathname);
       if (weiterleitung) return weiterleitung;
       return fehlerAntwort('FAHRZEUGE_KURZLINK_UNGUELTIG', 'Unbekannter Kurzlink.', 404);
+    }
+
+    // OAuth-Anmeldung bei HiOrg: beides sind Seitenaufrufe (Weiterleitungen),
+    // keine API-Aufrufe, und liegen deshalb außerhalb von /api/. Access ist
+    // bereits geprüft; die Token bleiben vollständig im Worker (hiorg-api.ts).
+    if (url.pathname === HIORG_VERBINDEN_PFAD) {
+      return verarbeiteHiorgVerbinden(anfrage, umgebung);
+    }
+    if (url.pathname === HIORG_RUECKRUF_PFAD) {
+      return verarbeiteHiorgRueckruf(anfrage, umgebung, benutzer);
     }
 
     if (anfrage.method !== 'GET' && anfrage.method !== 'HEAD') {

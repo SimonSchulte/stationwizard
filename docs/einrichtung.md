@@ -49,6 +49,38 @@ Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **W
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
+## HiOrg-Server-API (OAuth, optional)
+
+Zweiter HiOrg-Weg neben EFS: die HiOrg-Server-API (`api.hiorg-server.de`) mit
+OAuth2 Authorization Code. Jede Person verbindet ihr **eigenes** HiOrg-Konto; die
+Personalliste im PEP-Editor („Personal aus HiOrg-Server übernehmen") zeigt dann genau das
+Personal, das dieses HiOrg-Konto sehen darf. Ohne Einrichtung meldet der Dialog das
+ehrlich; EFS bleibt davon unberührt.
+
+1. **Redirect-URI bei HiOrg registrieren lassen:** `https://hiorg-wache.com/hiorg/rueckruf`
+   (Anfrage an `support@hiorg-server.de`, Client „JUH RV Ostwestfalen - Personal-Export").
+   Die bisher registrierte URI
+   `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback` ist die
+   Rückrufadresse von **Cloudflare Access** und gehört zu einer Access-Anmeldung _über_
+   HiOrg (generischer OIDC-Anbieter). Mit ihr landet der Code bei Access, nie beim Worker –
+   der Worker bekäme so nie ein API-Token. Solange nur diese URI registriert ist, lehnt
+   HiOrg die Anmeldung aus der App ab. Vorschau- und `workers.dev`-Adressen werden bewusst
+   nicht registriert; dort endet der Ablauf bei HiOrg mit einem Fehler.
+2. **Scopes:** `openid personal:read` – genau die freigegebenen; mehr fordert der Worker nicht an.
+3. **Secrets:** `HIORG_SERVER_CLIENTID` und `HIORG_SERVER_CLIENTSECRET`. Als klassische
+   Worker-Secrets (`wrangler secret put …`) gesetzt, braucht es keine weitere Zeile; liegen
+   sie im Secrets Store, die beiden vorbereiteten Blöcke in `worker/wrangler.toml`
+   einkommentieren (erst anlegen, dann einkommentieren, sonst scheitert der Deploy). Ein
+   neues Client-Secret macht alle gespeicherten Verbindungen unlesbar; sie werden beim
+   nächsten Abruf verworfen und müssen neu hergestellt werden.
+4. **D1-Migration** `worker/migrations/0010_hiorg_verbindungen.sql` auf `BENUTZER_DB`
+   anwenden (`wrangler d1 migrations apply stationwizard-benutzer --remote`, oder die Datei
+   über die D1-Konsole ausführen).
+
+Zugriffs- und Refresh-Token liegen ausschließlich AES-GCM-verschlüsselt in D1, an die
+geprüfte Access-E-Mail gebunden. HiOrg dokumentiert keinen Widerrufsendpunkt; „Verbindung
+trennen" verwirft das Token nur im Worker. Den Zugriff endgültig entzieht man in HiOrg.
+
 ## Mailversand des Kilometerstandsberichts (optional)
 
 Der Versand ist erst möglich, wenn ein Versandweg eingerichtet ist; alle zugehörigen Blöcke
@@ -200,6 +232,8 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | Nextcloud-Fehler                     | Freigabe, Token, Passwort und Schreibrechte prüfen, danach das Secrets-Store-Binding am Worker.                                             |
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
 | `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
+| `?hiorg=nicht-eingerichtet`          | `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET` oder `BENUTZER_DB` fehlen am Worker.                                                    |
+| HiOrg lehnt die Anmeldung ab         | Redirect-URI `https://hiorg-wache.com/hiorg/rueckruf` ist bei HiOrg nicht registriert (siehe „HiOrg-Server-API").                           |
 | `MAIL_VERSANDWEG_NICHT_EINGERICHTET` | Kein `MAIL_ABSENDER`, kein `send_email`-Binding beziehungsweise kein `MAIL_API_TOKEN` für den gewählten Weg.                                |
 | `MAIL_VERSAND_FEHLGESCHLAGEN`        | Der Anbieter hat abgelehnt – bei Email Routing meist eine nicht bestätigte Zieladresse. Details stehen nur im Betreiberlog.                 |
 | `KM_BERICHT_EMPFAENGER_FEHLT`        | Unter Verwaltung → Systemkonfiguration ist keine Empfängeradresse gespeichert.                                                              |

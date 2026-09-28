@@ -1918,3 +1918,28 @@ Listeneintrag, `gemeldetVonName` vorhanden) – ohne die Änderung rot, mit ihr 
 `npm run build` (inkl. `worker:check`), `npm test` (730 Angular-, 13 `oeffentlich`-,
 564 Worker-Tests), `npm run format:check`, `npm run worker:test` – alle grün. Am
 Produktivsystem nicht nachgeprüft.
+
+## HiOrg-Server-API als zweiter Weg neben EFS
+
+- Worker-Modul `worker/src/hiorg-api.ts`: OAuth2 Authorization Code gegen
+  `api.hiorg-server.de` (Scopes `openid personal:read`), Anmeldung über die Seitenpfade
+  `/hiorg/verbinden` und `/hiorg/rueckruf` (hinter Access, `state` als `__Host-`-Cookie),
+  Token AES-GCM-verschlüsselt je Access-E-Mail in `hiorg_verbindungen` (Migration 0010,
+  `BENUTZER_DB`), Erneuerung per Refresh-Token, `GET /api/hiorg/personal` mit fester
+  Feldauswahl (Name, Gruppen, Qualifikationen, Handy).
+- PEP-Editor: neuer Knopf „Personal aus HiOrg-Server übernehmen" mit Suche und Auswahl;
+  Übernahme in den Helferpool wie bei EFS (Dubletten am Namen). Qualifikationen über das
+  bestehende EFS-Mapping, jetzt gemeinsam in `qualifikation-zuordnung.ts`. Rückmeldung
+  nach der Anmeldung auf der Planungsübersicht.
+- **Blockierend offen:** Die bei HiOrg registrierte Redirect-URI ist die Cloudflare-Access-
+  Callback-URI. Damit bekommt der Worker kein Token; `https://hiorg-wache.com/hiorg/rueckruf`
+  muss bei HiOrg zusätzlich registriert werden (siehe docs/einrichtung.md). Außerdem
+  Migration 0010 anwenden und klären, ob die beiden Secrets klassisch oder im Secrets Store
+  liegen (Blöcke in `wrangler.toml` vorbereitet, auskommentiert).
+- Nicht nachgewiesen gegen die echte API: Token-Endpunkt mit `client_secret_post`,
+  Vollständigkeit von `/personal` ohne Paginierung, tatsächliche Form der
+  Qualifikationsbezeichnungen. Kein Test mit echtem HiOrg-Konto ausgeführt.
+- Geprüft: `npm run build` (inkl. `worker:check`), `npm test`, `npm run worker:test`,
+  `npm run test:spa`, `npm run deploy:dry-run`, `npm run format:check`. Sichtprüfung im
+  Headless-Chromium (Desktop 1400 px, Mobil 390 px) mit nachgebildeten API-Antworten:
+  Rückmeldung auf der Übersicht, Dialog, Auswahl und Übernahme in den Helferpool.

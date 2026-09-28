@@ -50,6 +50,7 @@ import {
 } from '../../models/planung.model';
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
+import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
 
 interface DragData {
   einsatzkraftId: string;
@@ -397,6 +398,10 @@ export class PlanningEditor {
 
   openImportDialog(): void {
     this.dialog.open(ImportDialog, { width: '560px' });
+  }
+
+  openHiorgPersonalDialog(): void {
+    this.dialog.open(HiorgPersonalDialog, { width: '560px' });
   }
 
   async updateFromEfs(p: Planung): Promise<void> {

@@ -157,6 +157,9 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/nextcloud/planungen`                      | GET                | Liste aus UUID und ETag                                                            |
 | `/api/nextcloud/planungen/<UUID>`               | GET / PUT          | Einzelne versionierte PEP-Datei                                                    |
 | `/api/hiorg/kalender`                           | GET                | HiOrg-Kalenderfeed, nur lesend                                                     |
+| `/api/hiorg/verbindung`                         | GET / DELETE       | HiOrg-Server-API: Verbindungsstatus bzw. Token verwerfen                           |
+| `/api/hiorg/personal`                           | GET                | HiOrg-Server-API: aktives Personal, feste kleine Feldauswahl                       |
+| `/hiorg/verbinden`, `/hiorg/rueckruf`           | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                       |
 | `/api/fahrzeuge`                                | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig         |
 | `/api/fahrzeuge/<UUID>`                         | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                     |
@@ -399,6 +402,17 @@ EFS verwendet ausschließlich die drei bekannten Aktionen. Der Worker ergänzt s
 zuerst einen Nachweis durch die echte API und deren offizielle Dokumentation. Die
 Nextcloud-Routen sind kein generischer WebDAV-Proxy; keine frei wählbaren Pfade oder
 Löschmethoden ergänzen.
+
+Die HiOrg-Server-API (`worker/src/hiorg-api.ts`) ist ein zweiter, von EFS unabhängiger
+Weg: OAuth2 Authorization Code mit `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET`, je
+Access-Identität ein eigenes HiOrg-Konto, Token nur AES-GCM-verschlüsselt in
+`hiorg_verbindungen` (`BENUTZER_DB`). Redirect-URI ist `<Origin>/hiorg/rueckruf`; die
+Access-Callback-URI der Team-Domain liefert dem Worker kein Token. Nur Scope
+`openid personal:read`, feste Ziele, feste Feldauswahl ohne Anschrift, Bank-, Gesundheits-
+oder Führerscheindaten. Qualifikationsbezeichnungen laufen über dasselbe übernommene
+EFS-Mapping (`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten
+HiOrg-Listen werden nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach
+Nachweis gegen die echte API.
 
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig
