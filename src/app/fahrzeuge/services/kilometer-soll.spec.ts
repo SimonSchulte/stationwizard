@@ -156,30 +156,31 @@ describe('ermittleKilometerAmpel', () => {
     expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBeNull();
   });
 
-  it('ist grün, solange die Rest-km beim Mindesttempo der Restmonate noch passen', () => {
-    // 150 km/Monat, 6 Restmonate → 900 km ist die reine Grenze ohne Puffer.
-    const bilanz = bilanzMitRestKm(900);
+  it('ist grün, solange die Rest-km ohne den laufenden Monat noch passen', () => {
+    // 150 km/Monat, 6 Restmonate, davon 5 ohne den laufenden Monat → 750 km Grenze.
+    const bilanz = bilanzMitRestKm(750);
     expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBe('gruen');
   });
 
-  it('bleibt innerhalb des Gelb-Puffers noch grün', () => {
-    // 900 (Grenze) + 1 Monat Puffer à 150 km = 1050 km sind noch grün.
-    const bilanz = bilanzMitRestKm(1050);
-    expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBe('gruen');
-  });
-
-  it('wird gelb, sobald der Gelb-Puffer überschritten ist', () => {
-    const bilanz = bilanzMitRestKm(1051);
+  it('wird gelb, sobald die Grün-Grenze überschritten ist – auch innerhalb des früheren Gelb-Puffers', () => {
+    // 751 km liegt noch unter der alten Gelb-Grenze (1050), zählt aber schon nicht mehr als grün.
+    const bilanz = bilanzMitRestKm(751);
     expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBe('gelb');
   });
 
-  it('bleibt bis zum Rot-Puffer gelb', () => {
-    // 900 + 3 Monate Puffer à 150 km = 1350 km sind noch gelb.
+  it('bleibt bis zur Gelb-Grenze (Restmonate + Gelb-Puffer) gelb', () => {
+    // 150 km/Monat, 6 Restmonate + 1 Monat Gelb-Puffer = 1050 km.
+    const bilanz = bilanzMitRestKm(1050);
+    expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBe('gelb');
+  });
+
+  it('bleibt bis zur Rot-Grenze (Restmonate + Rot-Puffer) gelb', () => {
+    // 150 km/Monat, 6 Restmonate + 3 Monate Rot-Puffer = 1350 km.
     const bilanz = bilanzMitRestKm(1350);
     expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBe('gelb');
   });
 
-  it('wird rot, sobald auch der Rot-Puffer überschritten ist', () => {
+  it('wird rot, sobald auch die Rot-Grenze überschritten ist', () => {
     const bilanz = bilanzMitRestKm(1351);
     expect(ermittleKilometerAmpel(bilanz, 6, SCHWELLENWERTE)).toBe('rot');
   });
@@ -187,5 +188,11 @@ describe('ermittleKilometerAmpel', () => {
   it('ist grün, wenn das Jahressoll bereits erreicht ist', () => {
     const bilanz = bilanzMitRestKm(0);
     expect(ermittleKilometerAmpel(bilanz, 1, SCHWELLENWERTE)).toBe('gruen');
+  });
+
+  it('kappt die Grün-Grenze bei 0 statt negativ zu werden, wenn kein Monat mehr ohne den laufenden übrig ist', () => {
+    // restMonate = 1 (nur noch der laufende Monat) → Grün-Grenze wäre rechnerisch -150, bleibt aber 0.
+    expect(ermittleKilometerAmpel(bilanzMitRestKm(0), 1, SCHWELLENWERTE)).toBe('gruen');
+    expect(ermittleKilometerAmpel(bilanzMitRestKm(1), 1, SCHWELLENWERTE)).toBe('gelb');
   });
 });

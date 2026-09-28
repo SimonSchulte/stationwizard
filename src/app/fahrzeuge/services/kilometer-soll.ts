@@ -147,11 +147,13 @@ export function restmonateImJahr(stichtagIso: string, jahr: number): number {
  * schon einen eigenen Hinweistext statt eines Fortschritts (siehe
  * `kilometer-bilanz.html`), keine Ampel.
  *
- * Die Schwellenwerte sind ein Puffer in Monaten: bis zu `gelbMonate` Monate
- * hinter dem bei Mindesttempo nötigen Stand bleibt es grün, darüber gelb, ab
- * `rotMonate` rot. Die km-Grenze ergibt sich ohne Division aus
- * `kmProMonat * (restMonate + schwellenwert)` – die Menge, die bei
- * Mindesttempo über die verbleibende Zeit zzgl. Puffer noch offen sein darf.
+ * Grün zählt bewusst strenger als gelb/rot: der laufende Monat ist noch
+ * nicht abgeschlossen, seine km sind also noch nicht „verpasst" – erst die
+ * danach noch vollständig verbleibenden Monate (`restMonate - 1`) zählen für
+ * „im Soll". Gelb und rot bleiben dagegen wie zuvor ein Puffer in Monaten
+ * *auf* `restMonate` (den laufenden Monat eingeschlossen): bis zu `gelbMonate`
+ * zusätzliche Monate Rückstand ist es gelb, ab `rotMonate` rot. Die km-Grenze
+ * ergibt sich jeweils ohne Division aus `kmProMonat * (Monate + schwellenwert)`.
  */
 export function ermittleKilometerAmpel(
   bilanz: Pick<KilometerJahresbilanz, 'eigentuemer' | 'sollKm' | 'istKm' | 'restKm'>,
@@ -166,5 +168,7 @@ export function ermittleKilometerAmpel(
   if (bilanz.restKm > grenzeRot) return 'rot';
   const grenzeGelb = kmProMonat * (restMonate + schwellenwerte.gelbMonate);
   if (bilanz.restKm > grenzeGelb) return 'gelb';
+  const grenzeGruen = kmProMonat * Math.max(0, restMonate - 1);
+  if (bilanz.restKm > grenzeGruen) return 'gelb';
   return 'gruen';
 }

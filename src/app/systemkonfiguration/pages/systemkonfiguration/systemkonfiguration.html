@@ -76,10 +76,12 @@
       <mat-tab label="Kilometerübersicht">
         <div class="tab-inhalt">
           <p class="beschreibung">
-            Ab wann die Ampel je Fahrzeug in der Kilometerübersicht auf Gelb bzw. Rot springt: ein
-            Puffer in Monaten auf den Rückstand, den ein Fahrzeug beim Mindesttempo seines
-            Eigentümers gegenüber den verbleibenden Monaten des Jahres haben darf, bevor es
-            auffällt.
+            Ab wann die Ampel je Fahrzeug in der Kilometerübersicht auf Gelb bzw. Rot springt. Grün
+            bleibt es, solange die Rest-km eines Fahrzeugs beim Mindesttempo seines Eigentümers in
+            den noch vollständig verbleibenden Monaten erreichbar sind (der laufende Monat zählt
+            dafür nicht mit, er ist ja noch nicht abgeschlossen). Die beiden Werte hier sind ein
+            zusätzlicher Puffer in Monaten darauf – ab wie vielen Monaten Rückstand es zunächst gelb
+            und dann rot wird.
           </p>
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">

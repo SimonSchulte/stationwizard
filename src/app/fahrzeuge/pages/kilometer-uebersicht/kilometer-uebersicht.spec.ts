@@ -181,7 +181,8 @@ describe('KilometerUebersicht', () => {
     };
     berichtStore.bericht.set(bericht);
 
-    // 150 km/Monat, Stichtag Juni → 7 Restmonate → 1200 km Grenze bis gelb; 900 km Rest ist grün.
+    // 150 km/Monat, Stichtag Juni → 7 Restmonate, davon 6 ohne den laufenden Monat →
+    // 900 km Grün-Grenze; 900 km Rest liegt genau darauf und ist damit noch grün.
     expect(seite.angezeigteZeilen()[0].ampel).toBe('gruen');
   });
 });

@@ -1964,3 +1964,30 @@ Keine echte Browserprüfung dieser Sitzung (reine Cloud-Sitzung ohne Zugriff auf
 angemeldeten Worker-Backend-Stand für echte Fahrzeugdaten); die jsdom-Renderprüfung deckt
 CSS-Klassenbindung und Sichtbarkeit ab, nicht Layout/Kontrast/mobile Darstellung im
 tatsächlichen Browser.
+
+### Nachtrag – Grün-Regel nachgeschärft: laufender Monat zählt nicht mit
+
+Auf Rückfrage nachgeschärft: „Grün" bedeutete bisher, dass die Rest-km noch innerhalb des
+Gelb-Puffers (`restMonate + gelbMonate`) liegen – der laufende Monat zählte dabei mit, und
+ein Fahrzeug, das bereits einen vollen Puffer-Monat Rückstand hatte, erschien trotzdem
+grün. Jetzt gilt für Grün eine eigene, strengere Grenze: `kmProMonat * max(0, restMonate -
+1)`, also nur noch die Monate, die nach dem laufenden vollständig übrig sind – seine km
+gelten schließlich noch nicht als „verpasst", solange der Monat läuft. Gelb und Rot bleiben
+unverändert die Puffer-Grenzen auf dem ursprünglichen `restMonate` (den laufenden Monat
+eingeschlossen).
+
+Nebeneffekt, den ich nicht stillschweigend übergehen will: weil die neue Grün-Grenze
+(`restMonate - 1`) bei den Standardwerten (Gelb-Puffer 1 Monat) immer kleiner ist als die
+Gelb-Grenze (`restMonate + gelbMonate`), entscheidet praktisch nur noch die Grün-Grenze
+darüber, wo Grün endet – der Gelb-Schwellenwert selbst wird für diesen Übergang
+gegenstandslos, solange er nicht negativ sein darf (Validierung erlaubt nur 0–36). Er
+bleibt aber weiterhin die Grenze zwischen Gelb und Rot zusammen mit dem Rot-Schwellenwert.
+Nicht von mir aus geändert, da ausdrücklich nur die Grün-Regel angepasst werden sollte.
+
+Geprüft: `kilometer-soll.spec.ts` komplett neu durchgerechnet (Grün-/Gelb-/Rot-Grenzen samt
+Kappung bei `restMonate = 1`), Kommentare in `fahrzeug-dashboard.spec.ts` und
+`kilometer-uebersicht.spec.ts` an die neue Rechnung angepasst (Testfälle selbst unverändert
+grün, weil dort zufällig exakt auf der neuen Grenze). Beschreibungstext im
+Systemkonfigurations-Tab „Kilometerübersicht" entsprechend umformuliert. `npm run build`
+(inkl. `worker:check`), `npm test` (752 Angular-, 13 `oeffentlich`-, 567 Worker-Tests),
+`npm run format:check` – alle grün. Weiterhin keine Browserprüfung.
