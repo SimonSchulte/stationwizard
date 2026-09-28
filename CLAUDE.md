@@ -575,14 +575,21 @@ Access-Fehlerseite in die App (`POST /api/hiorg/verbindung/code`, `state`-Prüfu
 das HttpOnly-Cookie). `HIORG_SERVER_REDIRECT_URI = <Origin>/hiorg/rueckruf` schaltet auf
 den automatischen Rückruf; andere Adressen gelten als nicht eingerichtet. Verbinden über
 den gemeinsamen Baustein `kern/hiorg/hiorg-verbinden/`. Nur Scope
-`openid personal:read`, feste Ziele, feste Feldauswahl ohne Anschrift, Bank-, Gesundheits-
-oder Führerscheindaten. `?ziel=` an `/hiorg/verbinden` wählt nur aus der festen Liste
-`einsatz`/`personal` das Rückkehrmodul. Gemeinsamer Client unter
+`openid personal:read`, feste Ziele, feste Feldauswahl ohne Anschrift, Geburtsdaten,
+Bankverbindung, Ernährung, Allergien, Bemerkungen, Rechte oder benutzerdefinierte Felder.
+Die Fahrerlaubnis (`attributes.fahrerlaubnis`: `klassen`, `beschraenkung`,
+`fuehrerscheinnummer`, `fuehrerscheindatum`) ist die eine bewusste Ausnahme von „keine
+Führerscheindaten" – belegt durch die offizielle Feldbeschreibung der Personal-Ressource
+(`filterePersonal()`/`HiorgFahrerlaubnis` in `hiorg-api.ts`) – und verlässt den Worker
+ausschließlich für die Führerscheinliste
+(`src/app/personal/pages/fuehrerscheinliste/`). `?ziel=` an `/hiorg/verbinden` wählt nur
+aus der festen Liste `einsatz`/`personal` das Rückkehrmodul. Gemeinsamer Client unter
 `kern/hiorg/hiorg-personal.service.ts`; das Modul Personal (`src/app/personal/`, Route
-`/personal`) zeigt die Liste nur an und speichert nichts. Qualifikationsbezeichnungen laufen über dasselbe übernommene
-EFS-Mapping (`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten
-HiOrg-Listen werden nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach
-Nachweis gegen die echte API.
+`/personal`) zeigt die Liste und die Führerscheinliste nur an und speichert nichts.
+Qualifikationsbezeichnungen laufen über dasselbe übernommene EFS-Mapping
+(`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten HiOrg-Listen werden
+nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach Nachweis gegen die
+echte API.
 
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig

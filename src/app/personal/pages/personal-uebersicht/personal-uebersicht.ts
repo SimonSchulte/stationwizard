@@ -14,7 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
   HIORG_ERGEBNIS_TEXTE,
@@ -42,6 +42,7 @@ import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbin
     MatTableModule,
     MatToolbarModule,
     MatTooltipModule,
+    RouterLink,
   ],
   templateUrl: './personal-uebersicht.html',
   styleUrl: './personal-uebersicht.less',

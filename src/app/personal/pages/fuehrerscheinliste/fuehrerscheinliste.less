@@ -1,0 +1,97 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+
+  white-space: normal;
+}
+
+.kopfleiste-icon {
+  color: var(--mat-sys-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.inhalt {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+h1 {
+  margin: 0 0 var(--space-xs);
+}
+
+.hinweis {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.fehler {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.leer {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.laden {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg) 0;
+  color: var(--text-secondary);
+}
+
+.verbinden {
+  max-width: 720px;
+}
+
+.werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.suche {
+  flex: 1 1 280px;
+  max-width: 480px;
+}
+
+.anzahl {
+  color: var(--text-secondary);
+}
+
+// Breite Tabelle kontrolliert horizontal scrollen statt die Seite zu verbreitern.
+.tabellenbereich {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.fuehrerschein-tabelle {
+  width: 100%;
+  min-width: 720px;
+}
+
+@media (max-width: 780px) {
+  .inhalt {
+    padding: var(--space-md);
+  }
+
+  .listen-kopfleiste .spacer {
+    display: none;
+  }
+}
