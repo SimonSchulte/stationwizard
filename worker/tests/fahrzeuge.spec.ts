@@ -256,6 +256,40 @@ describe('Ablesungen', () => {
     expect(koerper.erfasstAm).toBeTruthy();
   });
 
+  it('antwortet auf das Anhängen mit derselben Form wie die Liste, einschließlich gemeldetVonName', async () => {
+    // Die Clientprüfung verlangt jedes Feld; fehlte eines nur in der
+    // POST-Antwort, galt eine gespeicherte Ablesung als ungültig geliefert.
+    const db = new FakeFahrzeugeDb();
+    await legeAn(db);
+    const angelegt = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fahrzeugId: ID,
+          abgelesenAm: '2026-06-01',
+          stand: 1000,
+          quelle: 'formular',
+          korrigiert: null,
+          bemerkung: '',
+        }),
+      }),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    expect(angelegt.status).toBe(201);
+    const koerper = (await angelegt.json()) as Record<string, unknown>;
+    expect(koerper['gemeldetVonName']).toBe('');
+
+    const liste = await verarbeiteFahrzeuge(
+      anfrage(`/api/fahrzeuge/${ID}/ablesungen`),
+      { FAHRZEUGE_DB: db as never },
+      IDENTITAET,
+    );
+    const { ablesungen } = (await liste.json()) as { ablesungen: unknown[] };
+    expect(ablesungen).toEqual([koerper]);
+  });
+
   it('lehnt eine Ablesung für ein unbekanntes Fahrzeug ab', async () => {
     const db = new FakeFahrzeugeDb();
     const antwort = await verarbeiteFahrzeuge(

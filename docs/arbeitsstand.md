@@ -2358,3 +2358,22 @@ Anwenden von Migration 0010.
 - **Keine Prüftoken vergeben.** QR-Aufkleber für die zwölf Behälter sind ein gesonderter
   Schritt über die Oberfläche, sobald der Worker deployt ist.
 - Alle übrigen Abnahmegrenzen aus AP-M1 bis AP-M9 gelten unverändert weiter.
+
+## Fehlerbehebung – „Der Server hat eine ungültige Ablesung geliefert"
+
+Beim Speichern eines neuen Kilometerstands meldete die Oberfläche „Der Server hat eine
+ungültige Ablesung geliefert.", obwohl die Ablesung in D1 bereits gespeichert war.
+Ursache: `POST /api/fahrzeuge/<UUID>/ablesungen` baute seine Antwort als eigenes Objekt
+statt über `zuAblesungJson()`. Mit der öffentlichen Kilometermeldung (#53) kam
+`gemeldetVonName` hinzu; die Liste lieferte das Feld, die POST-Antwort nicht, und
+`istKilometerstand()` verlangt es. Die Antwort entsteht jetzt über `zuAblesungJson()`
+(`gemeldetVonName` leer), damit beide Wege nicht wieder auseinanderlaufen.
+
+Wer den Fehler gesehen und erneut gespeichert hat, hat die Ablesung wahrscheinlich
+doppelt angelegt; im Verlauf des Fahrzeugs prüfen und die Dublette gegebenenfalls löschen.
+
+Geprüft: neuer Fall in `worker/tests/fahrzeuge.spec.ts` (POST-Antwort gleich dem
+Listeneintrag, `gemeldetVonName` vorhanden) – ohne die Änderung rot, mit ihr grün.
+`npm run build` (inkl. `worker:check`), `npm test` (730 Angular-, 13 `oeffentlich`-,
+564 Worker-Tests), `npm run format:check`, `npm run worker:test` – alle grün. Am
+Produktivsystem nicht nachgeprüft.
