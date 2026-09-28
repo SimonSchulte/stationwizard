@@ -49,6 +49,46 @@ Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **W
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
+## HiOrg-Server-API (OAuth, optional)
+
+Zweiter HiOrg-Weg neben EFS: die HiOrg-Server-API (`api.hiorg-server.de`) mit
+OAuth2 Authorization Code. Jede Person verbindet ihr **eigenes** HiOrg-Konto; die
+Personalliste im PEP-Editor („Personal aus HiOrg-Server übernehmen") zeigt dann genau das
+Personal, das dieses HiOrg-Konto sehen darf. Ohne Einrichtung meldet der Dialog das
+ehrlich; EFS bleibt davon unberührt.
+
+1. **Redirect-URI:** Standard ist die bereits bei HiOrg registrierte Access-Callback-URI
+   `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback` (abgeleitet aus
+   `ACCESS_TEAM_DOMAIN`, keine weitere Einstellung). Die Anwendungsdomain wird HiOrg damit
+   nicht genannt. Ablauf („manuell"): In der App „HiOrg-Anmeldung in neuem Tab öffnen", bei
+   HiOrg anmelden; der Tab endet auf einer Fehlerseite von Cloudflare Access – das ist
+   erwartet, Access kennt diese Anmeldung nicht und löst den Code nicht ein. Die komplette
+   Adresse aus der Adresszeile (`…/cdn-cgi/access/callback?code=…&state=…`) zügig in das
+   Feld der App kopieren; der Worker prüft `state` und tauscht den Code. Danach erneuert der
+   Worker das Token selbst, das Kopieren ist nur beim ersten Verbinden bzw. nach Ablauf des
+   Refresh-Tokens nötig.
+   Optional („automatisch"): `https://<Domain>/hiorg/rueckruf` zusätzlich bei HiOrg
+   registrieren und genau diesen Wert als Laufzeitvariable `HIORG_SERVER_REDIRECT_URI` am
+   Worker setzen; dann leitet HiOrg direkt zur App zurück. Jede andere Adresse gilt als nicht
+   eingerichtet.
+   Wird HiOrg später **zusätzlich** als Anmeldeweg in Cloudflare Access eingetragen, teilt
+   sich dieser dieselbe Callback-URI; ob Access dann fremde Codes weiterhin unangetastet
+   lässt, ist ungeprüft.
+2. **Scopes:** `openid personal:read` – genau die freigegebenen; mehr fordert der Worker nicht an.
+3. **Secrets:** `HIORG_SERVER_CLIENTID` und `HIORG_SERVER_CLIENTSECRET`. Als klassische
+   Worker-Secrets (`wrangler secret put …`) gesetzt, braucht es keine weitere Zeile; liegen
+   sie im Secrets Store, die beiden vorbereiteten Blöcke in `worker/wrangler.toml`
+   einkommentieren (erst anlegen, dann einkommentieren, sonst scheitert der Deploy). Ein
+   neues Client-Secret macht alle gespeicherten Verbindungen unlesbar; sie werden beim
+   nächsten Abruf verworfen und müssen neu hergestellt werden.
+4. **D1-Migration** `worker/migrations/0011_hiorg_verbindungen.sql` auf `BENUTZER_DB`
+   anwenden (`wrangler d1 migrations apply stationwizard-benutzer --remote`, oder die Datei
+   über die D1-Konsole ausführen).
+
+Zugriffs- und Refresh-Token liegen ausschließlich AES-GCM-verschlüsselt in D1, an die
+geprüfte Access-E-Mail gebunden. HiOrg dokumentiert keinen Widerrufsendpunkt; „Verbindung
+trennen" verwirft das Token nur im Worker. Den Zugriff endgültig entzieht man in HiOrg.
+
 ## Mailversand des Kilometerstandsberichts (optional)
 
 Der Versand ist erst möglich, wenn ein Versandweg eingerichtet ist; alle zugehörigen Blöcke
@@ -228,6 +268,9 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | Nextcloud-Fehler                     | Freigabe, Token, Passwort und Schreibrechte prüfen, danach das Secrets-Store-Binding am Worker.                                             |
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
 | `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
+| `?hiorg=nicht-eingerichtet`          | `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET` oder `BENUTZER_DB` fehlen am Worker.                                                    |
+| `HIORG_CODE_ABGELEHNT`               | Anmeldecode abgelaufen oder schon benutzt: Anmeldung erneut öffnen und die Adresse zügig einfügen.                                          |
+| HiOrg lehnt die Anmeldung ab         | Die verwendete Redirect-URI ist bei HiOrg nicht registriert; `HIORG_SERVER_REDIRECT_URI` weglassen, um den Access-Callback zu nutzen.       |
 | `MAIL_VERSANDWEG_NICHT_EINGERICHTET` | Kein `MAIL_ABSENDER`, kein `send_email`-Binding beziehungsweise kein `MAIL_API_TOKEN` für den gewählten Weg.                                |
 | `MAIL_VERSAND_FEHLGESCHLAGEN`        | Der Anbieter hat abgelehnt – bei Email Routing meist eine nicht bestätigte Zieladresse. Details stehen nur im Betreiberlog.                 |
 | `KM_BERICHT_EMPFAENGER_FEHLT`        | Unter Verwaltung → Systemkonfiguration ist keine Empfängeradresse gespeichert.                                                              |

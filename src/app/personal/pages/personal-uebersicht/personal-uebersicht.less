@@ -1,0 +1,137 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+
+  white-space: normal;
+}
+
+.kopfleiste-icon {
+  color: var(--mat-sys-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.verbindungsstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-inline: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+
+  &.verbunden {
+    color: var(--status-ok);
+  }
+}
+
+.inhalt {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+h1 {
+  margin: 0 0 var(--space-md);
+}
+
+.rueckmeldung {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-lg);
+  padding: var(--space-sm) var(--space-base);
+  background: var(--warning-bg);
+  border-left: 4px solid var(--status-warn);
+  border-radius: var(--radius-sm);
+
+  &.erfolg {
+    background: var(--surface-secondary);
+    border-left-color: var(--status-ok);
+  }
+}
+
+.fehler {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.leer {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.laden {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg) 0;
+  color: var(--text-secondary);
+}
+
+.verbinden {
+  max-width: 720px;
+}
+
+.werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.suche {
+  flex: 1 1 280px;
+  max-width: 480px;
+}
+
+.anzahl {
+  color: var(--text-secondary);
+}
+
+// Breite Tabelle kontrolliert horizontal scrollen statt die Seite zu verbreitern.
+.tabellenbereich {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.personal-tabelle {
+  width: 100%;
+  min-width: 720px;
+}
+
+td a {
+  color: var(--mat-sys-primary);
+}
+
+.qualifikationen {
+  margin: 0;
+  padding: var(--space-xs) 0;
+  list-style: none;
+}
+
+@media (max-width: 780px) {
+  .inhalt {
+    padding: var(--space-md);
+  }
+
+  .listen-kopfleiste .spacer {
+    display: none;
+  }
+
+  .verbindungsstatus {
+    flex-basis: 100%;
+    margin-inline: 0;
+  }
+}

@@ -6,7 +6,7 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { DatePipe, formatDate } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,6 +22,7 @@ import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
+import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
 
 @Component({
@@ -44,6 +45,7 @@ import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
 export class PlanningList implements OnInit {
   private readonly store = inject(PlanungStoreService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly dialogDienst = inject(DialogDienst);
   private readonly saveLoad = inject(SaveLoadService);
   readonly efsApi = inject(EfsApiService);
@@ -78,7 +80,25 @@ export class PlanningList implements OnInit {
 
   readonly einsatzColumns = ['titel', 'datum_von', 'datum_bis', 'ort'];
 
+  /** Rückmeldung nach der HiOrg-Anmeldung (`/hiorg/rueckruf` leitet mit `?hiorg=` hierher). */
+  readonly hiorgRueckmeldung = signal('');
+  readonly hiorgVerbunden = signal(false);
+
   ngOnInit(): void {
+    const hiorg = this.route.snapshot.queryParamMap.get('hiorg');
+    if (hiorg !== null) {
+      this.hiorgRueckmeldung.set(
+        Object.hasOwn(HIORG_ERGEBNIS_TEXTE, hiorg)
+          ? HIORG_ERGEBNIS_TEXTE[hiorg]
+          : HIORG_ERGEBNIS_TEXTE['fehlgeschlagen'],
+      );
+      this.hiorgVerbunden.set(hiorg === 'verbunden');
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { hiorg: null },
+        replaceUrl: true,
+      });
+    }
     void this.cloud.listeLaden();
     void this.loadEfsEinsaetze();
   }

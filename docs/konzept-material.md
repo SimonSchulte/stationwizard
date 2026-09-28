@@ -81,7 +81,7 @@ Wartungsterminen gehört und im Modul bewusst noch nicht abgebildet ist.
 
 Die Regel steht ausführlich im Kommentar über dem `INSERT` in Migration 0010. **Seit dem
 2026-09-22 ist 0010 angewendet**; die Datei ist damit eingefroren, und eine Korrektur am
-Startbestand läuft über die Vorlagenpflege in der Oberfläche oder über eine Migration 0011 –
+Startbestand läuft über die Vorlagenpflege in der Oberfläche oder über eine weitere Migration –
 nicht mehr durch Ändern der Datei. Eine Markierung erzwingt keine Eingabe: ein nicht
 erfasstes Feld bleibt `null`, und der Check lässt sich trotzdem abschließen.
 

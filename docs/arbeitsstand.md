@@ -2278,7 +2278,7 @@ existierte; 0010 war nachweislich offen und kein zweites Mal angewendet worden.
 
 - **Migration 0010 ist ab jetzt eingefroren.** Bis eben durfte die Datei geändert werden
   (AP-M9 hat genau das getan); ab jetzt läuft jede Korrektur am Startbestand über die
-  Vorlagenpflege in der Oberfläche oder über eine Migration 0011. Die Regel für
+  Vorlagenpflege in der Oberfläche oder über eine weitere Migration. Die Regel für
   `verfallsdatumPflicht` ist mit dem Betreiber abgestimmt, die **einzelnen 125 Artikel** sind
   es nicht – Abweichungen sind künftig in der Oberfläche zu korrigieren.
 - **Kein Deployment.** Der produktiv laufende Worker ist weiterhin der alte, ohne
@@ -2377,3 +2377,76 @@ Listeneintrag, `gemeldetVonName` vorhanden) – ohne die Änderung rot, mit ihr 
 `npm run build` (inkl. `worker:check`), `npm test` (730 Angular-, 13 `oeffentlich`-,
 564 Worker-Tests), `npm run format:check`, `npm run worker:test` – alle grün. Am
 Produktivsystem nicht nachgeprüft.
+
+## HiOrg-Server-API als zweiter Weg neben EFS
+
+- Worker-Modul `worker/src/hiorg-api.ts`: OAuth2 Authorization Code gegen
+  `api.hiorg-server.de` (Scopes `openid personal:read`), Anmeldung über die Seitenpfade
+  `/hiorg/verbinden` und `/hiorg/rueckruf` (hinter Access, `state` als `__Host-`-Cookie),
+  Token AES-GCM-verschlüsselt je Access-E-Mail in `hiorg_verbindungen` (Migration 0011,
+  `BENUTZER_DB`), Erneuerung per Refresh-Token, `GET /api/hiorg/personal` mit fester
+  Feldauswahl (Name, Gruppen, Qualifikationen, Handy).
+- PEP-Editor: neuer Knopf „Personal aus HiOrg-Server übernehmen" mit Suche und Auswahl;
+  Übernahme in den Helferpool wie bei EFS (Dubletten am Namen). Qualifikationen über das
+  bestehende EFS-Mapping, jetzt gemeinsam in `qualifikation-zuordnung.ts`. Rückmeldung
+  nach der Anmeldung auf der Planungsübersicht.
+- **Blockierend offen:** Die bei HiOrg registrierte Redirect-URI ist die Cloudflare-Access-
+  Callback-URI. Damit bekommt der Worker kein Token; `https://hiorg-wache.com/hiorg/rueckruf`
+  muss bei HiOrg zusätzlich registriert werden (siehe docs/einrichtung.md). Außerdem
+  Migration 0010 anwenden und klären, ob die beiden Secrets klassisch oder im Secrets Store
+  liegen (Blöcke in `wrangler.toml` vorbereitet, auskommentiert).
+- Nicht nachgewiesen gegen die echte API: Token-Endpunkt mit `client_secret_post`,
+  Vollständigkeit von `/personal` ohne Paginierung, tatsächliche Form der
+  Qualifikationsbezeichnungen. Kein Test mit echtem HiOrg-Konto ausgeführt.
+- Geprüft: `npm run build` (inkl. `worker:check`), `npm test`, `npm run worker:test`,
+  `npm run test:spa`, `npm run deploy:dry-run`, `npm run format:check`. Sichtprüfung im
+  Headless-Chromium (Desktop 1400 px, Mobil 390 px) mit nachgebildeten API-Antworten:
+  Rückmeldung auf der Übersicht, Dialog, Auswahl und Übernahme in den Helferpool.
+
+## Modul Personal – Übersicht aus der HiOrg-Server-API
+
+- Neues Modul `src/app/personal/` (Route `/personal`, Navigation und Startseite): Seite
+  „Übersicht" ruft über `GET /api/hiorg/personal` das gesamte aktive Personal ab, das das
+  verbundene HiOrg-Konto sehen darf, und zeigt Name, Gruppen, Qualifikationen (Liste:
+  Bezeichnung (Kürzel)) und Handy als Tabelle mit Suche. Verbinden/Trennen direkt dort.
+  Dient zugleich als Prüfstand für die Anbindung.
+- `HiorgPersonalService` nach `src/app/kern/hiorg/` verschoben (von Einsatz und Personal
+  genutzt). Der Worker führt nach der Anmeldung über `?ziel=` (feste Liste
+  `einsatz`/`personal`, im HttpOnly-State-Cookie mitgeführt) ins startende Modul zurück.
+- Keine Speicherung im Browser, ein Abruf je Öffnen bzw. „Aktualisieren".
+- Geprüft: `npm run build`, `npm test`, `npm run worker:test`, `npm run test:spa`,
+  `npm run format:check`; Sichtprüfung im Headless-Chromium Desktop (1400 px) und Mobil
+  (390 px, Tabelle scrollt kontrolliert horizontal, Seite nicht) mit nachgebildeten
+  API-Antworten. Gegen die echte HiOrg-API weiterhin nicht geprüft (Redirect-URI,
+  Migration, Secrets siehe oben).
+
+## Migration 0011 (HiOrg-Verbindungen) angewendet
+
+- `worker/migrations/0011_hiorg_verbindungen.sql` am 2026-09-28 über die Cloudflare-D1-API
+  auf `stationwizard-benutzer` (`BENUTZER_DB`) ausgeführt, wie die bisherigen Migrationen
+  (keine `d1_migrations`-Buchführung in dieser Datenbank). Vorher geprüft: Tabelle fehlte;
+  danach vorhanden mit dem Schema aus der Datei, leer. Bestehende Tabellen `benutzer` und
+  `systemkonfiguration` unverändert.
+- Weiterhin offen: Redirect-URI bei HiOrg, Erreichbarkeit der beiden Secrets am Worker,
+  Deployment des Branches.
+
+## HiOrg-Anmeldung über den Access-Callback (manueller Rückruf)
+
+- Anlass: Bei HiOrg ist nur `https://damp-shape-13ee.cloudflareaccess.com/cdn-cgi/access/callback`
+  registriert, und die Anwendungsdomain soll HiOrg nicht genannt werden. Cloudflare Access
+  gibt IdP-Token laut Dokumentation nie an Anwendungen weiter; unter der Team-Domain läuft
+  kein eigener Code.
+- Umsetzung: Standard-Redirect-URI ist jetzt dieser Access-Callback (aus `ACCESS_TEAM_DOMAIN`).
+  Die HiOrg-Anmeldung öffnet sich in einem neuen Tab, endet auf der Access-Fehlerseite, und
+  die Person kopiert deren Adresse in die App. `POST /api/hiorg/verbindung/code` nimmt
+  ausschließlich genau diese URI an, prüft `state` gegen das HttpOnly-Cookie (verbraucht es
+  erst bei passendem `state`) und tauscht den Code. Der automatische Rückruf bleibt über
+  `HIORG_SERVER_REDIRECT_URI` wählbar. Gemeinsamer Baustein `kern/hiorg/hiorg-verbinden/`
+  für Personal und Einsatzplanung; `WorkerFehler` trägt jetzt den Diagnosecode.
+- Ungeprüft gegen echte Systeme: dass Access den ihm unbekannten Code tatsächlich nicht
+  einlöst und die Adresse sichtbar bleibt, wie lange HiOrg-Codes gültig sind, und das
+  Zusammenspiel mit einem später eingetragenen HiOrg-Anmeldeweg in Access.
+- Geprüft: `npm run build`, `npm test` (95 Angular-Testdateien, 600 Worker-Tests),
+  `npm run test:spa`, `npm run format:check`; Sichtprüfung im Headless-Chromium Desktop
+  und Mobil mit nachgebildeten API-Antworten (Schrittfolge, Fehlerhinweis bei falscher
+  Adresse, Tabelle nach erfolgreicher Verbindung).

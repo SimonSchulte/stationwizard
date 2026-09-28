@@ -289,6 +289,13 @@
           </button>
           <button
             mat-icon-button
+            matTooltip="Personal aus HiOrg-Server übernehmen"
+            (click)="openHiorgPersonalDialog()"
+          >
+            <mat-icon>badge</mat-icon>
+          </button>
+          <button
+            mat-icon-button
             (click)="toggleRoster()"
             [matTooltip]="rosterCollapsed() ? 'Roster einblenden' : 'Roster ausblenden'"
           >

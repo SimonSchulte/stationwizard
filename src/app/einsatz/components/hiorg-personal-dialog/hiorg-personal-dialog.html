@@ -1,0 +1,83 @@
+<h2 mat-dialog-title>Personal aus HiOrg-Server übernehmen</h2>
+
+<mat-dialog-content>
+  @if (laedt()) {
+    <div class="laden" role="status">
+      <mat-spinner diameter="32" />
+      <span>HiOrg-Personal wird geladen…</span>
+    </div>
+  } @else {
+    @if (fehler()) {
+      <p class="fehler" role="alert">{{ fehler() }}</p>
+    }
+    @switch (verbindung()) {
+      @case ('nicht-eingerichtet') {
+        <p class="hinweis">
+          Die HiOrg-Server-API ist am Server noch nicht eingerichtet. Die Übernahme über EFS-
+          Veranstaltungen bleibt davon unberührt.
+        </p>
+      }
+      @case ('getrennt') {
+        <app-hiorg-verbinden ziel="einsatz" (verbunden)="laden()" />
+      }
+      @case ('verbunden') {
+        <mat-form-field class="volle-breite">
+          <mat-label>Suchen</mat-label>
+          <input
+            matInput
+            [value]="suche()"
+            (input)="suche.set($any($event.target).value)"
+            placeholder="Name oder Gruppe"
+          />
+        </mat-form-field>
+        @if (personen().length === 0) {
+          <p class="leer">Der HiOrg-Server hat kein aktives Personal geliefert.</p>
+        } @else if (gefiltert().length === 0) {
+          <p class="leer">Keine Person passt zur Suche.</p>
+        } @else {
+          <ul class="personen">
+            @for (person of gefiltert(); track person.id) {
+              <li>
+                <mat-checkbox
+                  [checked]="auswahl().has(person.id)"
+                  [disabled]="schonVorhanden(person)"
+                  (change)="umschalten(person, $event.checked)"
+                >
+                  <span class="name">{{ person.nachname }} {{ person.vorname }}</span>
+                  @if (qualifikationen(person)) {
+                    <span class="details">{{ qualifikationen(person) }}</span>
+                  }
+                  @if (schonVorhanden(person)) {
+                    <span class="details">bereits in der Planung</span>
+                  }
+                </mat-checkbox>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (verbindung() === 'verbunden') {
+    <button mat-button (click)="trennen()" [disabled]="laedt()">Verbindung trennen</button>
+    <button mat-button (click)="alleSichtbarenWaehlen()" [disabled]="laedt()">
+      Alle sichtbaren wählen
+    </button>
+  }
+  <button mat-button (click)="dialogRef.close()">Abbrechen</button>
+  @if (verbindung() === 'verbunden') {
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="anzahlAuswahl() === 0"
+      (click)="uebernehmen()"
+    >
+      {{ anzahlAuswahl() }} übernehmen
+    </button>
+  } @else if (fehler() && !laedt()) {
+    <button mat-button (click)="laden()">Erneut versuchen</button>
+  }
+</mat-dialog-actions>
