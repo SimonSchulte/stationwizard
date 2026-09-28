@@ -13,6 +13,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { heuteIso } from '../../../kern/kalender/datum';
@@ -22,6 +23,10 @@ import {
   fuehrerscheindatumAnzeige,
   fuehrerscheinlisteCsv,
 } from '../../services/fuehrerscheinliste-csv';
+import {
+  fuehrerscheinnummerPruefzifferGueltig,
+  type PruefzifferErgebnis,
+} from '../../services/fuehrerschein-pruefziffer';
 
 const CSV_MEDIENTYP = 'text/csv;charset=utf-8';
 
@@ -46,6 +51,7 @@ const CSV_MEDIENTYP = 'text/csv;charset=utf-8';
     MatProgressSpinnerModule,
     MatTableModule,
     MatToolbarModule,
+    MatTooltipModule,
     RouterLink,
   ],
   templateUrl: './fuehrerscheinliste.html',
@@ -96,6 +102,11 @@ export class Fuehrerscheinliste implements OnInit {
 
   fuehrerscheindatum(person: HiorgPerson): string {
     return fuehrerscheindatumAnzeige(person.fahrerlaubnis?.fuehrerscheindatum);
+  }
+
+  /** Nur zur Anzeige vor dem Export, siehe `fuehrerschein-pruefziffer.ts`. */
+  pruefziffer(person: HiorgPerson): PruefzifferErgebnis {
+    return fuehrerscheinnummerPruefzifferGueltig(person.fahrerlaubnis?.fuehrerscheinnummer);
   }
 
   csvExportieren(): void {

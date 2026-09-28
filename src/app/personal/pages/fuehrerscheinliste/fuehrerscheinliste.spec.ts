@@ -59,5 +59,8 @@ describe('Fuehrerscheinliste', () => {
     expect(seite.gefiltert().map((p) => p.id)).toEqual(['b']);
     expect(seite.fuehrerscheindatum(seite.personen()[0])).toBe('01.11.1995');
     expect(seite.fuehrerscheindatum(seite.personen()[1])).toBe('');
+    // '7B9205K0C65' hat keine korrekte Prüfziffer (erwartet wäre 'X', nicht '6').
+    expect(seite.pruefziffer(seite.personen()[0])).toBe('ungueltig');
+    expect(seite.pruefziffer(seite.personen()[1])).toBeNull();
   });
 });

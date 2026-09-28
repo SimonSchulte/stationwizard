@@ -22,6 +22,12 @@
 <div class="inhalt">
   <h1>Führerscheinliste</h1>
   <p class="hinweis">Name, Vorname und die bei HiOrg erfasste Fahrerlaubnis je Person.</p>
+  <p class="hinweis">
+    <mat-icon class="pruefziffer gueltig" inline>check_circle</mat-icon> /
+    <mat-icon class="pruefziffer ungueltig" inline>cancel</mat-icon>
+    an der Führerscheinnummer zeigen, ob deren Prüfziffer stimmt (nur Anzeige, nicht Teil des
+    CSV-Exports).
+  </p>
 
   @if (fehler()) {
     <p class="fehler" role="alert">{{ fehler() }}</p>
@@ -90,7 +96,27 @@
               <ng-container matColumnDef="nummer">
                 <th mat-header-cell *matHeaderCellDef>Führerscheinnummer</th>
                 <td mat-cell *matCellDef="let person">
-                  {{ person.fahrerlaubnis?.fuehrerscheinnummer }}
+                  <span class="nummer-zelle">
+                    <span>{{ person.fahrerlaubnis?.fuehrerscheinnummer }}</span>
+                    @switch (pruefziffer(person)) {
+                      @case ('gueltig') {
+                        <mat-icon
+                          class="pruefziffer gueltig"
+                          matTooltip="Prüfziffer stimmt"
+                          aria-label="Prüfziffer stimmt"
+                          >check_circle</mat-icon
+                        >
+                      }
+                      @case ('ungueltig') {
+                        <mat-icon
+                          class="pruefziffer ungueltig"
+                          matTooltip="Prüfziffer stimmt nicht – Nummer bitte gegenprüfen"
+                          aria-label="Prüfziffer stimmt nicht"
+                          >cancel</mat-icon
+                        >
+                      }
+                    }
+                  </span>
                 </td>
               </ng-container>
               <ng-container matColumnDef="datum">
