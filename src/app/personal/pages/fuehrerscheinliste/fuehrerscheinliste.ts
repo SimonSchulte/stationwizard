@@ -15,29 +15,36 @@ import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { heuteIso } from '../../../kern/kalender/datum';
 import { HiorgPersonalService, type HiorgPerson } from '../../../kern/hiorg/hiorg-personal.service';
 import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
-import {
-  fuehrerscheindatumAnzeige,
-  fuehrerscheinlisteCsv,
-} from '../../services/fuehrerscheinliste-csv';
+import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import {
   fuehrerscheinnummerPruefzifferGueltig,
   type PruefzifferErgebnis,
 } from '../../services/fuehrerschein-pruefziffer';
-
-const CSV_MEDIENTYP = 'text/csv;charset=utf-8';
+import {
+  FUEHRERSCHEIN_DOKUMENT_MEDIENTYP,
+  fuehrerscheinDokumentFuellen,
+  type FuehrerscheinDokumentZeile,
+} from '../../services/fuehrerschein-dokument';
+import { fuehrerscheindatumAnzeige } from '../../services/fuehrerschein-anzeige';
+import {
+  FuehrerscheinVorlageService,
+  type FuehrerscheinVorlageMetadaten,
+} from '../../services/fuehrerschein-vorlage.service';
 
 /**
  * Führerscheinliste: dieselbe organisationsweite HiOrg-Personalabfrage wie
  * `PersonalUebersicht`, hier auf Name und Fahrerlaubnis zugeschnitten – mit
- * CSV-Export. Eigene Seite statt zusätzlicher Spalten in der allgemeinen
- * Übersicht, damit Führerscheinnummern dort nicht standardmäßig sichtbar
- * sind. Ein eigener Abruf beim Öffnen statt eines geteilten Zwischenspeichers:
- * die Daten sollen nicht länger als nötig im Speicher bleiben (siehe
- * `AbrufPuffer`-Dokumentation zur bewussten Nichtnutzung hier).
+ * Download als ausgefülltes Word-Dokument (aus der im Verwaltungsbereich
+ * hinterlegten Vorlage, siehe `fuehrerschein-vorlage.service.ts` und
+ * `fuehrerschein-dokument.ts`). Eigene Seite statt zusätzlicher Spalten in
+ * der allgemeinen Übersicht, damit Führerscheinnummern dort nicht
+ * standardmäßig sichtbar sind. Ein eigener Abruf beim Öffnen statt eines
+ * geteilten Zwischenspeichers: die Daten sollen nicht länger als nötig im
+ * Speicher bleiben (siehe `AbrufPuffer`-Dokumentation zur bewussten
+ * Nichtnutzung hier).
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,6 +66,7 @@ const CSV_MEDIENTYP = 'text/csv;charset=utf-8';
 })
 export class Fuehrerscheinliste implements OnInit {
   private readonly hiorg = inject(HiorgPersonalService);
+  private readonly vorlageDienst = inject(FuehrerscheinVorlageService);
 
   readonly spalten = ['name', 'klassen', 'beschraenkung', 'nummer', 'datum'];
   readonly verbindung = this.hiorg.verbindung;
@@ -66,6 +74,11 @@ export class Fuehrerscheinliste implements OnInit {
   readonly fehler = signal('');
   readonly personen = signal<HiorgPerson[]>([]);
   readonly suche = signal('');
+
+  readonly vorlage = signal<FuehrerscheinVorlageMetadaten | null>(null);
+  readonly vorlageLaedt = signal(false);
+  readonly dokumentWirdErstellt = signal(false);
+  readonly dokumentFehler = signal('');
 
   readonly gefiltert = computed(() => {
     const suche = this.suche().trim().toLocaleLowerCase('de');
@@ -77,8 +90,24 @@ export class Fuehrerscheinliste implements OnInit {
     );
   });
 
+  /** Nur Personen mit erfasster Führerscheinnummer – sonst gäbe es fürs Dokument nichts einzutragen. */
+  readonly dokumentZeilen = computed<FuehrerscheinDokumentZeile[]>(() =>
+    this.personen()
+      .map((person): FuehrerscheinDokumentZeile | null => {
+        const nummer = person.fahrerlaubnis?.fuehrerscheinnummer;
+        if (!nummer) return null;
+        return {
+          name: `${person.nachname}, ${person.vorname}`,
+          datum: fuehrerscheindatumAnzeige(person.fahrerlaubnis?.fuehrerscheindatum),
+          nummer,
+        };
+      })
+      .filter((zeile): zeile is FuehrerscheinDokumentZeile => zeile !== null),
+  );
+
   ngOnInit(): void {
     void this.laden();
+    void this.vorlageLaden();
   }
 
   async laden(): Promise<void> {
@@ -100,6 +129,21 @@ export class Fuehrerscheinliste implements OnInit {
     }
   }
 
+  async vorlageLaden(): Promise<void> {
+    this.vorlageLaedt.set(true);
+    try {
+      this.vorlage.set(await this.vorlageDienst.metadatenLaden());
+    } catch (fehler) {
+      this.dokumentFehler.set(
+        fehler instanceof Error
+          ? fehler.message
+          : 'Der Vorlagenstatus konnte nicht geladen werden.',
+      );
+    } finally {
+      this.vorlageLaedt.set(false);
+    }
+  }
+
   fuehrerscheindatum(person: HiorgPerson): string {
     return fuehrerscheindatumAnzeige(person.fahrerlaubnis?.fuehrerscheindatum);
   }
@@ -109,11 +153,24 @@ export class Fuehrerscheinliste implements OnInit {
     return fuehrerscheinnummerPruefzifferGueltig(person.fahrerlaubnis?.fuehrerscheinnummer);
   }
 
-  csvExportieren(): void {
-    dateiHerunterladen(
-      fuehrerscheinlisteCsv(this.personen()),
-      `fuehrerscheinliste-${heuteIso()}.csv`,
-      CSV_MEDIENTYP,
-    );
+  async dokumentHerunterladen(): Promise<void> {
+    if (this.dokumentWirdErstellt()) return;
+    this.dokumentWirdErstellt.set(true);
+    this.dokumentFehler.set('');
+    try {
+      const vorlage = await this.vorlageDienst.datenLaden();
+      const blob = await fuehrerscheinDokumentFuellen(vorlage, this.dokumentZeilen());
+      dateiHerunterladen(
+        blob,
+        `fuehrerscheinliste-${heuteIso()}.docx`,
+        FUEHRERSCHEIN_DOKUMENT_MEDIENTYP,
+      );
+    } catch (fehler) {
+      this.dokumentFehler.set(
+        fehler instanceof Error ? fehler.message : 'Das Dokument konnte nicht erstellt werden.',
+      );
+    } finally {
+      this.dokumentWirdErstellt.set(false);
+    }
   }
 }

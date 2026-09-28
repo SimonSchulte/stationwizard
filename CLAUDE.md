@@ -185,6 +185,8 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/hiorg/verbindung/code`                       | POST               | HiOrg-Server-API: kopierte Access-Callback-Adresse einlösen (manueller Rückruf)          |
 | `/api/hiorg/personal`                              | GET                | HiOrg-Server-API: aktives Personal, feste kleine Feldauswahl                             |
 | `/hiorg/verbinden`, `/hiorg/rueckruf`              | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                             |
+| `/api/personal/fuehrerschein-vorlage`              | GET / PUT          | Word-Vorlage der Führerscheinliste: Metadaten bzw. Ersetzen; Update nur mit `If-Match`   |
+| `/api/personal/fuehrerschein-vorlage/datei`        | GET                | Rohinhalt der Vorlage; der Worker liest ihn nie, er verwahrt sie nur                     |
 | `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
@@ -585,11 +587,42 @@ ausschließlich für die Führerscheinliste
 (`src/app/personal/pages/fuehrerscheinliste/`). `?ziel=` an `/hiorg/verbinden` wählt nur
 aus der festen Liste `einsatz`/`personal` das Rückkehrmodul. Gemeinsamer Client unter
 `kern/hiorg/hiorg-personal.service.ts`; das Modul Personal (`src/app/personal/`, Route
-`/personal`) zeigt die Liste und die Führerscheinliste nur an und speichert nichts.
+`/personal`) zeigt die HiOrg-Personaldaten nur an und speichert sie nie – die einzige
+Ausnahme ist die unten beschriebene Word-Vorlage, die selbst keine Personaldaten enthält.
 Qualifikationsbezeichnungen laufen über dasselbe übernommene EFS-Mapping
 (`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten HiOrg-Listen werden
 nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach Nachweis gegen die
 echte API.
+
+Die Führerscheinliste füllt beim Herunterladen eine im Verwaltungsbereich hinterlegte
+Word-Vorlage (`.docx`) mit Name, Führerscheindatum und -nummer je Person –
+`src/app/personal/services/fuehrerschein-dokument.ts` – statt eines eigenen CSV-Formats.
+Nur diese drei Spalten werden befüllt; die übrigen (Ausstellungsort, Fahrgastbeförderung,
+Prüfung, Unterschrift) bleiben für die Eintragung von Hand, wie der Bearbeitungshinweis der
+Vorlage es vorsieht. Die Vorlage trägt `w:documentProtection w:edit="forms"`: Word lässt
+Menschen darin nur die vorhandenen Formularfelder ausfüllen. Diese Sperre wirkt
+ausschließlich in Words eigener Bearbeitungsoberfläche, nie auf die zugrunde liegende
+ZIP/XML-Struktur – das Füllen selbst ersetzt gezielt den Ergebnislauf jedes betroffenen
+Legacy-Formularfelds (`w:ffData`/`FORMTEXT`, Text zwischen `fldCharType="separate"` und
+`fldCharType="end"`) durch einen neuen Lauf mit dem echten Wert; das Feld bleibt danach ein
+Feld, in geöffnetem Word weiterhin ausfüllbar. Das Füllen läuft bewusst im Browser
+(`kern/dateien/zip.ts`, ein eigener minimaler ZIP-Lese-/Schreibzugriff ohne Bibliothek wie
+`kern/text/csv.ts` – Lesen über `DecompressionStream('deflate-raw')`, Schreiben
+ausschließlich unkomprimiert), nicht im Worker: der Worker verwahrt die Vorlage nur binär,
+ohne sie je zu lesen. Aufgenommen werden nur Personen mit erfasster Führerscheinnummer –
+für alle anderen gäbe es nichts einzutragen.
+
+Die Vorlage selbst liegt als einzelne, versionierte Zeile (feste `id`) in
+`fuehrerschein_vorlage` (`BENUTZER_DB`, Migration 0012) –
+`worker/src/fuehrerschein-vorlage.ts`, `GET`/`PUT /api/personal/fuehrerschein-vorlage` für
+Metadaten bzw. Ersetzen (`If-Match`/`If-None-Match` wie bei der Excel-Arbeitsmappe),
+`GET …/datei` für den Rohinhalt. Ersetzen läuft im Verwaltungsbereich
+(`/verwaltung/fuehrerschein-vorlage`,
+`src/app/personal/pages/fuehrerschein-vorlage-verwaltung/`), mit Rückfrage vor dem
+Überschreiben einer bestehenden Vorlage; Rollenvergabe fehlt auch hier – dieselbe
+Übergangslösung „Rechte vorerst alle, Rollen später". `leseBegrenzt()`/`istZip()`
+(vormals nur in `nextcloud.ts`) stehen jetzt gemeinsam in `worker/src/binaer-lesen.ts`,
+damit der Upload nicht dieselbe Größenprüfung ein zweites Mal bekommt.
 
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig

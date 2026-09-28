@@ -9,13 +9,21 @@
     <button mat-stroked-button (click)="laden()" [disabled]="laedt()">
       <mat-icon>refresh</mat-icon> Aktualisieren
     </button>
-    <button
-      mat-flat-button
-      (click)="csvExportieren()"
-      [disabled]="laedt() || personen().length === 0"
-    >
-      <mat-icon>download</mat-icon> CSV exportieren
-    </button>
+    @if (vorlage()?.vorhanden) {
+      <button
+        mat-flat-button
+        (click)="dokumentHerunterladen()"
+        [disabled]="laedt() || dokumentWirdErstellt() || dokumentZeilen().length === 0"
+        matTooltip="Trägt Name, Führerscheindatum und -nummer in die hinterlegte Word-Vorlage ein"
+      >
+        @if (dokumentWirdErstellt()) {
+          <mat-progress-spinner diameter="18" mode="indeterminate" />
+        } @else {
+          <mat-icon>download</mat-icon>
+        }
+        Word-Dokument herunterladen
+      </button>
+    }
   }
 </mat-toolbar>
 
@@ -25,13 +33,24 @@
   <p class="hinweis">
     <mat-icon class="pruefziffer gueltig" inline>check_circle</mat-icon> /
     <mat-icon class="pruefziffer ungueltig" inline>cancel</mat-icon>
-    an der Führerscheinnummer zeigen, ob deren Prüfziffer stimmt (nur Anzeige, nicht Teil des
-    CSV-Exports).
+    an der Führerscheinnummer zeigen, ob deren Prüfziffer stimmt (nur Anzeige, wirkt sich nicht auf
+    das heruntergeladene Dokument aus).
   </p>
+
+  @if (!vorlageLaedt() && vorlage() && !vorlage()!.vorhanden) {
+    <p class="hinweis-vorlage" role="status">
+      Für den Word-Export ist noch keine Vorlage hinterlegt.
+      <a routerLink="/verwaltung/fuehrerschein-vorlage">Im Verwaltungsbereich hochladen</a>.
+    </p>
+  }
 
   @if (fehler()) {
     <p class="fehler" role="alert">{{ fehler() }}</p>
     <button mat-button (click)="laden()" [disabled]="laedt()">Erneut versuchen</button>
+  }
+
+  @if (dokumentFehler()) {
+    <p class="fehler" role="alert">{{ dokumentFehler() }}</p>
   }
 
   @if (laedt()) {
