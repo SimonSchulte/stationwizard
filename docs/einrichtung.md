@@ -81,7 +81,7 @@ ehrlich; EFS bleibt davon unberührt.
    einkommentieren (erst anlegen, dann einkommentieren, sonst scheitert der Deploy). Ein
    neues Client-Secret macht alle gespeicherten Verbindungen unlesbar; sie werden beim
    nächsten Abruf verworfen und müssen neu hergestellt werden.
-4. **D1-Migration** `worker/migrations/0011_hiorg_verbindungen.sql` auf `BENUTZER_DB`
+4. **D1-Migration** `worker/migrations/benutzer/0011_hiorg_verbindungen.sql` auf `BENUTZER_DB`
    anwenden (`wrangler d1 migrations apply stationwizard-benutzer --remote`, oder die Datei
    über die D1-Konsole ausführen).
 
@@ -194,7 +194,7 @@ Reihenfolge der Inbetriebnahme:
    Anwenden zeigte, dass 0001–0003 und 0006 auf `stationwizard-fahrzeuge` bereits vorhanden
    waren (0005 betrifft die getrennte `stationwizard-benutzer`-Datenbank und ist dort
    bereits angewendet); 0007 war die einzige noch offene Migration und wurde angewendet:
-   `npx wrangler d1 execute stationwizard-fahrzeuge --remote --file worker/migrations/0007_oeffentliche_meldung.sql`
+   `npx wrangler d1 execute stationwizard-fahrzeuge --remote --file worker/migrations/fahrzeuge/0007_oeffentliche_meldung.sql`
 2. ~~Migration 0010 anwenden~~ (Materialverwaltung) – **erledigt am 2026-09-22.** Eine
    Prüfabfrage vorab zeigte, dass keine der fünf Tabellen aus 0010 bestand. Angewendet über
    den Cloudflare-Connector statt über Wrangler, weil Wrangler in der Arbeitsumgebung nicht

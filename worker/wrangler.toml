@@ -17,29 +17,42 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
-# Fahrzeugmodul (AP-F2). Schema und Migrationen liegen unter worker/migrations/,
-# angewendet über die Cloudflare-D1-API. Domäne und Persistenz sind strikt
-# getrennt (siehe docs/konzept-fahrzeuge.md) – ein Wechsel bliebe auf diesen
-# Block und einen neuen Adapter begrenzt.
+# Fahrzeugmodul (AP-F2). Schema und Migrationen liegen unter
+# worker/migrations/fahrzeuge/. Domäne und Persistenz sind strikt getrennt
+# (siehe docs/konzept-fahrzeuge.md) – ein Wechsel bliebe auf diesen Block und
+# einen neuen Adapter begrenzt.
+#
+# Jede Datenbank hat ihr eigenes migrations_dir: die drei Datenbanken teilten
+# sich früher einen gemeinsamen Ordner ohne dieses Feld, bewusst, damit
+# `wrangler d1 migrations apply` nie versehentlich alle zwölf Dateien auf eine
+# einzige Datenbank wirft (siehe worker/README.md, historisch auch
+# docs/arbeitsstand.md, Eintrag „Migration 0010"). Mit eigenem migrations_dir
+# je Block sieht `migrations apply <BINDING>` nur noch die für genau diese
+# Datenbank bestimmten Dateien – das macht den Befehl endlich gefahrlos
+# nutzbar, ohne die eigentliche Trennung aufzugeben.
 [[d1_databases]]
 binding = "FAHRZEUGE_DB"
 database_name = "stationwizard-fahrzeuge"
 database_id = "698facb9-4c99-45de-8879-d262c2144144"
+migrations_dir = "migrations/fahrzeuge"
 
 # Benutzerverwaltung (AP-B1). Eigene D1-Datenbank statt FAHRZEUGE_DB, damit
-# die Fachdomänen getrennt bleiben; Schema in worker/migrations/0004_benutzer.sql.
+# die Fachdomänen getrennt bleiben; Schema in
+# worker/migrations/benutzer/0004_benutzer.sql.
 [[d1_databases]]
 binding = "BENUTZER_DB"
 database_name = "stationwizard-benutzer"
 database_id = "8d57d55d-8bd2-4701-bbbe-f25a4ee34fa9"
+migrations_dir = "migrations/benutzer"
 
 # Angebotswesen (AP-A1). Eigene D1-Datenbank, damit die Fachdomäne getrennt
-# bleibt; Schema in worker/migrations/0008_angebotswesen.sql, angelegt und
-# angewendet am 2026-09-20.
+# bleibt; Schema in worker/migrations/angebotswesen/0008_angebotswesen.sql,
+# angelegt und angewendet am 2026-09-20.
 [[d1_databases]]
 binding = "ANGEBOTSWESEN_DB"
 database_name = "stationwizard-angebotswesen"
 database_id = "a5fc7cbd-ad5e-4f07-a42d-5a23173a526a"
+migrations_dir = "migrations/angebotswesen"
 
 # Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
 [observability]
@@ -95,19 +108,18 @@ binding = "HIORGSERVER_CALENDER_FEED"
 store_id = "36762a3b5aa547bea7f547b1d66c30ee"
 secret_name = "HIORGSERVER_CALENDER_FEED"
 
-# HiOrg-Server-API (OAuth, worker/src/hiorg-api.ts). Nur nötig, wenn Client-ID
-# und Client-Secret im Secrets Store liegen; als klassische Worker-Secrets
-# (`wrangler secret put`) braucht es diese Blöcke nicht. Erst anlegen, dann
-# einkommentieren – ein Binding auf ein fehlendes Secret bricht den Deploy ab.
-# [[secrets_store_secrets]]
-# binding = "HIORG_SERVER_CLIENTID"
-# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-# secret_name = "HIORG_SERVER_CLIENTID"
-#
-# [[secrets_store_secrets]]
-# binding = "HIORG_SERVER_CLIENTSECRET"
-# store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-# secret_name = "HIORG_SERVER_CLIENTSECRET"
+# HiOrg-Server-API (OAuth, worker/src/hiorg-api.ts). Setzt voraus, dass
+# Client-ID und Client-Secret bereits im Secrets Store angelegt sind – ein
+# Binding auf ein fehlendes Secret bricht den Deploy ab.
+[[secrets_store_secrets]]
+binding = "HIORG_SERVER_CLIENTID"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORG_SERVER_CLIENTID"
+
+[[secrets_store_secrets]]
+binding = "HIORG_SERVER_CLIENTSECRET"
+store_id = "36762a3b5aa547bea7f547b1d66c30ee"
+secret_name = "HIORG_SERVER_CLIENTSECRET"
 
 # Mailversand des Kilometerstandsberichts (AP-S1).
 #

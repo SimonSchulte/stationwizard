@@ -9,4 +9,11 @@ export const personalRouten: Routes = [
         (modul) => modul.PersonalUebersicht,
       ),
   },
+  {
+    path: 'fuehrerscheine',
+    loadComponent: () =>
+      import('./pages/fuehrerscheinliste/fuehrerscheinliste').then(
+        (modul) => modul.Fuehrerscheinliste,
+      ),
+  },
 ];

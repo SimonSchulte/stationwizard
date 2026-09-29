@@ -4,7 +4,7 @@
  * dasselbe Kennzeichen; gespeichert und angezeigt wird immer der Rohwert.
  *
  * Verbindlich ist der gleichnamige Ausdruck der Datenbank – der eindeutige
- * Index aus `worker/migrations/0003_kennzeichen_eindeutig.sql` und die
+ * Index aus `worker/migrations/fahrzeuge/0003_kennzeichen_eindeutig.sql` und die
  * Vorabprüfung in `worker/src/fahrzeuge.ts`. Diese Fassung dient der Anzeige
  * und der Importvorschau; wird die Regel geändert, muss sie an allen drei
  * Stellen geändert werden.
