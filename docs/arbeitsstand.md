@@ -2523,3 +2523,64 @@ Systemkonfigurations-Tab „Kilometerübersicht" entsprechend umformuliert. `npm
   `npm run test:spa`, `npm run format:check`; Sichtprüfung im Headless-Chromium Desktop
   und Mobil mit nachgebildeten API-Antworten (Schrittfolge, Fehlerhinweis bei falscher
   Adresse, Tabelle nach erfolgreicher Verbindung).
+
+## Fuhrpark-Übersicht (Master/Detail): Mobilansicht nachgeprüft und zwei echte Umbruchfehler behoben
+
+Auftrag: die neue Master/Detail-Seite unter „Übersicht" (`FuhrparkUebersicht`,
+`fahrzeuge/components/fuhrpark-uebersicht/`) real im Browser auf mobile Tauglichkeit prüfen,
+nicht nur die Unit-Tests als Nachweis nehmen (siehe CLAUDE.md, „Darstellung").
+
+### Aufbau der Prüfung
+
+Kein angemeldeter Worker-Backend-Stand verfügbar; deshalb wie bei früheren Sichtprüfungen
+dieser Reihe ein **Attrappen-Server** (reines `node:http`, sechs Testfahrzeuge mit
+unterschiedlichen Ampelfarben, Eigentümern, einem sehr langen Bezeichnungstext und einem
+Fahrzeug ohne Laufleistungsvorgabe) hinter `ng serve --proxy-config`, angesteuert mit dem im
+Image vorinstallierten Headless-Chromium über `playwright-core` auf 1400×900 (Desktop) und
+390×844 (Mobil). Skripte und Attrappen-Server lagen außerhalb des Repositories und wurden
+nach der Prüfung gelöscht; nichts davon ist Teil dieses Commits.
+
+### Zwei echte Layoutfehler gefunden, nicht nur behauptet
+
+1. **`.detail` sprengte auf Mobil die Bildschirmbreite.** `.split` (Desktop: Liste und Detail
+   nebeneinander) setzt bewusst `align-items: flex-start`, damit beide Spalten nicht auf
+   gleiche Höhe gezwungen werden. Die Mobil-Media-Query kippt `.split` auf
+   `flex-direction: column`, wodurch dieselbe Eigenschaft plötzlich die **Querachse**
+   (Breite) betrifft: `.detail` schrumpfte auf seine Inhaltsbreite statt auf volle Breite,
+   nicht umbrechender Inhalt (die Kilometerzeile) sprengte diese Breite messbar über den
+   sichtbaren Bereich hinaus, und `mat-tab-body-wrapper`s eigenes `overflow: hidden`
+   schnitt den Überstand lautlos ab – sichtbar als abgeschnittenes „1200 km Res(t)" ganz
+   ohne Fehlermeldung oder Layout-Bruch, der ohne genaues Hinsehen aufgefallen wäre. Fund
+   per `getBoundingClientRect()` bestätigt (`.detail` rechter Rand bei 398 px auf 390 px
+   Viewport), nicht nur vom Augenschein. Behoben durch `align-items: stretch` in der
+   Mobil-Media-Query auf `.split`; das bisherige `.master { width: 100% }` war nur ein
+   Teil-Pflaster dafür und ist jetzt überflüssig (entfernt).
+2. **Termin- und Detailkopf-Zeile ohne Umbruch.** `.detail-kopf` (Titel + „Stammdaten
+   bearbeiten") und `.termin-zeile` (Ampelpunkt, Bezeichnung, Fälligkeitstext, „Erledigt
+   melden") hatten kein `flex-wrap`; bei langer Fahrzeugbezeichnung bzw. auf schmalem
+   Bildschirm quetschte sich der Knopf in dieselbe Zeile und brach selbst zweizeilig um,
+   statt komplett in die nächste Zeile zu rutschen. Beide Regeln erhalten jetzt
+   `flex-wrap: wrap`; der Knopf bleibt über `flex-shrink: 0` und `white-space: nowrap`
+   einzeilig und rutscht als Ganzes um.
+
+Zusätzlich das Kilometer-Schnellformular-Label von „Neuer Kilometerstand" auf
+„Kilometerstand" gekürzt (wie im bestehenden `km-erfassung.html`) – bei 160 px Feldbreite
+kollidierte der lange Text mit dem `km`-Suffix zu „Kilometerkm".
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Sichtprüfung im echten Headless-Chromium auf 1400×900 und 390×844, gegen den
+  Attrappen-Server: Master/Detail-Auswahl, Eigentümer-Filter-Pillen, Fahrzeug ohne
+  Laufleistungsvorgabe, sehr lange Fahrzeugbezeichnung. Kein horizontaler Seiten- oder
+  `.detail`-Überlauf mehr (`scrollWidth`/`clientWidth` gleich, `.detail`-Randmessung
+  innerhalb des Viewports) nach der Korrektur, vorher gemessen und belegt.
+- Echte Interaktion gegen den Attrappen-Server (inklusive `PUT /api/fahrzeuge/<id>`, nicht
+  nur optimistisches UI): Kilometerstand erfassen aktualisiert Bilanz und Bestätigungstext,
+  „Erledigt melden" entfernt den Knopf der betroffenen Zeile, „Neuer Termin" fügt einen
+  einsortierten Termin ein und leert danach beide Formularfelder – auf Desktop **und**
+  Mobil gleich geprüft.
+- `npm run build` (inkl. `worker:check`), `npm test` (864 Angular-, 29 `oeffentlich`-,
+  752 Worker-Tests), `npm run format:check` – alle grün, keine Testanpassung nötig (reine
+  CSS-/Label-Korrektur, kein Verhaltenswechsel).
+- Weiterhin **kein Lauf gegen ein echtes Telefon**, nur emuliertes Chromium auf 390×844, und
+  kein Lauf gegen den echten Worker/D1-Stand.

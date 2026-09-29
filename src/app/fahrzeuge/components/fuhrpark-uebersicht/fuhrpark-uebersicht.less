@@ -182,11 +182,25 @@
 .detail-kopf {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-md);
   padding-bottom: var(--space-md);
   border-bottom: 1px solid var(--border-light);
   margin-bottom: var(--space-lg);
+
+  // Der Titel darf mehrzeilig umbrechen; der Knopf bleibt einzeilig und
+  // rutscht bei knappem Platz komplett in die nächste Zeile, statt sich mit
+  // dem Titel eine Zeile zu teilen und dabei selbst umzubrechen.
+  > a {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+.detail-kopf-info {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .detail-titel {
@@ -297,7 +311,8 @@
 .termin-zeile {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
   padding: var(--space-sm) 0;
   border-bottom: 1px solid var(--border-light);
   font-size: 0.875rem;
@@ -361,11 +376,17 @@
 @media (max-width: 780px) {
   .split {
     flex-direction: column;
+    // Die Basisregel setzt hier bewusst `align-items: flex-start`, damit
+    // Liste und Detail im Desktop-Nebeneinander nicht auf gleiche Höhe
+    // gestreckt werden. In der gestapelten Mobilansicht ist das die
+    // Querachse (Breite): ohne `stretch` schrumpfen beide Spalten auf ihre
+    // Inhaltsbreite, und nicht umbrechender Inhalt (z. B. die Kilometerzeile)
+    // sprengt dann die Breite des sichtbaren Bereichs, statt zu umbrechen.
+    align-items: stretch;
   }
 
   .master {
     flex: 1 1 auto;
-    width: 100%;
     max-height: 40vh;
   }
 

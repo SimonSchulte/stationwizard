@@ -80,7 +80,7 @@
 
     @if (ausgewaehltesFahrzeug(); as fahrzeug) {
       <header class="detail-kopf">
-        <div>
+        <div class="detail-kopf-info">
           <h2 class="detail-titel">{{ fahrzeug.bezeichnung }}</h2>
           <div class="detail-meta">
             <span class="tag-chip tag-zusatz">{{
@@ -130,7 +130,7 @@
                 />
               </mat-form-field>
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-km">
-                <mat-label>Neuer Kilometerstand</mat-label>
+                <mat-label>Kilometerstand</mat-label>
                 <input
                   matInput
                   type="number"
