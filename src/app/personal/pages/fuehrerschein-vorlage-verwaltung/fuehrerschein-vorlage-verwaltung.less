@@ -1,0 +1,94 @@
+@import '../../../kern/kopfleiste.less';
+
+.kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--mat-sys-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.inhalt {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.beschreibung {
+  color: var(--text-secondary);
+  max-width: 720px;
+}
+
+.abschnitt {
+  margin: var(--space-lg) 0;
+  padding: var(--space-base);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+
+  h2 {
+    margin: 0 0 var(--space-sm);
+  }
+}
+
+.fehler {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.erfolg {
+  color: var(--status-ok);
+  padding: var(--space-sm) 0;
+}
+
+.leer {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.laden {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg) 0;
+  color: var(--text-secondary);
+}
+
+.datei-feld {
+  display: inline-block;
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+}
+
+.datei-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.datei-feld input:focus-visible + .datei-knopf {
+  outline: 2px solid var(--ci-blue);
+  outline-offset: var(--space-2xs);
+}
+
+.dateiname {
+  margin: var(--space-sm) 0;
+}

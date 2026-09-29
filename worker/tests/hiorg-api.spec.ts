@@ -86,6 +86,12 @@ function person(attribute: Record<string, unknown> = {}): Record<string, unknown
       gebdat: '2000-01-01',
       allerg_intol: ['soja'],
       benutzerdefinierte_felder: [{ id: 'user1', name: 'Feld', wert: 'geheim' }],
+      fahrerlaubnis: {
+        klassen: ['AM', 'B', 'B96', 'BE', 'L'],
+        beschraenkung: 'C1 171',
+        fuehrerscheinnummer: '7B9205K0C65',
+        fuehrerscheindatum: '1995-11-01',
+      },
       ...attribute,
     },
   };
@@ -336,12 +342,38 @@ describe('HiOrg-API: Personal', () => {
             { liste: 'med. Qualifikation', name: 'Rettungssanitäter/in', kurz: 'RS' },
           ],
           telefon: '+49000000000',
+          fahrerlaubnis: {
+            klassen: ['AM', 'B', 'B96', 'BE', 'L'],
+            beschraenkung: 'C1 171',
+            fuehrerscheinnummer: '7B9205K0C65',
+            fuehrerscheindatum: '1995-11-01',
+          },
         },
       ],
     });
     for (const verboten of ['DE000', 'Erfundene Straße', '2000-01-01', 'soja', 'geheim']) {
       expect(text).not.toContain(verboten);
     }
+  });
+
+  it('meldet eine fehlende Fahrerlaubnis als null statt sie zu erfinden', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(Response.json({ data: [person({ fahrerlaubnis: null })] }));
+    const antwort = await verarbeiteHiorgApi(personalAnfrage(), umgebung, BENUTZER);
+    const { personen } = JSON.parse(await antwort.text()) as {
+      personen: { fahrerlaubnis: unknown }[];
+    };
+    expect(personen[0].fahrerlaubnis).toBeNull();
+  });
+
+  it('verwirft eine unerwartet geformte Fahrerlaubnis vollständig', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(
+      Response.json({ data: [person({ fahrerlaubnis: { klassen: 'B' } })] }),
+    );
+    const antwort = await verarbeiteHiorgApi(personalAnfrage(), umgebung, BENUTZER);
+    expect(antwort.status).toBe(502);
+    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_API_ANTWORT_UNGUELTIG');
   });
 
   it('verwirft eine unerwartet geformte Antwort vollständig', async () => {

@@ -119,7 +119,7 @@ export class InMemoryFahrzeugStorage implements FahrzeugStorage {
 
   /**
    * Bildet den eindeutigen Index auf dem Kennzeichen nach
-   * (`worker/migrations/0003_kennzeichen_eindeutig.sql`). Wie dort bleibt ein
+   * (`worker/migrations/fahrzeuge/0003_kennzeichen_eindeutig.sql`). Wie dort bleibt ein
    * leeres Kennzeichen mehrfach erlaubt.
    */
   private kennzeichenVergeben(kennzeichen: string, eigeneId: string): boolean {

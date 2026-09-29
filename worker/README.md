@@ -185,8 +185,8 @@ Alle Endpunkte benötigen die verifizierte Anmeldung – mit Ausnahme der drei P
 
 `FAHRZEUGE_DB` bindet die D1-Datenbank `stationwizard-fahrzeuge`
 (`698facb9-4c99-45de-8879-d262c2144144`, siehe `[[d1_databases]]` in
-`wrangler.toml`). Schema in `worker/migrations/0001_fahrzeuge.sql`, angewendet über die
-Cloudflare-D1-API. Ohne dieses Binding antwortet `/api/fahrzeuge*` mit 503
+`wrangler.toml`). Schema in `worker/migrations/fahrzeuge/0001_fahrzeuge.sql`, angewendet über
+die Cloudflare-D1-API. Ohne dieses Binding antwortet `/api/fahrzeuge*` mit 503
 (`FAHRZEUGE_KONFIGURATION_FEHLT`) statt eines Absturzes.
 
 Domäne (`src/app/fahrzeuge/`) und Persistenz (`worker/src/fahrzeuge.ts`,
@@ -203,13 +203,13 @@ der Serverzeit; ein gleichnamiges Feld im Anfragekörper wird verworfen.
 
 Jede Anlage, Stammdaten-/Wartungsänderung sowie Kilometererfassung/-löschung erzeugt
 serverseitig einen Eintrag im Änderungsprotokoll (`fahrzeug_aenderungen`,
-`worker/migrations/0002_fahrzeug_aenderungen.sql`). Die Beschreibung entsteht aus dem
+`worker/migrations/fahrzeuge/0002_fahrzeug_aenderungen.sql`). Die Beschreibung entsteht aus dem
 tatsächlichen Unterschied zum vorherigen Stand (`diffFahrzeug` in `worker/src/fahrzeuge.ts`),
 nie aus einer Client-Eingabe; es gibt keinen Endpunkt, über den ein Client selbst einen
 Eintrag schreiben könnte.
 
 Jedes Kennzeichen darf es nur einmal geben. Verbindlich ist der eindeutige Index aus
-`worker/migrations/0003_kennzeichen_eindeutig.sql` auf einer Vergleichsform des
+`worker/migrations/fahrzeuge/0003_kennzeichen_eindeutig.sql` auf einer Vergleichsform des
 Kennzeichens (Großschreibung ohne Leerzeichen, Bindestriche und Punkte), damit
 „ME-XX 123" und „me xx123" dasselbe Kennzeichen sind. Der Worker prüft vorab und
 antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`; verliert er das Rennen gegen eine
@@ -223,36 +223,53 @@ Vergleichsform geändert, muss das an drei Stellen gemeinsam geschehen – Migra
 Doubletten enthält, sonst scheitert die Migration. Die passende Abfrage steht als
 Kommentar in der Migrationsdatei.
 
-Migrationen werden nicht automatisch angewendet (kein `wrangler d1 migrations apply`,
-kein CI-Schritt) – jede neue Datei in `worker/migrations/` muss hier **und** gegen die
-bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden.
-`migrations apply` ist dabei kein Versehen, sondern ausgeschlossen: die Dateien gehören zu
-**drei** Datenbanken, und `wrangler.toml` setzt deshalb bewusst kein `migrations_dir` – ein
-`migrations apply` würde alle Dateien auf eine einzige Datenbank werfen. Ein
-Vergessen bleibt sonst unbemerkt: `SELECT *` liefert weiterhin Zeilen, nur ohne die neue
-Spalte, und eine clientseitige Prüfung kann dadurch scheinbar leere Listen zeigen, obwohl
-die Daten unverändert in D1 liegen.
+**Bis 2026-09-29** wurden Migrationen nicht automatisch angewendet (kein
+`wrangler d1 migrations apply`, kein CI-Schritt): die zwölf Dateien lagen alle in einem
+einzigen `worker/migrations/`, aber gehören zu **drei** Datenbanken, und `wrangler.toml`
+setzte deshalb bewusst kein `migrations_dir` – ein `migrations apply` hätte sonst alle
+Dateien auf eine einzige Datenbank geworfen. Jede neue Datei musste stattdessen von Hand
+gegen die bestehende Produktionsdatenbank per `wrangler d1 execute --file` ergänzt werden.
+
+Seitdem liegt jede Migration unter `worker/migrations/<datenbank>/` (`fahrzeuge/`,
+`benutzer/`, `angebotswesen/`), und jeder `[[d1_databases]]`-Block in `wrangler.toml` trägt
+ein eigenes `migrations_dir`, das genau auf seinen Unterordner zeigt. Damit sieht
+`wrangler d1 migrations apply <BINDING>` nur noch die für diese eine Datenbank bestimmten
+Dateien – der Befehl ist jetzt der empfohlene Weg, lokal wie mit `--remote`. Die
+Dateinamen selbst (`0001_fahrzeuge.sql` usw.) sind unverändert geblieben, nur der Ordner hat
+sich geändert – wranglers Buchführungstabelle `d1_migrations` verfolgt Migrationen über den
+Dateinamen, ein Umbenennen hätte sie sonst durcheinandergebracht. Für die drei
+Produktivdatenbanken wurde die Buchführung am 2026-09-29 nachträglich angelegt (bis dahin
+gab es dort keine `d1_migrations`-Tabelle, siehe `docs/arbeitsstand.md`) und auf die jeweils
+tatsächlich zutreffenden Dateien beschränkt.
 
 Ist Wrangler nicht angemeldet (in einer Arbeitsumgebung ohne interaktiven Browser lässt
-sich `wrangler login` nicht ausführen), lässt sich eine Migration auch über den
+sich `wrangler login` nicht ausführen), lässt sich eine Migration weiterhin über den
 Cloudflare-Connector anwenden – Anweisung für Anweisung, weil die D1-Query-API mehrere
 Anweisungen sequenziell und nicht atomar ausführt und die Migrationen nicht idempotent sind
 (`CREATE TABLE` ohne `IF NOT EXISTS`). Große Textwerte dabei als gebundenen Parameter
-übergeben statt als SQL-Literal. Der Weg über `d1 execute --file` bleibt der führende; so
-wurde 0010 am 2026-09-22 angewendet, siehe `docs/arbeitsstand.md`.
+übergeben statt als SQL-Literal; und nach einer so angewendeten Migration einen passenden
+`INSERT INTO d1_migrations (name) VALUES ('…')` ergänzen, damit ein späteres
+`migrations apply` sie nicht ein zweites Mal versucht.
 
 Eine neue D1-Datenbank für eine erneute Einrichtung anlegen:
 
 ```bash
 npx wrangler d1 create stationwizard-fahrzeuge --config worker/wrangler.toml
+npx wrangler d1 migrations apply FAHRZEUGE_DB --remote --config worker/wrangler.toml
+```
+
+Das wendet automatisch alle Dateien aus `worker/migrations/fahrzeuge/` in Reihenfolge an.
+Ohne Wrangler-Anmeldung gehen die vier Dateien einzeln:
+
+```bash
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
-  --file worker/migrations/0001_fahrzeuge.sql
+  --file worker/migrations/fahrzeuge/0001_fahrzeuge.sql
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
-  --file worker/migrations/0002_fahrzeug_aenderungen.sql
+  --file worker/migrations/fahrzeuge/0002_fahrzeug_aenderungen.sql
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
-  --file worker/migrations/0003_kennzeichen_eindeutig.sql
+  --file worker/migrations/fahrzeuge/0003_kennzeichen_eindeutig.sql
 npx wrangler d1 execute stationwizard-fahrzeuge --remote --config worker/wrangler.toml \
-  --file worker/migrations/0006_fahrzeug_gruppe.sql
+  --file worker/migrations/fahrzeuge/0006_fahrzeug_gruppe.sql
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block von `wrangler.toml`
@@ -262,7 +279,7 @@ eintragen.
 
 `BENUTZER_DB` bindet eine eigene D1-Datenbank `stationwizard-benutzer` (getrennt von
 `FAHRZEUGE_DB`, damit die Fachdomänen getrennt bleiben). Schema in
-`worker/migrations/0004_benutzer.sql`. Ohne dieses Binding antwortet
+`worker/migrations/benutzer/0004_benutzer.sql`. Ohne dieses Binding antwortet
 `/api/benutzerverwaltung*` mit 503 (`BENUTZERVERWALTUNG_KONFIGURATION_FEHLT`) statt eines
 Absturzes; `/api/benutzer` (eigene E-Mail-Adresse) funktioniert unverändert weiter, merkt
 sich den Zugriff dann nur nicht vor.
@@ -280,10 +297,7 @@ Angelegt und Migration angewendet (`database_id` `8d57d55d-8bd2-4701-bbbe-f25a4e
 
 ```bash
 npx wrangler d1 create stationwizard-benutzer --config worker/wrangler.toml
-npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler.toml \
-  --file worker/migrations/0004_benutzer.sql
-npx wrangler d1 execute stationwizard-benutzer --remote --config worker/wrangler.toml \
-  --file worker/migrations/0005_systemkonfiguration.sql
+npx wrangler d1 migrations apply BENUTZER_DB --remote --config worker/wrangler.toml
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER_DB` in
@@ -293,8 +307,9 @@ Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `BENUTZER
 
 `ANGEBOTSWESEN_DB` bindet eine eigene D1-Datenbank `stationwizard-angebotswesen` (getrennt
 von `FAHRZEUGE_DB`/`BENUTZER_DB`, damit die Fachdomäne getrennt bleibt). Schema in
-`worker/migrations/0008_angebotswesen.sql`, zwei Tabellen: `preiskatalog_eintraege` und
-`angebote`. Ohne dieses Binding antwortet `/api/angebotswesen*` mit 503
+`worker/migrations/angebotswesen/0008_angebotswesen.sql`, zwei Tabellen:
+`preiskatalog_eintraege` und `angebote`. Ohne dieses Binding antwortet
+`/api/angebotswesen*` mit 503
 (`ANGEBOTSWESEN_KONFIGURATION_FEHLT`) statt eines Absturzes.
 
 Der Preiskatalog (`src/app/angebotswesen/pages/preiskatalog/`) ist eine frei erweiterbare
@@ -338,7 +353,7 @@ strukturell (`bis > von`, `stunden` nur bei `art === 'einsatzkraft'` usw.), rech
 nichts nach. Eine Schicht lässt sich im Editor duplizieren (eigene Ids für Kopie und alle
 Positionen, direkt hinter dem Original einsortiert). Neben dem Pauschalpreis gibt es eine
 Materialpauschale pro Dienst (`materialpauschaleAktiv`/`materialpauschaleCent`, Spalten aus
-`worker/migrations/0009_angebot_materialpauschale.sql`, per `ALTER TABLE` zur bereits
+`worker/migrations/angebotswesen/0009_angebot_materialpauschale.sql`, per `ALTER TABLE` zur bereits
 angelegten `angebote`-Tabelle ergänzt): sie ersetzt nichts, sondern fließt als zusätzliche,
 einmalige Position immer in die rechnerische Summe ein – auch wenn der Pauschalpreis danach
 die Gesamtsumme ersetzt. Ein optionaler Pauschalpreis (`pauschalpreisAktiv`/
@@ -357,10 +372,7 @@ Verfügung). Für eine erneute Einrichtung an anderer Stelle:
 
 ```bash
 npx wrangler d1 create stationwizard-angebotswesen --config worker/wrangler.toml
-npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
-  --file worker/migrations/0008_angebotswesen.sql
-npx wrangler d1 execute stationwizard-angebotswesen --remote --config worker/wrangler.toml \
-  --file worker/migrations/0009_angebot_materialpauschale.sql
+npx wrangler d1 migrations apply ANGEBOTSWESEN_DB --remote --config worker/wrangler.toml
 ```
 
 Die zurückgegebene `database_id` in den `[[d1_databases]]`-Block für `ANGEBOTSWESEN_DB` in

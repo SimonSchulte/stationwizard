@@ -11,6 +11,9 @@
     }}</span>
   </span>
   @if (verbindung() === 'verbunden') {
+    <button mat-stroked-button routerLink="/personal/fuehrerscheine">
+      <mat-icon>badge</mat-icon> Führerscheinliste
+    </button>
     <button mat-stroked-button (click)="laden()" [disabled]="laedt()">
       <mat-icon>refresh</mat-icon> Aktualisieren
     </button>

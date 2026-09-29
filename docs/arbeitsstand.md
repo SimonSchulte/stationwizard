@@ -2457,8 +2457,9 @@ Produktivsystem nicht nachgeprüft.
   Kopfleiste, Seitentitel), Route `/kalender`; `/ausbildung` leitet dorthin weiter. Der Code
   bleibt unter `src/app/ausbildung/`.
 - **Datenhaltung:** Neue D1-Datenbank `stationwizard-kalender` (`KALENDER_DB`, Region WEUR,
-  am 2026-09-29 über den Cloudflare-Connector angelegt), Migration `0012_kalender.sql` remote
-  angewendet und per `sqlite_master` belegt (`kalender_ideen`, `kalender_jahre`, beide leer).
+  am 2026-09-29 über den Cloudflare-Connector angelegt), Migration `worker/migrations/kalender/0012_kalender.sql` remote
+  angewendet, in `d1_migrations` eingetragen (Buchführung wie bei den anderen drei
+  Datenbanken) und per `sqlite_master` belegt (`kalender_ideen`, `kalender_jahre`, beide leer).
   Worker-Modul `worker/src/kalender-planung.ts` (der Name `kalender.ts` ist durch die
   Berliner Kalendertag-Hilfe belegt). Ein Lesezugriff liefert alle Jahre und die Ideen samt
   Versionen; gespeichert wird je geändertem Jahr bzw. für die Ideen, mit `If-Match`
@@ -2502,3 +2503,49 @@ Produktivsystem nicht nachgeprüft.
   Ende des scrollbaren Inhaltsbereichs statt fest am unteren Rand, weil `main` in der
   App-Hülle keine feste Höhe hat. Das bestand schon vor dieser Änderung; mit dem höheren
   Leerzustandshinweis wird es sichtbar (Navigation 38 px unter dem Bildschirmrand).
+
+## Migration 0012 (Führerschein-Vorlage) angewendet, migrations_dir je Datenbank eingeführt – 2026-09-29
+
+- `worker/migrations/0012_fuehrerschein_vorlage.sql` über die Cloudflare-D1-API auf
+  `stationwizard-benutzer` (`BENUTZER_DB`) ausgeführt: Vorher geprüft, dass die Tabelle
+  fehlte; danach vorhanden mit dem Schema aus der Datei, leer. Bestehende Tabellen
+  unverändert. Per BLOB-Rundlauf (`wrangler d1 execute --local`) zusätzlich geprüft, dass
+  D1 den binären Dateiinhalt unverändert zurückgibt.
+- Dabei aufgefallen: keine der drei Produktivdatenbanken trug bis dahin eine
+  `d1_migrations`-Buchführungstabelle – konsistent mit der in „Migration 0010" und
+  `worker/README.md` dokumentierten Entscheidung, `wrangler d1 migrations apply` bewusst
+  nicht zu nutzen. Zunächst wurde diese Tabelle in allen drei Datenbanken nachträglich
+  angelegt und zunächst mit allen zwölf Dateinamen befüllt (unabhängig davon, ob die Datei
+  zu dieser Datenbank gehört) – als Schutz gegen ein versehentliches `migrations apply`, das
+  sonst versucht hätte, fremde Migrationen nachzuholen.
+- **Architekturentscheidung revidiert, auf ausdrücklichen Wunsch:** Die Begründung für „kein
+  `migrations_dir`" war die gemeinsame Nutzung eines einzigen `worker/migrations/` durch
+  drei Datenbanken. Das ist jetzt aufgelöst: die zwölf Dateien liegen unverändert benannt in
+  `worker/migrations/fahrzeuge/`, `worker/migrations/benutzer/` beziehungsweise
+  `worker/migrations/angebotswesen/`, und jeder `[[d1_databases]]`-Block in
+  `worker/wrangler.toml` trägt ein eigenes `migrations_dir`. Lokal geprüft
+  (`wrangler d1 migrations apply <BINDING> --local` für alle drei Bindings): jede Datenbank
+  sieht jetzt ausschließlich die für sie bestimmten Dateien. Die produktive
+  `d1_migrations`-Buchführung wurde anschließend wieder auf die tatsächlich zutreffenden
+  Dateinamen je Datenbank gekürzt. `wrangler d1 migrations apply <BINDING> --remote` gilt ab
+  jetzt als der empfohlene Weg für neue Migrationen; `d1 execute --file` beziehungsweise der
+  Cloudflare-Connector bleiben Ausweichwege ohne Wrangler-Anmeldung.
+- `worker/README.md` und die Pfadangaben in `CLAUDE.md`, `docs/konzept-fahrzeuge.md`,
+  `docs/konzept-material.md`, `docs/einrichtung.md` sowie den betroffenen Quelltext-
+  Kommentaren entsprechend nachgezogen. Historische Einträge weiter oben in dieser Datei
+  bleiben unverändert – sie beschreiben den zum jeweiligen Zeitpunkt gültigen Pfad.
+- Geprüft: `npm run build`, `npm test`, `npm run worker:test`, `npm run worker:check`,
+  `npm run format:check`, `npm run deploy:dry-run`. `npm run test:spa` weiterhin nicht
+  ausführbar (siehe oben, Netzwerkfreigabe).
+
+### Nachtrag: Merge mit `main` (#63)
+
+- `main` hat die Migrationen in `migrations/<datenbank>/` mit `migrations_dir` je Datenbank
+  verschoben. Die Kalender-Migration liegt jetzt in `worker/migrations/kalender/` (Name und
+  Inhalt unverändert), `wrangler.toml` trägt `migrations_dir = "migrations/kalender"`.
+- Konflikt in `worker/src/nextcloud.ts`: `main` hat `leseBegrenzt` und Co. nach
+  `binaer-lesen.ts` ausgelagert; übernommen, `istZip` dort nicht mehr importiert, weil die
+  Excel-Prüfung entfallen ist. Konflikt in dieser Datei: beide Abschnitte behalten.
+- Die remote-Datenbank `stationwizard-kalender` hat jetzt eine `d1_migrations`-Tabelle mit
+  `0012_kalender.sql`, damit `migrations apply` die bereits angewendete Migration nicht erneut
+  versucht.

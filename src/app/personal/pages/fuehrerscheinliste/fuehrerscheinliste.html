@@ -1,0 +1,153 @@
+<mat-toolbar class="listen-kopfleiste">
+  <a mat-icon-button routerLink="/personal" aria-label="Zurück zur Personalübersicht">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <mat-icon class="kopfleiste-icon">badge</mat-icon>
+  <span class="toolbar-title">Führerscheinliste</span>
+  <span class="spacer"></span>
+  @if (verbindung() === 'verbunden') {
+    <button mat-stroked-button (click)="laden()" [disabled]="laedt()">
+      <mat-icon>refresh</mat-icon> Aktualisieren
+    </button>
+    @if (vorlage()?.vorhanden) {
+      <button
+        mat-flat-button
+        (click)="dokumentHerunterladen()"
+        [disabled]="laedt() || dokumentWirdErstellt() || dokumentZeilen().length === 0"
+        matTooltip="Trägt Name, Führerscheindatum und -nummer in die hinterlegte Word-Vorlage ein"
+      >
+        @if (dokumentWirdErstellt()) {
+          <mat-progress-spinner diameter="18" mode="indeterminate" />
+        } @else {
+          <mat-icon>download</mat-icon>
+        }
+        Word-Dokument herunterladen
+      </button>
+    }
+  }
+</mat-toolbar>
+
+<div class="inhalt">
+  <h1>Führerscheinliste</h1>
+  <p class="hinweis">Name, Vorname und die bei HiOrg erfasste Fahrerlaubnis je Person.</p>
+  <p class="hinweis">
+    <mat-icon class="pruefziffer gueltig" inline>check_circle</mat-icon> /
+    <mat-icon class="pruefziffer ungueltig" inline>cancel</mat-icon>
+    an der Führerscheinnummer zeigen, ob deren Prüfziffer stimmt (nur Anzeige, wirkt sich nicht auf
+    das heruntergeladene Dokument aus).
+  </p>
+
+  @if (!vorlageLaedt() && vorlage() && !vorlage()!.vorhanden) {
+    <p class="hinweis-vorlage" role="status">
+      Für den Word-Export ist noch keine Vorlage hinterlegt.
+      <a routerLink="/verwaltung/fuehrerschein-vorlage">Im Verwaltungsbereich hochladen</a>.
+    </p>
+  }
+
+  @if (fehler()) {
+    <p class="fehler" role="alert">{{ fehler() }}</p>
+    <button mat-button (click)="laden()" [disabled]="laedt()">Erneut versuchen</button>
+  }
+
+  @if (dokumentFehler()) {
+    <p class="fehler" role="alert">{{ dokumentFehler() }}</p>
+  }
+
+  @if (laedt()) {
+    <div class="laden" role="status">
+      <mat-spinner diameter="36" />
+      <span>Personal wird vom HiOrg-Server geladen…</span>
+    </div>
+  } @else {
+    @switch (verbindung()) {
+      @case ('nicht-eingerichtet') {
+        <p class="leer">
+          Die HiOrg-Server-API ist am Server noch nicht eingerichtet (Client-ID, Client-Secret und
+          Datenbankmigration).
+        </p>
+      }
+      @case ('getrennt') {
+        <app-hiorg-verbinden class="verbinden" ziel="personal" (verbunden)="laden()" />
+      }
+      @case ('verbunden') {
+        <div class="werkzeuge">
+          <mat-form-field class="suche" subscriptSizing="dynamic">
+            <mat-label>Suchen</mat-label>
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+              matInput
+              [value]="suche()"
+              (input)="suche.set($any($event.target).value)"
+              placeholder="Name oder Klasse"
+            />
+          </mat-form-field>
+          <span class="anzahl" role="status">
+            {{ gefiltert().length }} von {{ personen().length }} Personen
+          </span>
+        </div>
+
+        @if (personen().length === 0) {
+          <p class="leer">Der HiOrg-Server hat kein aktives Personal geliefert.</p>
+        } @else if (gefiltert().length === 0) {
+          <p class="leer">Keine Person passt zur Suche.</p>
+        } @else {
+          <div class="tabellenbereich">
+            <table mat-table [dataSource]="gefiltert()" class="fuehrerschein-tabelle">
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>Name</th>
+                <td mat-cell *matCellDef="let person">
+                  <strong>{{ person.nachname }}</strong
+                  >, {{ person.vorname }}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="klassen">
+                <th mat-header-cell *matHeaderCellDef>Klassen</th>
+                <td mat-cell *matCellDef="let person">
+                  {{ person.fahrerlaubnis?.klassen.join(', ') }}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="beschraenkung">
+                <th mat-header-cell *matHeaderCellDef>Beschränkung</th>
+                <td mat-cell *matCellDef="let person">
+                  {{ person.fahrerlaubnis?.beschraenkung }}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="nummer">
+                <th mat-header-cell *matHeaderCellDef>Führerscheinnummer</th>
+                <td mat-cell *matCellDef="let person">
+                  <span class="nummer-zelle">
+                    <span>{{ person.fahrerlaubnis?.fuehrerscheinnummer }}</span>
+                    @switch (pruefziffer(person)) {
+                      @case ('gueltig') {
+                        <mat-icon
+                          class="pruefziffer gueltig"
+                          matTooltip="Prüfziffer stimmt"
+                          aria-label="Prüfziffer stimmt"
+                          >check_circle</mat-icon
+                        >
+                      }
+                      @case ('ungueltig') {
+                        <mat-icon
+                          class="pruefziffer ungueltig"
+                          matTooltip="Prüfziffer stimmt nicht – Nummer bitte gegenprüfen"
+                          aria-label="Prüfziffer stimmt nicht"
+                          >cancel</mat-icon
+                        >
+                      }
+                    }
+                  </span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="datum">
+                <th mat-header-cell *matHeaderCellDef>Führerscheindatum</th>
+                <td mat-cell *matCellDef="let person">{{ fuehrerscheindatum(person) }}</td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="spalten; sticky: true"></tr>
+              <tr mat-row *matRowDef="let person; columns: spalten"></tr>
+            </table>
+          </div>
+        }
+      }
+    }
+  }
+</div>

@@ -193,6 +193,8 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/hiorg/verbindung/code`                       | POST               | HiOrg-Server-API: kopierte Access-Callback-Adresse einlösen (manueller Rückruf)          |
 | `/api/hiorg/personal`                              | GET                | HiOrg-Server-API: aktives Personal, feste kleine Feldauswahl                             |
 | `/hiorg/verbinden`, `/hiorg/rueckruf`              | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                             |
+| `/api/personal/fuehrerschein-vorlage`              | GET / PUT          | Word-Vorlage der Führerscheinliste: Metadaten bzw. Ersetzen; Update nur mit `If-Match`   |
+| `/api/personal/fuehrerschein-vorlage/datei`        | GET                | Rohinhalt der Vorlage; der Worker liest ihn nie, er verwahrt sie nur                     |
 | `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
@@ -237,7 +239,7 @@ Prüfungen und offene Abnahmegrenzen.
 
 Der Kalender (`src/app/ausbildung/`, `worker/src/kalender-planung.ts`) löst die frühere
 Excel-Arbeitsmappe in der NextCloud-Dateifreigabe ab. Eigene D1-Datenbank `KALENDER_DB`
-(`stationwizard-kalender`), Schema in `worker/migrations/0012_kalender.sql`, dokumentartig
+(`stationwizard-kalender`), Schema in `worker/migrations/kalender/0012_kalender.sql`, dokumentartig
 wie `angebote`: eine Zeile je Jahr (`kalender_jahre`, Termine und KatS-Themen als geprüftes
 JSON) und genau eine Zeile für die jahresübergreifenden Offenen Ideen (`kalender_ideen`),
 jede mit eigener Version. Ein Speichern schreibt nur die tatsächlich geänderten Teile
@@ -272,7 +274,7 @@ Die Benutzerverwaltung (`src/app/benutzerverwaltung/`, `worker/src/benutzer.ts`)
 Nutzerverwaltung im Sinne von Anlegen/Löschen von Zugängen und kein Zugriffsschutz: wer
 sich überhaupt anmelden darf, entscheidet ausschließlich die Cloudflare-Access-Zugriffsliste
 außerhalb dieser App. Die eigene D1-Datenbank (`BENUTZER_DB`, Schema in
-`worker/migrations/0004_benutzer.sql`) merkt nur vor, wer sich bereits mindestens einmal
+`worker/migrations/benutzer/0004_benutzer.sql`) merkt nur vor, wer sich bereits mindestens einmal
 geprüft angemeldet hat (bei jedem `GET /api/benutzer`), und ordnet optional eine
 Hauptrolle aus `zugfuehrung`, `gruppenfuehrung-sanitaet`, `gruppenfuehrung-betreuung`,
 `gruppenfuehrung-tesi`, `gruppenfuehrung-verpflegung`, `gruppenfuehrung-fuehrung`,
@@ -291,7 +293,7 @@ Verwaltungs- und Einsatzplanungs-Endpunkten steht noch aus (siehe Arbeitsstand).
 Die Systemkonfiguration (`src/app/systemkonfiguration/`, `worker/src/systemkonfiguration.ts`)
 hält Betriebseinstellungen, die zur Laufzeit in der Oberfläche gesetzt werden. Die Tabelle
 `systemkonfiguration` (in `BENUTZER_DB`, Schema in
-`worker/migrations/0005_systemkonfiguration.sql`) ist ein Schlüssel-Wert-Speicher, der
+`worker/migrations/benutzer/0005_systemkonfiguration.sql`) ist ein Schlüssel-Wert-Speicher, der
 Vertrag ist es nicht: welche Schlüssel existieren und welche Werte gelten, steht
 ausschließlich in `EINSTELLUNGEN` in `systemkonfiguration.ts`; ein unbekannter Schlüssel
 wird abgelehnt, nie gespeichert. Dort stehen **keine Zugangsdaten** – alles in dieser
@@ -303,7 +305,7 @@ vorerst alle, Rollen später".
 
 Das Angebotswesen (`src/app/angebotswesen/`, `worker/src/angebotswesen.ts`) hält einen
 Preiskatalog und darauf aufbauende Angebote für Kostenkalkulationen von Sanitätsdiensten.
-Eigene D1-Datenbank `ANGEBOTSWESEN_DB`, Schema in `worker/migrations/0008_angebotswesen.sql`,
+Eigene D1-Datenbank `ANGEBOTSWESEN_DB`, Schema in `worker/migrations/angebotswesen/0008_angebotswesen.sql`,
 zwei unabhängig versionierte Tabellen: `preiskatalog_eintraege` und `angebote`. Der
 Preiskatalog ist – anders als die Systemkonfiguration oben – keine feste Schlüsselliste,
 sondern eine frei erweiterbare Liste (Einträge anlegen/umbenennen/löschen), weil die
@@ -322,7 +324,7 @@ gespeichertes Angebot beschädigen. Eine Schicht lässt sich im Editor duplizier
 neue Ids für sich und alle Positionen und wird direkt hinter dem Original einsortiert. Neben
 dem Pauschalpreis gibt es eine **Materialpauschale pro Dienst**
 (`materialpauschaleAktiv`/`materialpauschaleCent`, Schema-Nachtrag in
-`worker/migrations/0009_angebot_materialpauschale.sql`): anders als der Pauschalpreis ersetzt
+`worker/migrations/angebotswesen/0009_angebot_materialpauschale.sql`): anders als der Pauschalpreis ersetzt
 sie nichts, sondern fließt als zusätzliche, einmalige Position (nicht je Schicht) immer in die
 rechnerische Summe ein (`materialpauschaleGesamtCent()`/`angebotRechnerischGesamtCent()` in
 `angebot-kalkulation.ts`) – auch wenn ein aktiver Pauschalpreis am Ende die Gesamtsumme
@@ -356,7 +358,7 @@ Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft de
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte
 offen angelegt, aber nicht dafür gebaut, jede Materialfrage aufzunehmen. Konzept und
 Begründungen stehen in `docs/konzept-material.md`. Die Tabellen liegen bewusst in
-`FAHRZEUGE_DB` (`worker/migrations/0010_material.sql`) und **nicht** in einer eigenen
+`FAHRZEUGE_DB` (`worker/migrations/fahrzeuge/0010_material.sql`) und **nicht** in einer eigenen
 Datenbank: ein Behälter hängt an genau einem `fahrzeuge.id`, die Freigabeberechtigung eines
 Checks ergibt sich aus `fahrzeuge.gruppe`, und die Behälterübersicht braucht in einem Aufruf
 Behälter samt Fahrzeugangaben – zwei Datenbanken kosteten den Fremdschlüssel und verdoppelten
@@ -574,7 +576,7 @@ an; keinen Massenschreibpfad und keinen Importendpunkt ergänzen. Pflichtspalten
 `bezeichnung` und `kennzeichen`, als Prüftermin wird nur die HU übernommen.
 
 Jedes Kennzeichen darf es nur einmal geben. Verbindlich ist der partielle eindeutige Index
-aus `worker/migrations/0003_kennzeichen_eindeutig.sql` auf einer Vergleichsform
+aus `worker/migrations/fahrzeuge/0003_kennzeichen_eindeutig.sql` auf einer Vergleichsform
 (Großschreibung ohne Leerzeichen, Bindestriche, Punkte); ein leeres Kennzeichen bleibt
 mehrfach erlaubt. Der Worker prüft vorab und antwortet mit
 `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`, übersetzt aber auch eine Indexverletzung aus einem
@@ -604,14 +606,52 @@ Access-Fehlerseite in die App (`POST /api/hiorg/verbindung/code`, `state`-Prüfu
 das HttpOnly-Cookie). `HIORG_SERVER_REDIRECT_URI = <Origin>/hiorg/rueckruf` schaltet auf
 den automatischen Rückruf; andere Adressen gelten als nicht eingerichtet. Verbinden über
 den gemeinsamen Baustein `kern/hiorg/hiorg-verbinden/`. Nur Scope
-`openid personal:read`, feste Ziele, feste Feldauswahl ohne Anschrift, Bank-, Gesundheits-
-oder Führerscheindaten. `?ziel=` an `/hiorg/verbinden` wählt nur aus der festen Liste
-`einsatz`/`personal` das Rückkehrmodul. Gemeinsamer Client unter
+`openid personal:read`, feste Ziele, feste Feldauswahl ohne Anschrift, Geburtsdaten,
+Bankverbindung, Ernährung, Allergien, Bemerkungen, Rechte oder benutzerdefinierte Felder.
+Die Fahrerlaubnis (`attributes.fahrerlaubnis`: `klassen`, `beschraenkung`,
+`fuehrerscheinnummer`, `fuehrerscheindatum`) ist die eine bewusste Ausnahme von „keine
+Führerscheindaten" – belegt durch die offizielle Feldbeschreibung der Personal-Ressource
+(`filterePersonal()`/`HiorgFahrerlaubnis` in `hiorg-api.ts`) – und verlässt den Worker
+ausschließlich für die Führerscheinliste
+(`src/app/personal/pages/fuehrerscheinliste/`). `?ziel=` an `/hiorg/verbinden` wählt nur
+aus der festen Liste `einsatz`/`personal` das Rückkehrmodul. Gemeinsamer Client unter
 `kern/hiorg/hiorg-personal.service.ts`; das Modul Personal (`src/app/personal/`, Route
-`/personal`) zeigt die Liste nur an und speichert nichts. Qualifikationsbezeichnungen laufen über dasselbe übernommene
-EFS-Mapping (`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten
-HiOrg-Listen werden nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach
-Nachweis gegen die echte API.
+`/personal`) zeigt die HiOrg-Personaldaten nur an und speichert sie nie – die einzige
+Ausnahme ist die unten beschriebene Word-Vorlage, die selbst keine Personaldaten enthält.
+Qualifikationsbezeichnungen laufen über dasselbe übernommene EFS-Mapping
+(`einsatz/services/qualifikation-zuordnung.ts`); die frei benannten HiOrg-Listen werden
+nicht als Hierarchie gedeutet. Weitere Endpunkte oder Scopes erst nach Nachweis gegen die
+echte API.
+
+Die Führerscheinliste füllt beim Herunterladen eine im Verwaltungsbereich hinterlegte
+Word-Vorlage (`.docx`) mit Name, Führerscheindatum und -nummer je Person –
+`src/app/personal/services/fuehrerschein-dokument.ts` – statt eines eigenen CSV-Formats.
+Nur diese drei Spalten werden befüllt; die übrigen (Ausstellungsort, Fahrgastbeförderung,
+Prüfung, Unterschrift) bleiben für die Eintragung von Hand, wie der Bearbeitungshinweis der
+Vorlage es vorsieht. Die Vorlage trägt `w:documentProtection w:edit="forms"`: Word lässt
+Menschen darin nur die vorhandenen Formularfelder ausfüllen. Diese Sperre wirkt
+ausschließlich in Words eigener Bearbeitungsoberfläche, nie auf die zugrunde liegende
+ZIP/XML-Struktur – das Füllen selbst ersetzt gezielt den Ergebnislauf jedes betroffenen
+Legacy-Formularfelds (`w:ffData`/`FORMTEXT`, Text zwischen `fldCharType="separate"` und
+`fldCharType="end"`) durch einen neuen Lauf mit dem echten Wert; das Feld bleibt danach ein
+Feld, in geöffnetem Word weiterhin ausfüllbar. Das Füllen läuft bewusst im Browser
+(`kern/dateien/zip.ts`, ein eigener minimaler ZIP-Lese-/Schreibzugriff ohne Bibliothek wie
+`kern/text/csv.ts` – Lesen über `DecompressionStream('deflate-raw')`, Schreiben
+ausschließlich unkomprimiert), nicht im Worker: der Worker verwahrt die Vorlage nur binär,
+ohne sie je zu lesen. Aufgenommen werden nur Personen mit erfasster Führerscheinnummer –
+für alle anderen gäbe es nichts einzutragen.
+
+Die Vorlage selbst liegt als einzelne, versionierte Zeile (feste `id`) in
+`fuehrerschein_vorlage` (`BENUTZER_DB`, Migration 0012) –
+`worker/src/fuehrerschein-vorlage.ts`, `GET`/`PUT /api/personal/fuehrerschein-vorlage` für
+Metadaten bzw. Ersetzen (`If-Match`/`If-None-Match` wie bei der Excel-Arbeitsmappe),
+`GET …/datei` für den Rohinhalt. Ersetzen läuft im Verwaltungsbereich
+(`/verwaltung/fuehrerschein-vorlage`,
+`src/app/personal/pages/fuehrerschein-vorlage-verwaltung/`), mit Rückfrage vor dem
+Überschreiben einer bestehenden Vorlage; Rollenvergabe fehlt auch hier – dieselbe
+Übergangslösung „Rechte vorerst alle, Rollen später". `leseBegrenzt()`/`istZip()`
+(vormals nur in `nextcloud.ts`) stehen jetzt gemeinsam in `worker/src/binaer-lesen.ts`,
+damit der Upload nicht dieselbe Größenprüfung ein zweites Mal bekommt.
 
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig

@@ -51,4 +51,11 @@ export const verwaltungRouten: Routes = [
         (modul) => modul.BenutzerListe,
       ),
   },
+  {
+    path: 'fuehrerschein-vorlage',
+    loadComponent: () =>
+      import('../personal/pages/fuehrerschein-vorlage-verwaltung/fuehrerschein-vorlage-verwaltung').then(
+        (modul) => modul.FuehrerscheinVorlageVerwaltung,
+      ),
+  },
 ];

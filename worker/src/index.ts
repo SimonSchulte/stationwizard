@@ -14,6 +14,12 @@ import {
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
 import {
+  FUEHRERSCHEIN_VORLAGE_DATEI_PFAD,
+  FUEHRERSCHEIN_VORLAGE_PFAD,
+  verarbeiteFuehrerscheinVorlage,
+  type FuehrerscheinVorlageKonfiguration,
+} from './fuehrerschein-vorlage';
+import {
   HIORG_CODE_PFAD,
   HIORG_PERSONAL_PFAD,
   HIORG_RUECKRUF_PFAD,
@@ -66,7 +72,8 @@ export interface Env
     AngebotswesenKonfiguration,
     KalenderKonfiguration,
     MaterialKonfiguration,
-    MaterialEinreichungenKonfiguration {
+    MaterialEinreichungenKonfiguration,
+    FuehrerscheinVorlageKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -200,6 +207,13 @@ export default {
 
     if (url.pathname.startsWith('/api/hiorg/')) {
       return verarbeiteHiorgKalender(anfrage, umgebung);
+    }
+
+    if (
+      url.pathname === FUEHRERSCHEIN_VORLAGE_PFAD ||
+      url.pathname === FUEHRERSCHEIN_VORLAGE_DATEI_PFAD
+    ) {
+      return verarbeiteFuehrerscheinVorlage(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname.startsWith('/api/nextcloud/')) {

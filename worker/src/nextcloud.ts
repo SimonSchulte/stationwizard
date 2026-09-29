@@ -1,5 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { fehlerAntwort, jsonAntwort } from './antwort';
+import { Groessenfehler, leseBegrenzt, verwerfeInhalt } from './binaer-lesen';
 import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
 import { istObjekt } from './json-lesen';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
@@ -17,7 +18,6 @@ const DATEINAME = new RegExp(`^(${UUID_MUSTER})\\.pep\\.json$`, 'i');
 const PROPFIND_INHALT = `<?xml version="1.0" encoding="UTF-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:resourcetype/></d:prop></d:propfind>`;
 
-class Groessenfehler extends Error {}
 /** Nur der fetch()-Aufruf selbst wirft dies; unterscheidet Transportfehler von Verarbeitungsfehlern. */
 class VerbindungsFehler extends Error {}
 
@@ -249,52 +249,6 @@ function kodiereBasic(wert: string): string {
 
 function istStarkerEtag(wert: string): boolean {
   return /^"[\x21\x23-\x7e\x80-\xff]*"$/.test(wert);
-}
-
-async function leseBegrenzt(
-  quelle: Request | Response,
-  grenze: number,
-  signal?: AbortSignal,
-): Promise<Uint8Array<ArrayBuffer>> {
-  const groesse = Number(quelle.headers.get('Content-Length'));
-  if (Number.isFinite(groesse) && groesse > grenze) {
-    await verwerfeInhalt(quelle);
-    throw new Groessenfehler();
-  }
-  if (!quelle.body) return new Uint8Array();
-  const leser = quelle.body.getReader();
-  const teile: Uint8Array[] = [];
-  let laenge = 0;
-  const beiAbbruch = () => void leser.cancel().catch(() => undefined);
-  signal?.addEventListener('abort', beiAbbruch, { once: true });
-  try {
-    if (signal?.aborted) throw new Error('Zeitlimit');
-    while (true) {
-      const { done, value } = await leser.read();
-      if (signal?.aborted) throw new Error('Zeitlimit');
-      if (done) break;
-      laenge += value.byteLength;
-      if (laenge > grenze) {
-        await leser.cancel();
-        throw new Groessenfehler();
-      }
-      teile.push(value);
-    }
-  } finally {
-    signal?.removeEventListener('abort', beiAbbruch);
-    leser.releaseLock();
-  }
-  const ergebnis = new Uint8Array(laenge);
-  let versatz = 0;
-  for (const teil of teile) {
-    ergebnis.set(teil, versatz);
-    versatz += teil.byteLength;
-  }
-  return ergebnis;
-}
-
-async function verwerfeInhalt(quelle: Request | Response): Promise<void> {
-  await quelle.body?.cancel().catch(() => undefined);
 }
 
 function istPepDatei(inhalt: Uint8Array, id: string): boolean {

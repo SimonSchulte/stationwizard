@@ -6,7 +6,7 @@ import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json
 /**
  * Kalender (früher Ausbildungsplanung): Jahresblätter und die jahresübergreifenden
  * „Offenen Ideen“ liegen in einer eigenen D1-Datenbank (KALENDER_DB), Schema in
- * `worker/migrations/0012_kalender.sql`. Die Excel-Arbeitsmappe ist nur noch
+ * `worker/migrations/kalender/0012_kalender.sql`. Die Excel-Arbeitsmappe ist nur noch
  * Importquelle (einmalige Übernahme) und lokaler Download.
  *
  * Dokumentartig wie `angebote`: eine Zeile je Jahr mit Terminen und KatS-Themen
