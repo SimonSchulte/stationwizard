@@ -2676,3 +2676,13 @@ keine „Stammdaten"-Überschrift im DOM; nach „Bearbeiten" sind Felder editie
 Knöpfe aktiv; kein horizontaler Überlauf auf beiden Größen. `npm run build` (inkl.
 `worker:check`), `npm test` (868 Angular-, 29 `oeffentlich`-, 752 Worker-Tests), `npm run
 format:check` – alle grün.
+
+### Nachtrag – „Bearbeiten"-Knopf bleibt sichtbar, kein grauer Feldhintergrund
+
+Der „Bearbeiten"-Knopf wird im Bearbeitungsmodus nicht mehr ausgeblendet, sondern nur
+deaktiviert (`[disabled]="bearbeitungModus()"`) – das Ausblenden ließ die Kopfzeile und damit
+das Layout springen. Der dezente graue Hintergrund für `:read-only`-Felder entfällt wieder;
+schreibgeschützte Textfelder unterscheiden sich damit nur noch durch fehlende Eingabe, die
+`mat-select`-Felder weiterhin durch das Material-eigene Disabled-Aussehen. Reine
+Darstellungsänderung, keine Testanpassung nötig. Keine erneute Browserprüfung dieser
+Nachschärfung in dieser Sitzung.

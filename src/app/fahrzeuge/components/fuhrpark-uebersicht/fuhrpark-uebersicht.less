@@ -246,13 +246,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
-
-  // Nicht editierbare Felder bleiben lesbar, statt wie deaktivierte Felder
-  // auszugrauen – nur ein dezent anderer Hintergrund als Hinweis.
-  input:read-only {
-    background: var(--surface-secondary);
-    color: var(--text-secondary);
-  }
 }
 
 .feld-fehler {
@@ -262,11 +255,6 @@
 .bemerkung-feld {
   width: 100%;
   margin-top: var(--space-md);
-
-  textarea:read-only {
-    background: var(--surface-secondary);
-    color: var(--text-secondary);
-  }
 }
 
 .bearbeiten-aktionen {

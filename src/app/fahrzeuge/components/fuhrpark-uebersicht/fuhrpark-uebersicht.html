@@ -90,11 +90,14 @@
             <span>{{ fahrzeug.funkrufname }} · {{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</span>
           </div>
         </div>
-        @if (!bearbeitungModus()) {
-          <button mat-stroked-button type="button" (click)="bearbeitungBeginnen()">
-            Bearbeiten
-          </button>
-        }
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="bearbeitungBeginnen()"
+          [disabled]="bearbeitungModus()"
+        >
+          Bearbeiten
+        </button>
       </header>
 
       <section class="abschnitt">
