@@ -90,27 +90,125 @@
             <span>{{ fahrzeug.funkrufname }} · {{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</span>
           </div>
         </div>
-        <a mat-stroked-button [routerLink]="['/fahrzeuge', fahrzeug.id]">Stammdaten bearbeiten</a>
+        @if (!bearbeitungModus()) {
+          <button mat-stroked-button type="button" (click)="bearbeitungBeginnen()">
+            Bearbeiten
+          </button>
+        }
       </header>
 
       <section class="abschnitt">
         <h3 class="abschnitt-titel">Stammdaten</h3>
-        <dl class="stammdaten-raster">
-          <div>
-            <dt>Fahrgestellnummer (FIN)</dt>
-            <dd>{{ fahrzeug.fahrgestellnummer || '–' }}</dd>
+        @if (!bearbeitungModus()) {
+          <dl class="stammdaten-raster">
+            <div>
+              <dt>Fahrgestellnummer (FIN)</dt>
+              <dd>{{ fahrzeug.fahrgestellnummer || '–' }}</dd>
+            </div>
+            <div>
+              <dt>Eigentümer</dt>
+              <dd>{{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</dd>
+            </div>
+            <div>
+              <dt>Gruppe</dt>
+              <dd>{{ GRUPPE_LABEL[fahrzeug.gruppe] }}</dd>
+            </div>
+          </dl>
+          @if (fahrzeug.bemerkung) {
+            <p class="bemerkung">{{ fahrzeug.bemerkung }}</p>
+          }
+        } @else {
+          <div class="bearbeiten-formular">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Bezeichnung</mat-label>
+              <input
+                matInput
+                required
+                [value]="fahrzeug.bezeichnung"
+                (input)="stammdatenAktualisieren('bezeichnung', $any($event.target).value)"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Funkrufname</mat-label>
+              <input
+                matInput
+                [value]="fahrzeug.funkrufname"
+                (input)="stammdatenAktualisieren('funkrufname', $any($event.target).value)"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Kennzeichen</mat-label>
+              <input
+                matInput
+                required
+                [value]="fahrzeug.kennzeichen"
+                (input)="stammdatenAktualisieren('kennzeichen', $any($event.target).value)"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Fahrgestellnummer (optional)</mat-label>
+              <input
+                matInput
+                [value]="fahrzeug.fahrgestellnummer ?? ''"
+                (input)="
+                  stammdatenAktualisieren('fahrgestellnummer', $any($event.target).value || null)
+                "
+              />
+              @if (!istFin()) {
+                <mat-hint class="feld-fehler">17 Zeichen, ohne die Buchstaben I, O und Q.</mat-hint>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Eigentümer</mat-label>
+              <mat-select
+                [value]="fahrzeug.eigentuemer"
+                (selectionChange)="stammdatenAktualisieren('eigentuemer', $event.value)"
+              >
+                @for (wert of EIGENTUEMER; track wert) {
+                  <mat-option [value]="wert">{{ EIGENTUEMER_LABEL[wert] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Gruppe</mat-label>
+              <mat-select
+                [value]="fahrzeug.gruppe"
+                (selectionChange)="stammdatenAktualisieren('gruppe', $event.value)"
+              >
+                @for (wert of GRUPPEN; track wert) {
+                  <mat-option [value]="wert">{{ GRUPPE_LABEL[wert] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
           </div>
-          <div>
-            <dt>Eigentümer</dt>
-            <dd>{{ EIGENTUEMER_LABEL[fahrzeug.eigentuemer] }}</dd>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung-feld">
+            <mat-label>Bemerkung</mat-label>
+            <textarea
+              matInput
+              rows="2"
+              [value]="fahrzeug.bemerkung"
+              (input)="stammdatenAktualisieren('bemerkung', $any($event.target).value)"
+            ></textarea>
+          </mat-form-field>
+          <div class="bearbeiten-aktionen">
+            <button
+              mat-raised-button
+              color="primary"
+              type="button"
+              (click)="stammdatenSpeichern()"
+              [disabled]="!kannStammdatenSpeichern()"
+            >
+              {{ speichertGerade() ? 'Speichert …' : 'Speichern' }}
+            </button>
+            <button
+              mat-button
+              type="button"
+              (click)="stammdatenAbbrechen()"
+              [disabled]="speichertGerade()"
+            >
+              Abbrechen
+            </button>
           </div>
-          <div>
-            <dt>Gruppe</dt>
-            <dd>{{ GRUPPE_LABEL[fahrzeug.gruppe] }}</dd>
-          </div>
-        </dl>
-        @if (fahrzeug.bemerkung) {
-          <p class="bemerkung">{{ fahrzeug.bemerkung }}</p>
         }
       </section>
 

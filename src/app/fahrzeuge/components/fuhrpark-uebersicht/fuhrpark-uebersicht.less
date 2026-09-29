@@ -198,7 +198,7 @@
   // Der Titel darf mehrzeilig umbrechen; der Knopf bleibt einzeilig und
   // rutscht bei knappem Platz komplett in die nächste Zeile, statt sich mit
   // dem Titel eine Zeile zu teilen und dabei selbst umzubrechen.
-  > a {
+  > button {
     flex-shrink: 0;
     white-space: nowrap;
   }
@@ -262,6 +262,27 @@
 .bemerkung {
   margin: var(--space-sm) 0 0;
   color: var(--text-secondary);
+}
+
+.bearbeiten-formular {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+}
+
+.feld-fehler {
+  color: var(--status-error);
+}
+
+.bemerkung-feld {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
+.bearbeiten-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .schnellformular {

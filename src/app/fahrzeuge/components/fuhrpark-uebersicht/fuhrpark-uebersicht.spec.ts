@@ -42,6 +42,10 @@ function fahrzeugeStoreMock(fahrzeuge: Fahrzeugstamm[]) {
       const aktuell = entwurf();
       if (aktuell) entwurf.set({ ...aktuell, wartungstermine: liste });
     }),
+    entwurfAktualisieren: vi.fn((patch: Partial<Fahrzeugstamm>) => {
+      const aktuell = entwurf();
+      if (aktuell) entwurf.set({ ...aktuell, ...patch });
+    }),
     speichern: vi.fn().mockResolvedValue(true),
     neuLadenNachKonflikt: vi.fn().mockResolvedValue(undefined),
     ladeLaeuft: () => false,
@@ -262,5 +266,100 @@ describe('FuhrparkUebersicht', () => {
     await komponente.neuerTerminHinzufuegen();
 
     expect(store.wartungstermineAktualisieren).not.toHaveBeenCalled();
+  });
+
+  it('bearbeitet Stammdaten inline und speichert über den Store', async () => {
+    const fahrzeug = erzeugeTestfahrzeug({ id: 'f-1', bezeichnung: 'Alt' });
+    const store = fahrzeugeStoreMock([fahrzeug]);
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+    ]);
+
+    expect(komponente.bearbeitungModus()).toBe(false);
+    komponente.bearbeitungBeginnen();
+    expect(komponente.bearbeitungModus()).toBe(true);
+
+    komponente.stammdatenAktualisieren('bezeichnung', 'Neu');
+    expect(store.entwurfAktualisieren).toHaveBeenCalledWith({ bezeichnung: 'Neu' });
+    expect(komponente.ausgewaehltesFahrzeug()?.bezeichnung).toBe('Neu');
+
+    await komponente.stammdatenSpeichern();
+    expect(store.speichern).toHaveBeenCalledOnce();
+    expect(komponente.bearbeitungModus()).toBe(false);
+  });
+
+  it('bleibt im Bearbeitungsmodus, wenn das Speichern der Stammdaten scheitert', async () => {
+    const fahrzeug = erzeugeTestfahrzeug({ id: 'f-1' });
+    const store = fahrzeugeStoreMock([fahrzeug]);
+    store.speichern = vi.fn().mockResolvedValue(false);
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+    ]);
+
+    komponente.bearbeitungBeginnen();
+    await komponente.stammdatenSpeichern();
+
+    expect(komponente.bearbeitungModus()).toBe(true);
+  });
+
+  it('verwirft lokale Änderungen beim Abbrechen und lädt das Fahrzeug neu', async () => {
+    const fahrzeug = erzeugeTestfahrzeug({ id: 'f-1', bezeichnung: 'Original' });
+    const store = fahrzeugeStoreMock([fahrzeug]);
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: store },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+    ]);
+
+    komponente.bearbeitungBeginnen();
+    komponente.stammdatenAktualisieren('bezeichnung', 'Verworfen');
+    store.fahrzeugLaden.mockClear();
+
+    await komponente.stammdatenAbbrechen();
+
+    expect(komponente.bearbeitungModus()).toBe(false);
+    expect(store.fahrzeugLaden).toHaveBeenCalledWith('f-1');
+  });
+
+  it('verlässt den Bearbeitungsmodus beim Wechsel der Auswahl', async () => {
+    const a = erzeugeTestfahrzeug({ id: 'f-a', bezeichnung: 'A-Fahrzeug' });
+    const b = erzeugeTestfahrzeug({ id: 'f-b', bezeichnung: 'B-Fahrzeug' });
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: fahrzeugeStoreMock([a, b]) },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+    ]);
+
+    komponente.bearbeitungBeginnen();
+    expect(komponente.bearbeitungModus()).toBe(true);
+
+    komponente.auswaehlen('f-b');
+    TestBed.tick();
+    expect(komponente.bearbeitungModus()).toBe(false);
+  });
+
+  it('lehnt eine ungültige Fahrgestellnummer ab und sperrt das Speichern', async () => {
+    const fahrzeug = erzeugeTestfahrzeug({ id: 'f-1', fahrgestellnummer: null });
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: fahrzeugeStoreMock([fahrzeug]) },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+    ]);
+
+    expect(komponente.istFin()).toBe(true);
+    expect(komponente.kannStammdatenSpeichern()).toBe(true);
+
+    komponente.stammdatenAktualisieren('fahrgestellnummer', 'ZU-KURZ');
+    expect(komponente.istFin()).toBe(false);
+    expect(komponente.kannStammdatenSpeichern()).toBe(false);
   });
 });

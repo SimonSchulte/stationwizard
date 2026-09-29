@@ -9,11 +9,11 @@ import {
   untracked,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
 import { KilometerBilanz } from '../kilometer-bilanz/kilometer-bilanz';
@@ -21,6 +21,7 @@ import {
   EIGENTUEMER,
   Eigentuemer,
   Fahrzeugstamm,
+  GRUPPEN,
   Wartungstermin,
 } from '../../models/fahrzeug.model';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
@@ -28,6 +29,7 @@ import { AblesungHinweis, pruefeAblesungPlausibilitaet } from '../../services/ab
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { GRUPPE_LABEL } from '../../services/gruppe-label';
+import { istGueltigeFin } from '../../services/fahrzeug-pruefung';
 import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
 import {
   berechneJahresbilanz,
@@ -102,11 +104,11 @@ interface TerminAnzeige {
   selector: 'app-fuhrpark-uebersicht',
   imports: [
     DatePipe,
-    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatSelectModule,
     KilometerBilanz,
   ],
   templateUrl: './fuhrpark-uebersicht.html',
@@ -120,6 +122,7 @@ export class FuhrparkUebersicht implements OnInit {
 
   readonly EIGENTUEMER = EIGENTUEMER;
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
+  readonly GRUPPEN = GRUPPEN;
   readonly GRUPPE_LABEL = GRUPPE_LABEL;
   readonly ampelKlasse = ampelKlasse;
 
@@ -141,6 +144,8 @@ export class FuhrparkUebersicht implements OnInit {
 
   readonly neuerTerminBezeichnung = signal('');
   readonly neuerTerminDatum = signal(heuteIso());
+
+  readonly bearbeitungModus = signal(false);
 
   private readonly ampelSchwellenwerte = computed(() => {
     const einstellungen = this.konfiguration.gespeicherteEinstellungen();
@@ -203,6 +208,22 @@ export class FuhrparkUebersicht implements OnInit {
   });
 
   readonly ausgewaehltesFahrzeug = computed(() => this.fahrzeugeStore.entwurf());
+
+  readonly istFin = computed(() => {
+    const fin = this.ausgewaehltesFahrzeug()?.fahrgestellnummer;
+    return !fin || istGueltigeFin(fin);
+  });
+
+  readonly kannStammdatenSpeichern = computed(() => {
+    const entwurf = this.ausgewaehltesFahrzeug();
+    return (
+      !!entwurf &&
+      entwurf.bezeichnung.trim().length > 0 &&
+      entwurf.kennzeichen.trim().length > 0 &&
+      this.istFin() &&
+      !this.speichertGerade()
+    );
+  });
 
   readonly ausgewaehlteBilanz = computed(() => {
     const entwurf = this.ausgewaehltesFahrzeug();
@@ -278,6 +299,7 @@ export class FuhrparkUebersicht implements OnInit {
     this.kmBestaetigung.set(null);
     this.neuerTerminBezeichnung.set('');
     this.neuerTerminDatum.set(heuteIso());
+    this.bearbeitungModus.set(false);
   }
 
   async kmErfassen(): Promise<void> {
@@ -337,5 +359,25 @@ export class FuhrparkUebersicht implements OnInit {
   async nachKonfliktNeuLaden(): Promise<void> {
     const id = this.ausgewaehltId();
     if (id) await this.fahrzeugeStore.neuLadenNachKonflikt(id);
+  }
+
+  bearbeitungBeginnen(): void {
+    this.bearbeitungModus.set(true);
+  }
+
+  stammdatenAktualisieren<K extends keyof Fahrzeugstamm>(feld: K, wert: Fahrzeugstamm[K]): void {
+    this.fahrzeugeStore.entwurfAktualisieren({ [feld]: wert } as Partial<Fahrzeugstamm>);
+  }
+
+  async stammdatenSpeichern(): Promise<void> {
+    const erfolg = await this.fahrzeugeStore.speichern();
+    if (erfolg) this.bearbeitungModus.set(false);
+  }
+
+  /** Verwirft lokale Änderungen: lädt den zuletzt gespeicherten Stand neu statt ihn zu behalten. */
+  async stammdatenAbbrechen(): Promise<void> {
+    const id = this.ausgewaehltId();
+    this.bearbeitungModus.set(false);
+    if (id) await this.fahrzeugeStore.fahrzeugLaden(id);
   }
 }

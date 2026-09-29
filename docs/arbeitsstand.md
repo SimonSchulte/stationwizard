@@ -2624,3 +2624,34 @@ Zuruf bildschirmfüllend.
   752 Worker-Tests – ein Test weniger als zuvor, weil der reine Tab-Index-Test mit den
   Tabs entfiel), `npm run format:check` – alle grün.
 - Weiterhin kein Lauf gegen ein echtes Telefon oder den echten Worker/D1-Stand.
+
+## Fuhrpark-Übersicht: Stammdaten direkt im Master/Detail bearbeitbar, nicht mehr über die alte Seite
+
+Auftrag: der Knopf „Stammdaten bearbeiten" führte bisher weg auf die alte
+Fahrzeugdetailseite (`/fahrzeuge/<id>`); er soll „Bearbeiten" heißen und die aktuelle
+Master/Detail-Ansicht selbst bearbeitbar machen, ohne Navigation.
+
+`FuhrparkUebersicht` bekommt ein neues Bearbeitungsmodus-Signal (`bearbeitungModus`). Im
+Stammdaten-Abschnitt ersetzt ein Bearbeitungsmodus mit echten Formularfeldern (Bezeichnung,
+Funkrufname, Kennzeichen, FIN mit derselben `istGueltigeFin()`-Prüfung, Eigentümer/Gruppe als
+`mat-select`, Bemerkung) die bisherige reine Anzeige – dieselben Felder und Prüfungen wie auf
+der Fahrzeugdetailseite (`fahrzeug-detail.ts`), nur eingebettet statt auf einer eigenen Route.
+„Speichern" ruft `FahrzeugStoreService.speichern()` (dieselbe Methode, die Kilometererfassung
+und Wartungstermine hier schon verwenden) und verlässt den Bearbeitungsmodus nur bei Erfolg;
+„Abbrechen" verwirft lokale Änderungen, indem es das Fahrzeug einfach neu vom Server lädt
+(`fahrzeugLaden()`), statt einen eigenen Entwurf-Rücksetzmechanismus nachzubauen. Ein Wechsel
+der Auswahl in der Liste verlässt den Bearbeitungsmodus ebenfalls (`formularZuruecksetzen()`).
+Die Kopfzeile ändert sich live mit, weil Titel und Chips direkt aus demselben `entwurf`-Signal
+lesen, das das Formular beschreibt – kein zusätzlicher Zustand nötig.
+
+Geprüft: fünf neue Tests in `fuhrpark-uebersicht.spec.ts` (Bearbeitungsmodus ein/aus,
+Feldänderung im Entwurf, Speichern verlässt den Modus nur bei Erfolg, Abbrechen lädt neu und
+verwirft, Wechsel der Auswahl verlässt den Modus, FIN-Prüfung sperrt „Speichern"). `npm run
+build` (inkl. `worker:check`), `npm test` (868 Angular-, 29 `oeffentlich`-, 752
+Worker-Tests), `npm run format:check` – alle grün. Sichtprüfung im echten Headless-Chromium
+auf 1400×900 und 390×844 gegen den Attrappen-Server: Klick auf „Bearbeiten" öffnet das
+Formular ohne Navigation (URL unverändert), Titel und Listeneintrag aktualisieren sich live
+beim Tippen, „Speichern" verlässt den Modus und der neue Name bleibt nach Neuladen bestehen,
+„Abbrechen" verwirft eine zusätzliche, noch ungespeicherte Änderung und stellt den zuletzt
+gespeicherten Stand wieder her – auf beiden Bildschirmgrößen geprüft, kein horizontaler
+Überlauf. Weiterhin kein Lauf gegen ein echtes Telefon oder den echten Worker/D1-Stand.
