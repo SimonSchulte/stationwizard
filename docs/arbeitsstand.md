@@ -2720,3 +2720,30 @@ Nachschärfung in dieser Sitzung.
 - Geprüft: `npm run build`, `npm test`, `npm run worker:test`, `npm run worker:check`,
   `npm run format:check`, `npm run deploy:dry-run`. `npm run test:spa` weiterhin nicht
   ausführbar (siehe oben, Netzwerkfreigabe).
+
+## Fuhrpark-Übersicht: Zahleneingabe, scrollende Liste, Datepicker
+
+- **Kilometerstand-Eingabe abgesichert** (`leseKilometerEingabe()` in
+  `fahrzeuge/services/ablesung-pruefung.ts`): das Feld ist jetzt ein Textfeld mit
+  `inputmode="numeric"` statt `type="number"`, weil `type="number"` in der deutschen
+  Locale `12.345` als 12,345 und `12345,5` als 123455 lieferte. Akzeptiert werden ganze,
+  nicht negative Zahlen; Punkt/Leerzeichen zählen nur als korrekt gruppierter
+  Tausendertrenner (`12.345`, `1 234 567`). Nachkommastellen, Vorzeichen, Buchstaben und
+  Werte über 9.999.999 (dieselbe Grenze wie die öffentliche Meldung) werden mit eigenem
+  Hinweis abgelehnt, „Erfassen" bleibt dann deaktiviert. Rückschritt-/Sprung-Warnungen
+  bleiben unverändert und blockieren nicht.
+- **Fahrzeugliste scrollt in sich:** `.split` richtet die Spalten nicht mehr aneinander aus
+  (`align-items: flex-start`); `.master` hat `max-height: calc(100dvh - 12rem)`, ist
+  `sticky` und scrollt intern. Eine lange Liste vergrößert das Detail nicht mehr. Mobil
+  bleibt die gestapelte Anordnung (Liste ≤ 40vh, Detail volle Breite) unverändert. Die
+  Abzugshöhe (12rem für Kopfleiste, Filterzeile, Rand) ist eine Schätzung, kein
+  gemessener Wert der App-Hülle.
+- **Datepicker:** Kilometerdatum und „Fällig am" verwenden `mat-datepicker`
+  (`MAT_DATE_LOCALE de-DE`, `isoZuLokalesDatum()`/`lokalesDatumZuIso()`), wie
+  `fahrzeug-detail`; der lokale Kalendertag wird nicht über UTC verschoben.
+- Geprüft: `npm run build`, `npm test` (Unit-Tests für Eingabeparser, Fehlermeldung,
+  Datepicker-Übernahme), `npm run format:check`. Im Browser (Headless-Chromium, Desktop
+  1400×900 und mobil 390×844, Mock-API mit 30 Fahrzeugen): Liste 708 px hoch bei 2070 px
+  Inhalt und scrollt, Detail 662 px unabhängig davon; Kalender öffnet sich; `12345,5`
+  und `-5` werden abgelehnt, `12.345` akzeptiert. Nicht geprüft: echte Access-Sitzung,
+  Touch-Bedienung des Kalenders auf einem echten Gerät.

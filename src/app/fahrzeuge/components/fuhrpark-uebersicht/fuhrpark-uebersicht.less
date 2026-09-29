@@ -58,13 +58,22 @@
   flex: 1;
   min-height: 0;
   gap: var(--space-md);
-  align-items: stretch;
+  // Beide Spalten haben ihre eigene Höhe: die Liste darf nie die Höhe des
+  // Details bestimmen (und umgekehrt), sonst streckt eine lange Fahrzeugliste
+  // das Detail über den sichtbaren Bereich hinaus.
+  align-items: flex-start;
 }
 
 .master {
   flex: 0 0 320px;
   min-width: 0;
   min-height: 0;
+  // Höhe des sichtbaren Bereichs abzüglich Kopfleiste, Filterzeile und
+  // Seitenrand; darüber scrollt die Liste in sich. `sticky` hält sie beim
+  // Scrollen langer Details im Blick.
+  max-height: calc(100dvh - 12rem);
+  position: sticky;
+  top: var(--space-md);
   overflow-y: auto;
   background: var(--surface-primary);
   border: 1px solid var(--border-light);
@@ -381,11 +390,12 @@
 
 @media (max-width: 780px) {
   .split {
-    // Gestapelt statt nebeneinander; `align-items: stretch` bleibt aus der
-    // Basisregel erhalten (jetzt Breite statt Höhe), sonst schrumpfen beide
-    // Spalten auf ihre Inhaltsbreite und nicht umbrechender Inhalt sprengt
-    // die Breite des sichtbaren Bereichs, statt zu umbrechen.
+    // Gestapelt statt nebeneinander; `align-items: stretch` (jetzt Breite
+    // statt Höhe), sonst schrumpfen beide Spalten auf ihre Inhaltsbreite und
+    // nicht umbrechender Inhalt sprengt die Breite des sichtbaren Bereichs,
+    // statt zu umbrechen.
     flex-direction: column;
+    align-items: stretch;
   }
 
   // Die Liste bleibt auf einen Teil der Höhe begrenzt, damit das Detail
@@ -394,6 +404,7 @@
   // der Basisregel).
   .master {
     flex: 0 0 auto;
+    position: static;
     max-height: 40vh;
   }
 }

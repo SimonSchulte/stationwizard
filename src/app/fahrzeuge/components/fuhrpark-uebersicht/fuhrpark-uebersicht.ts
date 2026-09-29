@@ -10,11 +10,18 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { heuteIso, jahrVon } from '../../../kern/kalender/datum';
+import {
+  heuteIso,
+  isoZuLokalesDatum,
+  jahrVon,
+  lokalesDatumZuIso,
+} from '../../../kern/kalender/datum';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
 import { KilometerBilanz } from '../kilometer-bilanz/kilometer-bilanz';
 import {
@@ -25,7 +32,13 @@ import {
   Wartungstermin,
 } from '../../models/fahrzeug.model';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
-import { AblesungHinweis, pruefeAblesungPlausibilitaet } from '../../services/ablesung-pruefung';
+import {
+  AblesungHinweis,
+  KILOMETERSTAND_MAX,
+  KilometerEingabeFehler,
+  leseKilometerEingabe,
+  pruefeAblesungPlausibilitaet,
+} from '../../services/ablesung-pruefung';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { GRUPPE_LABEL } from '../../services/gruppe-label';
@@ -69,6 +82,12 @@ function tageBisFaelligText(tage: number): string {
   return `in ${tage} Tagen fällig`;
 }
 
+const KM_FEHLERTEXT: Record<KilometerEingabeFehler, string> = {
+  'kein-zahlenwert': 'Bitte nur Ziffern eingeben.',
+  'keine-ganzzahl': 'Bitte ganze Kilometer ohne Nachkommastellen eingeben.',
+  'zu-gross': `Der Stand darf höchstens ${KILOMETERSTAND_MAX.toLocaleString('de-DE')} km betragen.`,
+};
+
 interface LeitTermin {
   bezeichnung: string;
   ampel: WartungsAmpel | null;
@@ -105,12 +124,15 @@ interface TerminAnzeige {
   imports: [
     DatePipe,
     MatButtonModule,
+    MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatNativeDateModule,
     MatSelectModule,
     KilometerBilanz,
   ],
+  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './fuhrpark-uebersicht.html',
   styleUrl: './fuhrpark-uebersicht.less',
 })
@@ -248,9 +270,16 @@ export class FuhrparkUebersicht implements OnInit {
       .sort((a, b) => a.status.tageBisFaellig - b.status.tageBisFaellig);
   });
 
+  private readonly kmEingabeErgebnis = computed(() => leseKilometerEingabe(this.kmEingabe()));
+
   readonly kmEingabeZahl = computed<number | null>(() => {
-    const wert = Number(this.kmEingabe());
-    return this.kmEingabe().trim() !== '' && Number.isFinite(wert) && wert >= 0 ? wert : null;
+    const ergebnis = this.kmEingabeErgebnis();
+    return ergebnis.art === 'gueltig' ? ergebnis.stand : null;
+  });
+
+  readonly kmEingabeFehler = computed<string | null>(() => {
+    const ergebnis = this.kmEingabeErgebnis();
+    return ergebnis.art === 'ungueltig' ? KM_FEHLERTEXT[ergebnis.fehler] : null;
   });
 
   readonly kmHinweis = computed<AblesungHinweis>(() => {
@@ -287,6 +316,19 @@ export class FuhrparkUebersicht implements OnInit {
   ngOnInit(): void {
     void this.berichtStore.berichtLaden();
     void this.konfiguration.laden();
+  }
+
+  /** Für die Datepicker-Bindung: ISO-Datum-Signale als `Date` darstellen. */
+  alsDatum(iso: string): Date | null {
+    return isoZuLokalesDatum(iso);
+  }
+
+  kmDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
+    if (event.value) this.kmDatum.set(lokalesDatumZuIso(event.value));
+  }
+
+  neuerTerminDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
+    if (event.value) this.neuerTerminDatum.set(lokalesDatumZuIso(event.value));
   }
 
   auswaehlen(id: string): void {

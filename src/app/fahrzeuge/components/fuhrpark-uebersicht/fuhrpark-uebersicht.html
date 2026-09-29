@@ -211,18 +211,22 @@
                 <mat-label>Datum</mat-label>
                 <input
                   matInput
-                  type="date"
-                  [value]="kmDatum()"
-                  (change)="kmDatum.set($any($event.target).value)"
+                  [matDatepicker]="kmPicker"
+                  [value]="alsDatum(kmDatum())"
+                  (dateChange)="kmDatumAktualisieren($event)"
+                  placeholder="TT.MM.JJJJ"
                 />
+                <mat-datepicker-toggle matSuffix [for]="kmPicker"></mat-datepicker-toggle>
+                <mat-datepicker #kmPicker></mat-datepicker>
               </mat-form-field>
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld-km">
                 <mat-label>Kilometerstand</mat-label>
                 <input
                   matInput
-                  type="number"
+                  type="text"
                   inputmode="numeric"
-                  min="0"
+                  autocomplete="off"
+                  [attr.aria-invalid]="kmEingabeFehler() ? 'true' : null"
                   [value]="kmEingabe()"
                   (input)="kmEingabe.set($any($event.target).value)"
                 />
@@ -237,7 +241,9 @@
                 Erfassen
               </button>
             </div>
-            @if (kmHinweis() === 'rueckschritt') {
+            @if (kmEingabeFehler(); as fehler) {
+              <p class="hinweis-warnung" role="alert">{{ fehler }}</p>
+            } @else if (kmHinweis() === 'rueckschritt') {
               <p class="hinweis-warnung" role="alert">
                 Dieser Stand liegt unter dem letzten bekannten Wert.
               </p>

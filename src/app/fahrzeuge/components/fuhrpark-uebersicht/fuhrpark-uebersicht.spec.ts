@@ -206,6 +206,48 @@ describe('FuhrparkUebersicht', () => {
     expect(berichtStore.berichtLaden).toHaveBeenCalledTimes(2);
   });
 
+  it('erfasst bei ungültiger Kilometereingabe nichts und nennt den Grund', async () => {
+    const ablesung = ablesungStoreMock();
+    const komponente = await erzeugeUebersicht([
+      {
+        provide: FahrzeugStoreService,
+        useValue: fahrzeugeStoreMock([erzeugeTestfahrzeug({ id: 'f-1' })]),
+      },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesung },
+    ]);
+
+    komponente.kmEingabe.set('12345,5');
+    expect(komponente.kmEingabeZahl()).toBeNull();
+    expect(komponente.kmEingabeFehler()).toContain('ganze Kilometer');
+    await komponente.kmErfassen();
+    expect(ablesung.erfassen).not.toHaveBeenCalled();
+
+    komponente.kmEingabe.set('12.345');
+    expect(komponente.kmEingabeFehler()).toBeNull();
+    expect(komponente.kmEingabeZahl()).toBe(12345);
+  });
+
+  it('übernimmt das gewählte Datum der Datepicker als lokalen ISO-Kalendertag', async () => {
+    const komponente = await erzeugeUebersicht([
+      {
+        provide: FahrzeugStoreService,
+        useValue: fahrzeugeStoreMock([erzeugeTestfahrzeug({ id: 'f-1' })]),
+      },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+    ]);
+
+    // Mitternacht lokal darf nicht über UTC auf den Vortag rutschen.
+    komponente.kmDatumAktualisieren({ value: new Date(2026, 5, 20) } as never);
+    komponente.neuerTerminDatumAktualisieren({ value: new Date(2026, 0, 1) } as never);
+    expect(komponente.kmDatum()).toBe('2026-06-20');
+    expect(komponente.neuerTerminDatum()).toBe('2026-01-01');
+    expect(komponente.alsDatum('2026-06-20')?.getDate()).toBe(20);
+  });
+
   it('meldet einen Wartungstermin als erledigt', async () => {
     const termin = erzeugeTestwartung({ id: 't-1', faelligAm: '2026-06-10' });
     const fahrzeug = erzeugeTestfahrzeug({ id: 'f-1', wartungstermine: [termin] });
