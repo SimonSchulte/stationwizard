@@ -1,6 +1,6 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
-import { Groessenfehler, istZip, leseBegrenzt } from './binaer-lesen';
+import { blobZuArrayBuffer, Groessenfehler, istZip, leseBegrenzt } from './binaer-lesen';
 import { ursachenText } from './diagnose';
 import { starkesEtag, versionAusEtag } from './etag';
 
@@ -67,11 +67,11 @@ async function leseDatei(db: D1Database): Promise<Response> {
   const zeile = await db
     .prepare('SELECT dateiname, inhalt, version FROM fuehrerschein_vorlage WHERE id = ?')
     .bind(VORLAGE_ID)
-    .first<{ dateiname: string; inhalt: ArrayBuffer; version: number }>();
+    .first<{ dateiname: string; inhalt: ArrayBuffer | number[]; version: number }>();
   if (!zeile) {
     return fehlerAntwort('FUEHRERSCHEIN_VORLAGE_NICHT_GEFUNDEN', 'Keine Vorlage hinterlegt.', 404);
   }
-  return new Response(zeile.inhalt, {
+  return new Response(blobZuArrayBuffer(zeile.inhalt), {
     status: 200,
     headers: {
       'Content-Type': DOCX_INHALTSTYP,

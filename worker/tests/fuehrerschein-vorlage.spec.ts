@@ -35,7 +35,13 @@ class FakeDb {
         if (anweisung.startsWith('SELECT dateiname, inhalt')) {
           return {
             dateiname: this.zeile.dateiname,
-            inhalt: this.zeile.inhalt,
+            // D1 liefert eine BLOB-Spalte zur Laufzeit trotz ArrayBuffer-
+            // Typisierung der Bindings-API als einfaches Array von
+            // Byte-Werten (siehe blobZuArrayBuffer() in binaer-lesen.ts);
+            // das hier statt eines echten ArrayBuffer nachzubilden fängt
+            // eine Regression dieser Normalisierung ab, die ein direkt
+            // wieder eingesetztes ArrayBuffer nicht aufdecken würde.
+            inhalt: [...new Uint8Array(this.zeile.inhalt)],
             version: this.zeile.version,
           } as T;
         }
