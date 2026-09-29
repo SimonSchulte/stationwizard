@@ -1,0 +1,86 @@
+<mat-toolbar class="kopfleiste">
+  <mat-icon class="kopfleiste-icon">description</mat-icon>
+  <span class="toolbar-title">Führerschein-Vorlage</span>
+  <span class="spacer"></span>
+  <a mat-button routerLink="/verwaltung">Zurück zur Verwaltung</a>
+</mat-toolbar>
+
+<div class="inhalt">
+  <p class="beschreibung">
+    Die Word-Vorlage, die die Führerscheinliste beim Herunterladen füllt (Name, Führerscheindatum
+    und -nummer je Person). Die übrigen Spalten der Vorlage – Ausstellungsort, Fahrgastbeförderung,
+    Prüfung und Unterschrift – bleiben für die Eintragung von Hand.
+  </p>
+
+  @if (fehler()) {
+    <p class="fehler" role="alert">{{ fehler() }}</p>
+    <button mat-button (click)="laden()" [disabled]="laedt()">Erneut versuchen</button>
+  }
+
+  @if (laedt()) {
+    <div class="laden" role="status">
+      <mat-spinner diameter="36" />
+      <span>Vorlagenstatus wird geladen…</span>
+    </div>
+  } @else if (vorlage()) {
+    <section class="abschnitt">
+      <h2>Aktuelle Vorlage</h2>
+      @if (vorlage()!.vorhanden) {
+        <p>
+          <strong>{{ vorlage()!.dateiname }}</strong> (Version {{ vorlage()!.version }}), zuletzt
+          geändert am {{ vorlage()!.geaendertAm }} von {{ vorlage()!.geaendertVon }}.
+        </p>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="herunterladen()"
+          [disabled]="herunterladeVorgang()"
+        >
+          @if (herunterladeVorgang()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            <mat-icon>download</mat-icon>
+          }
+          Aktuelle Vorlage herunterladen
+        </button>
+        @if (herunterladenFehler()) {
+          <p class="fehler" role="alert">{{ herunterladenFehler() }}</p>
+        }
+      } @else {
+        <p class="leer">Es ist noch keine Vorlage hinterlegt.</p>
+      }
+    </section>
+
+    <section class="abschnitt">
+      <h2>{{ vorlage()!.vorhanden ? 'Vorlage ersetzen' : 'Vorlage hochladen' }}</h2>
+      <label class="datei-feld">
+        <input
+          type="file"
+          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          (change)="dateiGewaehlt($event)"
+        />
+        <span class="datei-knopf">
+          <mat-icon>upload_file</mat-icon>
+          .docx-Datei auswählen
+        </span>
+      </label>
+      @if (gewaehlteDatei()) {
+        <p class="dateiname">{{ gewaehlteDatei()!.name }}</p>
+        <button mat-flat-button type="button" (click)="hochladen()" [disabled]="ladeVorgang()">
+          @if (ladeVorgang()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            <mat-icon>save</mat-icon>
+          }
+          Speichern
+        </button>
+      }
+      @if (hochladeFehler()) {
+        <p class="fehler" role="alert">{{ hochladeFehler() }}</p>
+      }
+      @if (erfolg()) {
+        <p class="erfolg" role="status">{{ erfolg() }}</p>
+      }
+    </section>
+  }
+</div>

@@ -169,7 +169,7 @@ Routenparameter kommen deshalb über `ActivatedRoute.paramMap` und `toSignal`, n
 
 ## 6. Persistenz
 
-Alle fünf Tabellen liegen in `FAHRZEUGE_DB` (`worker/migrations/0010_material.sql`). Die
+Alle fünf Tabellen liegen in `FAHRZEUGE_DB` (`worker/migrations/fahrzeuge/0010_material.sql`). Die
 Konvention „eine Datenbank je Fachdomäne" trägt hier nicht: ein Behälter hängt an
 `fahrzeuge.id`, die Freigabeberechtigung ergibt sich aus `fahrzeuge.gruppe`, und die
 Behälterübersicht braucht in **einem** Aufruf Behälter samt Fahrzeugangaben. Zwei Datenbanken

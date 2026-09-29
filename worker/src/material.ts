@@ -36,7 +36,7 @@ import { leseEinstellungen, type SystemkonfigurationKonfiguration } from './syst
  * kein eigenständiges Fachobjekt, sondern hängt an genau einem Fahrzeug, und
  * die Freigabeberechtigung eines Checks entsteht ausschließlich aus
  * `fahrzeuge.gruppe`. Die ausführliche Begründung steht im Kopf von
- * `worker/migrations/0010_material.sql` und in `docs/konzept-material.md`.
+ * `worker/migrations/fahrzeuge/0010_material.sql` und in `docs/konzept-material.md`.
  *
  * Rechte vorerst alle, Rollen später: Vorlagen und Behälter darf jede geprüfte
  * Identität anlegen, ändern und löschen. Tatsächlich durchgesetzt wird eine

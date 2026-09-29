@@ -2686,3 +2686,37 @@ schreibgeschützte Textfelder unterscheiden sich damit nur noch durch fehlende E
 `mat-select`-Felder weiterhin durch das Material-eigene Disabled-Aussehen. Reine
 Darstellungsänderung, keine Testanpassung nötig. Keine erneute Browserprüfung dieser
 Nachschärfung in dieser Sitzung.
+
+## Migration 0012 (Führerschein-Vorlage) angewendet, migrations_dir je Datenbank eingeführt – 2026-09-29
+
+- `worker/migrations/0012_fuehrerschein_vorlage.sql` über die Cloudflare-D1-API auf
+  `stationwizard-benutzer` (`BENUTZER_DB`) ausgeführt: Vorher geprüft, dass die Tabelle
+  fehlte; danach vorhanden mit dem Schema aus der Datei, leer. Bestehende Tabellen
+  unverändert. Per BLOB-Rundlauf (`wrangler d1 execute --local`) zusätzlich geprüft, dass
+  D1 den binären Dateiinhalt unverändert zurückgibt.
+- Dabei aufgefallen: keine der drei Produktivdatenbanken trug bis dahin eine
+  `d1_migrations`-Buchführungstabelle – konsistent mit der in „Migration 0010" und
+  `worker/README.md` dokumentierten Entscheidung, `wrangler d1 migrations apply` bewusst
+  nicht zu nutzen. Zunächst wurde diese Tabelle in allen drei Datenbanken nachträglich
+  angelegt und zunächst mit allen zwölf Dateinamen befüllt (unabhängig davon, ob die Datei
+  zu dieser Datenbank gehört) – als Schutz gegen ein versehentliches `migrations apply`, das
+  sonst versucht hätte, fremde Migrationen nachzuholen.
+- **Architekturentscheidung revidiert, auf ausdrücklichen Wunsch:** Die Begründung für „kein
+  `migrations_dir`" war die gemeinsame Nutzung eines einzigen `worker/migrations/` durch
+  drei Datenbanken. Das ist jetzt aufgelöst: die zwölf Dateien liegen unverändert benannt in
+  `worker/migrations/fahrzeuge/`, `worker/migrations/benutzer/` beziehungsweise
+  `worker/migrations/angebotswesen/`, und jeder `[[d1_databases]]`-Block in
+  `worker/wrangler.toml` trägt ein eigenes `migrations_dir`. Lokal geprüft
+  (`wrangler d1 migrations apply <BINDING> --local` für alle drei Bindings): jede Datenbank
+  sieht jetzt ausschließlich die für sie bestimmten Dateien. Die produktive
+  `d1_migrations`-Buchführung wurde anschließend wieder auf die tatsächlich zutreffenden
+  Dateinamen je Datenbank gekürzt. `wrangler d1 migrations apply <BINDING> --remote` gilt ab
+  jetzt als der empfohlene Weg für neue Migrationen; `d1 execute --file` beziehungsweise der
+  Cloudflare-Connector bleiben Ausweichwege ohne Wrangler-Anmeldung.
+- `worker/README.md` und die Pfadangaben in `CLAUDE.md`, `docs/konzept-fahrzeuge.md`,
+  `docs/konzept-material.md`, `docs/einrichtung.md` sowie den betroffenen Quelltext-
+  Kommentaren entsprechend nachgezogen. Historische Einträge weiter oben in dieser Datei
+  bleiben unverändert – sie beschreiben den zum jeweiligen Zeitpunkt gültigen Pfad.
+- Geprüft: `npm run build`, `npm test`, `npm run worker:test`, `npm run worker:check`,
+  `npm run format:check`, `npm run deploy:dry-run`. `npm run test:spa` weiterhin nicht
+  ausführbar (siehe oben, Netzwerkfreigabe).

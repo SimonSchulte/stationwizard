@@ -438,7 +438,7 @@ Damit ist ein späterer Wechsel auf Supabase oder ein anderes Ziel auf AP-F2 beg
 Fachlicher Wunsch (Entscheidung vom 12.09.2026): jede Änderung an einem Fahrzeug soll
 nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
 
-- Eigene Tabelle `fahrzeug_aenderungen` (`worker/migrations/0002_fahrzeug_aenderungen.sql`)
+- Eigene Tabelle `fahrzeug_aenderungen` (`worker/migrations/fahrzeuge/0002_fahrzeug_aenderungen.sql`)
   neben `fahrzeuge` und `ablesungen`, ausschließlich serverseitig befüllt. Kein Endpunkt,
   über den ein Client selbst einen Eintrag schreiben könnte — ein Eintrag entsteht immer
   als Nebeneffekt einer anderen Schreiboperation.
@@ -504,7 +504,7 @@ Großschreibung ohne Leerzeichen, Bindestriche und Punkte, so dass `me-xx 123`,
 immer die eingegebene Schreibweise.
 
 Verbindlich ist die Datenbank: der eindeutige Index aus
-`worker/migrations/0003_kennzeichen_eindeutig.sql` liegt auf genau dieser Vergleichsform.
+`worker/migrations/fahrzeuge/0003_kennzeichen_eindeutig.sql` liegt auf genau dieser Vergleichsform.
 Er ist bewusst **partiell** — ein leeres Kennzeichen bleibt erlaubt und mehrfach möglich,
 weil `kennzeichen` im Datenmodell leer sein darf. Der Worker prüft vor dem Schreiben und
 antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`; verliert er das Rennen gegen eine

@@ -6,6 +6,14 @@ import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
  * OAuth-Anmeldung. Anmeldung, Token und Upstream-Adressen liegen vollständig im
  * Worker (`worker/src/hiorg-api.ts`); hier gibt es nur relative Pfade.
  */
+/** Aus `attributes.fahrerlaubnis`; `null`/fehlend ohne bei HiOrg erfasste Fahrerlaubnis. */
+export interface HiorgFahrerlaubnis {
+  klassen: string[];
+  beschraenkung: string | null;
+  fuehrerscheinnummer: string | null;
+  fuehrerscheindatum: string | null;
+}
+
 export interface HiorgPerson {
   id: string;
   vorname: string;
@@ -13,6 +21,7 @@ export interface HiorgPerson {
   gruppen: string[];
   qualifikationen: { liste: string | null; name: string | null; kurz: string | null }[];
   telefon?: string;
+  fahrerlaubnis?: HiorgFahrerlaubnis | null;
 }
 
 export type HiorgVerbindung = 'ungeprueft' | 'nicht-eingerichtet' | 'getrennt' | 'verbunden';
@@ -65,10 +74,23 @@ function istObjekt(wert: unknown): wert is Record<string, unknown> {
   return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
 }
 
+function istHiorgFahrerlaubnis(wert: unknown): wert is HiorgFahrerlaubnis {
+  if (!istObjekt(wert)) return false;
+  const klassen = wert['klassen'];
+  return (
+    Array.isArray(klassen) &&
+    klassen.every(istText) &&
+    istTextOderNull(wert['beschraenkung']) &&
+    istTextOderNull(wert['fuehrerscheinnummer']) &&
+    istTextOderNull(wert['fuehrerscheindatum'])
+  );
+}
+
 export function istHiorgPerson(wert: unknown): wert is HiorgPerson {
   if (!istObjekt(wert)) return false;
   const qualifikationen = wert['qualifikationen'];
   const gruppen = wert['gruppen'];
+  const fahrerlaubnis = wert['fahrerlaubnis'];
   return (
     istText(wert['id']) &&
     istText(wert['vorname']) &&
@@ -83,7 +105,8 @@ export function istHiorgPerson(wert: unknown): wert is HiorgPerson {
         istTextOderNull(q['name']) &&
         istTextOderNull(q['kurz']),
     ) &&
-    (wert['telefon'] === undefined || istText(wert['telefon']))
+    (wert['telefon'] === undefined || istText(wert['telefon'])) &&
+    (fahrerlaubnis === undefined || fahrerlaubnis === null || istHiorgFahrerlaubnis(fahrerlaubnis))
   );
 }
 

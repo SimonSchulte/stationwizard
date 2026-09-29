@@ -14,7 +14,7 @@ import {
  * Betriebseinstellungen, die zur Laufzeit in der Oberfläche gesetzt werden.
  * Ausdrücklich **keine** Zugangsdaten: Absenderadresse und API-Token bleiben
  * Secrets am Worker, weil alles in dieser Tabelle über die API auslesbar ist
- * (siehe `worker/migrations/0005_systemkonfiguration.sql`).
+ * (siehe `worker/migrations/benutzer/0005_systemkonfiguration.sql`).
  *
  * Die Tabelle ist ein Schlüssel-Wert-Speicher, der Vertrag ist es nicht:
  * welche Schlüssel es gibt und welche Werte gelten, steht ausschließlich in

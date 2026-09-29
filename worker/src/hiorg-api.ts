@@ -791,6 +791,15 @@ async function personalAnfordern(zugangstoken: string): Promise<PersonalAbruf> {
   }
 }
 
+/** Aus `attributes.fahrerlaubnis`; `null` ohne bei HiOrg erfasste Fahrerlaubnis. */
+export interface HiorgFahrerlaubnis {
+  /** Klassen wie `B`, `BE`, `C1` – Freitext aus HiOrg, keine feste Liste hier. */
+  klassen: string[];
+  beschraenkung: string | null;
+  fuehrerscheinnummer: string | null;
+  fuehrerscheindatum: string | null;
+}
+
 export interface HiorgPersonAusgabe {
   id: string;
   vorname: string;
@@ -798,6 +807,7 @@ export interface HiorgPersonAusgabe {
   gruppen: string[];
   qualifikationen: { liste: string | null; name: string | null; kurz: string | null }[];
   telefon?: string;
+  fahrerlaubnis: HiorgFahrerlaubnis | null;
 }
 
 function optionalerText(wert: unknown): string | null | undefined {
@@ -806,11 +816,37 @@ function optionalerText(wert: unknown): string | null | undefined {
 }
 
 /**
- * Feste Feldauswahl aus `user_get`: Name, Gruppen, Qualifikationen und Handy
- * (wie `tel_mobil` bei EFS). Anschrift, Geburtsdaten, Bankverbindung,
- * Ernährung, Allergien, Führerscheindaten, Bemerkungen, Rechte und
- * benutzerdefinierte Felder verlassen den Worker nie. Eine unerwartete Form
- * verwirft die gesamte Antwort statt sie teilweise durchzulassen.
+ * `null` ohne erfasste Fahrerlaubnis, `undefined` bei unerwarteter Form (die
+ * gesamte Antwort wird dann verworfen, wie bei jedem anderen Feld hier).
+ */
+function leseFahrerlaubnis(wert: unknown): HiorgFahrerlaubnis | null | undefined {
+  if (wert === undefined || wert === null) return null;
+  if (!istObjekt(wert)) return undefined;
+  const klassenRoh = wert['klassen'] ?? [];
+  if (!Array.isArray(klassenRoh) || !klassenRoh.every(istText)) return undefined;
+  const beschraenkung = optionalerText(wert['beschraenkung']);
+  const fuehrerscheinnummer = optionalerText(wert['fuehrerscheinnummer']);
+  const fuehrerscheindatum = optionalerText(wert['fuehrerscheindatum']);
+  if (
+    beschraenkung === undefined ||
+    fuehrerscheinnummer === undefined ||
+    fuehrerscheindatum === undefined
+  ) {
+    return undefined;
+  }
+  return { klassen: klassenRoh, beschraenkung, fuehrerscheinnummer, fuehrerscheindatum };
+}
+
+/**
+ * Feste Feldauswahl aus `user_get`: Name, Gruppen, Qualifikationen, Handy
+ * (wie `tel_mobil` bei EFS) und – für die Führerscheinliste – die
+ * Fahrerlaubnis (`fahrerlaubnis.klassen`/`beschraenkung`/`fuehrerscheinnummer`/
+ * `fuehrerscheindatum`, belegt durch die offizielle Feldbeschreibung der
+ * Personal-Ressource). Alle übrigen Felder – Anschrift, Geburtsdaten,
+ * Bankverbindung, Ernährung, Allergien, Bemerkungen, Rechte und
+ * benutzerdefinierte Felder – verlassen den Worker weiterhin nie. Eine
+ * unerwartete Form verwirft die gesamte Antwort statt sie teilweise
+ * durchzulassen.
  */
 export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefined {
   if (!istObjekt(inhalt) || !Array.isArray(inhalt['data'])) return undefined;
@@ -843,6 +879,9 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
     const handy = optionalerText(attribute['handy']);
     if (handy === undefined) return undefined;
 
+    const fahrerlaubnis = leseFahrerlaubnis(attribute['fahrerlaubnis']);
+    if (fahrerlaubnis === undefined) return undefined;
+
     personen.push({
       id,
       vorname,
@@ -850,6 +889,7 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
       gruppen: gruppenRoh,
       qualifikationen,
       ...(handy ? { telefon: handy } : {}),
+      fahrerlaubnis,
     });
   }
   return personen;
