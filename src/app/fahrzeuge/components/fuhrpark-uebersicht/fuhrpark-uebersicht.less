@@ -1,5 +1,8 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .filterzeile {
@@ -8,6 +11,7 @@
   align-items: center;
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
+  flex-shrink: 0;
 }
 
 .suchfeld {
@@ -51,14 +55,16 @@
 
 .split {
   display: flex;
+  flex: 1;
+  min-height: 0;
   gap: var(--space-md);
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .master {
   flex: 0 0 320px;
   min-width: 0;
-  max-height: 72vh;
+  min-height: 0;
   overflow-y: auto;
   background: var(--surface-primary);
   border: 1px solid var(--border-light);
@@ -150,7 +156,7 @@
 .detail {
   flex: 1;
   min-width: 0;
-  max-height: 72vh;
+  min-height: 0;
   overflow-y: auto;
   background: var(--surface-primary);
   border: 1px solid var(--border-light);
@@ -375,22 +381,19 @@
 
 @media (max-width: 780px) {
   .split {
+    // Gestapelt statt nebeneinander; `align-items: stretch` bleibt aus der
+    // Basisregel erhalten (jetzt Breite statt Höhe), sonst schrumpfen beide
+    // Spalten auf ihre Inhaltsbreite und nicht umbrechender Inhalt sprengt
+    // die Breite des sichtbaren Bereichs, statt zu umbrechen.
     flex-direction: column;
-    // Die Basisregel setzt hier bewusst `align-items: flex-start`, damit
-    // Liste und Detail im Desktop-Nebeneinander nicht auf gleiche Höhe
-    // gestreckt werden. In der gestapelten Mobilansicht ist das die
-    // Querachse (Breite): ohne `stretch` schrumpfen beide Spalten auf ihre
-    // Inhaltsbreite, und nicht umbrechender Inhalt (z. B. die Kilometerzeile)
-    // sprengt dann die Breite des sichtbaren Bereichs, statt zu umbrechen.
-    align-items: stretch;
   }
 
+  // Die Liste bleibt auf einen Teil der Höhe begrenzt, damit das Detail
+  // beim Öffnen direkt sichtbar ist, statt erst an der Liste vorbeigescrollt
+  // werden zu müssen; das Detail füllt den Rest (`.detail { flex: 1 }` aus
+  // der Basisregel).
   .master {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     max-height: 40vh;
-  }
-
-  .detail {
-    max-height: none;
   }
 }

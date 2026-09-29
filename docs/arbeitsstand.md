@@ -2584,3 +2584,43 @@ kollidierte der lange Text mit dem `km`-Suffix zu „Kilometerkm".
   CSS-/Label-Korrektur, kein Verhaltenswechsel).
 - Weiterhin **kein Lauf gegen ein echtes Telefon**, nur emuliertes Chromium auf 390×844, und
   kein Lauf gegen den echten Worker/D1-Stand.
+
+## Fuhrpark-Dashboard: Tabs entfernt, Master/Detail ist jetzt die Fahrzeugseite
+
+Auftrag: „Übersicht wird zu 'Fahrzeuge', Übersicht kann dann weg, Wartungen und
+Km-Übersicht können dann in der Form auch erstmal weg" – die bisherige Tab-Leiste
+(„Übersicht"/„Liste Fahrzeuge"/„Liste Wartungen"/„Kilometerübersicht") entfällt.
+`app-fuhrpark-uebersicht` (Master/Detail) ist jetzt unmittelbar der gesamte Inhalt der
+Fahrzeugseite, ohne `mat-tab-group`-Umweg; die Kopfleiste sagt bereits „Fahrzeuge", ein
+eigenes „Übersicht"-Label entfällt damit von selbst. `FahrzeugListe`, `WartungenListe` und
+`KilometerUebersicht` bleiben als Komponenten und über ihre eigenen Routen
+(`/fahrzeuge/liste` u. a.) erreichbar – nur ihre Einbettung als Tab hier entfällt erstmal,
+kein Löschen von Funktionalität.
+
+Zusätzlich `.split`/`.master`/`.detail` in `fuhrpark-uebersicht.less` von einem geschätzten
+`max-height: 72vh` auf `align-items: stretch` umgestellt: Liste und Detail werden jetzt auf
+gleiche Höhe gestreckt (die jeweils kürzere Seite füllt bis zur Höhe der längeren auf), statt
+auf eine geratene Viewport-Prozentzahl gedeckelt zu sein – bei sehr langem Inhalt scrollt
+die ganze Seite (wie bisher schon zuverlässig über `mat-sidenav-content`), nicht mehr ein
+zusätzlicher innerer Rahmen. Nur auf Mobil bleibt `.master` bewusst auf `max-height: 40vh`
+begrenzt, damit die Liste das Detail beim Öffnen nicht komplett aus dem Bildschirm schiebt.
+
+**Zwischenstand zur Breite, nicht mehr aktuell:** Ein erster Durchgang hatte
+`.dashboard-content` probeweise auf volle Bildschirmbreite gestellt (`max-width`/
+`margin: auto` entfernt). Auf Rückfrage („nutze immer den vollen, verfügbaren Platz")
+zurückgenommen: die Seite behält den bestehenden `--content-width`-Rahmen (1200 px,
+zentriert) wie der Rest der Anwendung – Inhalte sollen so groß wie nötig sein, nicht auf
+Zuruf bildschirmfüllend.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Sichtprüfung im echten Headless-Chromium auf 1920×1000, 1400×900 und 390×844 gegen
+  denselben Attrappen-Server wie in der vorherigen Runde: keine `mat-tab-group` mehr im DOM,
+  Seite beginnt sofort mit der Fahrzeugliste, „Fahrzeuge" bleibt einziger Titel. Mit
+  probeweise entfernter Breitenbegrenzung gemessen, dass `.dashboard-content` tatsächlich
+  auf 1920 px mitwuchs (`contentWidth === viewportWidth`), und nach der Rücknahme, dass es
+  wieder korrekt bei 1200 px deckelt (`contentWidth: 1200` bei 1920 px Viewport).
+- `npm run build` (inkl. `worker:check`), `npm test` (863 Angular-, 29 `oeffentlich`-,
+  752 Worker-Tests – ein Test weniger als zuvor, weil der reine Tab-Index-Test mit den
+  Tabs entfiel), `npm run format:check` – alle grün.
+- Weiterhin kein Lauf gegen ein echtes Telefon oder den echten Worker/D1-Stand.

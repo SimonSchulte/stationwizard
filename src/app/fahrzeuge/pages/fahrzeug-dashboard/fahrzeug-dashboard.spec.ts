@@ -33,12 +33,6 @@ describe('FahrzeugDashboard', () => {
     expect(store.listeLaden).toHaveBeenCalledOnce();
   });
 
-  it('startet auf dem Übersicht-Tab', async () => {
-    konfiguriere([]);
-    const dashboard = await erzeugeUndWarte();
-    expect(dashboard.ausgewaehlterTab()).toBe(0);
-  });
-
   it('beginnt ein neues Fahrzeug und navigiert zur Anlage', async () => {
     const router = { navigate: vi.fn().mockResolvedValue(true) };
     const { store } = konfiguriere([], [{ provide: Router, useValue: router }]);

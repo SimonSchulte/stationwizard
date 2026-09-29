@@ -26,30 +26,6 @@
   }
 
   @if (fahrzeuge().length > 0) {
-    <mat-tab-group [(selectedIndex)]="ausgewaehlterTab">
-      <mat-tab label="Übersicht">
-        <div class="tab-inhalt">
-          <app-fuhrpark-uebersicht />
-        </div>
-      </mat-tab>
-
-      <mat-tab label="Liste Fahrzeuge">
-        <div class="tab-inhalt">
-          <app-fahrzeug-liste [eingebettet]="true" />
-        </div>
-      </mat-tab>
-
-      <mat-tab label="Liste Wartungen">
-        <div class="tab-inhalt">
-          <app-wartungen-liste [fahrzeuge]="fahrzeuge()" />
-        </div>
-      </mat-tab>
-
-      <mat-tab label="Kilometerübersicht">
-        <div class="tab-inhalt">
-          <app-kilometer-uebersicht />
-        </div>
-      </mat-tab>
-    </mat-tab-group>
+    <app-fuhrpark-uebersicht />
   }
 </div>
