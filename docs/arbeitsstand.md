@@ -2655,3 +2655,24 @@ beim Tippen, „Speichern" verlässt den Modus und der neue Name bleibt nach Neu
 „Abbrechen" verwirft eine zusätzliche, noch ungespeicherte Änderung und stellt den zuletzt
 gespeicherten Stand wieder her – auf beiden Bildschirmgrößen geprüft, kein horizontaler
 Überlauf. Weiterhin kein Lauf gegen ein echtes Telefon oder den echten Worker/D1-Stand.
+
+### Nachtrag – Stammdaten-Formular immer sichtbar statt umschaltender Ansicht
+
+Auf Rückfrage nachgeschärft: Statt zwischen einer reinen Anzeige (`<dl>`) und einem
+Formular umzuschalten, rendert der Stammdaten-Abschnitt jetzt immer dieselben Formularfelder
+– im Ruhezustand mit `[readonly]` (Textfelder) bzw. `[disabled]` (`mat-select` für
+Eigentümer/Gruppe), dezent abgesetzt über `background: var(--surface-secondary)` auf
+`:read-only`-Feldern. Die Überschrift „Stammdaten" entfällt, weil das Formular selbst schon
+zeigt, um welche Daten es geht. „Speichern"/„Abbrechen" stehen jetzt immer im DOM
+(`justify-content: flex-end`), statt nur im Bearbeitungsmodus zu erscheinen, und sind
+außerhalb des Bearbeitungsmodus über `[disabled]="!bearbeitungModus() || …"` gesperrt. Der
+„Bearbeiten"-Knopf im Kopfbereich bleibt unverändert der einzige Weg, den Modus zu öffnen.
+Keine Verhaltensänderung an Speichern/Abbrechen/Validierung selbst, nur an der Darstellung –
+deshalb keine neuen Tests nötig, die bestehenden zum Bearbeitungsmodus decken das ab.
+
+Geprüft: Sichtprüfung im echten Headless-Chromium auf 1400×900 und 390×844 gegen den
+Attrappen-Server – vor „Bearbeiten" sind Textfelder `readonly`, beide Knöpfe `disabled`,
+keine „Stammdaten"-Überschrift im DOM; nach „Bearbeiten" sind Felder editierbar und beide
+Knöpfe aktiv; kein horizontaler Überlauf auf beiden Größen. `npm run build` (inkl.
+`worker:check`), `npm test` (868 Angular-, 29 `oeffentlich`-, 752 Worker-Tests), `npm run
+format:check` – alle grün.

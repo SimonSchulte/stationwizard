@@ -242,32 +242,17 @@
   color: var(--text-secondary);
 }
 
-.stammdaten-raster {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-sm) var(--space-md);
-  margin: 0;
-
-  dt {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-
-  dd {
-    margin: 0;
-    font-weight: 500;
-  }
-}
-
-.bemerkung {
-  margin: var(--space-sm) 0 0;
-  color: var(--text-secondary);
-}
-
 .bearbeiten-formular {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
+
+  // Nicht editierbare Felder bleiben lesbar, statt wie deaktivierte Felder
+  // auszugrauen – nur ein dezent anderer Hintergrund als Hinweis.
+  input:read-only {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+  }
 }
 
 .feld-fehler {
@@ -277,10 +262,16 @@
 .bemerkung-feld {
   width: 100%;
   margin-top: var(--space-md);
+
+  textarea:read-only {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+  }
 }
 
 .bearbeiten-aktionen {
   display: flex;
+  justify-content: flex-end;
   gap: var(--space-sm);
   margin-top: var(--space-md);
 }
