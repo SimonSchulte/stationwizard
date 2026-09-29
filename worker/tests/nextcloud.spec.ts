@@ -4,19 +4,15 @@ import { verarbeiteNextcloud, type NextcloudKonfiguration } from '../src/nextclo
 const ID = '01234567-89ab-4cde-8fab-0123456789ab';
 const ANDERE_ID = '12345678-90ab-4cde-8fab-0123456789ab';
 const PFAD = `/api/nextcloud/planungen/${ID}`;
-const XLSX_INHALTSTYP = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const ZIP_INHALT = new Uint8Array([0x50, 0x4b, 3, 4, 0, 0]);
 
 function konfiguration(): NextcloudKonfiguration {
   return {
     NEXTCLOUD_BASE_URL: 'https://cloud.example.test/nextcloud///',
-    NEXTCLOUD_SHARE_TOKEN: 'test-excel-freigabe',
-    NEXTCLOUD_SHARE_PASSWORD: 'test-passwort',
     NEXTCLOUD_PEP_SHARE_TOKEN: 'test-ordner-freigabe',
   };
 }
 
-function anfrage(pfad = '/api/nextcloud/arbeitsmappe', init?: RequestInit): Request {
+function anfrage(pfad = PFAD, init?: RequestInit): Request {
   return new Request(`https://stationwizard.example.test${pfad}`, init);
 }
 
@@ -75,9 +71,9 @@ describe('NextCloud-Proxy', () => {
     vi.useRealTimers();
   });
 
-  it('liest die feste Arbeitsmappe und reicht nur Datei- und Versionsheader weiter', async () => {
+  it('liest eine PEP-Datei und reicht nur Datei- und Versionsheader weiter', async () => {
     fetchMock.mockResolvedValue(
-      new Response(ZIP_INHALT, {
+      new Response(pepDatei(), {
         headers: {
           'Content-Type': 'application/octet-stream',
           ETag: '"v1"',
@@ -89,36 +85,48 @@ describe('NextCloud-Proxy', () => {
     );
     const antwort = await verarbeiteNextcloud(anfrage(), konfiguration());
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://cloud.example.test/nextcloud/public.php/webdav/',
+      `https://cloud.example.test/nextcloud/public.php/webdav/${ID}.pep.json`,
       expect.objectContaining({
         method: 'GET',
         redirect: 'manual',
         signal: expect.any(AbortSignal),
         headers: expect.objectContaining({
-          Authorization: `Basic ${btoa('test-excel-freigabe:test-passwort')}`,
+          Authorization: `Basic ${btoa('test-ordner-freigabe:')}`,
           'X-Requested-With': 'XMLHttpRequest',
         }),
       }),
     );
     expect(antwort.status).toBe(200);
-    expect(antwort.headers.get('Content-Type')).toBe(XLSX_INHALTSTYP);
+    expect(antwort.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
     expect(antwort.headers.get('ETag')).toBe('"v1"');
     expect(antwort.headers.get('Last-Modified')).toBe('Thu, 01 Jan 2026 00:00:00 GMT');
     expect(antwort.headers.get('Cache-Control')).toBe('no-store');
     expect(antwort.headers.has('Set-Cookie')).toBe(false);
     expect(antwort.headers.has('X-Nextcloud-Secret')).toBe(false);
-    expect(new Uint8Array(await antwort.arrayBuffer())).toEqual(ZIP_INHALT);
+    expect(await antwort.text()).toBe(pepDatei());
+  });
+
+  it('kennt die frühere Excel-Arbeitsmappe nicht mehr', async () => {
+    for (const method of ['GET', 'PUT']) {
+      const antwort = await verarbeiteNextcloud(
+        anfrage('/api/nextcloud/arbeitsmappe', { method }),
+        konfiguration(),
+      );
+      expect(antwort.status).toBe(404);
+      expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('NEXTCLOUD_PFAD_UNGUELTIG');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('löst Secrets-Store-Bindings mit get() auf und unterstützt UTF-8-Passwörter', async () => {
     const basisLesen = vi.fn().mockResolvedValue('https://cloud.example.test');
     const tokenLesen = vi.fn().mockResolvedValue('test-freigabe');
     const passwortLesen = vi.fn().mockResolvedValue('übung');
-    fetchMock.mockResolvedValue(new Response(ZIP_INHALT));
+    fetchMock.mockResolvedValue(new Response(pepDatei()));
     const antwort = await verarbeiteNextcloud(anfrage(), {
       NEXTCLOUD_BASE_URL: { get: basisLesen },
-      NEXTCLOUD_SHARE_TOKEN: { get: tokenLesen },
-      NEXTCLOUD_SHARE_PASSWORD: { get: passwortLesen },
+      NEXTCLOUD_PEP_SHARE_TOKEN: { get: tokenLesen },
+      NEXTCLOUD_PEP_SHARE_PASSWORD: { get: passwortLesen },
     });
     expect(antwort.status).toBe(200);
     expect(basisLesen).toHaveBeenCalledOnce();
@@ -130,17 +138,18 @@ describe('NextCloud-Proxy', () => {
     );
   });
 
-  it.each(['NEXTCLOUD_BASE_URL', 'NEXTCLOUD_SHARE_TOKEN', 'NEXTCLOUD_SHARE_PASSWORD'] as const)(
-    'sperrt bei nicht auflösbarem Secret %s',
-    async (name) => {
-      const env = konfiguration();
-      env[name] = { get: vi.fn().mockRejectedValue(new Error('geheime-detailinformationen')) };
-      const antwort = await verarbeiteNextcloud(anfrage(), env);
-      expect(antwort.status).toBe(503);
-      expect(await antwort.text()).not.toContain('geheime-detailinformationen');
-      expect(fetchMock).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    'NEXTCLOUD_BASE_URL',
+    'NEXTCLOUD_PEP_SHARE_TOKEN',
+    'NEXTCLOUD_PEP_SHARE_PASSWORD',
+  ] as const)('sperrt bei nicht auflösbarem Secret %s', async (name) => {
+    const env = konfiguration();
+    env[name] = { get: vi.fn().mockRejectedValue(new Error('geheime-detailinformationen')) };
+    const antwort = await verarbeiteNextcloud(anfrage(), env);
+    expect(antwort.status).toBe(503);
+    expect(await antwort.text()).not.toContain('geheime-detailinformationen');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it.each([
     'http://cloud.example.test',
@@ -165,7 +174,7 @@ describe('NextCloud-Proxy', () => {
 
   it.each([
     '/api/nextcloud',
-    '/api/nextcloud/arbeitsmappe/anders',
+    '/api/nextcloud/arbeitsmappe',
     '/api/nextcloud/arbeitsmappe?url=https://fremd.test',
     '/api/nextcloud/planungen/unbekannt',
     `/api/nextcloud/planungen/${ID}.pep.json`,
@@ -247,23 +256,10 @@ describe('NextCloud-Proxy', () => {
     expect(new TextDecoder().decode(init?.body as Uint8Array)).toBe(pepDatei());
   });
 
-  it('speichert eine Arbeitsmappe mit Dateiversionsprüfung', async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    const antwort = await verarbeiteNextcloud(
-      schreiben('/api/nextcloud/arbeitsmappe', ZIP_INHALT, { 'Content-Type': XLSX_INHALTSTYP }),
-      konfiguration(),
-    );
-    expect(antwort.status).toBe(204);
-    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('If-Match')).toBe('"v1"');
-    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('Content-Type')).toBe(
-      XLSX_INHALTSTYP,
-    );
-  });
-
   it.each([
     [PFAD, 'text/plain'],
-    ['/api/nextcloud/arbeitsmappe', 'application/json'],
-  ])('prüft den Inhaltstyp vor dem Upload (%s)', async (pfad, typ) => {
+    [PFAD, 'application/octet-stream'],
+  ])('prüft den Inhaltstyp vor dem Upload (%s, %s)', async (pfad, typ) => {
     const antwort = await verarbeiteNextcloud(
       schreiben(pfad, pepDatei(), { 'Content-Type': typ! }),
       konfiguration(),
@@ -284,17 +280,6 @@ describe('NextCloud-Proxy', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('lehnt HTML als Arbeitsmappe ab', async () => {
-    const antwort = await verarbeiteNextcloud(
-      schreiben('/api/nextcloud/arbeitsmappe', '<html>Anmeldung</html>', {
-        'Content-Type': XLSX_INHALTSTYP,
-      }),
-      konfiguration(),
-    );
-    expect(antwort.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it.each([false, true])(
     'begrenzt PEP-Uploads auch ohne ehrliche Content-Length (%s)',
     async (mitLaenge) => {
@@ -309,17 +294,6 @@ describe('NextCloud-Proxy', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     },
   );
-
-  it('begrenzt Excel-Uploads auf 15 MiB', async () => {
-    const antwort = await verarbeiteNextcloud(
-      schreiben('/api/nextcloud/arbeitsmappe', ZIP_INHALT, {
-        'Content-Type': XLSX_INHALTSTYP,
-        'Content-Length': String(15 * 1024 * 1024 + 1),
-      }),
-      konfiguration(),
-    );
-    expect(antwort.status).toBe(413);
-  });
 
   it('liest PEP ohne die gespeicherte Versionsangabe umzuschreiben', async () => {
     const inhalt = pepDatei().replace('"version":"1.0"', '"version":"0.9"');
@@ -359,17 +333,20 @@ describe('NextCloud-Proxy', () => {
     const protokoll = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     fetchMock.mockRejectedValue(
       new TypeError(
-        'Fetch API cannot load: https://cloud.example.test/nextcloud/public.php/webdav/ (test-excel-freigabe:test-passwort)',
+        'Fetch API cannot load: https://cloud.example.test/nextcloud/public.php/webdav/ (test-ordner-freigabe:test-passwort)',
       ),
     );
-    const antwort = await verarbeiteNextcloud(anfrage(), konfiguration());
+    const antwort = await verarbeiteNextcloud(anfrage(), {
+      ...konfiguration(),
+      NEXTCLOUD_PEP_SHARE_PASSWORD: 'test-passwort',
+    });
     expect(antwort.status).toBe(502);
     expect(protokoll).toHaveBeenCalledTimes(1);
     const [code, text] = protokoll.mock.calls[0] as [string, string];
     expect(code).toBe('NEXTCLOUD_NICHT_ERREICHBAR');
     expect(text).toContain('TypeError');
     expect(text).toContain('Fetch API cannot load');
-    expect(text).not.toMatch(/cloud\.example\.test|test-excel-freigabe|test-passwort/);
+    expect(text).not.toMatch(/cloud\.example\.test|test-ordner-freigabe|test-passwort/);
     protokoll.mockRestore();
   });
 
@@ -433,10 +410,10 @@ describe('NextCloud-Proxy', () => {
     expect(antwort.status).toBe(504);
   });
 
-  it.each([PFAD, '/api/nextcloud/planungen', '/api/nextcloud/arbeitsmappe'])(
+  it.each([PFAD, '/api/nextcloud/planungen'])(
     'begrenzt Antwortgrößen auch ohne Content-Length (%s)',
     async (pfad) => {
-      const grenze = pfad.endsWith('arbeitsmappe') ? 15 * 1024 * 1024 : 2 * 1024 * 1024;
+      const grenze = 2 * 1024 * 1024;
       fetchMock.mockResolvedValue(
         new Response(new Uint8Array(grenze + 1), {
           status: pfad.endsWith('planungen') ? 207 : 200,
@@ -448,15 +425,12 @@ describe('NextCloud-Proxy', () => {
     },
   );
 
-  it.each([PFAD, '/api/nextcloud/arbeitsmappe'])(
-    'verhindert HTML-Loginseiten im erfolgreichen Dateiabruf (%s)',
-    async (pfad) => {
-      fetchMock.mockResolvedValue(new Response('<html>Interne Anmeldeseite</html>'));
-      const antwort = await verarbeiteNextcloud(anfrage(pfad), konfiguration());
-      expect(antwort.status).toBe(502);
-      expect(await antwort.text()).not.toContain('Interne Anmeldeseite');
-    },
-  );
+  it.each([PFAD])('verhindert HTML-Loginseiten im erfolgreichen Dateiabruf (%s)', async (pfad) => {
+    fetchMock.mockResolvedValue(new Response('<html>Interne Anmeldeseite</html>'));
+    const antwort = await verarbeiteNextcloud(anfrage(pfad), konfiguration());
+    expect(antwort.status).toBe(502);
+    expect(await antwort.text()).not.toContain('Interne Anmeldeseite');
+  });
 
   it('fordert per PROPFIND Depth 1 nur Dateieigenschaften an und filtert die Liste', async () => {
     const verzeichnis = '/nextcloud/public.php/webdav/';

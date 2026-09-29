@@ -1,0 +1,144 @@
+<mat-toolbar class="migration-kopfleiste">
+  <mat-icon class="kopfleiste-icon">upload_file</mat-icon>
+  <span class="toolbar-title">Kalender aus Excel übernehmen</span>
+  <span class="spacer"></span>
+  <a mat-button routerLink="/verwaltung">Zurück zur Verwaltung</a>
+</mat-toolbar>
+
+<div class="migration-inhalt">
+  <section class="abschnitt">
+    <h2>1. Datenbank</h2>
+    @switch (befund()) {
+      @case ('pruefen') {
+        <p role="status">Kalender-Datenbank wird geprüft …</p>
+        <mat-progress-bar mode="indeterminate" />
+      }
+      @case ('leer') {
+        <p class="befund befund-ok">
+          <mat-icon inline>check_circle</mat-icon>
+          Die Kalender-Datenbank ist verbunden und noch leer – die Übernahme ist möglich.
+        </p>
+      }
+      @case ('befuellt') {
+        <p class="befund befund-warn">
+          <mat-icon inline>info</mat-icon>
+          Die Kalender-Datenbank enthält bereits Daten. Die Übernahme ist nur einmal möglich und
+          überschreibt nie einen gepflegten Stand.
+        </p>
+        <a matButton="tonal" routerLink="/kalender">
+          <mat-icon>calendar_month</mat-icon>
+          Zum Kalender
+        </a>
+      }
+      @case ('nicht-eingerichtet') {
+        <p class="befund befund-fehler" role="alert">
+          <mat-icon inline>cloud_off</mat-icon>
+          Die Kalender-Datenbank ist am Worker noch nicht eingerichtet (Binding
+          <code>KALENDER_DB</code>, siehe Einrichtung).
+        </p>
+      }
+      @case ('fehler') {
+        <p class="befund befund-fehler" role="alert">
+          <mat-icon inline>error_outline</mat-icon>
+          Die Kalender-Datenbank ist nicht erreichbar.
+        </p>
+        <button matButton (click)="pruefeDatenbank()">
+          <mat-icon>refresh</mat-icon>
+          Erneut prüfen
+        </button>
+      }
+    }
+  </section>
+
+  @if (befund() === 'leer' || arbeitsmappe()) {
+    <section class="abschnitt">
+      <h2>2. Arbeitsmappe wählen</h2>
+      <p>
+        Die bisherige Excel-Arbeitsmappe der Ausbildungsplanung, etwa aus der NextCloud-Freigabe
+        heruntergeladen. Übernommen werden alle Jahresblätter, „Offene Ideen“ und die
+        KatS-A-Plan-Themen je Jahr.
+      </p>
+      <label class="datei-feld">
+        <input
+          type="file"
+          accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          [disabled]="uebertraegt() || erledigt()"
+          (change)="dateiGewaehlt($event)"
+        />
+        <span class="datei-knopf">
+          <mat-icon>upload_file</mat-icon>
+          Excel-Datei auswählen
+        </span>
+      </label>
+      @if (dateiname()) {
+        <p class="dateiname">{{ dateiname() }}</p>
+      }
+      @if (liestEin()) {
+        <p role="status">Datei wird gelesen …</p>
+      }
+    </section>
+  }
+
+  @if (fehler()) {
+    <p class="fehler-hinweis" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (vorschau(); as v) {
+    <section class="abschnitt">
+      <h2>3. Vorschau</h2>
+      <p class="zaehler">
+        {{ v.jahre.length }} Jahr(e) · {{ v.termineGesamt }} Einträge · {{ v.ideen }} offene Idee(n)
+      </p>
+      <ul class="jahres-liste">
+        @for (jahr of v.jahre; track jahr.jahr) {
+          <li class="jahres-zeile">
+            <span class="jahres-zahl">{{ jahr.jahr }}</span>
+            <span class="jahres-titel">{{ jahr.titel }}</span>
+            <span class="jahres-kennzahlen">
+              {{ jahr.termine }} Einträge, davon {{ jahr.mitThema }} mit Thema ·
+              {{ jahr.katsThemen }} KatS-Themen
+            </span>
+          </li>
+        }
+      </ul>
+      @if (meldungen().length) {
+        <h3>Hinweise beim Lesen</h3>
+        <ul class="meldungen">
+          @for (meldung of meldungen(); track $index) {
+            <li>{{ meldung }}</li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="abschnitt">
+      <h2>4. Übernehmen</h2>
+      @if (erledigt()) {
+        <p class="befund befund-ok" role="status">
+          <mat-icon inline>check_circle</mat-icon>
+          Übernommen. Der Kalender liest ab jetzt aus der Datenbank; die Excel-Datei wird nicht mehr
+          gebraucht.
+        </p>
+        <a matButton="filled" routerLink="/kalender">
+          <mat-icon>calendar_month</mat-icon>
+          Zum Kalender
+        </a>
+      } @else {
+        <p class="hinweis">
+          Die Übernahme schreibt alles in einem Schritt – vollständig oder gar nicht. Danach ist die
+          Datenbank die führende Quelle; eine Excel-Kopie lässt sich im Kalender jederzeit
+          herunterladen.
+        </p>
+        @if (uebertraegt()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+        <div class="aktionen">
+          <button matButton="filled" [disabled]="!kannUebernehmen()" (click)="uebernehmen()">
+            <mat-icon>cloud_upload</mat-icon>
+            In die Datenbank übernehmen
+          </button>
+        </div>
+      }
+    </section>
+  }
+</div>

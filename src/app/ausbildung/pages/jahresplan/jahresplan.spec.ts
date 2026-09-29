@@ -5,14 +5,29 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { PlanStore } from '../../services/plan-store';
-import { WorkbookService } from '../../services/workbook.service';
+import { DatenbankZustand, KalenderDatenService } from '../../services/kalender-daten.service';
 import { FeiertagService } from '../../services/feiertage.service';
 import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import type { HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { Jahresplan } from './jahresplan';
 import { leererTermin, leeresDocument } from '../../models/plan.model';
-import { NextcloudWorkerStorage } from '../../storage/nextcloud-worker.storage';
-import { WorkerClient } from '../../../kern/worker-client';
+import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
+
+/** Ersatz für die Kalender-Datenbank: verbunden, ohne echten Abruf. */
+function kalenderAttrappe(jahre: number[] = [2026]) {
+  return {
+    zustand: signal<DatenbankZustand>('verbunden'),
+    fehler: signal(''),
+    beschaeftigt: signal(false),
+    istLeer: signal(false),
+    verfuegbareJahre: signal<number[]>(jahre),
+    laden: vi.fn().mockResolvedValue({ meldungen: [] }),
+    speichern: vi.fn().mockResolvedValue({ geschrieben: 1 }),
+    exportieren: vi.fn(),
+    waehleJahr: vi.fn(),
+    neuesJahr: vi.fn(),
+  };
+}
 
 const HIORG_EINTRAG: HiorgEintrag = {
   schluessel: 'test|2026-05-04|Erfundene Ausbildung',
@@ -28,15 +43,7 @@ const HIORG_EINTRAG: HiorgEintrag = {
 
 describe('Bestätigungen im Ausbildungsplan', () => {
   const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
-  const workbook = {
-    ziel: signal(null),
-    beschaeftigt: signal(false),
-    laden: vi.fn(),
-    neuLaden: vi.fn(),
-    neuesDokument: vi.fn(),
-    waehleJahr: vi.fn(),
-    verfuegbareJahre: signal<number[]>([2026]),
-  };
+  const kalender = kalenderAttrappe([2026]);
   const hiorg = {
     eintraege: signal<readonly HiorgEintrag[]>([]),
     zustand: signal('geladen'),
@@ -55,7 +62,7 @@ describe('Bestätigungen im Ausbildungsplan', () => {
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
-        { provide: WorkbookService, useValue: workbook },
+        { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
           useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
@@ -72,7 +79,7 @@ describe('Bestätigungen im Ausbildungsplan', () => {
   it('behält ungespeicherte Daten bei abgebrochener Neuladebestätigung', async () => {
     dialog.bestaetigen.mockResolvedValue(false);
     await ansicht.neuLaden();
-    expect(workbook.neuLaden).not.toHaveBeenCalled();
+    expect(kalender.laden).not.toHaveBeenCalled();
     expect(store.ungespeichert()).toBe(true);
   });
 
@@ -84,12 +91,12 @@ describe('Bestätigungen im Ausbildungsplan', () => {
           bestaetigen = resolve;
         }),
     );
-    const neuerPlan = ansicht.neuerPlan();
+    const neuLaden = ansicht.neuLaden();
     const inzwischen = leeresDocument();
     store.setzeDokument(inzwischen);
     bestaetigen(true);
-    await neuerPlan;
-    expect(workbook.neuesDokument).not.toHaveBeenCalled();
+    await neuLaden;
+    expect(kalender.laden).not.toHaveBeenCalled();
     expect(store.dokument()).toBe(inzwischen);
     expect(dialog.hinweis).toHaveBeenCalled();
   });
@@ -165,15 +172,7 @@ describe('Monatsfilter im Jahresplan', () => {
   const heute = new Date();
   const aktuellesJahr = heute.getFullYear();
   const aktuellerMonat = heute.getMonth();
-  const workbook = {
-    ziel: signal(null),
-    beschaeftigt: signal(false),
-    laden: vi.fn(),
-    neuLaden: vi.fn(),
-    neuesDokument: vi.fn(),
-    waehleJahr: vi.fn(),
-    verfuegbareJahre: signal<number[]>([aktuellesJahr]),
-  };
+  const kalender = kalenderAttrappe([aktuellesJahr]);
   const hiorg = {
     eintraege: signal<readonly HiorgEintrag[]>([]),
     zustand: signal('geladen'),
@@ -192,7 +191,7 @@ describe('Monatsfilter im Jahresplan', () => {
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
-        { provide: WorkbookService, useValue: workbook },
+        { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
           useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
@@ -269,15 +268,7 @@ describe('Monatsfilter im Jahresplan', () => {
 
 describe('HiOrg-Statuschip', () => {
   const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
-  const workbook = {
-    ziel: signal(null),
-    beschaeftigt: signal(false),
-    laden: vi.fn(),
-    neuLaden: vi.fn(),
-    neuesDokument: vi.fn(),
-    waehleJahr: vi.fn(),
-    verfuegbareJahre: signal<number[]>([2026]),
-  };
+  const kalender = kalenderAttrappe([2026]);
   const hiorg = {
     eintraege: signal<readonly HiorgEintrag[]>([]),
     zustand: signal<'ungeprueft' | 'geladen' | 'nicht-konfiguriert' | 'fehler'>('ungeprueft'),
@@ -295,7 +286,7 @@ describe('HiOrg-Statuschip', () => {
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
-        { provide: WorkbookService, useValue: workbook },
+        { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
           useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
@@ -350,7 +341,7 @@ describe('HiOrg-Statuschip', () => {
   });
 });
 
-describe('Automatisches Laden der Arbeitsmappe', () => {
+describe('Automatisches Laden aus der Kalender-Datenbank', () => {
   const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
   const hiorg = {
     eintraege: signal<readonly HiorgEintrag[]>([]),
@@ -361,13 +352,13 @@ describe('Automatisches Laden der Arbeitsmappe', () => {
     lade: vi.fn(),
   };
 
-  function konfiguriere(workbook: Partial<WorkbookService>): PlanStore {
+  function konfiguriere(kalender: ReturnType<typeof kalenderAttrappe>): PlanStore {
     TestBed.configureTestingModule({
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
-        { provide: WorkbookService, useValue: workbook },
+        { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
           useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
@@ -383,52 +374,19 @@ describe('Automatisches Laden der Arbeitsmappe', () => {
     hiorg.eintraege.set([]);
   });
 
-  it('lädt die zentrale NextCloud-Arbeitsmappe automatisch, wenn noch keine Quelle offen ist', () => {
-    const workbook = {
-      ziel: signal(null),
-      beschaeftigt: signal(false),
-      laden: vi.fn().mockResolvedValue({ meldungen: [] }),
-      neuLaden: vi.fn(),
-      neuesDokument: vi.fn(),
-      waehleJahr: vi.fn(),
-      verfuegbareJahre: signal<number[]>([2026]),
-    };
-    konfiguriere(workbook);
+  it('lädt den Kalender automatisch, solange er noch nicht abgerufen wurde', () => {
+    const kalender = kalenderAttrappe();
+    kalender.zustand.set('ungeprueft');
+    konfiguriere(kalender);
 
     TestBed.runInInjectionContext(() => new Jahresplan());
 
-    expect(workbook.laden).toHaveBeenCalledTimes(1);
-    expect(workbook.laden.mock.calls[0]![0]).toBeInstanceOf(NextcloudWorkerStorage);
+    expect(kalender.laden).toHaveBeenCalledTimes(1);
   });
 
-  it('lädt nicht automatisch, wenn bereits eine Quelle geöffnet ist', () => {
-    const workbook = {
-      ziel: signal(new NextcloudWorkerStorage({} as WorkerClient)),
-      beschaeftigt: signal(false),
-      laden: vi.fn(),
-      neuLaden: vi.fn(),
-      neuesDokument: vi.fn(),
-      waehleJahr: vi.fn(),
-      verfuegbareJahre: signal<number[]>([2026]),
-    };
-    konfiguriere(workbook);
-
-    TestBed.runInInjectionContext(() => new Jahresplan());
-
-    expect(workbook.laden).not.toHaveBeenCalled();
-  });
-
-  it('lädt nicht automatisch, wenn schon lokale Daten bestehen', () => {
-    const workbook = {
-      ziel: signal(null),
-      beschaeftigt: signal(false),
-      laden: vi.fn(),
-      neuLaden: vi.fn(),
-      neuesDokument: vi.fn(),
-      waehleJahr: vi.fn(),
-      verfuegbareJahre: signal<number[]>([2026]),
-    };
-    const store = konfiguriere(workbook);
+  it('lädt nicht erneut, wenn der Kalender verbunden ist und Daten zeigt', () => {
+    const kalender = kalenderAttrappe();
+    const store = konfiguriere(kalender);
     store.setzeDokument({
       ...leeresDocument(2026),
       termine: [{ ...leererTermin('2026-05-04'), id: 't1' }],
@@ -436,21 +394,90 @@ describe('Automatisches Laden der Arbeitsmappe', () => {
 
     TestBed.runInInjectionContext(() => new Jahresplan());
 
-    expect(workbook.laden).not.toHaveBeenCalled();
+    expect(kalender.laden).not.toHaveBeenCalled();
+  });
+
+  it('verwirft beim Zurückkehren keine ungespeicherten Änderungen', () => {
+    const kalender = kalenderAttrappe();
+    kalender.zustand.set('fehler');
+    const store = konfiguriere(kalender);
+    store.ungespeichert.set(true);
+
+    TestBed.runInInjectionContext(() => new Jahresplan());
+
+    expect(kalender.laden).not.toHaveBeenCalled();
+  });
+});
+
+describe('Datenbank-Chip und Speichern', () => {
+  const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
+  const kalender = kalenderAttrappe();
+  const hiorg = {
+    eintraege: signal<readonly HiorgEintrag[]>([]),
+    zustand: signal('geladen'),
+    fehler: signal(''),
+    verworfen: signal(0),
+    laedt: signal(false),
+    lade: vi.fn(),
+  };
+  const snackBar = { open: vi.fn() };
+  let ansicht: Jahresplan;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    kalender.zustand.set('verbunden');
+    kalender.fehler.set('');
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DialogDienst, useValue: dialog },
+        { provide: MatDialog, useValue: {} },
+        { provide: MatSnackBar, useValue: snackBar },
+        { provide: KalenderDatenService, useValue: kalender },
+        {
+          provide: FeiertagService,
+          useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
+        },
+        { provide: HiorgKalenderService, useValue: hiorg },
+      ],
+    });
+    TestBed.inject(PlanStore).ungespeichert.set(true);
+    ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
+  });
+
+  it('zeigt die verbundene Datenbank', () => {
+    expect(ansicht.datenbankStatus().text).toBe('Datenbank verbunden');
+  });
+
+  it('zeigt eine nicht eingerichtete Datenbank und sperrt das Speichern', async () => {
+    kalender.zustand.set('nicht-eingerichtet');
+    expect(ansicht.datenbankStatus().text).toBe('Datenbank nicht eingerichtet');
+    expect(ansicht.kannSpeichern()).toBe(false);
+    await ansicht.speichern();
+    expect(kalender.speichern).not.toHaveBeenCalled();
+  });
+
+  it('zeigt die Fehlermeldung eines fehlgeschlagenen Abrufs im Tooltip', () => {
+    kalender.zustand.set('fehler');
+    kalender.fehler.set('Erfundener Fehler');
+    expect(ansicht.datenbankStatus().tooltip).toBe('Erfundener Fehler');
+  });
+
+  it('bietet bei einem Konflikt eine Excel-Kopie an, statt den Stand zu verwerfen', async () => {
+    kalender.speichern.mockRejectedValue(new KalenderKonfliktFehler('Das Jahr 2026'));
+    kalender.exportieren.mockResolvedValue({ daten: new ArrayBuffer(0), dateiname: 'x.xlsx' });
+    dialog.bestaetigen.mockResolvedValue(false);
+
+    await ansicht.speichern();
+
+    expect(dialog.bestaetigen).toHaveBeenCalledTimes(1);
+    expect(TestBed.inject(PlanStore).ungespeichert()).toBe(true);
+    expect(kalender.laden).not.toHaveBeenCalled();
   });
 });
 
 describe('Tageszellen mit vielen Einträgen', () => {
   const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
-  const workbook = {
-    ziel: signal(null),
-    beschaeftigt: signal(false),
-    laden: vi.fn(),
-    neuLaden: vi.fn(),
-    neuesDokument: vi.fn(),
-    waehleJahr: vi.fn(),
-    verfuegbareJahre: signal<number[]>([2026]),
-  };
+  const kalender = kalenderAttrappe([2026]);
   const hiorg = {
     eintraege: signal<readonly HiorgEintrag[]>([]),
     zustand: signal('geladen'),
@@ -482,7 +509,7 @@ describe('Tageszellen mit vielen Einträgen', () => {
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
-        { provide: WorkbookService, useValue: workbook },
+        { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
           useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },

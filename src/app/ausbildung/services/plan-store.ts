@@ -94,7 +94,7 @@ export class PlanStore {
   /**
    * Legt für jeden Diensttag des Jahres eine Zeile an, sofern noch keine existiert.
    *
-   * Damit steht das Diensttags-Gerüst auch in der Excel und nicht nur in der Ansicht
+   * Damit steht das Diensttags-Gerüst auch in der Datenbank und nicht nur in der Ansicht
    * – ein vergessener Dienstabend fällt so schon in der Mappe auf. Läuft nach dem
    * Laden automatisch und ist wiederholbar, ohne Zeilen zu verdoppeln. Der Diensttag
    * ist konfigurierbar (Standard Montag), nicht jede Einheit tagt montags.

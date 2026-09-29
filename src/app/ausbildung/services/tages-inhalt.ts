@@ -5,7 +5,7 @@ import type { SlotTermin } from './plan-raster';
 /**
  * Wie die HiOrg-Ebene im Wochenraster erscheint.
  *
- * Die Excel-Mappe ist die führende Ausbildungsquelle, der Kalenderfeed nur
+ * Die Kalender-Datenbank ist die führende Quelle, der Kalenderfeed nur
  * Anzeige- und Abgleichquelle. Ein Tag mit vielen Diensten darf den eigenen Plan
  * darum nicht verdrängen: `gesammelt` fasst die unauffälligen Einträge zu einer
  * Karte zusammen, `aus` blendet die Ebene ganz aus. Einträge mit Namensabweichung

@@ -2450,3 +2450,55 @@ Produktivsystem nicht nachgeprüft.
   `npm run test:spa`, `npm run format:check`; Sichtprüfung im Headless-Chromium Desktop
   und Mobil mit nachgebildeten API-Antworten (Schrittfolge, Fehlerhinweis bei falscher
   Adresse, Tabelle nach erfolgreicher Verbindung).
+
+## Kalender – Ausbildungsplanung in D1, Excel-Übernahme, NextCloud-Arbeitsmappe entfernt – 2026-09-29
+
+- **Umbenennung:** Das Modul heißt in der Oberfläche „Kalender“ (Navigation, Startseite,
+  Kopfleiste, Seitentitel), Route `/kalender`; `/ausbildung` leitet dorthin weiter. Der Code
+  bleibt unter `src/app/ausbildung/`.
+- **Datenhaltung:** Neue D1-Datenbank `stationwizard-kalender` (`KALENDER_DB`, Region WEUR,
+  am 2026-09-29 über den Cloudflare-Connector angelegt), Migration `0012_kalender.sql` remote
+  angewendet und per `sqlite_master` belegt (`kalender_ideen`, `kalender_jahre`, beide leer).
+  Worker-Modul `worker/src/kalender-planung.ts` (der Name `kalender.ts` ist durch die
+  Berliner Kalendertag-Hilfe belegt). Ein Lesezugriff liefert alle Jahre und die Ideen samt
+  Versionen; gespeichert wird je geändertem Jahr bzw. für die Ideen, mit `If-Match`
+  (schwaches ETag angenommen) bzw. `If-None-Match: *`. Der Worker prüft jeden Termin gegen
+  die festen Wertelisten, verwirft unbekannte Felder und setzt `geaendert_von` selbst.
+- **Frontend:** `KalenderDatenService` ersetzt `WorkbookService`; `PlanStore`, Undo und
+  `VerlassenSchutz` bleiben. `QuelleDialog`, `NextcloudWorkerStorage`, `LokaleDateiStorage`
+  und `WorkbookStorage` sind entfernt. Die Kopfleiste zeigt „Datenbank“ (verbunden, lädt,
+  nicht eingerichtet, Fehler) neben „HiOrg“. Ein 412 bewahrt den lokalen Stand und bietet
+  eine Excel-Kopie an; nichts wird automatisch wiederholt. „Excel-Kopie herunterladen“ im
+  ⋮-Menü bleibt als Rettungsweg und markiert nichts als gespeichert.
+- **Einmalige Übernahme:** _Verwaltung → Kalender aus Excel übernehmen_. Die Datei wird im
+  Browser mit dem bisherigen Leser gelesen, als Vorschau gezeigt und nach Bestätigung in
+  einer Anfrage übertragen; der Worker schreibt in einer `db.batch()` und nur in einen
+  leeren Kalender (sonst 409 `KALENDER_BEREITS_BEFUELLT`). **Die echte Arbeitsmappe ist noch
+  nicht übernommen** – das geschieht nach dem Deployment durch den Betreiber.
+- **NextCloud:** `/api/nextcloud/arbeitsmappe` ist entfernt (404 `NEXTCLOUD_PFAD_UNGUELTIG`),
+  ebenso die Bindings `NEXTCLOUD_SHARE_TOKEN`/`NEXTCLOUD_SHARE_PASSWORD`. Der PEP-Ordner ist
+  unverändert. Offen für den Betreiber: nach der Übernahme das Secret im Store und die
+  Excel-Freigabe in NextCloud löschen.
+- **Exportschnittstelle, nur vorbereitet:** `src/app/ausbildung/export/kalender-export.ts`
+  beschreibt `KalenderExportFormat`/`KalenderExportDaten`; `KALENDER_EXPORTFORMATE` ist leer,
+  es gibt weder Endpunkt noch Menüpunkt. Offene Kandidaten: iCalendar (`.ics`), CSV, die
+  Excel-Kopie als registriertes Format, ein Übertrag nach HiOrg-Server (erst nach Nachweis
+  gegen die echte API).
+- **Ansichtsentwürfe:** drei klickbare Mockups mit erfundenen Daten in
+  `docs/entwuerfe/kalender-ansichten.html` – A Monatsraster mit Tagesagenda, B
+  Jahresüberblick der Diensttage (Lückenfokus, Ideen direkt einplanen), C mobile
+  Agenda-Liste mit Filtern und HiOrg-Abgleich am Eintrag. Noch nichts davon ist in der App.
+- **Tatsächlich ausgeführte Prüfungen:** `npm run build`, `npm test` (Angular, öffentliches
+  Ziel, Worker), `npm run format:check`, `npm run worker:check`, `npm run test:spa`
+  (workerd, inklusive `/kalender`, `/ausbildung` und `/api/kalender` ohne Anmeldung
+  gesperrt), `npm run deploy:dry-run` (Binding `KALENDER_DB` erkannt). Sichtprüfung im
+  Headless-Chromium auf Desktop (1366 px) und Mobil (390 px) gegen den Produktionsbuild mit
+  nachgebildeten API-Antworten: leerer Kalender mit Hinweis „Excel übernehmen“,
+  Migrationsseite mit einer erfundenen Arbeitsmappe (Vorschau, Bestätigung, Übernahme),
+  Kalender danach mit Daten und „Datenbank verbunden“, Weiterleitung `/ausbildung` →
+  `/kalender`; kein horizontales Scrollen der Seite, keine Laufzeitfehler. Nicht geprüft:
+  echter Worker gegen die echte D1-Datenbank, echte Arbeitsmappe, produktive Anmeldung.
+- **Beobachtung, nicht geändert:** Auf Mobil sitzt die untere Navigation des Kalenders am
+  Ende des scrollbaren Inhaltsbereichs statt fest am unteren Rand, weil `main` in der
+  App-Hülle keine feste Höhe hat. Das bestand schon vor dieser Änderung; mit dem höheren
+  Leerzustandshinweis wird es sichtbar (Navigation 38 px unter dem Bildschirmrand).

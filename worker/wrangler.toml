@@ -41,6 +41,15 @@ binding = "ANGEBOTSWESEN_DB"
 database_name = "stationwizard-angebotswesen"
 database_id = "a5fc7cbd-ad5e-4f07-a42d-5a23173a526a"
 
+# Kalender (früher Ausbildungsplanung). Eigene D1-Datenbank; Schema in
+# worker/migrations/0012_kalender.sql, angelegt und angewendet am 2026-09-29.
+# Löst die Excel-Arbeitsmappe in der NextCloud-Freigabe ab (siehe
+# docs/einrichtung.md, Abschnitt Kalender).
+[[d1_databases]]
+binding = "KALENDER_DB"
+database_name = "stationwizard-kalender"
+database_id = "0e8ea56e-b12a-4768-814e-b25f8d99eaef"
+
 # Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
 [observability]
 enabled = true
@@ -57,24 +66,21 @@ enabled = true
 # Kein Platzhalter und kein Entwicklungsschalter im Produktionscode.
 # Custom Domain erst nach bestätigter Hostnamenwahl und aktivierter Zone ergänzen.
 
-# Die Excel-Dateifreigabe und der PEP-Ordner sind getrennte Schreibziele.
+# NextCloud dient nur noch dem PEP-Ordner. Die frühere Excel-Dateifreigabe der
+# Ausbildungsplanung (NEXTCLOUD_SHARE_TOKEN/_PASSWORD) ist mit dem Kalender in
+# D1 entfallen; ihre Secrets im Store können gelöscht werden.
 [[secrets_store_secrets]]
 binding = "NEXTCLOUD_BASE_URL"
 store_id = "36762a3b5aa547bea7f547b1d66c30ee"
 secret_name = "NEXTCLOUD_BASE_URL"
 
 [[secrets_store_secrets]]
-binding = "NEXTCLOUD_SHARE_TOKEN"
-store_id = "36762a3b5aa547bea7f547b1d66c30ee"
-secret_name = "NEXTCLOUD_SHARE_TOKEN"
-
-[[secrets_store_secrets]]
 binding = "NEXTCLOUD_PEP_SHARE_TOKEN"
 store_id = "36762a3b5aa547bea7f547b1d66c30ee"
 secret_name = "NEXTCLOUD_PEP_SHARE_TOKEN"
 
-# Optionale Passwörter nur für passwortgeschützte Freigaben als klassische
-# Laufzeit-Secrets setzen: NEXTCLOUD_SHARE_PASSWORD / NEXTCLOUD_PEP_SHARE_PASSWORD.
+# Optionales Passwort nur für eine passwortgeschützte Freigabe als klassisches
+# Laufzeit-Secret setzen: NEXTCLOUD_PEP_SHARE_PASSWORD.
 # Ohne Passwort die Bindings vollständig weglassen (keine Platzhalterwerte).
 
 [[secrets_store_secrets]]

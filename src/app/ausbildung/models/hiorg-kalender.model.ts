@@ -1,7 +1,7 @@
 /**
  * Ein Termin aus dem HiOrg-Kalenderfeed. Bewusst **kein** Teil des
  * `PlanDocument`: der Feed ist eine reine Anzeige- und Abgleichquelle, die
- * Excel-Arbeitsmappe bleibt das führende Ausbildungsformat.
+ * Kalender-Datenbank bleibt die führende Quelle.
  */
 
 import { type TerminTyp, typName } from './plan.model';

@@ -16,7 +16,7 @@ import type { HiorgAbweichung } from '../../services/hiorg-abgleich';
  * Ein Termin aus dem HiOrg-Server im Jahresraster.
  *
  * Bewusst anders gestaltet als `app-termin-karte`: der Eintrag stammt nicht aus
- * der Excel-Mappe und darf nicht mit einem Plantermin verwechselt werden.
+ * der Kalender-Datenbank und darf nicht mit einem Plantermin verwechselt werden.
  */
 @Component({
   selector: 'app-hiorg-eintrag-karte',

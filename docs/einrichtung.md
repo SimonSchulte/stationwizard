@@ -13,7 +13,7 @@ Zugangsdaten. Die laufende Betriebsreferenz (Secrets, API-Verträge, Fehlercodes
 | Domain/DNS | Cloudflare-Zone mit aktiver DNS-Verwaltung.                                                                   |
 | Cloudflare | Konto mit Secrets Store (`36762a3b5aa547bea7f547b1d66c30ee`), Zero-Trust-Teamdomain und Application Audience. |
 | Google     | OAuth-Client (Web application) als Cloudflare-Access-Identitätsanbieter.                                      |
-| Nextcloud  | Freigegebene Excel-Arbeitsmappe und ein gesonderter, beschreibbarer PEP-Ordner.                               |
+| Nextcloud  | Ein gesonderter, beschreibbarer PEP-Ordner (die frühere Excel-Freigabe entfällt).                             |
 | HiOrg      | Gültiger EFS-API-Token und die HiOrg-Kalenderfeed-URL.                                                        |
 
 API-Tokens und Freigabepasswörter ausschließlich in den jeweiligen Verwaltungsoberflächen
@@ -21,14 +21,14 @@ eintragen; sie gehören weder in GitHub noch in die App oder einen Chat.
 
 ## Nextcloud- und HiOrg-Freigaben
 
-- **Ausbildungs-Arbeitsmappe:** Die Excel-Datei per Link freigeben, Lesen **und**
-  Bearbeiten/Hochladen erlauben. `NEXTCLOUD_BASE_URL` ist die Basis-URL der Instanz (ohne
-  `/s/TOKEN`, ohne `/public.php/webdav/`); `NEXTCLOUD_SHARE_TOKEN` ist nur der Teil hinter
-  `/s/` aus dem Freigabelink.
-- **Einsatzpläne:** Ein eigener Ordner (z. B. `stationwizard-einsatzplaene`) auf derselben
-  Instanz, ebenfalls mit Lesen/Bearbeiten/Hochladen freigegeben. Token in
-  `NEXTCLOUD_PEP_SHARE_TOKEN`. Bei Freigabepasswörtern zusätzlich
-  `NEXTCLOUD_SHARE_PASSWORD` bzw. `NEXTCLOUD_PEP_SHARE_PASSWORD` setzen.
+- **Einsatzpläne:** Ein eigener Ordner (z. B. `stationwizard-einsatzplaene`), mit
+  Lesen/Bearbeiten/Hochladen freigegeben. `NEXTCLOUD_BASE_URL` ist die Basis-URL der Instanz
+  (ohne `/s/TOKEN`, ohne `/public.php/webdav/`); der Token (nur der Teil hinter `/s/`) kommt
+  in `NEXTCLOUD_PEP_SHARE_TOKEN`, ein Freigabepasswort in `NEXTCLOUD_PEP_SHARE_PASSWORD`.
+- **Frühere Ausbildungs-Arbeitsmappe:** entfällt mit dem Kalender in D1 (siehe unten).
+  Nach der Übernahme das Secret `NEXTCLOUD_SHARE_TOKEN` im Secrets Store und gegebenenfalls
+  das klassische Secret `NEXTCLOUD_SHARE_PASSWORD` am Worker löschen; die Link-Freigabe der
+  Excel-Datei in NextCloud aufheben. Der Worker liest beide nicht mehr.
 - **HiOrg EFS:** Die vollständige, bestehende EFS-Endpunkt-URL kommt in
   `HIORGSERVER_BASE_URL` (bei `hiorg-server.de` **mit** abschließendem `/`, siehe
   [Worker-README](../worker/README.md#sechs-verpflichtende-secrets-store-bindings)), der
@@ -44,6 +44,23 @@ eintragen; sie gehören weder in GitHub noch in die App oder einen Chat.
   in Tickets, Chats oder Repositorys einfügen. Umschließende Leerzeichen und ein aus einer
   HTML-Seite kopierter Link mit `&amp;` statt `&` werden beim Lesen abgefangen; die Adresse
   muss aber vollständig sein (mit `lab=`) und darf nicht gekürzt werden.
+
+## Kalender-Datenbank
+
+Die Kalenderdaten (früher Ausbildungsplanung) liegen in der D1-Datenbank
+`stationwizard-kalender` (Binding `KALENDER_DB`). Sie wurde am 2026-09-29 angelegt
+(Region WEUR, ID in `worker/wrangler.toml`) und `worker/migrations/0012_kalender.sql` ist
+remote angewendet; beide Tabellen sind leer. Eine Neueinrichtung geht so:
+
+1. D1-Datenbank anlegen und die ID in `wrangler.toml` eintragen.
+2. `wrangler d1 execute stationwizard-kalender --remote --file worker/migrations/0012_kalender.sql`
+   (oder dieselben Anweisungen über den Cloudflare-D1-Connector).
+3. Worker deployen.
+4. Die bisherige Arbeitsmappe aus der NextCloud-Freigabe **herunterladen** und in der App
+   unter _Verwaltung → Kalender aus Excel übernehmen_ hochladen. Die Seite zeigt vor der
+   Übernahme Jahre, Einträge und Ideen; übernommen wird in einem Schritt und nur in einen
+   leeren Kalender.
+5. Danach die Excel-Freigabe und ihre Secrets entfernen (siehe oben).
 
 Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
@@ -249,7 +266,7 @@ Nach Infrastruktur- oder Zugangsdatenänderungen prüfen:
 | Freigabe                | Meldung erscheint unter „Offene Aufgaben" und zählt erst nach der Freigabe.       |
 | Erlaubte/fremde Adresse | Freigegebenes Google-Konto kommt durch, ein anderes wird abgelehnt.               |
 | `/api/benutzer`         | Enthält die eigene E-Mail-Adresse.                                                |
-| Ausbildung              | Arbeitsmappe laden, Änderung speichern, neu laden – Änderung bleibt erhalten.     |
+| Kalender                | Excel einmalig übernehmen; Änderung speichern, neu laden – Änderung bleibt.       |
 | Einsatz                 | EFS-Veranstaltung importieren; Planung in Nextcloud speichern und wieder laden.   |
 | HiOrg-Kalender          | Termine erscheinen im Jahresplan als gekennzeichnete Fremdquelle.                 |
 | Abmeldung               | `/cdn-cgi/access/logout`; geschützte URL verlangt danach erneut eine Anmeldung.   |

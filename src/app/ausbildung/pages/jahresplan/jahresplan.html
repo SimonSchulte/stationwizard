@@ -1,14 +1,14 @@
 <mat-toolbar class="kopfleiste">
   <span class="marke">
     <mat-icon>event_available</mat-icon>
-    <span class="marke-text">Dienstplaner</span>
+    <span class="marke-text">Kalender</span>
   </span>
 
   <button
     matButton
     class="jahr"
     [matMenuTriggerFor]="jahrMenue"
-    [disabled]="!store.hatDaten()"
+    [disabled]="kalender.zustand() !== 'verbunden'"
     matTooltip="Jahr wechseln"
   >
     {{ store.jahr() }}
@@ -30,12 +30,14 @@
   <button
     matButton
     class="quelle"
-    [class.verbunden]="quelleVerbunden()"
-    [matTooltip]="quelleBeschreibung() + ' – zum Wechseln/Aktualisieren klicken'"
-    (click)="oeffnen()"
+    [class.verbunden]="kalender.zustand() === 'verbunden'"
+    [matTooltip]="datenbankStatus().tooltip"
+    [attr.aria-label]="datenbankStatus().tooltip"
+    [disabled]="beschaeftigt()"
+    (click)="neuLaden()"
   >
-    <mat-icon inline>{{ ziel()?.art === 'nextcloud' ? 'cloud_done' : 'description' }}</mat-icon>
-    <span class="knopf-text">{{ quelleBeschreibung() }}</span>
+    <mat-icon inline>{{ datenbankStatus().icon }}</mat-icon>
+    <span class="knopf-text">{{ datenbankStatus().text }}</span>
     @if (store.ungespeichert()) {
       <span class="ungespeichert" matTooltip="Es gibt ungespeicherte Änderungen">•</span>
     }
@@ -74,9 +76,9 @@
 
   <button
     matButton="filled"
-    [disabled]="!store.hatDaten()"
+    [disabled]="!kannSpeichern() || !store.ungespeichert() || beschaeftigt()"
     (click)="speichern()"
-    matTooltip="Speichern"
+    matTooltip="In der Datenbank speichern (Strg+S)"
   >
     <mat-icon>save</mat-icon>
     <span class="knopf-text">Speichern</span>
@@ -130,15 +132,11 @@
 
     <button mat-menu-item [disabled]="!store.hatDaten()" (click)="herunterladen()">
       <mat-icon>download</mat-icon>
-      <span>Als Excel-Datei herunterladen</span>
+      <span>Excel-Kopie herunterladen</span>
     </button>
-    <button mat-menu-item [disabled]="!ziel()?.faehigkeiten?.neuLaden" (click)="neuLaden()">
+    <button mat-menu-item [disabled]="beschaeftigt()" (click)="neuLaden()">
       <mat-icon>refresh</mat-icon>
-      <span>Vom Ablageort neu laden</span>
-    </button>
-    <button mat-menu-item (click)="neuerPlan()">
-      <mat-icon>note_add</mat-icon>
-      <span>Leeren Plan beginnen</span>
+      <span>Aus der Datenbank neu laden</span>
     </button>
 
     <button mat-menu-item [disabled]="hiorg.laedt()" (click)="hiorgNeuLaden()">
@@ -180,28 +178,39 @@
 }
 
 <!--
-  Das Wochenraster steht von Anfang an, auch ohne geöffnete Arbeitsmappe: Diensttage
-  und Termine fehlen dann einfach, aber die HiOrg-Ebene erscheint direkt in der
-  Kalenderform statt in einer separaten Liste. Die Arbeitsmappe wird wie der
-  HiOrg-Feed automatisch geladen; ohne Erfolg bleibt hier ein Hinweis mit den
-  bisherigen Öffnen-Knöpfen als Rettungsweg.
+  Das Wochenraster steht von Anfang an, auch ohne Kalenderdaten: Diensttage und
+  Termine fehlen dann einfach, aber die HiOrg-Ebene erscheint direkt in der
+  Kalenderform statt in einer separaten Liste. Der Kalender wird wie der HiOrg-Feed
+  automatisch aus der Datenbank geladen; ist sie leer, führt der Hinweis zur
+  einmaligen Excel-Übernahme.
 -->
 <div class="arbeitsflaeche" cdkDropListGroup>
   <section class="plan" [hidden]="mobilAnsicht() !== 'plan'">
     <header class="plan-kopf">
       @if (!store.hatDaten() && !beschaeftigt()) {
-        <span class="keine-quelle" matTooltip="Noch keine Arbeitsmappe geöffnet">
-          <mat-icon inline>cloud_off</mat-icon>
-          Keine Arbeitsmappe geöffnet
-        </span>
-        <button matButton (click)="oeffnen()">
-          <mat-icon>folder_open</mat-icon>
-          <span class="knopf-text">Arbeitsmappe öffnen</span>
-        </button>
-        <button matButton (click)="neuerPlan()">
-          <mat-icon>note_add</mat-icon>
-          <span class="knopf-text">Leeren Plan beginnen</span>
-        </button>
+        @if (kalender.istLeer()) {
+          <span class="keine-quelle">
+            <mat-icon inline>inbox</mat-icon>
+            Noch keine Kalenderdaten
+          </span>
+          <a matButton="tonal" routerLink="/verwaltung/kalender-migration">
+            <mat-icon>upload_file</mat-icon>
+            <span>Excel übernehmen</span>
+          </a>
+          <button matButton (click)="neuesJahr(laufendesJahr)">
+            <mat-icon>note_add</mat-icon>
+            <span>Leeres Jahr {{ laufendesJahr }} anlegen</span>
+          </button>
+        } @else {
+          <span class="keine-quelle" [matTooltip]="datenbankStatus().tooltip">
+            <mat-icon inline>cloud_off</mat-icon>
+            {{ datenbankStatus().text }}
+          </span>
+          <button matButton (click)="neuLaden()">
+            <mat-icon>refresh</mat-icon>
+            <span>Erneut laden</span>
+          </button>
+        }
       } @else {
         <button
           class="diensttags-marke"
