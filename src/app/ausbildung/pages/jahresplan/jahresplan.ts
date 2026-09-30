@@ -1,4 +1,4 @@
-import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,6 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { MatDividerModule } from '@angular/material/divider';
@@ -24,20 +25,19 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuswertungPanel } from '../../components/auswertung-panel/auswertung-panel';
 import { BacklogPanel } from '../../components/backlog-panel/backlog-panel';
 import { DatumDialog, DatumDialogDaten } from '../../components/datum-dialog/datum-dialog';
-import { HiorgEintragKarte } from '../../components/hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { KatsPanel } from '../../components/kats-panel/kats-panel';
-import { LeererTag } from '../../components/leerer-tag/leerer-tag';
+import { Agendaliste } from '../../components/agendaliste/agendaliste';
 import {
-  TagDetail,
-  TagDetailDaten,
-  TagDetailErgebnis,
-} from '../../components/tag-detail/tag-detail';
+  AblageAufTag,
+  AblageAufTermin,
+  Monatsansicht,
+} from '../../components/monatsansicht/monatsansicht';
 import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/termin-dialog';
-import { TerminKarte } from '../../components/termin-karte/termin-karte';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
 import { HiorgEintrag, istMehrtaegig } from '../../models/hiorg-kalender.model';
-import { Termin, leererTermin } from '../../models/plan.model';
+import { Kategorie, Termin, leererTermin } from '../../models/plan.model';
+import { TypFilter } from '../../services/agenda';
 import { DiensttagService } from '../../services/diensttag.service';
 import {
   HiorgAbweichung,
@@ -46,7 +46,12 @@ import {
 } from '../../services/hiorg-abgleich';
 import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import { FeiertagService } from '../../services/feiertage.service';
-import { PlanSlot, WochenZeile, baueWochenraster } from '../../services/plan-raster';
+import {
+  PlanSlot,
+  WochenZeile,
+  baueWochenraster,
+  naechsteLuecke,
+} from '../../services/plan-raster';
 import {
   HiorgEbene,
   HiorgTagesKarte,
@@ -75,15 +80,13 @@ import {
   selector: 'app-jahresplan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Agendaliste,
     AuswertungPanel,
     BacklogPanel,
-    CdkDrag,
-    CdkDropList,
     CdkDropListGroup,
-    HiorgEintragKarte,
     KatsPanel,
-    LeererTag,
     MatButtonModule,
+    MatButtonToggleModule,
     MatDividerModule,
     MatIconModule,
     MatMenuModule,
@@ -91,8 +94,8 @@ import {
     MatTabsModule,
     MatToolbarModule,
     MatTooltipModule,
+    Monatsansicht,
     RouterLink,
-    TerminKarte,
   ],
   templateUrl: './jahresplan.html',
   styleUrl: './jahresplan.less',
@@ -136,6 +139,16 @@ export class Jahresplan {
   readonly nurAbweichungen = signal(false);
   /** Nur auf schmalen Bildschirmen relevant: Plan und Seitenleiste teilen sich dort den Platz. */
   readonly mobilAnsicht = signal<'plan' | 'liste'>('plan');
+
+  /**
+   * Ansicht des Kalenders: `monat` (Monatsraster mit Tagesagenda) oder `liste`
+   * (Agendaliste). Auf schmalen Bildschirmen startet die Liste, sonst das Raster.
+   * Bewusst nur für diese Sitzung – eine Ansichtseinstellung wird nirgends persistiert.
+   */
+  readonly ansicht = signal<'monat' | 'liste'>(startAnsicht());
+  /** Filter der Agendaliste; leer bedeutet alle Kategorien. Nur für diese Sitzung. */
+  readonly agendaKategorien = signal<ReadonlySet<Kategorie>>(new Set());
+  readonly agendaTyp = signal<TypFilter>('alle');
 
   /**
    * Wie dicht die HiOrg-Ebene im Raster steht. Voreinstellung `gesammelt`: an
@@ -442,47 +455,6 @@ export class Jahresplan {
     return this.tagesInhalte().get(datum) ?? LEERER_TAGESINHALT;
   }
 
-  /**
-   * Öffnet den ganzen Tag in voller Kartenbreite – aus „+N weitere", aus der
-   * HiOrg-Sammelkarte und über das Kartensymbol der Tageszelle. Der Dialog
-   * ändert nichts selbst, sondern gibt die gewählte Aktion zurück.
-   */
-  oeffneTagDetail(slot: PlanSlot): void {
-    const daten: TagDetailDaten = {
-      datum: slot.datum,
-      karten: this.tagesInhalt(slot.datum).alle,
-      feiertag: slot.feiertag,
-    };
-    this.dialog
-      .open(TagDetail, { data: daten, width: '640px', maxWidth: '94vw' })
-      .afterClosed()
-      .subscribe((ergebnis?: TagDetailErgebnis) => {
-        if (!ergebnis) {
-          return;
-        }
-        switch (ergebnis.art) {
-          case 'bearbeiten':
-            this.bearbeiten(ergebnis.terminId);
-            break;
-          case 'zuBacklog':
-            this.zuBacklog(ergebnis.termin);
-            break;
-          case 'loeschen':
-            this.loeschen(ergebnis.terminId);
-            break;
-          case 'anlegen':
-            this.terminAnlegen(ergebnis.datum);
-            break;
-          case 'nameUebernehmen':
-            void this.uebernimmHiorgNamen(ergebnis.abweichung);
-            break;
-          case 'terminAusHiorg':
-            this.legeTerminAusHiorgAn(ergebnis.eintrag);
-            break;
-        }
-      });
-  }
-
   setzeHiorgEbene(ebene: HiorgEbene): void {
     this.hiorgEbene.set(ebene);
   }
@@ -620,16 +592,6 @@ export class Jahresplan {
     }
   }
 
-  /** Volles Datum als Klartext – für Tooltips und Beschriftungen im Raster. */
-  formatiereDatumText(iso: string): string {
-    return formatiereDatum(iso);
-  }
-
-  /** Kurzes Datum ohne Jahr, für die Wochenkopfzeile (z. B. „05.01.“). */
-  formatKurz(iso: string): string {
-    return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
-  }
-
   waehleMonat(monat: number | null): void {
     this.monat.set(monat);
   }
@@ -649,16 +611,6 @@ export class Jahresplan {
       this.kalender.waehleJahr(jahr);
     }
     this.monat.set(monatIndex(this.heute));
-  }
-
-  monatsName(woche: WochenZeile): string {
-    const ersterTagImJahr = woche.tage.find((t) => t.imJahr)?.datum ?? woche.start;
-    return MONATSNAMEN[monatIndex(ersterTagImJahr)];
-  }
-
-  istMonatswechsel(index: number): boolean {
-    const wochen = this.sichtbareWochen();
-    return index === 0 || this.monatsName(wochen[index]) !== this.monatsName(wochen[index - 1]);
   }
 
   // ------------------------------------------------------------ Drag & Drop
@@ -726,6 +678,38 @@ export class Jahresplan {
 
   loeschen(id: string): void {
     this.store.loescheTermin(id);
+  }
+
+  /**
+   * Legt eine offene Idee auf den nächsten Diensttag ohne Ausbildung: ab heute im
+   * laufenden Jahr, sonst ab Jahresbeginn. Ein leerer Platzhaltertermin an diesem Tag
+   * wird dabei befüllt statt doppelt belegt.
+   */
+  ideeAufNaechsteLuecke(idee: Termin): void {
+    const jahr = this.store.jahr();
+    const ab = jahr === jahrVon(this.heute) ? this.heute : `${jahr}-01-01`;
+    const luecke = naechsteLuecke(this.wochen(), ab);
+    if (!luecke) {
+      this.melde('Keine Lücke mehr im Kalender – die Idee bleibt in den offenen Ideen.');
+      return;
+    }
+    const platzhalter = luecke.termine.find((t) => !t.termin.thema.trim());
+    if (platzhalter) {
+      this.store.ausBacklogAufTermin(idee.id, platzhalter.termin.id);
+    } else {
+      this.store.ausBacklogAufDatum(idee.id, luecke.datum);
+    }
+    this.melde(`„${kurz(idee.thema)}“ auf ${formatiereDatum(luecke.datum)} eingeplant.`);
+  }
+
+  /** Auswahl der Monatsansicht: Ablage auf einem anderen Termin. */
+  terminAbgelegt(ablage: AblageAufTermin): void {
+    this.aufTerminAbgelegt(ablage.event, ablage.ziel);
+  }
+
+  /** Auswahl der Monatsansicht: Ablage auf einem Tag ohne Plantermin. */
+  tagAbgelegt(ablage: AblageAufTag): void {
+    this.aufLeeremTagAbgelegt(ablage.event, ablage.datum);
   }
 
   // --------------------------------------------------------------- Persistenz
@@ -859,6 +843,15 @@ function kurz(text: string): string {
 
 function fehlertext(ursache: unknown): string {
   return ursache instanceof Error ? ursache.message : String(ursache);
+}
+
+/** Schmale Bildschirme starten mit der Agendaliste, breite mit dem Monatsraster. */
+function startAnsicht(): 'monat' | 'liste' {
+  return typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 780px)').matches
+    ? 'liste'
+    : 'monat';
 }
 
 /** `null` in Testumgebungen ohne `window.matchMedia`, sonst die Medienabfrage für schmale Fenster. */

@@ -1,0 +1,241 @@
+<div class="raster-bereich">
+  <div class="wochenraster" [style.grid-template-rows]="zeilen()">
+    <div class="kw-kopf">KW</div>
+    @for (tag of wochentageIso; track tag) {
+      <div class="wochentag-kopf">{{ tag }}</div>
+    }
+
+    @for (woche of wochen(); track woche.start; let i = $index) {
+      @if (istMonatswechsel(i)) {
+        <div class="monatsmarke">{{ monatsName(woche) }}</div>
+      }
+
+      <div class="kw-label">
+        <span class="kw-nummer">{{ woche.nummer }}</span>
+        <span class="kw-bereich">{{ formatKurz(woche.start) }}–{{ formatKurz(woche.ende) }}</span>
+      </div>
+
+      @for (slot of woche.tage; track slot.datum) {
+        @let inhalt = tagesInhalt(slot.datum);
+        <div
+          class="tag-zelle"
+          [class.diensttag]="slot.istDiensttag"
+          [class.ausserhalb]="!slot.imJahr"
+          [class.heute]="slot.datum === heute()"
+          [class.gewaehlt]="slot.datum === aktuellerTag()?.datum"
+          (click)="slot.imJahr && waehleTag(slot.datum)"
+        >
+          <!--
+            Lücke und HiOrg-Abweichung markieren den Inhalt, nicht die Zelle: die Zelle
+            wird auf die Höhe der ganzen Wochenzeile gestreckt, und eine darüber gezogene
+            Farbfläche sieht an einem Tag mit zwei Karten wie ein Layoutfehler aus.
+          -->
+          <div
+            class="tag-inhalt"
+            [class.luecke]="slot.luecke && slot.termine.length > 0"
+            [class.hat-hiorg-abweichung]="abgleich().tageMitAbweichung.has(slot.datum)"
+          >
+            <div class="tag-kopf">
+              <!--
+                Die Tageszahl ist der Knopf, mit dem sich ein Tag per Tastatur wählen lässt;
+                ein Klick irgendwo in der Zelle wählt ihn ebenfalls.
+              -->
+              <button
+                type="button"
+                class="tag-nummer"
+                [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
+                [disabled]="!slot.imJahr"
+                [attr.aria-label]="'Agenda für ' + formatiereDatumText(slot.datum) + ' zeigen'"
+                [attr.aria-pressed]="slot.datum === aktuellerTag()?.datum"
+                (click)="$event.stopPropagation(); waehleTag(slot.datum)"
+              >
+                {{ slot.datum.slice(8, 10) }}
+              </button>
+              @if (slot.feiertag) {
+                <mat-icon inline class="feiertag-symbol" [matTooltip]="'Feiertag: ' + slot.feiertag"
+                  >flag</mat-icon
+                >
+              }
+            </div>
+
+            @for (karte of inhalt.sichtbar; track karte.schluessel) {
+              @switch (karte.art) {
+                @case ('termin') {
+                  @if (!slot.imJahr) {
+                    <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
+                    <app-termin-karte
+                      [termin]="karte.termin.termin"
+                      [segment]="karte.termin.segment"
+                      [tagDatum]="slot.datum"
+                      [katsThema]="katsThema(karte.termin.termin)"
+                      [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
+                      [feiertag]="slot.feiertag"
+                      [kompakt]="true"
+                    />
+                  } @else {
+                    <div
+                      class="mini-slot"
+                      cdkDropList
+                      cdkDropListSortingDisabled
+                      (cdkDropListDropped)="
+                        aufTerminAbgelegt.emit({ event: $event, ziel: karte.termin.termin })
+                      "
+                    >
+                      <!--
+                        Mehrtägige Termine hängen an ihrem Beginn: nur dort lässt sich
+                        ziehen, sonst würde ein Zwischentag den Zeitraum zerreißen.
+                      -->
+                      <app-termin-karte
+                        cdkDrag
+                        [cdkDragDisabled]="
+                          karte.termin.segment === 'mitte' || karte.termin.segment === 'ende'
+                        "
+                        [cdkDragData]="karte.termin.termin"
+                        [termin]="karte.termin.termin"
+                        [segment]="karte.termin.segment"
+                        [tagDatum]="slot.datum"
+                        [katsThema]="katsThema(karte.termin.termin)"
+                        [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
+                        [feiertag]="slot.feiertag"
+                        [kompakt]="true"
+                        (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
+                        (verschieben)="zuBacklog.emit(karte.termin.termin)"
+                        (loeschen)="loeschen.emit(karte.termin.termin.id)"
+                        (dblclick)="bearbeiten.emit(karte.termin.termin.id)"
+                      />
+                    </div>
+                  }
+                }
+
+                @case ('hiorg') {
+                  <!--
+                    HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert. Ein
+                    exakter Treffer steckt schon als Verknüpfungssymbol auf der Termin-Karte.
+                  -->
+                  <app-hiorg-eintrag-karte
+                    [eintrag]="karte.hiorg.eintrag"
+                    [datum]="slot.datum"
+                    [abweichungen]="karte.hiorg.abweichungen"
+                    [ohneGegenstueck]="karte.hiorg.ohneGegenstueck"
+                    [kompakt]="true"
+                    (nameUebernehmen)="nameUebernehmen.emit($event)"
+                    (terminAnlegen)="terminAusHiorg.emit($event)"
+                  />
+                }
+
+                @case ('sammel') {
+                  <!-- Mehrere unauffällige HiOrg-Dienste desselben Tages in einer Karte. -->
+                  <div
+                    class="hiorg-sammelkarte"
+                    [matTooltip]="karte.anzahl + ' HiOrg-Einträge – in der Agenda einzeln'"
+                  >
+                    <mat-icon inline>cloud_download</mat-icon>
+                    <span class="sammel-quelle">HiOrg ·</span>
+                    <span class="sammel-zahl">{{ karte.anzahl }}</span>
+                    <span class="sammel-wort">Einträge</span>
+                  </div>
+                }
+              }
+            }
+
+            @if (slot.imJahr && slot.termine.length === 0) {
+              <!--
+                Ablagefläche eines Tages ohne Plantermin. Sie steht unter den Karten: ohne
+                Feiertag oder Lücke ist sie nur ein Hover-„+".
+              -->
+              <div
+                class="mini-slot leer"
+                cdkDropList
+                cdkDropListSortingDisabled
+                (cdkDropListDropped)="
+                  aufLeeremTagAbgelegt.emit({ event: $event, datum: slot.datum })
+                "
+              >
+                <app-leerer-tag [slot]="slot" (anlegen)="anlegen.emit(slot.datum)" />
+              </div>
+            }
+
+            @if (inhalt.verborgen > 0) {
+              <span class="weitere-karten">+{{ inhalt.verborgen }} weitere</span>
+            }
+          </div>
+        </div>
+      }
+    } @empty {
+      <p class="raster-leer">
+        {{
+          nurLuecken()
+            ? 'Kein ' + diensttagLabel() + ' ohne Ausbildung – der Kalender ist vollständig.'
+            : 'Keine Termine gefunden.'
+        }}
+      </p>
+    }
+  </div>
+</div>
+
+<aside class="agenda" aria-label="Tagesagenda" aria-live="polite">
+  @if (aktuellerTag(); as slot) {
+    <header class="agenda-kopf">
+      <h2>{{ agendaTitel() }}</h2>
+      @if (slot.luecke) {
+        <span class="marke luecke-marke">
+          <mat-icon inline>error_outline</mat-icon>
+          {{ diensttagLabel() }} ohne Ausbildung
+        </span>
+      }
+    </header>
+
+    @if (slot.feiertag) {
+      <p class="feiertag">
+        <mat-icon inline>flag</mat-icon>
+        {{ slot.feiertag }}
+      </p>
+    }
+
+    @if (agendaTermine().length) {
+      <h3 class="abschnitt">Im Kalender</h3>
+      @for (karte of agendaTermine(); track karte.schluessel) {
+        @if (karte.art === 'termin') {
+          <app-termin-karte
+            [termin]="karte.termin.termin"
+            [segment]="karte.termin.segment"
+            [tagDatum]="slot.datum"
+            [katsThema]="katsThema(karte.termin.termin)"
+            [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
+            [feiertag]="slot.feiertag"
+            [kompakt]="false"
+            (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
+            (verschieben)="zuBacklog.emit(karte.termin.termin)"
+            (loeschen)="loeschen.emit(karte.termin.termin.id)"
+          />
+        }
+      }
+    } @else {
+      <p class="leer">Kein Eintrag im Kalender an diesem Tag.</p>
+    }
+
+    @if (agendaHiorg().length) {
+      <h3 class="abschnitt">HiOrg-Server</h3>
+      @for (karte of agendaHiorg(); track karte.schluessel) {
+        @if (karte.art === 'hiorg') {
+          <app-hiorg-eintrag-karte
+            [eintrag]="karte.hiorg.eintrag"
+            [datum]="slot.datum"
+            [abweichungen]="karte.hiorg.abweichungen"
+            [ohneGegenstueck]="karte.hiorg.ohneGegenstueck"
+            [kompakt]="false"
+            (nameUebernehmen)="nameUebernehmen.emit($event)"
+            (terminAnlegen)="terminAusHiorg.emit($event)"
+          />
+        }
+      }
+    }
+
+    <button matButton="tonal" class="agenda-neu" (click)="anlegen.emit(slot.datum)">
+      <mat-icon>add</mat-icon>
+      Termin an diesem Tag
+    </button>
+  } @else {
+    <p class="leer">Kein Tag im gewählten Ausschnitt.</p>
+  }
+</aside>

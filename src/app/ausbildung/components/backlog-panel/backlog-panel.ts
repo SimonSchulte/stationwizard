@@ -1,5 +1,12 @@
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -36,6 +43,9 @@ import { TerminKarte } from '../termin-karte/termin-karte';
 export class BacklogPanel {
   private readonly store = inject(PlanStore);
   private readonly dialog = inject(MatDialog);
+
+  /** Der Jahresplan kennt die Lücken; das Panel meldet nur den Wunsch. */
+  readonly aufLueckeLegen = output<Termin>();
 
   readonly kategorien = KATEGORIEN;
   readonly suche = signal('');

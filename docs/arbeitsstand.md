@@ -2549,3 +2549,34 @@ Produktivsystem nicht nachgeprüft.
 - Die remote-Datenbank `stationwizard-kalender` hat jetzt eine `d1_migrations`-Tabelle mit
   `0012_kalender.sql`, damit `migrations apply` die bereits angewendete Migration nicht erneut
   versucht.
+
+## Kalender – Ansichten Monat und Liste statt Wochenraster – 2026-09-30
+
+- **Umgesetzt** aus den Entwürfen A und C (`docs/entwuerfe/kalender-ansichten.html`, B bleibt
+  offen). Das bisherige 7-Spalten-Wochenraster der Seite ist durch die **Monatsansicht**
+  ersetzt: sie baut weiter auf `baueWochenraster()` auf (Zeile je Kalenderwoche mit KW-Spalte,
+  Feiertage, Randtage, Lücken), zeigt aber den gewählten Monat und daneben eine Tagesagenda
+  mit den ungekürzten Karten des gewählten Tages. Daneben steht die **Agendaliste** (nach
+  Kalenderwochen, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ).
+- Umschalter Monat/Liste in der Plan-Kopfzeile; Start am Handy (bis 780 px) in der Liste, sonst im
+  Monat. Ansicht und Filter gelten nur für die Sitzung, nichts wird gespeichert. Alle
+  vorhandenen Filter (Lücken, Abweichungen, HiOrg-Ebene, Monat, Suche) wirken auf beide.
+- Drag & Drop auf Tage und Karten, Bearbeiten, in die Ideen verschieben, Löschen, HiOrg-Namen
+  übernehmen und HiOrg-Termin übernehmen laufen unverändert über die Handler im `Jahresplan`.
+- Neu: „Auf nächste Lücke legen“ im Menü einer offenen Idee (`naechsteLuecke()`; ein leerer
+  Platzhalter am Diensttag wird befüllt, sonst wird ein Termin angelegt; ohne Lücke bleibt die
+  Idee liegen und es kommt eine Meldung).
+- Entfernt: Dialog `TagDetail` (die Agenda ersetzt ihn), altes Raster im Template und seine
+  Regeln in `jahresplan.less`.
+- `app.less`: `main { height: 100% }`. Vorher wuchs der Kalender mit seinem Inhalt, die Seite
+  scrollte und die untere Mobilnavigation lag weit unter dem Bildschirmrand.
+- Monatsmarken tragen den Monat des Donnerstags (ISO-Regel), die Zeilenhöhe der Marken ist
+  `auto`, die der Wochen gleich.
+- **Geprüft:** Angular-Specs für beide Ansichten, `agenda.ts`, `naechsteLuecke`, den
+  Umschalter samt Startansicht und die Idee-auf-Lücke-Aktion. Sichtprüfung im Headless-Chromium
+  gegen den Produktionsbuild mit nachgebildeter API und erfundenen Daten: Desktop 1366 px
+  (Monat, Liste, Tag wählen, Karte auf freien Tag ziehen, Idee auf Lücke legen) und Mobil
+  390 px (Liste, Filter, Ideen-Menü, untere Navigation sichtbar, kein seitliches Scrollen).
+- **Nicht geprüft:** Drag & Drop per Touch, dunkles Theme, echter Worker und echte
+  Kalenderdaten. **Bekannte Grenze:** Die Monatsansicht ist bei 390 px eng (Karten brechen in
+  schmalen Spalten um); am Handy ist die Liste die vorgesehene Ansicht.

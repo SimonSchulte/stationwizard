@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { berechneFeiertage } from '../data/feiertage-berechnet';
 import { Termin, leererTermin } from '../models/plan.model';
-import { baueWochenraster } from './plan-raster';
+import { baueWochenraster, naechsteLuecke } from './plan-raster';
 
 const FEIERTAGE_NRW = berechneFeiertage(2026, 'NW');
 
@@ -179,5 +179,44 @@ describe('Mehrtägige Termine und mehrere Termine je Tag', () => {
       'Ohne Uhrzeit',
     ]);
     expect(tag?.termine.every((e) => e.segment === 'einzeln')).toBe(true);
+  });
+});
+
+describe('naechsteLuecke', () => {
+  const belegt = (datum: string) => termin(datum, { thema: 'Erfundenes Thema' });
+
+  it('liefert den ersten Diensttag ohne Ausbildungsthema ab dem Datum', () => {
+    const wochen = baueWochenraster(
+      2026,
+      [belegt('2026-03-02'), belegt('2026-03-09')],
+      new Map(),
+      'Mo',
+    );
+
+    expect(naechsteLuecke(wochen, '2026-03-02')?.datum).toBe('2026-03-16');
+  });
+
+  it('nimmt das Datum selbst mit, wenn dort die Lücke liegt', () => {
+    const wochen = baueWochenraster(2026, [], new Map(), 'Mo');
+
+    expect(naechsteLuecke(wochen, '2026-03-09')?.datum).toBe('2026-03-09');
+  });
+
+  it('überspringt Feiertage und Randtage des Nachbarjahres', () => {
+    const wochen = baueWochenraster(
+      2026,
+      [],
+      new Map([['2026-01-05', 'Erfundener Feiertag']]),
+      'Mo',
+    );
+
+    // Der Montag 29.12.2025 gehört zur ersten Wochenzeile, liegt aber nicht im Jahr.
+    expect(naechsteLuecke(wochen, '2025-12-01')?.datum).toBe('2026-01-12');
+  });
+
+  it('liefert null, wenn ab dem Datum keine Lücke mehr im Jahr liegt', () => {
+    const wochen = baueWochenraster(2026, [], new Map(), 'Mo');
+
+    expect(naechsteLuecke(wochen, '2026-12-29')).toBeNull();
   });
 });

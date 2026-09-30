@@ -142,3 +142,19 @@ function indexiereNachDatum(termine: readonly Termin[]): Map<string, SlotTermin[
 function beginnMinuten(termin: Termin): number {
   return zeitAlsMinuten(termin.beginnZeit) ?? Number.MAX_SAFE_INTEGER;
 }
+
+/**
+ * Die erste Lücke ab einem Datum (einschließlich) – der Diensttag, an dem noch
+ * Ausbildung fehlt. Randtage des Nachbarjahres zählen nicht. `null`, wenn ab
+ * diesem Datum keine Lücke mehr im Jahr liegt.
+ */
+export function naechsteLuecke(wochen: readonly WochenZeile[], ab: string): PlanSlot | null {
+  for (const woche of wochen) {
+    for (const slot of woche.tage) {
+      if (slot.imJahr && slot.luecke && slot.datum >= ab) {
+        return slot;
+      }
+    }
+  }
+  return null;
+}

@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { PlanStore } from '../../services/plan-store';
 import { DatenbankZustand, KalenderDatenService } from '../../services/kalender-daten.service';
@@ -10,6 +10,7 @@ import { FeiertagService } from '../../services/feiertage.service';
 import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import type { HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { Jahresplan } from './jahresplan';
+import { wochentageImJahr } from '../../../kern/kalender/datum';
 import { leererTermin, leeresDocument } from '../../models/plan.model';
 import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
 
@@ -563,5 +564,113 @@ describe('Tageszellen mit vielen Einträgen', () => {
 
     expect(inhalt.sichtbar).toHaveLength(0);
     expect(inhalt.alle).toHaveLength(0);
+  });
+});
+
+describe('Ansichten und Ideen auf Lücken', () => {
+  const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn() };
+  const kalender = kalenderAttrappe([2020]);
+  const hiorg = {
+    eintraege: signal<readonly HiorgEintrag[]>([]),
+    zustand: signal('geladen'),
+    fehler: signal(''),
+    verworfen: signal(0),
+    laedt: signal(false),
+    lade: vi.fn(),
+  };
+  const snackBar = { open: vi.fn() };
+  let store: PlanStore;
+
+  function erzeuge(): Jahresplan {
+    vi.resetAllMocks();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DialogDienst, useValue: dialog },
+        { provide: MatDialog, useValue: {} },
+        { provide: MatSnackBar, useValue: snackBar },
+        { provide: KalenderDatenService, useValue: kalender },
+        {
+          provide: FeiertagService,
+          useValue: { bundesland: signal('NW'), feiertage: signal(new Map()), lade: vi.fn() },
+        },
+        { provide: HiorgKalenderService, useValue: hiorg },
+      ],
+    });
+    store = TestBed.inject(PlanStore);
+    return TestBed.runInInjectionContext(() => new Jahresplan());
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubMatchMedia(schmal: boolean): void {
+    vi.stubGlobal('matchMedia', (abfrage: string) => ({
+      matches: abfrage.includes('780px') && schmal,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+  }
+
+  it('startet auf breiten Bildschirmen mit dem Monatsraster', () => {
+    stubMatchMedia(false);
+    expect(erzeuge().ansicht()).toBe('monat');
+  });
+
+  it('startet auf schmalen Bildschirmen mit der Agendaliste', () => {
+    stubMatchMedia(true);
+    expect(erzeuge().ansicht()).toBe('liste');
+  });
+
+  it('startet ohne matchMedia (Testumgebung) mit dem Monatsraster', () => {
+    vi.stubGlobal('matchMedia', undefined);
+    expect(erzeuge().ansicht()).toBe('monat');
+  });
+
+  it('füllt beim Einplanen einer Idee den leeren Platzhalter der nächsten Lücke', () => {
+    const ansicht = erzeuge();
+    const platzhalter = { ...leererTermin('2020-01-06'), id: 'platzhalter' };
+    const idee = { ...leererTermin(null), id: 'idee', thema: 'Erfundene Idee' };
+    store.setzeDokument({ ...leeresDocument(2020), termine: [platzhalter], backlog: [idee] });
+
+    ansicht.ideeAufNaechsteLuecke(idee);
+
+    const belegt = store.termine().filter((t) => t.datum === '2020-01-06');
+    expect(belegt.map((t) => t.thema)).toEqual(['Erfundene Idee']);
+    expect(store.backlog()).toEqual([]);
+    expect(snackBar.open).toHaveBeenCalledWith(
+      expect.stringContaining('eingeplant'),
+      'OK',
+      expect.anything(),
+    );
+  });
+
+  it('legt eine Idee auf einen Diensttag ohne Platzhalter, ohne einen Termin zu ersetzen', () => {
+    const ansicht = erzeuge();
+    const belegt = { ...leererTermin('2020-01-06'), id: 'belegt', thema: 'Erfundenes Thema' };
+    const idee = { ...leererTermin(null), id: 'idee', thema: 'Erfundene Idee' };
+    store.setzeDokument({ ...leeresDocument(2020), termine: [belegt], backlog: [idee] });
+
+    ansicht.ideeAufNaechsteLuecke(idee);
+
+    expect(store.termine().find((t) => t.id === 'belegt')?.thema).toBe('Erfundenes Thema');
+    expect(store.termine().find((t) => t.id === 'idee')?.datum).toBe('2020-01-13');
+  });
+
+  it('meldet, wenn keine Lücke mehr im Jahr liegt, und lässt die Idee liegen', () => {
+    const ansicht = erzeuge();
+    const alleBelegt = wochentageImJahr(2020, 'Mo').map((datum) => ({
+      ...leererTermin(datum),
+      thema: 'Erfundenes Thema',
+    }));
+    const idee = { ...leererTermin(null), id: 'idee', thema: 'Erfundene Idee' };
+    store.setzeDokument({ ...leeresDocument(2020), termine: alleBelegt, backlog: [idee] });
+
+    ansicht.ideeAufNaechsteLuecke(idee);
+
+    expect(store.backlog().map((t) => t.id)).toEqual(['idee']);
+    expect(snackBar.open).toHaveBeenCalledWith(
+      expect.stringContaining('Keine Lücke mehr'),
+      'OK',
+      expect.anything(),
+    );
   });
 });

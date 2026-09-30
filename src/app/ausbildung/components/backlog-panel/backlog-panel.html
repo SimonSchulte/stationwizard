@@ -48,8 +48,10 @@
       [cdkDragData]="idee"
       [termin]="idee"
       [katsThema]="katsThema(idee)"
+      [lueckeAnbieten]="true"
       (bearbeiten)="bearbeiten(idee.id)"
       (verschieben)="einplanen(idee)"
+      (naechsteLuecke)="aufLueckeLegen.emit(idee)"
       (loeschen)="loeschen(idee.id)"
       (dblclick)="bearbeiten(idee.id)"
     />

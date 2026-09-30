@@ -45,7 +45,8 @@ Prüfungen und offene Abnahmegrenzen.
   deutsch. Umsetzungshinweise gehören in die Dokumentation, sofern sie keine
   Nutzerentscheidung unterstützen.
 - Ausbildungs-`mobilAnsicht` und die untere Navigation bei kleinen Displays erhalten.
-  Breites Wochenraster kontrolliert horizontal scrollen lassen. PEP bleibt bei
+  Das Raster der Monatsansicht (gebaut aus `baueWochenraster()`, eine Zeile je Kalenderwoche
+  mit KW-Spalte) kontrolliert horizontal in seinem Rahmen scrollen lassen. PEP bleibt bei
   komplexen Zuordnungen auf Desktopbedienung ausgerichtet; mobile Grenzen ehrlich benennen.
 - UI-Änderungen real im Browser auf Desktop und Mobil prüfen. Ein blockierter Browserlauf
   ist keine bestandene Sichtprüfung.
@@ -252,7 +253,19 @@ Verwaltungsbereich (`/verwaltung/kalender-migration`, Seite unter
 `excel-lesen.ts` gelesen und in **einer** Anfrage an `POST /api/kalender/migration`
 übergeben, die der Worker in einer `db.batch()` vollständig oder gar nicht schreibt – nur
 solange beide Tabellen leer sind, sonst 409 `KALENDER_BEREITS_BEFUELLT`. Die Kopfleiste
-zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Eine Exportschnittstelle ist nur als
+zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Der Kalender hat zwei Ansichten
+(`Jahresplan.ansicht`, Umschalter Monat/Liste): **Monat** (`components/monatsansicht/`,
+Monatsraster auf Basis des Wochenrasters mit Tagesagenda für den gewählten Tag, Drag & Drop
+auf Tage und Karten wie bisher) und **Liste** (`components/agendaliste/`, nach Kalenderwochen
+gruppiert, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ). Startansicht ist
+auf Bildschirmen bis 780 px die Liste, sonst der Monat; Ansicht und Filter gelten nur für die
+Sitzung und werden nicht gespeichert. Beide Ansichten sind rein darstellend und melden jede
+Änderung an den `Jahresplan` (Undo, Bestätigungen, Meldungen bleiben dort). Die Seitenleiste
+mit Offene Ideen, Auswertung und KatS-A-Plan sowie `mobilAnsicht` bleiben; eine Idee lässt sich
+über „Auf nächste Lücke legen“ einplanen (`naechsteLuecke()` in `plan-raster.ts`). Die Monatsansicht ist am
+Handy eng (Karten brechen in schmalen Spalten um) und bleibt dort eine Desktop-Darstellung; am
+Handy ist die Liste gedacht. `main` in `app.less` hat eine feste Höhe, damit der Kalender
+selbst scrollt und die untere Navigation am Rand bleibt. Eine Exportschnittstelle ist nur als
 Vertrag vorbereitet (`src/app/ausbildung/export/kalender-export.ts`, leere
 `KALENDER_EXPORTFORMATE`), ohne Endpunkt und ohne Menüpunkt. Rechte vorerst alle, Rollen
 später. Der Worker-Dateiname lautet `kalender-planung.ts`, weil `worker/src/kalender.ts`

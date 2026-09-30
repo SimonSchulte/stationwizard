@@ -137,6 +137,12 @@
     <mat-icon>{{ termin().datum ? 'inbox' : 'event_available' }}</mat-icon>
     <span>{{ termin().datum ? 'In die offenen Ideen' : 'Datum zuweisen' }}</span>
   </button>
+  @if (lueckeAnbieten() && !termin().datum) {
+    <button mat-menu-item (click)="naechsteLuecke.emit()">
+      <mat-icon>event_busy</mat-icon>
+      <span>Auf nächste Lücke legen</span>
+    </button>
+  }
   <button mat-menu-item (click)="loeschen.emit()">
     <mat-icon>delete</mat-icon>
     <span>Löschen</span>
