@@ -6,6 +6,7 @@ import {
   input,
   model,
   output,
+  signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -44,6 +45,10 @@ export class Agendaliste {
   readonly abgleich = input.required<HiorgAbgleich>();
   readonly heute = input.required<string>();
   readonly diensttagLabel = input('Montag');
+  /** Wie im Raster: nur Diensttage ohne Ausbildungsthema, hier tagesgenau. */
+  readonly nurLuecken = input(false);
+  /** Wie im Raster: nur Tage mit abweichender HiOrg-Bezeichnung, hier tagesgenau. */
+  readonly nurAbweichungen = input(false);
 
   /** Leer bedeutet: alle Kategorien. Zwei-Wege-gebunden im Jahresplan, nur für die Sitzung. */
   readonly kategorien = model<ReadonlySet<Kategorie>>(new Set());
@@ -63,12 +68,29 @@ export class Agendaliste {
     { wert: 'termin', text: 'Termine' },
   ];
 
+  /** Tage, deren Sammelkarte „HiOrg · N Einträge“ gerade aufgeklappt ist. Nur Sitzung. */
+  private readonly aufgeklappt = signal<ReadonlySet<string>>(new Set());
+
   readonly agenda = computed<AgendaWoche[]>(() =>
     baueAgenda(this.wochen(), this.tagesInhalte(), {
       kategorien: this.kategorien(),
       typ: this.typ(),
+      nurLuecken: this.nurLuecken(),
+      abweichungstage: this.nurAbweichungen() ? this.abgleich().tageMitAbweichung : null,
     }),
   );
+
+  istAufgeklappt(datum: string): boolean {
+    return this.aufgeklappt().has(datum);
+  }
+
+  schalteSammelkarte(datum: string): void {
+    const neu = new Set(this.aufgeklappt());
+    if (!neu.delete(datum)) {
+      neu.add(datum);
+    }
+    this.aufgeklappt.set(neu);
+  }
 
   farbe(kategorie: Kategorie): string {
     return KATEGORIE_FARBEN[kategorie];

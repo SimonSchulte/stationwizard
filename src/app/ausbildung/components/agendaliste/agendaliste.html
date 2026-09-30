@@ -100,7 +100,45 @@
                     (terminAnlegen)="terminAusHiorg.emit($event)"
                   />
                 }
+                @case ('sammel') {
+                  <!-- HiOrg-Ebene „gesammelt“: die unauffälligen Einträge hinter einer Zeile. -->
+                  <button
+                    type="button"
+                    class="sammel-zeile"
+                    [attr.aria-expanded]="istAufgeklappt(tag.slot.datum)"
+                    (click)="schalteSammelkarte(tag.slot.datum)"
+                  >
+                    <mat-icon inline>cloud_download</mat-icon>
+                    HiOrg · {{ karte.anzahl }} Einträge
+                    <mat-icon inline class="sammel-pfeil">{{
+                      istAufgeklappt(tag.slot.datum) ? 'expand_less' : 'expand_more'
+                    }}</mat-icon>
+                  </button>
+                  @if (istAufgeklappt(tag.slot.datum)) {
+                    @for (einzel of tag.eingesammelt; track einzel.schluessel) {
+                      @if (einzel.art === 'hiorg') {
+                        <app-hiorg-eintrag-karte
+                          [eintrag]="einzel.hiorg.eintrag"
+                          [datum]="tag.slot.datum"
+                          [abweichungen]="einzel.hiorg.abweichungen"
+                          [ohneGegenstueck]="einzel.hiorg.ohneGegenstueck"
+                          [kompakt]="false"
+                          (nameUebernehmen)="nameUebernehmen.emit($event)"
+                          (terminAnlegen)="terminAusHiorg.emit($event)"
+                        />
+                      }
+                    }
+                  }
+                }
               }
+            }
+
+            @if (!tag.luecke) {
+              <!-- An einem Tag mit Einträgen: weiterer Termin am selben Datum. -->
+              <button matButton class="tag-neu" (click)="anlegen.emit(tag.slot.datum)">
+                <mat-icon>add</mat-icon>
+                Termin an diesem Tag
+              </button>
             }
           </div>
         </article>

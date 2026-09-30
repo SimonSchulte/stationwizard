@@ -2580,3 +2580,19 @@ Produktivsystem nicht nachgeprüft.
 - **Nicht geprüft:** Drag & Drop per Touch, dunkles Theme, echter Worker und echte
   Kalenderdaten. **Bekannte Grenze:** Die Monatsansicht ist bei 390 px eng (Karten brechen in
   schmalen Spalten um); am Handy ist die Liste die vorgesehene Ansicht.
+
+### Kalender: HiOrg-Filter in den Agenda-Ansichten
+
+- **Fehler:** Die HiOrg-Ebene (aus / gesammelt / einzeln) und „Nur Abweichungen“ / „Nur Lücken“
+  wirkten auf die Agenda-Ansichten nicht. Ursache: Beide lasen `TagesInhalt.alle`, das die
+  Ebene ignoriert, und die Liste filterte nur ganze Wochen statt einzelner Tage.
+- **Korrektur:** `TagesInhalt` trägt zusätzlich `verdichtet` (nach Ebene, ohne Deckelung) und
+  `eingesammelt`. `baueAgenda()` liest `verdichtet` und filtert tagesgenau nach `nurLuecken` und
+  Abweichungstagen. Die Liste zeigt eine Sammelzeile „HiOrg · N Einträge“ zum Aufklappen, die
+  Tagesagenda der Monatsansicht blendet bei Ebene „aus“ HiOrg aus.
+- **Neu:** „Termin an diesem Tag“ in jeder Tageszeile der Liste.
+- **Geprüft:** Specs (`agenda`, `tages-inhalt`), 934 Angular-Tests grün; Headless-Chromium mit
+  nachgebildeter API und HiOrg-Testdaten (September): Liste gesammelt 13 Karten + 5 Sammelzeilen,
+  einzeln 40 Karten, aus 0, Nur Abweichungen 3 Tage, Nur Lücken 1 Tag, „Termin an diesem Tag“
+  öffnet den Dialog; Desktop 1366 px und Mobil 390 px ohne Laufzeitfehler.
+- **Nicht geprüft:** Aufklappen der Sammelzeile per Spec und Touch, dunkles Theme, echter Worker.

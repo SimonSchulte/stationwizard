@@ -22,7 +22,11 @@ const HIORG: HiorgEintrag = {
 };
 
 /** Baut Wochen und Tagesinhalte wie der Jahresplan, mit optionalen HiOrg-Karten je Datum. */
-function aufbau(termine: Termin[], hiorg: Record<string, HiorgEintrag[]> = {}) {
+function aufbau(
+  termine: Termin[],
+  hiorg: Record<string, HiorgEintrag[]> = {},
+  ebene: 'einzeln' | 'gesammelt' | 'aus' = 'einzeln',
+) {
   const wochen = baueWochenraster(2026, termine, new Map(), 'Mo');
   const inhalte = new Map(
     wochen
@@ -33,7 +37,7 @@ function aufbau(termine: Termin[], hiorg: Record<string, HiorgEintrag[]> = {}) {
           abweichungen: [],
           ohneGegenstueck: false,
         }));
-        return [slot.datum, baueTagesInhalt(slot.termine, karten, 'einzeln')] as const;
+        return [slot.datum, baueTagesInhalt(slot.termine, karten, ebene)] as const;
       }),
   );
   return { wochen, inhalte };
@@ -121,5 +125,47 @@ describe('baueAgenda', () => {
     const { wochen, inhalte } = aufbau([termin('2025-12-29', { thema: 'Erfundenes Vorjahr' })]);
 
     expect(tage(baueAgenda(wochen, inhalte)).map((t) => t.slot.datum)).not.toContain('2025-12-29');
+  });
+
+  it('zeigt bei HiOrg-Ebene „aus“ keine HiOrg-Karten', () => {
+    const { wochen, inhalte } = aufbau(
+      [termin('2026-03-04', { thema: 'Erfunden' })],
+      { '2026-03-04': [HIORG] },
+      'aus',
+    );
+
+    const tag = tage(baueAgenda(wochen, inhalte)).find((t) => t.slot.datum === '2026-03-04');
+
+    expect(tag?.karten.some((k) => k.art === 'hiorg')).toBe(false);
+  });
+
+  it('zeigt bei HiOrg-Ebene „einzeln“ die Karte des Eintrags', () => {
+    const { wochen, inhalte } = aufbau([termin('2026-03-04')], { '2026-03-04': [HIORG] });
+
+    const tag = tage(baueAgenda(wochen, inhalte)).find((t) => t.slot.datum === '2026-03-04');
+
+    expect(tag?.karten.some((k) => k.art === 'hiorg')).toBe(true);
+  });
+
+  it('zeigt „Nur Lücken“ tagesgenau', () => {
+    const { wochen, inhalte } = aufbau([termin('2026-03-04', { thema: 'Erfunden' })]);
+
+    const ergebnis = tage(baueAgenda(wochen, inhalte, { ...KEIN_AGENDAFILTER, nurLuecken: true }));
+
+    expect(ergebnis.length).toBeGreaterThan(0);
+    expect(ergebnis.every((t) => t.luecke)).toBe(true);
+  });
+
+  it('zeigt „Nur Abweichungen“ tagesgenau', () => {
+    const { wochen, inhalte } = aufbau([termin('2026-03-04', { thema: 'Erfunden' })]);
+
+    const ergebnis = tage(
+      baueAgenda(wochen, inhalte, {
+        ...KEIN_AGENDAFILTER,
+        abweichungstage: new Set(['2026-03-04']),
+      }),
+    );
+
+    expect(ergebnis.map((t) => t.slot.datum)).toEqual(['2026-03-04']);
   });
 });

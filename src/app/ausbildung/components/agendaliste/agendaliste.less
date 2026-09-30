@@ -155,6 +155,35 @@
   font-size: 0.8125rem;
 }
 
+.sammel-zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px dashed var(--hiorg-rand);
+  border-radius: var(--radius-sm);
+  background: var(--hiorg-bg);
+  color: var(--hiorg-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--surface-hover);
+  }
+}
+
+.sammel-pfeil {
+  margin-inline-start: auto;
+}
+
+.tag-neu {
+  align-self: flex-start;
+}
+
 .luecke-zeile {
   display: flex;
   flex-wrap: wrap;

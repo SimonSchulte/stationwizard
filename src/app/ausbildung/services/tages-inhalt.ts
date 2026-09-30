@@ -55,10 +55,24 @@ export interface TagesInhalt {
    * öffnet, will den ganzen Tag sehen und nicht dieselbe Kürzung noch einmal.
    */
   readonly alle: readonly TagesKarte[];
+  /**
+   * Der Tag nach HiOrg-Ebene, aber **ohne** Deckelung: die Liste hat Platz für alles, soll
+   * die Ebene aber befolgen. `aus` enthält keine HiOrg-Karten, `gesammelt` eine Sammelkarte
+   * für die unauffälligen Einträge, `einzeln` alle.
+   */
+  readonly verdichtet: readonly TagesKarte[];
+  /** Die HiOrg-Karten hinter einer Sammelkarte – leer, wenn es keine gibt. */
+  readonly eingesammelt: readonly TagesKarte[];
 }
 
 /** Ein Tag ohne jeden Eintrag – geteilte Instanz, damit Vergleiche stabil bleiben. */
-export const LEERER_TAGESINHALT: TagesInhalt = { sichtbar: [], verborgen: 0, alle: [] };
+export const LEERER_TAGESINHALT: TagesInhalt = {
+  sichtbar: [],
+  verborgen: 0,
+  alle: [],
+  verdichtet: [],
+  eingesammelt: [],
+};
 
 /**
  * Stellt die Karten einer Tageszelle zusammen.
@@ -89,11 +103,13 @@ export function baueTagesInhalt(
     hiorg: eintrag,
   }));
 
-  const kandidaten = [...terminKarten, ...verdichteHiorg(hiorg, hiorgEinzeln, ebene)];
+  const verdichtung = verdichteHiorg(hiorg, hiorgEinzeln, ebene);
+  const kandidaten = [...terminKarten, ...verdichtung.karten];
   const alle = [...terminKarten, ...hiorgEinzeln];
+  const { eingesammelt } = verdichtung;
 
   if (kandidaten.length <= maxKarten) {
-    return { sichtbar: kandidaten, verborgen: 0, alle };
+    return { sichtbar: kandidaten, verborgen: 0, alle, verdichtet: kandidaten, eingesammelt };
   }
 
   // Eine Karte weniger, damit „+N weitere" selbst noch in die Zelle passt.
@@ -112,6 +128,8 @@ export function baueTagesInhalt(
     sichtbar: kandidaten.filter((_, index) => behalten.has(index)),
     verborgen: kandidaten.length - behalten.size,
     alle,
+    verdichtet: kandidaten,
+    eingesammelt,
   };
 }
 
@@ -123,23 +141,30 @@ function verdichteHiorg(
   hiorg: readonly HiorgTagesKarte[],
   einzeln: readonly TagesKarte[],
   ebene: HiorgEbene,
-): TagesKarte[] {
+): { karten: TagesKarte[]; eingesammelt: TagesKarte[] } {
   if (ebene === 'aus') {
-    return [];
+    return { karten: [], eingesammelt: [] };
   }
   if (ebene === 'einzeln') {
-    return [...einzeln];
+    return { karten: [...einzeln], eingesammelt: [] };
   }
 
   const auffaellig = einzeln.filter((_, index) => istAuffaellig(hiorg[index]));
   const ruhig = einzeln.filter((_, index) => !istAuffaellig(hiorg[index]));
   if (ruhig.length < 2) {
-    return [...einzeln];
+    return { karten: [...einzeln], eingesammelt: [] };
   }
-  return [
-    ...auffaellig,
-    { art: 'sammel', schluessel: 'hiorg-sammel', anzahl: ruhig.length } satisfies TagesKarteSammel,
-  ];
+  return {
+    karten: [
+      ...auffaellig,
+      {
+        art: 'sammel',
+        schluessel: 'hiorg-sammel',
+        anzahl: ruhig.length,
+      } satisfies TagesKarteSammel,
+    ],
+    eingesammelt: ruhig,
+  };
 }
 
 /** Ein Eintrag, dessen Name vom Plan abweicht, wird nie eingesammelt. */

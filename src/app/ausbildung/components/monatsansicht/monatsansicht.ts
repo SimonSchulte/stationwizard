@@ -22,7 +22,7 @@ import { KatsThema, Termin } from '../../models/plan.model';
 import { HiorgAbgleich, HiorgAbweichung } from '../../services/hiorg-abgleich';
 import { PlanSlot, WochenZeile } from '../../services/plan-raster';
 import { PlanStore } from '../../services/plan-store';
-import { LEERER_TAGESINHALT, TagesInhalt } from '../../services/tages-inhalt';
+import { HiorgEbene, LEERER_TAGESINHALT, TagesInhalt } from '../../services/tages-inhalt';
 import { HiorgEintragKarte } from '../hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { LeererTag } from '../leerer-tag/leerer-tag';
 import { TerminKarte } from '../termin-karte/termin-karte';
@@ -74,6 +74,8 @@ export class Monatsansicht {
   readonly heute = input.required<string>();
   readonly nurLuecken = input(false);
   readonly diensttagLabel = input('Montag');
+  /** Bei `aus` entfällt auch in der Tagesagenda der Abschnitt „HiOrg-Server“. */
+  readonly hiorgEbene = input<HiorgEbene>('gesammelt');
 
   readonly tagGewaehlt = output<string>();
   readonly bearbeiten = output<string>();
@@ -114,7 +116,9 @@ export class Monatsansicht {
   readonly agendaTermine = computed(() =>
     this.agendaInhalt().alle.filter((k) => k.art === 'termin'),
   );
-  readonly agendaHiorg = computed(() => this.agendaInhalt().alle.filter((k) => k.art === 'hiorg'));
+  readonly agendaHiorg = computed(() =>
+    this.hiorgEbene() === 'aus' ? [] : this.agendaInhalt().alle.filter((k) => k.art === 'hiorg'),
+  );
   readonly agendaTitel = computed(() => {
     const slot = this.aktuellerTag();
     return slot ? formatiereDatum(slot.datum) : '';
