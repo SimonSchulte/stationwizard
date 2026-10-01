@@ -76,6 +76,15 @@ export class PlanStore {
     this.mutiere((d) => ({ ...d, titel }));
   }
 
+  /** Fügt übernommene Ideen und KatS-Themen aus einem anderen Jahr in einem Schritt an. */
+  fuegeUebernahmeEin(ideen: Termin[], katsThemen: KatsThema[]): void {
+    this.mutiere((d) => ({
+      ...d,
+      backlog: [...d.backlog, ...ideen],
+      katsThemen: [...d.katsThemen, ...katsThemen],
+    }));
+  }
+
   // ------------------------------------------------------------------ Termine
 
   neuerTermin(datum: string): string {

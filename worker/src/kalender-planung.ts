@@ -4,13 +4,16 @@ import { starkesEtag, versionAusEtag } from './etag';
 import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
 
 /**
- * Kalender (früher Ausbildungsplanung): Jahresblätter und die jahresübergreifenden
- * „Offenen Ideen“ liegen in einer eigenen D1-Datenbank (KALENDER_DB), Schema in
- * `worker/migrations/kalender/0012_kalender.sql`. Die Excel-Arbeitsmappe ist nur noch
+ * Kalender (früher Ausbildungsplanung): Jahresblätter samt ihren
+ * „Offenen Ideen“ und KatS-Themen liegen in einer eigenen D1-Datenbank (KALENDER_DB),
+ * Schema in `worker/migrations/kalender/0012_kalender.sql` und `0013_ideen_je_jahr.sql`.
+ * Die Excel-Arbeitsmappe ist nur noch
  * Importquelle (einmalige Übernahme) und lokaler Download.
  *
- * Dokumentartig wie `angebote`: eine Zeile je Jahr mit Terminen und KatS-Themen
- * als JSON und eigener Version, dazu eine einzige Zeile für die Ideen. Der Store
+ * Dokumentartig wie `angebote`: eine Zeile je Jahr mit Terminen, Ideen und KatS-Themen
+ * als JSON und eigener Version. Jedes Jahr hat seine eigene Ideensammlung; die
+ * Übernahme von Ideen und Themen in ein anderes Jahr passiert im Frontend und
+ * endet als gewöhnliches Speichern des Zieljahres. Der Store
  * im Frontend arbeitet ohnehin auf ganzen Dokumenten mit Undo; ein Speichern ist
  * so eine einzige D1-Schreibung je geändertem Jahr.
  *
@@ -24,10 +27,7 @@ export interface KalenderKonfiguration {
 export const KALENDER_PFAD = '/api/kalender';
 const JAHRE_PFAD = '/api/kalender/jahre';
 const JAHR_PFAD = /^\/api\/kalender\/jahre\/(\d{4})$/;
-const IDEEN_PFAD = '/api/kalender/ideen';
 const MIGRATION_PFAD = '/api/kalender/migration';
-
-const IDEEN_ID = 'offene-ideen';
 
 // Ein Jahresblatt hat gut fünfzig Diensttage und einige Termine mehr; die Grenzen
 // lassen großzügig Luft, bleiben aber weit unter der D1-Zeilengrenze.
@@ -100,6 +100,7 @@ export interface JahrEingabe {
   jahr: number;
   titel: string;
   termine: TerminEingabe[];
+  ideen: TerminEingabe[];
   katsThemen: KatsThemaEingabe[];
 }
 
@@ -241,14 +242,10 @@ export function pruefeJahr(wert: unknown): JahrEingabe | null {
   }
   if (!istKurzerText(wert['titel'], 200)) return null;
   const termine = pruefeListe(wert['termine'], MAX_TERMINE, (t) => pruefeTermin(t, true));
+  const ideen = pruefeListe(wert['ideen'], MAX_TERMINE, (t) => pruefeTermin(t, false));
   const katsThemen = pruefeListe(wert['katsThemen'], MAX_KATS_THEMEN, pruefeKatsThema);
-  if (!termine || !katsThemen) return null;
-  return { jahr, titel: wert['titel'], termine, katsThemen };
-}
-
-function pruefeIdeen(wert: unknown): TerminEingabe[] | null {
-  if (!istObjekt(wert)) return null;
-  return pruefeListe(wert['termine'], MAX_TERMINE, (t) => pruefeTermin(t, false));
+  if (!termine || !ideen || !katsThemen) return null;
+  return { jahr, titel: wert['titel'], termine, ideen, katsThemen };
 }
 
 /* -------------------------------------------------------------------- */
@@ -259,14 +256,8 @@ interface JahrZeile {
   jahr: number;
   titel: string;
   termine: string;
+  ideen: string;
   kats_themen: string;
-  geaendert_am: string;
-  geaendert_von: string;
-  version: number;
-}
-
-interface IdeenZeile {
-  termine: string;
   geaendert_am: string;
   geaendert_von: string;
   version: number;
@@ -278,6 +269,7 @@ function zuJahrJson(zeile: JahrZeile): Record<string, unknown> {
     titel: zeile.titel,
     // In den Spalten liegt bereits geprüftes JSON aus einem früheren Schreibvorgang.
     termine: JSON.parse(zeile.termine),
+    ideen: JSON.parse(zeile.ideen),
     katsThemen: JSON.parse(zeile.kats_themen),
     version: zeile.version,
     geaendertAm: zeile.geaendert_am,
@@ -285,30 +277,14 @@ function zuJahrJson(zeile: JahrZeile): Record<string, unknown> {
   };
 }
 
-function zuIdeenJson(zeile: IdeenZeile): Record<string, unknown> {
-  return {
-    termine: JSON.parse(zeile.termine),
-    version: zeile.version,
-    geaendertAm: zeile.geaendert_am,
-    geaendertVon: zeile.geaendert_von,
-  };
-}
-
 /**
- * Der gesamte Kalender in einem Aufruf: alle Jahre und die Ideen, je mit ihrer
- * Version für ein späteres `If-Match`. Ein Aufruf statt einer Liste plus einem
- * Abruf je Jahr (Free-Tier). `ideen` ist `null`, solange nie gespeichert wurde.
+ * Der gesamte Kalender in einem Aufruf: alle Jahre samt Ideen und KatS-Themen, je
+ * mit ihrer Version für ein späteres `If-Match`. Ein Aufruf statt einer Liste
+ * plus einem Abruf je Jahr (Free-Tier).
  */
 async function leseKalender(db: D1Database): Promise<Response> {
-  const [jahre, ideen] = await db.batch<JahrZeile | IdeenZeile>([
-    db.prepare('SELECT * FROM kalender_jahre ORDER BY jahr'),
-    db.prepare('SELECT * FROM kalender_ideen WHERE id = ?').bind(IDEEN_ID),
-  ]);
-  const ideenZeile = ((ideen?.results ?? []) as IdeenZeile[])[0] ?? null;
-  return jsonAntwort({
-    jahre: ((jahre?.results ?? []) as JahrZeile[]).map(zuJahrJson),
-    ideen: ideenZeile ? zuIdeenJson(ideenZeile) : null,
-  });
+  const jahre = await db.prepare('SELECT * FROM kalender_jahre ORDER BY jahr').all<JahrZeile>();
+  return jsonAntwort({ jahre: (jahre.results ?? []).map(zuJahrJson) });
 }
 
 /* -------------------------------------------------------------------- */
@@ -395,13 +371,14 @@ async function legeJahrAn(
     await db
       .prepare(
         `INSERT INTO kalender_jahre
-           (jahr, titel, termine, kats_themen, geaendert_am, geaendert_von, version)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+           (jahr, titel, termine, ideen, kats_themen, geaendert_am, geaendert_von, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       )
       .bind(
         eingabe.jahr,
         eingabe.titel,
         JSON.stringify(eingabe.termine),
+        JSON.stringify(eingabe.ideen),
         JSON.stringify(eingabe.katsThemen),
         jetzt,
         identitaet.email,
@@ -429,13 +406,14 @@ async function aktualisiereJahr(
   const ergebnis = await db
     .prepare(
       `UPDATE kalender_jahre
-       SET titel = ?, termine = ?, kats_themen = ?, geaendert_am = ?, geaendert_von = ?,
-           version = version + 1
+       SET titel = ?, termine = ?, ideen = ?, kats_themen = ?, geaendert_am = ?,
+           geaendert_von = ?, version = version + 1
        WHERE jahr = ? AND version = ?`,
     )
     .bind(
       eingabe.titel,
       JSON.stringify(eingabe.termine),
+      JSON.stringify(eingabe.ideen),
       JSON.stringify(eingabe.katsThemen),
       jetzt,
       identitaet.email,
@@ -448,57 +426,7 @@ async function aktualisiereJahr(
 }
 
 /**
- * Die Ideen-Zeile entsteht beim ersten Speichern (`If-None-Match: *`) oder bei
- * der Migration; danach nur noch mit `If-Match`.
- */
-async function speichereIdeen(
-  anfrage: Request,
-  db: D1Database,
-  identitaet: Benutzer,
-): Promise<Response> {
-  const neu = anfrage.headers.get('If-None-Match') === '*';
-  const vorbedingung = neu ? verlangtNeuanlage(anfrage) : null;
-  if (vorbedingung) return vorbedingung;
-  const version = neu ? 0 : erwarteteVersion(anfrage);
-  if (version instanceof Response) return version;
-  const koerper = await lesePruefeKoerper(anfrage, JAHR_KOERPER_GRENZE);
-  if (koerper instanceof Response) return koerper;
-  const termine = pruefeIdeen(koerper.inhalt);
-  if (!termine) return ungueltig();
-  const jetzt = new Date().toISOString();
-  if (neu) {
-    try {
-      await db
-        .prepare(
-          `INSERT INTO kalender_ideen (id, termine, geaendert_am, geaendert_von, version)
-           VALUES (?, ?, ?, ?, 1)`,
-        )
-        .bind(IDEEN_ID, JSON.stringify(termine), jetzt, identitaet.email)
-        .run();
-    } catch {
-      return konflikt();
-    }
-  } else {
-    const ergebnis = await db
-      .prepare(
-        `UPDATE kalender_ideen
-         SET termine = ?, geaendert_am = ?, geaendert_von = ?, version = version + 1
-         WHERE id = ? AND version = ?`,
-      )
-      .bind(JSON.stringify(termine), jetzt, identitaet.email, IDEEN_ID, version)
-      .run();
-    if (ergebnis.meta.changes === 0) return konflikt();
-  }
-  const neueVersion = version + 1;
-  return jsonAntwort(
-    { termine, version: neueVersion, geaendertAm: jetzt, geaendertVon: identitaet.email },
-    neu ? 201 : 200,
-    { ETag: starkesEtag(neueVersion) },
-  );
-}
-
-/**
- * Einmalige Übernahme der Excel-Arbeitsmappe: alle Jahre und die Ideen in einer
+ * Einmalige Übernahme der Excel-Arbeitsmappe: alle Jahre samt Ideen in einer
  * `db.batch()` – entweder vollständig oder gar nicht. Nur solange der Kalender
  * leer ist; danach 409, damit ein zweiter Klick nie einen gepflegten Stand
  * überschreibt. Ein Rennen zweier Übernahmen endet an den Primärschlüsseln.
@@ -517,14 +445,9 @@ async function migriere(anfrage: Request, db: D1Database, identitaet: Benutzer):
     if (!jahr || jahre.some((j) => j.jahr === jahr.jahr)) return ungueltig();
     jahre.push(jahr);
   }
-  const ideen = pruefeIdeen({ termine: inhalt['ideen'] });
-  if (!ideen) return ungueltig();
 
   const vorhanden = await db
-    .prepare(
-      `SELECT (SELECT COUNT(*) FROM kalender_jahre) + (SELECT COUNT(*) FROM kalender_ideen)
-         AS anzahl`,
-    )
+    .prepare('SELECT COUNT(*) AS anzahl FROM kalender_jahre')
     .first<{ anzahl: number }>();
   if ((vorhanden?.anzahl ?? 0) > 0) return bereitsBefuellt();
 
@@ -533,25 +456,18 @@ async function migriere(anfrage: Request, db: D1Database, identitaet: Benutzer):
     db
       .prepare(
         `INSERT INTO kalender_jahre
-           (jahr, titel, termine, kats_themen, geaendert_am, geaendert_von, version)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+           (jahr, titel, termine, ideen, kats_themen, geaendert_am, geaendert_von, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       )
       .bind(
         jahr.jahr,
         jahr.titel,
         JSON.stringify(jahr.termine),
+        JSON.stringify(jahr.ideen),
         JSON.stringify(jahr.katsThemen),
         jetzt,
         identitaet.email,
       ),
-  );
-  anweisungen.push(
-    db
-      .prepare(
-        `INSERT INTO kalender_ideen (id, termine, geaendert_am, geaendert_von, version)
-         VALUES (?, ?, ?, ?, 1)`,
-      )
-      .bind(IDEEN_ID, JSON.stringify(ideen), jetzt, identitaet.email),
   );
   try {
     await db.batch(anweisungen);
@@ -566,7 +482,6 @@ async function migriere(anfrage: Request, db: D1Database, identitaet: Benutzer):
         geaendertAm: jetzt,
         geaendertVon: identitaet.email,
       })),
-      ideen: { termine: ideen, version: 1, geaendertAm: jetzt, geaendertVon: identitaet.email },
     },
     201,
   );
@@ -650,10 +565,6 @@ export async function verarbeiteKalender(
     if (jahr) {
       if (anfrage.method === 'PUT')
         return await aktualisiereJahr(anfrage, db, Number(jahr), identitaet);
-      return methodeNichtErlaubt('PUT');
-    }
-    if (url.pathname === IDEEN_PFAD) {
-      if (anfrage.method === 'PUT') return await speichereIdeen(anfrage, db, identitaet);
       return methodeNichtErlaubt('PUT');
     }
     if (url.pathname === MIGRATION_PFAD) {

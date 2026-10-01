@@ -38,6 +38,7 @@ function jahr(ueberschreibung: Record<string, unknown> = {}) {
     jahr: 2026,
     titel: 'Jahresplan 2026',
     termine: [termin()],
+    ideen: [idee()],
     katsThemen: [
       { id: 'kats-1', nummer: '1.1', titel: 'Erfundenes Thema', beschreibung: '', pflicht: true },
     ],
@@ -78,22 +79,30 @@ describe('verarbeiteKalender – ohne Konfiguration', () => {
 });
 
 describe('Kalender lesen', () => {
-  it('liefert einen leeren Kalender mit ideen = null', async () => {
+  it('liefert einen leeren Kalender', async () => {
     const antwort = await verarbeiten(new FakeKalenderDb(), '/api/kalender');
     expect(antwort.status).toBe(200);
-    expect(await antwort.json()).toEqual({ jahre: [], ideen: null });
+    expect(await antwort.json()).toEqual({ jahre: [] });
   });
 
   it('liefert alle Jahre sortiert samt Version in einem Aufruf', async () => {
     const db = new FakeKalenderDb();
-    await legeJahrAn(db, jahr({ jahr: 2027, titel: 'Jahresplan 2027', termine: [] }));
+    await legeJahrAn(db, jahr({ jahr: 2027, titel: 'Jahresplan 2027', termine: [], ideen: [] }));
     await legeJahrAn(db);
     const koerper = (await (await verarbeiten(db, '/api/kalender')).json()) as {
-      jahre: { jahr: number; version: number; termine: unknown[]; geaendertVon: string }[];
+      jahre: {
+        jahr: number;
+        version: number;
+        termine: unknown[];
+        ideen: unknown[];
+        geaendertVon: string;
+      }[];
     };
     expect(koerper.jahre.map((j) => j.jahr)).toEqual([2026, 2027]);
     expect(koerper.jahre[0].version).toBe(1);
     expect(koerper.jahre[0].termine).toEqual([termin()]);
+    expect(koerper.jahre[0].ideen).toEqual([idee()]);
+    expect(koerper.jahre[1].ideen).toEqual([]);
     expect(koerper.jahre[0].geaendertVon).toBe(IDENTITAET.email);
   });
 
@@ -247,50 +256,52 @@ describe('Prüfung der Termine', () => {
   });
 });
 
-describe('Offene Ideen', () => {
-  it('legt die Ideen beim ersten Speichern mit If-None-Match: * an und aktualisiert dann', async () => {
+describe('Offene Ideen je Jahr', () => {
+  it('speichert die Ideen mit dem Jahr und ändert sie mit If-Match', async () => {
     const db = new FakeKalenderDb();
-    const neu = await verarbeiten(
+    await legeJahrAn(db);
+    const antwort = await verarbeiten(
       db,
-      '/api/kalender/ideen',
-      json('PUT', { termine: [idee()] }, { 'If-None-Match': '*' }),
+      '/api/kalender/jahre/2026',
+      json('PUT', jahr({ ideen: [] }), { 'If-Match': '"1"' }),
     );
-    expect(neu.status).toBe(201);
-    expect(neu.headers.get('ETag')).toBe('"1"');
-    const weiter = await verarbeiten(
-      db,
-      '/api/kalender/ideen',
-      json('PUT', { termine: [] }, { 'If-Match': '"1"' }),
-    );
-    expect(weiter.status).toBe(200);
-    expect(weiter.headers.get('ETag')).toBe('"2"');
+    expect(antwort.status).toBe(200);
+    expect(db.jahre.get(2026)?.ideen).toBe('[]');
   });
 
-  it('meldet eine zweite Neuanlage und einen veralteten Stand als Konflikt', async () => {
+  it('lässt zwei Jahre getrennte Ideensammlungen führen', async () => {
     const db = new FakeKalenderDb();
-    const neu = json('PUT', { termine: [] }, { 'If-None-Match': '*' });
-    await verarbeiten(db, '/api/kalender/ideen', neu);
-    expect((await verarbeiten(db, '/api/kalender/ideen', neu)).status).toBe(412);
-    const veraltet = await verarbeiten(
+    await legeJahrAn(db);
+    await legeJahrAn(
       db,
-      '/api/kalender/ideen',
-      json('PUT', { termine: [] }, { 'If-Match': '"7"' }),
+      jahr({ jahr: 2027, ideen: [idee({ id: 'idee-2027' })], termine: [], katsThemen: [] }),
     );
-    expect(veraltet.status).toBe(412);
+    expect(JSON.parse(db.jahre.get(2026)!.ideen)).toEqual([idee()]);
+    expect(JSON.parse(db.jahre.get(2027)!.ideen)).toEqual([idee({ id: 'idee-2027' })]);
   });
 
   it('lehnt eine Idee mit Datum ab', async () => {
+    const antwort = await legeJahrAn(new FakeKalenderDb(), jahr({ ideen: [termin()] }));
+    expect(antwort.status).toBe(400);
+  });
+
+  it('lehnt ein Jahr ohne Ideenfeld ab', async () => {
+    const { ideen: _ohne, ...ohneIdeen } = jahr();
+    expect((await legeJahrAn(new FakeKalenderDb(), ohneIdeen)).status).toBe(400);
+  });
+
+  it('kennt den früheren jahresübergreifenden Endpunkt nicht mehr', async () => {
     const antwort = await verarbeiten(
       new FakeKalenderDb(),
       '/api/kalender/ideen',
-      json('PUT', { termine: [termin()] }, { 'If-None-Match': '*' }),
+      json('PUT', { termine: [] }, { 'If-None-Match': '*' }),
     );
-    expect(antwort.status).toBe(400);
+    expect(antwort.status).toBe(404);
   });
 });
 
 describe('Einmalige Migration', () => {
-  function migration(koerper: unknown = { jahre: [jahr()], ideen: [idee()] }) {
+  function migration(koerper: unknown = { jahre: [jahr()] }) {
     return json('POST', koerper, { 'If-None-Match': '*' });
   }
 
@@ -300,13 +311,12 @@ describe('Einmalige Migration', () => {
       db,
       '/api/kalender/migration',
       migration({
-        jahre: [jahr(), jahr({ jahr: 2025, titel: 'Jahresplan 2025', termine: [] })],
-        ideen: [idee()],
+        jahre: [jahr(), jahr({ jahr: 2025, titel: 'Jahresplan 2025', termine: [], ideen: [] })],
       }),
     );
     expect(antwort.status).toBe(201);
     expect([...db.jahre.keys()].sort()).toEqual([2025, 2026]);
-    expect(db.ideen.size).toBe(1);
+    expect(JSON.parse(db.jahre.get(2026)!.ideen)).toEqual([idee()]);
     const koerper = (await antwort.json()) as { jahre: { version: number }[] };
     expect(koerper.jahre.every((j) => j.version === 1)).toBe(true);
   });
@@ -318,7 +328,7 @@ describe('Einmalige Migration', () => {
     const zweite = await verarbeiten(
       db,
       '/api/kalender/migration',
-      migration({ jahre: [jahr({ titel: 'Überschrieben' })], ideen: [] }),
+      migration({ jahre: [jahr({ titel: 'Überschrieben' })] }),
     );
     expect(zweite.status).toBe(409);
     expect(zweite.headers.get('X-Stationwizard-Diagnose')).toBe('KALENDER_BEREITS_BEFUELLT');
@@ -340,7 +350,6 @@ describe('Einmalige Migration', () => {
       '/api/kalender/migration',
       migration({
         jahre: [jahr(), jahr({ jahr: 2025, termine: [termin({ typ: 'x' })] })],
-        ideen: [],
       }),
     );
     expect(antwort.status).toBe(400);
@@ -351,7 +360,7 @@ describe('Einmalige Migration', () => {
     const antwort = await verarbeiten(
       new FakeKalenderDb(),
       '/api/kalender/migration',
-      migration({ jahre: [jahr(), jahr()], ideen: [] }),
+      migration({ jahre: [jahr(), jahr()] }),
     );
     expect(antwort.status).toBe(400);
   });
@@ -360,19 +369,22 @@ describe('Einmalige Migration', () => {
     const antwort = await verarbeiten(
       new FakeKalenderDb(),
       '/api/kalender/migration',
-      json('POST', { jahre: [], ideen: [] }),
+      json('POST', { jahre: [] }),
     );
     expect(antwort.status).toBe(428);
   });
 
   it('verwirft einen abgebrochenen Stapel vollständig', async () => {
     const db = new FakeKalenderDb();
-    // Ein Rennen: die Ideen-Zeile entsteht zwischen Prüfung und Stapel.
+    // Ein Rennen: ein Jahr entsteht zwischen Prüfung und Stapel.
     const ursprung = db.batch.bind(db);
     db.batch = async (anweisungen) => {
-      db.ideen.set('offene-ideen', {
-        id: 'offene-ideen',
+      db.jahre.set(2026, {
+        jahr: 2026,
+        titel: 'Konkurrent',
         termine: '[]',
+        ideen: '[]',
+        kats_themen: '[]',
         geaendert_am: '',
         geaendert_von: '',
         version: 1,
@@ -381,6 +393,7 @@ describe('Einmalige Migration', () => {
     };
     const antwort = await verarbeiten(db, '/api/kalender/migration', migration());
     expect(antwort.status).toBe(409);
-    expect(db.jahre.size).toBe(0);
+    expect(db.jahre.size).toBe(1);
+    expect(db.jahre.get(2026)?.titel).toBe('Konkurrent');
   });
 });

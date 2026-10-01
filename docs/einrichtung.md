@@ -54,7 +54,7 @@ ist remote angewendet und in `d1_migrations` eingetragen; beide Tabellen sind le
 
 1. D1-Datenbank anlegen und die ID in `wrangler.toml` eintragen.
 2. `npx wrangler d1 migrations apply KALENDER_DB --remote --config worker/wrangler.toml`
-   (oder dieselben Anweisungen über den Cloudflare-D1-Connector, dann `INSERT INTO
+   (danach auch `0013_ideen_je_jahr.sql`; oder dieselben Anweisungen über den Cloudflare-D1-Connector, dann `INSERT INTO
 d1_migrations (name) VALUES ('0012_kalender.sql')` ergänzen).
 3. Worker deployen.
 4. Die bisherige Arbeitsmappe aus der NextCloud-Freigabe **herunterladen** und in der App

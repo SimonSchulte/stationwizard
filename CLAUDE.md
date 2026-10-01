@@ -182,10 +182,9 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/efs/checkapikey`                             | POST               | JSON `{}`                                                                                |
 | `/api/efs/getveranstaltungen`                      | POST               | JSON `{}`                                                                                |
 | `/api/efs/getveranstaltung`                        | POST               | JSON mit ausschließlich `id`                                                             |
-| `/api/kalender`                                    | GET                | Alle Jahre und die Offenen Ideen in einem Aufruf, je mit Version                         |
+| `/api/kalender`                                    | GET                | Alle Jahre samt Ideen und KatS-Plan in einem Aufruf, je mit Version                      |
 | `/api/kalender/jahre`                              | POST               | Neues Jahr; nur mit `If-None-Match: *`                                                   |
 | `/api/kalender/jahre/<JJJJ>`                       | PUT                | Jahr speichern; nur mit `If-Match`                                                       |
-| `/api/kalender/ideen`                              | PUT                | Offene Ideen; erstes Speichern mit `If-None-Match: *`, danach `If-Match`                 |
 | `/api/kalender/migration`                          | POST               | Einmalige Excel-Übernahme in den leeren Kalender; sonst 409                              |
 | `/api/nextcloud/planungen`                         | GET                | Liste aus UUID und ETag                                                                  |
 | `/api/nextcloud/planungen/<UUID>`                  | GET / PUT          | Einzelne versionierte PEP-Datei                                                          |
@@ -241,9 +240,21 @@ Prüfungen und offene Abnahmegrenzen.
 Der Kalender (`src/app/ausbildung/`, `worker/src/kalender-planung.ts`) löst die frühere
 Excel-Arbeitsmappe in der NextCloud-Dateifreigabe ab. Eigene D1-Datenbank `KALENDER_DB`
 (`stationwizard-kalender`), Schema in `worker/migrations/kalender/0012_kalender.sql`, dokumentartig
-wie `angebote`: eine Zeile je Jahr (`kalender_jahre`, Termine und KatS-Themen als geprüftes
-JSON) und genau eine Zeile für die jahresübergreifenden Offenen Ideen (`kalender_ideen`),
-jede mit eigener Version. Ein Speichern schreibt nur die tatsächlich geänderten Teile
+wie `angebote`: eine Zeile je Jahr (`kalender_jahre`, Termine, **Offene Ideen** und
+KatS-Themen als geprüftes JSON) mit eigener Version. Jedes Jahr hat seine eigene Ideensammlung
+und seinen eigenen KatS-Ausbildungsplan; ein neues Jahr beginnt mit leeren Listen. Die Ideen
+sind seit `0013_ideen_je_jahr.sql` eine Spalte der Jahreszeile (das Migrationsskript legt die
+frühere jahresübergreifende Sammlung ins jüngste Jahr; `kalender_ideen` bleibt ungenutzt
+bestehen, der Worker liest und schreibt sie nicht mehr, einen `/api/kalender/ideen`-Endpunkt
+gibt es nicht mehr). Im Excel steht pro Jahr ein Blatt `Offene Ideen <Jahr>`; das alte Blatt
+`Offene Ideen` ohne Jahreszahl gehört beim Lesen dem jüngsten Jahr. Was aus einem Jahr ins
+nächste weiterlaufen soll, wählt die Seite **Jahresübernahme** (`/kalender/uebernahme`,
+`src/app/ausbildung/pages/jahresuebernahme/`, Berechnung in `services/jahresuebernahme.ts`;
+Einstieg im Menü des Kalenders): Quell- und Zieljahr, Auswahl je Idee und KatS-Thema,
+Kopien mit neuen Ids, Verweise von Ideen auf Themen werden auf die Kopie umgebogen, bereits
+vorhandene Einträge (Idee: Thema+Kategorie+Ausbilder, Thema: Nummer+Titel) sind markiert und
+abgewählt. Die Übernahme ändert nur den Arbeitsstand (mit Rückgängig), gespeichert wird sie
+mit dem normalen „Speichern“. Ein Speichern schreibt nur die tatsächlich geänderten Teile
 (`KalenderDatenService`), jeweils mit `If-Match` beziehungsweise `If-None-Match: *` für ein
 neues Jahr; ein 412 bewahrt den lokalen Stand und bietet eine Excel-Kopie an. Die festen
 Wertelisten (Kategorien, Typen, Nachweise) stehen in `plan.model.ts` **und** in

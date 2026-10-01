@@ -60,11 +60,12 @@ export class KalenderMigration {
         titel: blatt.titel,
         termine: blatt.termine.length,
         mitThema: blatt.termine.filter((t) => t.thema.trim()).length,
+        ideen: blatt.ideen.length,
         katsThemen: blatt.katsThemen.length,
       }));
     return {
       jahre,
-      ideen: mappe.backlog.length,
+      ideen: jahre.reduce((summe, j) => summe + j.ideen, 0),
       termineGesamt: jahre.reduce((summe, j) => summe + j.termine, 0),
     };
   });
@@ -87,7 +88,7 @@ export class KalenderMigration {
     this.befund.set('pruefen');
     try {
       const stand = await this.storage.laden();
-      this.befund.set(stand.jahre.length || stand.ideen ? 'befuellt' : 'leer');
+      this.befund.set(stand.jahre.length ? 'befuellt' : 'leer');
     } catch (ursache) {
       if (ursache instanceof WorkerFehler && ursache.status === 503) {
         this.befund.set('nicht-eingerichtet');
@@ -132,7 +133,7 @@ export class KalenderMigration {
     const mappe = this.arbeitsmappe();
     const vorschau = this.vorschau();
     if (!mappe || !vorschau || !this.kannUebernehmen()) return;
-    if (JSON.stringify({ jahre: mappe.jahre, ideen: mappe.backlog }).length > MIGRATION_GRENZE) {
+    if (JSON.stringify({ jahre: mappe.jahre }).length > MIGRATION_GRENZE) {
       this.fehler.set('Die Arbeitsmappe ist für eine Übernahme in einem Schritt zu groß.');
       return;
     }

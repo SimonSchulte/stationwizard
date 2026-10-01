@@ -130,6 +130,10 @@
 
     <mat-divider />
 
+    <a mat-menu-item routerLink="/kalender/uebernahme">
+      <mat-icon>event_repeat</mat-icon>
+      <span>Ideen und KatS-Plan übernehmen …</span>
+    </a>
     <button mat-menu-item [disabled]="!store.hatDaten()" (click)="herunterladen()">
       <mat-icon>download</mat-icon>
       <span>Excel-Kopie herunterladen</span>

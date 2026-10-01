@@ -1,0 +1,154 @@
+<mat-toolbar class="uebernahme-kopfleiste">
+  <mat-icon class="kopfleiste-icon">event_repeat</mat-icon>
+  <span class="toolbar-title">Ideen und KatS-Plan ins neue Jahr übernehmen</span>
+  <span class="spacer"></span>
+  <a matButton routerLink="/kalender">Zurück zum Kalender</a>
+</mat-toolbar>
+
+@if (laedt()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<div class="uebernahme-inhalt">
+  <p class="hinweis">
+    Jedes Jahr hat seine eigene Ideensammlung und seinen eigenen KatS-Ausbildungsplan. Wähle hier,
+    was aus einem früheren Jahr weiterlaufen soll. Übernommen werden Kopien – das Quelljahr bleibt
+    unverändert.
+  </p>
+
+  @if (fehler()) {
+    <p class="befund befund-fehler" role="alert">
+      <mat-icon inline>error_outline</mat-icon>
+      {{ fehler() }}
+    </p>
+  }
+
+  @if (zustand() !== 'verbunden' && !laedt()) {
+    <p class="befund befund-warn" role="status">
+      <mat-icon inline>cloud_off</mat-icon>
+      Die Kalender-Datenbank ist nicht verbunden. Öffne den Kalender und lade ihn neu.
+    </p>
+  } @else if (zustand() === 'verbunden' && jahre().length < 2) {
+    <p class="befund befund-warn" role="status">
+      <mat-icon inline>info</mat-icon>
+      Für eine Übernahme braucht der Kalender mindestens zwei Jahre. Lege im Kalender über die
+      Jahresauswahl zuerst ein neues Jahr an.
+    </p>
+  } @else if (zustand() === 'verbunden') {
+    <section class="abschnitt jahre">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Aus Jahr</mat-label>
+        <mat-select [value]="quellJahr()" (valueChange)="quellJahr.set($event)">
+          @for (jahr of jahre(); track jahr) {
+            <mat-option [value]="jahr">{{ jahr }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-icon class="pfeil" aria-hidden="true">arrow_forward</mat-icon>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>In Jahr</mat-label>
+        <mat-select [value]="zielJahr()" (valueChange)="zielJahr.set($event)">
+          @for (jahr of jahre(); track jahr) {
+            <mat-option [value]="jahr">{{ jahr }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </section>
+
+    @if (gleichesJahr()) {
+      <p class="befund befund-warn" role="status">
+        <mat-icon inline>info</mat-icon>
+        Quelle und Ziel sind dasselbe Jahr – wähle zwei verschiedene Jahre.
+      </p>
+    } @else {
+      <section class="abschnitt">
+        <div class="abschnitt-kopf">
+          <h2>Offene Ideen ({{ ideenAuswahl().size }} von {{ ideen().length }})</h2>
+          <button matButton (click)="alleIdeen(true)" [disabled]="!ideen().length">Alle</button>
+          <button matButton (click)="alleIdeen(false)" [disabled]="!ideen().length">Keine</button>
+        </div>
+        @if (ideen().length) {
+          <ul class="auswahl-liste">
+            @for (zeile of ideen(); track zeile.idee.id) {
+              <li class="auswahl-zeile" [class.vorhanden]="zeile.vorhanden">
+                <mat-checkbox
+                  [checked]="ideenAuswahl().has(zeile.idee.id)"
+                  (change)="schalteIdee(zeile.idee.id, $event.checked)"
+                >
+                  <span class="titel">{{ zeile.idee.thema || '(ohne Thema)' }}</span>
+                </mat-checkbox>
+                <span class="details">
+                  @if (zeile.idee.kategorie) {
+                    <span
+                      class="kategorie"
+                      [style.--kategorie-farbe]="kategorieFarben[zeile.idee.kategorie]"
+                    >
+                      {{ zeile.idee.kategorie }}
+                    </span>
+                  }
+                  @if (zeile.idee.ausbilder) {
+                    <span>{{ zeile.idee.ausbilder }}</span>
+                  }
+                  @if (zeile.vorhanden) {
+                    <span class="marke">bereits im Zieljahr</span>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="leer">Das Jahr {{ quellJahr() }} hat keine Offenen Ideen.</p>
+        }
+      </section>
+
+      <section class="abschnitt">
+        <div class="abschnitt-kopf">
+          <h2>KatS-Ausbildungsplan ({{ themenAuswahl().size }} von {{ themen().length }})</h2>
+          <button matButton (click)="alleThemen(true)" [disabled]="!themen().length">Alle</button>
+          <button matButton (click)="alleThemen(false)" [disabled]="!themen().length">Keine</button>
+        </div>
+        @if (themen().length) {
+          <ul class="auswahl-liste">
+            @for (zeile of themen(); track zeile.thema.id) {
+              <li class="auswahl-zeile" [class.vorhanden]="zeile.vorhanden">
+                <mat-checkbox
+                  [checked]="themenAuswahl().has(zeile.thema.id)"
+                  (change)="schalteThema(zeile.thema.id, $event.checked)"
+                >
+                  @if (zeile.thema.nummer) {
+                    <span class="nummer">{{ zeile.thema.nummer }}</span>
+                  }
+                  <span class="titel">{{ zeile.thema.titel }}</span>
+                </mat-checkbox>
+                <span class="details">
+                  @if (zeile.thema.pflicht) {
+                    <span class="marke pflicht">Pflicht</span>
+                  }
+                  @if (zeile.vorhanden) {
+                    <span class="marke">bereits im Zieljahr</span>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="leer">Das Jahr {{ quellJahr() }} hat keinen KatS-Ausbildungsplan.</p>
+        }
+      </section>
+
+      <p class="hinweis">
+        Ideen, die auf ein übernommenes KatS-Thema verweisen, zeigen im Zieljahr auf die Kopie. Wird
+        das Thema nicht übernommen, bleibt nur sein Titel an der Idee stehen. Bereits vorhandene
+        Themen (gleiche Nummer und Titel) werden nicht doppelt angelegt.
+      </p>
+
+      <div class="aktionen">
+        <button matButton="filled" [disabled]="!kannUebernehmen()" (click)="uebernehmen()">
+          <mat-icon>playlist_add</mat-icon>
+          {{ anzahlAusgewaehlt() }} Eintrag/Einträge nach {{ zielJahr() }} übernehmen
+        </button>
+        <a matButton routerLink="/kalender">Abbrechen</a>
+      </div>
+    }
+  }
+</div>

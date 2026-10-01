@@ -1,4 +1,4 @@
-import { Arbeitsmappe, Jahresblatt, Termin } from '../models/plan.model';
+import { Arbeitsmappe, Jahresblatt } from '../models/plan.model';
 
 /**
  * Vertrag der Kalender-Datenhaltung. Die Fachschicht (`KalenderDatenService`)
@@ -12,22 +12,14 @@ export interface GespeichertesJahr {
   version: string;
 }
 
-export interface GespeicherteIdeen {
-  termine: Termin[];
-  version: string;
-}
-
 export interface KalenderStand {
   jahre: GespeichertesJahr[];
-  /** `null`, solange die Offenen Ideen nie gespeichert wurden. */
-  ideen: GespeicherteIdeen | null;
 }
 
 export interface KalenderStorage {
   laden(): Promise<KalenderStand>;
   /** Legt ein Jahr an (`version === null`) oder aktualisiert es; liefert die neue Version. */
   speichereJahr(blatt: Jahresblatt, version: string | null): Promise<string>;
-  speichereIdeen(termine: Termin[], version: string | null): Promise<string>;
   /** Einmalige Übernahme einer Excel-Arbeitsmappe in den leeren Kalender. */
   migriere(arbeitsmappe: Arbeitsmappe): Promise<KalenderStand>;
 }

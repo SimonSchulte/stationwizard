@@ -2,10 +2,10 @@ import * as XLSX from '@e965/xlsx';
 import { Arbeitsmappe, Jahresblatt, KatsThema, Termin, typName } from '../models/plan.model';
 import { isoZuSerial, wochentag } from '../../kern/kalender/datum';
 import {
-  BLATT_BACKLOG,
   SPALTEN_BREITEN,
   SPALTEN_UEBERSCHRIFTEN,
   SpaltenFeld,
+  blattIdeen,
   blattJahresplan,
   blattKats,
   vergleicheTermine,
@@ -20,9 +20,8 @@ const BACKLOG_FELDER: SpaltenFeld[] = SPALTEN_UEBERSCHRIFTEN.map((s) => s.feld).
 
 /**
  * Schreibt die Arbeitsmappe: ein Jahresplan-Blatt (Blattname = Jahreszahl) samt
- * eigenem KatS-A-Plan-Blatt je Jahr, dazu das jahresübergreifend geteilte
- * "Offene Ideen"-Blatt. Nummern für die KatS-A-Plan-Verweise werden über alle
- * Jahre hinweg aufgelöst, da Ideen ohne Datum keinem Jahr fest zugeordnet sind.
+ * eigenem "Offene Ideen <Jahr>"- und KatS-A-Plan-Blatt je Jahr. Die Nummern der
+ * KatS-A-Plan-Verweise werden über alle Jahre hinweg aufgelöst.
  */
 export function schreibeArbeitsmappe(arbeitsmappe: Arbeitsmappe): ArrayBuffer {
   const wb = XLSX.utils.book_new();
@@ -36,7 +35,13 @@ export function schreibeArbeitsmappe(arbeitsmappe: Arbeitsmappe): ArrayBuffer {
       blattJahresplan(jahresblatt.jahr),
     );
   }
-  XLSX.utils.book_append_sheet(wb, backlogBlatt(arbeitsmappe.backlog, nummern), BLATT_BACKLOG);
+  for (const jahresblatt of jahre) {
+    XLSX.utils.book_append_sheet(
+      wb,
+      backlogBlatt(jahresblatt.ideen, nummern),
+      blattIdeen(jahresblatt.jahr),
+    );
+  }
   for (const jahresblatt of jahre) {
     XLSX.utils.book_append_sheet(
       wb,

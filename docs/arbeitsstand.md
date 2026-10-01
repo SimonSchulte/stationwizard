@@ -2873,3 +2873,23 @@ Nachschärfung in dieser Sitzung.
   Inhalt und scrollt, Detail 662 px unabhängig davon; Kalender öffnet sich; `12345,5`
   und `-5` werden abgelehnt, `12.345` akzeptiert. Nicht geprüft: echte Access-Sitzung,
   Touch-Bedienung des Kalenders auf einem echten Gerät.
+
+## Kalender: Ideen und KatS-Plan je Jahr, Jahresübernahme
+
+- **Ideen je Jahr:** Die Offenen Ideen gehören jetzt wie die KatS-Themen zum Jahr
+  (`Jahresblatt.ideen`, Spalte `kalender_jahre.ideen`, Migration `0013_ideen_je_jahr.sql`).
+  Die Migration kopiert die bisherige gemeinsame Sammlung in das jüngste vorhandene Jahr;
+  `kalender_ideen` bleibt ungenutzt als Rückfallebene. `PUT /api/kalender/ideen` entfällt.
+  Ein neues Jahr startet mit leerer Ideensammlung und leerem KatS-Plan.
+- **Excel:** `Offene Ideen <Jahr>` je Jahr; das alte Sammelblatt ohne Jahreszahl wird dem
+  jüngsten Jahr zugeordnet, ein Ideen-Blatt zu einem Jahr ohne Jahresblatt wird gemeldet
+  statt zugeordnet.
+- **Jahresübernahme** (`/kalender/uebernahme`, Menü „Weitere Aktionen“): Quell-/Zieljahr,
+  Einzelauswahl von Ideen und KatS-Themen, Kopien mit neuer Id, Themenverweise der Ideen auf
+  die Kopie, Dublettenmarkierung. Ändert nur den Arbeitsstand (Rückgängig möglich).
+- **Vor dem Deployment:** Migration `0013_ideen_je_jahr.sql` auf `KALENDER_DB` anwenden
+  (`wrangler d1 migrations apply`); Worker und Frontend gemeinsam ausrollen, weil der alte
+  Client die Ideen nicht mehr über `/api/kalender/ideen` schreiben kann.
+- Geprüft: `npm run build`, `npm test` (Angular 1005 + 29, Worker 810 Tests), `npm run
+worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neuen Seite auf
+  Desktop und Mobil, die Migration gegen die echte D1-Datenbank.

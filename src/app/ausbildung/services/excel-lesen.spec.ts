@@ -194,27 +194,37 @@ describe('leseArbeitsmappe', () => {
   it('vereinheitlicht beide Alt-Layouts des Ideen-Blatts', () => {
     const { arbeitsmappe, meldungen } = leseArbeitsmappe(beispielMappe());
 
-    expect(arbeitsmappe.backlog).toHaveLength(5);
+    expect(jahresblatt(arbeitsmappe, 2026).ideen).toHaveLength(5);
     expect(meldungen.some((m) => m.includes('vereinheitlicht'))).toBe(true);
 
-    const kolonnenfahrt = arbeitsmappe.backlog.find((i) => i.thema === 'Die Kolonnenfahrt');
+    const kolonnenfahrt = jahresblatt(arbeitsmappe, 2026).ideen.find(
+      (i) => i.thema === 'Die Kolonnenfahrt',
+    );
     expect(kolonnenfahrt?.katsPflicht).toBe(true);
     expect(kolonnenfahrt?.datum).toBeNull();
 
-    const funk = arbeitsmappe.backlog.find((i) => i.thema === 'Sprechfunkausbildung praktisch');
+    const funk = jahresblatt(arbeitsmappe, 2026).ideen.find(
+      (i) => i.thema === 'Sprechfunkausbildung praktisch',
+    );
     expect(funk?.kategorie).toBe('TeSi/Iuk');
 
-    const betreuung = arbeitsmappe.backlog.find((i) => i.thema.startsWith('Umgang mit Menschen'));
+    const betreuung = jahresblatt(arbeitsmappe, 2026).ideen.find((i) =>
+      i.thema.startsWith('Umgang mit Menschen'),
+    );
     expect(betreuung?.kategorie).toBe('Bt/Vp');
 
     // Layout B: Rolle steht vorn, Thema in Spalte B.
-    const doku = arbeitsmappe.backlog.find((i) => i.thema === 'Dokumentation im Sanitätsdienst');
+    const doku = jahresblatt(arbeitsmappe, 2026).ideen.find(
+      (i) => i.thema === 'Dokumentation im Sanitätsdienst',
+    );
     expect(doku?.kategorie).toBe('SAN');
     expect(doku?.ausbilder).toBe('C. Muster');
     expect(doku?.material).toBe('Protokolle, MANV-Karten');
     expect(doku?.anforderungen).toBe('Aus der Übung');
 
-    const rallye = arbeitsmappe.backlog.find((i) => i.thema === 'Fahrzeugkunde/Rallye');
+    const rallye = jahresblatt(arbeitsmappe, 2026).ideen.find(
+      (i) => i.thema === 'Fahrzeugkunde/Rallye',
+    );
     expect(rallye?.katsPflicht).toBe(true);
     expect(rallye?.material).toBe('KTW-Land, GWSAN');
   });
@@ -236,7 +246,9 @@ describe('leseArbeitsmappe', () => {
     expect(thema?.titel).not.toContain('\n');
     expect(thema?.pflicht).toBe(true);
 
-    const kolonnenfahrt = arbeitsmappe.backlog.find((i) => i.thema === 'Die Kolonnenfahrt');
+    const kolonnenfahrt = jahresblatt(arbeitsmappe, 2026).ideen.find(
+      (i) => i.thema === 'Die Kolonnenfahrt',
+    );
     expect(kolonnenfahrt?.katsThemaId).not.toBeNull();
   });
 });
@@ -258,8 +270,14 @@ describe('schreibeArbeitsmappe', () => {
     expect(blattWieder.termine.map((t) => t.nachweise)).toEqual(
       blattOriginal.termine.map((t) => t.nachweise),
     );
-    expect(wieder.backlog.map((i) => i.thema).sort()).toEqual(
-      original.backlog.map((i) => i.thema).sort(),
+    expect(
+      jahresblatt(wieder, 2026)
+        .ideen.map((i) => i.thema)
+        .sort(),
+    ).toEqual(
+      jahresblatt(original, 2026)
+        .ideen.map((i) => i.thema)
+        .sort(),
     );
     expect(blattWieder.katsThemen.map((t) => t.titel).sort()).toEqual(
       blattOriginal.katsThemen.map((t) => t.titel).sort(),
@@ -270,9 +288,9 @@ describe('schreibeArbeitsmappe', () => {
     const original = leseArbeitsmappe(beispielMappe()).arbeitsmappe;
     const wb = XLSX.read(new Uint8Array(schreibeArbeitsmappe(original)), { type: 'array' });
 
-    expect(wb.SheetNames).toEqual(['2026', 'Offene Ideen', 'KatS-A-Plan 2026']);
+    expect(wb.SheetNames).toEqual(['2026', 'Offene Ideen 2026', 'KatS-A-Plan 2026']);
 
-    const kopf = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['Offene Ideen'], {
+    const kopf = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['Offene Ideen 2026'], {
       header: 1,
     })[0];
     // Ideen haben kein Datum und damit weder Tag noch Enddatum; Uhrzeit und Typ
@@ -394,5 +412,60 @@ describe('Zeiträume, Uhrzeiten und Typ', () => {
     expect(termine.every((t) => t.datumBis === null)).toBe(true);
     expect(termine.every((t) => t.typ === 'dienst')).toBe(true);
     expect(termine.every((t) => t.beginnZeit === '' && t.endeZeit === '')).toBe(true);
+  });
+});
+
+/** Zwei Jahre; die Ideen stehen je Jahr in „Offene Ideen <Jahr>“ oder im alten Sammelblatt. */
+function mappeMitZweiJahren(ideenBlaetter: Record<string, string[]>): ArrayBuffer {
+  const wb = XLSX.utils.book_new();
+  for (const jahr of [2025, 2026]) {
+    const plan = XLSX.utils.aoa_to_sheet([
+      [`Jahresplan ${jahr}`],
+      [],
+      ['Datum', 'Rolle', 'Thema'],
+      [isoZuSerial(`${jahr}-03-02`), 'SAN', `Erfundener Dienst ${jahr}`],
+    ]);
+    XLSX.utils.book_append_sheet(wb, plan, String(jahr));
+  }
+  for (const [name, themen] of Object.entries(ideenBlaetter)) {
+    const blatt = XLSX.utils.aoa_to_sheet([['Rolle', 'Thema'], ...themen.map((t) => ['SAN', t])]);
+    XLSX.utils.book_append_sheet(wb, blatt, name);
+  }
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
+}
+
+describe('Ideen je Jahr', () => {
+  it('ordnet „Offene Ideen <Jahr>“ dem jeweiligen Jahr zu', () => {
+    const { arbeitsmappe } = leseArbeitsmappe(
+      mappeMitZweiJahren({
+        'Offene Ideen 2025': ['Idee A'],
+        'Offene Ideen 2026': ['Idee B', 'Idee C'],
+      }),
+    );
+    expect(jahresblatt(arbeitsmappe, 2025).ideen.map((i) => i.thema)).toEqual(['Idee A']);
+    expect(jahresblatt(arbeitsmappe, 2026).ideen.map((i) => i.thema)).toEqual(['Idee B', 'Idee C']);
+  });
+
+  it('gibt das alte Sammelblatt ohne Jahreszahl dem jüngsten Jahr', () => {
+    const { arbeitsmappe } = leseArbeitsmappe(mappeMitZweiJahren({ 'Offene Ideen': ['Alt'] }));
+    expect(jahresblatt(arbeitsmappe, 2025).ideen).toEqual([]);
+    expect(jahresblatt(arbeitsmappe, 2026).ideen.map((i) => i.thema)).toEqual(['Alt']);
+  });
+
+  it('meldet ein Ideen-Blatt für ein Jahr ohne Jahresblatt, statt es zuzuordnen', () => {
+    const { arbeitsmappe, meldungen } = leseArbeitsmappe(
+      mappeMitZweiJahren({ 'Offene Ideen 2031': ['Fremd'] }),
+    );
+    expect(arbeitsmappe.jahre.every((j) => j.ideen.length === 0)).toBe(true);
+    expect(meldungen.some((m) => m.includes('Offene Ideen 2031'))).toBe(true);
+  });
+
+  it('behält die getrennten Sammlungen über einen Schreib-/Lese-Rundlauf', () => {
+    const original = leseArbeitsmappe(
+      mappeMitZweiJahren({ 'Offene Ideen 2025': ['Idee A'], 'Offene Ideen 2026': ['Idee B'] }),
+    ).arbeitsmappe;
+    const zurueck = leseArbeitsmappe(schreibeArbeitsmappe(original)).arbeitsmappe;
+    expect(jahresblatt(zurueck, 2025).ideen.map((i) => i.thema)).toEqual(['Idee A']);
+    expect(jahresblatt(zurueck, 2026).ideen.map((i) => i.thema)).toEqual(['Idee B']);
   });
 });

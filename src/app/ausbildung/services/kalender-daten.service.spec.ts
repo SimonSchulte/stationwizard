@@ -14,14 +14,16 @@ function blatt(jahr: number, thema = 'Erfundenes Thema'): Jahresblatt {
     jahr,
     titel: `Jahresplan ${jahr}`,
     termine: [{ ...leererTermin(`${jahr}-03-02`), id: `t-${jahr}`, thema }],
-    katsThemen: [],
+    ideen: [{ ...leererTermin(null), id: `idee-${jahr}`, thema: 'Idee' }],
+    katsThemen: [
+      { id: `k-${jahr}`, nummer: '1.1', titel: `Thema ${jahr}`, beschreibung: '', pflicht: true },
+    ],
   };
 }
 
 function stand(...jahre: number[]): KalenderStand {
   return {
     jahre: jahre.map((jahr) => ({ blatt: blatt(jahr), version: '"1"' })),
-    ideen: { termine: [{ ...leererTermin(null), id: 'idee-1', thema: 'Idee' }], version: '"4"' },
   };
 }
 
@@ -37,7 +39,6 @@ describe('KalenderDatenService', () => {
   const storage = {
     laden: vi.fn<ApiKalenderStorage['laden']>(),
     speichereJahr: vi.fn<ApiKalenderStorage['speichereJahr']>(),
-    speichereIdeen: vi.fn<ApiKalenderStorage['speichereIdeen']>(),
     migriere: vi.fn<ApiKalenderStorage['migriere']>(),
   };
   let dienst: KalenderDatenService;
@@ -80,7 +81,7 @@ describe('KalenderDatenService', () => {
   });
 
   it('erkennt einen leeren Kalender und legt dann kein Diensttagsgerüst an', async () => {
-    storage.laden.mockResolvedValue({ jahre: [], ideen: null });
+    storage.laden.mockResolvedValue({ jahre: [] });
     await dienst.laden();
     expect(dienst.istLeer()).toBe(true);
     expect(store.hatDaten()).toBe(false);
@@ -93,7 +94,7 @@ describe('KalenderDatenService', () => {
     await dienst.laden();
     expect(store.jahr()).toBe(laufend);
     expect(dienst.verfuegbareJahre()).toEqual([laufend - 1, laufend, laufend + 1]);
-    expect(store.backlog().map((t) => t.id)).toEqual(['idee-1']);
+    expect(store.backlog().map((t) => t.id)).toEqual([`idee-${laufend}`]);
   });
 
   it('schreibt nichts, wenn sich nichts geändert hat', async () => {
@@ -101,7 +102,6 @@ describe('KalenderDatenService', () => {
     const ergebnis = await dienst.speichern();
     expect(ergebnis.geschrieben).toBe(0);
     expect(storage.speichereJahr).not.toHaveBeenCalled();
-    expect(storage.speichereIdeen).not.toHaveBeenCalled();
   });
 
   it('schreibt nur das geänderte Jahr mit seiner Version', async () => {
@@ -114,19 +114,71 @@ describe('KalenderDatenService', () => {
     expect(ergebnis.geschrieben).toBe(1);
     expect(storage.speichereJahr).toHaveBeenCalledTimes(1);
     expect(storage.speichereJahr.mock.calls[0]![1]).toBe('"2"');
-    expect(storage.speichereIdeen).not.toHaveBeenCalled();
     expect(store.ungespeichert()).toBe(false);
   });
 
-  it('schreibt die Ideen getrennt und mit deren eigener Version', async () => {
+  it('schreibt geänderte Ideen mit ihrem Jahr und dessen Version', async () => {
     await geladen(stand(2026));
     store.neueIdee();
-    storage.speichereIdeen.mockResolvedValue('"5"');
+    storage.speichereJahr.mockResolvedValue('"5"');
 
     await dienst.speichern();
 
-    expect(storage.speichereJahr).not.toHaveBeenCalled();
-    expect(storage.speichereIdeen.mock.calls[0]![1]).toBe('"4"');
+    expect(storage.speichereJahr).toHaveBeenCalledTimes(1);
+    expect(storage.speichereJahr.mock.calls[0]![0].ideen).toHaveLength(2);
+    expect(storage.speichereJahr.mock.calls[0]![1]).toBe('"2"');
+  });
+
+  it('führt je Jahr eine eigene Ideensammlung', async () => {
+    await geladen(stand(2025, 2026));
+    dienst.waehleJahr(2025);
+    expect(store.backlog().map((t) => t.id)).toEqual(['idee-2025']);
+    dienst.waehleJahr(2026);
+    expect(store.backlog().map((t) => t.id)).toEqual(['idee-2026']);
+  });
+
+  it('beginnt ein neues Jahr mit leerer Ideensammlung und leerem KatS-Plan', async () => {
+    await geladen(stand(2026));
+    dienst.neuesJahr(2027);
+    expect(store.backlog()).toEqual([]);
+    expect(store.katsThemen()).toEqual([]);
+  });
+
+  it('übernimmt Ideen und Themen ins Zieljahr, rückgängig machbar und ungespeichert', async () => {
+    await geladen(stand(2025, 2026));
+    const quelle = dienst.blatt(2025)!;
+
+    dienst.uebernehmeInJahr(2026, quelle.ideen, quelle.katsThemen);
+
+    expect(store.jahr()).toBe(2026);
+    expect(store.backlog().map((t) => t.id)).toEqual(['idee-2026', 'idee-2025']);
+    expect(store.katsThemen().map((t) => t.id)).toEqual(['k-2026', 'k-2025']);
+    expect(store.ungespeichert()).toBe(true);
+    expect(dienst.blatt(2025)).toEqual(quelle);
+
+    store.rueckgaengig();
+    expect(store.backlog().map((t) => t.id)).toEqual(['idee-2026']);
+  });
+
+  it('übernimmt in ein nicht aktives, ungespeichertes Jahr und speichert es mit', async () => {
+    await geladen(stand(2025, 2026));
+    dienst.waehleJahr(2026);
+    const quelle = dienst.blatt(2026)!;
+    dienst.neuesJahr(2027);
+    dienst.waehleJahr(2026);
+
+    dienst.uebernehmeInJahr(2027, quelle.ideen, []);
+    dienst.waehleJahr(2026);
+    storage.speichereJahr.mockResolvedValue('"1"');
+    await dienst.speichern();
+
+    const gespeichert = storage.speichereJahr.mock.calls.find(([b]) => b.jahr === 2027)!;
+    expect(gespeichert[0].ideen.map((t) => t.id)).toEqual(['idee-2026']);
+  });
+
+  it('lehnt eine Übernahme in ein unbekanntes Jahr ab', async () => {
+    await geladen(stand(2026));
+    expect(() => dienst.uebernehmeInJahr(2031, [], [])).toThrow(/nicht angelegt/);
   });
 
   it('legt ein neues Jahr mit If-None-Match an (Version null) und behält das bisherige', async () => {
@@ -218,6 +270,9 @@ describe('KalenderDatenService', () => {
     const mappe = dienst.arbeitsmappe();
     expect(mappe.jahre.map((j) => j.jahr)).toEqual([2025, 2026]);
     expect(mappe.jahre[1]!.termine.find((t) => t.id === 't-2026')?.thema).toBe('Ungespeichert');
-    expect(mappe.backlog.map((t) => t.id)).toEqual(['idee-1']);
+    expect(mappe.jahre.map((j) => j.ideen.map((t) => t.id))).toEqual([
+      ['idee-2025'],
+      ['idee-2026'],
+    ]);
   });
 });

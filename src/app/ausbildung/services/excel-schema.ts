@@ -14,7 +14,16 @@ export const BLATT_MUSTER = {
   kats: /^kats/i,
 };
 
+/**
+ * Altname des (damals jahresübergreifend einzigen) Ideen-Blatts. Beim Lesen
+ * gehört es dem jüngsten Jahr der Mappe, wie bei der Datenbankübernahme.
+ */
 export const BLATT_BACKLOG = 'Offene Ideen';
+
+/** Ideen-Blatt eines Jahres; jedes Jahr hat seine eigene Ideensammlung. */
+export function blattIdeen(jahr: number): string {
+  return `${BLATT_BACKLOG} ${jahr}`;
+}
 /** Altname des (damals jahresübergreifend einzigen) KatS-A-Plan-Blatts. */
 export const BLATT_KATS_ALT = 'KatS-A-Plan';
 
