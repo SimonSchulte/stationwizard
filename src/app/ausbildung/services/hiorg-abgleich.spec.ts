@@ -64,6 +64,63 @@ describe('Abgleich zwischen Jahresplan und HiOrg', () => {
     expect(abgleich.nachDatum.get('2026-05-04')?.ohneGegenstueck).toHaveLength(0);
   });
 
+  it('wertet einen HiOrg-Eintrag zu anderer Uhrzeit am selben Tag nicht als Abweichung', () => {
+    const abgleich = baueHiorgAbgleich(
+      [eintrag({ name: 'Sitzung Unterführer', beginnZeit: '10:00', endeZeit: '12:00' })],
+      [{ ...termin('2026-05-04', 'Sprechfunkausbildung'), beginnZeit: '19:00', endeZeit: '22:30' }],
+      2026,
+    );
+
+    const tag = abgleich.nachDatum.get('2026-05-04');
+    expect(abgleich.anzahlAbweichungen).toBe(0);
+    expect(tag?.abweichungen).toHaveLength(0);
+    expect(tag?.ohneGegenstueck).toHaveLength(0);
+    expect(tag?.eintraege).toHaveLength(1);
+  });
+
+  it('meldet abweichenden Namen zur selben Uhrzeit weiterhin', () => {
+    const abgleich = baueHiorgAbgleich(
+      [eintrag({ name: 'Funkausbildung', beginnZeit: '19:00', endeZeit: '22:30' })],
+      [{ ...termin('2026-05-04', 'Sprechfunkausbildung'), beginnZeit: '19:00', endeZeit: '22:30' }],
+      2026,
+    );
+
+    expect(abgleich.anzahlAbweichungen).toBe(1);
+  });
+
+  it('wertet einen HiOrg-Eintrag mit Uhrzeit gegen einen Plantermin ohne Uhrzeit nicht als Abweichung', () => {
+    const abgleich = baueHiorgAbgleich(
+      [
+        eintrag({
+          name: 'Fachdienstabend',
+          beginn: '2026-11-27',
+          ende: '2026-11-28',
+          beginnZeit: '18:00',
+        }),
+        eintrag({
+          name: 'Weihnachtsmarkt',
+          beginn: '2026-11-28',
+          beginnZeit: '10:00',
+          endeZeit: '17:00',
+        }),
+      ],
+      [termin('2026-11-28', 'Digitalfunkausbildung')],
+      2026,
+    );
+
+    expect(abgleich.anzahlAbweichungen).toBe(0);
+  });
+
+  it('vergleicht ohne Uhrzeit auf beiden Seiten weiter nur den Namen', () => {
+    const abgleich = baueHiorgAbgleich(
+      [eintrag({ name: 'Funkausbildung' })],
+      [termin('2026-05-04', 'Sprechfunkausbildung')],
+      2026,
+    );
+
+    expect(abgleich.anzahlAbweichungen).toBe(1);
+  });
+
   it.each([
     ['Groß-/Kleinschreibung', 'SPRECHFUNK AUSBILDUNG'],
     ['führende und doppelte Leerzeichen', '  Sprechfunk   ausbildung  '],

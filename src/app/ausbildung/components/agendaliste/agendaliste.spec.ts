@@ -210,7 +210,7 @@ describe('Agendaliste', () => {
   it('zeigt mit „Nur Abweichungen“ nur Tage mit Abweichung', () => {
     aufbauen(
       [
-        termin('2026-03-04', { thema: 'Erfundenes Thema' }),
+        termin('2026-03-04', { thema: 'Erfundenes Thema', beginnZeit: '19:00' }),
         termin('2026-03-11', { thema: 'Anderes' }),
       ],
       [HIORG],
