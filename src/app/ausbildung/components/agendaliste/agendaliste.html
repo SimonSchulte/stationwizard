@@ -39,6 +39,10 @@
       @for (tag of woche.tage; track tag.slot.datum) {
         <article
           class="tag"
+          cdkDropList
+          cdkDropListSortingDisabled
+          [cdkDropListDisabled]="tag.slot.termine.length > 0"
+          (cdkDropListDropped)="aufLeeremTagAbgelegt.emit({ event: $event, datum: tag.slot.datum })"
           [class.luecke]="tag.luecke"
           [class.heute]="tag.slot.datum === heute()"
           [class.vergangen]="tag.slot.datum < heute()"
@@ -76,18 +80,27 @@
             @for (karte of tag.karten; track karte.schluessel) {
               @switch (karte.art) {
                 @case ('termin') {
-                  <app-termin-karte
-                    [termin]="karte.termin.termin"
-                    [segment]="karte.termin.segment"
-                    [tagDatum]="tag.slot.datum"
-                    [katsThema]="katsThema(karte.termin.termin)"
-                    [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
-                    [feiertag]="tag.slot.feiertag"
-                    [kompakt]="false"
-                    (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
-                    (verschieben)="zuBacklog.emit(karte.termin.termin)"
-                    (loeschen)="loeschen.emit(karte.termin.termin.id)"
-                  />
+                  <div
+                    class="ablage"
+                    cdkDropList
+                    cdkDropListSortingDisabled
+                    (cdkDropListDropped)="
+                      aufTerminAbgelegt.emit({ event: $event, ziel: karte.termin.termin })
+                    "
+                  >
+                    <app-termin-karte
+                      [termin]="karte.termin.termin"
+                      [segment]="karte.termin.segment"
+                      [tagDatum]="tag.slot.datum"
+                      [katsThema]="katsThema(karte.termin.termin)"
+                      [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
+                      [feiertag]="tag.slot.feiertag"
+                      [kompakt]="false"
+                      (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
+                      (verschieben)="zuBacklog.emit(karte.termin.termin)"
+                      (loeschen)="loeschen.emit(karte.termin.termin.id)"
+                    />
+                  </div>
                 }
                 @case ('hiorg') {
                   <app-hiorg-eintrag-karte
