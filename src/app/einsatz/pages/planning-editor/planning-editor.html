@@ -124,15 +124,22 @@
           ></mat-datepicker-toggle>
           <mat-datepicker #startPicker></mat-datepicker>
         </mat-form-field>
-        <input
-          type="time"
-          class="time-input"
-          [value]="getTimeFromIso(p.start)"
-          (change)="updateStartTime($any($event.target).value)"
-          aria-label="Startzeit"
-          [readOnly]="isEfsLocked()"
-          [class.toolbar-field--locked]="isEfsLocked()"
-        />
+        <mat-form-field class="time-field" appearance="outline" subscriptSizing="dynamic">
+          <input
+            matInput
+            [matTimepicker]="startZeitPicker"
+            [value]="startZeitWert()"
+            (valueChange)="updateStartTime($event)"
+            aria-label="Startzeit"
+            [disabled]="isEfsLocked()"
+          />
+          <mat-timepicker-toggle
+            matSuffix
+            [for]="startZeitPicker"
+            [disabled]="isEfsLocked()"
+          ></mat-timepicker-toggle>
+          <mat-timepicker #startZeitPicker interval="15m"></mat-timepicker>
+        </mat-form-field>
       </div>
       <span class="date-sep">–</span>
       <div class="zeitraum-feld">
@@ -153,15 +160,22 @@
           ></mat-datepicker-toggle>
           <mat-datepicker #endPicker></mat-datepicker>
         </mat-form-field>
-        <input
-          type="time"
-          class="time-input"
-          [value]="getTimeFromIso(p.end)"
-          (change)="updateEndTime($any($event.target).value)"
-          aria-label="Endzeit"
-          [readOnly]="isEfsLocked()"
-          [class.toolbar-field--locked]="isEfsLocked()"
-        />
+        <mat-form-field class="time-field" appearance="outline" subscriptSizing="dynamic">
+          <input
+            matInput
+            [matTimepicker]="endZeitPicker"
+            [value]="endZeitWert()"
+            (valueChange)="updateEndTime($event)"
+            aria-label="Endzeit"
+            [disabled]="isEfsLocked()"
+          />
+          <mat-timepicker-toggle
+            matSuffix
+            [for]="endZeitPicker"
+            [disabled]="isEfsLocked()"
+          ></mat-timepicker-toggle>
+          <mat-timepicker #endZeitPicker interval="15m"></mat-timepicker>
+        </mat-form-field>
       </div>
       <div class="einsatzleiter-field">
         <span class="einsatzleiter-label">EinsatzleiterIn</span>

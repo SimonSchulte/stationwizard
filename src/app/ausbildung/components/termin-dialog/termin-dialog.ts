@@ -3,12 +3,21 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import {
+  isoZuLokalesDatum,
+  lokalesDatumZuIso,
+  lokalesDatumZuZeit,
+  zeitZuLokalesDatum,
+} from '../../../kern/kalender/datum';
 import {
   KATEGORIEN,
   NACHWEISE,
@@ -37,13 +46,17 @@ export interface TerminDialogDaten {
     MatButtonModule,
     MatButtonToggleModule,
     MatCheckboxModule,
+    MatDatepickerModule,
     MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatNativeDateModule,
     MatSelectModule,
+    MatTimepickerModule,
     MatTooltipModule,
   ],
+  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './termin-dialog.html',
   styleUrl: './termin-dialog.less',
 })
@@ -67,6 +80,22 @@ export class TerminDialog {
     this.vorhanden ? structuredClone(this.vorhanden) : leererTermin(this.daten.datum ?? null),
   );
   readonly istIdee = computed(() => this.entwurf().datum === null);
+
+  /** Stabile `Date`-Referenzen für die Picker: nur bei geändertem Wert neu erzeugt. */
+  private static readonly gleich = (a: Date | null, b: Date | null) =>
+    a?.getTime() === b?.getTime();
+  readonly datumWert = computed(() => isoZuLokalesDatum(this.entwurf().datum ?? ''), {
+    equal: TerminDialog.gleich,
+  });
+  readonly datumBisWert = computed(() => isoZuLokalesDatum(this.entwurf().datumBis ?? ''), {
+    equal: TerminDialog.gleich,
+  });
+  readonly beginnWert = computed(() => zeitZuLokalesDatum(this.entwurf().beginnZeit), {
+    equal: TerminDialog.gleich,
+  });
+  readonly endeWert = computed(() => zeitZuLokalesDatum(this.entwurf().endeZeit), {
+    equal: TerminDialog.gleich,
+  });
   /**
    * Fehlerhafte Eingaben blockieren das Speichern, statt still einen
    * unbrauchbaren Zeitraum in die Mappe zu schreiben.
@@ -129,9 +158,23 @@ export class TerminDialog {
     this.setze('typ', typ);
   }
 
+  /** Ein leeres oder ungültiges Datum behält den bisherigen Wert. */
+  datumAktualisieren(ereignis: MatDatepickerInputEvent<Date>): void {
+    if (!ereignis.value) return;
+    const datum = lokalesDatumZuIso(ereignis.value);
+    if (datum !== this.entwurf().datum) this.setze('datum', datum);
+  }
+
   /** Leeres Datumsfeld heißt „eintägig", nicht „ungültig". */
-  setzeDatumBis(wert: string): void {
-    this.setze('datumBis', wert || null);
+  datumBisAktualisieren(ereignis: MatDatepickerInputEvent<Date>): void {
+    const datumBis = ereignis.value ? lokalesDatumZuIso(ereignis.value) : null;
+    if (datumBis !== this.entwurf().datumBis) this.setze('datumBis', datumBis);
+  }
+
+  /** Leere Zeit heißt „ohne Uhrzeit"; der Timepicker meldet auch die Erstzuweisung. */
+  zeitAktualisieren(feld: 'beginnZeit' | 'endeZeit', wert: Date | null): void {
+    const zeit = wert ? lokalesDatumZuZeit(wert) : '';
+    if (zeit !== this.entwurf()[feld]) this.setze(feld, zeit);
   }
 
   speichern(): void {

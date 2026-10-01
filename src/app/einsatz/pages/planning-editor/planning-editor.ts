@@ -29,6 +29,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule, MatDatepickerInputEvent } from '@angular/material/datepicker';
 import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
+import { MatTimepickerModule } from '@angular/material/timepicker';
+import { lokalesDatumZuZeit, zeitZuLokalesDatum } from '../../../kern/kalender/datum';
 import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
@@ -92,6 +94,7 @@ interface Staerke {
     MatInputModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    MatTimepickerModule,
     DragDropModule,
     MatMenuModule,
   ],
@@ -635,6 +638,16 @@ export class PlanningEditor {
     return iso ? iso.slice(0, 16) : '';
   }
 
+  /** Stabile `Date`-Referenzen für den Timepicker (nur bei geänderter Uhrzeit neu). */
+  readonly startZeitWert = computed(
+    () => zeitZuLokalesDatum(this.getTimeFromIso(this.planung()?.start ?? '')),
+    { equal: (a, b) => a?.getTime() === b?.getTime() },
+  );
+  readonly endZeitWert = computed(
+    () => zeitZuLokalesDatum(this.getTimeFromIso(this.planung()?.end ?? '')),
+    { equal: (a, b) => a?.getTime() === b?.getTime() },
+  );
+
   getDateFromIso(iso: string): Date | null {
     return iso ? new Date(iso) : null;
   }
@@ -660,10 +673,12 @@ export class PlanningEditor {
     this.store.updateActive({ ...p, start: iso });
   }
 
-  updateStartTime(value: string): void {
+  updateStartTime(wert: Date | null): void {
     const p = this.planung();
-    if (!p) return;
-    const iso = this.buildIso(p.start, this.getDateFromIso(p.start), value);
+    if (!p || !wert) return;
+    const zeit = lokalesDatumZuZeit(wert);
+    if (zeit === this.getTimeFromIso(p.start)) return;
+    const iso = this.buildIso(p.start, this.getDateFromIso(p.start), zeit);
     this.store.updateActive({ ...p, start: iso });
   }
 
@@ -674,10 +689,12 @@ export class PlanningEditor {
     this.store.updateActive({ ...p, end: iso });
   }
 
-  updateEndTime(value: string): void {
+  updateEndTime(wert: Date | null): void {
     const p = this.planung();
-    if (!p) return;
-    const iso = this.buildIso(p.end, this.getDateFromIso(p.end), value);
+    if (!p || !wert) return;
+    const zeit = lokalesDatumZuZeit(wert);
+    if (zeit === this.getTimeFromIso(p.end)) return;
+    const iso = this.buildIso(p.end, this.getDateFromIso(p.end), zeit);
     this.store.updateActive({ ...p, end: iso });
   }
 
