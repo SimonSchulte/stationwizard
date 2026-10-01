@@ -127,7 +127,9 @@ Zugangsdaten werden nicht als Diagnose durchgereicht. Weitere Details:
 ## Dateiformate und Speichern
 
 **Kalender (früher Ausbildungsplanung):** Führende Quelle ist die D1-Datenbank
-`KALENDER_DB`, eine Zeile je Jahr und eine für die Offenen Ideen, jeweils versioniert.
+`KALENDER_DB`, eine Zeile je Jahr mit Terminen, eigenen Offenen Ideen und eigenem KatS-Plan,
+versioniert. Ideen und KatS-Themen lassen sich über _Jahresübernahme_ (`/kalender/uebernahme`)
+bewusst in ein anderes Jahr kopieren.
 Gespeichert wird nur, was sich geändert hat, mit `If-Match` bzw. `If-None-Match: *`. Die
 frühere Excel-Arbeitsmappe (**Jahresplan**, **Offene Ideen**, **KatS-A-Plan**) wird einmalig
 unter _Verwaltung → Kalender aus Excel übernehmen_ importiert und bleibt als lokaler

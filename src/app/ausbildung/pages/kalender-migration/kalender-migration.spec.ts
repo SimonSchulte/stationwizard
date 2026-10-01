@@ -16,9 +16,9 @@ function testDatei(): File {
       jahr,
       titel: `Erfundener Plan ${jahr}`,
       termine: [{ ...leererTermin(`${jahr}-03-03`), id: `t${jahr}`, thema: 'Erfundenes Thema' }],
+      ideen: jahr === 2026 ? [{ ...leererTermin(null), id: 'i1', thema: 'Erfundene Idee' }] : [],
       katsThemen: [],
     })),
-    backlog: [{ ...leererTermin(null), id: 'i1', thema: 'Erfundene Idee' }],
   });
   return new File([daten], 'Erfundene_Mappe.xlsx');
 }
@@ -49,7 +49,7 @@ describe('KalenderMigration', () => {
   beforeEach(() => vi.resetAllMocks());
 
   it('erlaubt die Übernahme nur bei leerer Datenbank', async () => {
-    storage.laden.mockResolvedValue({ jahre: [{}], ideen: null });
+    storage.laden.mockResolvedValue({ jahre: [{}] });
     const seite = erzeuge();
     await vi.waitFor(() => expect(seite.befund()).toBe('befuellt'));
     await seite.dateiGewaehlt(dateiEreignis(testDatei()));
@@ -63,7 +63,7 @@ describe('KalenderMigration', () => {
   });
 
   it('liest die Excel-Datei und zeigt Jahre, Einträge und Ideen als Vorschau', async () => {
-    storage.laden.mockResolvedValue({ jahre: [], ideen: null });
+    storage.laden.mockResolvedValue({ jahre: [] });
     const seite = erzeuge();
     await vi.waitFor(() => expect(seite.befund()).toBe('leer'));
     await seite.dateiGewaehlt(dateiEreignis(testDatei()));
@@ -73,8 +73,8 @@ describe('KalenderMigration', () => {
   });
 
   it('überträgt erst nach Bestätigung und übernimmt den gelieferten Stand', async () => {
-    storage.laden.mockResolvedValue({ jahre: [], ideen: null });
-    const stand = { jahre: [], ideen: null };
+    storage.laden.mockResolvedValue({ jahre: [] });
+    const stand = { jahre: [] };
     storage.migriere.mockResolvedValue(stand);
     const seite = erzeuge();
     await vi.waitFor(() => expect(seite.befund()).toBe('leer'));
@@ -93,7 +93,7 @@ describe('KalenderMigration', () => {
   });
 
   it('meldet eine inzwischen befüllte Datenbank, ohne etwas zu übernehmen', async () => {
-    storage.laden.mockResolvedValue({ jahre: [], ideen: null });
+    storage.laden.mockResolvedValue({ jahre: [] });
     storage.migriere.mockRejectedValue(new KalenderBereitsBefuelltFehler());
     dialog.bestaetigen.mockResolvedValue(true);
     const seite = erzeuge();
@@ -108,7 +108,7 @@ describe('KalenderMigration', () => {
   });
 
   it('weist eine Datei ohne Jahresblatt ab', async () => {
-    storage.laden.mockResolvedValue({ jahre: [], ideen: null });
+    storage.laden.mockResolvedValue({ jahre: [] });
     const seite = erzeuge();
     await vi.waitFor(() => expect(seite.befund()).toBe('leer'));
     await seite.dateiGewaehlt(dateiEreignis(new File(['kein excel'], 'kaputt.xlsx')));

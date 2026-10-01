@@ -6,7 +6,9 @@ import { WorkerFehler } from '../../kern/worker-client';
 import {
   Arbeitsmappe,
   Jahresblatt,
+  KatsThema,
   PlanDocument,
+  Termin,
   alsJahresblatt,
   alsPlanDocument,
   leeresDocument,
@@ -26,7 +28,7 @@ export interface LadeErgebnis {
 }
 
 export interface SpeicherErgebnis {
-  /** Anzahl tatsächlich geschriebener Teile (Jahre plus Ideen); 0 = nichts geändert. */
+  /** Anzahl tatsächlich geschriebener Jahre; 0 = nichts geändert. */
   geschrieben: number;
 }
 
@@ -37,17 +39,10 @@ interface JahrEintrag {
   gespeichert: string | null;
 }
 
-interface IdeenEintrag {
-  version: string | null;
-  gespeichert: string | null;
-}
-
-const LEERE_IDEEN: IdeenEintrag = { version: null, gespeichert: JSON.stringify([]) };
-
 /**
  * Bindeglied zwischen der Kalender-Datenbank (`KalenderStorage`) und dem
  * Zustand (`PlanStore`). Löst den früheren `WorkbookService` ab: der Store hält
- * weiterhin nur das aktive Jahr samt Ideen, die übrigen Jahre liegen hier.
+ * weiterhin nur das aktive Jahr samt dessen Ideen, die übrigen Jahre liegen hier.
  *
  * Gespeichert wird nur, was sich gegenüber dem zuletzt gespeicherten Stand
  * tatsächlich geändert hat – jede Schreibung zählt gegen das D1-Kontingent.
@@ -62,7 +57,6 @@ export class KalenderDatenService {
   private readonly storage: KalenderStorage = inject(ApiKalenderStorage);
 
   private jahre = new Map<number, JahrEintrag>();
-  private ideen: IdeenEintrag = LEERE_IDEEN;
   private quellenStand = 0;
 
   readonly zustand = signal<DatenbankZustand>('ungeprueft');
@@ -113,10 +107,6 @@ export class KalenderDatenService {
         { blatt, version, gespeichert: JSON.stringify(blatt) },
       ]),
     );
-    this.ideen = kalender.ideen
-      ? { version: kalender.ideen.version, gespeichert: JSON.stringify(kalender.ideen.termine) }
-      : LEERE_IDEEN;
-    const backlog = kalender.ideen?.termine ?? [];
     this.aktualisiereJahre();
     this.zustand.set('verbunden');
     this.fehler.set('');
@@ -125,12 +115,12 @@ export class KalenderDatenService {
     if (!jahre.length) {
       // Leerer Kalender: kein Diensttagsgerüst anlegen, sonst verschwände der
       // Hinweis auf die Excel-Übernahme hinter lauter leeren Zeilen.
-      this.store.setzeDokument({ ...leeresDocument(), backlog });
+      this.store.setzeDokument(leeresDocument());
       return { meldungen: [] };
     }
     const laufend = jahrVon(heuteIso());
     const zielJahr = jahre.includes(laufend) ? laufend : jahre.at(-1)!;
-    this.store.setzeDokument(alsPlanDocument(this.jahre.get(zielJahr)!.blatt, backlog));
+    this.store.setzeDokument(alsPlanDocument(this.jahre.get(zielJahr)!.blatt));
     const ergaenzt = this.store.ergaenzeFehlendeDiensttage(this.diensttag.wochentag());
     return {
       meldungen: ergaenzt
@@ -141,7 +131,7 @@ export class KalenderDatenService {
     };
   }
 
-  /** Schreibt jedes geänderte Jahr und – falls geändert – die Ideen. */
+  /** Schreibt jedes geänderte Jahr; Termine, Ideen und Themen gehören zur selben Zeile. */
   async speichern(): Promise<SpeicherErgebnis> {
     this.beginneOperation();
     if (this.zustand() !== 'verbunden') {
@@ -165,13 +155,6 @@ export class KalenderDatenService {
         eintrag.gespeichert = inhalt;
         geschrieben++;
       }
-      const ideen = JSON.stringify(stand.backlog);
-      if (ideen !== this.ideen.gespeichert) {
-        const version = await this.storage.speichereIdeen(stand.backlog, this.ideen.version);
-        if (this.quellenStand !== quellenStand) return { geschrieben };
-        this.ideen = { version, gespeichert: ideen };
-        geschrieben++;
-      }
       this.store.alsGespeichertMarkieren(stand);
       return { geschrieben };
     } finally {
@@ -179,7 +162,7 @@ export class KalenderDatenService {
     }
   }
 
-  /** Alle Jahre samt Ideen – für den Excel-Download als lokaler Rettungsweg. */
+  /** Alle Jahre – für den Excel-Download als lokaler Rettungsweg. */
   arbeitsmappe(): Arbeitsmappe {
     const stand = this.store.dokument();
     const jahre = [...this.jahre.values()]
@@ -188,7 +171,7 @@ export class KalenderDatenService {
     if (!jahre.some((j) => j.jahr === stand.jahr) && this.store.hatDaten()) {
       jahre.push(alsJahresblatt(stand));
     }
-    return { jahre, backlog: stand.backlog };
+    return { jahre };
   }
 
   /** Erzeugt die Excel-Arbeitsmappe ohne sie abzulegen. */
@@ -212,7 +195,7 @@ export class KalenderDatenService {
       return;
     }
     const warUngespeichert = this.store.ungespeichert();
-    this.store.setzeDokument(alsPlanDocument(eintrag.blatt, stand.backlog));
+    this.store.setzeDokument(alsPlanDocument(eintrag.blatt));
     if (warUngespeichert || this.hatUngespeicherteJahre()) {
       this.store.ungespeichert.set(true);
     }
@@ -231,9 +214,31 @@ export class KalenderDatenService {
     const blatt = leeresJahresblatt(jahr);
     this.jahre.set(jahr, { blatt, version: null, gespeichert: null });
     this.aktualisiereJahre();
-    this.store.setzeDokument(alsPlanDocument(blatt, stand.backlog));
+    this.store.setzeDokument(alsPlanDocument(blatt));
     this.store.ergaenzeFehlendeDiensttage(this.diensttag.wochentag());
     this.store.ungespeichert.set(true);
+  }
+
+  /** Aktueller Stand eines Jahres, auch des gerade bearbeiteten; `undefined` für unbekannte Jahre. */
+  blatt(jahr: number): Jahresblatt | undefined {
+    const stand = this.store.dokument();
+    if (jahr === stand.jahr && (this.jahre.has(jahr) || this.store.hatDaten())) {
+      return alsJahresblatt(stand);
+    }
+    return this.jahre.get(jahr)?.blatt;
+  }
+
+  /**
+   * Hängt Ideen und KatS-Themen an die Listen des Zieljahres an und wechselt dorthin.
+   * Gespeichert wird erst mit „Speichern“; bis dahin lässt sich die Übernahme
+   * rückgängig machen.
+   */
+  uebernehmeInJahr(ziel: number, ideen: Termin[], katsThemen: KatsThema[]): void {
+    this.waehleJahr(ziel);
+    if (this.store.jahr() !== ziel) {
+      throw new StorageFehler(`Das Jahr ${ziel} ist im Kalender nicht angelegt.`);
+    }
+    this.store.fuegeUebernahmeEin(ideen, katsThemen);
   }
 
   private merkeAktivesJahr(stand: PlanDocument): void {

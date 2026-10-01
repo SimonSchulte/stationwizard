@@ -44,7 +44,7 @@ interface JahresBlattRef {
  *
  * Jedes Jahresblatt (Blattname = Jahreszahl, oder ein Altname wie "Jahresplan 2026")
  * wird zu einem eigenen `Jahresblatt` mit eigener KatS-A-Plan-Themenliste; das
- * Ideen-Backlog ("Offene Ideen") ist jahresübergreifend geteilt.
+ * Ideensammlung ("Offene Ideen <Jahr>") gehört ebenfalls zum Jahr.
  */
 export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
   const wb = XLSX.read(new Uint8Array(daten), { type: 'array' });
@@ -55,22 +55,9 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
     throw new Error('Die Arbeitsmappe enthält kein Jahresplan-Blatt.');
   }
 
-  const backlogBlatt = findeBlatt(wb, BLATT_MUSTER.backlog);
-  const backlogRoh: Termin[] = [];
-  if (backlogBlatt) {
-    const ergebnis = leseBacklog(zeilen(wb, backlogBlatt));
-    backlogRoh.push(...ergebnis.eintraege);
-    if (ergebnis.aufgeraeumt > 0) {
-      meldungen.push(
-        `"${backlogBlatt}": ${ergebnis.aufgeraeumt} Zeile(n) in unterschiedlichen Alt-Formaten ` +
-          'erkannt und auf das Schema des Jahresplans vereinheitlicht.',
-      );
-    }
-  }
-
-  // Erster Durchgang: Termine je Jahresblatt einlesen, bevor Backlog und
+  // Erster Durchgang: Termine je Jahresblatt einlesen, bevor Ideen und
   // KatS-A-Plan-Ableitung feststehen – beide hängen vom vollständigen Datenstand ab.
-  const ohneDatumGesamt: Termin[] = [];
+  const ohneDatumJeJahr = new Map<number, Termin[]>();
   const verworfeneEnddaten: string[] = [];
   const roh = jahresBlaetter.map((blattRef) => {
     const planZeilen = zeilen(wb, blattRef.name);
@@ -93,14 +80,19 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
       if (istInhaltslos(termin)) {
         continue;
       }
-      (termin.datum ? termine : ohneDatumGesamt).push(termin);
+      if (termin.datum) {
+        termine.push(termin);
+      } else {
+        ohneDatumJeJahr.set(blattRef.jahr, [...(ohneDatumJeJahr.get(blattRef.jahr) ?? []), termin]);
+      }
     }
     return { blattRef, termine, titel: findeTitel(planZeilen, kopf) };
   });
 
-  if (ohneDatumGesamt.length) {
+  const ohneDatumAnzahl = [...ohneDatumJeJahr.values()].reduce((summe, l) => summe + l.length, 0);
+  if (ohneDatumAnzahl) {
     meldungen.push(
-      `${ohneDatumGesamt.length} Zeile(n) aus Jahresblättern hatten kein Datum und ` +
+      `${ohneDatumAnzahl} Zeile(n) aus Jahresblättern hatten kein Datum und ` +
         'wurden in die offenen Ideen übernommen.',
     );
   }
@@ -110,16 +102,42 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
         'Datum; diese Termine gelten als eintägig.',
     );
   }
-  const backlog = [...backlogRoh, ...ohneDatumGesamt];
+
+  // Ideen je Jahr: „Offene Ideen <Jahr>“; das alte, jahresübergreifende Blatt „Offene
+  // Ideen“ ohne Jahreszahl gehört dem jüngsten Jahr.
+  const juengstes = jahresBlaetter[jahresBlaetter.length - 1].jahr;
+  const ideenRoh = new Map<number, Termin[]>();
+  for (const name of wb.SheetNames) {
+    if (!BLATT_MUSTER.backlog.test(name) || BLATT_MUSTER.kats.test(name)) continue;
+    const jahr = jahrAusBlattname(name) ?? juengstes;
+    if (!jahresBlaetter.some((b) => b.jahr === jahr)) {
+      meldungen.push(
+        `"${name}" gehört zu keinem Jahresblatt der Mappe und wurde nicht übernommen.`,
+      );
+      continue;
+    }
+    const ergebnis = leseBacklog(zeilen(wb, name));
+    ideenRoh.set(jahr, [...(ideenRoh.get(jahr) ?? []), ...ergebnis.eintraege]);
+    if (ergebnis.aufgeraeumt > 0) {
+      meldungen.push(
+        `"${name}": ${ergebnis.aufgeraeumt} Zeile(n) in unterschiedlichen Alt-Formaten ` +
+          'erkannt und auf das Schema des Jahresplans vereinheitlicht.',
+      );
+    }
+  }
 
   // Zweiter Durchgang: KatS-A-Plan je Jahr lesen oder ableiten. Eine Altdatei mit nur
   // einem Jahresblatt zieht dafür auch die Ideen heran (dort steckte die Themenliste
   // bislang), eine mehrjährige Mappe nur die Termine des jeweiligen Jahres.
   const jahre: Jahresblatt[] = roh.map(({ blattRef, termine, titel }) => {
     const katsBlattName = findeKatsBlatt(wb, blattRef.jahr, jahresBlaetter.length);
+    const ideen = [
+      ...(ideenRoh.get(blattRef.jahr) ?? []),
+      ...(ohneDatumJeJahr.get(blattRef.jahr) ?? []),
+    ];
     let katsThemen = katsBlattName ? leseKatsThemen(zeilen(wb, katsBlattName)) : [];
     if (!katsThemen.length) {
-      const quelle = jahresBlaetter.length === 1 ? [...termine, ...backlog] : termine;
+      const quelle = jahresBlaetter.length === 1 ? [...termine, ...ideen] : termine;
       katsThemen = leiteKatsThemenAb(quelle);
       if (katsThemen.length) {
         meldungen.push(
@@ -129,18 +147,17 @@ export function leseArbeitsmappe(daten: ArrayBuffer): LeseErgebnis {
       }
     }
     verknuepfeKatsThemen(termine, katsThemen);
+    verknuepfeKatsThemen(ideen, katsThemen);
     return {
       jahr: blattRef.jahr,
       titel: titel || `Jahresplan ${blattRef.jahr}`,
       termine: sortiereNachDatum(termine),
+      ideen,
       katsThemen,
     };
   });
 
-  const alleThemen = jahre.flatMap((j) => j.katsThemen);
-  verknuepfeKatsThemen(backlog, alleThemen);
-
-  return { arbeitsmappe: { jahre, backlog }, meldungen };
+  return { arbeitsmappe: { jahre }, meldungen };
 }
 
 /** Sammelt alle erkannten Jahresblätter, sortiert aufsteigend nach Jahr. */

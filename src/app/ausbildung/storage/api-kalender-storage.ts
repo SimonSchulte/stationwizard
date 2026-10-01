@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { Arbeitsmappe, Jahresblatt, Termin } from '../models/plan.model';
+import { Arbeitsmappe, Jahresblatt } from '../models/plan.model';
 import { leseKalenderStand } from './kalender-pruefung';
 import {
   KalenderBereitsBefuelltFehler,
@@ -15,8 +15,8 @@ import {
  *
  * Bewusst ohne `AbrufPuffer`: der eine Lesezugriff liefert die Versionen für
  * ein späteres `If-Match` und fällt damit unter „versionierte Einzelabrufe
- * bleiben ungepuffert“. Er ist zugleich der einzige Lesezugriff – alle Jahre und
- * die Ideen kommen in einem Aufruf.
+ * bleiben ungepuffert“. Er ist zugleich der einzige Lesezugriff – alle Jahre samt
+ * Ideen kommen in einem Aufruf.
  */
 @Injectable({ providedIn: 'root' })
 export class ApiKalenderStorage implements KalenderStorage {
@@ -37,16 +37,12 @@ export class ApiKalenderStorage implements KalenderStorage {
     );
   }
 
-  async speichereIdeen(termine: Termin[], version: string | null): Promise<string> {
-    return this.schreibe('/api/kalender/ideen', 'PUT', version, { termine }, 'Die Ideensammlung');
-  }
-
   async migriere(arbeitsmappe: Arbeitsmappe): Promise<KalenderStand> {
     try {
       const antwort = await this.worker.anfragen('/api/kalender/migration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'If-None-Match': '*' },
-        body: JSON.stringify({ jahre: arbeitsmappe.jahre, ideen: arbeitsmappe.backlog }),
+        body: JSON.stringify({ jahre: arbeitsmappe.jahre }),
       });
       return this.leseStand(antwort);
     } catch (ursache) {

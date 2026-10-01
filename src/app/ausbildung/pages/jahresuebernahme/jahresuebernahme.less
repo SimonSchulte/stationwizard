@@ -1,0 +1,159 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.uebernahme-kopfleiste {
+  .kopfleiste-basis();
+}
+
+.kopfleiste-icon {
+  color: var(--ci-red);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.uebernahme-inhalt {
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hinweis,
+.leer {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.befund {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+
+  mat-icon {
+    flex-shrink: 0;
+    margin-top: var(--space-2xs);
+  }
+}
+
+.befund-warn {
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+}
+
+.befund-fehler {
+  background: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+.abschnitt {
+  margin-bottom: var(--space-xl);
+
+  h2 {
+    color: var(--ci-dark-blue);
+    font-size: 1.1rem;
+    margin: 0;
+    flex: 1;
+  }
+}
+
+.jahre {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+
+  .pfeil {
+    color: var(--text-secondary);
+  }
+}
+
+.abschnitt-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.auswahl-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.auswahl-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-md);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--surface-primary);
+
+  &.vorhanden .titel {
+    color: var(--text-secondary);
+  }
+}
+
+.titel {
+  overflow-wrap: anywhere;
+}
+
+.nummer {
+  font-weight: 600;
+  color: var(--ci-dark-blue);
+  margin-right: var(--space-xs);
+}
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.kategorie {
+  padding: 0 var(--space-xs);
+  border-left: var(--space-xs) solid var(--kategorie-farbe);
+}
+
+.marke {
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+}
+
+.pflicht {
+  color: var(--status-warn);
+  background: var(--status-warn-bg);
+}
+
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+@media (max-width: 600px) {
+  .uebernahme-inhalt {
+    padding: var(--space-md);
+  }
+}

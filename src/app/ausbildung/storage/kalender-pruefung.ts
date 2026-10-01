@@ -6,7 +6,7 @@ import {
   TERMIN_TYPEN,
   Termin,
 } from '../models/plan.model';
-import { GespeicherteIdeen, GespeichertesJahr, KalenderStand } from './kalender-storage';
+import { GespeichertesJahr, KalenderStand } from './kalender-storage';
 
 /**
  * Prüft die Worker-Antwort, bevor sie ins Domänenmodell gelangt (CLAUDE.md:
@@ -77,7 +77,7 @@ function alsVersion(wert: unknown): string | null {
 
 function leseJahr(wert: unknown): GespeichertesJahr | null {
   if (!istObjekt(wert)) return null;
-  const { jahr, titel, termine, katsThemen } = wert;
+  const { jahr, titel, termine, ideen, katsThemen } = wert;
   const version = alsVersion(wert['version']);
   if (
     typeof jahr !== 'number' ||
@@ -85,23 +85,16 @@ function leseJahr(wert: unknown): GespeichertesJahr | null {
     !istText(titel) ||
     !Array.isArray(termine) ||
     !termine.every(istTermin) ||
+    !Array.isArray(ideen) ||
+    !ideen.every(istTermin) ||
     !Array.isArray(katsThemen) ||
     !katsThemen.every(istKatsThema) ||
     !version
   ) {
     return null;
   }
-  const blatt: Jahresblatt = { jahr, titel, termine, katsThemen };
+  const blatt: Jahresblatt = { jahr, titel, termine, ideen, katsThemen };
   return { blatt, version };
-}
-
-function leseIdeen(wert: unknown): GespeicherteIdeen | null | undefined {
-  if (wert === null) return null;
-  if (!istObjekt(wert)) return undefined;
-  const termine = wert['termine'];
-  const version = alsVersion(wert['version']);
-  if (!Array.isArray(termine) || !termine.every(istTermin) || !version) return undefined;
-  return { termine, version };
 }
 
 /** Liest `GET /api/kalender` bzw. die Migrationsantwort; `null` bei ungültiger Form. */
@@ -113,7 +106,5 @@ export function leseKalenderStand(wert: unknown): KalenderStand | null {
     if (!jahr) return null;
     jahre.push(jahr);
   }
-  const ideen = leseIdeen(wert['ideen']);
-  if (ideen === undefined) return null;
-  return { jahre, ideen };
+  return { jahre };
 }

@@ -4,7 +4,7 @@
  * Ein `PlanDocument` ist die Sicht eines Jahres: der Jahresplan, das Ideen-Backlog
  * ("Offene Ideen") und die eigene KatS-Ausbildungsplan-Themenliste, über die quer
  * referenziert wird. Gespeichert wird es in der Kalender-Datenbank (ein Datensatz
- * je `Jahresblatt`, einer für die Ideen); die frühere Excel-Arbeitsmappe bleibt
+ * je `Jahresblatt`, mit Ideen und Themen); die frühere Excel-Arbeitsmappe bleibt
  * Import- und Downloadformat mit denselben Feldern.
  *
  * Die festen Wertelisten (`KATEGORIEN`, `TERMIN_TYPEN`, `NACHWEISE`) prüft der
@@ -111,52 +111,53 @@ export interface PlanDocument {
 
 /**
  * Ein Jahresblatt der Arbeitsmappe: Blattname ist die Jahreszahl, eigene
- * Termine und eine eigene KatS-A-Plan-Themenliste je Jahr.
+ * Termine, eine eigene Ideensammlung ("Offene Ideen") und eine eigene
+ * KatS-A-Plan-Themenliste je Jahr. Ein neues Jahr beginnt mit leeren Listen;
+ * was daraus weiterlaufen soll, übernimmt die Jahresübernahme bewusst.
  */
 export interface Jahresblatt {
   jahr: number;
   titel: string;
   termine: Termin[];
+  /** Offene Ideen dieses Jahres: Termine ohne Datum. */
+  ideen: Termin[];
   katsThemen: KatsThema[];
 }
 
-/**
- * Gesamte Arbeitsmappe: ein Jahresblatt je Jahr, dazu das geteilte
- * Ideen-Backlog ("Offene Ideen"), das jahresübergreifend ein einziges Mal existiert.
- */
+/** Gesamte Arbeitsmappe: ein Jahresblatt je Jahr. */
 export interface Arbeitsmappe {
   jahre: Jahresblatt[];
-  backlog: Termin[];
 }
 
 export function leeresJahresblatt(jahr: number): Jahresblatt {
-  return { jahr, titel: `Jahresplan ${jahr}`, termine: [], katsThemen: [] };
+  return { jahr, titel: `Jahresplan ${jahr}`, termine: [], ideen: [], katsThemen: [] };
 }
 
-/** Blendet das Backlog in ein Jahresblatt ein – die Sicht, mit der der Store arbeitet. */
-export function alsPlanDocument(blatt: Jahresblatt, backlog: Termin[]): PlanDocument {
+/** Die Sicht, mit der der Store arbeitet: die Ideen des Jahres heißen dort `backlog`. */
+export function alsPlanDocument(blatt: Jahresblatt): PlanDocument {
   return {
     jahr: blatt.jahr,
     titel: blatt.titel,
     termine: blatt.termine,
     katsThemen: blatt.katsThemen,
-    backlog,
+    backlog: blatt.ideen,
   };
 }
 
-/** Blendet das Backlog wieder aus – für die Ablage in der Arbeitsmappe. */
+/** Rückrichtung: das Dokument des Stores als Jahresblatt der Arbeitsmappe. */
 export function alsJahresblatt(dokument: PlanDocument): Jahresblatt {
   return {
     jahr: dokument.jahr,
     titel: dokument.titel,
     termine: dokument.termine,
+    ideen: dokument.backlog,
     katsThemen: dokument.katsThemen,
   };
 }
 
 /** Einzelnes Dokument als (Übergangs-)Arbeitsmappe mit nur einem Jahresblatt. */
 export function einJahrArbeitsmappe(dokument: PlanDocument): Arbeitsmappe {
-  return { jahre: [alsJahresblatt(dokument)], backlog: dokument.backlog };
+  return { jahre: [alsJahresblatt(dokument)] };
 }
 
 /**

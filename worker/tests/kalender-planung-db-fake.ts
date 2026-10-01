@@ -1,7 +1,7 @@
 /**
  * Minimaler D1-Ersatz für `worker/src/kalender-planung.ts`: genau die
- * Anweisungen, die das Modul verwendet, fest verdrahtet gegen zwei
- * In-Memory-Tabellen – analog zu `angebotswesen-db-fake.ts`. `batch()` ist wie
+ * Anweisungen, die das Modul verwendet, fest verdrahtet gegen eine
+ * In-Memory-Tabelle – analog zu `angebotswesen-db-fake.ts`. `batch()` ist wie
  * bei D1 atomar: scheitert eine Anweisung, bleibt der vorherige Stand erhalten.
  */
 
@@ -9,15 +9,8 @@ interface JahrZeile {
   jahr: number;
   titel: string;
   termine: string;
+  ideen: string;
   kats_themen: string;
-  geaendert_am: string;
-  geaendert_von: string;
-  version: number;
-}
-
-interface IdeenZeile {
-  id: string;
-  termine: string;
   geaendert_am: string;
   geaendert_von: string;
   version: number;
@@ -31,7 +24,6 @@ interface Ergebnis<T> {
 
 export class FakeKalenderDb {
   jahre = new Map<number, JahrZeile>();
-  ideen = new Map<string, IdeenZeile>();
   /** Zählt Schreibanweisungen, um „nichts geschrieben“ belegen zu können. */
   schreibvorgaenge = 0;
 
@@ -41,7 +33,6 @@ export class FakeKalenderDb {
 
   async batch(anweisungen: FakeStatement[]): Promise<Ergebnis<unknown>[]> {
     const jahre = new Map(this.jahre);
-    const ideen = new Map(this.ideen);
     try {
       const ergebnisse: Ergebnis<unknown>[] = [];
       for (const anweisung of anweisungen) {
@@ -50,7 +41,6 @@ export class FakeKalenderDb {
       return ergebnisse;
     } catch (fehler) {
       this.jahre = jahre;
-      this.ideen = ideen;
       throw fehler;
     }
   }
@@ -76,8 +66,9 @@ class FakeStatement {
   async run(): Promise<Ergebnis<never>> {
     const w = this.werte;
     if (this.query.startsWith('INSERT INTO kalender_jahre')) {
-      const [jahr, titel, termine, kats_themen, geaendert_am, geaendert_von] = w as [
+      const [jahr, titel, termine, ideen, kats_themen, geaendert_am, geaendert_von] = w as [
         number,
+        string,
         string,
         string,
         string,
@@ -92,6 +83,7 @@ class FakeStatement {
         jahr,
         titel,
         termine,
+        ideen,
         kats_themen,
         geaendert_am,
         geaendert_von,
@@ -100,15 +92,8 @@ class FakeStatement {
       return { success: true, meta: { changes: 1 }, results: [] };
     }
     if (this.query.startsWith('UPDATE kalender_jahre')) {
-      const [titel, termine, kats_themen, geaendert_am, geaendert_von, jahr, version] = w as [
-        string,
-        string,
-        string,
-        string,
-        string,
-        number,
-        number,
-      ];
+      const [titel, termine, ideen, kats_themen, geaendert_am, geaendert_von, jahr, version] =
+        w as [string, string, string, string, string, string, number, number];
       const zeile = this.db.jahre.get(jahr);
       if (!zeile || zeile.version !== version) {
         return { success: true, meta: { changes: 0 }, results: [] };
@@ -118,36 +103,12 @@ class FakeStatement {
         jahr,
         titel,
         termine,
+        ideen,
         kats_themen,
         geaendert_am,
         geaendert_von,
         version: version + 1,
       });
-      return { success: true, meta: { changes: 1 }, results: [] };
-    }
-    if (this.query.startsWith('INSERT INTO kalender_ideen')) {
-      const [id, termine, geaendert_am, geaendert_von] = w as [string, string, string, string];
-      if (this.db.ideen.has(id)) {
-        throw new Error('UNIQUE constraint failed: kalender_ideen.id');
-      }
-      this.db.schreibvorgaenge++;
-      this.db.ideen.set(id, { id, termine, geaendert_am, geaendert_von, version: 1 });
-      return { success: true, meta: { changes: 1 }, results: [] };
-    }
-    if (this.query.startsWith('UPDATE kalender_ideen')) {
-      const [termine, geaendert_am, geaendert_von, id, version] = w as [
-        string,
-        string,
-        string,
-        string,
-        number,
-      ];
-      const zeile = this.db.ideen.get(id);
-      if (!zeile || zeile.version !== version) {
-        return { success: true, meta: { changes: 0 }, results: [] };
-      }
-      this.db.schreibvorgaenge++;
-      this.db.ideen.set(id, { id, termine, geaendert_am, geaendert_von, version: version + 1 });
       return { success: true, meta: { changes: 1 }, results: [] };
     }
     throw new Error(`Nicht unterstützte Anweisung: ${this.query}`);
@@ -158,16 +119,12 @@ class FakeStatement {
       const zeilen = [...this.db.jahre.values()].sort((a, b) => a.jahr - b.jahr);
       return { success: true, meta: { changes: 0 }, results: zeilen as T[] };
     }
-    if (this.query === 'SELECT * FROM kalender_ideen WHERE id = ?') {
-      const zeile = this.db.ideen.get(this.werte[0] as string);
-      return { success: true, meta: { changes: 0 }, results: (zeile ? [zeile] : []) as T[] };
-    }
     throw new Error(`Nicht unterstützte Abfrage: ${this.query}`);
   }
 
   async first<T>(): Promise<T | null> {
-    if (this.query.startsWith('SELECT (SELECT COUNT(*) FROM kalender_jahre)')) {
-      return { anzahl: this.db.jahre.size + this.db.ideen.size } as T;
+    if (this.query === 'SELECT COUNT(*) AS anzahl FROM kalender_jahre') {
+      return { anzahl: this.db.jahre.size } as T;
     }
     throw new Error(`Nicht unterstützte Abfrage: ${this.query}`);
   }
