@@ -13,19 +13,25 @@
         <mat-label>Datum</mat-label>
         <input
           matInput
-          type="date"
-          [ngModel]="entwurf().datum"
-          (ngModelChange)="setze('datum', $event || entwurf().datum)"
+          [matDatepicker]="datumPicker"
+          [value]="datumWert()"
+          (dateChange)="datumAktualisieren($event)"
+          placeholder="TT.MM.JJJJ"
         />
+        <mat-datepicker-toggle matSuffix [for]="datumPicker"></mat-datepicker-toggle>
+        <mat-datepicker #datumPicker></mat-datepicker>
       </mat-form-field>
       <mat-form-field appearance="outline" class="schmal">
         <mat-label>Datum bis (mehrtägig)</mat-label>
         <input
           matInput
-          type="date"
-          [ngModel]="entwurf().datumBis"
-          (ngModelChange)="setzeDatumBis($event)"
+          [matDatepicker]="datumBisPicker"
+          [value]="datumBisWert()"
+          (dateChange)="datumBisAktualisieren($event)"
+          placeholder="TT.MM.JJJJ"
         />
+        <mat-datepicker-toggle matSuffix [for]="datumBisPicker"></mat-datepicker-toggle>
+        <mat-datepicker #datumBisPicker></mat-datepicker>
         @if (endeVorBeginn()) {
           <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
         } @else {
@@ -66,19 +72,23 @@
       <mat-label>Von</mat-label>
       <input
         matInput
-        type="time"
-        [ngModel]="entwurf().beginnZeit"
-        (ngModelChange)="setze('beginnZeit', $event || '')"
+        [matTimepicker]="beginnPicker"
+        [value]="beginnWert()"
+        (valueChange)="zeitAktualisieren('beginnZeit', $event)"
       />
+      <mat-timepicker-toggle matSuffix [for]="beginnPicker"></mat-timepicker-toggle>
+      <mat-timepicker #beginnPicker interval="15m"></mat-timepicker>
     </mat-form-field>
     <mat-form-field appearance="outline" class="schmal">
       <mat-label>Bis</mat-label>
       <input
         matInput
-        type="time"
-        [ngModel]="entwurf().endeZeit"
-        (ngModelChange)="setze('endeZeit', $event || '')"
+        [matTimepicker]="endePicker"
+        [value]="endeWert()"
+        (valueChange)="zeitAktualisieren('endeZeit', $event)"
       />
+      <mat-timepicker-toggle matSuffix [for]="endePicker"></mat-timepicker-toggle>
+      <mat-timepicker #endePicker interval="15m"></mat-timepicker>
       @if (zeitVerdreht()) {
         <mat-hint>Endet am Folgetag.</mat-hint>
       }

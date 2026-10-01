@@ -304,10 +304,13 @@
             <mat-label>Fällig am</mat-label>
             <input
               matInput
-              type="date"
-              [value]="neuerTerminDatum()"
-              (change)="neuerTerminDatum.set($any($event.target).value)"
+              [matDatepicker]="neuerTerminPicker"
+              [value]="alsDatum(neuerTerminDatum())"
+              (dateChange)="neuerTerminDatumAktualisieren($event)"
+              placeholder="TT.MM.JJJJ"
             />
+            <mat-datepicker-toggle matSuffix [for]="neuerTerminPicker"></mat-datepicker-toggle>
+            <mat-datepicker #neuerTerminPicker></mat-datepicker>
           </mat-form-field>
           <button
             mat-raised-button
