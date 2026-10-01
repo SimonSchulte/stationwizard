@@ -240,4 +240,12 @@ describe('Monatsansicht', () => {
     expect(zeilen.length - 1).toBe(fixture.componentInstance.wochen().length);
     expect(fixture.componentInstance.zeilen()).toContain('auto minmax(72px, 1fr)');
   });
+
+  it('blendet HiOrg in der Agenda bei Ebene „aus“ aus', () => {
+    aufbauen([], [HIORG]);
+    fixture.componentRef.setInput('hiorgEbene', 'aus');
+    fixture.detectChanges();
+
+    expect(element().querySelector('.agenda app-hiorg-eintrag-karte')).toBeNull();
+  });
 });

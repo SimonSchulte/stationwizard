@@ -2595,4 +2595,4 @@ Produktivsystem nicht nachgeprüft.
   nachgebildeter API und HiOrg-Testdaten (September): Liste gesammelt 13 Karten + 5 Sammelzeilen,
   einzeln 40 Karten, aus 0, Nur Abweichungen 3 Tage, Nur Lücken 1 Tag, „Termin an diesem Tag“
   öffnet den Dialog; Desktop 1366 px und Mobil 390 px ohne Laufzeitfehler.
-- **Nicht geprüft:** Aufklappen der Sammelzeile per Spec und Touch, dunkles Theme, echter Worker.
+- **Nachgezogen:** Specs für Aufklappen der Sammelzeile, „Termin an diesem Tag“, Nur Lücken/Abweichungen und Ebene „aus“ (940 Tests grün). **Nicht geprüft:** Touch, dunkles Theme, echter Worker.

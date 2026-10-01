@@ -26,7 +26,11 @@ const HIORG: HiorgEintrag = {
 describe('Agendaliste', () => {
   let fixture: ComponentFixture<Agendaliste>;
 
-  function aufbauen(termine: Termin[], hiorg: HiorgEintrag[] = []): void {
+  function aufbauen(
+    termine: Termin[],
+    hiorg: HiorgEintrag[] = [],
+    ebene: 'einzeln' | 'gesammelt' | 'aus' = 'einzeln',
+  ): void {
     const alleWochen = baueWochenraster(2026, termine, new Map(), 'Mo');
     const abgleich = baueHiorgAbgleich(hiorg, termine, 2026);
     const inhalte = new Map(
@@ -36,7 +40,7 @@ describe('Agendaliste', () => {
           const karten: HiorgTagesKarte[] = (
             abgleich.nachDatum.get(slot.datum)?.eintraege ?? []
           ).map((eintrag) => ({ eintrag, abweichungen: [], ohneGegenstueck: false }));
-          return [slot.datum, baueTagesInhalt(slot.termine, karten, 'einzeln')] as const;
+          return [slot.datum, baueTagesInhalt(slot.termine, karten, ebene)] as const;
         }),
     );
     const maerz = alleWochen.filter((w) =>
@@ -147,5 +151,75 @@ describe('Agendaliste', () => {
     expect(nachNummer('04').classList).toContain('vergangen');
     expect(nachNummer('10').classList).toContain('heute');
     expect(nachNummer('10').classList).not.toContain('vergangen');
+  });
+
+  it('klappt die HiOrg-Sammelzeile auf und wieder zu', () => {
+    aufbauen(
+      [termin('2026-03-04', { thema: 'Erfundenes Thema' })],
+      [
+        { ...HIORG, name: 'Erfundenes Thema' },
+        { ...HIORG, id: '2', schluessel: 'liste|2026-03-04|2', name: 'Erfundenes Thema' },
+      ],
+      'gesammelt',
+    );
+    const zeile = () => element().querySelector<HTMLButtonElement>('.sammel-zeile')!;
+
+    expect(zeile().textContent).toContain('2 Einträge');
+    expect(element().querySelector('app-hiorg-eintrag-karte')).toBeNull();
+
+    zeile().click();
+    fixture.detectChanges();
+    expect(element().querySelector('app-hiorg-eintrag-karte')?.textContent).toContain(
+      'Erfundenes Thema',
+    );
+
+    zeile().click();
+    fixture.detectChanges();
+    expect(element().querySelector('app-hiorg-eintrag-karte')).toBeNull();
+  });
+
+  it('zeigt bei Ebene „aus“ keine HiOrg-Einträge', () => {
+    aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema' })], [HIORG], 'aus');
+
+    expect(element().querySelector('app-hiorg-eintrag-karte')).toBeNull();
+    expect(element().querySelector('.sammel-zeile')).toBeNull();
+  });
+
+  it('meldet „Termin an diesem Tag“ mit dem Datum und bietet ihn an einer Lücke nicht an', () => {
+    aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema' }), termin('2026-03-02')]);
+    const angelegt: string[] = [];
+    fixture.componentInstance.anlegen.subscribe((d) => angelegt.push(d));
+    const tagMitNummer = (n: string) =>
+      tage().find((t) => t.querySelector('.datum-nummer')?.textContent?.trim() === n)!;
+
+    tagMitNummer('04').querySelector<HTMLButtonElement>('.tag-neu')!.click();
+
+    expect(angelegt).toEqual(['2026-03-04']);
+    expect(tagMitNummer('02').querySelector('.tag-neu')).toBeNull();
+  });
+
+  it('zeigt mit „Nur Lücken“ nur Lückentage', () => {
+    aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema' }), termin('2026-03-02')]);
+    fixture.componentRef.setInput('nurLuecken', true);
+    fixture.detectChanges();
+
+    expect(tage().length).toBeGreaterThan(0);
+    expect(tage().every((t) => t.classList.contains('luecke'))).toBe(true);
+  });
+
+  it('zeigt mit „Nur Abweichungen“ nur Tage mit Abweichung', () => {
+    aufbauen(
+      [
+        termin('2026-03-04', { thema: 'Erfundenes Thema' }),
+        termin('2026-03-11', { thema: 'Anderes' }),
+      ],
+      [HIORG],
+    );
+    fixture.componentRef.setInput('nurAbweichungen', true);
+    fixture.detectChanges();
+
+    expect(tage().map((t) => t.querySelector('.datum-nummer')?.textContent?.trim())).toEqual([
+      '04',
+    ]);
   });
 });
