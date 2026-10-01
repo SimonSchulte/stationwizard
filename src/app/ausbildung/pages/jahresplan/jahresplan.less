@@ -101,6 +101,8 @@
 
 .plan-kopf {
   display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--space-xs);
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-lg);
@@ -110,6 +112,7 @@
 
 .diensttags-marke {
   display: inline-flex;
+  white-space: nowrap;
   align-items: center;
   gap: var(--space-compact);
   padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
@@ -198,6 +201,7 @@
 
 .abweichungs-marke {
   display: inline-flex;
+  white-space: nowrap;
   align-items: center;
   gap: var(--space-compact);
   padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);

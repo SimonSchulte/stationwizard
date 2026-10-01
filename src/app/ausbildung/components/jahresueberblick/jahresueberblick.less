@@ -1,0 +1,130 @@
+// Ansicht B: Jahresüberblick. Farben und Abstände ausschließlich aus `src/tokens.less`.
+
+:host {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.ueberblick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+  padding: var(--space-md) var(--space-lg) var(--space-xl);
+}
+
+.kennzahlen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-lg);
+  padding: var(--space-base);
+  background: var(--surface-primary);
+  border: 1px solid var(--surface-hover);
+  border-radius: var(--radius-md);
+}
+
+.kennzahl {
+  display: flex;
+  flex-direction: column;
+
+  b {
+    font-size: 20px;
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &.warn b {
+    color: var(--luecke-text);
+  }
+
+  &.abw b {
+    color: var(--hiorg-abweichung-text);
+  }
+}
+
+.rahmen {
+  overflow-x: auto;
+  background: var(--surface-primary);
+  border: 1px solid var(--surface-hover);
+  border-radius: var(--radius-md);
+  padding: var(--space-base);
+}
+
+.tabelle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-compact);
+  min-width: 560px;
+}
+
+.zeile {
+  display: grid;
+  grid-template-columns: 44px repeat(5, minmax(96px, 1fr));
+  gap: var(--space-compact);
+}
+
+.monat {
+  grid-column: 1;
+  align-self: center;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.zelle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  min-height: 52px;
+  padding: var(--space-xs) var(--space-compact);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--k, var(--kat-ereignis)) 14%, var(--surface-primary));
+  border: 1px solid var(--surface-hover);
+  border-top: 4px solid var(--k, var(--kat-ereignis));
+  border-radius: var(--radius-sm);
+
+  &.luecke {
+    background: var(--luecke-bg);
+    border-color: var(--luecke-rand);
+    border-style: dashed;
+  }
+
+  &.abweichung {
+    outline: 2px solid var(--hiorg-abweichung-rand);
+  }
+
+  &.heute {
+    box-shadow: 0 0 0 2px var(--text-primary);
+  }
+}
+
+.nummer {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.titel {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warnpunkt {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  color: var(--hiorg-abweichung-text);
+}

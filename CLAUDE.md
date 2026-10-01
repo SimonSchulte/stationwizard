@@ -253,11 +253,12 @@ Verwaltungsbereich (`/verwaltung/kalender-migration`, Seite unter
 `excel-lesen.ts` gelesen und in **einer** Anfrage an `POST /api/kalender/migration`
 übergeben, die der Worker in einer `db.batch()` vollständig oder gar nicht schreibt – nur
 solange beide Tabellen leer sind, sonst 409 `KALENDER_BEREITS_BEFUELLT`. Die Kopfleiste
-zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Der Kalender hat zwei Ansichten
-(`Jahresplan.ansicht`, Umschalter Monat/Liste): **Monat** (`components/monatsansicht/`,
+zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Der Kalender hat drei Ansichten
+(`Jahresplan.ansicht`, Umschalter Monat/Liste/Jahr): **Monat** (`components/monatsansicht/`,
 Monatsraster auf Basis des Wochenrasters mit Tagesagenda für den gewählten Tag, Drag & Drop
 auf Tage und Karten wie bisher) und **Liste** (`components/agendaliste/`, nach Kalenderwochen
-gruppiert, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ). Startansicht ist
+gruppiert, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ). **Jahr** (`components/jahresueberblick/`, `services/jahresueberblick.ts`: nur die Diensttage, zwölf
+Monatszeilen, Lücken, Abweichungen und Kennzahlen; ein Klick öffnet den Monat). Startansicht ist
 auf Bildschirmen bis 780 px die Liste, sonst der Monat; Ansicht und Filter gelten nur für die
 Sitzung und werden nicht gespeichert. Beide Ansichten sind rein darstellend und melden jede
 Änderung an den `Jahresplan` (Undo, Bestätigungen, Meldungen bleiben dort). Die Seitenleiste

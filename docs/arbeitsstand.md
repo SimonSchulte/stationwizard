@@ -2596,3 +2596,17 @@ Produktivsystem nicht nachgeprüft.
   einzeln 40 Karten, aus 0, Nur Abweichungen 3 Tage, Nur Lücken 1 Tag, „Termin an diesem Tag“
   öffnet den Dialog; Desktop 1366 px und Mobil 390 px ohne Laufzeitfehler.
 - **Nachgezogen:** Specs für Aufklappen der Sammelzeile, „Termin an diesem Tag“, Nur Lücken/Abweichungen und Ebene „aus“ (940 Tests grün). **Nicht geprüft:** Touch, dunkles Theme, echter Worker.
+
+### Kalender: Ansicht B „Jahr“ (Jahresüberblick)
+
+- **Umgesetzt:** dritter Umschalter „Jahr“ im Kalender (`components/jahresueberblick/`,
+  `services/jahresueberblick.ts`). Nur Diensttage des Jahres, zwölf Monatszeilen mit bis zu fünf
+  Tagen, Kategoriefarbe, Lücken gestrichelt, HiOrg-Abweichung markiert, Kennzahlen (belegt,
+  Lücken, Abweichungen, je Kategorie). Ein Klick öffnet den Monat in der Monatsansicht. Rein
+  abgeleitet, nichts gespeichert; die Tabelle scrollt kontrolliert in ihrem Rahmen.
+- Die Kopfzeilen-Chips brechen nicht mehr um (`white-space: nowrap`, die Zeile darf umbrechen).
+- **Geprüft:** Specs (`jahresueberblick`, Komponente), 945 Angular-Tests grün; Headless-Chromium
+  mit Mock-API, Desktop 1366 px und Mobil 390 px: 12 Zeilen, 52 Diensttage, 9 Lücken, kein
+  seitliches Scrollen der Seite, Klick wechselt in die Monatsansicht.
+- **Nicht geprüft:** dunkles Theme, Touch, echter Worker. Eine Lücke direkt aus den offenen
+  Ideen füllen (Mockup-Idee) gibt es hier nicht; dafür bleibt „Auf nächste Lücke legen“.

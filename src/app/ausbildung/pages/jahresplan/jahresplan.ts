@@ -32,6 +32,7 @@ import {
   AblageAufTermin,
   Monatsansicht,
 } from '../../components/monatsansicht/monatsansicht';
+import { Jahresueberblick } from '../../components/jahresueberblick/jahresueberblick';
 import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/termin-dialog';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
@@ -95,6 +96,7 @@ import {
     MatToolbarModule,
     MatTooltipModule,
     Monatsansicht,
+    Jahresueberblick,
     RouterLink,
   ],
   templateUrl: './jahresplan.html',
@@ -145,7 +147,7 @@ export class Jahresplan {
    * (Agendaliste). Auf schmalen Bildschirmen startet die Liste, sonst das Raster.
    * Bewusst nur für diese Sitzung – eine Ansichtseinstellung wird nirgends persistiert.
    */
-  readonly ansicht = signal<'monat' | 'liste'>(startAnsicht());
+  readonly ansicht = signal<'monat' | 'liste' | 'jahr'>(startAnsicht());
   /** Filter der Agendaliste; leer bedeutet alle Kategorien. Nur für diese Sitzung. */
   readonly agendaKategorien = signal<ReadonlySet<Kategorie>>(new Set());
   readonly agendaTyp = signal<TypFilter>('alle');
@@ -590,6 +592,12 @@ export class Jahresplan {
     if (ergaenzt) {
       this.melde(`${ergaenzt} fehlende(r) ${diensttagName(wochentag)} als Zeilen ergänzt.`);
     }
+  }
+
+  /** Klick im Jahresüberblick: den Monat des Tages in der Monatsansicht öffnen. */
+  ueberblickTagGewaehlt(datum: string): void {
+    this.monat.set(monatIndex(datum));
+    this.ansicht.set('monat');
   }
 
   waehleMonat(monat: number | null): void {

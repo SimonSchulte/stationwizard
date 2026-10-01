@@ -282,6 +282,10 @@
             <mat-icon>view_agenda</mat-icon>
             <span class="knopf-text">Liste</span>
           </mat-button-toggle>
+          <mat-button-toggle value="jahr" matTooltip="Jahresüberblick der Diensttage">
+            <mat-icon>grid_view</mat-icon>
+            <span class="knopf-text">Jahr</span>
+          </mat-button-toggle>
         </mat-button-toggle-group>
 
         <span class="monats-navigation">
@@ -370,6 +374,15 @@
           (terminAusHiorg)="legeTerminAusHiorgAn($event)"
           (aufTerminAbgelegt)="terminAbgelegt($event)"
           (aufLeeremTagAbgelegt)="tagAbgelegt($event)"
+        />
+      }
+      @case ('jahr') {
+        <app-jahresueberblick
+          [wochen]="wochen()"
+          [abgleich]="hiorgAbgleich()"
+          [heute]="heute"
+          [diensttagLabel]="diensttagLabel()"
+          (tagGewaehlt)="ueberblickTagGewaehlt($event)"
         />
       }
       @case ('liste') {

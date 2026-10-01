@@ -1,0 +1,56 @@
+<div class="ueberblick">
+  <section class="kennzahlen" aria-label="Kennzahlen des Jahres">
+    <div class="kennzahl">
+      <b>{{ daten().kennzahlen.belegt }}/{{ daten().kennzahlen.diensttage }}</b>
+      <span>{{ diensttagLabel() }}e belegt</span>
+    </div>
+    <div class="kennzahl warn">
+      <b>{{ daten().kennzahlen.luecken }}</b>
+      <span>Lücken</span>
+    </div>
+    <div class="kennzahl abw">
+      <b>{{ daten().kennzahlen.abweichungen }}</b>
+      <span>Namensabweichungen</span>
+    </div>
+    @for (kategorie of kategorien(); track kategorie.text) {
+      <div class="kennzahl">
+        <b [style.color]="kategorie.farbe">{{ kategorie.anzahl }}</b>
+        <span>{{ kategorie.text }}</span>
+      </div>
+    }
+  </section>
+
+  <div class="rahmen">
+    <div class="tabelle">
+      @for (monat of monate(); track monat.index) {
+        <div class="zeile">
+          <div class="monat">{{ monat.name }}</div>
+          @for (zelle of monat.zellen; track zelle.datum) {
+            <button
+              type="button"
+              class="zelle"
+              [class.luecke]="zelle.luecke"
+              [class.abweichung]="zelle.abweichung"
+              [class.heute]="zelle.datum === heute()"
+              [style.--k]="farbe(zelle)"
+              [attr.aria-label]="
+                zelle.nummer +
+                '.' +
+                (monat.index + 1) +
+                '. ' +
+                (zelle.luecke ? 'Lücke' : zelle.titel)
+              "
+              (click)="tagGewaehlt.emit(zelle.datum)"
+            >
+              <span class="nummer">{{ zelle.nummer }}.</span>
+              <span class="titel">{{ zelle.luecke ? 'Lücke' : zelle.titel }}</span>
+              @if (zelle.abweichung) {
+                <mat-icon class="warnpunkt" inline>warning</mat-icon>
+              }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>
