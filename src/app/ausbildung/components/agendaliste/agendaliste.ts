@@ -1,3 +1,4 @@
+import { CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,6 +21,7 @@ import { WochenZeile } from '../../services/plan-raster';
 import { PlanStore } from '../../services/plan-store';
 import { TagesInhalt } from '../../services/tages-inhalt';
 import { HiorgEintragKarte } from '../hiorg-eintrag-karte/hiorg-eintrag-karte';
+import { AblageAufTag, AblageAufTermin } from '../monatsansicht/monatsansicht';
 import { TerminKarte } from '../termin-karte/termin-karte';
 
 /**
@@ -33,7 +35,7 @@ import { TerminKarte } from '../termin-karte/termin-karte';
 @Component({
   selector: 'app-agendaliste',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HiorgEintragKarte, MatButtonModule, MatIconModule, TerminKarte],
+  imports: [CdkDropList, HiorgEintragKarte, MatButtonModule, MatIconModule, TerminKarte],
   templateUrl: './agendaliste.html',
   styleUrl: './agendaliste.less',
 })
@@ -60,6 +62,9 @@ export class Agendaliste {
   readonly anlegen = output<string>();
   readonly nameUebernehmen = output<HiorgAbweichung>();
   readonly terminAusHiorg = output<HiorgEintrag>();
+  /** Ideen lassen sich wie im Monatsraster auf Termine und freie Tage ziehen. */
+  readonly aufTerminAbgelegt = output<AblageAufTermin>();
+  readonly aufLeeremTagAbgelegt = output<AblageAufTag>();
 
   readonly kategorieOptionen = KATEGORIEN;
   readonly typOptionen: readonly { readonly wert: TypFilter; readonly text: string }[] = [
