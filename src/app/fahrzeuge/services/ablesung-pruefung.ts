@@ -6,6 +6,38 @@ export const UNPLAUSIBLER_SPRUNG_KM = 5000;
 /** Fahrzeuge ohne Ablesung seit dieser Anzahl Tage fallen im Dashboard auf. */
 export const ABLESE_LUECKE_TAGE = 30;
 
+/** Obergrenze der öffentlichen Kilometermeldung; hier dieselbe, damit beide Wege gleich urteilen. */
+export const KILOMETERSTAND_MAX = 9_999_999;
+
+export type KilometerEingabeFehler = 'kein-zahlenwert' | 'keine-ganzzahl' | 'zu-gross';
+
+export type KilometerEingabe =
+  | { art: 'leer' }
+  | { art: 'gueltig'; stand: number }
+  | { art: 'ungueltig'; fehler: KilometerEingabeFehler };
+
+/**
+ * Liest eine Kilometerstand-Eingabe als ganze, nicht negative Zahl. Punkt,
+ * Leerzeichen und geschütztes Leerzeichen sind nur als Tausendertrenner in
+ * korrekter Gruppierung („12.345", „1 234 567") erlaubt; ein Komma oder ein
+ * Punkt an anderer Stelle ist eine Nachkommastelle und wird abgelehnt statt
+ * still zu einer anderen Zahl zu werden (`Number('12.345')` wäre 12,345).
+ */
+export function leseKilometerEingabe(text: string): KilometerEingabe {
+  const roh = text.trim();
+  if (roh === '') return { art: 'leer' };
+  if (/^\d{1,3}([.\s\u00A0]\d{3})+$/.test(roh) || /^\d+$/.test(roh)) {
+    const stand = Number(roh.replace(/[.\s\u00A0]/g, ''));
+    return stand > KILOMETERSTAND_MAX
+      ? { art: 'ungueltig', fehler: 'zu-gross' }
+      : { art: 'gueltig', stand };
+  }
+  if (/^\d+([.,]\d+)?$|^\d{1,3}(\.\d{3})+,\d+$/.test(roh)) {
+    return { art: 'ungueltig', fehler: 'keine-ganzzahl' };
+  }
+  return { art: 'ungueltig', fehler: 'kein-zahlenwert' };
+}
+
 export type AblesungHinweis = 'rueckschritt' | 'unplausibler-sprung' | null;
 
 /**

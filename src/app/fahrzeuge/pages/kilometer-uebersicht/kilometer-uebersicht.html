@@ -1,7 +1,8 @@
 <p class="beschreibung">
-  Der Bericht listet alle Fahrzeuge mit letztem Stand, Ablesedatum und Jahresbilanz. Er wird
+  Der Bericht listet Fahrzeuge mit letztem Stand, Ablesedatum, Jahresbilanz und Ampel. Er wird
   ausschließlich hier von Hand ausgelöst; einen Zeitplan gibt es noch nicht. Gesendet wird an die
-  <strong>gespeicherte</strong> Adresse aus Systemkonfiguration → Email Versand.
+  <strong>gespeicherte</strong> Adresse aus Systemkonfiguration → Email Versand, immer über den
+  gesamten Fuhrpark – unabhängig von der Anzeigefilterung unten.
 </p>
 
 @if (berichtLaedt()) {
@@ -12,19 +13,34 @@
 }
 
 @if (bericht(); as daten) {
+  <mat-checkbox
+    class="filter-checkbox"
+    [checked]="alleFahrzeugeAnzeigen()"
+    (change)="alleFahrzeugeAnzeigen.set($event.checked)"
+  >
+    Alle Fahrzeuge anzeigen (auch ohne vorgeschriebene Laufleistung)
+  </mat-checkbox>
+
   <p class="kennzahlen">
     Stichtag {{ datum(daten.stichtag) }} · Bezugsjahr {{ daten.jahr }} ·
-    {{ daten.zeilen.length }} Fahrzeuge · {{ daten.ohneAblesung }} ohne Ablesung ·
-    {{ daten.unterSoll }} unter Jahressoll
+    {{ angezeigteZeilen().length }} Fahrzeuge · {{ angezeigteOhneAblesung() }} ohne Ablesung ·
+    {{ angezeigteUnterSoll() }} unter Jahressoll
   </p>
 
-  @if (daten.zeilen.length === 0) {
-    <p class="empty-hint">Es sind keine Fahrzeuge erfasst.</p>
+  @if (angezeigteZeilen().length === 0) {
+    <p class="empty-hint">
+      @if (alleFahrzeugeAnzeigen()) {
+        Es sind keine Fahrzeuge erfasst.
+      } @else {
+        Keine Fahrzeuge mit vorgeschriebener Laufleistung.
+      }
+    </p>
   } @else {
     <div class="tabelle-rahmen">
       <table class="bericht-tabelle">
         <thead>
           <tr>
+            <th scope="col"></th>
             <th scope="col">Fahrzeug</th>
             <th scope="col" class="rechts">Letzter Stand</th>
             <th scope="col">Abgelesen</th>
@@ -32,40 +48,50 @@
           </tr>
         </thead>
         <tbody>
-          @for (zeile of daten.zeilen; track zeile.bezeichnung + zeile.kennzeichen) {
+          @for (eintrag of angezeigteZeilen(); track eintrag.zeile.id) {
             <tr>
               <td>
-                <strong>{{ zeile.bezeichnung }}</strong>
-                @if (zeile.funkrufname || zeile.kennzeichen) {
-                  <span class="kennung">{{ kennung(zeile) }}</span>
+                @if (eintrag.ampel; as farbe) {
+                  <span
+                    class="ampel-punkt"
+                    [class]="'ampel-' + farbe"
+                    [attr.aria-label]="'Ampel ' + farbe"
+                    role="img"
+                  ></span>
+                }
+              </td>
+              <td>
+                <strong>{{ eintrag.zeile.bezeichnung }}</strong>
+                @if (eintrag.zeile.funkrufname || eintrag.zeile.kennzeichen) {
+                  <span class="kennung">{{ kennung(eintrag.zeile) }}</span>
                 }
               </td>
               <td class="rechts">
-                @if (zeile.letzterStand === null) {
+                @if (eintrag.zeile.letzterStand === null) {
                   <span class="fehlt">keine Ablesung</span>
                 } @else {
-                  {{ zahl(zeile.letzterStand) }} km
+                  {{ zahl(eintrag.zeile.letzterStand) }} km
                 }
               </td>
               <td>
-                @if (zeile.abgelesenAm) {
-                  {{ datum(zeile.abgelesenAm) }}
-                  <span class="kennung">{{ abstand(zeile.tageSeitAblesung) }}</span>
+                @if (eintrag.zeile.abgelesenAm) {
+                  {{ datum(eintrag.zeile.abgelesenAm) }}
+                  <span class="kennung">{{ abstand(eintrag.zeile.tageSeitAblesung) }}</span>
                 } @else {
                   –
                 }
               </td>
               <td>
-                @if (zeile.sollKm === 0) {
+                @if (eintrag.zeile.sollKm === 0) {
                   <span class="kennung">keine Vorgabe</span>
-                } @else if (zeile.istKm === null) {
+                } @else if (eintrag.zeile.istKm === null) {
                   <span class="fehlt">nicht berechenbar</span>
                 } @else {
-                  {{ zahl(zeile.istKm) }} von {{ zahl(zeile.sollKm) }} km
-                  @if (zeile.restKm && zeile.restKm > 0) {
-                    <span class="fehlt">{{ zahl(zeile.restKm) }} km offen</span>
+                  {{ zahl(eintrag.zeile.istKm) }} von {{ zahl(eintrag.zeile.sollKm) }} km
+                  @if (eintrag.zeile.restKm && eintrag.zeile.restKm > 0) {
+                    <span class="fehlt">{{ zahl(eintrag.zeile.restKm) }} km offen</span>
                   }
-                  @if (zeile.unvollstaendig) {
+                  @if (eintrag.zeile.unvollstaendig) {
                     <span class="kennung">Startstand unvollständig</span>
                   }
                 }

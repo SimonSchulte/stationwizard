@@ -12,7 +12,9 @@ function gleich(a: Einstellungen, b: Einstellungen): boolean {
   return (
     a.kmBerichtEmpfaenger === b.kmBerichtEmpfaenger &&
     a.kmBerichtVersandweg === b.kmBerichtVersandweg &&
-    a.kmBerichtBetreff === b.kmBerichtBetreff
+    a.kmBerichtBetreff === b.kmBerichtBetreff &&
+    a.kmAmpelSchwellenwertGelbMonate === b.kmAmpelSchwellenwertGelbMonate &&
+    a.kmAmpelSchwellenwertRotMonate === b.kmAmpelSchwellenwertRotMonate
   );
 }
 

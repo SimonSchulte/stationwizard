@@ -101,6 +101,47 @@
       }
     </mat-tab>
 
+    <mat-tab label="Kilometerübersicht">
+      @if (entwurf(); as werte) {
+        <div class="tab-inhalt">
+          <p class="beschreibung">
+            Ab wann die Ampel je Fahrzeug in der Kilometerübersicht auf Gelb bzw. Rot springt. Grün
+            bleibt es, solange die Rest-km eines Fahrzeugs beim Mindesttempo seines Eigentümers in
+            den noch vollständig verbleibenden Monaten erreichbar sind (der laufende Monat zählt
+            dafür nicht mit, er ist ja noch nicht abgeschlossen). Die beiden Werte hier sind ein
+            zusätzlicher Puffer in Monaten darauf – ab wie vielen Monaten Rückstand es zunächst gelb
+            und dann rot wird.
+          </p>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Ampel Gelb ab (Monate Rückstand)</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="36"
+              step="1"
+              [value]="werte.kmAmpelSchwellenwertGelbMonate"
+              (input)="ampelGelbAendern($any($event.target).valueAsNumber)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Ampel Rot ab (Monate Rückstand)</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="36"
+              step="1"
+              [value]="werte.kmAmpelSchwellenwertRotMonate"
+              (input)="ampelRotAendern($any($event.target).valueAsNumber)"
+            />
+          </mat-form-field>
+        </div>
+      }
+    </mat-tab>
+
     <mat-tab label="Materialberichte">
       @if (entwurf(); as werte) {
         <div class="tab-inhalt">

@@ -2378,6 +2378,79 @@ Listeneintrag, `gemeldetVonName` vorhanden) – ohne die Änderung rot, mit ihr 
 564 Worker-Tests), `npm run format:check`, `npm run worker:test` – alle grün. Am
 Produktivsystem nicht nachgeprüft.
 
+## Kilometer-Ampel und Standardfilter in der Kilometerübersicht
+
+Ampel je Fahrzeug (`gruen`/`gelb`/`rot`) für die Kilometerbilanz: Grundlage ist
+`ermittleKilometerAmpel()` in `fahrzeuge/services/kilometer-soll.ts`. Grün bleibt es,
+solange die Rest-km eines Fahrzeugs beim Mindesttempo seines Eigentümers über die
+verbleibenden Monate des Bilanzjahres (`restmonateImJahr()`, Stichtagsmonat zählt noch
+mit) noch aufholbar sind; darüber hinaus ein Schwellenwert-Puffer in Monaten, konfigurierbar
+über zwei neue Systemkonfigurations-Werte `kmAmpelSchwellenwertGelbMonate`/
+`kmAmpelSchwellenwertRotMonate` (Default 1 bzw. 3, eigener Tab „Kilometerübersicht" in der
+Systemkonfigurationsseite). Die Ampel wird bewusst **client-seitig** berechnet (wie
+`ermittleWartungsstatus()` für Wartungstermine) statt im Worker: sie ist eine reine
+Darstellungsableitung aus den vom Bericht bereits gelieferten Kennzahlen
+(`sollKm`/`istKm`/`restKm`) plus einem UI-Schwellenwert, keine neue Kennzahl, die Mail und
+Vorschau übereinstimmend zeigen müssten. Angezeigt in der gemeinsamen `KilometerBilanz`
+(neue `ampel`-Eingabe, ohne sie unverändert wie zuvor) – damit im Fuhrpark-Dashboard – sowie
+zusätzlich mit eigenem Punkt in der Berichtstabelle der Kilometerübersicht.
+
+Kilometerübersicht (Fuhrpark-Dashboard, Kilometerbilanz-Karten) und der Bericht
+(Kilometerübersicht-Tab/Vorschau) filtern jetzt standardmäßig auf Fahrzeuge mit
+vorgeschriebener Laufleistung (`sollKm > 0`, also nicht `organisation`); je eine eigene
+Checkbox „Alle Fahrzeuge anzeigen" schaltet das ab. Bewusste Entscheidung, ohne
+Rückfrage getroffen, weil die Aufgabenbeschreibung nicht eindeutig war: gefiltert wird nur
+die **Anzeige** an beiden Stellen, nicht der tatsächlich versendete Bericht
+(`POST /api/fahrzeuge/km-bericht/senden` bleibt unverändert – voller Fuhrpark). Der
+Worker und `worker/src/km-bericht.ts` sind unverändert; nur `worker/src/systemkonfiguration.ts`
+bekam die beiden neuen Schlüssel (`km_ampel_schwellenwert_gelb_monate`/`…_rot_monate`,
+Ganzzahl 0–36, in der Text-Spalte gespeichert und beim Lesen sowohl als Zahl aus der
+Eingabe-JSON als auch als aus D1 zurückgelesene Zeichenkette akzeptiert). Falls „der
+Bericht" in der Aufgabe eigentlich den tatsächlichen Mailversand meinte, ist das noch
+nachzuholen.
+
+Geprüft: neue/angepasste Tests in `kilometer-soll.spec.ts` (Ampel- und
+Restmonate-Berechnung), `kilometer-bilanz.spec.ts` (neue `ampel`-Eingabe ist optional, plus
+neue DOM-Prüfung per TestBed/jsdom: kein Ampelpunkt ohne Eingabe, `.ampel-gruen`/`-gelb`/
+`-rot` mit ihr – ein echter, wenn auch kopfloser Renderdurchlauf, kein reiner
+Berechnungstest), `fahrzeug-dashboard.spec.ts` und `kilometer-uebersicht.spec.ts` (Filter,
+Ampelberechnung mit injizierter Systemkonfiguration), `systemkonfiguration-pruefung.spec.ts`,
+`systemkonfiguration-store.service.spec.ts`, `systemkonfiguration.spec.ts` (Seite),
+`api-systemkonfiguration-storage.spec.ts`, `worker/tests/systemkonfiguration.spec.ts`
+(neue Defaults und Validierungsfälle). `npm run build` (inkl. `worker:check`), `npm test`
+(751 Angular-, 13 `oeffentlich`-, 567 Worker-Tests), `npm run format:check` – alle grün.
+Keine echte Browserprüfung dieser Sitzung (reine Cloud-Sitzung ohne Zugriff auf einen
+angemeldeten Worker-Backend-Stand für echte Fahrzeugdaten); die jsdom-Renderprüfung deckt
+CSS-Klassenbindung und Sichtbarkeit ab, nicht Layout/Kontrast/mobile Darstellung im
+tatsächlichen Browser.
+
+### Nachtrag – Grün-Regel nachgeschärft: laufender Monat zählt nicht mit
+
+Auf Rückfrage nachgeschärft: „Grün" bedeutete bisher, dass die Rest-km noch innerhalb des
+Gelb-Puffers (`restMonate + gelbMonate`) liegen – der laufende Monat zählte dabei mit, und
+ein Fahrzeug, das bereits einen vollen Puffer-Monat Rückstand hatte, erschien trotzdem
+grün. Jetzt gilt für Grün eine eigene, strengere Grenze: `kmProMonat * max(0, restMonate -
+1)`, also nur noch die Monate, die nach dem laufenden vollständig übrig sind – seine km
+gelten schließlich noch nicht als „verpasst", solange der Monat läuft. Gelb und Rot bleiben
+unverändert die Puffer-Grenzen auf dem ursprünglichen `restMonate` (den laufenden Monat
+eingeschlossen).
+
+Nebeneffekt, den ich nicht stillschweigend übergehen will: weil die neue Grün-Grenze
+(`restMonate - 1`) bei den Standardwerten (Gelb-Puffer 1 Monat) immer kleiner ist als die
+Gelb-Grenze (`restMonate + gelbMonate`), entscheidet praktisch nur noch die Grün-Grenze
+darüber, wo Grün endet – der Gelb-Schwellenwert selbst wird für diesen Übergang
+gegenstandslos, solange er nicht negativ sein darf (Validierung erlaubt nur 0–36). Er
+bleibt aber weiterhin die Grenze zwischen Gelb und Rot zusammen mit dem Rot-Schwellenwert.
+Nicht von mir aus geändert, da ausdrücklich nur die Grün-Regel angepasst werden sollte.
+
+Geprüft: `kilometer-soll.spec.ts` komplett neu durchgerechnet (Grün-/Gelb-/Rot-Grenzen samt
+Kappung bei `restMonate = 1`), Kommentare in `fahrzeug-dashboard.spec.ts` und
+`kilometer-uebersicht.spec.ts` an die neue Rechnung angepasst (Testfälle selbst unverändert
+grün, weil dort zufällig exakt auf der neuen Grenze). Beschreibungstext im
+Systemkonfigurations-Tab „Kilometerübersicht" entsprechend umformuliert. `npm run build`
+(inkl. `worker:check`), `npm test` (752 Angular-, 13 `oeffentlich`-, 567 Worker-Tests),
+`npm run format:check` – alle grün. Weiterhin keine Browserprüfung.
+
 ## HiOrg-Server-API als zweiter Weg neben EFS
 
 - Worker-Modul `worker/src/hiorg-api.ts`: OAuth2 Authorization Code gegen
@@ -2504,6 +2577,169 @@ Produktivsystem nicht nachgeprüft.
   App-Hülle keine feste Höhe hat. Das bestand schon vor dieser Änderung; mit dem höheren
   Leerzustandshinweis wird es sichtbar (Navigation 38 px unter dem Bildschirmrand).
 
+## Fuhrpark-Übersicht (Master/Detail): Mobilansicht nachgeprüft und zwei echte Umbruchfehler behoben
+
+Auftrag: die neue Master/Detail-Seite unter „Übersicht" (`FuhrparkUebersicht`,
+`fahrzeuge/components/fuhrpark-uebersicht/`) real im Browser auf mobile Tauglichkeit prüfen,
+nicht nur die Unit-Tests als Nachweis nehmen (siehe CLAUDE.md, „Darstellung").
+
+### Aufbau der Prüfung
+
+Kein angemeldeter Worker-Backend-Stand verfügbar; deshalb wie bei früheren Sichtprüfungen
+dieser Reihe ein **Attrappen-Server** (reines `node:http`, sechs Testfahrzeuge mit
+unterschiedlichen Ampelfarben, Eigentümern, einem sehr langen Bezeichnungstext und einem
+Fahrzeug ohne Laufleistungsvorgabe) hinter `ng serve --proxy-config`, angesteuert mit dem im
+Image vorinstallierten Headless-Chromium über `playwright-core` auf 1400×900 (Desktop) und
+390×844 (Mobil). Skripte und Attrappen-Server lagen außerhalb des Repositories und wurden
+nach der Prüfung gelöscht; nichts davon ist Teil dieses Commits.
+
+### Zwei echte Layoutfehler gefunden, nicht nur behauptet
+
+1. **`.detail` sprengte auf Mobil die Bildschirmbreite.** `.split` (Desktop: Liste und Detail
+   nebeneinander) setzt bewusst `align-items: flex-start`, damit beide Spalten nicht auf
+   gleiche Höhe gezwungen werden. Die Mobil-Media-Query kippt `.split` auf
+   `flex-direction: column`, wodurch dieselbe Eigenschaft plötzlich die **Querachse**
+   (Breite) betrifft: `.detail` schrumpfte auf seine Inhaltsbreite statt auf volle Breite,
+   nicht umbrechender Inhalt (die Kilometerzeile) sprengte diese Breite messbar über den
+   sichtbaren Bereich hinaus, und `mat-tab-body-wrapper`s eigenes `overflow: hidden`
+   schnitt den Überstand lautlos ab – sichtbar als abgeschnittenes „1200 km Res(t)" ganz
+   ohne Fehlermeldung oder Layout-Bruch, der ohne genaues Hinsehen aufgefallen wäre. Fund
+   per `getBoundingClientRect()` bestätigt (`.detail` rechter Rand bei 398 px auf 390 px
+   Viewport), nicht nur vom Augenschein. Behoben durch `align-items: stretch` in der
+   Mobil-Media-Query auf `.split`; das bisherige `.master { width: 100% }` war nur ein
+   Teil-Pflaster dafür und ist jetzt überflüssig (entfernt).
+2. **Termin- und Detailkopf-Zeile ohne Umbruch.** `.detail-kopf` (Titel + „Stammdaten
+   bearbeiten") und `.termin-zeile` (Ampelpunkt, Bezeichnung, Fälligkeitstext, „Erledigt
+   melden") hatten kein `flex-wrap`; bei langer Fahrzeugbezeichnung bzw. auf schmalem
+   Bildschirm quetschte sich der Knopf in dieselbe Zeile und brach selbst zweizeilig um,
+   statt komplett in die nächste Zeile zu rutschen. Beide Regeln erhalten jetzt
+   `flex-wrap: wrap`; der Knopf bleibt über `flex-shrink: 0` und `white-space: nowrap`
+   einzeilig und rutscht als Ganzes um.
+
+Zusätzlich das Kilometer-Schnellformular-Label von „Neuer Kilometerstand" auf
+„Kilometerstand" gekürzt (wie im bestehenden `km-erfassung.html`) – bei 160 px Feldbreite
+kollidierte der lange Text mit dem `km`-Suffix zu „Kilometerkm".
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Sichtprüfung im echten Headless-Chromium auf 1400×900 und 390×844, gegen den
+  Attrappen-Server: Master/Detail-Auswahl, Eigentümer-Filter-Pillen, Fahrzeug ohne
+  Laufleistungsvorgabe, sehr lange Fahrzeugbezeichnung. Kein horizontaler Seiten- oder
+  `.detail`-Überlauf mehr (`scrollWidth`/`clientWidth` gleich, `.detail`-Randmessung
+  innerhalb des Viewports) nach der Korrektur, vorher gemessen und belegt.
+- Echte Interaktion gegen den Attrappen-Server (inklusive `PUT /api/fahrzeuge/<id>`, nicht
+  nur optimistisches UI): Kilometerstand erfassen aktualisiert Bilanz und Bestätigungstext,
+  „Erledigt melden" entfernt den Knopf der betroffenen Zeile, „Neuer Termin" fügt einen
+  einsortierten Termin ein und leert danach beide Formularfelder – auf Desktop **und**
+  Mobil gleich geprüft.
+- `npm run build` (inkl. `worker:check`), `npm test` (864 Angular-, 29 `oeffentlich`-,
+  752 Worker-Tests), `npm run format:check` – alle grün, keine Testanpassung nötig (reine
+  CSS-/Label-Korrektur, kein Verhaltenswechsel).
+- Weiterhin **kein Lauf gegen ein echtes Telefon**, nur emuliertes Chromium auf 390×844, und
+  kein Lauf gegen den echten Worker/D1-Stand.
+
+## Fuhrpark-Dashboard: Tabs entfernt, Master/Detail ist jetzt die Fahrzeugseite
+
+Auftrag: „Übersicht wird zu 'Fahrzeuge', Übersicht kann dann weg, Wartungen und
+Km-Übersicht können dann in der Form auch erstmal weg" – die bisherige Tab-Leiste
+(„Übersicht"/„Liste Fahrzeuge"/„Liste Wartungen"/„Kilometerübersicht") entfällt.
+`app-fuhrpark-uebersicht` (Master/Detail) ist jetzt unmittelbar der gesamte Inhalt der
+Fahrzeugseite, ohne `mat-tab-group`-Umweg; die Kopfleiste sagt bereits „Fahrzeuge", ein
+eigenes „Übersicht"-Label entfällt damit von selbst. `FahrzeugListe`, `WartungenListe` und
+`KilometerUebersicht` bleiben als Komponenten und über ihre eigenen Routen
+(`/fahrzeuge/liste` u. a.) erreichbar – nur ihre Einbettung als Tab hier entfällt erstmal,
+kein Löschen von Funktionalität.
+
+Zusätzlich `.split`/`.master`/`.detail` in `fuhrpark-uebersicht.less` von einem geschätzten
+`max-height: 72vh` auf `align-items: stretch` umgestellt: Liste und Detail werden jetzt auf
+gleiche Höhe gestreckt (die jeweils kürzere Seite füllt bis zur Höhe der längeren auf), statt
+auf eine geratene Viewport-Prozentzahl gedeckelt zu sein – bei sehr langem Inhalt scrollt
+die ganze Seite (wie bisher schon zuverlässig über `mat-sidenav-content`), nicht mehr ein
+zusätzlicher innerer Rahmen. Nur auf Mobil bleibt `.master` bewusst auf `max-height: 40vh`
+begrenzt, damit die Liste das Detail beim Öffnen nicht komplett aus dem Bildschirm schiebt.
+
+**Zwischenstand zur Breite, nicht mehr aktuell:** Ein erster Durchgang hatte
+`.dashboard-content` probeweise auf volle Bildschirmbreite gestellt (`max-width`/
+`margin: auto` entfernt). Auf Rückfrage („nutze immer den vollen, verfügbaren Platz")
+zurückgenommen: die Seite behält den bestehenden `--content-width`-Rahmen (1200 px,
+zentriert) wie der Rest der Anwendung – Inhalte sollen so groß wie nötig sein, nicht auf
+Zuruf bildschirmfüllend.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Sichtprüfung im echten Headless-Chromium auf 1920×1000, 1400×900 und 390×844 gegen
+  denselben Attrappen-Server wie in der vorherigen Runde: keine `mat-tab-group` mehr im DOM,
+  Seite beginnt sofort mit der Fahrzeugliste, „Fahrzeuge" bleibt einziger Titel. Mit
+  probeweise entfernter Breitenbegrenzung gemessen, dass `.dashboard-content` tatsächlich
+  auf 1920 px mitwuchs (`contentWidth === viewportWidth`), und nach der Rücknahme, dass es
+  wieder korrekt bei 1200 px deckelt (`contentWidth: 1200` bei 1920 px Viewport).
+- `npm run build` (inkl. `worker:check`), `npm test` (863 Angular-, 29 `oeffentlich`-,
+  752 Worker-Tests – ein Test weniger als zuvor, weil der reine Tab-Index-Test mit den
+  Tabs entfiel), `npm run format:check` – alle grün.
+- Weiterhin kein Lauf gegen ein echtes Telefon oder den echten Worker/D1-Stand.
+
+## Fuhrpark-Übersicht: Stammdaten direkt im Master/Detail bearbeitbar, nicht mehr über die alte Seite
+
+Auftrag: der Knopf „Stammdaten bearbeiten" führte bisher weg auf die alte
+Fahrzeugdetailseite (`/fahrzeuge/<id>`); er soll „Bearbeiten" heißen und die aktuelle
+Master/Detail-Ansicht selbst bearbeitbar machen, ohne Navigation.
+
+`FuhrparkUebersicht` bekommt ein neues Bearbeitungsmodus-Signal (`bearbeitungModus`). Im
+Stammdaten-Abschnitt ersetzt ein Bearbeitungsmodus mit echten Formularfeldern (Bezeichnung,
+Funkrufname, Kennzeichen, FIN mit derselben `istGueltigeFin()`-Prüfung, Eigentümer/Gruppe als
+`mat-select`, Bemerkung) die bisherige reine Anzeige – dieselben Felder und Prüfungen wie auf
+der Fahrzeugdetailseite (`fahrzeug-detail.ts`), nur eingebettet statt auf einer eigenen Route.
+„Speichern" ruft `FahrzeugStoreService.speichern()` (dieselbe Methode, die Kilometererfassung
+und Wartungstermine hier schon verwenden) und verlässt den Bearbeitungsmodus nur bei Erfolg;
+„Abbrechen" verwirft lokale Änderungen, indem es das Fahrzeug einfach neu vom Server lädt
+(`fahrzeugLaden()`), statt einen eigenen Entwurf-Rücksetzmechanismus nachzubauen. Ein Wechsel
+der Auswahl in der Liste verlässt den Bearbeitungsmodus ebenfalls (`formularZuruecksetzen()`).
+Die Kopfzeile ändert sich live mit, weil Titel und Chips direkt aus demselben `entwurf`-Signal
+lesen, das das Formular beschreibt – kein zusätzlicher Zustand nötig.
+
+Geprüft: fünf neue Tests in `fuhrpark-uebersicht.spec.ts` (Bearbeitungsmodus ein/aus,
+Feldänderung im Entwurf, Speichern verlässt den Modus nur bei Erfolg, Abbrechen lädt neu und
+verwirft, Wechsel der Auswahl verlässt den Modus, FIN-Prüfung sperrt „Speichern"). `npm run
+build` (inkl. `worker:check`), `npm test` (868 Angular-, 29 `oeffentlich`-, 752
+Worker-Tests), `npm run format:check` – alle grün. Sichtprüfung im echten Headless-Chromium
+auf 1400×900 und 390×844 gegen den Attrappen-Server: Klick auf „Bearbeiten" öffnet das
+Formular ohne Navigation (URL unverändert), Titel und Listeneintrag aktualisieren sich live
+beim Tippen, „Speichern" verlässt den Modus und der neue Name bleibt nach Neuladen bestehen,
+„Abbrechen" verwirft eine zusätzliche, noch ungespeicherte Änderung und stellt den zuletzt
+gespeicherten Stand wieder her – auf beiden Bildschirmgrößen geprüft, kein horizontaler
+Überlauf. Weiterhin kein Lauf gegen ein echtes Telefon oder den echten Worker/D1-Stand.
+
+### Nachtrag – Stammdaten-Formular immer sichtbar statt umschaltender Ansicht
+
+Auf Rückfrage nachgeschärft: Statt zwischen einer reinen Anzeige (`<dl>`) und einem
+Formular umzuschalten, rendert der Stammdaten-Abschnitt jetzt immer dieselben Formularfelder
+– im Ruhezustand mit `[readonly]` (Textfelder) bzw. `[disabled]` (`mat-select` für
+Eigentümer/Gruppe), dezent abgesetzt über `background: var(--surface-secondary)` auf
+`:read-only`-Feldern. Die Überschrift „Stammdaten" entfällt, weil das Formular selbst schon
+zeigt, um welche Daten es geht. „Speichern"/„Abbrechen" stehen jetzt immer im DOM
+(`justify-content: flex-end`), statt nur im Bearbeitungsmodus zu erscheinen, und sind
+außerhalb des Bearbeitungsmodus über `[disabled]="!bearbeitungModus() || …"` gesperrt. Der
+„Bearbeiten"-Knopf im Kopfbereich bleibt unverändert der einzige Weg, den Modus zu öffnen.
+Keine Verhaltensänderung an Speichern/Abbrechen/Validierung selbst, nur an der Darstellung –
+deshalb keine neuen Tests nötig, die bestehenden zum Bearbeitungsmodus decken das ab.
+
+Geprüft: Sichtprüfung im echten Headless-Chromium auf 1400×900 und 390×844 gegen den
+Attrappen-Server – vor „Bearbeiten" sind Textfelder `readonly`, beide Knöpfe `disabled`,
+keine „Stammdaten"-Überschrift im DOM; nach „Bearbeiten" sind Felder editierbar und beide
+Knöpfe aktiv; kein horizontaler Überlauf auf beiden Größen. `npm run build` (inkl.
+`worker:check`), `npm test` (868 Angular-, 29 `oeffentlich`-, 752 Worker-Tests), `npm run
+format:check` – alle grün.
+
+### Nachtrag – „Bearbeiten"-Knopf bleibt sichtbar, kein grauer Feldhintergrund
+
+Der „Bearbeiten"-Knopf wird im Bearbeitungsmodus nicht mehr ausgeblendet, sondern nur
+deaktiviert (`[disabled]="bearbeitungModus()"`) – das Ausblenden ließ die Kopfzeile und damit
+das Layout springen. Der dezente graue Hintergrund für `:read-only`-Felder entfällt wieder;
+schreibgeschützte Textfelder unterscheiden sich damit nur noch durch fehlende Eingabe, die
+`mat-select`-Felder weiterhin durch das Material-eigene Disabled-Aussehen. Reine
+Darstellungsänderung, keine Testanpassung nötig. Keine erneute Browserprüfung dieser
+Nachschärfung in dieser Sitzung.
+
 ## Migration 0012 (Führerschein-Vorlage) angewendet, migrations_dir je Datenbank eingeführt – 2026-09-29
 
 - `worker/migrations/0012_fuehrerschein_vorlage.sql` über die Cloudflare-D1-API auf
@@ -2610,3 +2846,30 @@ Produktivsystem nicht nachgeprüft.
   seitliches Scrollen der Seite, Klick wechselt in die Monatsansicht.
 - **Nicht geprüft:** dunkles Theme, Touch, echter Worker. Eine Lücke direkt aus den offenen
   Ideen füllen (Mockup-Idee) gibt es hier nicht; dafür bleibt „Auf nächste Lücke legen“.
+
+## Fuhrpark-Übersicht: Zahleneingabe, scrollende Liste, Datepicker
+
+- **Kilometerstand-Eingabe abgesichert** (`leseKilometerEingabe()` in
+  `fahrzeuge/services/ablesung-pruefung.ts`): das Feld ist jetzt ein Textfeld mit
+  `inputmode="numeric"` statt `type="number"`, weil `type="number"` in der deutschen
+  Locale `12.345` als 12,345 und `12345,5` als 123455 lieferte. Akzeptiert werden ganze,
+  nicht negative Zahlen; Punkt/Leerzeichen zählen nur als korrekt gruppierter
+  Tausendertrenner (`12.345`, `1 234 567`). Nachkommastellen, Vorzeichen, Buchstaben und
+  Werte über 9.999.999 (dieselbe Grenze wie die öffentliche Meldung) werden mit eigenem
+  Hinweis abgelehnt, „Erfassen" bleibt dann deaktiviert. Rückschritt-/Sprung-Warnungen
+  bleiben unverändert und blockieren nicht.
+- **Fahrzeugliste scrollt in sich:** `.split` richtet die Spalten nicht mehr aneinander aus
+  (`align-items: flex-start`); `.master` hat `max-height: calc(100dvh - 12rem)`, ist
+  `sticky` und scrollt intern. Eine lange Liste vergrößert das Detail nicht mehr. Mobil
+  bleibt die gestapelte Anordnung (Liste ≤ 40vh, Detail volle Breite) unverändert. Die
+  Abzugshöhe (12rem für Kopfleiste, Filterzeile, Rand) ist eine Schätzung, kein
+  gemessener Wert der App-Hülle.
+- **Datepicker:** Kilometerdatum und „Fällig am" verwenden `mat-datepicker`
+  (`MAT_DATE_LOCALE de-DE`, `isoZuLokalesDatum()`/`lokalesDatumZuIso()`), wie
+  `fahrzeug-detail`; der lokale Kalendertag wird nicht über UTC verschoben.
+- Geprüft: `npm run build`, `npm test` (Unit-Tests für Eingabeparser, Fehlermeldung,
+  Datepicker-Übernahme), `npm run format:check`. Im Browser (Headless-Chromium, Desktop
+  1400×900 und mobil 390×844, Mock-API mit 30 Fahrzeugen): Liste 708 px hoch bei 2070 px
+  Inhalt und scrollt, Detail 662 px unabhängig davon; Kalender öffnet sich; `12345,5`
+  und `-5` werden abgelehnt, `12.345` akzeptiert. Nicht geprüft: echte Access-Sitzung,
+  Touch-Bedienung des Kalenders auf einem echten Gerät.

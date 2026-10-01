@@ -33,6 +33,15 @@ export interface Einstellungen {
   kmBerichtVersandweg: Versandweg;
   kmBerichtBetreff: string;
   /**
+   * Ampel-Schwellenwerte der Kilometerübersicht in Monaten Puffer (siehe
+   * `ermittleKilometerAmpel` in `fahrzeuge/services/kilometer-soll.ts`):
+   * grün bleibt es, solange die Rest-km beim Mindesttempo der verbleibenden
+   * Monate zzgl. dieses Puffers noch erreichbar sind.
+   */
+  kmAmpelSchwellenwertGelbMonate: number;
+  /** Ab diesem Puffer in Monaten wird die Ampel rot statt gelb. */
+  kmAmpelSchwellenwertRotMonate: number;
+  /**
    * Standardempfänger der Materialberichte. Sie sind im Sendedialog vorbelegt
    * und dort überschreibbar; ändern darf sie serverseitig nur die Zugführung
    * oder die Gruppenführung Sanität (`worker/src/systemkonfiguration.ts`).

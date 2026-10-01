@@ -4,11 +4,21 @@
   <p class="hinweis-neutral">Noch kein Jahresstartstand bekannt.</p>
 } @else {
   <div class="bilanz-balken">
-    <mat-progress-bar
-      mode="determinate"
-      [value]="fortschrittProzent()"
-      [class.ziel-erreicht]="zielErreicht()"
-    />
+    <div class="bilanz-fortschritt-zeile">
+      @if (ampel(); as farbe) {
+        <span
+          class="ampel-punkt"
+          [class]="'ampel-' + farbe"
+          [attr.aria-label]="'Ampel ' + farbe"
+          role="img"
+        ></span>
+      }
+      <mat-progress-bar
+        mode="determinate"
+        [value]="fortschrittProzent()"
+        [class.ziel-erreicht]="zielErreicht()"
+      />
+    </div>
     <div class="bilanz-werte">
       <span class="bilanz-gefahren">{{ bilanz().istKm }} / {{ bilanz().sollKm }} km</span>
       @if (zielErreicht()) {
