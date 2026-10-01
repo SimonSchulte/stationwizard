@@ -88,9 +88,32 @@ describe('Abgleich zwischen Jahresplan und HiOrg', () => {
     expect(abgleich.anzahlAbweichungen).toBe(1);
   });
 
-  it('vergleicht ohne Uhrzeit auf einer Seite weiter nur den Namen', () => {
+  it('wertet einen HiOrg-Eintrag mit Uhrzeit gegen einen Plantermin ohne Uhrzeit nicht als Abweichung', () => {
     const abgleich = baueHiorgAbgleich(
-      [eintrag({ name: 'Funkausbildung', beginnZeit: '10:00', endeZeit: '12:00' })],
+      [
+        eintrag({
+          name: 'Fachdienstabend',
+          beginn: '2026-11-27',
+          ende: '2026-11-28',
+          beginnZeit: '18:00',
+        }),
+        eintrag({
+          name: 'Weihnachtsmarkt',
+          beginn: '2026-11-28',
+          beginnZeit: '10:00',
+          endeZeit: '17:00',
+        }),
+      ],
+      [termin('2026-11-28', 'Digitalfunkausbildung')],
+      2026,
+    );
+
+    expect(abgleich.anzahlAbweichungen).toBe(0);
+  });
+
+  it('vergleicht ohne Uhrzeit auf beiden Seiten weiter nur den Namen', () => {
+    const abgleich = baueHiorgAbgleich(
+      [eintrag({ name: 'Funkausbildung' })],
       [termin('2026-05-04', 'Sprechfunkausbildung')],
       2026,
     );

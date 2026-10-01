@@ -129,7 +129,9 @@ describe('Bestätigungen im Ausbildungsplan', () => {
   it('warnt, wenn der Plan an diesem Tag anders heißt', () => {
     store.setzeDokument({
       ...leeresDocument(2026),
-      termine: [{ ...leererTermin('2026-05-04'), id: 't1', thema: 'Anderes Thema' }],
+      termine: [
+        { ...leererTermin('2026-05-04'), id: 't1', thema: 'Anderes Thema', beginnZeit: '19:30' },
+      ],
     });
     hiorg.eintraege.set([HIORG_EINTRAG]);
 
@@ -140,7 +142,9 @@ describe('Bestätigungen im Ausbildungsplan', () => {
   it('übernimmt den HiOrg-Namen nach Bestätigung in den Plan', async () => {
     store.setzeDokument({
       ...leeresDocument(2026),
-      termine: [{ ...leererTermin('2026-05-04'), id: 't1', thema: 'Anderes Thema' }],
+      termine: [
+        { ...leererTermin('2026-05-04'), id: 't1', thema: 'Anderes Thema', beginnZeit: '19:30' },
+      ],
     });
     hiorg.eintraege.set([HIORG_EINTRAG]);
     dialog.bestaetigen.mockResolvedValue(true);
@@ -156,7 +160,9 @@ describe('Bestätigungen im Ausbildungsplan', () => {
   it('lässt den Plan unberührt, wenn die Übernahme abgebrochen wird', async () => {
     store.setzeDokument({
       ...leeresDocument(2026),
-      termine: [{ ...leererTermin('2026-05-04'), id: 't1', thema: 'Anderes Thema' }],
+      termine: [
+        { ...leererTermin('2026-05-04'), id: 't1', thema: 'Anderes Thema', beginnZeit: '19:30' },
+      ],
     });
     hiorg.eintraege.set([HIORG_EINTRAG]);
     dialog.bestaetigen.mockResolvedValue(false);
@@ -523,7 +529,14 @@ describe('Tageszellen mit vielen Einträgen', () => {
     ansicht = TestBed.runInInjectionContext(() => new Jahresplan());
     store.setzeDokument({
       ...leeresDocument(2026),
-      termine: [{ ...leererTermin('2026-08-26'), id: 't1', thema: 'Eigene Ausbildung' }],
+      termine: [
+        {
+          ...leererTermin('2026-08-26'),
+          id: 't1',
+          thema: 'Eigene Ausbildung',
+          beginnZeit: '15:00',
+        },
+      ],
     });
     hiorg.eintraege.set(DIENSTE);
   });

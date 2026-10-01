@@ -132,15 +132,17 @@ interface ThemaBezug {
 }
 
 /**
- * Ob ein HiOrg-Eintrag zeitlich zum Plantermin passt. Verglichen wird nur der
- * Beginn, und nur wenn beide Seiten eintägig sind und eine Uhrzeit nennen;
- * fehlt eine Zeit, bleibt es beim bisherigen Namensvergleich.
+ * Ob ein HiOrg-Eintrag als dieselbe Veranstaltung wie der Plantermin in Frage kommt
+ * und damit auf eine Namensabweichung geprüft wird. Ein Eintrag mit Uhrzeit gegen
+ * einen Plantermin ohne Uhrzeit lässt sich nicht als Gegenstück belegen und gilt als
+ * eigener Termin des Tages. Haben beide eine Uhrzeit, muss der Beginn übereinstimmen
+ * (nur bei eintägigen Terminen – bei mehrtägigen gehört die Zeit zum Randtag).
  */
 function istZeitgleich(thema: ThemaBezug, eintrag: HiorgEintrag): boolean {
-  if (!thema.eintaegig || eintrag.ende > eintrag.beginn) {
-    return true;
+  if (!thema.beginnZeit) {
+    return !eintrag.beginnZeit;
   }
-  if (!thema.beginnZeit || !eintrag.beginnZeit) {
+  if (!eintrag.beginnZeit || !thema.eintaegig || eintrag.ende > eintrag.beginn) {
     return true;
   }
   return thema.beginnZeit === eintrag.beginnZeit;
