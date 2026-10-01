@@ -1,8 +1,12 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
+  DIENSTABEND_BEGINN,
+  DIENSTABEND_ENDE,
   KatsThema,
   PlanDocument,
   Termin,
+  istMehrtaegigerTermin,
+  leererDienstabend,
   leererTermin,
   leeresDocument,
   neueId,
@@ -103,15 +107,53 @@ export class PlanStore {
     // Auch die Zwischentage mehrtägiger Termine gelten als belegt – sonst
     // entstünde mitten in einem Lehrgang eine leere Zeile.
     const belegt = new Set(this.termine().flatMap((t) => terminTage(t)));
-    const fehlend = wochentageImJahr(this.jahr(), diensttag).filter((datum) => !belegt.has(datum));
-    if (!fehlend.length) {
+    const diensttage = wochentageImJahr(this.jahr(), diensttag);
+    const fehlend = diensttage.filter((datum) => !belegt.has(datum));
+    const nachzuziehen = this.dienstabendeOhneStandardzeit(new Set(diensttage));
+    if (!fehlend.length && !nachzuziehen.size) {
       return 0;
     }
     this.mutiere((d) => ({
       ...d,
-      termine: [...d.termine, ...fehlend.map((datum) => leererTermin(datum))],
+      termine: [
+        ...d.termine.map((t) => (nachzuziehen.has(t.id) ? mitDienstabendZeit(t) : t)),
+        ...fehlend.map((datum) => leererDienstabend(datum)),
+      ],
     }));
     return fehlend.length;
+  }
+
+  /**
+   * Vorhandene Dienstabende, die noch nicht 19:00–22:30 tragen: eintägige Einträge
+   * vom Typ „Dienst“ am Diensttag. Gibt es an einem Tag mehrere, gilt nur ein Eintrag
+   * ohne Uhrzeit als Dienstabend – ein Termin mit eigener Zeit (etwa um 18:00 davor)
+   * bleibt unverändert. Einträge vom Typ „Termin“ rührt das nie an.
+   */
+  private dienstabendeOhneStandardzeit(diensttage: ReadonlySet<string>): Set<string> {
+    const kandidaten = this.termine().filter(
+      (t) =>
+        t.typ === 'dienst' &&
+        t.datum !== null &&
+        diensttage.has(t.datum) &&
+        !istMehrtaegigerTermin(t),
+    );
+    const proTag = new Map<string, Termin[]>();
+    for (const t of kandidaten) {
+      proTag.set(t.datum!, [...(proTag.get(t.datum!) ?? []), t]);
+    }
+    const ids = new Set<string>();
+    for (const tagesEintraege of proTag.values()) {
+      const betroffen =
+        tagesEintraege.length === 1
+          ? tagesEintraege
+          : tagesEintraege.filter((t) => !t.beginnZeit && !t.endeZeit);
+      for (const t of betroffen) {
+        if (t.beginnZeit !== DIENSTABEND_BEGINN || t.endeZeit !== DIENSTABEND_ENDE) {
+          ids.add(t.id);
+        }
+      }
+    }
+    return ids;
   }
 
   /** Zieht einen geplanten Termin auf ein bisher unbelegtes Datum. */
@@ -354,6 +396,10 @@ export class PlanStore {
  * Setzt ein neues Datum und verschiebt ein vorhandenes Enddatum um dieselbe
  * Anzahl Tage – ein dreitägiger Lehrgang bleibt beim Verschieben dreitägig.
  */
+function mitDienstabendZeit(termin: Termin): Termin {
+  return { ...termin, beginnZeit: DIENSTABEND_BEGINN, endeZeit: DIENSTABEND_ENDE };
+}
+
 function mitDatum(termin: Termin, datum: string | null): Termin {
   if (!datum || !termin.datum || !termin.datumBis) {
     return { ...termin, datum, datumBis: datum ? termin.datumBis : null };

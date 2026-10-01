@@ -1,7 +1,7 @@
 import { jahrVon, tageVonBis } from '../../kern/kalender/datum';
 import { dekodiereEntitaeten } from '../../kern/text/entitaeten';
 import type { HiorgEintrag } from '../models/hiorg-kalender.model';
-import { type Termin, terminTage } from '../models/plan.model';
+import { type Termin, istMehrtaegigerTermin, terminTage } from '../models/plan.model';
 
 /** Ein Plantermin, dessen Thema nicht exakt zum HiOrg-Eintrag desselben Tages passt. */
 export interface HiorgAbweichung {
@@ -94,7 +94,10 @@ export function baueHiorgAbgleich(
         ohneGegenstueck.push(eintrag);
         continue;
       }
-      for (const thema of themen) {
+      const zeitgleich = themen.filter((thema) => istZeitgleich(thema, eintrag));
+      // Ein Eintrag zu einer anderen Uhrzeit ist ein eigener Termin am selben Tag,
+      // keine falsch benannte Fassung des Plantermins – weder Fehler noch Lücke.
+      for (const thema of zeitgleich) {
         abweichungen.push({
           terminId: thema.terminId,
           terminThema: thema.text,
@@ -123,6 +126,24 @@ interface ThemaBezug {
   terminId: string;
   text: string;
   normalisiert: string;
+  beginnZeit: string;
+  /** Mehrtägige Termine tragen ihre Zeit nur am Rand – dann nicht zeitlich vergleichbar. */
+  eintaegig: boolean;
+}
+
+/**
+ * Ob ein HiOrg-Eintrag zeitlich zum Plantermin passt. Verglichen wird nur der
+ * Beginn, und nur wenn beide Seiten eintägig sind und eine Uhrzeit nennen;
+ * fehlt eine Zeit, bleibt es beim bisherigen Namensvergleich.
+ */
+function istZeitgleich(thema: ThemaBezug, eintrag: HiorgEintrag): boolean {
+  if (!thema.eintaegig || eintrag.ende > eintrag.beginn) {
+    return true;
+  }
+  if (!thema.beginnZeit || !eintrag.beginnZeit) {
+    return true;
+  }
+  return thema.beginnZeit === eintrag.beginnZeit;
 }
 
 /** Nur Termine mit echtem Thema zählen; leere Gerüstzeilen sind kein Gegenstück. */
@@ -136,6 +157,8 @@ function indexiereThemen(termine: readonly Termin[]): Map<string, ThemaBezug[]> 
       terminId: termin.id,
       text: termin.thema,
       normalisiert: normalisiereName(termin.thema),
+      beginnZeit: termin.beginnZeit,
+      eintaegig: !istMehrtaegigerTermin(termin),
     };
     // Das Thema eines mehrtägigen Termins gilt an jedem seiner Tage – sonst
     // meldete der Abgleich am zweiten Lehrgangstag eine Lücke.

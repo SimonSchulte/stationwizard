@@ -148,6 +148,62 @@ describe('PlanStore · fehlende Diensttage', () => {
     expect(store.termine()).toHaveLength(52);
   });
 
+  it('legt neue Dienstabende als Dienst von 19:00 bis 22:30 an', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument(dokument());
+    store.ergaenzeFehlendeDiensttage();
+
+    const neuer = store.termine().find((t) => t.datum === '2026-01-12');
+    expect(neuer?.typ).toBe('dienst');
+    expect(neuer?.beginnZeit).toBe('19:00');
+    expect(neuer?.endeZeit).toBe('22:30');
+  });
+
+  it('zieht vorhandene Dienstabende ohne oder mit anderer Zeit nach', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [
+        { ...leererTermin('2026-01-05'), id: 'a', thema: 'A' },
+        {
+          ...leererTermin('2026-01-12'),
+          id: 'b',
+          thema: 'B',
+          beginnZeit: '19:30',
+          endeZeit: '22:00',
+        },
+        { ...leererTermin('2026-01-19'), id: 'c', typ: 'termin', thema: 'Veranstaltung' },
+      ],
+    });
+
+    store.ergaenzeFehlendeDiensttage();
+
+    expect(store.terminNachId('a')).toMatchObject({ beginnZeit: '19:00', endeZeit: '22:30' });
+    expect(store.terminNachId('b')).toMatchObject({ beginnZeit: '19:00', endeZeit: '22:30' });
+    expect(store.terminNachId('c')).toMatchObject({ beginnZeit: '', endeZeit: '' });
+  });
+
+  it('lässt einen zusätzlichen Termin mit eigener Zeit am Diensttag unverändert', () => {
+    const store = TestBed.inject(PlanStore);
+    store.setzeDokument({
+      ...leeresDocument(2026),
+      termine: [
+        { ...leererTermin('2026-01-05'), id: 'a', thema: 'Dienstabend' },
+        {
+          ...leererTermin('2026-01-05'),
+          id: 'r',
+          thema: 'Rookies',
+          beginnZeit: '18:00',
+          endeZeit: '19:00',
+        },
+      ],
+    });
+
+    store.ergaenzeFehlendeDiensttage();
+
+    expect(store.terminNachId('r')).toMatchObject({ beginnZeit: '18:00', endeZeit: '19:00' });
+  });
+
   it('lässt bereits vorhandene Diensttags-Termine unangetastet', () => {
     const store = TestBed.inject(PlanStore);
     store.setzeDokument(dokument());

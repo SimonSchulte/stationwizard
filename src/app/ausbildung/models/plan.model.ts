@@ -213,6 +213,20 @@ export function leererTermin(datum: string | null = null): Termin {
   };
 }
 
+/** Ein Dienstabend (`typ: 'dienst'` am Diensttag) läuft immer von 19:00 bis 22:30. */
+export const DIENSTABEND_BEGINN = '19:00';
+export const DIENSTABEND_ENDE = '22:30';
+
+/** Leere Dienstabend-Zeile: Typ „Dienst“ mit der festen Dienstabend-Zeit. */
+export function leererDienstabend(datum: string): Termin {
+  return {
+    ...leererTermin(datum),
+    typ: 'dienst',
+    beginnZeit: DIENSTABEND_BEGINN,
+    endeZeit: DIENSTABEND_ENDE,
+  };
+}
+
 export function leeresDocument(jahr = new Date().getFullYear()): PlanDocument {
   return { jahr, titel: `Jahresplan ${jahr}`, termine: [], backlog: [], katsThemen: [] };
 }
