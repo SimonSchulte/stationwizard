@@ -1,12 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { KilometerJahresbilanz } from '../../services/kilometer-soll';
+import { KilometerAmpel, KilometerJahresbilanz } from '../../services/kilometer-soll';
 
 /**
  * Visualisiert eine `KilometerJahresbilanz` als Fortschrittsbalken (gefahrene
  * Kilometer gegen das Jahressoll) mit Restwert – gemeinsam genutzt vom
  * Fuhrpark-Dashboard (je Fahrzeug in der Liste) und der Fahrzeugdetailseite,
  * damit beide Stellen dieselbe Darstellung zeigen.
+ *
+ * Die Ampel (`ermittleKilometerAmpel` in `kilometer-soll.ts`) berechnet nicht
+ * diese Komponente selbst: sie braucht dafür die verbleibenden Monate des
+ * Bilanzjahres und die konfigurierbaren Schwellenwerte aus der
+ * Systemkonfiguration, beides Kontext, den der Aufrufer schon kennt. Ohne
+ * `ampel`-Eingabe bleibt die Karte wie bisher ohne Ampelpunkt.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,6 +23,7 @@ import { KilometerJahresbilanz } from '../../services/kilometer-soll';
 })
 export class KilometerBilanz {
   readonly bilanz = input.required<KilometerJahresbilanz>();
+  readonly ampel = input<KilometerAmpel | null>(null);
 
   readonly fortschrittProzent = computed(() => {
     const { sollKm, istKm } = this.bilanz();

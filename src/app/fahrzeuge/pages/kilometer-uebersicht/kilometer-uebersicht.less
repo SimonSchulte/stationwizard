@@ -33,9 +33,31 @@
   font-style: italic;
 }
 
+.filter-checkbox {
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
 .kennzahlen {
   color: var(--text-secondary);
   margin-bottom: var(--space-base);
+}
+
+.ampel-punkt {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+
+  &.ampel-rot {
+    background: var(--status-error);
+  }
+  &.ampel-gelb {
+    background: var(--status-warn);
+  }
+  &.ampel-gruen {
+    background: var(--status-ok);
+  }
 }
 
 /* Breite Tabelle scrollt in ihrem eigenen Bereich, nie der Seitenkörper. */

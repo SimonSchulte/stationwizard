@@ -13,6 +13,8 @@ const KILOMETER = {
   kmBerichtEmpfaenger: 'leitung@example.test',
   kmBerichtVersandweg: 'email-routing',
   kmBerichtBetreff: 'Kilometerstände',
+  kmAmpelSchwellenwertGelbMonate: 2,
+  kmAmpelSchwellenwertRotMonate: 4,
 };
 
 /** Die Standardwerte der Materialeinstellungen, wie `leseEinstellungen` sie ergänzt. */
@@ -47,7 +49,7 @@ function umgebung(db: FakeBenutzerDb): SystemkonfigurationKonfiguration {
 }
 
 interface Antwortform {
-  einstellungen: Record<string, string>;
+  einstellungen: Record<string, unknown>;
   versandwege: { weg: string; verfuegbar: boolean }[];
 }
 
@@ -71,6 +73,8 @@ describe('GET /api/systemkonfiguration', () => {
     expect(inhalt.einstellungen['kmBerichtEmpfaenger']).toBe('');
     expect(inhalt.einstellungen['kmBerichtVersandweg']).toBe('email-routing');
     expect(inhalt.einstellungen['kmBerichtBetreff']).toBe('Kilometerstandsbericht');
+    expect(inhalt.einstellungen['kmAmpelSchwellenwertGelbMonate']).toBe(1);
+    expect(inhalt.einstellungen['kmAmpelSchwellenwertRotMonate']).toBe(3);
   });
 
   it('meldet je bekanntem Weg, ob er eingerichtet ist', async () => {
@@ -148,6 +152,9 @@ describe('PUT /api/systemkonfiguration', () => {
     ['einen leeren Betreff', { kmBerichtBetreff: '   ' }],
     ['einen Betreff mit Zeilenumbruch', { kmBerichtBetreff: 'Bericht\nBcc: fremd@example.test' }],
     ['einen zu langen Betreff', { kmBerichtBetreff: 'x'.repeat(121) }],
+    ['einen negativen Gelb-Schwellenwert', { kmAmpelSchwellenwertGelbMonate: -1 }],
+    ['einen nicht-ganzzahligen Gelb-Schwellenwert', { kmAmpelSchwellenwertGelbMonate: 1.5 }],
+    ['einen zu großen Rot-Schwellenwert', { kmAmpelSchwellenwertRotMonate: 37 }],
   ])('lehnt %s ab, ohne etwas zu speichern', async (_name, abweichung) => {
     const db = new FakeBenutzerDb();
 
