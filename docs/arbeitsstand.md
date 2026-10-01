@@ -2524,6 +2524,59 @@ Systemkonfigurations-Tab „Kilometerübersicht" entsprechend umformuliert. `npm
   und Mobil mit nachgebildeten API-Antworten (Schrittfolge, Fehlerhinweis bei falscher
   Adresse, Tabelle nach erfolgreicher Verbindung).
 
+## Kalender – Ausbildungsplanung in D1, Excel-Übernahme, NextCloud-Arbeitsmappe entfernt – 2026-09-29
+
+- **Umbenennung:** Das Modul heißt in der Oberfläche „Kalender“ (Navigation, Startseite,
+  Kopfleiste, Seitentitel), Route `/kalender`; `/ausbildung` leitet dorthin weiter. Der Code
+  bleibt unter `src/app/ausbildung/`.
+- **Datenhaltung:** Neue D1-Datenbank `stationwizard-kalender` (`KALENDER_DB`, Region WEUR,
+  am 2026-09-29 über den Cloudflare-Connector angelegt), Migration `worker/migrations/kalender/0012_kalender.sql` remote
+  angewendet, in `d1_migrations` eingetragen (Buchführung wie bei den anderen drei
+  Datenbanken) und per `sqlite_master` belegt (`kalender_ideen`, `kalender_jahre`, beide leer).
+  Worker-Modul `worker/src/kalender-planung.ts` (der Name `kalender.ts` ist durch die
+  Berliner Kalendertag-Hilfe belegt). Ein Lesezugriff liefert alle Jahre und die Ideen samt
+  Versionen; gespeichert wird je geändertem Jahr bzw. für die Ideen, mit `If-Match`
+  (schwaches ETag angenommen) bzw. `If-None-Match: *`. Der Worker prüft jeden Termin gegen
+  die festen Wertelisten, verwirft unbekannte Felder und setzt `geaendert_von` selbst.
+- **Frontend:** `KalenderDatenService` ersetzt `WorkbookService`; `PlanStore`, Undo und
+  `VerlassenSchutz` bleiben. `QuelleDialog`, `NextcloudWorkerStorage`, `LokaleDateiStorage`
+  und `WorkbookStorage` sind entfernt. Die Kopfleiste zeigt „Datenbank“ (verbunden, lädt,
+  nicht eingerichtet, Fehler) neben „HiOrg“. Ein 412 bewahrt den lokalen Stand und bietet
+  eine Excel-Kopie an; nichts wird automatisch wiederholt. „Excel-Kopie herunterladen“ im
+  ⋮-Menü bleibt als Rettungsweg und markiert nichts als gespeichert.
+- **Einmalige Übernahme:** _Verwaltung → Kalender aus Excel übernehmen_. Die Datei wird im
+  Browser mit dem bisherigen Leser gelesen, als Vorschau gezeigt und nach Bestätigung in
+  einer Anfrage übertragen; der Worker schreibt in einer `db.batch()` und nur in einen
+  leeren Kalender (sonst 409 `KALENDER_BEREITS_BEFUELLT`). **Die echte Arbeitsmappe ist noch
+  nicht übernommen** – das geschieht nach dem Deployment durch den Betreiber.
+- **NextCloud:** `/api/nextcloud/arbeitsmappe` ist entfernt (404 `NEXTCLOUD_PFAD_UNGUELTIG`),
+  ebenso die Bindings `NEXTCLOUD_SHARE_TOKEN`/`NEXTCLOUD_SHARE_PASSWORD`. Der PEP-Ordner ist
+  unverändert. Offen für den Betreiber: nach der Übernahme das Secret im Store und die
+  Excel-Freigabe in NextCloud löschen.
+- **Exportschnittstelle, nur vorbereitet:** `src/app/ausbildung/export/kalender-export.ts`
+  beschreibt `KalenderExportFormat`/`KalenderExportDaten`; `KALENDER_EXPORTFORMATE` ist leer,
+  es gibt weder Endpunkt noch Menüpunkt. Offene Kandidaten: iCalendar (`.ics`), CSV, die
+  Excel-Kopie als registriertes Format, ein Übertrag nach HiOrg-Server (erst nach Nachweis
+  gegen die echte API).
+- **Ansichtsentwürfe:** drei klickbare Mockups mit erfundenen Daten in
+  `docs/entwuerfe/kalender-ansichten.html` – A Monatsraster mit Tagesagenda, B
+  Jahresüberblick der Diensttage (Lückenfokus, Ideen direkt einplanen), C mobile
+  Agenda-Liste mit Filtern und HiOrg-Abgleich am Eintrag. Noch nichts davon ist in der App.
+- **Tatsächlich ausgeführte Prüfungen:** `npm run build`, `npm test` (Angular, öffentliches
+  Ziel, Worker), `npm run format:check`, `npm run worker:check`, `npm run test:spa`
+  (workerd, inklusive `/kalender`, `/ausbildung` und `/api/kalender` ohne Anmeldung
+  gesperrt), `npm run deploy:dry-run` (Binding `KALENDER_DB` erkannt). Sichtprüfung im
+  Headless-Chromium auf Desktop (1366 px) und Mobil (390 px) gegen den Produktionsbuild mit
+  nachgebildeten API-Antworten: leerer Kalender mit Hinweis „Excel übernehmen“,
+  Migrationsseite mit einer erfundenen Arbeitsmappe (Vorschau, Bestätigung, Übernahme),
+  Kalender danach mit Daten und „Datenbank verbunden“, Weiterleitung `/ausbildung` →
+  `/kalender`; kein horizontales Scrollen der Seite, keine Laufzeitfehler. Nicht geprüft:
+  echter Worker gegen die echte D1-Datenbank, echte Arbeitsmappe, produktive Anmeldung.
+- **Beobachtung, nicht geändert:** Auf Mobil sitzt die untere Navigation des Kalenders am
+  Ende des scrollbaren Inhaltsbereichs statt fest am unteren Rand, weil `main` in der
+  App-Hülle keine feste Höhe hat. Das bestand schon vor dieser Änderung; mit dem höheren
+  Leerzustandshinweis wird es sichtbar (Navigation 38 px unter dem Bildschirmrand).
+
 ## Fuhrpark-Übersicht (Master/Detail): Mobilansicht nachgeprüft und zwei echte Umbruchfehler behoben
 
 Auftrag: die neue Master/Detail-Seite unter „Übersicht" (`FuhrparkUebersicht`,
@@ -2720,6 +2773,79 @@ Nachschärfung in dieser Sitzung.
 - Geprüft: `npm run build`, `npm test`, `npm run worker:test`, `npm run worker:check`,
   `npm run format:check`, `npm run deploy:dry-run`. `npm run test:spa` weiterhin nicht
   ausführbar (siehe oben, Netzwerkfreigabe).
+
+### Nachtrag: Merge mit `main` (#63)
+
+- `main` hat die Migrationen in `migrations/<datenbank>/` mit `migrations_dir` je Datenbank
+  verschoben. Die Kalender-Migration liegt jetzt in `worker/migrations/kalender/` (Name und
+  Inhalt unverändert), `wrangler.toml` trägt `migrations_dir = "migrations/kalender"`.
+- Konflikt in `worker/src/nextcloud.ts`: `main` hat `leseBegrenzt` und Co. nach
+  `binaer-lesen.ts` ausgelagert; übernommen, `istZip` dort nicht mehr importiert, weil die
+  Excel-Prüfung entfallen ist. Konflikt in dieser Datei: beide Abschnitte behalten.
+- Die remote-Datenbank `stationwizard-kalender` hat jetzt eine `d1_migrations`-Tabelle mit
+  `0012_kalender.sql`, damit `migrations apply` die bereits angewendete Migration nicht erneut
+  versucht.
+
+## Kalender – Ansichten Monat und Liste statt Wochenraster – 2026-09-30
+
+- **Umgesetzt** aus den Entwürfen A und C (`docs/entwuerfe/kalender-ansichten.html`, B bleibt
+  offen). Das bisherige 7-Spalten-Wochenraster der Seite ist durch die **Monatsansicht**
+  ersetzt: sie baut weiter auf `baueWochenraster()` auf (Zeile je Kalenderwoche mit KW-Spalte,
+  Feiertage, Randtage, Lücken), zeigt aber den gewählten Monat und daneben eine Tagesagenda
+  mit den ungekürzten Karten des gewählten Tages. Daneben steht die **Agendaliste** (nach
+  Kalenderwochen, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ).
+- Umschalter Monat/Liste in der Plan-Kopfzeile; Start am Handy (bis 780 px) in der Liste, sonst im
+  Monat. Ansicht und Filter gelten nur für die Sitzung, nichts wird gespeichert. Alle
+  vorhandenen Filter (Lücken, Abweichungen, HiOrg-Ebene, Monat, Suche) wirken auf beide.
+- Drag & Drop auf Tage und Karten, Bearbeiten, in die Ideen verschieben, Löschen, HiOrg-Namen
+  übernehmen und HiOrg-Termin übernehmen laufen unverändert über die Handler im `Jahresplan`.
+- Neu: „Auf nächste Lücke legen“ im Menü einer offenen Idee (`naechsteLuecke()`; ein leerer
+  Platzhalter am Diensttag wird befüllt, sonst wird ein Termin angelegt; ohne Lücke bleibt die
+  Idee liegen und es kommt eine Meldung).
+- Entfernt: Dialog `TagDetail` (die Agenda ersetzt ihn), altes Raster im Template und seine
+  Regeln in `jahresplan.less`.
+- `app.less`: `main { height: 100% }`. Vorher wuchs der Kalender mit seinem Inhalt, die Seite
+  scrollte und die untere Mobilnavigation lag weit unter dem Bildschirmrand.
+- Monatsmarken tragen den Monat des Donnerstags (ISO-Regel), die Zeilenhöhe der Marken ist
+  `auto`, die der Wochen gleich.
+- **Geprüft:** Angular-Specs für beide Ansichten, `agenda.ts`, `naechsteLuecke`, den
+  Umschalter samt Startansicht und die Idee-auf-Lücke-Aktion. Sichtprüfung im Headless-Chromium
+  gegen den Produktionsbuild mit nachgebildeter API und erfundenen Daten: Desktop 1366 px
+  (Monat, Liste, Tag wählen, Karte auf freien Tag ziehen, Idee auf Lücke legen) und Mobil
+  390 px (Liste, Filter, Ideen-Menü, untere Navigation sichtbar, kein seitliches Scrollen).
+- **Nicht geprüft:** Drag & Drop per Touch, dunkles Theme, echter Worker und echte
+  Kalenderdaten. **Bekannte Grenze:** Die Monatsansicht ist bei 390 px eng (Karten brechen in
+  schmalen Spalten um); am Handy ist die Liste die vorgesehene Ansicht.
+
+### Kalender: HiOrg-Filter in den Agenda-Ansichten
+
+- **Fehler:** Die HiOrg-Ebene (aus / gesammelt / einzeln) und „Nur Abweichungen“ / „Nur Lücken“
+  wirkten auf die Agenda-Ansichten nicht. Ursache: Beide lasen `TagesInhalt.alle`, das die
+  Ebene ignoriert, und die Liste filterte nur ganze Wochen statt einzelner Tage.
+- **Korrektur:** `TagesInhalt` trägt zusätzlich `verdichtet` (nach Ebene, ohne Deckelung) und
+  `eingesammelt`. `baueAgenda()` liest `verdichtet` und filtert tagesgenau nach `nurLuecken` und
+  Abweichungstagen. Die Liste zeigt eine Sammelzeile „HiOrg · N Einträge“ zum Aufklappen, die
+  Tagesagenda der Monatsansicht blendet bei Ebene „aus“ HiOrg aus.
+- **Neu:** „Termin an diesem Tag“ in jeder Tageszeile der Liste.
+- **Geprüft:** Specs (`agenda`, `tages-inhalt`), 934 Angular-Tests grün; Headless-Chromium mit
+  nachgebildeter API und HiOrg-Testdaten (September): Liste gesammelt 13 Karten + 5 Sammelzeilen,
+  einzeln 40 Karten, aus 0, Nur Abweichungen 3 Tage, Nur Lücken 1 Tag, „Termin an diesem Tag“
+  öffnet den Dialog; Desktop 1366 px und Mobil 390 px ohne Laufzeitfehler.
+- **Nachgezogen:** Specs für Aufklappen der Sammelzeile, „Termin an diesem Tag“, Nur Lücken/Abweichungen und Ebene „aus“ (940 Tests grün). **Nicht geprüft:** Touch, dunkles Theme, echter Worker.
+
+### Kalender: Ansicht B „Jahr“ (Jahresüberblick)
+
+- **Umgesetzt:** dritter Umschalter „Jahr“ im Kalender (`components/jahresueberblick/`,
+  `services/jahresueberblick.ts`). Nur Diensttage des Jahres, zwölf Monatszeilen mit bis zu fünf
+  Tagen, Kategoriefarbe, Lücken gestrichelt, HiOrg-Abweichung markiert, Kennzahlen (belegt,
+  Lücken, Abweichungen, je Kategorie). Ein Klick öffnet den Monat in der Monatsansicht. Rein
+  abgeleitet, nichts gespeichert; die Tabelle scrollt kontrolliert in ihrem Rahmen.
+- Die Kopfzeilen-Chips brechen nicht mehr um (`white-space: nowrap`, die Zeile darf umbrechen).
+- **Geprüft:** Specs (`jahresueberblick`, Komponente), 945 Angular-Tests grün; Headless-Chromium
+  mit Mock-API, Desktop 1366 px und Mobil 390 px: 12 Zeilen, 52 Diensttage, 9 Lücken, kein
+  seitliches Scrollen der Seite, Klick wechselt in die Monatsansicht.
+- **Nicht geprüft:** dunkles Theme, Touch, echter Worker. Eine Lücke direkt aus den offenen
+  Ideen füllen (Mockup-Idee) gibt es hier nicht; dafür bleibt „Auf nächste Lücke legen“.
 
 ## Fuhrpark-Übersicht: Zahleneingabe, scrollende Liste, Datepicker
 

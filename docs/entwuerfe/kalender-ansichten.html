@@ -1,0 +1,1595 @@
+<title>Kalender-Ansichten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap"
+/>
+<style>
+  /* Layout: Kopf mit Umschalter A/B/C, darunter je Entwurf ein eigenes Arbeitsfeld.
+     Farben und Abstände folgen src/tokens.less der App (CI-Blau, --kat-*, Lücke, HiOrg). */
+  :root {
+    --bg: #f4f5f8;
+    --flaeche: #ffffff;
+    --flaeche-2: #eceef3;
+    --text: #1c1d21;
+    --text-2: #5c6070;
+    --text-3: #9aa0ae;
+    --rand: #e2e4ea;
+    --rand-2: #c3c7d2;
+    --ci-dunkel: #000548;
+    --ci-blau: #4a6fb8;
+    --ci-rot: #eb003c;
+    --kat-san: #c62828;
+    --kat-btvp: #2f8f68;
+    --kat-tesi: #4a6fb8;
+    --kat-uf: #6a3fa0;
+    --kat-fuehrung: #b06000;
+    --kat-sonstiges: #757575;
+    --kat-ereignis: #9e9e9e;
+    --luecke-bg: #fdecea;
+    --luecke-rand: #c62828;
+    --luecke-text: #b3261e;
+    --hiorg-bg: #eef4fb;
+    --hiorg-rand: #9db4d8;
+    --hiorg-text: #33507f;
+    --abw-bg: #fff3e5;
+    --abw-rand: #e65100;
+    --abw-text: #a13d00;
+    --ok: #2e7d32;
+    --ok-bg: #e7f4ea;
+    --feiertag-bg: #f2f4fb;
+    --fokus: #4a6fb8;
+    --schrift: Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --schrift-zahl: 'Roboto Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-pill: 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #11131a;
+      --flaeche: #1a1d27;
+      --flaeche-2: #242836;
+      --text: #e7e9f0;
+      --text-2: #a5abbb;
+      --text-3: #6f7587;
+      --rand: #2c3140;
+      --rand-2: #3d4356;
+      --ci-dunkel: #c9d2ff;
+      --ci-blau: #8aa6e6;
+      --kat-san: #ef6b6b;
+      --kat-btvp: #52c294;
+      --kat-tesi: #7f9ee0;
+      --kat-uf: #a987dd;
+      --kat-fuehrung: #e09a43;
+      --kat-sonstiges: #a0a3ad;
+      --kat-ereignis: #7c808c;
+      --luecke-bg: #3a1c1e;
+      --luecke-rand: #ef6b6b;
+      --luecke-text: #ffb4ab;
+      --hiorg-bg: #1c2840;
+      --hiorg-rand: #4d6a9c;
+      --hiorg-text: #b7ccef;
+      --abw-bg: #3a2512;
+      --abw-rand: #ff9a4d;
+      --abw-text: #ffc28f;
+      --ok: #7fd18a;
+      --ok-bg: #173320;
+      --feiertag-bg: #1f2433;
+      --fokus: #8aa6e6;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #11131a;
+    --flaeche: #1a1d27;
+    --flaeche-2: #242836;
+    --text: #e7e9f0;
+    --text-2: #a5abbb;
+    --text-3: #6f7587;
+    --rand: #2c3140;
+    --rand-2: #3d4356;
+    --ci-dunkel: #c9d2ff;
+    --ci-blau: #8aa6e6;
+    --kat-san: #ef6b6b;
+    --kat-btvp: #52c294;
+    --kat-tesi: #7f9ee0;
+    --kat-uf: #a987dd;
+    --kat-fuehrung: #e09a43;
+    --kat-sonstiges: #a0a3ad;
+    --kat-ereignis: #7c808c;
+    --luecke-bg: #3a1c1e;
+    --luecke-rand: #ef6b6b;
+    --luecke-text: #ffb4ab;
+    --hiorg-bg: #1c2840;
+    --hiorg-rand: #4d6a9c;
+    --hiorg-text: #b7ccef;
+    --abw-bg: #3a2512;
+    --abw-rand: #ff9a4d;
+    --abw-text: #ffc28f;
+    --ok: #7fd18a;
+    --ok-bg: #173320;
+    --feiertag-bg: #1f2433;
+    --fokus: #8aa6e6;
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--schrift);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .seite {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 20px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--fokus);
+    outline-offset: 2px;
+  }
+  .zahl {
+    font-family: var(--schrift-zahl);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Kopf */
+  .kopf {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+  }
+  .kopf h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ci-dunkel);
+    text-wrap: balance;
+  }
+  .kopf p {
+    margin: 4px 0 0;
+    color: var(--text-2);
+    max-width: 62ch;
+  }
+  .umschalter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px;
+    background: var(--flaeche-2);
+    border-radius: var(--r-md);
+  }
+  .umschalter button {
+    border: 0;
+    background: transparent;
+    padding: 8px 12px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    min-height: 40px;
+  }
+  .umschalter button b {
+    font-family: var(--schrift-zahl);
+    color: var(--ci-blau);
+  }
+  .umschalter button[aria-selected='true'] {
+    background: var(--flaeche);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    font-weight: 500;
+  }
+
+  /* Werkzeugleiste wie in der App: Datenbank und HiOrg als Verbindungen */
+  .leiste {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+  }
+  .leiste .marke {
+    font-weight: 700;
+    color: var(--ci-dunkel);
+    margin-right: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--rand-2);
+    font-size: 13px;
+    color: var(--text-2);
+    background: var(--flaeche);
+  }
+  .chip .punkt {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  .chip.ok {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--rand));
+    color: var(--ok);
+    background: var(--ok-bg);
+  }
+  .leiste .fueller {
+    flex: 1;
+  }
+  .monat-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .knopf {
+    border: 1px solid var(--rand-2);
+    background: var(--flaeche);
+    border-radius: var(--r-sm);
+    padding: 6px 10px;
+    cursor: pointer;
+    min-height: 36px;
+  }
+  .knopf:hover {
+    background: var(--flaeche-2);
+  }
+  .knopf.primaer {
+    background: var(--ci-blau);
+    border-color: var(--ci-blau);
+    color: var(--flaeche);
+  }
+  .monat-titel {
+    min-width: 128px;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .begruendung {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  .begruendung div {
+    min-width: 0;
+  }
+  .begruendung h3 {
+    margin: 0 0 2px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .legende {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .legende span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .kat-marke {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--k, var(--kat-ereignis));
+    flex-shrink: 0;
+  }
+
+  /* ---------- A: Monatsraster + Agenda ---------- */
+  .a-feld {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .monatsraster {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .wt {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 4px 6px;
+  }
+  .tag {
+    min-height: 92px;
+    border: 1px solid var(--rand);
+    border-radius: var(--r-sm);
+    padding: 4px 6px;
+    background: var(--flaeche);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .tag:hover {
+    border-color: var(--rand-2);
+  }
+  .tag.fremd {
+    opacity: 0.4;
+  }
+  .tag.feiertag {
+    background: var(--feiertag-bg);
+  }
+  .tag.luecke {
+    background: var(--luecke-bg);
+    border-color: var(--luecke-rand);
+  }
+  .tag.gewaehlt {
+    outline: 2px solid var(--ci-blau);
+    outline-offset: -1px;
+  }
+  .tag .nr {
+    font-family: var(--schrift-zahl);
+    font-size: 12px;
+    color: var(--text-2);
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  .tag.heute .nr b {
+    background: var(--ci-blau);
+    color: var(--flaeche);
+    border-radius: 50%;
+    padding: 0 5px;
+  }
+  .balken {
+    font-size: 11.5px;
+    line-height: 1.3;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border-left: 3px solid var(--k, var(--kat-ereignis));
+    background: color-mix(in srgb, var(--k, var(--kat-ereignis)) 12%, var(--flaeche));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .balken.hiorg {
+    border: 1px dashed var(--hiorg-rand);
+    background: var(--hiorg-bg);
+    color: var(--hiorg-text);
+  }
+  .balken.abw {
+    border: 1px solid var(--abw-rand);
+    background: var(--abw-bg);
+    color: var(--abw-text);
+  }
+  .mehr {
+    font-size: 11px;
+    color: var(--text-2);
+  }
+  .luecke-hinweis {
+    font-size: 11px;
+    color: var(--luecke-text);
+    font-weight: 500;
+  }
+  .agenda {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+  .agenda h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .agenda .unter {
+    color: var(--text-2);
+    font-size: 13px;
+    margin: -6px 0 0;
+  }
+  .eintrag {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 2px 10px;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    border-left: 4px solid var(--k, var(--kat-ereignis));
+    background: var(--flaeche-2);
+  }
+  .eintrag .zeit {
+    font-family: var(--schrift-zahl);
+    font-size: 12px;
+    white-space: pre-line;
+    color: var(--text-2);
+    grid-row: span 2;
+  }
+  .eintrag .titel {
+    font-weight: 500;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .eintrag .meta {
+    font-size: 12px;
+    color: var(--text-2);
+    min-width: 0;
+  }
+  .eintrag.hiorg {
+    border-left: 4px dashed var(--hiorg-rand);
+    background: var(--hiorg-bg);
+    color: var(--hiorg-text);
+  }
+  .eintrag.hiorg .meta,
+  .eintrag.hiorg .zeit {
+    color: var(--hiorg-text);
+  }
+  .eintrag.abw {
+    background: var(--abw-bg);
+    border-left-color: var(--abw-rand);
+  }
+  .leer {
+    color: var(--text-2);
+    font-size: 13px;
+    padding: 10px;
+    border: 1px dashed var(--rand-2);
+    border-radius: var(--r-sm);
+  }
+  .leer.luecke {
+    color: var(--luecke-text);
+    border-color: var(--luecke-rand);
+    background: var(--luecke-bg);
+  }
+
+  /* ---------- B: Jahresüberblick ---------- */
+  .b-feld {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+  }
+  .kennzahlen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    padding: 12px 14px;
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+  }
+  .kennzahl {
+    display: flex;
+    flex-direction: column;
+  }
+  .kennzahl b {
+    font-family: var(--schrift-zahl);
+    font-size: 20px;
+  }
+  .kennzahl span {
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .kennzahl.warn b {
+    color: var(--luecke-text);
+  }
+  .kennzahl.abw b {
+    color: var(--abw-text);
+  }
+  .jahr-rahmen {
+    overflow-x: auto;
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+    padding: 12px;
+  }
+  .jahr-tabelle {
+    display: grid;
+    grid-template-columns: 44px repeat(5, minmax(96px, 1fr));
+    gap: 6px;
+    min-width: 560px;
+  }
+  .jahr-tabelle .mon {
+    font-weight: 500;
+    color: var(--text-2);
+    align-self: center;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .zelle {
+    border: 1px solid var(--rand);
+    border-radius: var(--r-sm);
+    padding: 5px 7px;
+    min-height: 52px;
+    text-align: left;
+    background: color-mix(in srgb, var(--k, var(--kat-ereignis)) 14%, var(--flaeche));
+    border-top: 4px solid var(--k, var(--kat-ereignis));
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    position: relative;
+  }
+  .zelle .d {
+    font-family: var(--schrift-zahl);
+    font-size: 11px;
+    color: var(--text-2);
+  }
+  .zelle .t {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .zelle.luecke {
+    background: var(--luecke-bg);
+    border-color: var(--luecke-rand);
+    border-top-color: var(--luecke-rand);
+    border-style: dashed;
+  }
+  .zelle.luecke .t {
+    color: var(--luecke-text);
+    font-weight: 500;
+  }
+  .zelle.feiertag {
+    background: var(--feiertag-bg);
+    border-top-color: var(--kat-ereignis);
+  }
+  .zelle.vergangen {
+    opacity: 0.55;
+  }
+  .zelle .abw-marke {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--abw-rand);
+  }
+  .zelle.gewaehlt {
+    outline: 2px solid var(--ci-blau);
+    outline-offset: 1px;
+  }
+  .zelle-leer {
+    min-height: 52px;
+  }
+  .detail {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+  .detail h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .detail .ideen-liste {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .idee-knopf {
+    text-align: left;
+    border: 1px solid var(--rand);
+    border-left: 4px solid var(--k, var(--kat-ereignis));
+    background: var(--flaeche);
+    border-radius: var(--r-sm);
+    padding: 6px 8px;
+    cursor: pointer;
+  }
+  .idee-knopf:hover {
+    background: var(--flaeche-2);
+  }
+
+  /* ---------- C: Agenda-Liste ---------- */
+  .c-feld {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+  }
+  .filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .filter button {
+    border: 1px solid var(--rand-2);
+    background: var(--flaeche);
+    border-radius: var(--r-pill);
+    padding: 5px 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+  }
+  .filter button[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--k, var(--ci-blau)) 16%, var(--flaeche));
+    border-color: var(--k, var(--ci-blau));
+    font-weight: 500;
+  }
+  .liste {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .woche {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .woche h3 {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    display: flex;
+    gap: 8px;
+  }
+  .tageszeile {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+    padding: 10px;
+  }
+  .tageszeile.luecke {
+    border-color: var(--luecke-rand);
+    background: var(--luecke-bg);
+  }
+  .datum-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+  }
+  .datum-block b {
+    font-family: var(--schrift-zahl);
+    font-size: 22px;
+  }
+  .datum-block span {
+    font-size: 11px;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .tages-eintraege {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .abgleich {
+    font-size: 12px;
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .abgleich .pill {
+    border-radius: var(--r-pill);
+    padding: 1px 8px;
+    font-size: 11.5px;
+  }
+  .pill.gleich {
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+  .pill.abw {
+    background: var(--abw-bg);
+    color: var(--abw-text);
+  }
+  .pill.nur-hiorg {
+    background: var(--hiorg-bg);
+    color: var(--hiorg-text);
+  }
+  .link-knopf {
+    border: 0;
+    background: none;
+    color: var(--ci-blau);
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 12px;
+  }
+  .ideen-spalte {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: var(--r-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+  .ideen-spalte h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .idee {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+    border: 1px solid var(--rand);
+    border-left: 4px solid var(--k, var(--kat-ereignis));
+    border-radius: var(--r-sm);
+    padding: 6px 8px;
+  }
+  .idee span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .meldung {
+    font-size: 13px;
+    color: var(--ok);
+    min-height: 1.4em;
+  }
+  .hinweis-mobil {
+    font-size: 12px;
+    color: var(--text-2);
+  }
+
+  @media (max-width: 860px) {
+    .a-feld,
+    .b-feld,
+    .c-feld {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .agenda,
+    .detail,
+    .ideen-spalte {
+      position: static;
+    }
+    .tag {
+      min-height: 52px;
+      padding: 3px;
+    }
+    .tag .balken {
+      font-size: 0;
+      padding: 0;
+      height: 5px;
+      border-left-width: 0;
+      background: var(--k, var(--kat-ereignis));
+    }
+    .tag .balken.hiorg {
+      background: var(--hiorg-rand);
+    }
+    .tag .balken.abw {
+      background: var(--abw-rand);
+    }
+    .tag .mehr,
+    .tag .luecke-hinweis {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tag,
+    .zelle,
+    .knopf,
+    .filter button {
+      transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+    }
+  }
+</style>
+
+<div class="seite">
+  <p class="begruendung" style="margin: 0">
+    Stand 2026-09-30: A (Monat + Agenda) und C (Agenda-Liste) sind in der App umgesetzt, B bleibt
+    offen. Dieses Dokument zeigt weiter die ursprünglichen Entwürfe.
+  </p>
+  <header class="kopf">
+    <div>
+      <h1>Kalender – drei Entwürfe für die Ansicht</h1>
+      <p>
+        Alle Daten sind erfunden. Jeder Entwurf zeigt denselben Kalender mit Montags-Diensttag,
+        HiOrg-Abgleich und offenen Ideen, nur anders gewichtet. Farben und Kategorien folgen der
+        App.
+      </p>
+    </div>
+    <div class="umschalter" role="tablist" aria-label="Entwurf wählen">
+      <button role="tab" id="tab-a" aria-selected="true" aria-controls="entwurf-a" data-tab="a">
+        <b>A</b> Monat + Agenda
+      </button>
+      <button role="tab" id="tab-b" aria-selected="false" aria-controls="entwurf-b" data-tab="b">
+        <b>B</b> Jahresüberblick
+      </button>
+      <button role="tab" id="tab-c" aria-selected="false" aria-controls="entwurf-c" data-tab="c">
+        <b>C</b> Agenda-Liste
+      </button>
+    </div>
+  </header>
+
+  <div class="leiste" aria-label="Werkzeugleiste (Nachbildung)">
+    <span class="marke">Kalender</span>
+    <span class="chip">2026 ▾</span>
+    <span class="chip ok"><span class="punkt"></span>Datenbank verbunden</span>
+    <span class="chip ok"><span class="punkt"></span>HiOrg verbunden</span>
+    <span class="fueller"></span>
+    <div class="legende" id="legende"></div>
+  </div>
+
+  <!-- A -->
+  <section id="entwurf-a" role="tabpanel" aria-labelledby="tab-a">
+    <div class="begruendung">
+      <div>
+        <h3>Idee</h3>
+        Klassischer Monatskalender, daneben die Tagesagenda in voller Breite. Der Monat bleibt im
+        Blick, Details stehen sofort daneben – ohne Dialog.
+      </div>
+      <div>
+        <h3>Stärke</h3>
+        Vertraut aus jedem Kalender. Lücken am Diensttag sind rot, HiOrg-Termine gestrichelt,
+        Namensabweichungen orange.
+      </div>
+      <div>
+        <h3>Mobil</h3>
+        Das Raster schrumpft auf Farbstreifen je Eintrag; die Agenda steht darunter. Kein
+        horizontales Scrollen.
+      </div>
+    </div>
+    <div class="leiste" style="margin-top: 12px">
+      <div class="monat-nav">
+        <button class="knopf" id="a-zurueck" aria-label="Vorheriger Monat">‹</button>
+        <span class="monat-titel" id="a-monat"></span>
+        <button class="knopf" id="a-vor" aria-label="Nächster Monat">›</button>
+      </div>
+      <span class="fueller"></span>
+      <span class="hinweis-mobil">Tag antippen für die Agenda</span>
+    </div>
+    <div class="a-feld" style="margin-top: 12px">
+      <div class="monatsraster" id="a-raster"></div>
+      <aside class="agenda" id="a-agenda" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section id="entwurf-b" role="tabpanel" aria-labelledby="tab-b" hidden>
+    <div class="begruendung">
+      <div>
+        <h3>Idee</h3>
+        Nur die Diensttage des Jahres, zwölf Zeilen, bis zu fünf Montage je Monat. Die Frage „Wo
+        fehlt noch Ausbildung?“ beantwortet ein Blick.
+      </div>
+      <div>
+        <h3>Stärke</h3>
+        Planungslücken und Kategorienmix über das ganze Jahr. Eine Lücke lässt sich direkt aus den
+        offenen Ideen füllen.
+      </div>
+      <div>
+        <h3>Mobil</h3>
+        Die Jahrestabelle scrollt kontrolliert waagerecht in ihrem Rahmen; Kennzahlen und
+        Tagesdetail stehen darüber bzw. darunter.
+      </div>
+    </div>
+    <div class="kennzahlen" id="b-kennzahlen" style="margin-top: 12px"></div>
+    <div class="b-feld" style="margin-top: 12px">
+      <div class="jahr-rahmen">
+        <div class="jahr-tabelle" id="b-tabelle"></div>
+      </div>
+      <aside class="detail" id="b-detail" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section id="entwurf-c" role="tabpanel" aria-labelledby="tab-c" hidden>
+    <div class="begruendung">
+      <div>
+        <h3>Idee</h3>
+        Chronologische Liste ab heute, nach Wochen gruppiert. Filter nach Kategorie und Typ, der
+        HiOrg-Abgleich steht als Pille direkt am Eintrag.
+      </div>
+      <div>
+        <h3>Stärke</h3>
+        Am Telefon die natürlichste Form. Leere Tage entfallen, nur Diensttags-Lücken bleiben
+        sichtbar. Ideen lassen sich mit einem Tippen einplanen.
+      </div>
+      <div>
+        <h3>Mobil</h3>
+        Mobil-first gebaut: die Ideenspalte rutscht unter die Liste, alle Ziele sind fingerbreit.
+      </div>
+    </div>
+    <div class="filter" id="c-filter" style="margin-top: 12px" aria-label="Filter"></div>
+    <div class="c-feld" style="margin-top: 12px">
+      <div class="liste" id="c-liste"></div>
+      <aside class="ideen-spalte">
+        <h2>Offene Ideen</h2>
+        <p class="hinweis-mobil" style="margin: 0">
+          „Einplanen“ legt die Idee auf die nächste Diensttags-Lücke.
+        </p>
+        <div id="c-ideen" style="display: flex; flex-direction: column; gap: 6px"></div>
+        <div class="meldung" id="c-meldung" role="status"></div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+    // ---------------------------------------------------------------- Daten (erfunden)
+    var JAHR = 2026;
+    var HEUTE = '2026-09-28';
+    var KATEGORIEN = [
+      { id: 'SAN', farbe: '--kat-san' },
+      { id: 'Bt/Vp', farbe: '--kat-btvp' },
+      { id: 'TeSi/Iuk', farbe: '--kat-tesi' },
+      { id: 'UF', farbe: '--kat-uf' },
+      { id: 'Führung', farbe: '--kat-fuehrung' },
+      { id: 'Sonstiges', farbe: '--kat-sonstiges' },
+    ];
+    function farbe(kat) {
+      var k = KATEGORIEN.find(function (x) {
+        return x.id === kat;
+      });
+      return 'var(' + (k ? k.farbe : '--kat-ereignis') + ')';
+    }
+    var THEMEN = {
+      SAN: [
+        'Traumaversorgung Übung',
+        'Reanimation Erwachsene',
+        'Atemwegsmanagement',
+        'Schock erkennen',
+        'Einsatzhygiene',
+      ],
+      'Bt/Vp': ['Feldküche Aufbau', 'Betreuungsplatz 50', 'Verpflegung Großlage'],
+      'TeSi/Iuk': ['Digitalfunk Grundlagen', 'Stromerzeuger 8 kVA', 'Beleuchtung Einsatzstelle'],
+      UF: ['UF-Sitzung Quartal', 'Leitstellenkommunikation'],
+      Führung: ['Lagebesprechung Übung', 'Führungsvorgang', 'Einsatztagebuch'],
+      Sonstiges: ['Fahrzeugpflege', 'Gerätekunde GW-San'],
+    };
+    var AUSBILDER = ['A. Beispiel', 'B. Muster', 'C. Erfunden', 'D. Probe', 'E. Test'];
+    var FEIERTAGE = {
+      '2026-01-01': 'Neujahr',
+      '2026-04-06': 'Ostermontag',
+      '2026-05-25': 'Pfingstmontag',
+      '2026-10-03': 'Tag der Deutschen Einheit',
+      '2026-12-25': '1. Weihnachtstag',
+    };
+
+    function iso(d) {
+      return (
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0')
+      );
+    }
+    function ausIso(s) {
+      return new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+    }
+    var zufall = (function () {
+      var s = 7;
+      return function () {
+        s = (s * 16807) % 2147483647;
+        return s / 2147483647;
+      };
+    })();
+    function waehle(liste) {
+      return liste[Math.floor(zufall() * liste.length)];
+    }
+
+    var termine = [];
+    var hiorg = [];
+    var id = 0;
+    var d = new Date(JAHR, 0, 1);
+    while (d.getFullYear() === JAHR) {
+      var t = iso(d);
+      if (d.getDay() === 1) {
+        var r = zufall();
+        if (FEIERTAGE[t]) {
+          termine.push({
+            id: 't' + id++,
+            datum: t,
+            kat: '',
+            thema: '',
+            hinweis: FEIERTAGE[t],
+            typ: 'dienst',
+            von: '',
+            bis: '',
+          });
+        } else if (r < 0.16) {
+          termine.push({
+            id: 't' + id++,
+            datum: t,
+            kat: '',
+            thema: '',
+            hinweis: '',
+            typ: 'dienst',
+            von: '19:00',
+            bis: '21:30',
+            luecke: true,
+          });
+        } else {
+          var kat = waehle(KATEGORIEN).id;
+          var thema = waehle(THEMEN[kat]);
+          termine.push({
+            id: 't' + id++,
+            datum: t,
+            kat: kat,
+            thema: thema,
+            ausbilder: waehle(AUSBILDER),
+            typ: 'dienst',
+            von: '19:00',
+            bis: '21:30',
+          });
+          var h = zufall();
+          if (h < 0.55) hiorg.push({ datum: t, name: thema, von: '19:00', bis: '21:30' });
+          else if (h < 0.68)
+            hiorg.push({
+              datum: t,
+              name: 'Dienstabend ' + thema.split(' ')[0],
+              von: '19:00',
+              bis: '21:30',
+              abw: true,
+            });
+        }
+      }
+      if (d.getDay() === 6 && zufall() < 0.14) {
+        var sKat = waehle(['SAN', 'Bt/Vp', 'Führung']);
+        termine.push({
+          id: 't' + id++,
+          datum: t,
+          kat: sKat,
+          thema: waehle([
+            'Sanitätsdienst Stadtfest',
+            'Übung mit Nachbarzug',
+            'Lehrgang Sprechfunk',
+          ]),
+          typ: 'termin',
+          von: '09:00',
+          bis: '16:00',
+        });
+        if (zufall() < 0.5)
+          hiorg.push({
+            datum: t,
+            name: 'Sanitätsdienst Stadtlauf (erfunden)',
+            von: '08:00',
+            bis: '14:00',
+            nurHiorg: true,
+          });
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    var ideen = [
+      { id: 'i1', kat: 'SAN', thema: 'Kindernotfälle' },
+      { id: 'i2', kat: 'TeSi/Iuk', thema: 'Notstromeinspeisung' },
+      { id: 'i3', kat: 'Bt/Vp', thema: 'Registrierung Betroffener' },
+      { id: 'i4', kat: 'Führung', thema: 'Planspiel MANV' },
+      { id: 'i5', kat: 'SAN', thema: 'Medikamentenkunde' },
+    ];
+    var WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    var MONATE = [
+      'Januar',
+      'Februar',
+      'März',
+      'April',
+      'Mai',
+      'Juni',
+      'Juli',
+      'August',
+      'September',
+      'Oktober',
+      'November',
+      'Dezember',
+    ];
+
+    function amTag(datum) {
+      return termine.filter(function (x) {
+        return x.datum === datum;
+      });
+    }
+    function hiorgAm(datum) {
+      return hiorg.filter(function (x) {
+        return x.datum === datum;
+      });
+    }
+    function istLuecke(x) {
+      return x.typ === 'dienst' && !x.thema && !x.hinweis;
+    }
+    function el(tag, klasse, text) {
+      var e = document.createElement(tag);
+      if (klasse) e.className = klasse;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+    function datumLang(s) {
+      var x = ausIso(s);
+      return WOCHENTAGE[x.getDay()] + ', ' + x.getDate() + '. ' + MONATE[x.getMonth()];
+    }
+
+    // Legende
+    var legende = document.getElementById('legende');
+    KATEGORIEN.forEach(function (k) {
+      var s = el('span');
+      var m = el('i', 'kat-marke');
+      m.style.setProperty('--k', 'var(' + k.farbe + ')');
+      s.append(m, document.createTextNode(k.id));
+      legende.append(s);
+    });
+
+    // Umschalter
+    var tabs = document.querySelectorAll('[data-tab]');
+    function zeige(tab) {
+      tabs.forEach(function (b) {
+        var aktiv = b.dataset.tab === tab;
+        b.setAttribute('aria-selected', String(aktiv));
+        document.getElementById('entwurf-' + b.dataset.tab).hidden = !aktiv;
+      });
+      try {
+        localStorage.setItem('kalender-entwurf', tab);
+      } catch (e) {}
+    }
+    tabs.forEach(function (b) {
+      b.addEventListener('click', function () {
+        zeige(b.dataset.tab);
+      });
+    });
+    var start = (location.hash || '').replace('#', '');
+    if (!/^[abc]$/.test(start)) {
+      try {
+        start = localStorage.getItem('kalender-entwurf') || 'a';
+      } catch (e) {
+        start = 'a';
+      }
+    }
+    zeige(/^[abc]$/.test(start) ? start : 'a');
+
+    function agendaEintraege(ziel, datum) {
+      var eigene = amTag(datum);
+      var fremde = hiorgAm(datum);
+      var any = false;
+      eigene.forEach(function (x) {
+        if (istLuecke(x)) {
+          ziel.append(
+            el(
+              'div',
+              'leer luecke',
+              'Diensttag ohne Ausbildung – Lücke. Eine offene Idee einplanen?',
+            ),
+          );
+          any = true;
+          return;
+        }
+        var abw = fremde.find(function (f) {
+          return f.abw;
+        });
+        var e = el('div', 'eintrag' + (abw ? ' abw' : ''));
+        e.style.setProperty('--k', farbe(x.kat));
+        e.append(el('span', 'zeit', x.von ? x.von + '\n' + x.bis : 'ganztags'));
+        e.append(el('span', 'titel', x.thema || x.hinweis));
+        e.append(
+          el(
+            'span',
+            'meta',
+            [x.kat || 'Kalendereintrag', x.ausbilder, x.typ === 'termin' ? 'Termin' : 'Dienst']
+              .filter(Boolean)
+              .join(' · ') + (abw ? ' · HiOrg heißt „' + abw.name + '“' : ''),
+          ),
+        );
+        ziel.append(e);
+        any = true;
+      });
+      fremde
+        .filter(function (f) {
+          return f.nurHiorg;
+        })
+        .forEach(function (f) {
+          var e = el('div', 'eintrag hiorg');
+          e.append(el('span', 'zeit', f.von + '\n' + f.bis));
+          e.append(el('span', 'titel', f.name));
+          e.append(el('span', 'meta', 'Nur in HiOrg – als Termin übernehmen?'));
+          ziel.append(e);
+          any = true;
+        });
+      if (!any) ziel.append(el('div', 'leer', 'Kein Eintrag an diesem Tag.'));
+    }
+
+    // ---------------------------------------------------------------- A
+    var aMonat = ausIso(HEUTE).getMonth();
+    var aGewaehlt = HEUTE;
+    function zeichneA() {
+      document.getElementById('a-monat').textContent = MONATE[aMonat] + ' ' + JAHR;
+      var raster = document.getElementById('a-raster');
+      raster.replaceChildren();
+      ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].forEach(function (w) {
+        raster.append(el('div', 'wt', w));
+      });
+      var erster = new Date(JAHR, aMonat, 1);
+      var versatz = (erster.getDay() + 6) % 7;
+      var tag = new Date(JAHR, aMonat, 1 - versatz);
+      for (var i = 0; i < 42; i++) {
+        var s = iso(tag);
+        var eigene = amTag(s);
+        var fremde = hiorgAm(s);
+        var luecke = eigene.some(istLuecke);
+        var b = el('button', 'tag');
+        b.type = 'button';
+        if (tag.getMonth() !== aMonat) b.classList.add('fremd');
+        if (FEIERTAGE[s]) b.classList.add('feiertag');
+        if (luecke) b.classList.add('luecke');
+        if (s === HEUTE) b.classList.add('heute');
+        if (s === aGewaehlt) b.classList.add('gewaehlt');
+        b.setAttribute(
+          'aria-label',
+          datumLang(s) + (eigene.length ? ', ' + eigene.length + ' Einträge' : ''),
+        );
+        var nr = el('span', 'nr');
+        nr.append(el('b', null, String(tag.getDate())));
+        b.append(nr);
+        var gezeigt = 0;
+        eigene.forEach(function (x) {
+          if (istLuecke(x) || gezeigt >= 2) return;
+          var abw = fremde.some(function (f) {
+            return f.abw;
+          });
+          var z = el('span', 'balken' + (abw ? ' abw' : ''), x.thema || x.hinweis);
+          z.style.setProperty('--k', farbe(x.kat));
+          b.append(z);
+          gezeigt++;
+        });
+        fremde
+          .filter(function (f) {
+            return f.nurHiorg;
+          })
+          .forEach(function (f) {
+            if (gezeigt >= 2) return;
+            b.append(el('span', 'balken hiorg', f.name));
+            gezeigt++;
+          });
+        if (luecke) b.append(el('span', 'luecke-hinweis', 'Lücke'));
+        (function (datum) {
+          b.addEventListener('click', function () {
+            aGewaehlt = datum;
+            zeichneA();
+          });
+        })(s);
+        raster.append(b);
+        tag.setDate(tag.getDate() + 1);
+      }
+      var agenda = document.getElementById('a-agenda');
+      agenda.replaceChildren();
+      agenda.append(el('h2', null, datumLang(aGewaehlt)));
+      agenda.append(
+        el(
+          'p',
+          'unter',
+          FEIERTAGE[aGewaehlt] ? 'Feiertag: ' + FEIERTAGE[aGewaehlt] : 'Tagesagenda',
+        ),
+      );
+      agendaEintraege(agenda, aGewaehlt);
+      var neu = el('button', 'knopf', '+ Termin an diesem Tag');
+      neu.type = 'button';
+      agenda.append(neu);
+    }
+    document.getElementById('a-zurueck').addEventListener('click', function () {
+      aMonat = Math.max(0, aMonat - 1);
+      zeichneA();
+    });
+    document.getElementById('a-vor').addEventListener('click', function () {
+      aMonat = Math.min(11, aMonat + 1);
+      zeichneA();
+    });
+
+    // ---------------------------------------------------------------- B
+    var bGewaehlt = null;
+    function montage() {
+      return termine.filter(function (x) {
+        return x.typ === 'dienst' && ausIso(x.datum).getDay() === 1;
+      });
+    }
+    function zeichneB() {
+      var dienste = montage();
+      var luecken = dienste.filter(istLuecke);
+      var kommende = luecken.filter(function (x) {
+        return x.datum >= HEUTE;
+      });
+      var abw = hiorg.filter(function (h) {
+        return h.abw;
+      }).length;
+      var kz = document.getElementById('b-kennzahlen');
+      kz.replaceChildren();
+      [
+        ['', dienste.length - luecken.length + '/' + dienste.length, 'Montage belegt'],
+        ['warn', String(kommende.length), 'offene Lücken ab heute'],
+        ['abw', String(abw), 'HiOrg-Namensabweichungen'],
+        ['', String(ideen.length), 'offene Ideen'],
+      ].forEach(function (k) {
+        var e = el('div', 'kennzahl ' + k[0]);
+        e.append(el('b', null, k[1]), el('span', null, k[2]));
+        kz.append(e);
+      });
+      var tab = document.getElementById('b-tabelle');
+      tab.replaceChildren();
+      for (var m = 0; m < 12; m++) {
+        tab.append(el('div', 'mon', MONATE[m].slice(0, 3)));
+        var imMonat = dienste.filter(function (x) {
+          return ausIso(x.datum).getMonth() === m;
+        });
+        for (var i = 0; i < 5; i++) {
+          var x = imMonat[i];
+          if (!x) {
+            tab.append(el('div', 'zelle-leer'));
+            continue;
+          }
+          var z = el('button', 'zelle');
+          z.type = 'button';
+          z.style.setProperty('--k', farbe(x.kat));
+          if (istLuecke(x)) z.classList.add('luecke');
+          if (x.hinweis && !x.thema) z.classList.add('feiertag');
+          if (x.datum < HEUTE) z.classList.add('vergangen');
+          if (bGewaehlt === x.datum) z.classList.add('gewaehlt');
+          z.append(el('span', 'd', x.datum.slice(8, 10) + '.' + x.datum.slice(5, 7) + '.'));
+          z.append(el('span', 't', istLuecke(x) ? 'Lücke' : x.thema || x.hinweis));
+          if (
+            hiorgAm(x.datum).some(function (h) {
+              return h.abw;
+            })
+          ) {
+            var mk = el('span', 'abw-marke');
+            mk.title = 'HiOrg-Name weicht ab';
+            z.append(mk);
+          }
+          z.setAttribute(
+            'aria-label',
+            datumLang(x.datum) + ': ' + (istLuecke(x) ? 'Lücke' : x.thema || x.hinweis),
+          );
+          (function (datum) {
+            z.addEventListener('click', function () {
+              bGewaehlt = datum;
+              zeichneB();
+            });
+          })(x.datum);
+          tab.append(z);
+        }
+      }
+      var det = document.getElementById('b-detail');
+      det.replaceChildren();
+      if (!bGewaehlt) {
+        bGewaehlt = (kommende[0] || dienste[0]).datum;
+      }
+      det.append(el('h2', null, datumLang(bGewaehlt)));
+      agendaEintraege(det, bGewaehlt);
+      var eintrag = amTag(bGewaehlt).find(istLuecke);
+      if (eintrag) {
+        det.append(el('p', 'unter', 'Idee auf diesen Montag legen:'));
+        var liste = el('div', 'ideen-liste');
+        ideen.forEach(function (idee) {
+          var k = el('button', 'idee-knopf', idee.thema + ' · ' + idee.kat);
+          k.type = 'button';
+          k.style.setProperty('--k', farbe(idee.kat));
+          k.addEventListener('click', function () {
+            planeEin(idee, eintrag);
+            zeichneAlle();
+          });
+          liste.append(k);
+        });
+        det.append(liste);
+      }
+    }
+
+    function planeEin(idee, luecke) {
+      luecke.kat = idee.kat;
+      luecke.thema = idee.thema;
+      luecke.ausbilder = 'noch offen';
+      luecke.luecke = false;
+      ideen = ideen.filter(function (i) {
+        return i.id !== idee.id;
+      });
+    }
+
+    // ---------------------------------------------------------------- C
+    var cFilter = new Set();
+    var cTyp = 'alle';
+    function zeichneFilter() {
+      var f = document.getElementById('c-filter');
+      f.replaceChildren();
+      KATEGORIEN.forEach(function (k) {
+        var b = el('button', null);
+        b.type = 'button';
+        b.style.setProperty('--k', 'var(' + k.farbe + ')');
+        var m = el('i', 'kat-marke');
+        m.style.setProperty('--k', 'var(' + k.farbe + ')');
+        b.append(m, document.createTextNode(k.id));
+        b.setAttribute('aria-pressed', String(cFilter.has(k.id)));
+        b.addEventListener('click', function () {
+          cFilter.has(k.id) ? cFilter.delete(k.id) : cFilter.add(k.id);
+          zeichneC();
+        });
+        f.append(b);
+      });
+      [
+        ['alle', 'Alle Typen'],
+        ['dienst', 'Dienste'],
+        ['termin', 'Termine'],
+        ['luecken', 'Nur Lücken'],
+      ].forEach(function (t) {
+        var b = el('button', null, t[1]);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(cTyp === t[0]));
+        b.addEventListener('click', function () {
+          cTyp = t[0];
+          zeichneC();
+        });
+        f.append(b);
+      });
+    }
+    function kw(s) {
+      var x = ausIso(s);
+      var z = new Date(Date.UTC(x.getFullYear(), x.getMonth(), x.getDate()));
+      var tagNr = z.getUTCDay() || 7;
+      z.setUTCDate(z.getUTCDate() + 4 - tagNr);
+      var jahrStart = new Date(Date.UTC(z.getUTCFullYear(), 0, 1));
+      return Math.ceil(((z - jahrStart) / 86400000 + 1) / 7);
+    }
+    function zeichneC() {
+      zeichneFilter();
+      var liste = document.getElementById('c-liste');
+      liste.replaceChildren();
+      var tage = {};
+      termine
+        .filter(function (x) {
+          if (x.datum < HEUTE) return false;
+          if (cTyp === 'luecken') return istLuecke(x);
+          if (cTyp !== 'alle' && x.typ !== cTyp) return false;
+          if (cFilter.size && !cFilter.has(x.kat)) return false;
+          return true;
+        })
+        .forEach(function (x) {
+          (tage[x.datum] = tage[x.datum] || []).push(x);
+        });
+      var datums = Object.keys(tage).sort().slice(0, 18);
+      if (!datums.length) {
+        liste.append(el('div', 'leer', 'Keine Einträge für diese Filter.'));
+      }
+      var aktuelleKw = null;
+      var gruppe = null;
+      datums.forEach(function (datum) {
+        var w = kw(datum);
+        if (w !== aktuelleKw) {
+          aktuelleKw = w;
+          gruppe = el('div', 'woche');
+          var h = el('h3');
+          h.append(el('span', null, 'KW ' + w), el('span', null, MONATE[ausIso(datum).getMonth()]));
+          gruppe.append(h);
+          liste.append(gruppe);
+        }
+        var x0 = ausIso(datum);
+        var zeile = el('div', 'tageszeile');
+        var db = el('div', 'datum-block');
+        db.append(el('b', null, String(x0.getDate())), el('span', null, WOCHENTAGE[x0.getDay()]));
+        zeile.append(db);
+        var inhalt = el('div', 'tages-eintraege');
+        tage[datum].forEach(function (x) {
+          if (istLuecke(x)) {
+            zeile.classList.add('luecke');
+            var l = el('div', 'abgleich');
+            l.append(el('b', null, 'Diensttag ohne Ausbildung'));
+            var knopf = el('button', 'link-knopf', 'erste Idee einplanen');
+            knopf.type = 'button';
+            knopf.addEventListener('click', function () {
+              if (!ideen.length) return;
+              var idee = ideen[0];
+              planeEin(idee, x);
+              meldung('„' + idee.thema + '“ auf ' + datumLang(x.datum) + ' gelegt.');
+              zeichneAlle();
+            });
+            l.append(knopf);
+            inhalt.append(l);
+            return;
+          }
+          var e = el('div', 'eintrag');
+          e.style.setProperty('--k', farbe(x.kat));
+          e.append(el('span', 'zeit', x.von ? x.von + '\n' + x.bis : 'ganztags'));
+          e.append(el('span', 'titel', x.thema || x.hinweis));
+          var meta = el('span', 'meta abgleich');
+          meta.append(
+            document.createTextNode(
+              [x.kat || 'Kalendereintrag', x.ausbilder].filter(Boolean).join(' · '),
+            ),
+          );
+          var h = hiorgAm(datum).find(function (f) {
+            return !f.nurHiorg;
+          });
+          if (h && h.abw) meta.append(el('span', 'pill abw', 'HiOrg: „' + h.name + '“'));
+          else if (h) meta.append(el('span', 'pill gleich', 'in HiOrg ✓'));
+          e.append(meta);
+          inhalt.append(e);
+        });
+        hiorgAm(datum)
+          .filter(function (f) {
+            return f.nurHiorg;
+          })
+          .forEach(function (f) {
+            var p = el('div', 'abgleich');
+            p.append(
+              el('span', 'pill nur-hiorg', 'nur HiOrg'),
+              document.createTextNode(f.name + ' · ' + f.von + '–' + f.bis),
+            );
+            inhalt.append(p);
+          });
+        zeile.append(inhalt);
+        gruppe.append(zeile);
+      });
+      var box = document.getElementById('c-ideen');
+      box.replaceChildren();
+      if (!ideen.length) box.append(el('div', 'leer', 'Alle Ideen sind eingeplant.'));
+      ideen.forEach(function (idee) {
+        var z = el('div', 'idee');
+        z.style.setProperty('--k', farbe(idee.kat));
+        z.append(el('span', null, idee.thema + ' · ' + idee.kat));
+        var b = el('button', 'knopf', 'Einplanen');
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ziel = termine.find(function (x) {
+            return x.datum >= HEUTE && istLuecke(x);
+          });
+          if (!ziel) {
+            meldung('Keine offene Lücke mehr in diesem Jahr.');
+            return;
+          }
+          planeEin(idee, ziel);
+          meldung('„' + idee.thema + '“ auf ' + datumLang(ziel.datum) + ' gelegt.');
+          zeichneAlle();
+        });
+        z.append(b);
+        box.append(z);
+      });
+    }
+    function meldung(text) {
+      document.getElementById('c-meldung').textContent = text;
+    }
+
+    function zeichneAlle() {
+      zeichneA();
+      zeichneB();
+      zeichneC();
+    }
+    zeichneAlle();
+  })();
+</script>

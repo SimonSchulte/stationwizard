@@ -15,7 +15,7 @@ Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 | Bereich            | Funktionen                                                                                                                                                                                                              | Aktuelle Route      |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
 | Startseite         | Einstieg in alle Fachbereiche, gemeinsamer Benutzer- und Verbindungsstatus                                                                                                                                              | `/#/`               |
-| Ausbildungsplanung | Jahresplan im Wochenraster, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich                                                                                              | `/#/ausbildung`     |
+| Kalender           | Monatsansicht mit Tagesagenda und Agendaliste, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich; Daten in D1                                                              | `/#/kalender`       |
 | Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                                                                                                                   | `/#/einsatz`        |
 | Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                                                                                                                            | `/#/einsatz/editor` |
 | Fahrzeuge          | Fuhrpark-Dashboard mit Tabs (Übersicht, Liste Fahrzeuge, Liste Wartungen); Fahrzeugdetail mit Stammdaten, Wartungsterminen, Kilometerverlauf (inkl. Korrektur und Löschen), QR-Codes, Druckbogen und Änderungsprotokoll | `/#/fahrzeuge`      |
@@ -39,7 +39,7 @@ und Kalenderhilfen liegen im Kern; Sommer-/Winterzeit wird dabei berücksichtigt
 
 | Pfad                  | Verantwortung                                                                               |
 | --------------------- | ------------------------------------------------------------------------------------------- |
-| `src/app/ausbildung/` | Excel-Schema, Planoperationen, Jahresraster und Ausbildungsoberfläche                       |
+| `src/app/ausbildung/` | Kalender: D1-Anbindung, Excel-Import/-Download, Planoperationen, Jahresraster, Oberfläche   |
 | `src/app/einsatz/`    | Einsatzmodelle, Qualifikationsmatching, EFS-Mapping, PEP-/PDF-Export und Editor             |
 | `src/app/fahrzeuge/`  | Fahrzeugstammdaten, Wartungstermine, Kilometerstände, Änderungsprotokoll; D1 als Persistenz |
 | `src/app/kern/`       | Startseite, `WorkerClient`, gemeinsame Dateispeicherverträge und Kalenderutilities          |
@@ -90,23 +90,23 @@ Client zeigt Verbindungs- und Sitzungsfehler an; er enthält keine Upstream-Zuga
 
 Alle folgenden Endpunkte benötigen eine verifizierte Access-Anmeldung:
 
-| Endpunkt                                  | Methode    | Inhalt                                                                                              |
-| ----------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
-| `/api/status`                             | GET        | `{ "status": "erreichbar" }`; prüft den Worker, nicht die Upstream-Systeme                          |
-| `/api/benutzer`                           | GET        | `{ "email": "…" }` aus dem verifizierten Anwendungstoken                                            |
-| `/api/efs/checkapikey`                    | POST       | JSON `{}`; prüft den serverseitig konfigurierten EFS-Zugang                                         |
-| `/api/efs/getveranstaltungen`             | POST       | JSON `{}`; Veranstaltungen aus HiOrg                                                                |
-| `/api/efs/getveranstaltung`               | POST       | JSON `{ "id": "…" }`; Details einer Veranstaltung                                                   |
-| `/api/nextcloud/arbeitsmappe`             | GET / PUT  | Die konfigurierte Excel-Dateifreigabe                                                               |
-| `/api/nextcloud/planungen`                | GET        | `{ "dateien": [{ "id": "…", "etag": "…" }] }` mit UUIDs und Dateiversionen                          |
-| `/api/nextcloud/planungen/<UUID>`         | GET / PUT  | Genau eine `.pep.json` im gesonderten Ordner                                                        |
-| `/api/hiorg/kalender`                     | GET        | `{ "status": "OK", "eintraege": [...] }`; HiOrg-Kalenderfeed, nur lesend, optional `?monat=JJJJ-MM` |
-| `/api/fahrzeuge`                          | GET / POST | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`                                                 |
-| `/api/fahrzeuge/<UUID>`                   | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                                  |
-| `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST | Kilometerablesungen; kein Update, nur Anhängen                                                      |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                         |
-| `/api/fahrzeuge/<UUID>/aenderungen`       | GET        | Änderungsprotokoll des Fahrzeugs, neueste zuerst; nur lesend                                        |
-| `/f/<UUID>`, `/f/<UUID>/km`               | GET        | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                              |
+| Endpunkt                                  | Methode          | Inhalt                                                                                              |
+| ----------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------- |
+| `/api/status`                             | GET              | `{ "status": "erreichbar" }`; prüft den Worker, nicht die Upstream-Systeme                          |
+| `/api/benutzer`                           | GET              | `{ "email": "…" }` aus dem verifizierten Anwendungstoken                                            |
+| `/api/efs/checkapikey`                    | POST             | JSON `{}`; prüft den serverseitig konfigurierten EFS-Zugang                                         |
+| `/api/efs/getveranstaltungen`             | POST             | JSON `{}`; Veranstaltungen aus HiOrg                                                                |
+| `/api/efs/getveranstaltung`               | POST             | JSON `{ "id": "…" }`; Details einer Veranstaltung                                                   |
+| `/api/kalender`, `/api/kalender/…`        | GET / POST / PUT | Kalender in D1: alle Jahre und Ideen lesen, Jahr/Ideen versioniert speichern, einmalige Migration   |
+| `/api/nextcloud/planungen`                | GET              | `{ "dateien": [{ "id": "…", "etag": "…" }] }` mit UUIDs und Dateiversionen                          |
+| `/api/nextcloud/planungen/<UUID>`         | GET / PUT        | Genau eine `.pep.json` im gesonderten Ordner                                                        |
+| `/api/hiorg/kalender`                     | GET              | `{ "status": "OK", "eintraege": [...] }`; HiOrg-Kalenderfeed, nur lesend, optional `?monat=JJJJ-MM` |
+| `/api/fahrzeuge`                          | GET / POST       | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`                                                 |
+| `/api/fahrzeuge/<UUID>`                   | GET / PUT        | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                                  |
+| `/api/fahrzeuge/<UUID>/ablesungen`        | GET / POST       | Kilometerablesungen; kein Update, nur Anhängen                                                      |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>` | DELETE           | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                         |
+| `/api/fahrzeuge/<UUID>/aenderungen`       | GET              | Änderungsprotokoll des Fahrzeugs, neueste zuerst; nur lesend                                        |
+| `/f/<UUID>`, `/f/<UUID>/km`               | GET              | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                              |
 
 EFS-Aufrufe setzt der Worker in `application/x-www-form-urlencoded` mit `apikey`,
 `version=2` und einer der drei bekannten Aktionen um. Die Ziel-URL stammt aus
@@ -126,11 +126,15 @@ Zugangsdaten werden nicht als Diagnose durchgereicht. Weitere Details:
 
 ## Dateiformate und Speichern
 
-**Ausbildung:** Excel bleibt das führende Format. Die Arbeitsmappe enthält **Jahresplan**,
-**Offene Ideen** und **KatS-A-Plan**; es wird kein alternatives Ausbildungs-JSON eingeführt.
-`@e965/xlsx` wird dynamisch geladen. `WorkbookStorage` baut auf dem gemeinsamen
-`DateiStorage`-Vertrag auf. Quellen sind eine lokale Datei oder die konfigurierte
-Nextcloud-Dateifreigabe über den Worker.
+**Kalender (früher Ausbildungsplanung):** Führende Quelle ist die D1-Datenbank
+`KALENDER_DB`, eine Zeile je Jahr und eine für die Offenen Ideen, jeweils versioniert.
+Gespeichert wird nur, was sich geändert hat, mit `If-Match` bzw. `If-None-Match: *`. Die
+frühere Excel-Arbeitsmappe (**Jahresplan**, **Offene Ideen**, **KatS-A-Plan**) wird einmalig
+unter _Verwaltung → Kalender aus Excel übernehmen_ importiert und bleibt als lokaler
+Download („Excel-Kopie herunterladen“) erhalten; `@e965/xlsx` wird dynamisch geladen. Die
+NextCloud-Dateifreigabe der Arbeitsmappe ist entfallen. Eine Exportschnittstelle ist als
+Vertrag vorbereitet (`src/app/ausbildung/export/kalender-export.ts`), aber noch ohne
+Format. Entwürfe für eine optimierte Kalenderansicht: `docs/entwuerfe/kalender-ansichten.html`.
 
 **HiOrg-Termine im Jahresplan:** Der HiOrg-Kalenderfeed wird über den Worker gelesen und
 im Wochenraster **zusätzlich und deutlich als Fremdquelle gekennzeichnet** angezeigt; ein
@@ -139,7 +143,7 @@ HiOrg-Termin, dessen Bezeichnung nach Entitäten-Dekodierung, Whitespace-Normali
 Groß-/Kleinschreibung nicht exakt übereinstimmt, erscheint eine deutliche Warnung mit zwei
 Wegen: den HiOrg-Namen in den Plan übernehmen (rückgängig über Strg+Z) oder den Termin im
 HiOrg-Server öffnen und den Titel dort ändern. HiOrg-Termine ohne Ausbildungsthema im Plan
-lassen sich als Termin übernehmen. Die Feed-Daten werden weder in die Excel-Mappe
+lassen sich als Termin übernehmen. Die Feed-Daten werden weder in die Kalender-Datenbank
 geschrieben noch im Browser gespeichert; es gibt bewusst **kein** dauerhaftes
 „geklärt"-Kennzeichen, weil das eine zusätzliche Spalte im Jahresplan-Blatt bräuchte.
 

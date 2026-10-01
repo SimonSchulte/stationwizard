@@ -94,6 +94,9 @@ describe('Access vor sämtlichen Assets und APIs außer der öffentlichen Kilome
     '/main.js',
     '/api/status',
     '/api/benutzer/profilbild',
+    '/kalender',
+    '/api/kalender',
+    '/api/kalender/migration',
     '/api/nextcloud/arbeitsmappe',
     '/api/nextcloud/planungen',
     '/api/efs/getveranstaltungen',
@@ -318,6 +321,20 @@ describe('API-Routing und schreibende Anfragen', () => {
       code: pfad.startsWith('/api/nextcloud/') ? 'NEXTCLOUD_PFAD_UNGUELTIG' : 'API_NICHT_GEFUNDEN',
     });
     expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
+  it('leitet /api/kalender an das Kalendermodul statt an den 404-Rückfall', async () => {
+    const antwort = await anfragen('/api/kalender', await tokenFuer());
+    expect(antwort.status).toBe(503);
+    expect(await antwort.json()).toMatchObject({ code: 'KALENDER_KONFIGURATION_FEHLT' });
+  });
+
+  it('weist die Kalendermigration aus einer fremden Origin zurück', async () => {
+    const antwort = await anfragen('/api/kalender/migration', await tokenFuer(), {
+      method: 'POST',
+      headers: { Origin: 'https://fremde-seite.example' },
+    });
+    expect(antwort.status).toBe(403);
   });
 
   it.each(['POST', 'PUT', 'PATCH', 'DELETE'])(

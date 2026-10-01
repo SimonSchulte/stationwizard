@@ -1,4 +1,4 @@
-import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,6 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { MatDividerModule } from '@angular/material/divider';
@@ -24,21 +25,20 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuswertungPanel } from '../../components/auswertung-panel/auswertung-panel';
 import { BacklogPanel } from '../../components/backlog-panel/backlog-panel';
 import { DatumDialog, DatumDialogDaten } from '../../components/datum-dialog/datum-dialog';
-import { HiorgEintragKarte } from '../../components/hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { KatsPanel } from '../../components/kats-panel/kats-panel';
-import { LeererTag } from '../../components/leerer-tag/leerer-tag';
-import { QuelleDialog } from '../../components/quelle-dialog/quelle-dialog';
+import { Agendaliste } from '../../components/agendaliste/agendaliste';
 import {
-  TagDetail,
-  TagDetailDaten,
-  TagDetailErgebnis,
-} from '../../components/tag-detail/tag-detail';
+  AblageAufTag,
+  AblageAufTermin,
+  Monatsansicht,
+} from '../../components/monatsansicht/monatsansicht';
+import { Jahresueberblick } from '../../components/jahresueberblick/jahresueberblick';
 import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/termin-dialog';
-import { TerminKarte } from '../../components/termin-karte/termin-karte';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
 import { HiorgEintrag, istMehrtaegig } from '../../models/hiorg-kalender.model';
-import { Termin, leererTermin, leeresDocument } from '../../models/plan.model';
+import { Kategorie, Termin, leererTermin } from '../../models/plan.model';
+import { TypFilter } from '../../services/agenda';
 import { DiensttagService } from '../../services/diensttag.service';
 import {
   HiorgAbweichung,
@@ -47,7 +47,12 @@ import {
 } from '../../services/hiorg-abgleich';
 import { HiorgKalenderService } from '../../services/hiorg-kalender.service';
 import { FeiertagService } from '../../services/feiertage.service';
-import { PlanSlot, WochenZeile, baueWochenraster } from '../../services/plan-raster';
+import {
+  PlanSlot,
+  WochenZeile,
+  baueWochenraster,
+  naechsteLuecke,
+} from '../../services/plan-raster';
 import {
   HiorgEbene,
   HiorgTagesKarte,
@@ -57,11 +62,10 @@ import {
   baueTagesInhalt,
 } from '../../services/tages-inhalt';
 import { PlanStore } from '../../services/plan-store';
-import { WorkbookService } from '../../services/workbook.service';
-import { herunterladen } from '../../storage/lokale-datei.storage';
-import { NextcloudWorkerStorage } from '../../storage/nextcloud-worker.storage';
-import { WorkbookStorage } from '../../storage/workbook-storage';
-import { WorkerClient, WorkerFehler } from '../../../kern/worker-client';
+import { KalenderDatenService } from '../../services/kalender-daten.service';
+import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
+import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
+import { RouterLink } from '@angular/router';
 import {
   MONATSNAMEN,
   WOCHENTAGE_ISO,
@@ -77,15 +81,13 @@ import {
   selector: 'app-jahresplan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Agendaliste,
     AuswertungPanel,
     BacklogPanel,
-    CdkDrag,
-    CdkDropList,
     CdkDropListGroup,
-    HiorgEintragKarte,
     KatsPanel,
-    LeererTag,
     MatButtonModule,
+    MatButtonToggleModule,
     MatDividerModule,
     MatIconModule,
     MatMenuModule,
@@ -93,7 +95,9 @@ import {
     MatTabsModule,
     MatToolbarModule,
     MatTooltipModule,
-    TerminKarte,
+    Monatsansicht,
+    Jahresueberblick,
+    RouterLink,
   ],
   templateUrl: './jahresplan.html',
   styleUrl: './jahresplan.less',
@@ -107,11 +111,10 @@ export class Jahresplan {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly snackBar = inject(MatSnackBar);
   readonly store = inject(PlanStore);
-  readonly workbook = inject(WorkbookService);
+  readonly kalender = inject(KalenderDatenService);
   readonly feiertage = inject(FeiertagService);
   readonly diensttagService = inject(DiensttagService);
   readonly hiorg = inject(HiorgKalenderService);
-  private readonly worker = inject(WorkerClient);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Blendet den Testdaten-Knopf nur in der Entwicklung ein, nie im Produktivbuild. */
@@ -120,8 +123,7 @@ export class Jahresplan {
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
   readonly wochentageIso = WOCHENTAGE_ISO;
-  readonly ziel = this.workbook.ziel;
-  readonly beschaeftigt = this.workbook.beschaeftigt;
+  readonly beschaeftigt = this.kalender.beschaeftigt;
 
   readonly monatsnamen = MONATSNAMEN;
   readonly heute = heuteIso();
@@ -139,6 +141,16 @@ export class Jahresplan {
   readonly nurAbweichungen = signal(false);
   /** Nur auf schmalen Bildschirmen relevant: Plan und Seitenleiste teilen sich dort den Platz. */
   readonly mobilAnsicht = signal<'plan' | 'liste'>('plan');
+
+  /**
+   * Ansicht des Kalenders: `monat` (Monatsraster mit Tagesagenda) oder `liste`
+   * (Agendaliste). Auf schmalen Bildschirmen startet die Liste, sonst das Raster.
+   * Bewusst nur für diese Sitzung – eine Ansichtseinstellung wird nirgends persistiert.
+   */
+  readonly ansicht = signal<'monat' | 'liste' | 'jahr'>(startAnsicht());
+  /** Filter der Agendaliste; leer bedeutet alle Kategorien. Nur für diese Sitzung. */
+  readonly agendaKategorien = signal<ReadonlySet<Kategorie>>(new Set());
+  readonly agendaTyp = signal<TypFilter>('alle');
 
   /**
    * Wie dicht die HiOrg-Ebene im Raster steht. Voreinstellung `gesammelt`: an
@@ -219,12 +231,49 @@ export class Jahresplan {
     }
   });
 
-  readonly quelleBeschreibung = computed(() => this.ziel()?.bezeichnung ?? 'Keine Quelle geöffnet');
-  readonly quelleVerbunden = computed(() => this.ziel() !== null);
-  readonly kannSpeichern = computed(() => this.ziel() !== null);
-  readonly direktesSpeichern = computed(() => this.ziel()?.faehigkeiten.direktesSpeichern ?? false);
+  /**
+   * Kurzstatus der Kalender-Datenbank neben dem HiOrg-Chip. Löst die frühere
+   * Quellenanzeige (Excel-Datei in NextCloud oder lokal) ab.
+   */
+  readonly datenbankStatus = computed(() => {
+    switch (this.kalender.zustand()) {
+      case 'laedt':
+        return {
+          icon: 'sync',
+          text: 'Datenbank lädt…',
+          tooltip: 'Der Kalender wird aus der Datenbank geladen',
+        };
+      case 'verbunden':
+        return {
+          icon: 'storage',
+          text: 'Datenbank verbunden',
+          tooltip: 'Kalender-Datenbank verbunden – zum Neuladen klicken',
+        };
+      case 'nicht-eingerichtet':
+        return {
+          icon: 'cloud_off',
+          text: 'Datenbank nicht eingerichtet',
+          tooltip: 'Die Kalender-Datenbank ist am Worker noch nicht eingerichtet',
+        };
+      case 'fehler':
+        return {
+          icon: 'error_outline',
+          text: 'Datenbank-Fehler',
+          tooltip:
+            this.kalender.fehler() || 'Der Kalender ist nicht abrufbar – zum Neuladen klicken',
+        };
+      default:
+        return {
+          icon: 'storage',
+          text: 'Datenbank noch nicht abgerufen',
+          tooltip: 'Der Kalender wurde noch nicht geladen – zum Laden klicken',
+        };
+    }
+  });
+  readonly kannSpeichern = computed(() => this.kalender.zustand() === 'verbunden');
   readonly diensttagLabel = computed(() => diensttagName(this.diensttagService.wochentag()));
-  readonly verfuegbareJahre = this.workbook.verfuegbareJahre;
+  readonly verfuegbareJahre = this.kalender.verfuegbareJahre;
+  readonly laufendesJahr = jahrVon(heuteIso());
   readonly naechstesJahr = computed(
     () => Math.max(this.store.jahr(), ...this.verfuegbareJahre()) + 1,
   );
@@ -254,7 +303,7 @@ export class Jahresplan {
 
   /**
    * HiOrg-Termine neben den Plan-Terminen desselben Tages. Rein abgeleitet – die
-   * Excel-Mappe bleibt unberührt, der Feed wird nirgends hineingeschrieben.
+   * Kalender-Datenbank bleibt unberührt, der Feed wird nirgends hineingeschrieben.
    */
   readonly hiorgAbgleich = computed(() =>
     baueHiorgAbgleich(this.hiorg.eintraege(), this.store.termine(), this.store.jahr()),
@@ -371,24 +420,27 @@ export class Jahresplan {
       void this.hiorg.lade({ monat: this.angeschauterMonatIso(jahr, monat) });
     });
 
-    // Wie der HiOrg-Feed wird auch die zentrale Arbeitsmappe direkt geladen, ohne dass
-    // der Nutzer erst "Öffnen" antippen muss. Nur wenn noch keine Quelle offen ist und
-    // noch keine lokalen Daten bestehen (z. B. ein frisch begonnener leerer Plan).
-    if (this.workbook.ziel() === null && !this.store.hatDaten()) {
-      void this.autoOeffnen();
+    // Wie der HiOrg-Feed wird der Kalender direkt aus der Datenbank geladen. Nicht,
+    // solange ungespeicherte Änderungen bestehen (Rückkehr aus einem anderen Modul)
+    // oder der Kalender bereits verbunden ist und Daten zeigt.
+    if (
+      !this.store.ungespeichert() &&
+      !this.beschaeftigt() &&
+      (this.kalender.zustand() !== 'verbunden' || !this.store.hatDaten())
+    ) {
+      void this.autoLaden();
     }
   }
 
   /**
-   * Versucht die zentrale NextCloud-Arbeitsmappe automatisch zu laden. Ein Fehlschlag
-   * ist nie blockierend – wie beim HiOrg-Feed bleibt der Knopf "Arbeitsmappe öffnen"
-   * als Rettungsweg, etwa wenn die Verbindung noch nicht eingerichtet ist.
+   * Ein Fehlschlag ist nie blockierend: „nicht eingerichtet“ zeigt der
+   * Datenbank-Chip, jeder andere Fehler kommt zusätzlich als Meldung.
    */
-  private async autoOeffnen(): Promise<void> {
+  private async autoLaden(): Promise<void> {
     try {
-      await this.workbook.laden(new NextcloudWorkerStorage(this.worker));
+      await this.kalender.laden();
     } catch (ursache) {
-      if (ursache instanceof WorkerFehler && ursache.status === 503) {
+      if (this.kalender.zustand() === 'nicht-eingerichtet') {
         return;
       }
       this.melde(fehlertext(ursache), 10000, true);
@@ -403,47 +455,6 @@ export class Jahresplan {
   /** Die Karten dieses Tages; leer für Tage ohne Eintrag. */
   tagesInhalt(datum: string): TagesInhalt {
     return this.tagesInhalte().get(datum) ?? LEERER_TAGESINHALT;
-  }
-
-  /**
-   * Öffnet den ganzen Tag in voller Kartenbreite – aus „+N weitere", aus der
-   * HiOrg-Sammelkarte und über das Kartensymbol der Tageszelle. Der Dialog
-   * ändert nichts selbst, sondern gibt die gewählte Aktion zurück.
-   */
-  oeffneTagDetail(slot: PlanSlot): void {
-    const daten: TagDetailDaten = {
-      datum: slot.datum,
-      karten: this.tagesInhalt(slot.datum).alle,
-      feiertag: slot.feiertag,
-    };
-    this.dialog
-      .open(TagDetail, { data: daten, width: '640px', maxWidth: '94vw' })
-      .afterClosed()
-      .subscribe((ergebnis?: TagDetailErgebnis) => {
-        if (!ergebnis) {
-          return;
-        }
-        switch (ergebnis.art) {
-          case 'bearbeiten':
-            this.bearbeiten(ergebnis.terminId);
-            break;
-          case 'zuBacklog':
-            this.zuBacklog(ergebnis.termin);
-            break;
-          case 'loeschen':
-            this.loeschen(ergebnis.terminId);
-            break;
-          case 'anlegen':
-            this.terminAnlegen(ergebnis.datum);
-            break;
-          case 'nameUebernehmen':
-            void this.uebernimmHiorgNamen(ergebnis.abweichung);
-            break;
-          case 'terminAusHiorg':
-            this.legeTerminAusHiorgAn(ergebnis.eintrag);
-            break;
-        }
-      });
   }
 
   setzeHiorgEbene(ebene: HiorgEbene): void {
@@ -537,7 +548,7 @@ export class Jahresplan {
     }
     if (this.store.dokument() !== stand) {
       await this.dialogDienst.hinweis(
-        'Der Ausbildungsplan wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
+        'Der Kalender wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
       );
       return;
     }
@@ -583,14 +594,10 @@ export class Jahresplan {
     }
   }
 
-  /** Volles Datum als Klartext – für Tooltips und Beschriftungen im Raster. */
-  formatiereDatumText(iso: string): string {
-    return formatiereDatum(iso);
-  }
-
-  /** Kurzes Datum ohne Jahr, für die Wochenkopfzeile (z. B. „05.01.“). */
-  formatKurz(iso: string): string {
-    return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+  /** Klick im Jahresüberblick: den Monat des Tages in der Monatsansicht öffnen. */
+  ueberblickTagGewaehlt(datum: string): void {
+    this.monat.set(monatIndex(datum));
+    this.ansicht.set('monat');
   }
 
   waehleMonat(monat: number | null): void {
@@ -609,19 +616,9 @@ export class Jahresplan {
   zumAktuellenMonat(): void {
     const jahr = jahrVon(this.heute);
     if (this.store.jahr() !== jahr && this.verfuegbareJahre().includes(jahr)) {
-      this.workbook.waehleJahr(jahr);
+      this.kalender.waehleJahr(jahr);
     }
     this.monat.set(monatIndex(this.heute));
-  }
-
-  monatsName(woche: WochenZeile): string {
-    const ersterTagImJahr = woche.tage.find((t) => t.imJahr)?.datum ?? woche.start;
-    return MONATSNAMEN[monatIndex(ersterTagImJahr)];
-  }
-
-  istMonatswechsel(index: number): boolean {
-    const wochen = this.sichtbareWochen();
-    return index === 0 || this.monatsName(wochen[index]) !== this.monatsName(wochen[index - 1]);
   }
 
   // ------------------------------------------------------------ Drag & Drop
@@ -691,84 +688,102 @@ export class Jahresplan {
     this.store.loescheTermin(id);
   }
 
-  // --------------------------------------------------------------- Persistenz
-
-  oeffnen(): void {
-    this.dialog
-      .open(QuelleDialog, { width: '600px', maxWidth: '94vw' })
-      .afterClosed()
-      .subscribe(async (storage?: WorkbookStorage) => {
-        if (!storage) {
-          return;
-        }
-        try {
-          const { meldungen } = await this.workbook.laden(storage);
-          const luecken = this.luecken().length;
-          const hinweis = luecken
-            ? ` ${luecken} ${this.diensttagLabel()}(e) ohne Ausbildung sind rot markiert.`
-            : ` Alle ${this.diensttagLabel()}e sind belegt.`;
-          this.melde((meldungen.join(' ') || 'Arbeitsmappe geladen.') + hinweis, 9000);
-        } catch (ursache) {
-          this.melde(fehlertext(ursache), 10000, true);
-        }
-      });
-  }
-
-  async neuerPlan(): Promise<void> {
-    const stand = this.store.dokument();
-    if (
-      this.store.ungespeichert() &&
-      !(await this.dialogDienst.bestaetigen(
-        'Ungespeicherte Änderungen verwerfen?',
-        'Neuen Ausbildungsplan beginnen',
-        'Verwerfen',
-      ))
-    )
-      return;
-    if (this.store.dokument() !== stand) {
-      await this.dialogDienst.hinweis(
-        'Der Ausbildungsplan wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
-      );
+  /**
+   * Legt eine offene Idee auf den nächsten Diensttag ohne Ausbildung: ab heute im
+   * laufenden Jahr, sonst ab Jahresbeginn. Ein leerer Platzhaltertermin an diesem Tag
+   * wird dabei befüllt statt doppelt belegt.
+   */
+  ideeAufNaechsteLuecke(idee: Termin): void {
+    const jahr = this.store.jahr();
+    const ab = jahr === jahrVon(this.heute) ? this.heute : `${jahr}-01-01`;
+    const luecke = naechsteLuecke(this.wochen(), ab);
+    if (!luecke) {
+      this.melde('Keine Lücke mehr im Kalender – die Idee bleibt in den offenen Ideen.');
       return;
     }
-    this.workbook.neuesDokument(leeresDocument());
+    const platzhalter = luecke.termine.find((t) => !t.termin.thema.trim());
+    if (platzhalter) {
+      this.store.ausBacklogAufTermin(idee.id, platzhalter.termin.id);
+    } else {
+      this.store.ausBacklogAufDatum(idee.id, luecke.datum);
+    }
+    this.melde(`„${kurz(idee.thema)}“ auf ${formatiereDatum(luecke.datum)} eingeplant.`);
   }
 
-  /** Wechselt innerhalb der geöffneten Arbeitsmappe zu einem bereits vorhandenen Jahresblatt. */
+  /** Auswahl der Monatsansicht: Ablage auf einem anderen Termin. */
+  terminAbgelegt(ablage: AblageAufTermin): void {
+    this.aufTerminAbgelegt(ablage.event, ablage.ziel);
+  }
+
+  /** Auswahl der Monatsansicht: Ablage auf einem Tag ohne Plantermin. */
+  tagAbgelegt(ablage: AblageAufTag): void {
+    this.aufLeeremTagAbgelegt(ablage.event, ablage.datum);
+  }
+
+  // --------------------------------------------------------------- Persistenz
+
+  /** Wechselt zu einem bereits vorhandenen Jahr des Kalenders. */
   waehleJahr(jahr: number): void {
-    this.workbook.waehleJahr(jahr);
+    this.kalender.waehleJahr(jahr);
   }
 
-  /** Legt in der geöffneten Arbeitsmappe ein neues Jahresblatt an und wechselt dorthin. */
-  neuesJahr(): void {
-    const jahr = this.naechstesJahr();
-    this.workbook.neuesJahr(jahr);
-    this.melde(`Neues Jahresblatt ${jahr} angelegt.`);
+  /** Legt ein neues Jahr an und wechselt dorthin; gespeichert wird es mit „Speichern“. */
+  neuesJahr(jahr = this.naechstesJahr()): void {
+    this.kalender.neuesJahr(jahr);
+    this.melde(`Neues Jahr ${jahr} angelegt – mit „Speichern“ in die Datenbank übernehmen.`);
   }
 
   async speichern(): Promise<void> {
     if (!this.kannSpeichern()) {
-      await this.herunterladen();
+      this.melde(
+        'Die Kalender-Datenbank ist nicht verbunden. Sichere deine Änderungen als Excel-Kopie.',
+        10000,
+        true,
+      );
       return;
     }
     try {
-      await this.workbook.speichern();
+      const { geschrieben } = await this.kalender.speichern();
       this.melde(
         this.store.ungespeichert()
           ? 'Übertragener Stand gespeichert; weitere Änderungen sind noch ungespeichert.'
-          : this.direktesSpeichern()
+          : geschrieben
             ? 'Gespeichert.'
-            : 'Arbeitsmappe heruntergeladen – bitte am Ablageort ersetzen.',
+            : 'Keine Änderungen zu speichern.',
       );
     } catch (ursache) {
+      if (ursache instanceof KalenderKonfliktFehler) {
+        await this.konfliktBehandeln(ursache);
+        return;
+      }
       this.melde(fehlertext(ursache), 10000, true);
     }
   }
 
+  /**
+   * HTTP 412: der lokale Stand bleibt unangetastet. Angeboten wird eine
+   * Excel-Kopie; den gespeicherten Stand lädt die Person danach bewusst neu.
+   */
+  private async konfliktBehandeln(konflikt: KalenderKonfliktFehler): Promise<void> {
+    if (
+      await this.dialogDienst.bestaetigen(
+        konflikt.message,
+        'Kalender zwischenzeitlich geändert',
+        'Excel-Kopie herunterladen',
+      )
+    ) {
+      await this.herunterladen();
+    }
+  }
+
+  /** Lokaler Rettungsweg: alle Jahre und Ideen als Excel-Datei; markiert nichts als gespeichert. */
   async herunterladen(): Promise<void> {
-    const { daten, dateiname, stand } = await this.workbook.exportieren();
-    herunterladen(daten, dateiname);
-    this.store.alsGespeichertMarkieren(stand);
+    const { daten, dateiname } = await this.kalender.exportieren();
+    dateiHerunterladen(
+      daten,
+      dateiname,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
   }
 
   async neuLaden(): Promise<void> {
@@ -777,19 +792,19 @@ export class Jahresplan {
       this.store.ungespeichert() &&
       !(await this.dialogDienst.bestaetigen(
         'Ungespeicherte Änderungen verwerfen?',
-        'Ausbildungsplan neu laden',
+        'Kalender neu laden',
         'Neu laden',
       ))
     )
       return;
     if (this.store.dokument() !== stand) {
       await this.dialogDienst.hinweis(
-        'Der Ausbildungsplan wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
+        'Der Kalender wurde inzwischen geändert. Bitte prüfe den aktuellen Stand.',
       );
       return;
     }
     try {
-      const { meldungen } = await this.workbook.neuLaden();
+      const { meldungen } = await this.kalender.laden();
       this.melde(meldungen.length ? meldungen.join(' ') : 'Neu geladen.');
     } catch (ursache) {
       this.melde(fehlertext(ursache), 10000, true);
@@ -836,6 +851,15 @@ function kurz(text: string): string {
 
 function fehlertext(ursache: unknown): string {
   return ursache instanceof Error ? ursache.message : String(ursache);
+}
+
+/** Schmale Bildschirme starten mit der Agendaliste, breite mit dem Monatsraster. */
+function startAnsicht(): 'monat' | 'liste' {
+  return typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 780px)').matches
+    ? 'liste'
+    : 'monat';
 }
 
 /** `null` in Testumgebungen ohne `window.matchMedia`, sonst die Medienabfrage für schmale Fenster. */

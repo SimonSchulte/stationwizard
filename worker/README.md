@@ -50,7 +50,6 @@ Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht
 | Binding                     | Wert                                                                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `NEXTCLOUD_BASE_URL`        | HTTPS-Basis der Nextcloud-Installation, gegebenenfalls mit Installationsunterverzeichnis; ohne Freigabelink oder WebDAV-Suffix |
-| `NEXTCLOUD_SHARE_TOKEN`     | Token der Excel-**Dateifreigabe**, nur der Teil hinter `/s/`                                                                   |
 | `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
 | `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
 | `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
@@ -80,10 +79,9 @@ antwortet. Bei einer neuen Einrichtung diese Endpunkt-Variante immer zuerst mit
 Bei passwortgeschützten Freigaben zusätzlich **klassische Worker-Laufzeit-Secrets** unter
 **Settings → Variables and Secrets → Add → Secret** setzen:
 
-| Name                           | Wert                                     |
-| ------------------------------ | ---------------------------------------- |
-| `NEXTCLOUD_SHARE_PASSWORD`     | Exaktes Passwort der Excel-Dateifreigabe |
-| `NEXTCLOUD_PEP_SHARE_PASSWORD` | Exaktes Passwort des PEP-Ordners         |
+| Name                           | Wert                             |
+| ------------------------------ | -------------------------------- |
+| `NEXTCLOUD_PEP_SHARE_PASSWORD` | Exaktes Passwort des PEP-Ordners |
 
 Ohne Freigabepasswort den jeweiligen Eintrag komplett weglassen; kein `leer`, `optional`
 oder anderer Platzhalter. Diese optionalen Werte erfordern keinen Wert im Repository und
@@ -158,30 +156,30 @@ Hostname-/DNS-/Mail-Einrichtung.
 Alle Endpunkte benötigen die verifizierte Anmeldung – mit Ausnahme der drei Pfade der
 öffentlichen Kilometermeldung, die weiter unten in einem eigenen Abschnitt stehen:
 
-| Endpunkt                                        | Methode    | Anfrage beziehungsweise Antwort                                                              |
-| ----------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
-| `/api/benutzer`                                 | GET        | Antwort `{ "email": "…" }`                                                                   |
-| `/api/status`                                   | GET        | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
-| `/api/efs/checkapikey`                          | POST       | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltungen`                   | POST       | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltung`                     | POST       | Anfrage JSON `{ "id": "…" }`                                                                 |
-| `/api/nextcloud/arbeitsmappe`                   | GET / PUT  | Konfigurierte Excel-Datei                                                                    |
-| `/api/nextcloud/planungen`                      | GET        | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
-| `/api/nextcloud/planungen/<UUID>`               | GET / PUT  | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
-| `/api/hiorg/kalender`                           | GET        | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`                  |
-| `/api/fahrzeuge`                                | GET / POST | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
-| `/api/fahrzeuge/<UUID>`                         | GET / PUT  | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
-| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE     | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
-| `/api/fahrzeuge/<UUID>/aenderungen`             | GET        | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
-| `/api/benutzerverwaltung`                       | GET        | Liste aller bereits angemeldeten Personen samt Rolle                                         |
-| `/api/benutzerverwaltung/<E-Mail>`              | PUT        | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
-| `/f/<UUID>`, `/f/<UUID>/km`                     | GET        | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
-| `/api/fahrzeuge/erfassungslinks`                | GET        | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt           |
-| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig                  |
-| `/api/fahrzeuge/einreichungen`                  | GET        | Offene öffentliche Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert         |
-| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST       | Erzeugt die echte Ablesung; `erfasstVon` ist die freigebende Person                          |
-| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST       | Anfrage `{ "grund": "…" }` (optional, 200 Zeichen); erzeugt keine Ablesung                   |
+| Endpunkt                                        | Methode          | Anfrage beziehungsweise Antwort                                                              |
+| ----------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `/api/benutzer`                                 | GET              | Antwort `{ "email": "…" }`                                                                   |
+| `/api/status`                                   | GET              | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
+| `/api/efs/checkapikey`                          | POST             | Anfrage JSON `{}`                                                                            |
+| `/api/efs/getveranstaltungen`                   | POST             | Anfrage JSON `{}`                                                                            |
+| `/api/efs/getveranstaltung`                     | POST             | Anfrage JSON `{ "id": "…" }`                                                                 |
+| `/api/kalender` und Unterpfade                  | GET / POST / PUT | Kalender in `KALENDER_DB`, siehe `src/kalender-planung.ts`                                   |
+| `/api/nextcloud/planungen`                      | GET              | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
+| `/api/nextcloud/planungen/<UUID>`               | GET / PUT        | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
+| `/api/hiorg/kalender`                           | GET              | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`                  |
+| `/api/fahrzeuge`                                | GET / POST       | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
+| `/api/fahrzeuge/<UUID>`                         | GET / PUT        | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
+| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST       | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE           | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
+| `/api/fahrzeuge/<UUID>/aenderungen`             | GET              | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
+| `/api/benutzerverwaltung`                       | GET              | Liste aller bereits angemeldeten Personen samt Rolle                                         |
+| `/api/benutzerverwaltung/<E-Mail>`              | PUT              | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
+| `/f/<UUID>`, `/f/<UUID>/km`                     | GET              | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
+| `/api/fahrzeuge/erfassungslinks`                | GET              | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt           |
+| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST       | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig                  |
+| `/api/fahrzeuge/einreichungen`                  | GET              | Offene öffentliche Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert         |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST             | Erzeugt die echte Ablesung; `erfasstVon` ist die freigebende Person                          |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST             | Anfrage `{ "grund": "…" }` (optional, 200 Zeichen); erzeugt keine Ablesung                   |
 
 ### Fahrzeugmodul (D1)
 
@@ -445,10 +443,11 @@ Grenzen: Antwort höchstens 1 MiB, Upstream-Zeitlimit 15 Sekunden, `redirect: 'm
 
 ### Nextcloud
 
-Beide Freigaben nutzen die vorhandene WebDAV-Anbindung über
-`<NEXTCLOUD_BASE_URL>/public.php/webdav/` mit Basic-Authentifizierung aus Freigabetoken
-und optionalem Passwort. Die Arbeitsmappe ist eine **Dateifreigabe**. Der PEP-Speicher ist
-ein eigener **Ordner** auf derselben Instanz mit Lesen, Bearbeiten und Hochladen.
+Der PEP-Speicher nutzt die WebDAV-Anbindung über `<NEXTCLOUD_BASE_URL>/public.php/webdav/`
+mit Basic-Authentifizierung aus Freigabetoken und optionalem Passwort; er ist ein eigener
+**Ordner** mit Lesen, Bearbeiten und Hochladen. Die frühere Excel-Dateifreigabe der
+Ausbildungsplanung ist mit dem Kalender in D1 entfallen; `/api/nextcloud/arbeitsmappe`
+antwortet mit 404 `NEXTCLOUD_PFAD_UNGUELTIG`.
 
 Weiterleitungen werden bewusst nicht verfolgt. Der Worker fragt mit `redirect: 'manual'`
 an und beantwortet jede `3xx`-Antwort mit `NEXTCLOUD_UMLEITUNG`; Ziel, Inhalt und Header
@@ -503,8 +502,7 @@ bewahrt lokale Änderungen und bietet den Dateiexport vor dem erneuten Laden an.
 starke ETags und unklare Speicherergebnisse dürfen nicht in unbedingte Updates oder
 automatische ungeschützte Schreibwiederholungen münden.
 
-PUT akzeptiert XLSX-Medientyp beziehungsweise `application/octet-stream` für die
-Arbeitsmappe und `application/json` für PEP. Erfolgreiche Schreibantworten werden auf
+PUT akzeptiert ausschließlich `application/json` für PEP. Erfolgreiche Schreibantworten werden auf
 204 ohne Upstream-Inhalt normalisiert. Ausgewählte Versionsheader werden weitergegeben.
 HTML-Fehler- oder Loginseiten von Nextcloud werden nicht an den Browser durchgereicht.
 

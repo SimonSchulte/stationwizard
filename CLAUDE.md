@@ -45,16 +45,21 @@ Prüfungen und offene Abnahmegrenzen.
   deutsch. Umsetzungshinweise gehören in die Dokumentation, sofern sie keine
   Nutzerentscheidung unterstützen.
 - Ausbildungs-`mobilAnsicht` und die untere Navigation bei kleinen Displays erhalten.
-  Breites Wochenraster kontrolliert horizontal scrollen lassen. PEP bleibt bei
+  Das Raster der Monatsansicht (gebaut aus `baueWochenraster()`, eine Zeile je Kalenderwoche
+  mit KW-Spalte) kontrolliert horizontal in seinem Rahmen scrollen lassen. PEP bleibt bei
   komplexen Zuordnungen auf Desktopbedienung ausgerichtet; mobile Grenzen ehrlich benennen.
 - UI-Änderungen real im Browser auf Desktop und Mobil prüfen. Ein blockierter Browserlauf
   ist keine bestandene Sichtprüfung.
 
 ## Dateiformate und Fachverträge
 
-- Excel bleibt das führende Ausbildungsformat. Blätter **Jahresplan**, **Offene Ideen**
-  und **KatS-A-Plan** sowie bestehende Excel-Zuordnungen erhalten. Kein paralleles
-  Ausbildungs-JSON einführen. `@e965/xlsx` dynamisch importieren.
+- Der **Kalender** (frühere Ausbildungsplanung, Route `/kalender`, Code weiterhin unter
+  `src/app/ausbildung/`) liegt in der D1-Datenbank `KALENDER_DB`; die Datenbank ist die
+  führende Quelle. Excel ist nur noch **Importformat** (einmalige Übernahme) und **lokaler
+  Download** als Rettungskopie. Das Excel-Schema mit **Jahresplan**, **Offene Ideen**
+  und **KatS-A-Plan** sowie die bestehenden Excel-Zuordnungen bleiben für Lesen und
+  Schreiben erhalten; es gibt keinen Weg mehr, eine Excel-Datei als Speicherort zu öffnen.
+  `@e965/xlsx` dynamisch importieren.
 - PEP bleibt eine einzelne versionierte Datei mit `version`, `meta`, `planung`.
   `einsatz/services/pep-datei.ts` für Lesen/Serialisieren nutzen. Versionswarnungen
   erhalten; keine stillen, verlustreichen Konvertierungen.
@@ -177,7 +182,11 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/efs/checkapikey`                             | POST               | JSON `{}`                                                                                |
 | `/api/efs/getveranstaltungen`                      | POST               | JSON `{}`                                                                                |
 | `/api/efs/getveranstaltung`                        | POST               | JSON mit ausschließlich `id`                                                             |
-| `/api/nextcloud/arbeitsmappe`                      | GET / PUT          | Konfigurierte Excel-Dateifreigabe                                                        |
+| `/api/kalender`                                    | GET                | Alle Jahre und die Offenen Ideen in einem Aufruf, je mit Version                         |
+| `/api/kalender/jahre`                              | POST               | Neues Jahr; nur mit `If-None-Match: *`                                                   |
+| `/api/kalender/jahre/<JJJJ>`                       | PUT                | Jahr speichern; nur mit `If-Match`                                                       |
+| `/api/kalender/ideen`                              | PUT                | Offene Ideen; erstes Speichern mit `If-None-Match: *`, danach `If-Match`                 |
+| `/api/kalender/migration`                          | POST               | Einmalige Excel-Übernahme in den leeren Kalender; sonst 409                              |
 | `/api/nextcloud/planungen`                         | GET                | Liste aus UUID und ETag                                                                  |
 | `/api/nextcloud/planungen/<UUID>`                  | GET / PUT          | Einzelne versionierte PEP-Datei                                                          |
 | `/api/hiorg/kalender`                              | GET                | HiOrg-Kalenderfeed, nur lesend                                                           |
@@ -228,6 +237,40 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/fahrzeuge/einreichungen`                     | GET                | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert                 |
 | `/api/fahrzeuge/einreichungen/<UUID>/freigabe`     | POST               | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung                    |
 | `/api/fahrzeuge/einreichungen/<UUID>/ablehnung`    | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                   |
+
+Der Kalender (`src/app/ausbildung/`, `worker/src/kalender-planung.ts`) löst die frühere
+Excel-Arbeitsmappe in der NextCloud-Dateifreigabe ab. Eigene D1-Datenbank `KALENDER_DB`
+(`stationwizard-kalender`), Schema in `worker/migrations/kalender/0012_kalender.sql`, dokumentartig
+wie `angebote`: eine Zeile je Jahr (`kalender_jahre`, Termine und KatS-Themen als geprüftes
+JSON) und genau eine Zeile für die jahresübergreifenden Offenen Ideen (`kalender_ideen`),
+jede mit eigener Version. Ein Speichern schreibt nur die tatsächlich geänderten Teile
+(`KalenderDatenService`), jeweils mit `If-Match` beziehungsweise `If-None-Match: *` für ein
+neues Jahr; ein 412 bewahrt den lokalen Stand und bietet eine Excel-Kopie an. Die festen
+Wertelisten (Kategorien, Typen, Nachweise) stehen in `plan.model.ts` **und** in
+`kalender-planung.ts`; gemeinsam ändern. Die einmalige Übernahme liegt im
+Verwaltungsbereich (`/verwaltung/kalender-migration`, Seite unter
+`src/app/ausbildung/pages/kalender-migration/`): die Excel-Datei wird im Browser mit
+`excel-lesen.ts` gelesen und in **einer** Anfrage an `POST /api/kalender/migration`
+übergeben, die der Worker in einer `db.batch()` vollständig oder gar nicht schreibt – nur
+solange beide Tabellen leer sind, sonst 409 `KALENDER_BEREITS_BEFUELLT`. Die Kopfleiste
+zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Der Kalender hat drei Ansichten
+(`Jahresplan.ansicht`, Umschalter Monat/Liste/Jahr): **Monat** (`components/monatsansicht/`,
+Monatsraster auf Basis des Wochenrasters mit Tagesagenda für den gewählten Tag, Drag & Drop
+auf Tage und Karten wie bisher) und **Liste** (`components/agendaliste/`, nach Kalenderwochen
+gruppiert, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ). **Jahr** (`components/jahresueberblick/`, `services/jahresueberblick.ts`: nur die Diensttage, zwölf
+Monatszeilen, Lücken, Abweichungen und Kennzahlen; ein Klick öffnet den Monat). Startansicht ist
+auf Bildschirmen bis 780 px die Liste, sonst der Monat; Ansicht und Filter gelten nur für die
+Sitzung und werden nicht gespeichert. Beide Ansichten sind rein darstellend und melden jede
+Änderung an den `Jahresplan` (Undo, Bestätigungen, Meldungen bleiben dort). Die Seitenleiste
+mit Offene Ideen, Auswertung und KatS-A-Plan sowie `mobilAnsicht` bleiben; eine Idee lässt sich
+über „Auf nächste Lücke legen“ einplanen (`naechsteLuecke()` in `plan-raster.ts`). Die Monatsansicht ist am
+Handy eng (Karten brechen in schmalen Spalten um) und bleibt dort eine Desktop-Darstellung; am
+Handy ist die Liste gedacht. `main` in `app.less` hat eine feste Höhe, damit der Kalender
+selbst scrollt und die untere Navigation am Rand bleibt. Eine Exportschnittstelle ist nur als
+Vertrag vorbereitet (`src/app/ausbildung/export/kalender-export.ts`, leere
+`KALENDER_EXPORTFORMATE`), ohne Endpunkt und ohne Menüpunkt. Rechte vorerst alle, Rollen
+später. Der Worker-Dateiname lautet `kalender-planung.ts`, weil `worker/src/kalender.ts`
+bereits die Berliner Kalendertag-Hilfe enthält.
 
 Das Fahrzeugmodul (`src/app/fahrzeuge/`, `worker/src/fahrzeuge.ts`) hält Domäne und
 Persistenz strikt getrennt und liegt hinter Cloudflare D1 (`FAHRZEUGE_DB`, Schema in
@@ -634,7 +677,7 @@ die Adresse aus `FEED_URL_BASIS`/`FESTE_FEED_PARAMETER` selbst baut. Diese feste
 Parameterliste ist nur aus einer einzelnen Freigabe abgeleitet und nicht durch die
 HiOrg-Dokumentation belegt – sie nicht als nachgewiesenen Vertrag behandeln und die
 vollständige URL nicht erneut als Konfigurationsweg entfernen. Der Feed ist reine Anzeige-
-und Abgleichquelle; er wird nicht in die Excel-Mappe geschrieben und nicht im Browser
+und Abgleichquelle; er wird nicht in die Kalender-Datenbank geschrieben und nicht im Browser
 persistiert. Die Schreibweise „CALENDER" ist bewusst übernommen und wird nicht korrigiert.
 
 ### Konflikte und unklare Speicherergebnisse
@@ -658,9 +701,10 @@ persistiert. Die Schreibweise „CALENDER" ist bewusst übernommen und wird nich
 - Timeout oder unklarer Upstream-Erfolg darf keinen automatischen ungeschützten
   Schreibwiederholungsversuch auslösen. Den Stand zuerst klären; lokale Änderungen nicht
   als gespeichert markieren oder verwerfen.
-- Lokale Datei-/JSON-Exporte als Rettungsweg erhalten. Ordnerfreigabe und
-  Arbeitsmappenfreigabe getrennt konfigurieren; keine PEP-Dateien in die Excel-Freigabe
-  schreiben.
+- Lokale Datei-/JSON-Exporte als Rettungsweg erhalten (PEP-JSON, Excel-Kopie des
+  Kalenders). NextCloud dient nur noch dem PEP-Ordner; die frühere Excel-Dateifreigabe
+  (`NEXTCLOUD_SHARE_TOKEN`/`_PASSWORD`, `/api/nextcloud/arbeitsmappe`) ist entfallen und wird
+  nicht wieder eingeführt.
 
 ## Sparsamkeit im Free-Tier
 
@@ -693,7 +737,7 @@ npm run format:check
 
 Angular-Tests laufen über `@angular/build:unit-test` mit Vitest, Worker-Tests über
 `worker/vitest.config.ts`. Übernommene Abdeckung erhalten, insbesondere Matching,
-Excel-Rundlauf, Planoperationen, Wochenraster, Datum und Feiertage. Neue Tests sichern
+Excel-Rundlauf (Import und Download), Planoperationen, Wochenraster, Datum und Feiertage. Neue Tests sichern
 beobachtbares Verhalten und konkrete Risiken ab; keine Implementierung nur nacherzählen.
 Testdaten im Test erzeugen, Excel-Struktur mit erfundenem Inhalt nachbilden.
 

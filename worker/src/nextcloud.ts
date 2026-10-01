@@ -1,20 +1,16 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { fehlerAntwort, jsonAntwort } from './antwort';
-import { Groessenfehler, istZip, leseBegrenzt, verwerfeInhalt } from './binaer-lesen';
+import { Groessenfehler, leseBegrenzt, verwerfeInhalt } from './binaer-lesen';
 import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
 import { istObjekt } from './json-lesen';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 export interface NextcloudKonfiguration {
   NEXTCLOUD_BASE_URL?: Zugangsdatum;
-  NEXTCLOUD_SHARE_TOKEN?: Zugangsdatum;
-  NEXTCLOUD_SHARE_PASSWORD?: Zugangsdatum;
   NEXTCLOUD_PEP_SHARE_TOKEN?: Zugangsdatum;
   NEXTCLOUD_PEP_SHARE_PASSWORD?: Zugangsdatum;
 }
 
-const XLSX_INHALTSTYP = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const XLSX_GRENZE = 15 * 1024 * 1024;
 const PEP_GRENZE = 2 * 1024 * 1024;
 const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const PLANUNGS_PFAD = new RegExp(`^/api/nextcloud/planungen/(${UUID_MUSTER})$`, 'i');
@@ -25,16 +21,20 @@ const PROPFIND_INHALT = `<?xml version="1.0" encoding="UTF-8"?>
 /** Nur der fetch()-Aufruf selbst wirft dies; unterscheidet Transportfehler von Verarbeitungsfehlern. */
 class VerbindungsFehler extends Error {}
 
-/** Nur feste Freigaben und UUID-Dateinamen; Access-/Ursprungsprüfung erfolgt im Router. */
+/**
+ * Nur die feste PEP-Ordnerfreigabe und UUID-Dateinamen; Access-/Ursprungsprüfung
+ * erfolgt im Router. Die frühere Excel-Arbeitsmappe der Ausbildungsplanung liegt
+ * seit der Umstellung auf den Kalender in D1 (`kalender.ts`); ihr Pfad
+ * `/api/nextcloud/arbeitsmappe` ist bewusst entfallen und bleibt unbekannt.
+ */
 export async function verarbeiteNextcloud(
   anfrage: Request,
   umgebung: NextcloudKonfiguration,
 ): Promise<Response> {
   const url = new URL(anfrage.url);
-  const arbeitsmappe = url.pathname === '/api/nextcloud/arbeitsmappe';
   const liste = url.pathname === '/api/nextcloud/planungen';
   const planungsId = PLANUNGS_PFAD.exec(url.pathname)?.[1];
-  if ((!arbeitsmappe && !liste && !planungsId) || url.search || url.hash) {
+  if ((!liste && !planungsId) || url.search || url.hash) {
     return fehlerAntwort('NEXTCLOUD_PFAD_UNGUELTIG', 'NextCloud-Endpunkt nicht gefunden.', 404);
   }
   if (anfrage.method !== 'GET' && (liste || anfrage.method !== 'PUT')) {
@@ -43,7 +43,7 @@ export async function verarbeiteNextcloud(
     });
   }
 
-  const grenze = arbeitsmappe ? XLSX_GRENZE : PEP_GRENZE;
+  const grenze = PEP_GRENZE;
   let inhalt: Uint8Array<ArrayBuffer> | undefined;
   const bedingungsHeader: Record<string, string> = {};
   if (anfrage.method === 'PUT') {
@@ -66,11 +66,7 @@ export async function verarbeiteNextcloud(
     if (beiUebereinstimmung) bedingungsHeader['If-Match'] = beiUebereinstimmung;
     if (beiNichtvorhandensein) bedingungsHeader['If-None-Match'] = beiNichtvorhandensein;
     const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-    if (
-      arbeitsmappe
-        ? inhaltstyp !== XLSX_INHALTSTYP && inhaltstyp !== 'application/octet-stream'
-        : inhaltstyp !== 'application/json'
-    ) {
+    if (inhaltstyp !== 'application/json') {
       return fehlerAntwort('NEXTCLOUD_INHALTSTYP_UNGUELTIG', 'Unzulässiger Dateityp.', 415);
     }
     const uploadAbbruch = new AbortController();
@@ -93,17 +89,13 @@ export async function verarbeiteNextcloud(
     } finally {
       clearTimeout(uploadZeitlimit);
     }
-    if (arbeitsmappe ? !istZip(inhalt) : !istPepDatei(inhalt, planungsId!)) {
+    if (!istPepDatei(inhalt, planungsId!)) {
       return fehlerAntwort('NEXTCLOUD_DATEI_UNGUELTIG', 'Ungültiger Dateiinhalt.', 400);
     }
   }
 
-  const tokenQuelle = arbeitsmappe
-    ? umgebung.NEXTCLOUD_SHARE_TOKEN
-    : umgebung.NEXTCLOUD_PEP_SHARE_TOKEN;
-  const passwortQuelle = arbeitsmappe
-    ? umgebung.NEXTCLOUD_SHARE_PASSWORD
-    : umgebung.NEXTCLOUD_PEP_SHARE_PASSWORD;
+  const tokenQuelle = umgebung.NEXTCLOUD_PEP_SHARE_TOKEN;
+  const passwortQuelle = umgebung.NEXTCLOUD_PEP_SHARE_PASSWORD;
   const [basis, token, passwort] = await Promise.all([
     leseZugangsdatum(umgebung.NEXTCLOUD_BASE_URL),
     leseZugangsdatum(tokenQuelle),
@@ -138,7 +130,7 @@ export async function verarbeiteNextcloud(
           ...(liste
             ? { Depth: '1', 'Content-Type': 'application/xml; charset=utf-8' }
             : anfrage.method === 'PUT'
-              ? { 'Content-Type': arbeitsmappe ? XLSX_INHALTSTYP : 'application/json' }
+              ? { 'Content-Type': 'application/json' }
               : {}),
         },
         body: liste ? PROPFIND_INHALT : inhalt,
@@ -187,7 +179,7 @@ export async function verarbeiteNextcloud(
       );
       return jsonAntwort({ dateien });
     }
-    if (arbeitsmappe ? !istZip(daten) : !istPepDatei(daten, planungsId!)) {
+    if (!istPepDatei(daten, planungsId!)) {
       return fehlerAntwort(
         'NEXTCLOUD_ANTWORT_UNGUELTIG',
         'Ungültiger Dateiinhalt von NextCloud.',
@@ -198,7 +190,7 @@ export async function verarbeiteNextcloud(
       status: 200,
       headers: {
         ...dateiHeader,
-        'Content-Type': arbeitsmappe ? XLSX_INHALTSTYP : 'application/json; charset=utf-8',
+        'Content-Type': 'application/json; charset=utf-8',
       },
     });
   } catch (fehler) {

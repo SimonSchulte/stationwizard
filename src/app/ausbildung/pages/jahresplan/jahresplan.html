@@ -1,14 +1,14 @@
 <mat-toolbar class="kopfleiste">
   <span class="marke">
     <mat-icon>event_available</mat-icon>
-    <span class="marke-text">Dienstplaner</span>
+    <span class="marke-text">Kalender</span>
   </span>
 
   <button
     matButton
     class="jahr"
     [matMenuTriggerFor]="jahrMenue"
-    [disabled]="!store.hatDaten()"
+    [disabled]="kalender.zustand() !== 'verbunden'"
     matTooltip="Jahr wechseln"
   >
     {{ store.jahr() }}
@@ -30,12 +30,14 @@
   <button
     matButton
     class="quelle"
-    [class.verbunden]="quelleVerbunden()"
-    [matTooltip]="quelleBeschreibung() + ' – zum Wechseln/Aktualisieren klicken'"
-    (click)="oeffnen()"
+    [class.verbunden]="kalender.zustand() === 'verbunden'"
+    [matTooltip]="datenbankStatus().tooltip"
+    [attr.aria-label]="datenbankStatus().tooltip"
+    [disabled]="beschaeftigt()"
+    (click)="neuLaden()"
   >
-    <mat-icon inline>{{ ziel()?.art === 'nextcloud' ? 'cloud_done' : 'description' }}</mat-icon>
-    <span class="knopf-text">{{ quelleBeschreibung() }}</span>
+    <mat-icon inline>{{ datenbankStatus().icon }}</mat-icon>
+    <span class="knopf-text">{{ datenbankStatus().text }}</span>
     @if (store.ungespeichert()) {
       <span class="ungespeichert" matTooltip="Es gibt ungespeicherte Änderungen">•</span>
     }
@@ -74,9 +76,9 @@
 
   <button
     matButton="filled"
-    [disabled]="!store.hatDaten()"
+    [disabled]="!kannSpeichern() || !store.ungespeichert() || beschaeftigt()"
     (click)="speichern()"
-    matTooltip="Speichern"
+    matTooltip="In der Datenbank speichern (Strg+S)"
   >
     <mat-icon>save</mat-icon>
     <span class="knopf-text">Speichern</span>
@@ -130,15 +132,11 @@
 
     <button mat-menu-item [disabled]="!store.hatDaten()" (click)="herunterladen()">
       <mat-icon>download</mat-icon>
-      <span>Als Excel-Datei herunterladen</span>
+      <span>Excel-Kopie herunterladen</span>
     </button>
-    <button mat-menu-item [disabled]="!ziel()?.faehigkeiten?.neuLaden" (click)="neuLaden()">
+    <button mat-menu-item [disabled]="beschaeftigt()" (click)="neuLaden()">
       <mat-icon>refresh</mat-icon>
-      <span>Vom Ablageort neu laden</span>
-    </button>
-    <button mat-menu-item (click)="neuerPlan()">
-      <mat-icon>note_add</mat-icon>
-      <span>Leeren Plan beginnen</span>
+      <span>Aus der Datenbank neu laden</span>
     </button>
 
     <button mat-menu-item [disabled]="hiorg.laedt()" (click)="hiorgNeuLaden()">
@@ -180,28 +178,39 @@
 }
 
 <!--
-  Das Wochenraster steht von Anfang an, auch ohne geöffnete Arbeitsmappe: Diensttage
-  und Termine fehlen dann einfach, aber die HiOrg-Ebene erscheint direkt in der
-  Kalenderform statt in einer separaten Liste. Die Arbeitsmappe wird wie der
-  HiOrg-Feed automatisch geladen; ohne Erfolg bleibt hier ein Hinweis mit den
-  bisherigen Öffnen-Knöpfen als Rettungsweg.
+  Das Wochenraster steht von Anfang an, auch ohne Kalenderdaten: Diensttage und
+  Termine fehlen dann einfach, aber die HiOrg-Ebene erscheint direkt in der
+  Kalenderform statt in einer separaten Liste. Der Kalender wird wie der HiOrg-Feed
+  automatisch aus der Datenbank geladen; ist sie leer, führt der Hinweis zur
+  einmaligen Excel-Übernahme.
 -->
 <div class="arbeitsflaeche" cdkDropListGroup>
   <section class="plan" [hidden]="mobilAnsicht() !== 'plan'">
     <header class="plan-kopf">
       @if (!store.hatDaten() && !beschaeftigt()) {
-        <span class="keine-quelle" matTooltip="Noch keine Arbeitsmappe geöffnet">
-          <mat-icon inline>cloud_off</mat-icon>
-          Keine Arbeitsmappe geöffnet
-        </span>
-        <button matButton (click)="oeffnen()">
-          <mat-icon>folder_open</mat-icon>
-          <span class="knopf-text">Arbeitsmappe öffnen</span>
-        </button>
-        <button matButton (click)="neuerPlan()">
-          <mat-icon>note_add</mat-icon>
-          <span class="knopf-text">Leeren Plan beginnen</span>
-        </button>
+        @if (kalender.istLeer()) {
+          <span class="keine-quelle">
+            <mat-icon inline>inbox</mat-icon>
+            Noch keine Kalenderdaten
+          </span>
+          <a matButton="tonal" routerLink="/verwaltung/kalender-migration">
+            <mat-icon>upload_file</mat-icon>
+            <span>Excel übernehmen</span>
+          </a>
+          <button matButton (click)="neuesJahr(laufendesJahr)">
+            <mat-icon>note_add</mat-icon>
+            <span>Leeres Jahr {{ laufendesJahr }} anlegen</span>
+          </button>
+        } @else {
+          <span class="keine-quelle" [matTooltip]="datenbankStatus().tooltip">
+            <mat-icon inline>cloud_off</mat-icon>
+            {{ datenbankStatus().text }}
+          </span>
+          <button matButton (click)="neuLaden()">
+            <mat-icon>refresh</mat-icon>
+            <span>Erneut laden</span>
+          </button>
+        }
       } @else {
         <button
           class="diensttags-marke"
@@ -257,6 +266,27 @@
             <span>Ausgeblendet</span>
           </button>
         </mat-menu>
+
+        <mat-button-toggle-group
+          class="ansicht-umschalter"
+          hideSingleSelectionIndicator
+          aria-label="Ansicht des Kalenders"
+          [value]="ansicht()"
+          (change)="ansicht.set($event.value)"
+        >
+          <mat-button-toggle value="monat" matTooltip="Monatsraster mit Tagesagenda">
+            <mat-icon>calendar_view_month</mat-icon>
+            <span class="knopf-text">Monat</span>
+          </mat-button-toggle>
+          <mat-button-toggle value="liste" matTooltip="Agendaliste nach Wochen">
+            <mat-icon>view_agenda</mat-icon>
+            <span class="knopf-text">Liste</span>
+          </mat-button-toggle>
+          <mat-button-toggle value="jahr" matTooltip="Jahresüberblick der Diensttage">
+            <mat-icon>grid_view</mat-icon>
+            <span class="knopf-text">Jahr</span>
+          </mat-button-toggle>
+        </mat-button-toggle-group>
 
         <span class="monats-navigation">
           <button
@@ -326,220 +356,55 @@
       }
     </header>
 
-    <div class="raster-bereich">
-      <div class="wochenraster">
-        <div class="kw-kopf">KW</div>
-        @for (tag of wochentageIso; track tag) {
-          <div class="wochentag-kopf">{{ tag }}</div>
-        }
-
-        @for (woche of sichtbareWochen(); track woche.start; let i = $index) {
-          @if (istMonatswechsel(i)) {
-            <div class="monatsmarke">{{ monatsName(woche) }}</div>
-          }
-
-          <div class="kw-label">
-            <span class="kw-nummer">{{ woche.nummer }}</span>
-            <span class="kw-bereich"
-              >{{ formatKurz(woche.start) }}–{{ formatKurz(woche.ende) }}</span
-            >
-          </div>
-
-          @for (slot of woche.tage; track slot.datum) {
-            @let inhalt = tagesInhalt(slot.datum);
-            <div
-              class="tag-zelle"
-              [class.diensttag]="slot.istDiensttag"
-              [class.ausserhalb]="!slot.imJahr"
-              [class.heute]="slot.datum === heute"
-            >
-              <!--
-                  Lücke und HiOrg-Abweichung markieren den Inhalt, nicht die Zelle:
-                  Die Zelle wird auf die Höhe der ganzen Wochenzeile gestreckt, und
-                  eine über diese Höhe gezogene Farbfläche sieht an einem Tag mit
-                  zwei Karten wie ein Layoutfehler aus.
-                -->
-              <div
-                class="tag-inhalt"
-                [class.luecke]="slot.luecke && slot.termine.length > 0"
-                [class.hat-hiorg-abweichung]="hiorgAbgleich().tageMitAbweichung.has(slot.datum)"
-              >
-                <div class="tag-kopf">
-                  <!--
-                      Die Tageszahl steht immer hier, unabhängig von Terminen: sonst
-                      verschwindet sie an belegten Tagen unter der Termin-Karte.
-                    -->
-                  <span
-                    class="tag-nummer"
-                    [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
-                  >
-                    {{ slot.datum.slice(8, 10) }}
-                  </span>
-                  <span class="fueller"></span>
-                  @if (slot.imJahr && inhalt.alle.length > 1) {
-                    <button
-                      matIconButton
-                      class="tag-oeffnen"
-                      [matTooltip]="'Ganzen Tag ' + formatiereDatumText(slot.datum) + ' anzeigen'"
-                      [attr.aria-label]="
-                        'Ganzen Tag ' + formatiereDatumText(slot.datum) + ' anzeigen'
-                      "
-                      (click)="oeffneTagDetail(slot)"
-                    >
-                      <mat-icon>open_in_full</mat-icon>
-                    </button>
-                  }
-                </div>
-
-                @for (karte of inhalt.sichtbar; track karte.schluessel) {
-                  @switch (karte.art) {
-                    @case ('termin') {
-                      @if (!slot.imJahr) {
-                        <!-- Randtag des Nachbarjahres: nur zur Orientierung, kein Drop-Ziel. -->
-                        <app-termin-karte
-                          [termin]="karte.termin.termin"
-                          [segment]="karte.termin.segment"
-                          [tagDatum]="slot.datum"
-                          [katsThema]="katsThema(karte.termin.termin)"
-                          [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
-                          [feiertag]="slot.feiertag"
-                          [kompakt]="true"
-                          (bearbeiten)="bearbeiten(karte.termin.termin.id)"
-                          (verschieben)="zuBacklog(karte.termin.termin)"
-                          (loeschen)="loeschen(karte.termin.termin.id)"
-                          (dblclick)="bearbeiten(karte.termin.termin.id)"
-                        />
-                      } @else {
-                        <div
-                          class="mini-slot"
-                          cdkDropList
-                          cdkDropListSortingDisabled
-                          (cdkDropListDropped)="aufTerminAbgelegt($event, karte.termin.termin)"
-                        >
-                          <!--
-                              Mehrtägige Termine hängen an ihrem Beginn: nur dort lässt
-                              sich ziehen, sonst würde ein Zwischentag den Zeitraum
-                              zerreißen.
-                            -->
-                          <app-termin-karte
-                            cdkDrag
-                            [cdkDragDisabled]="
-                              karte.termin.segment === 'mitte' || karte.termin.segment === 'ende'
-                            "
-                            [cdkDragData]="karte.termin.termin"
-                            [termin]="karte.termin.termin"
-                            [segment]="karte.termin.segment"
-                            [tagDatum]="slot.datum"
-                            [katsThema]="katsThema(karte.termin.termin)"
-                            [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
-                            [feiertag]="slot.feiertag"
-                            [kompakt]="true"
-                            (bearbeiten)="bearbeiten(karte.termin.termin.id)"
-                            (verschieben)="zuBacklog(karte.termin.termin)"
-                            (loeschen)="loeschen(karte.termin.termin.id)"
-                            (dblclick)="bearbeiten(karte.termin.termin.id)"
-                          />
-                        </div>
-                      }
-                    }
-
-                    @case ('hiorg') {
-                      <!--
-                          HiOrg-Ebene: zusätzlich zum Plan, klar als Fremdquelle markiert.
-                          Ein exakter Treffer steckt schon als Verknüpfungssymbol auf der
-                          Termin-Karte oben – hier entfällt er, sonst stünde derselbe
-                          Termin doppelt im Tag.
-                        -->
-                      <app-hiorg-eintrag-karte
-                        [eintrag]="karte.hiorg.eintrag"
-                        [datum]="slot.datum"
-                        [abweichungen]="karte.hiorg.abweichungen"
-                        [ohneGegenstueck]="karte.hiorg.ohneGegenstueck"
-                        [kompakt]="true"
-                        (nameUebernehmen)="uebernimmHiorgNamen($event)"
-                        (terminAnlegen)="legeTerminAusHiorgAn($event)"
-                      />
-                    }
-
-                    @case ('sammel') {
-                      <!-- Mehrere unauffällige HiOrg-Dienste desselben Tages in einer Karte. -->
-                      <button
-                        class="hiorg-sammelkarte"
-                        [matTooltip]="
-                          karte.anzahl +
-                          ' HiOrg-Einträge am ' +
-                          formatiereDatumText(slot.datum) +
-                          ' – zum Anzeigen klicken'
-                        "
-                        (click)="oeffneTagDetail(slot)"
-                      >
-                        <mat-icon inline>cloud_download</mat-icon>
-                        <span class="sammel-quelle">HiOrg ·</span>
-                        <span class="sammel-zahl">{{ karte.anzahl }}</span>
-                        <span class="sammel-wort">Einträge</span>
-                      </button>
-                    }
-                  }
-                }
-
-                @if (slot.imJahr && slot.termine.length === 0) {
-                  <!--
-                      Ablagefläche eines Tages ohne Plantermin. Sie steht unter den
-                      Karten: ohne Feiertag oder Lücke ist sie nur ein Hover-„+" und
-                      schöbe sonst die HiOrg-Karten von der Tageszahl weg.
-                    -->
-                  <div
-                    class="mini-slot leer"
-                    cdkDropList
-                    cdkDropListSortingDisabled
-                    (cdkDropListDropped)="aufLeeremTagAbgelegt($event, slot.datum)"
-                  >
-                    <app-leerer-tag [slot]="slot" (anlegen)="terminAnlegen(slot.datum)" />
-                  </div>
-                }
-
-                @if (inhalt.verborgen > 0) {
-                  <button
-                    class="weitere-karten"
-                    [matTooltip]="
-                      'Alle Einträge am ' + formatiereDatumText(slot.datum) + ' anzeigen'
-                    "
-                    (click)="oeffneTagDetail(slot)"
-                  >
-                    +{{ inhalt.verborgen }} weitere
-                  </button>
-                }
-
-                @if (slot.imJahr && slot.termine.length > 0) {
-                  <!-- Ein Tag darf mehrere Termine tragen (z. B. Rookies vor dem Dienstabend). -->
-                  <button
-                    matIconButton
-                    class="weiterer-termin"
-                    [matTooltip]="
-                      'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
-                    "
-                    [attr.aria-label]="
-                      'Weiteren Eintrag am ' + formatiereDatumText(slot.datum) + ' anlegen'
-                    "
-                    (click)="terminAnlegen(slot.datum)"
-                  >
-                    <mat-icon>add</mat-icon>
-                  </button>
-                }
-              </div>
-            </div>
-          }
-        } @empty {
-          <p class="raster-leer">
-            {{
-              nurLuecken()
-                ? 'Kein ' + diensttagLabel() + ' ohne Ausbildung – der Plan ist vollständig.'
-                : 'Keine Termine gefunden.'
-            }}
-          </p>
-        }
-      </div>
-    </div>
+    @switch (ansicht()) {
+      @case ('monat') {
+        <app-monatsansicht
+          [wochen]="sichtbareWochen()"
+          [tagesInhalte]="tagesInhalte()"
+          [abgleich]="hiorgAbgleich()"
+          [heute]="heute"
+          [nurLuecken]="nurLuecken()"
+          [hiorgEbene]="hiorgEbene()"
+          [diensttagLabel]="diensttagLabel()"
+          (anlegen)="terminAnlegen($event)"
+          (bearbeiten)="bearbeiten($event)"
+          (zuBacklog)="zuBacklog($event)"
+          (loeschen)="loeschen($event)"
+          (nameUebernehmen)="uebernimmHiorgNamen($event)"
+          (terminAusHiorg)="legeTerminAusHiorgAn($event)"
+          (aufTerminAbgelegt)="terminAbgelegt($event)"
+          (aufLeeremTagAbgelegt)="tagAbgelegt($event)"
+        />
+      }
+      @case ('jahr') {
+        <app-jahresueberblick
+          [wochen]="wochen()"
+          [abgleich]="hiorgAbgleich()"
+          [heute]="heute"
+          [diensttagLabel]="diensttagLabel()"
+          (tagGewaehlt)="ueberblickTagGewaehlt($event)"
+        />
+      }
+      @case ('liste') {
+        <app-agendaliste
+          [wochen]="sichtbareWochen()"
+          [tagesInhalte]="tagesInhalte()"
+          [abgleich]="hiorgAbgleich()"
+          [heute]="heute"
+          [nurLuecken]="nurLuecken()"
+          [nurAbweichungen]="nurAbweichungen()"
+          [diensttagLabel]="diensttagLabel()"
+          [(kategorien)]="agendaKategorien"
+          [(typ)]="agendaTyp"
+          (anlegen)="terminAnlegen($event)"
+          (bearbeiten)="bearbeiten($event)"
+          (zuBacklog)="zuBacklog($event)"
+          (loeschen)="loeschen($event)"
+          (nameUebernehmen)="uebernimmHiorgNamen($event)"
+          (terminAusHiorg)="legeTerminAusHiorgAn($event)"
+        />
+      }
+    }
   </section>
 
   <aside
@@ -567,7 +432,7 @@
           Offene Ideen
           <span class="reiter-zahl">{{ store.backlog().length }}</span>
         </ng-template>
-        <app-backlog-panel />
+        <app-backlog-panel (aufLueckeLegen)="ideeAufNaechsteLuecke($event)" />
       </mat-tab>
       <mat-tab>
         <ng-template mat-tab-label>
@@ -589,8 +454,8 @@
 
 <nav class="mobil-nav">
   <button [class.aktiv]="mobilAnsicht() === 'plan'" (click)="mobilAnsicht.set('plan')">
-    <mat-icon>calendar_view_week</mat-icon>
-    Wochenplan
+    <mat-icon>calendar_month</mat-icon>
+    Kalender
   </button>
   <button [class.aktiv]="mobilAnsicht() === 'liste'" (click)="mobilAnsicht.set('liste')">
     <mat-icon>lightbulb</mat-icon>

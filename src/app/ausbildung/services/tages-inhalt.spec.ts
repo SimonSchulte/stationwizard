@@ -106,4 +106,24 @@ describe('Tagesinhalt im Wochenraster', () => {
 
     expect(inhalt.alle.map((karte) => karte.art)).toEqual(['termin', 'hiorg', 'hiorg', 'hiorg']);
   });
+
+  it('hält die Ebene in `verdichtet` ohne Deckelung ein', () => {
+    const viele = [1, 2, 3, 4, 5, 6].map((n) => dienst(n));
+
+    const aus = baueTagesInhalt([plantermin('t1')], viele, 'aus', 3);
+    const einzeln = baueTagesInhalt([plantermin('t1')], viele, 'einzeln', 3);
+    const gesammelt = baueTagesInhalt([plantermin('t1')], viele, 'gesammelt', 3);
+
+    expect(aus.verdichtet.map((k) => k.art)).toEqual(['termin']);
+    expect(einzeln.verdichtet).toHaveLength(7);
+    expect(einzeln.sichtbar.length).toBeLessThan(einzeln.verdichtet.length);
+    expect(gesammelt.verdichtet.map((k) => k.art)).toEqual(['termin', 'sammel']);
+    expect(gesammelt.eingesammelt).toHaveLength(6);
+  });
+
+  it('meldet bei einem Tag ohne Sammelkarte nichts als eingesammelt', () => {
+    const inhalt = baueTagesInhalt([], [dienst(1)], 'gesammelt', 3);
+
+    expect(inhalt.eingesammelt).toEqual([]);
+  });
 });

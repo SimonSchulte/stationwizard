@@ -135,7 +135,13 @@ try {
   const basisUrl = 'https://stationwizard.example';
   const anmeldung = { 'Cf-Access-Jwt-Assertion': token };
   const navigation = { ...anmeldung, 'Sec-Fetch-Mode': 'navigate', Accept: 'text/html' };
-  for (const pfad of ['/', '/ausbildung', '/einsatz', '/einsatz/planung/erfundene-id']) {
+  for (const pfad of [
+    '/',
+    '/kalender',
+    '/ausbildung',
+    '/einsatz',
+    '/einsatz/planung/erfundene-id',
+  ]) {
     const antwort = await laufzeit.dispatchFetch(`${basisUrl}${pfad}`, { headers: navigation });
     assert.equal(antwort.status, 200, `SPA-Direkteinstieg ${pfad}`);
     assert.equal(await antwort.text(), index, `index.html-Rückfallebene ${pfad}`);
@@ -148,7 +154,9 @@ try {
   const oeffentlichesToken = 'a'.repeat(32);
   for (const pfad of [
     '/',
+    '/kalender',
     '/ausbildung',
+    '/api/kalender',
     '/einsatz/planung/erfunden',
     `/${javascript}`,
     '/api/status',

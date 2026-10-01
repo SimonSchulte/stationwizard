@@ -31,6 +31,7 @@ import {
   type HiorgApiKonfiguration,
 } from './hiorg-api';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
+import { KALENDER_PFAD, verarbeiteKalender, type KalenderKonfiguration } from './kalender-planung';
 import {
   KM_BERICHT_PFAD,
   KM_BERICHT_SENDEN_PFAD,
@@ -69,6 +70,7 @@ export interface Env
     KmBerichtKonfiguration,
     OeffentlicheErfassungKonfiguration,
     AngebotswesenKonfiguration,
+    KalenderKonfiguration,
     MaterialKonfiguration,
     MaterialEinreichungenKonfiguration,
     FuehrerscheinVorlageKonfiguration {
@@ -249,6 +251,10 @@ export default {
 
     if (url.pathname === '/api/angebotswesen' || url.pathname.startsWith('/api/angebotswesen/')) {
       return verarbeiteAngebotswesen(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === KALENDER_PFAD || url.pathname.startsWith(`${KALENDER_PFAD}/`)) {
+      return verarbeiteKalender(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {

@@ -52,7 +52,10 @@ mat-sidenav nav a.aktiv,
 mat-sidenav nav a:hover {
   background: var(--ci-blue);
 }
+/* Feste Höhe, damit Seiten wie der Kalender ihren Inhalt selbst scrollen lassen und ihre
+   untere Navigation am Rand bleibt; längere Seiten scrollen weiter im Sidenav-Inhalt. */
 main {
+  height: 100%;
   min-height: 0;
 }
 .benutzer {

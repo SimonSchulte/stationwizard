@@ -26,6 +26,13 @@ export const verwaltungRouten: Routes = [
       ),
   },
   {
+    path: 'kalender-migration',
+    loadComponent: () =>
+      import('../ausbildung/pages/kalender-migration/kalender-migration').then(
+        (modul) => modul.KalenderMigration,
+      ),
+  },
+  {
     path: 'systemkonfiguration',
     loadComponent: () =>
       import('../systemkonfiguration/pages/systemkonfiguration/systemkonfiguration').then(

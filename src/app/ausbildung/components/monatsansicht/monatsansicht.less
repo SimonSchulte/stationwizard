@@ -1,0 +1,363 @@
+// Ansicht A: Monatsraster mit Tagesagenda. Farben und Abstände ausschließlich aus
+// den zentralen Tokens (`src/tokens.less`).
+
+:host {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.raster-bereich {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 var(--space-lg) var(--space-xl);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wochenraster {
+  display: grid;
+  grid-template-columns: 64px repeat(7, minmax(88px, 1fr));
+  // Die Kopfzeile bleibt inhaltsbreit; jede weitere (implizite) Zeile – Wochen wie
+  // Monatsmarken – teilt sich den übrigen Platz, damit der Kalender bei kurzen
+  // Ausschnitten die ganze verfügbare Höhe ausfüllt statt oben mit Rand zu enden.
+  // Die Tageszellen sind auf `MAX_KARTEN_PRO_TAG` gedeckelt; `1fr` verteilt den
+  // übrigen Platz gleichmäßig, statt eine Zeile am vollsten Tag hochzuziehen.
+  grid-auto-rows: minmax(72px, 1fr);
+  gap: var(--space-2xs);
+  align-items: stretch;
+  padding-top: var(--space-md);
+  min-height: 100%;
+}
+
+.kw-kopf,
+.wochentag-kopf {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: var(--space-xs) 0;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.monatsmarke {
+  grid-column: 1 / -1;
+  margin-top: var(--space-sm);
+  padding: calc(var(--space-unit) * 3) var(--space-2xs);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.kw-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-unit);
+  padding: var(--space-2xs);
+  border-radius: var(--radius-sm);
+  background: var(--surface-tertiary);
+  color: var(--text-secondary);
+  text-align: center;
+
+  .kw-nummer {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kw-bereich {
+    font-size: 0.5625rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+.tag-zelle {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-unit);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &.diensttag {
+    background: var(--surface-tertiary);
+  }
+
+  &.ausserhalb {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  /* Der heutige Tag bleibt auch im gefilterten Monat sofort auffindbar. */
+  &.heute {
+    outline: 2px solid var(--ci-blue);
+    outline-offset: calc(-1 * var(--space-unit));
+  }
+
+  /* Der Tag, dessen Agenda rechts steht. */
+  &.gewaehlt {
+    background: var(--drop-target-bg);
+    box-shadow: inset 0 0 0 2px var(--drop-target-border);
+  }
+}
+
+/*
+ * Die Zelle wird auf die Höhe der ganzen Wochenzeile gestreckt, der Inhalt nicht.
+ * Lücke und HiOrg-Abweichung markieren deshalb diesen Block.
+ */
+.tag-inhalt {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  padding: var(--space-unit);
+  border-radius: var(--radius-sm);
+
+  &.luecke {
+    border: 1px solid var(--luecke-rand);
+    background: var(--luecke-bg);
+  }
+
+  /* Eine abweichende HiOrg-Bezeichnung soll schon beim Überfliegen auffallen. */
+  &.hat-hiorg-abweichung {
+    outline: 2px solid var(--hiorg-abweichung-rand);
+    outline-offset: -1px;
+    background: var(--hiorg-abweichung-bg);
+  }
+}
+
+.tag-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  min-width: 0;
+}
+
+/* Immer sichtbar, unabhängig von Terminen; Sa/So heben sich in einem Rotton ab. */
+.tag-nummer {
+  padding: 0 var(--space-compact);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-transparent);
+  color: var(--text-disabled);
+  font: inherit;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+
+  &.wochenende {
+    color: var(--wochenende-text);
+    font-weight: 600;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:hover:not(:disabled),
+  &[aria-pressed='true'] {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+  }
+}
+
+.feiertag-symbol {
+  color: var(--feiertag-text);
+}
+
+/* „+N weitere": der Rest des Tages steht in der Agenda. */
+.weitere-karten {
+  align-self: stretch;
+  padding: var(--space-2xs) var(--space-compact);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* Mehrere unauffällige HiOrg-Einträge eines Tages, zusammengefasst. */
+.hiorg-sammelkarte {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  min-width: 0;
+  padding: var(--space-xs) var(--space-compact);
+  border: 1px dashed var(--hiorg-rand);
+  border-radius: var(--radius-sm);
+  background: var(--hiorg-bg);
+  color: var(--hiorg-text);
+  font-size: 0.6875rem;
+  font-weight: 600;
+
+  span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .sammel-zahl {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.mini-slot {
+  min-width: 0;
+  border-radius: var(--radius-sm);
+  transition: box-shadow 120ms ease;
+
+  &.cdk-drop-list-receiving {
+    outline: 2px dashed var(--drop-target-border);
+    outline-offset: var(--space-unit);
+    background: var(--drop-target-bg);
+  }
+}
+
+app-termin-karte {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+/* Leerzustand des ganzen Rasters. */
+.raster-leer {
+  grid-column: 1 / -1;
+  padding: var(--space-xl);
+  color: var(--text-disabled);
+  text-align: center;
+}
+
+// ---------------------------------------------------------------------- Agenda
+
+.agenda {
+  display: flex;
+  flex: 0 0 clamp(300px, 26vw, 380px);
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: var(--space-md);
+  overflow: auto;
+  border-left: 1px solid var(--border-light);
+  background: var(--surface-primary);
+
+  app-termin-karte,
+  app-hiorg-eintrag-karte {
+    cursor: default;
+  }
+}
+
+.agenda-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+
+  h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+
+.marke {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-compact);
+  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
+  border-radius: var(--radius-chip);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.luecke-marke {
+  border: 1px solid var(--luecke-rand);
+  background: var(--luecke-bg);
+  color: var(--luecke-text);
+}
+
+.abschnitt {
+  margin: var(--space-sm) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.feiertag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-compact);
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--feiertag-bg);
+  color: var(--feiertag-text);
+  font-size: 0.8125rem;
+}
+
+.leer {
+  margin: 0;
+  color: var(--text-disabled);
+  font-size: 0.8125rem;
+}
+
+.agenda-neu {
+  align-self: flex-start;
+  margin-top: var(--space-xs);
+}
+
+// ---------------------------------------------------------------------- Schmal
+
+@media (max-width: 1150px) {
+  :host {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .raster-bereich {
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-inline: var(--space-md);
+  }
+
+  .agenda {
+    flex: 0 0 auto;
+    overflow: visible;
+    border-top: 1px solid var(--border-light);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 780px) {
+  .wochenraster {
+    grid-template-columns: 44px repeat(7, minmax(64px, 1fr));
+  }
+
+  /* In einer 64px-Spalte bleibt von „HiOrg · 4 Einträge" nur ein Ellipsenrest;
+     das Wolkensymbol nennt die Quelle, die Zahl trägt die Aussage. */
+  .hiorg-sammelkarte {
+    justify-content: center;
+
+    .sammel-quelle,
+    .sammel-wort {
+      display: none;
+    }
+  }
+}

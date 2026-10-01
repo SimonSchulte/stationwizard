@@ -53,9 +53,13 @@ export class TerminKarte {
   /** Der Tag, an dem diese Karte steht – bei mehrtägigen Terminen nicht der Beginn. */
   readonly tagDatum = input<string | null>(null);
 
+  /** Bietet im Menü einer Idee „Auf nächste Lücke legen“ an – nur das Ideen-Panel setzt das. */
+  readonly lueckeAnbieten = input(false);
+
   readonly bearbeiten = output<void>();
   readonly loeschen = output<void>();
   readonly verschieben = output<void>();
+  readonly naechsteLuecke = output<void>();
 
   /** Direktlink auf die Detailseite im HiOrg-Server, falls dieser Termin verknüpft ist. */
   readonly hiorgLink = computed(() => {

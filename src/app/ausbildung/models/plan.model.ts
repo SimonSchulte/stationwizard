@@ -1,9 +1,14 @@
 /**
- * Domänenmodell des Ausbildungsplaners.
+ * Domänenmodell des Kalenders (früher Ausbildungsplaner).
  *
- * Ein `PlanDocument` bildet genau das ab, was in der Excel-Arbeitsmappe steht:
- * den Jahresplan, das Ideen-Backlog ("Offene Ideen") und die eigene
- * KatS-Ausbildungsplan-Themenliste, über die quer referenziert wird.
+ * Ein `PlanDocument` ist die Sicht eines Jahres: der Jahresplan, das Ideen-Backlog
+ * ("Offene Ideen") und die eigene KatS-Ausbildungsplan-Themenliste, über die quer
+ * referenziert wird. Gespeichert wird es in der Kalender-Datenbank (ein Datensatz
+ * je `Jahresblatt`, einer für die Ideen); die frühere Excel-Arbeitsmappe bleibt
+ * Import- und Downloadformat mit denselben Feldern.
+ *
+ * Die festen Wertelisten (`KATEGORIEN`, `TERMIN_TYPEN`, `NACHWEISE`) prüft der
+ * Worker in `worker/src/kalender-planung.ts` ein zweites Mal – gemeinsam ändern.
  */
 
 import { tageVonBis } from '../../kern/kalender/datum';

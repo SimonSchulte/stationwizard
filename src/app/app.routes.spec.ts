@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { registerLocaleData } from '@angular/common';
@@ -15,6 +15,7 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
       'fetch',
       vi.fn(async (pfad: string) => {
         if (pfad === '/api/nextcloud/planungen') return Response.json({ dateien: [] });
+        if (pfad === '/api/kalender') return Response.json({ jahre: [], ideen: null });
         if (pfad === '/api/hiorg/verbindung')
           return Response.json({ eingerichtet: true, verbunden: true });
         if (pfad === '/api/hiorg/personal')
@@ -47,10 +48,20 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('öffnet den Jahresplan samt Quelle-Auswahl über die Ausbildungsroute', async () => {
+  it('öffnet den Kalender und bietet bei leerer Datenbank die Excel-Übernahme an', async () => {
+    const ansicht = await RouterTestingHarness.create('/kalender');
+    await ansicht.fixture.whenStable();
+    ansicht.detectChanges();
+    const text = ansicht.routeNativeElement?.textContent ?? '';
+    expect(text).toContain('Kalender');
+    expect(text).toContain('Datenbank verbunden');
+    expect(text).toContain('Excel übernehmen');
+  });
+
+  it('leitet die frühere Ausbildungsroute auf den Kalender um', async () => {
     const ansicht = await RouterTestingHarness.create('/ausbildung');
-    expect(ansicht.routeNativeElement?.textContent).toContain('Dienstplaner');
-    expect(ansicht.routeNativeElement?.querySelector('button')).toBeTruthy();
+    expect(TestBed.inject(Router).url).toBe('/kalender');
+    expect(ansicht.routeNativeElement?.textContent).toContain('Kalender');
   });
 
   it('öffnet die Einsatzliste mit dauerhafter HiOrg-Anbindung und Cloud-Dateien', async () => {

@@ -17,7 +17,7 @@ const TESTDATEN_PFAD = 'testdaten/hiorg-kalender-mock.json';
  * Die HiOrg-Termine des Verbands, gelesen über den Worker.
  *
  * Der Feed ist eine reine Anzeige- und Abgleichquelle: er wird **nicht**
- * zwischengespeichert und nie in die Excel-Mappe geschrieben. Die Ebene ist
+ * zwischengespeichert und nie in die Kalender-Datenbank geschrieben. Die Ebene ist
  * immer eingeblendet, sobald ein Rahmenplan offen ist – keine Ansichtsvorliebe.
  *
  * Ein Fehlschlag ist nie blockierend: der Jahresplan arbeitet ohne die Ebene

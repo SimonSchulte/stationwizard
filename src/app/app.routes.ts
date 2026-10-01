@@ -8,10 +8,12 @@ export const routes: Routes = [
     title: 'HiorgWache',
   },
   {
-    path: 'ausbildung',
+    path: 'kalender',
     loadChildren: () => import('./ausbildung/ausbildung.routes').then((m) => m.ausbildungRoutes),
-    title: 'Ausbildungsplanung · HiorgWache',
+    title: 'Kalender · HiorgWache',
   },
+  // Frühere Adresse der Ausbildungsplanung: Lesezeichen und alte Links bleiben gültig.
+  { path: 'ausbildung', redirectTo: 'kalender' },
   {
     path: 'einsatz',
     loadChildren: () => import('./einsatz/einsatz.routes').then((m) => m.einsatzRouten),
