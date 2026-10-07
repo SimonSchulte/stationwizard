@@ -414,3 +414,18 @@ describe('Ehrungen: Stunden nachtragen und Protokoll', () => {
     expect((await verlauf(db, id)).aenderungen).toHaveLength(1);
   });
 });
+
+describe('Ehrungen: Liste ohne Migration 0015', () => {
+  it('liefert Personen auch dann, wenn die Spalte stunden_manuell noch fehlt', async () => {
+    const db = new FakeEhrungenDb();
+    await importiere(db, [{ nachname: 'Muster', vorname: 'Max', stunden: 1200 }]);
+    for (const zeile of db.zeilen.values()) {
+      delete (zeile as unknown as Record<string, unknown>)['stunden_manuell'];
+    }
+    expect((await liste(db))[0]).toMatchObject({
+      stunden: 1200,
+      stundenImport: 1200,
+      stundenManuell: null,
+    });
+  });
+});

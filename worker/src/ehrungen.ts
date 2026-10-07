@@ -139,7 +139,8 @@ function zuJson(zeile: PersonZeile): Record<string, unknown> {
     // `stunden` ist die wirksame Zahl: die größere von Import und manuellem Nachtrag.
     stunden: wirksameStunden(zeile.stunden, zeile.stunden_manuell),
     stundenImport: zeile.stunden,
-    stundenManuell: zeile.stunden_manuell,
+    // `?? null`: eine noch nicht angewendete Migration 0015 darf die Liste nicht unlesbar machen.
+    stundenManuell: zeile.stunden_manuell ?? null,
     eintrittsdatum: zeile.eintrittsdatum,
     besondereVerdienste: zeile.besondere_verdienste === 1,
     erhalten: leseErhaltenSpalte(zeile.erhalten),

@@ -2947,5 +2947,7 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   (Import, auch Erstanlage, und Nachtrag) steht im Änderungsprotokoll (`ehrungen_aenderungen`, Dialog je
   Zeile mit Zeitpunkt, Art, vorher/nachher, Benutzer). Mit Worker-Tests (Protokoll, Version/Rennen, Prüfung der
   Eingabe) und Browserlauf (Nachtrag, ungültige Eingabe, Dialog) auf Desktop und Mobil geprüft.
-  **Vor dem Deployment:** Migration `worker/migrations/benutzer/0015_ehrungen_stunden_manuell.sql` auf
-  `BENUTZER_DB` anwenden – **noch nicht angewendet**; ohne sie scheitern Speichern und Import der Ehrungen.
+  **Migration `0015_ehrungen_stunden_manuell.sql`:** am 2026-10-07 auf `BENUTZER_DB` angewendet, nachdem der
+  Ehrungsmanager mit neuem Worker-Code, aber ohne die Migration eine leere Liste zeigte (die Daten waren
+  vorhanden, 109 Personen; der Client lehnte die Antwort ohne `stundenManuell` ab). Der Worker liefert
+  `stundenManuell` jetzt auch ohne die Spalte als `null`. Reihenfolge künftig: Migration vor dem Ausrollen.
