@@ -5,6 +5,8 @@ import { istEhrungPerson, type EhrungPerson, type Erhalten } from './ehrungen-re
 const PFAD = '/api/personal/ehrungen';
 
 export interface EhrungAenderung {
+  /** Manueller Nachtrag der Stunden; `null` für keinen. */
+  stundenManuell: number | null;
   eintrittsdatum: string | null;
   besondereVerdienste: boolean;
   erhalten: Erhalten;
@@ -30,6 +32,25 @@ const IMPORT_ERGEBNISSE: readonly string[] = [
   'konflikt',
   'doppelt',
 ];
+
+export interface StundenAenderung {
+  zeitpunkt: string;
+  benutzer: string;
+  feld: 'stunden-import' | 'stunden-manuell';
+  alt: number | null;
+  neu: number | null;
+}
+
+function istStundenAenderung(wert: unknown): wert is StundenAenderung {
+  return (
+    istObjekt(wert) &&
+    typeof wert['zeitpunkt'] === 'string' &&
+    typeof wert['benutzer'] === 'string' &&
+    (wert['feld'] === 'stunden-import' || wert['feld'] === 'stunden-manuell') &&
+    (wert['alt'] === null || typeof wert['alt'] === 'number') &&
+    (wert['neu'] === null || typeof wert['neu'] === 'number')
+  );
+}
 
 function istObjekt(wert: unknown): wert is Record<string, unknown> {
   return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
@@ -66,22 +87,34 @@ export class EhrungenService {
     });
     if (
       !istObjekt(antwort) ||
+      typeof antwort['stunden'] !== 'number' ||
       typeof antwort['version'] !== 'number' ||
       typeof antwort['geaendertAm'] !== 'string' ||
       typeof antwort['geaendertVon'] !== 'string'
     ) {
       throw new WorkerFehler('Der Server hat keine gültige Antwort geliefert.', 502);
     }
+    const stunden = antwort['stunden'];
     const version = antwort['version'];
     const geaendertAm = antwort['geaendertAm'];
     const geaendertVon = antwort['geaendertVon'];
     this.personen.update((liste) =>
       liste.map((eintrag) =>
         eintrag.id === person.id
-          ? { ...eintrag, ...aenderung, version, geaendertAm, geaendertVon }
+          ? { ...eintrag, ...aenderung, stunden, version, geaendertAm, geaendertVon }
           : eintrag,
       ),
     );
+  }
+
+  /** Änderungsprotokoll der Stundenzahlen einer Person, neueste zuerst. */
+  async verlaufLaden(id: string): Promise<StundenAenderung[]> {
+    const antwort = await this.worker.json<unknown>(`${PFAD}/${id}/aenderungen`);
+    const liste = istObjekt(antwort) ? antwort['aenderungen'] : undefined;
+    if (!Array.isArray(liste) || !liste.every(istStundenAenderung)) {
+      throw new WorkerFehler('Der Server hat kein gültiges Änderungsprotokoll geliefert.', 502);
+    }
+    return liste;
   }
 
   async loeschen(id: string): Promise<void> {

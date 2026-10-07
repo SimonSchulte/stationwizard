@@ -2941,3 +2941,11 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   es. Unit-Tests für Regel, Anrede-Erkennung, Export und Worker-Feld; im Browser nicht erneut angesehen.
   **Nicht belegt:** die in HiOrg tatsächlich verwendeten Anrede-Werte und dass das Feld `anrede` im
   Personal-Abruf geliefert wird – gegen die echte API nicht geprüft.
+- **Stunden nachtragen und Protokoll:** Neben der Importzahl gibt es einen manuellen Nachtrag je Person; für
+  alle Berechnungen (Leistungsabzeichen, Abgleich, „Zu Ehrende“, Sortierung, Excel) zählt die größere Zahl. Die
+  Spalte zeigt beide (Symbole Import/Manuell mit Tooltip, welche zählt). Jede Änderung einer Stundenzahl
+  (Import, auch Erstanlage, und Nachtrag) steht im Änderungsprotokoll (`ehrungen_aenderungen`, Dialog je
+  Zeile mit Zeitpunkt, Art, vorher/nachher, Benutzer). Mit Worker-Tests (Protokoll, Version/Rennen, Prüfung der
+  Eingabe) und Browserlauf (Nachtrag, ungültige Eingabe, Dialog) auf Desktop und Mobil geprüft.
+  **Vor dem Deployment:** Migration `worker/migrations/benutzer/0015_ehrungen_stunden_manuell.sql` auf
+  `BENUTZER_DB` anwenden – **noch nicht angewendet**; ohne sie scheitern Speichern und Import der Ehrungen.

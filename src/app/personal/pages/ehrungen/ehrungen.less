@@ -140,6 +140,52 @@
   }
 }
 
+.stundenzelle {
+  min-width: 11rem;
+}
+
+.stunden-wirksam {
+  font-weight: 500;
+  text-align: right;
+}
+
+.stundenquellen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-2xs);
+}
+
+.quelle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+
+  mat-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 1.1rem;
+  }
+
+  &.zaehlt {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+}
+
+.manuellfeld {
+  --mat-form-field-container-height: 36px;
+  --mat-form-field-container-vertical-padding: 6px;
+
+  width: 7.5rem;
+}
+
+.manuell-icon {
+  color: var(--text-secondary);
+}
+
 .abgleich {
   color: var(--status-warn);
 

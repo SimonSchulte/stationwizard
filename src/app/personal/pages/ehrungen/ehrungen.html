@@ -217,8 +217,31 @@
         </ng-container>
         <ng-container matColumnDef="stunden">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="zahl">Stunden</th>
-          <td mat-cell *matCellDef="let zeile" class="zahl">
-            {{ stundenAnzeige(zeile.person.stunden) }}
+          <td mat-cell *matCellDef="let zeile" class="stundenzelle">
+            <div class="stunden-wirksam">{{ stundenAnzeige(zeile.aktuell.stunden) }}</div>
+            <div class="stundenquellen">
+              <span
+                class="quelle"
+                [class.zaehlt]="!zaehltManuell(zeile)"
+                [matTooltip]="importHinweis(zeile)"
+              >
+                <mat-icon>cloud_download</mat-icon>
+                {{ stundenAnzeige(zeile.person.stundenImport) }}
+              </span>
+              <mat-form-field class="manuellfeld" appearance="outline" subscriptSizing="dynamic">
+                <mat-icon matPrefix [matTooltip]="manuellHinweis(zeile)" class="manuell-icon"
+                  >edit</mat-icon
+                >
+                <input
+                  matInput
+                  inputmode="decimal"
+                  placeholder="manuell"
+                  [value]="manuellAnzeige(zeile)"
+                  (change)="stundenNachtragen(zeile, $any($event.target))"
+                  [attr.aria-label]="'Stunden manuell nachtragen, ' + zeile.person.nachname"
+                />
+              </mat-form-field>
+            </div>
           </td>
         </ng-container>
         <ng-container matColumnDef="eintritt">
@@ -332,6 +355,14 @@
         <ng-container matColumnDef="aktionen">
           <th mat-header-cell *matHeaderCellDef><span class="nur-lesehilfe">Aktionen</span></th>
           <td mat-cell *matCellDef="let zeile">
+            <button
+              mat-icon-button
+              matTooltip="Änderungsprotokoll der Stunden"
+              (click)="verlaufOeffnen(zeile)"
+              [attr.aria-label]="'Änderungsprotokoll der Stunden, ' + zeile.person.nachname"
+            >
+              <mat-icon>history</mat-icon>
+            </button>
             <button
               mat-icon-button
               matTooltip="Person entfernen"

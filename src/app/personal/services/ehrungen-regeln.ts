@@ -93,7 +93,12 @@ export interface EhrungPerson {
   id: string;
   nachname: string;
   vorname: string;
+  /** Wirksame Stunden: die größere Zahl aus Import und manuellem Nachtrag. */
   stunden: number;
+  /** Stand der letzten Stundenliste (Import). */
+  stundenImport: number;
+  /** Von Hand nachgetragen; `null`, wenn nichts nachgetragen ist. */
+  stundenManuell: number | null;
   /** `JJJJ-MM-TT` oder `null`. */
   eintrittsdatum: string | null;
   besondereVerdienste: boolean;
@@ -101,6 +106,11 @@ export interface EhrungPerson {
   version: number;
   geaendertAm: string;
   geaendertVon: string;
+}
+
+/** Für alle Berechnungen zählt die größere der beiden Zahlen. */
+export function wirksameStunden(importiert: number, manuell: number | null): number {
+  return Math.max(importiert, manuell ?? 0);
 }
 
 /** Vergleichsform für den Namensabgleich; Gegenstück in `worker/src/ehrungen.ts`. */
@@ -416,6 +426,10 @@ export function istEhrungPerson(wert: unknown): wert is EhrungPerson {
     typeof wert['vorname'] === 'string' &&
     typeof wert['stunden'] === 'number' &&
     Number.isFinite(wert['stunden']) &&
+    typeof wert['stundenImport'] === 'number' &&
+    Number.isFinite(wert['stundenImport']) &&
+    (wert['stundenManuell'] === null ||
+      (typeof wert['stundenManuell'] === 'number' && Number.isFinite(wert['stundenManuell']))) &&
     (wert['eintrittsdatum'] === null ||
       (typeof wert['eintrittsdatum'] === 'string' &&
         /^\d{4}-\d{2}-\d{2}$/.test(wert['eintrittsdatum']))) &&

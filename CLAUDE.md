@@ -198,6 +198,7 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/personal/ehrungen`                           | GET                | Ehrungen aller Personen mit Version je Person                                            |
 | `/api/personal/ehrungen/<UUID>`                    | PUT / DELETE       | Erhaltene Auszeichnungen, Eintrittsdatum, Verdienste; Update nur mit `If-Match`          |
 | `/api/personal/ehrungen/import`                    | POST               | Sammelimport für Stunden bzw. Eintrittsdaten; Ergebnis je Eintrag                        |
+| `/api/personal/ehrungen/<UUID>/aenderungen`        | GET                | Änderungsprotokoll der Stundenzahlen, neueste zuerst; nur lesend                         |
 | `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
@@ -686,7 +687,7 @@ Die Ehrungen (`src/app/personal/pages/ehrungen/`, `worker/src/ehrungen.ts`, Rout
 (Bronze/Silber/Gold), Jubiläumszeichen (25/40/50/60 Jahre) und Ehrenzeichen („Ehrenzeichen“,
 „am Bande“, „Ehrennadel am Band des Johanniterordens“). Eine Zeile je Person in
 `ehrungen_personen` (`BENUTZER_DB`, Migration `0014_ehrungen.sql`) mit eigener Version. Gespeichert
-wird nur, was erfasst oder importiert ist: Stunden, Eintrittsdatum, „Besondere Verdienste“ und die
+wird nur, was erfasst oder importiert ist: Stunden (Import `stunden` und manueller Nachtrag `stunden_manuell`, Migration `0015`; für **alle** Berechnungen zählt die größere der beiden Zahlen, `wirksameStunden()` in Worker und Client gemeinsam ändern; die Seite zeigt beide mit Symbol und Tooltip), Eintrittsdatum, „Besondere Verdienste“ und die
 bereits erhaltenen Auszeichnungen mit dem **Jahr der Vergabe** (JSON-Objekt Schlüssel → Jahr oder
 `null` für „erhalten, Jahr unbekannt“; feste Schlüsselliste in `ehrungen.ts` **und**
 `ehrungen-regeln.ts`; ein Jahr wird beim Anhaken bewusst nicht vorbelegt, ein fehlendes ist
@@ -706,7 +707,12 @@ ob Damen- oder Herrenuhr, ermittelt allein der Export „Zu Ehrende“ aus der H
 nicht belegt, alles Unklare bleibt in der Liste „(Damen/Herren offen)“). Ein Symbol vor jeder Zeile gleicht das höchste angehakte Leistungsabzeichen mit
 dem Anspruch aus den Stunden ab (`leistungAbgleich()`: Haken bei Übereinstimmung, Warnung bei
 fehlendem oder zu viel angehaktem Abzeichen); Jubiläum und Ehrenzeichen gehen nicht in dieses
-Symbol ein. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht
+Symbol ein. Jede Änderung einer Stundenzahl – Import (auch die Erstanlage) und manueller Nachtrag – schreibt der Worker
+in `ehrungen_aenderungen` (Zeitpunkt und Benutzer aus der geprüften Anmeldung, nie aus dem Anfragekörper; Name
+und Person bleiben im Protokoll, auch wenn die Person entfernt wird; in derselben `db.batch()` wie die
+Änderung, mit der Version nach dem Schreiben als Bedingung, damit ein verlorenes Rennen keinen Eintrag erzeugt;
+unveränderte Zahlen erzeugen keinen Eintrag). Lesen über `GET …/<UUID>/aenderungen`, Anzeige im Dialog der
+Zeile. Eintrittsdatum, Häkchen und Verdienste werden nicht protokolliert. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht
 über Nachname und Vorname ab (`personSchluessel()`, Vergleichsform in Worker, Client und
 Migration gemeinsam ändern), legt neue Personen an, aktualisiert vorhandene nur mit der
 bekannten Version (sonst Ergebnis `konflikt`) und schreibt nichts, wenn sich nichts ändert. Die

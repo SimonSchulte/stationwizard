@@ -9,6 +9,8 @@ function person(nachname: string, ueberschreibung: Partial<EhrungPerson> = {}): 
     nachname,
     vorname: 'Test',
     stunden: 0,
+    stundenImport: 0,
+    stundenManuell: null,
     eintrittsdatum: null,
     besondereVerdienste: false,
     erhalten: {},
@@ -28,7 +30,7 @@ describe('Export „Zu Ehrende“', () => {
           erhalten: { bronze: 2012 },
           eintrittsdatum: '2000-03-01',
         }),
-        person('Fertig', { stunden: 4500, erhalten: { gold: 2020 } }),
+        person('Fertig', { stunden: 4500, stundenImport: 4500, erhalten: { gold: 2020 } }),
       ],
       2026,
     );

@@ -11,6 +11,7 @@ import {
   type Erhalten,
   uhrArtAusAnrede,
   uhrErfuellt,
+  wirksameStunden,
   zuEhrende,
   stundenLesen,
   stundenTextLesen,
@@ -265,5 +266,19 @@ describe('Jubiläumsuhr', () => {
     expect(uhrArtAusAnrede('Divers')).toBeNull();
     expect(uhrArtAusAnrede('')).toBeNull();
     expect(uhrArtAusAnrede(undefined)).toBeNull();
+  });
+});
+
+describe('Wirksame Stunden', () => {
+  it('nimmt die größere von Import und manuellem Nachtrag', () => {
+    expect(wirksameStunden(1000, null)).toBe(1000);
+    expect(wirksameStunden(1000, 1500)).toBe(1500);
+    expect(wirksameStunden(1000, 400)).toBe(1000);
+    expect(wirksameStunden(1000, 1000)).toBe(1000);
+  });
+
+  it('lässt einen Nachtrag den Anspruch auf ein Leistungsabzeichen auslösen', () => {
+    expect(leistungsabzeichenErfuellt(wirksameStunden(900, null))).toBeNull();
+    expect(leistungsabzeichenErfuellt(wirksameStunden(900, 1200))).toBe('bronze');
   });
 });

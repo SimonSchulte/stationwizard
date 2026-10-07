@@ -19,6 +19,7 @@ import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -56,7 +57,9 @@ import {
   mitgliedsjahre,
   zuEhrende,
   personSchluessel,
+  stundenLesen,
   stundenTextLesen,
+  wirksameStunden,
   type Anspruch,
   type Ansprueche,
   type EhrungPerson,
@@ -67,11 +70,14 @@ import {
   uhrArtAusAnrede,
 } from '../../services/ehrungen-regeln';
 import { EhrungenService, type EhrungAenderung } from '../../services/ehrungen.service';
+import { EhrungenVerlauf, type VerlaufDaten } from './ehrungen-verlauf/ehrungen-verlauf';
 
 interface Zeile {
   person: EhrungPerson;
   /** Angezeigter Stand: gespeicherter Stand mit den noch ungesicherten Änderungen darüber. */
   stand: EhrungAenderung;
+  /** Person mit allen noch nicht gespeicherten Änderungen; Grundlage aller Berechnungen und Exporte. */
+  aktuell: EhrungPerson;
   ansprueche: Ansprueche;
   jahre: number | null;
   abgleich: LeistungAbgleich;
@@ -83,6 +89,7 @@ interface Zeile {
 function gleich(a: EhrungAenderung, b: EhrungAenderung): boolean {
   const schluesselA = Object.keys(a.erhalten) as EhrungSchluessel[];
   return (
+    a.stundenManuell === b.stundenManuell &&
     a.eintrittsdatum === b.eintrittsdatum &&
     a.besondereVerdienste === b.besondereVerdienste &&
     schluesselA.length === Object.keys(b.erhalten).length &&
@@ -143,6 +150,7 @@ export class Ehrungen implements OnInit {
   private readonly dienst = inject(EhrungenService);
   private readonly hiorg = inject(HiorgPersonalService);
   private readonly dialogDienst = inject(DialogDienst);
+  private readonly dialog = inject(MatDialog);
 
   private readonly dokument = inject(DOCUMENT);
 
@@ -217,17 +225,24 @@ export class Ehrungen implements OnInit {
         return bekannt.zeile;
       }
       const gespeichert: EhrungAenderung = {
+        stundenManuell: person.stundenManuell,
         eintrittsdatum: person.eintrittsdatum,
         besondereVerdienste: person.besondereVerdienste,
         erhalten: person.erhalten,
       };
       const stand = bearbeitet ?? gespeichert;
+      const aktuell: EhrungPerson = {
+        ...person,
+        ...stand,
+        stunden: wirksameStunden(person.stundenImport, stand.stundenManuell),
+      };
       const zeile: Zeile = {
         person,
         stand,
-        ansprueche: ansprueche({ ...person, ...stand }, this.jahr),
+        aktuell,
+        ansprueche: ansprueche(aktuell, this.jahr),
         jahre: mitgliedsjahre(stand.eintrittsdatum, this.jahr),
-        abgleich: leistungAbgleich(person.stunden, stand.erhalten),
+        abgleich: leistungAbgleich(aktuell.stunden, stand.erhalten),
         eintrittAlsDatum: stand.eintrittsdatum ? isoZuLokalesDatum(stand.eintrittsdatum) : null,
         geaendert: bearbeitet !== undefined,
       };
@@ -263,7 +278,7 @@ export class Ehrungen implements OnInit {
         case 'vorname':
           return zeile.person.vorname.toLocaleLowerCase('de');
         case 'stunden':
-          return zeile.person.stunden;
+          return zeile.aktuell.stunden;
         case 'eintritt':
           return zeile.stand.eintrittsdatum ?? '';
         default:
@@ -313,7 +328,7 @@ export class Ehrungen implements OnInit {
   readonly anzahlZuEhrende = computed(
     () =>
       zuEhrende(
-        this.zeilen().map((zeile) => ({ ...zeile.person, ...zeile.stand })),
+        this.zeilen().map((zeile) => zeile.aktuell),
         this.jahr,
       ).length,
   );
@@ -432,6 +447,7 @@ export class Ehrungen implements OnInit {
 
   private aendern(person: EhrungPerson, neu: EhrungAenderung): void {
     const gespeichert: EhrungAenderung = {
+      stundenManuell: person.stundenManuell,
       eintrittsdatum: person.eintrittsdatum,
       besondereVerdienste: person.besondereVerdienste,
       erhalten: person.erhalten,
@@ -464,6 +480,53 @@ export class Ehrungen implements OnInit {
     this.aendern(zeile.person, {
       ...zeile.stand,
       erhalten: { ...zeile.stand.erhalten, [schluessel]: jahr },
+    });
+  }
+
+  /** Nachtrag von Hand; leer entfernt ihn, Unlesbares wird verworfen und die alte Anzeige bleibt. */
+  stundenNachtragen(zeile: Zeile, feld: HTMLInputElement): void {
+    const text = feld.value.trim();
+    const manuell = text === '' ? null : stundenLesen(text);
+    if (text !== '' && manuell === null) {
+      feld.value = this.manuellAnzeige(zeile);
+      this.fehler.set('Die Stundenzahl ist nicht lesbar. Erwartet wird zum Beispiel 1.250,5.');
+      return;
+    }
+    this.fehler.set('');
+    this.aendern(zeile.person, { ...zeile.stand, stundenManuell: manuell });
+  }
+
+  manuellAnzeige(zeile: Zeile): string {
+    return zeile.stand.stundenManuell === null
+      ? ''
+      : this.stundenAnzeige(zeile.stand.stundenManuell);
+  }
+
+  /** Welche der beiden Zahlen für die Berechnung zählt. */
+  zaehltManuell(zeile: Zeile): boolean {
+    return (zeile.stand.stundenManuell ?? 0) > zeile.person.stundenImport;
+  }
+
+  importHinweis(zeile: Zeile): string {
+    const zahl = `${this.stundenAnzeige(zeile.person.stundenImport)} Stunden aus dem Import`;
+    return this.zaehltManuell(zeile)
+      ? `${zahl} – zählt nicht, der manuelle Nachtrag ist größer`
+      : `${zahl} – diese Zahl zählt`;
+  }
+
+  manuellHinweis(zeile: Zeile): string {
+    if (zeile.stand.stundenManuell === null)
+      return 'Stunden manuell nachtragen (die größere Zahl zählt)';
+    return this.zaehltManuell(zeile)
+      ? 'Manuell nachgetragen – diese Zahl zählt'
+      : 'Manuell nachgetragen – zählt nicht, der Import ist größer oder gleich';
+  }
+
+  verlaufOeffnen(zeile: Zeile): void {
+    this.dialog.open<EhrungenVerlauf, VerlaufDaten>(EhrungenVerlauf, {
+      data: { id: zeile.person.id, name: `${zeile.person.nachname}, ${zeile.person.vorname}` },
+      width: '640px',
+      maxWidth: '94vw',
     });
   }
 
@@ -708,7 +771,7 @@ export class Ehrungen implements OnInit {
   async excelHerunterladen(): Promise<void> {
     this.fehler.set('');
     try {
-      const personen = this.zeilen().map((zeile) => ({ ...zeile.person, ...zeile.stand }));
+      const personen = this.zeilen().map((zeile) => zeile.aktuell);
       const daten = await ehrungenExcelErzeugen(personen, this.jahr);
       dateiHerunterladen(daten, `ehrungen-${heuteIso()}.xlsx`, EHRUNGEN_EXCEL_MEDIENTYP);
     } catch (fehler) {
@@ -726,7 +789,7 @@ export class Ehrungen implements OnInit {
     this.fehler.set('');
     this.rueckmeldung.set('');
     try {
-      const personen = this.zeilen().map((zeile) => ({ ...zeile.person, ...zeile.stand }));
+      const personen = this.zeilen().map((zeile) => zeile.aktuell);
       const uhrArten = new Map<string, UhrArt>();
       let hinweis = '';
       if (zuEhrende(personen, this.jahr).some((eintrag) => eintrag.gruppe === 'Jubiläumsuhr')) {

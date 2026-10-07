@@ -23,6 +23,8 @@ export const EHRUNGEN_PFAD = '/api/personal/ehrungen';
 const EHRUNGEN_IMPORT_PFAD = '/api/personal/ehrungen/import';
 const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const EINZEL_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})$`, 'i');
+const VERLAUF_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/aenderungen$`, 'i');
+const VERLAUF_GRENZE = 200;
 
 /** Feste Schlüsselliste in kanonischer Reihenfolge; Gegenstück im Client. */
 export const EHRUNG_SCHLUESSEL = [
@@ -57,6 +59,10 @@ function istEchtesDatum(text: string): boolean {
   if (!ISO_DATUM.test(text)) return false;
   const datum = new Date(`${text}T00:00:00Z`);
   return !Number.isNaN(datum.getTime()) && datum.toISOString().slice(0, 10) === text;
+}
+
+export function wirksameStunden(importiert: number, manuell: number | null): number {
+  return Math.max(importiert, manuell ?? 0);
 }
 
 function pruefeStunden(wert: unknown): number | null {
@@ -103,6 +109,7 @@ interface PersonZeile {
   vorname: string;
   schluessel: string;
   stunden: number;
+  stunden_manuell: number | null;
   eintrittsdatum: string | null;
   besondere_verdienste: number;
   erhalten: string;
@@ -129,7 +136,10 @@ function zuJson(zeile: PersonZeile): Record<string, unknown> {
     id: zeile.id,
     nachname: zeile.nachname,
     vorname: zeile.vorname,
-    stunden: zeile.stunden,
+    // `stunden` ist die wirksame Zahl: die größere von Import und manuellem Nachtrag.
+    stunden: wirksameStunden(zeile.stunden, zeile.stunden_manuell),
+    stundenImport: zeile.stunden,
+    stundenManuell: zeile.stunden_manuell,
     eintrittsdatum: zeile.eintrittsdatum,
     besondereVerdienste: zeile.besondere_verdienste === 1,
     erhalten: leseErhaltenSpalte(zeile.erhalten),
@@ -189,9 +199,15 @@ async function aktualisiere(
   if (koerper instanceof Response) return koerper;
   const eingabe = koerper.inhalt;
   const erhalten = istObjekt(eingabe) ? pruefeErhalten(eingabe['erhalten']) : null;
+  const manuell = istObjekt(eingabe)
+    ? eingabe['stundenManuell'] === null
+      ? null
+      : pruefeStunden(eingabe['stundenManuell'])
+    : null;
   if (
     !istObjekt(eingabe) ||
     erhalten === null ||
+    (eingabe['stundenManuell'] !== null && manuell === null) ||
     typeof eingabe['besondereVerdienste'] !== 'boolean' ||
     !(
       eingabe['eintrittsdatum'] === null ||
@@ -200,43 +216,67 @@ async function aktualisiere(
   ) {
     return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Ungültige Angaben.', 400);
   }
-  const jetzt = new Date().toISOString();
-  const ergebnis = await db
-    .prepare(
-      `UPDATE ehrungen_personen
-       SET eintrittsdatum = ?, besondere_verdienste = ?, erhalten = ?, geaendert_am = ?,
-           geaendert_von = ?, version = version + 1
-       WHERE id = ? AND version = ?`,
-    )
-    .bind(
-      eingabe['eintrittsdatum'],
-      eingabe['besondereVerdienste'] ? 1 : 0,
-      JSON.stringify(erhalten),
-      jetzt,
-      identitaet.email,
-      id,
-      erwarteteVersion,
-    )
-    .run();
-  if (ergebnis.meta.changes === 0) {
-    const vorhanden = await db
-      .prepare('SELECT version FROM ehrungen_personen WHERE id = ?')
-      .bind(id)
-      .first<{ version: number }>();
-    return vorhanden
-      ? fehlerAntwort(
-          'EHRUNGEN_KONFLIKT',
-          'Der Eintrag wurde zwischenzeitlich geändert. Bitte neu laden und zusammenführen.',
-          412,
-        )
-      : fehlerAntwort('EHRUNGEN_NICHT_GEFUNDEN', 'Eintrag nicht gefunden.', 404);
+  const bestehend = await db
+    .prepare('SELECT version, stunden, stunden_manuell FROM ehrungen_personen WHERE id = ?')
+    .bind(id)
+    .first<{ version: number; stunden: number; stunden_manuell: number | null }>();
+  if (!bestehend) {
+    return fehlerAntwort('EHRUNGEN_NICHT_GEFUNDEN', 'Eintrag nicht gefunden.', 404);
   }
+  const konflikt = () =>
+    fehlerAntwort(
+      'EHRUNGEN_KONFLIKT',
+      'Der Eintrag wurde zwischenzeitlich geändert. Bitte neu laden und zusammenführen.',
+      412,
+    );
+  if (bestehend.version !== erwarteteVersion) return konflikt();
+
+  const jetzt = new Date().toISOString();
+  const anweisungen = [
+    db
+      .prepare(
+        `UPDATE ehrungen_personen
+         SET eintrittsdatum = ?, besondere_verdienste = ?, erhalten = ?, stunden_manuell = ?,
+             geaendert_am = ?, geaendert_von = ?, version = version + 1
+         WHERE id = ? AND version = ?`,
+      )
+      .bind(
+        eingabe['eintrittsdatum'],
+        eingabe['besondereVerdienste'] ? 1 : 0,
+        JSON.stringify(erhalten),
+        manuell,
+        jetzt,
+        identitaet.email,
+        id,
+        erwarteteVersion,
+      ),
+  ];
+  // Protokolleintrag nur bei tatsächlicher Änderung und nur, wenn die Änderung greift
+  // (die Version nach dem Update ist die Bedingung der SELECT-Zeile).
+  if (manuell !== bestehend.stunden_manuell) {
+    anweisungen.push(
+      protokollAnweisung(
+        db,
+        identitaet,
+        jetzt,
+        'stunden-manuell',
+        bestehend.stunden_manuell,
+        manuell,
+        id,
+        erwarteteVersion + 1,
+      ),
+    );
+  }
+  const ergebnisse = await db.batch(anweisungen);
+  if (ergebnisse[0]?.meta.changes === 0) return konflikt();
   return jsonAntwort(
     {
       id,
       eintrittsdatum: eingabe['eintrittsdatum'],
       besondereVerdienste: eingabe['besondereVerdienste'],
       erhalten,
+      stundenManuell: manuell,
+      stunden: wirksameStunden(bestehend.stunden, manuell),
       geaendertAm: jetzt,
       geaendertVon: identitaet.email,
       version: erwarteteVersion + 1,
@@ -244,6 +284,46 @@ async function aktualisiere(
     200,
     { ETag: starkesEtag(erwarteteVersion + 1) },
   );
+}
+
+/**
+ * Zeile des Änderungsprotokolls. Nur der Worker schreibt sie; Zeitpunkt und Benutzer kommen aus der
+ * geprüften Anmeldung. Die SELECT-Form bindet den Eintrag an die Version nach dem Schreiben: schlägt
+ * das Update fehl (Rennen), entsteht auch kein Eintrag.
+ */
+function protokollAnweisung(
+  db: D1Database,
+  identitaet: Benutzer,
+  zeitpunkt: string,
+  feld: 'stunden-import' | 'stunden-manuell',
+  alt: number | null,
+  neu: number | null,
+  personId: string,
+  versionDanach: number,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO ehrungen_aenderungen (person_id, nachname, vorname, zeitpunkt, benutzer, feld, alt, neu)
+       SELECT id, nachname, vorname, ?, ?, ?, ?, ? FROM ehrungen_personen WHERE id = ? AND version = ?`,
+    )
+    .bind(zeitpunkt, identitaet.email, feld, alt, neu, personId, versionDanach);
+}
+
+async function verlauf(db: D1Database, id: string): Promise<Response> {
+  const ergebnis = await db
+    .prepare(
+      `SELECT zeitpunkt, benutzer, feld, alt, neu FROM ehrungen_aenderungen
+       WHERE person_id = ? ORDER BY id DESC LIMIT ${VERLAUF_GRENZE}`,
+    )
+    .bind(id)
+    .all<{
+      zeitpunkt: string;
+      benutzer: string;
+      feld: string;
+      alt: number | null;
+      neu: number | null;
+    }>();
+  return jsonAntwort({ aenderungen: ergebnis.results });
 }
 
 async function loesche(db: D1Database, id: string): Promise<Response> {
@@ -355,6 +435,7 @@ async function importiere(
         ergebnisse.push('nicht-gefunden');
         continue;
       }
+      const neueId = crypto.randomUUID();
       anweisungen.push(
         db
           .prepare(
@@ -364,7 +445,7 @@ async function importiere(
              VALUES (?, ?, ?, ?, ?, ?, 0, '{}', ?, ?, 1)`,
           )
           .bind(
-            crypto.randomUUID(),
+            neueId,
             eintrag.nachname,
             eintrag.vorname,
             schluessel,
@@ -375,6 +456,20 @@ async function importiere(
           ),
       );
       zuordnung.push(ergebnisse.length);
+      // Die Erstanlage mit Stunden ist die erste Stundenzahl der Person und wird protokolliert.
+      anweisungen.push(
+        protokollAnweisung(
+          db,
+          identitaet,
+          jetzt,
+          'stunden-import',
+          null,
+          eintrag.stunden ?? 0,
+          neueId,
+          1,
+        ),
+      );
+      zuordnung.push(-1);
       ergebnisse.push('angelegt');
       continue;
     }
@@ -399,6 +494,21 @@ async function importiere(
         .bind(neueStunden, neuesDatum, jetzt, identitaet.email, vorhanden.id, vorhanden.version),
     );
     zuordnung.push(ergebnisse.length);
+    if (neueStunden !== vorhanden.stunden) {
+      anweisungen.push(
+        protokollAnweisung(
+          db,
+          identitaet,
+          jetzt,
+          'stunden-import',
+          vorhanden.stunden,
+          neueStunden,
+          vorhanden.id,
+          vorhanden.version + 1,
+        ),
+      );
+      zuordnung.push(-1);
+    }
     ergebnisse.push('aktualisiert');
   }
 
@@ -406,7 +516,9 @@ async function importiere(
     const batch = await db.batch(anweisungen);
     batch.forEach((einzel, index) => {
       const position = zuordnung[index];
-      if (einzel.meta.changes === 0 && position !== undefined) ergebnisse[position] = 'konflikt';
+      if (einzel.meta.changes === 0 && position !== undefined && position >= 0) {
+        ergebnisse[position] = 'konflikt';
+      }
     });
   }
   return jsonAntwort({ ergebnisse });
@@ -441,6 +553,10 @@ export async function verarbeiteEhrungen(
       return anfrage.method === 'POST'
         ? await importiere(anfrage, db, identitaet)
         : nichtErlaubt('POST');
+    }
+    const verlaufId = VERLAUF_PFAD.exec(url.pathname)?.[1];
+    if (verlaufId) {
+      return anfrage.method === 'GET' ? await verlauf(db, verlaufId) : nichtErlaubt('GET');
     }
     const id = EINZEL_PFAD.exec(url.pathname)?.[1];
     if (id) {

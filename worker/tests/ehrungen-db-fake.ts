@@ -10,6 +10,7 @@ export interface EhrungZeile {
   vorname: string;
   schluessel: string;
   stunden: number;
+  stunden_manuell: number | null;
   eintrittsdatum: string | null;
   besondere_verdienste: number;
   erhalten: string;
@@ -24,8 +25,21 @@ interface Ergebnis<T> {
   results: T[];
 }
 
+export interface ProtokollZeile {
+  id: number;
+  person_id: string;
+  nachname: string;
+  vorname: string;
+  zeitpunkt: string;
+  benutzer: string;
+  feld: string;
+  alt: number | null;
+  neu: number | null;
+}
+
 export class FakeEhrungenDb {
   zeilen = new Map<string, EhrungZeile>();
+  protokoll: ProtokollZeile[] = [];
   batchAufrufe = 0;
 
   prepare(query: string): FakeStatement {
@@ -63,13 +77,37 @@ class FakeStatement {
       }
       return { success: true, meta: { changes: 0 }, results: zeilen as T[] };
     }
+    if (
+      this.query.startsWith('SELECT zeitpunkt, benutzer, feld, alt, neu FROM ehrungen_aenderungen')
+    ) {
+      const [personId] = this.werte as [string];
+      const treffer = this.db.protokoll
+        .filter((eintrag) => eintrag.person_id === personId)
+        .sort((a, b) => b.id - a.id)
+        .map(({ zeitpunkt, benutzer, feld, alt, neu }) => ({
+          zeitpunkt,
+          benutzer,
+          feld,
+          alt,
+          neu,
+        }));
+      return { success: true, meta: { changes: 0 }, results: treffer as T[] };
+    }
     throw new Error(`Nicht unterstützte Abfrage: ${this.query}`);
   }
 
   async first<T>(): Promise<T | null> {
-    if (this.query.startsWith('SELECT version FROM ehrungen_personen WHERE id = ?')) {
+    if (this.query.startsWith('SELECT version, stunden, stunden_manuell FROM ehrungen_personen')) {
       const zeile = this.db.zeilen.get(this.werte[0] as string);
-      return (zeile ? { version: zeile.version } : null) as T | null;
+      return (
+        zeile
+          ? {
+              version: zeile.version,
+              stunden: zeile.stunden,
+              stunden_manuell: zeile.stunden_manuell,
+            }
+          : null
+      ) as T | null;
     }
     throw new Error(`Nicht unterstützte Abfrage: ${this.query}`);
   }
@@ -101,6 +139,7 @@ class FakeStatement {
         vorname,
         schluessel,
         stunden,
+        stunden_manuell: null,
         eintrittsdatum,
         besondere_verdienste: 0,
         erhalten: '{}',
@@ -134,10 +173,11 @@ class FakeStatement {
     }
 
     if (this.query.startsWith('UPDATE ehrungen_personen SET eintrittsdatum = ?')) {
-      const [eintrittsdatum, verdienste, erhalten, am, von, id, version] = this.werte as [
+      const [eintrittsdatum, verdienste, erhalten, manuell, am, von, id, version] = this.werte as [
         string | null,
         number,
         string,
+        number | null,
         string,
         string,
         string,
@@ -150,9 +190,36 @@ class FakeStatement {
         eintrittsdatum,
         besondere_verdienste: verdienste,
         erhalten,
+        stunden_manuell: manuell,
         geaendert_am: am,
         geaendert_von: von,
         version: version + 1,
+      });
+      return ok(1);
+    }
+
+    if (this.query.startsWith('INSERT INTO ehrungen_aenderungen')) {
+      const [zeitpunkt, benutzer, feld, alt, neu, personId, version] = this.werte as [
+        string,
+        string,
+        string,
+        number | null,
+        number | null,
+        string,
+        number,
+      ];
+      const person = this.db.zeilen.get(personId);
+      if (!person || person.version !== version) return ok(0);
+      this.db.protokoll.push({
+        id: this.db.protokoll.length + 1,
+        person_id: personId,
+        nachname: person.nachname,
+        vorname: person.vorname,
+        zeitpunkt,
+        benutzer,
+        feld,
+        alt,
+        neu,
       });
       return ok(1);
     }

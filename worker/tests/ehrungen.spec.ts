@@ -148,6 +148,7 @@ describe('Ehrungen: Einzelspeicherung', () => {
     return (await liste(db))[0]['id'] as string;
   }
   const koerper = {
+    stundenManuell: null as number | null,
     eintrittsdatum: '1999-05-06',
     besondereVerdienste: true,
     erhalten: { gold: 2021, bronze: null },
@@ -290,5 +291,126 @@ describe('HiOrg mitglied_seit', () => {
     expect(leseMitgliedSeit('gestern')).toBeUndefined();
     expect(leseMitgliedSeit(null)).toBeUndefined();
     expect(leseMitgliedSeit(1998)).toBeUndefined();
+  });
+});
+
+describe('Ehrungen: Stunden nachtragen und Protokoll', () => {
+  const koerper = (manuell: number | null) => ({
+    stundenManuell: manuell,
+    eintrittsdatum: null,
+    besondereVerdienste: false,
+    erhalten: {},
+  });
+
+  async function person(db: FakeEhrungenDb, stunden = 1000): Promise<string> {
+    await importiere(db, [{ nachname: 'Muster', vorname: 'Max', stunden }]);
+    return (await liste(db))[0]['id'] as string;
+  }
+
+  async function nachtragen(
+    db: FakeEhrungenDb,
+    id: string,
+    manuell: number | null,
+    version: number,
+  ) {
+    return verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}`, 'PUT', koerper(manuell), {
+        'If-Match': `"${version}"`,
+      }),
+      umgebung(db),
+      IDENTITAET,
+    );
+  }
+
+  async function verlauf(db: FakeEhrungenDb, id: string) {
+    const antwort = await verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}/aenderungen`),
+      umgebung(db),
+      IDENTITAET,
+    );
+    return (await antwort.json()) as { aenderungen: Record<string, unknown>[] };
+  }
+
+  it('wirksam ist die größere Zahl aus Import und Nachtrag', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db, 1000);
+    await nachtragen(db, id, 1500, 1);
+    expect((await liste(db))[0]).toMatchObject({
+      stunden: 1500,
+      stundenImport: 1000,
+      stundenManuell: 1500,
+    });
+  });
+
+  it('der Nachtrag zählt nicht, solange der Import größer ist', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db, 1000);
+    await nachtragen(db, id, 400, 1);
+    expect((await liste(db))[0]).toMatchObject({ stunden: 1000, stundenManuell: 400 });
+  });
+
+  it('protokolliert Erstanlage, Nachtrag und Import mit Benutzer aus der Anmeldung', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db, 1000);
+    await nachtragen(db, id, 1500, 1);
+    await nachtragen(db, id, 1600, 2);
+    await importiere(db, [{ nachname: 'Muster', vorname: 'Max', stunden: 1100, version: 3 }]);
+    const { aenderungen } = await verlauf(db, id);
+    expect(aenderungen.map((a) => [a['feld'], a['alt'], a['neu'], a['benutzer']])).toEqual([
+      ['stunden-import', 1000, 1100, IDENTITAET.email],
+      ['stunden-manuell', 1500, 1600, IDENTITAET.email],
+      ['stunden-manuell', null, 1500, IDENTITAET.email],
+      ['stunden-import', null, 1000, IDENTITAET.email],
+    ]);
+  });
+
+  it('protokolliert nichts, wenn sich die Stunden nicht ändern oder die Version veraltet ist', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db, 1000);
+    const vorher = db.protokoll.length;
+    await nachtragen(db, id, null, 1);
+    expect(db.protokoll.length).toBe(vorher);
+    expect((await nachtragen(db, id, 2000, 1)).status).toBe(412);
+    expect(db.protokoll.length).toBe(vorher);
+  });
+
+  it('lehnt unbrauchbare Nachträge ab und verlangt die Angabe', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    for (const manuell of [-1, 'abc', 2_000_000]) {
+      const antwort = await verarbeiteEhrungen(
+        anfrage(
+          `/api/personal/ehrungen/${id}`,
+          'PUT',
+          { ...koerper(null), stundenManuell: manuell },
+          { 'If-Match': '"1"' },
+        ),
+        umgebung(db),
+        IDENTITAET,
+      );
+      expect(antwort.status).toBe(400);
+    }
+    const ohne = await verarbeiteEhrungen(
+      anfrage(
+        `/api/personal/ehrungen/${id}`,
+        'PUT',
+        { eintrittsdatum: null, besondereVerdienste: false, erhalten: {} },
+        { 'If-Match': '"1"' },
+      ),
+      umgebung(db),
+      IDENTITAET,
+    );
+    expect(ohne.status).toBe(400);
+  });
+
+  it('das Protokoll bleibt nach dem Entfernen der Person lesbar', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}`, 'DELETE'),
+      umgebung(db),
+      IDENTITAET,
+    );
+    expect((await verlauf(db, id)).aenderungen).toHaveLength(1);
   });
 });
