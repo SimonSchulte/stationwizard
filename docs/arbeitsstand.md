@@ -2951,3 +2951,6 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Ehrungsmanager mit neuem Worker-Code, aber ohne die Migration eine leere Liste zeigte (die Daten waren
   vorhanden, 109 Personen; der Client lehnte die Antwort ohne `stundenManuell` ab). Der Worker liefert
   `stundenManuell` jetzt auch ohne die Spalte als `null`. Reihenfolge künftig: Migration vor dem Ausrollen.
+- **Navigation als Baum:** „Personal“ ist in der Sidenav ein aufklappbarer Zweig mit Übersicht, Führerscheine und
+  Ehrungsmanager (`mat-tree`). Im Browser auf Desktop und Mobil geprüft (Aufklappen, Navigation, aktiver Zweig).
+  Nicht geprüft: Bedienung per Tastatur/Screenreader über das Maß der Material-Standards hinaus.

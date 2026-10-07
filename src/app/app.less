@@ -49,8 +49,43 @@ mat-sidenav nav a {
   border-radius: var(--radius-sm);
 }
 mat-sidenav nav a.aktiv,
-mat-sidenav nav a:hover {
+mat-sidenav nav a:hover,
+mat-sidenav nav .gruppenschalter:hover {
   background: var(--ci-blue);
+}
+/* Navigation als Baum: Gruppen klappen auf, Unterpunkte sind eingerückt. */
+.navbaum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: transparent;
+}
+.navknoten {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.navknoten.unterpunkt a {
+  padding-left: var(--space-xl);
+}
+.gruppenschalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gruppenname {
+  flex: 1;
 }
 /* Feste Höhe, damit Seiten wie der Kalender ihren Inhalt selbst scrollen lassen und ihre
    untere Navigation am Rand bleibt; längere Seiten scrollen weiter im Sidenav-Inhalt. */

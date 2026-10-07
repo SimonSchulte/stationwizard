@@ -682,6 +682,10 @@ Metadaten bzw. Ersetzen (`If-Match`/`If-None-Match` wie bei der Excel-Arbeitsmap
 (vormals nur in `nextcloud.ts`) stehen jetzt gemeinsam in `worker/src/binaer-lesen.ts`,
 damit der Upload nicht dieselbe Größenprüfung ein zweites Mal bekommt.
 
+Die Hauptnavigation (Sidenav in `app.html`, Daten `NAVIGATION` in `app.ts`) ist ein `mat-tree`: „Personal“ klappt
+auf und führt als eigene Seiten zu Übersicht (`/personal`, nur exakt aktiv), Führerscheine und Ehrungsmanager;
+beim Besuch einer Personal-Seite ist der Zweig aufgeklappt.
+
 Der **Ehrungsmanager** (Seitentitel und Menüknopf; früher „Ehrungen 2026“, `src/app/personal/pages/ehrungen/`, `worker/src/ehrungen.ts`, Route
 `/personal/ehrungen`) bilden die Arbeitstabelle „Ehrungen 2026“ nach: Leistungsabzeichen
 (Bronze/Silber/Gold), Jubiläumszeichen (25/40/50/60 Jahre) und Ehrenzeichen („Ehrenzeichen“,
