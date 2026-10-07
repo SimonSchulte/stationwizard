@@ -61,9 +61,13 @@ export async function ehrungenExcelErzeugen(
     EHRUNG_BEZEICHNUNG.ehrennadel,
     'Besondere Verdienste',
     'Erfüllt Ehrenzeichen',
+    'Hinweis',
   ];
   const zeilen = personen.map((person) => {
     const a = ansprueche(person, jahr);
+    const hinweis = warnungen([person], jahr)
+      .map((w) => w.text)
+      .join(' ');
     return [
       person.nachname,
       person.vorname,
@@ -91,6 +95,7 @@ export async function ehrungenExcelErzeugen(
       hat(person, 'ehrennadel'),
       person.besondereVerdienste ? JA : '',
       bezeichnung(a.ehrenzeichen.erfuellt),
+      hinweis,
     ];
   });
 
@@ -129,7 +134,7 @@ export async function zuEhrendeExcelErzeugen(
     'Grundlage',
     'Bisher erhalten',
     'Anspruch bis',
-    'Warnung',
+    'Hinweis',
   ];
   const zeilen = zuEhrende(personen, jahr).map((eintrag) => [
     auszeichnung(eintrag),

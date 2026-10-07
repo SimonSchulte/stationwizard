@@ -1,6 +1,6 @@
 import * as XLSX from '@e965/xlsx';
 import { describe, expect, it } from 'vitest';
-import { zuEhrendeExcelErzeugen } from './ehrungen-excel';
+import { ehrungenExcelErzeugen, zuEhrendeExcelErzeugen } from './ehrungen-excel';
 import { personSchluessel, type EhrungPerson } from './ehrungen-regeln';
 
 function person(nachname: string, ueberschreibung: Partial<EhrungPerson> = {}): EhrungPerson {
@@ -49,7 +49,7 @@ describe('Export „Zu Ehrende“', () => {
         Grundlage: '4.500 Stunden',
         'Bisher erhalten': 'Bronze 2012',
         'Anspruch bis': 'Gold',
-        Warnung: 'Anspruch bis Gold, aber zuerst Silber vergeben.',
+        Hinweis: 'Anspruch bis Gold, aber zuerst Silber vergeben.',
       },
       {
         Auszeichnung: '25 Jahre',
@@ -59,7 +59,7 @@ describe('Export „Zu Ehrende“', () => {
         Grundlage: '26 Jahre Mitglied (seit 01.03.2000)',
         'Bisher erhalten': '',
         'Anspruch bis': '',
-        Warnung: '',
+        Hinweis: '',
       },
     ]);
     const warnungen = XLSX.utils.sheet_to_json<Record<string, string>>(mappe.Sheets['Warnungen']);
@@ -85,6 +85,21 @@ describe('Export „Zu Ehrende“', () => {
     expect(zeilen.map((z) => `${z['Nachname']}: ${z['Auszeichnung']}`)).toEqual([
       'Alt: Jubiläumsuhr Damen 30 Jahre',
       'Ohne: Jubiläumsuhr (Damen/Herren offen) 30 Jahre',
+    ]);
+  });
+});
+
+describe('Gesamtexport', () => {
+  it('führt die Warnung je Person in der Spalte „Hinweis“', async () => {
+    const daten = await ehrungenExcelErzeugen(
+      [person('Luecke', { stunden: 500, erhalten: { gold: 2020 } }), person('Ok')],
+      2026,
+    );
+    const mappe = XLSX.read(daten, { type: 'array' });
+    const zeilen = XLSX.utils.sheet_to_json<Record<string, string>>(mappe.Sheets['Ehrungen 2026']);
+    expect(zeilen.map((z) => z['Hinweis'] ?? '')).toEqual([
+      'Gold erfasst, aber Bronze und Silber fehlt.',
+      '',
     ]);
   });
 });
