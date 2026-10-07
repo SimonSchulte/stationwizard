@@ -48,13 +48,27 @@ describe('Ehrenzeichen', () => {
     expect(ehrenzeichenErfuellt(true, null)).toBeNull();
   });
 
-  it('staffelt nach Mitgliedsjahren echt größer 4, 6 und 12', () => {
-    expect(ehrenzeichenErfuellt(true, 4)).toBeNull();
+  it('staffelt nach Dienstjahren ab 4 und ab 6', () => {
+    expect(ehrenzeichenErfuellt(true, 3)).toBeNull();
+    expect(ehrenzeichenErfuellt(true, 4)).toBe('ehrenzeichen');
     expect(ehrenzeichenErfuellt(true, 5)).toBe('ehrenzeichen');
-    expect(ehrenzeichenErfuellt(true, 6)).toBe('ehrenzeichen');
-    expect(ehrenzeichenErfuellt(true, 7)).toBe('ehrenzeichen-bande');
-    expect(ehrenzeichenErfuellt(true, 12)).toBe('ehrenzeichen-bande');
-    expect(ehrenzeichenErfuellt(true, 13)).toBe('ehrennadel');
+    expect(ehrenzeichenErfuellt(true, 6)).toBe('ehrenzeichen-bande');
+    expect(ehrenzeichenErfuellt(true, 40)).toBe('ehrenzeichen-bande');
+  });
+
+  it('vergibt die Ehrennadel erst 12 Jahre nach der Verleihung des Ehrenzeichens am Bande', () => {
+    expect(ehrenzeichenErfuellt(true, 40, { 'ehrenzeichen-bande': 2015 }, 2026)).toBe(
+      'ehrenzeichen-bande',
+    );
+    expect(ehrenzeichenErfuellt(true, 40, { 'ehrenzeichen-bande': 2014 }, 2026)).toBe('ehrennadel');
+    expect(ehrenzeichenErfuellt(true, 40, { 'ehrenzeichen-bande': 2000 }, 2026)).toBe('ehrennadel');
+  });
+
+  it('kann die Ehrennadel ohne Vergabejahr der Bande oder ohne Verdienste nicht ableiten', () => {
+    expect(ehrenzeichenErfuellt(true, 40, { 'ehrenzeichen-bande': null }, 2026)).toBe(
+      'ehrenzeichen-bande',
+    );
+    expect(ehrenzeichenErfuellt(false, 40, { 'ehrenzeichen-bande': 2000 }, 2026)).toBeNull();
   });
 });
 
@@ -70,12 +84,12 @@ describe('Ansprüche', () => {
     const a = ansprueche(person, 2026);
     expect(a.leistung).toEqual({ erfuellt: 'gold', faellig: true });
     expect(a.jubilaeum).toEqual({ erfuellt: 'jubilaeum-25', faellig: true });
-    expect(a.ehrenzeichen).toEqual({ erfuellt: 'ehrennadel', faellig: true });
+    expect(a.ehrenzeichen).toEqual({ erfuellt: 'ehrenzeichen-bande', faellig: true });
   });
 
   it('ist nicht mehr fällig, sobald die erfüllte Stufe angehakt ist', () => {
     const a = ansprueche(
-      { ...person, erhalten: { gold: 2020, 'jubilaeum-25': null, ehrennadel: 2024 } },
+      { ...person, erhalten: { gold: 2020, 'jubilaeum-25': null, 'ehrenzeichen-bande': 2018 } },
       2026,
     );
     expect(a.leistung.faellig).toBe(false);
@@ -175,7 +189,7 @@ describe('Zu Ehrende', () => {
     expect(liste.map((e) => `${e.nachname}:${e.auszeichnung}`)).toEqual([
       'Voll:gold',
       'Voll:jubilaeum-25',
-      'Voll:ehrennadel',
+      'Voll:ehrenzeichen-bande',
     ]);
   });
 

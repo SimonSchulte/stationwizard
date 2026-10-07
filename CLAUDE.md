@@ -693,8 +693,10 @@ bereits erhaltenen Auszeichnungen mit dem **Jahr der Vergabe** (JSON-Objekt Schl
 markiert und filterbar; die früher gespeicherte Liste ohne Jahre wird als `null`-Jahre gelesen). Was zu vergeben ist, wird im Client berechnet (`ehrungen-regeln.ts`) und nie
 gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach Mitgliedsjahren
 (laufendes Jahr minus Eintrittsjahr, ab 25/40/50/60, höchstes erreichtes), Ehrenzeichen nur bei
-„Besondere Verdienste“ und Eintrittsdatum (> 4/6/12 Jahre) – die Schwellen der Leistungs- und
-Ehrenzeichen stammen aus den Formeln der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
+„Besondere Verdienste“ und Eintrittsdatum (Ehrenzeichen ab 4, am Bande ab 6 Dienstjahren, Ehrennadel
+12 Jahre nach Verleihung des Ehrenzeichens am Bande – dessen Vergabejahr muss erfasst sein, sonst
+bleibt die Ehrennadel unerreicht; so vom Betreiber vorgegeben, die Arbeitstabelle rechnete noch
+anders). Die Schwellen der Leistungsabzeichen stammen aus der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
 noch nicht angehakt. Ein Symbol vor jeder Zeile gleicht das höchste angehakte Leistungsabzeichen mit
 dem Anspruch aus den Stunden ab (`leistungAbgleich()`: Haken bei Übereinstimmung, Warnung bei
 fehlendem oder zu viel angehaktem Abzeichen); Jubiläum und Ehrenzeichen gehen nicht in dieses

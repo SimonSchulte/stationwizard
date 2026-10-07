@@ -2924,3 +2924,6 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
 - **Export „Zu Ehrende“:** Excel-Liste aller offenen Ehrungen (Auszeichnung, Gruppe, Name, Grundlage, bisher
   Erhaltenes), Knopf mit Anzahl in der Kopfleiste. Mit Test (Rücklesen der Datei) und im Browser auf
   Desktop und Mobil geprüft (Download löst aus, keine Seitenfehler); die Datei selbst wurde nicht in Excel geöffnet.
+- **Ehrenzeichen nachgeschärft:** Ehrenzeichen ab 4, am Bande ab 6 Dienstjahren (jeweils mit „Besondere
+  Verdienste“), Ehrennadel 12 Jahre nach Verleihung des Ehrenzeichens am Bande (Vergabejahr nötig). Zuvor
+  galt „> 4/6/12 Mitgliedsjahre“ aus der Arbeitstabelle. Mit Unit-Tests abgesichert; nicht im Browser neu angesehen.

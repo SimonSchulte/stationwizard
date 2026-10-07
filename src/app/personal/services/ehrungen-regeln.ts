@@ -140,15 +140,30 @@ export function jubilaeumErfuellt(jahre: number | null): EhrungSchluessel | null
   return null;
 }
 
-/** Nur bei „Besondere Verdienste" und vorhandenem Eintrittsdatum (>4/>6/>12 Jahre). */
+/** Ehrennadel: so viele Jahre nach der Verleihung des Ehrenzeichens am Bande. */
+export const EHRENNADEL_WARTEZEIT_JAHRE = 12;
+
+/**
+ * Nur bei „Besondere Verdienste“ und vorhandenem Eintrittsdatum:
+ * - Ehrenzeichen ab 4 Dienstjahren,
+ * - Ehrenzeichen am Bande ab 6 Dienstjahren,
+ * - Ehrennadel mit Band des Johanniterordens 12 Jahre nach Verleihung des Ehrenzeichens am Bande.
+ * Für die Ehrennadel muss das Ehrenzeichen am Bande mit Vergabejahr erfasst sein; ohne dieses Jahr
+ * lässt sich die Wartezeit nicht prüfen, die Ehrennadel gilt dann nicht als erreicht.
+ */
 export function ehrenzeichenErfuellt(
   besondereVerdienste: boolean,
   jahre: number | null,
+  erhalten: Erhalten = {},
+  jahr: number = aktuellesJahr(),
 ): EhrungSchluessel | null {
   if (!besondereVerdienste || jahre === null) return null;
-  if (jahre > 12) return 'ehrennadel';
-  if (jahre > 6) return 'ehrenzeichen-bande';
-  if (jahre > 4) return 'ehrenzeichen';
+  const bandeJahr = erhalten['ehrenzeichen-bande'];
+  if (typeof bandeJahr === 'number' && jahr - bandeJahr >= EHRENNADEL_WARTEZEIT_JAHRE) {
+    return 'ehrennadel';
+  }
+  if (jahre >= 6) return 'ehrenzeichen-bande';
+  if (jahre >= 4) return 'ehrenzeichen';
   return null;
 }
 
@@ -178,7 +193,7 @@ export function ansprueche(
     leistung: anspruch(leistungsabzeichenErfuellt(person.stunden), person.erhalten),
     jubilaeum: anspruch(jubilaeumErfuellt(jahre), person.erhalten),
     ehrenzeichen: anspruch(
-      ehrenzeichenErfuellt(person.besondereVerdienste, jahre),
+      ehrenzeichenErfuellt(person.besondereVerdienste, jahre, person.erhalten, jahr),
       person.erhalten,
     ),
   };
