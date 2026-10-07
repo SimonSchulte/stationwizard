@@ -53,6 +53,8 @@ import {
   aktuellesJahr,
   ansprueche,
   hatErhalten,
+  staffelHinweise,
+  staffelVon,
   leistungAbgleich,
   mitgliedsjahre,
   zuEhrende,
@@ -76,6 +78,8 @@ interface Zeile {
   person: EhrungPerson;
   /** Angezeigter Stand: gespeicherter Stand mit den noch ungesicherten Änderungen darüber. */
   stand: EhrungAenderung;
+  /** Warnungen je Gruppe (Reihenfolge von `gruppen`): Anspruch über die vergebbare Stufe hinaus, Lücken. */
+  hinweise: string[][];
   /** Person mit allen noch nicht gespeicherten Änderungen; Grundlage aller Berechnungen und Exporte. */
   aktuell: EhrungPerson;
   ansprueche: Ansprueche;
@@ -243,11 +247,19 @@ export class Ehrungen implements OnInit {
         stand,
         aktuell,
         ansprueche: ansprueche(aktuell, this.jahr),
+        hinweise: [],
         jahre: mitgliedsjahre(stand.eintrittsdatum, this.jahr),
         abgleich: leistungAbgleich(aktuell.stunden, stand.erhalten),
         eintrittAlsDatum: stand.eintrittsdatum ? isoZuLokalesDatum(stand.eintrittsdatum) : null,
         geaendert: bearbeitet !== undefined,
       };
+      const a = zeile.ansprueche;
+      zeile.hinweise = [
+        staffelHinweise(stand.erhalten, a.leistung, LEISTUNGSABZEICHEN),
+        [],
+        [],
+        staffelHinweise(stand.erhalten, a.ehrenzeichen, EHRENZEICHEN),
+      ];
       neu.set(person.id, { person, stand: bearbeitet, zeile });
       return zeile;
     });
@@ -417,11 +429,12 @@ export class Ehrungen implements OnInit {
       const hat = hatErhalten(zeile.stand.erhalten, eintrag);
       const anspruch = zeile.ansprueche[gruppeVon(eintrag)];
       const zuVergeben = anspruch.erfuellt === eintrag;
+      const offen = anspruch.offen.includes(eintrag);
       switch (status) {
         case 'erhalten':
           return hat;
         case 'faellig':
-          return zuVergeben && anspruch.faellig;
+          return offen;
         case 'ohne-jahr':
           return hat && zeile.stand.erhalten[eintrag] === null;
         default:
@@ -594,13 +607,39 @@ export class Ehrungen implements OnInit {
 
   abgleichText(zeile: Zeile): string {
     switch (zeile.abgleich) {
+      case 'reihenfolge':
+        return 'Reihenfolge verletzt: eine höhere Stufe ist erfasst, aber nicht ihre Vorstufe (Gold nur nach Silber, Silber nur nach Bronze).';
       case 'fehlt':
-        return `Leistungsabzeichen fehlt: nach den Stunden steht ${this.kurzBezeichnung(zeile.ansprueche.leistung.erfuellt)} zu, angehakt ist weniger.`;
+        return zeile.ansprueche.leistung.offen.length > 1
+          ? `Anspruch bis ${this.kurzBezeichnung(zeile.ansprueche.leistung.erfuellt)}, aber zuerst ${this.kurzBezeichnung(zeile.ansprueche.leistung.naechste)} vergeben.`
+          : `Leistungsabzeichen fehlt: nach den Stunden steht ${this.kurzBezeichnung(zeile.ansprueche.leistung.erfuellt)} zu, angehakt ist weniger.`;
       case 'zuviel':
         return 'Mehr Leistungsabzeichen angehakt, als die Stunden hergeben. Stunden oder Häkchen prüfen.';
       default:
         return 'Leistungsabzeichen passen zu den Stunden.';
     }
+  }
+
+  /**
+   * Staffel: Gold erst nach Silber, Silber erst nach Bronze (ebenso Ehrenzeichen → Band → Nadel).
+   * Eine Stufe lässt sich nur anhaken, wenn ihre Vorstufe erhalten ist, und nur abhaken, solange
+   * keine höhere Stufe erhalten ist. Bestehende Lücken unterhalb einer erfassten Stufe lassen sich
+   * nachtragen, damit sich alte Bestände bereinigen lassen.
+   */
+  chipGesperrt(zeile: Zeile, schluessel: EhrungSchluessel): boolean {
+    const staffel = staffelVon(schluessel);
+    if (!staffel) return false;
+    const erhalten = zeile.stand.erhalten;
+    const index = staffel.indexOf(schluessel);
+    const hoehereErhalten = staffel.slice(index + 1).some((stufe) => hatErhalten(erhalten, stufe));
+    if (hatErhalten(erhalten, schluessel)) return hoehereErhalten;
+    const vorstufe = staffel[index - 1];
+    return vorstufe !== undefined && !hatErhalten(erhalten, vorstufe) && !hoehereErhalten;
+  }
+
+  /** Was in der Gruppe als „Zu vergeben“ erscheint: die nächste Stufe, sonst die zuletzt erfüllte. */
+  anzeigeStufe(anspruch: Anspruch): EhrungSchluessel | null {
+    return anspruch.naechste ?? anspruch.erfuellt;
   }
 
   anspruchVon(zeile: Zeile, gruppe: number): Anspruch {

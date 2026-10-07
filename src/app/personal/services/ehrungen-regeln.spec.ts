@@ -8,6 +8,9 @@ import {
   leistungsabzeichenErfuellt,
   mitgliedsjahre,
   personSchluessel,
+  reihenfolgeProbleme,
+  LEISTUNGSABZEICHEN,
+  warnungen,
   type Erhalten,
   uhrArtAusAnrede,
   uhrErfuellt,
@@ -85,9 +88,18 @@ describe('Ansprüche', () => {
 
   it('meldet erfüllte, noch nicht erhaltene Auszeichnungen als fällig', () => {
     const a = ansprueche(person, 2026);
-    expect(a.leistung).toEqual({ erfuellt: 'gold', faellig: true });
-    expect(a.jubilaeum).toEqual({ erfuellt: 'jubilaeum-25', faellig: true });
-    expect(a.ehrenzeichen).toEqual({ erfuellt: 'ehrenzeichen-bande', faellig: true });
+    expect(a.leistung).toEqual({
+      erfuellt: 'gold',
+      faellig: true,
+      naechste: 'bronze',
+      offen: ['bronze', 'silber', 'gold'],
+    });
+    expect(a.jubilaeum).toMatchObject({ erfuellt: 'jubilaeum-25', faellig: true });
+    expect(a.ehrenzeichen).toMatchObject({
+      erfuellt: 'ehrenzeichen-bande',
+      naechste: 'ehrenzeichen',
+      faellig: true,
+    });
   });
 
   it('ist nicht mehr fällig, sobald die erfüllte Stufe angehakt ist', () => {
@@ -154,7 +166,7 @@ describe('Erhaltene Auszeichnungen mit Jahr', () => {
 describe('Abgleich der Leistungsabzeichen', () => {
   it('passt, wenn das höchste angehakte Abzeichen dem Anspruch entspricht', () => {
     expect(leistungAbgleich(500, {})).toBe('passt');
-    expect(leistungAbgleich(4500, { gold: 2020 })).toBe('passt');
+    expect(leistungAbgleich(4500, { bronze: 2012, silber: 2016, gold: 2020 })).toBe('passt');
     expect(leistungAbgleich(2500, { bronze: null, silber: 2019 })).toBe('passt');
   });
 
@@ -163,9 +175,14 @@ describe('Abgleich der Leistungsabzeichen', () => {
     expect(leistungAbgleich(4500, { bronze: 2015 })).toBe('fehlt');
   });
 
+  it('meldet eine höhere Stufe ohne ihre Vorstufen als Reihenfolgefehler', () => {
+    expect(leistungAbgleich(4500, { gold: 2020 })).toBe('reihenfolge');
+    expect(leistungAbgleich(2500, { silber: 2019 })).toBe('reihenfolge');
+  });
+
   it('meldet mehr angehakte Abzeichen, als die Stunden hergeben', () => {
     expect(leistungAbgleich(500, { bronze: 2015 })).toBe('zuviel');
-    expect(leistungAbgleich(1200, { gold: 2015 })).toBe('zuviel');
+    expect(leistungAbgleich(1200, { bronze: 2010, silber: 2012, gold: 2015 })).toBe('zuviel');
   });
 });
 
@@ -184,16 +201,19 @@ describe('Zu Ehrende', () => {
     const liste = zuEhrende(
       [
         person('Voll', { stunden: 4500, eintrittsdatum: '1990-05-01', besondereVerdienste: true }),
-        person('Erledigt', { stunden: 4500, erhalten: { gold: 2020 } }),
+        person('Erledigt', {
+          stunden: 4500,
+          erhalten: { bronze: 2012, silber: 2016, gold: 2020 },
+        }),
         person('Nichts', { stunden: 100 }),
       ],
       2026,
     );
     expect(liste.map((e) => `${e.nachname}:${e.auszeichnung}`)).toEqual([
-      'Voll:gold',
+      'Voll:bronze',
       'Voll:jubilaeum-25',
       'Voll:uhr-30',
-      'Voll:ehrenzeichen-bande',
+      'Voll:ehrenzeichen',
     ]);
   });
 
@@ -215,7 +235,55 @@ describe('Zu Ehrende', () => {
       ],
       2026,
     );
-    expect(liste.map((e) => e.nachname)).toEqual(['Alpha', 'Zeta', 'Mitte']);
+    // Alle starten bei Bronze, weil noch nichts vergeben ist.
+    expect(liste.map((e) => e.nachname)).toEqual(['Alpha', 'Mitte', 'Zeta']);
+  });
+
+  it('vergibt zuerst die Vorstufe und warnt, wenn der Anspruch weiter reicht', () => {
+    const [eintrag] = zuEhrende(
+      [person('Anna', { stunden: 2500, erhalten: { bronze: 2012 } })],
+      2026,
+    );
+    expect(eintrag.auszeichnung).toBe('silber');
+    expect(eintrag.anspruchBis).toBe('silber');
+    expect(eintrag.hinweis).toBe('');
+    const [vorne] = zuEhrende([person('Bea', { stunden: 4500, erhalten: { bronze: 2012 } })], 2026);
+    expect(vorne.auszeichnung).toBe('silber');
+    expect(vorne.anspruchBis).toBe('gold');
+    expect(vorne.hinweis).toContain('zuerst');
+  });
+});
+
+describe('Staffel und Warnungen', () => {
+  const basis = {
+    nachname: 'Muster',
+    vorname: 'Test',
+    stunden: 4500,
+    eintrittsdatum: null,
+    besondereVerdienste: false,
+  };
+
+  it('erkennt fehlende Vorstufen', () => {
+    expect(reihenfolgeProbleme({ gold: 2020 }, [LEISTUNGSABZEICHEN])).toHaveLength(1);
+    expect(
+      reihenfolgeProbleme({ bronze: 2012, silber: 2016, gold: 2020 }, [LEISTUNGSABZEICHEN]),
+    ).toEqual([]);
+  });
+
+  it('warnt, wenn Silber zusteht, aber erst Bronze vergeben werden kann', () => {
+    const liste = warnungen([{ ...basis, stunden: 2500, erhalten: {} }], 2026);
+    expect(liste).toHaveLength(1);
+    expect(liste[0].text).toContain('zuerst Bronze');
+  });
+
+  it('warnt bei Erhaltenem ohne Vorstufe, auch ohne offenen Anspruch', () => {
+    const liste = warnungen([{ ...basis, erhalten: { gold: 2020 } }], 2026);
+    expect(liste.some((w) => w.text.includes('fehlt'))).toBe(true);
+  });
+
+  it('bleibt still bei lückenloser Staffel', () => {
+    const erhalten: Erhalten = { bronze: 2012, silber: 2016, gold: 2020 };
+    expect(warnungen([{ ...basis, erhalten }], 2026)).toEqual([]);
   });
 });
 
@@ -236,7 +304,7 @@ describe('Jubiläumsuhr', () => {
       besondereVerdienste: false,
       erhalten: { 'jubilaeum-25': 2015 } as Erhalten,
     };
-    expect(ansprueche(person, 2026).uhr).toEqual({ erfuellt: 'uhr-30', faellig: true });
+    expect(ansprueche(person, 2026).uhr).toMatchObject({ erfuellt: 'uhr-30', faellig: true });
     expect(ansprueche({ ...person, erhalten: { 'uhr-30': 2021 } }, 2026).uhr.faellig).toBe(false);
   });
 

@@ -2960,3 +2960,8 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   (Jahr)“. Migration `0016_ehrungen_stunden_stand.sql` ist am 2026-10-07 **vor** dem Ausrollen auf `BENUTZER_DB`
   angewendet (109 Personen unverändert). Worker-Tests (Pflicht, Protokoll, Entfernen) und Browserlauf (Feld erscheint,
   Speichern gesperrt/frei, Stand im PUT) geprüft; Mobil für diese Änderung nicht erneut gesichtet.
+
+- Ehrungsmanager, Staffelung: Gold nur nach Silber, Silber nur nach Bronze (ebenso Ehrenzeichen → am Bande → Ehrennadel).
+  Chips gesperrt, „Zu vergeben“ zeigt die nächste Stufe, Warnungen in Zeile und Export (Spalten „Anspruch bis“/„Warnung“,
+  Blatt „Warnungen“). Keine serverseitige Durchsetzung. Geprüft: Build, `npm test` (Client 1046, Worker 843),
+  Formatprüfung, Desktop-Sichtprüfung im Browser mit erfundenen Daten; Mobilansicht nach dieser Änderung nicht erneut geprüft.

@@ -315,6 +315,7 @@
                     <mat-chip-option
                       [class]="chipKlasse(schluessel)"
                       [selected]="hat(zeile, schluessel)"
+                      [disabled]="chipGesperrt(zeile, schluessel)"
                       (selectionChange)="
                         $event.isUserInput && umschalten(zeile, schluessel, $event.selected)
                       "
@@ -354,14 +355,14 @@
                 </div>
 
                 @if (anspruchVon(zeile, index); as anspruch) {
-                  @if (anspruch.erfuellt; as erfuellt) {
+                  @if (anzeigeStufe(anspruch); as erfuellt) {
                     <mat-chip-set aria-label="Zu vergeben">
                       <mat-chip
                         [class]="chipKlasse(erfuellt)"
                         [class.erledigt]="!anspruch.faellig"
                         [matTooltip]="
                           anspruch.faellig
-                            ? 'Zu vergeben, noch nicht als erhalten angehakt'
+                            ? 'Jetzt zu vergeben, noch nicht als erhalten angehakt'
                             : 'Bereits erhalten'
                         "
                       >
@@ -372,6 +373,11 @@
                       </mat-chip>
                     </mat-chip-set>
                   }
+                }
+                @for (hinweis of zeile.hinweise[index]; track hinweis) {
+                  <span class="staffel-hinweis" role="note">
+                    <mat-icon aria-hidden="true">warning</mat-icon> {{ hinweis }}
+                  </span>
                 }
               </div>
             </td>
@@ -431,8 +437,10 @@
       Silber, &gt; 4000 Gold), Mitgliedsjahren ({{ jahr }} minus Eintrittsjahr; Jubiläum ab 25, 40,
       50, 60) und – für Ehrenzeichen – bei „Besondere Verdienste“ (Ehrenzeichen ab 4, am Bande ab 6
       Dienstjahren; Ehrennadel 12 Jahre nach Verleihung des Ehrenzeichens am Bande, dafür muss
-      dessen Vergabejahr eingetragen sein) erreicht ist. Hervorgehoben, wenn sie noch nicht als
-      erhalten angehakt ist. Zu jeder erhaltenen Auszeichnung gehört das Jahr der Vergabe.
+      dessen Vergabejahr eingetragen sein) erreicht ist. Gold wird erst nach Silber und Silber erst
+      nach Bronze vergeben, ebenso Ehrenzeichen, Band und Ehrennadel; „Zu vergeben“ zeigt dann die
+      nächste Stufe und eine Warnung, wenn der Anspruch weiter reicht. Hervorgehoben, wenn sie noch
+      nicht als erhalten angehakt ist. Zu jeder erhaltenen Auszeichnung gehört das Jahr der Vergabe.
     </p>
   }
 </div>

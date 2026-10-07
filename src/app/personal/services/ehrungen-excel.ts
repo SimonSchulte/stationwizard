@@ -9,6 +9,7 @@ import {
   type UhrArt,
   type EhrungPerson,
   type EhrungSchluessel,
+  warnungen,
 } from './ehrungen-regeln';
 
 export const EHRUNGEN_EXCEL_MEDIENTYP =
@@ -99,6 +100,7 @@ export async function ehrungenExcelErzeugen(
   }));
   const mappe = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(mappe, blatt, `Ehrungen ${jahr}`);
+  anWarnungenAnhaengen(XLSX, mappe, personen, jahr);
   return XLSX.write(mappe, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 }
 
@@ -119,7 +121,16 @@ export async function zuEhrendeExcelErzeugen(
     const art = uhrArten.get(personSchluessel(eintrag.nachname, eintrag.vorname));
     return `Jubiläumsuhr ${art ?? '(Damen/Herren offen)'} ${EHRUNG_KURZ[eintrag.auszeichnung]}`;
   };
-  const kopf = ['Auszeichnung', 'Gruppe', 'Nachname', 'Vorname', 'Grundlage', 'Bisher erhalten'];
+  const kopf = [
+    'Auszeichnung',
+    'Gruppe',
+    'Nachname',
+    'Vorname',
+    'Grundlage',
+    'Bisher erhalten',
+    'Anspruch bis',
+    'Warnung',
+  ];
   const zeilen = zuEhrende(personen, jahr).map((eintrag) => [
     auszeichnung(eintrag),
     eintrag.gruppe,
@@ -127,10 +138,31 @@ export async function zuEhrendeExcelErzeugen(
     eintrag.vorname,
     eintrag.grundlage,
     eintrag.bisher,
+    eintrag.anspruchBis === eintrag.auszeichnung ? '' : EHRUNG_BEZEICHNUNG[eintrag.anspruchBis],
+    eintrag.hinweis,
   ]);
   const blatt = XLSX.utils.aoa_to_sheet([kopf, ...zeilen]);
-  blatt['!cols'] = [38, 20, 20, 20, 44, 28].map((wch) => ({ wch }));
+  blatt['!cols'] = [38, 20, 20, 20, 44, 28, 30, 60].map((wch) => ({ wch }));
   const mappe = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(mappe, blatt, `Zu Ehrende ${jahr}`);
+  anWarnungenAnhaengen(XLSX, mappe, personen, jahr);
   return XLSX.write(mappe, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
+
+/** Blatt „Warnungen“ (Staffel und Reihenfolge); entfällt, wenn nichts zu warnen ist. */
+function anWarnungenAnhaengen(
+  XLSX: typeof import('@e965/xlsx'),
+  mappe: import('@e965/xlsx').WorkBook,
+  personen: readonly EhrungPerson[],
+  jahr: number,
+): void {
+  const liste = warnungen(personen, jahr);
+  if (liste.length === 0) return;
+  const kopf = ['Nachname', 'Vorname', 'Gruppe', 'Warnung'];
+  const blatt = XLSX.utils.aoa_to_sheet([
+    kopf,
+    ...liste.map((w) => [w.nachname, w.vorname, w.gruppe, w.text]),
+  ]);
+  blatt['!cols'] = [20, 20, 22, 80].map((wch) => ({ wch }));
+  XLSX.utils.book_append_sheet(mappe, blatt, 'Warnungen');
 }

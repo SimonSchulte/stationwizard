@@ -89,6 +89,55 @@ export const EHRENZEICHEN: readonly EhrungSchluessel[] = [
   'ehrennadel',
 ];
 
+/**
+ * Auszeichnungen, die nur der Reihe nach vergeben werden: Silber erst nach Bronze, Gold erst nach
+ * Silber, Ehrenzeichen am Bande erst nach dem Ehrenzeichen, die Ehrennadel erst nach dem Band.
+ * Jubiläumszeichen und Jubiläumsuhr bilden keine Staffel.
+ */
+export const STAFFELN: readonly (readonly EhrungSchluessel[])[] = [
+  LEISTUNGSABZEICHEN,
+  EHRENZEICHEN,
+];
+
+export function staffelVon(schluessel: EhrungSchluessel): readonly EhrungSchluessel[] | null {
+  return STAFFELN.find((staffel) => staffel.includes(schluessel)) ?? null;
+}
+
+export function vorstufe(schluessel: EhrungSchluessel): EhrungSchluessel | null {
+  const staffel = staffelVon(schluessel);
+  const index = staffel ? staffel.indexOf(schluessel) : -1;
+  return staffel && index > 0 ? (staffel[index - 1] ?? null) : null;
+}
+
+export function nachstufe(schluessel: EhrungSchluessel): EhrungSchluessel | null {
+  const staffel = staffelVon(schluessel);
+  return staffel ? (staffel[staffel.indexOf(schluessel) + 1] ?? null) : null;
+}
+
+export interface Reihenfolgeproblem {
+  /** Höchste erhaltene Auszeichnung der Staffel. */
+  vorhanden: EhrungSchluessel;
+  /** Vorstufen, die dazu nicht als erhalten erfasst sind. */
+  fehlend: EhrungSchluessel[];
+}
+
+/** Erhaltenes ohne die zugehörigen Vorstufen, etwa Gold ohne Silber. */
+export function reihenfolgeProbleme(
+  erhalten: Erhalten,
+  staffeln: readonly (readonly EhrungSchluessel[])[] = STAFFELN,
+): Reihenfolgeproblem[] {
+  const probleme: Reihenfolgeproblem[] = [];
+  for (const staffel of staffeln) {
+    const hoechste = [...staffel].reverse().find((schluessel) => hatErhalten(erhalten, schluessel));
+    if (!hoechste) continue;
+    const fehlend = staffel
+      .slice(0, staffel.indexOf(hoechste))
+      .filter((schluessel) => !hatErhalten(erhalten, schluessel));
+    if (fehlend.length > 0) probleme.push({ vorhanden: hoechste, fehlend });
+  }
+  return probleme;
+}
+
 export interface EhrungPerson {
   id: string;
   nachname: string;
@@ -129,14 +178,16 @@ export function leistungsabzeichenErfuellt(stunden: number): EhrungSchluessel | 
   return null;
 }
 
-export type LeistungAbgleich = 'passt' | 'fehlt' | 'zuviel';
+export type LeistungAbgleich = 'passt' | 'fehlt' | 'zuviel' | 'reihenfolge';
 
 /**
  * Vergleicht das höchste als erhalten angehakte Leistungsabzeichen mit dem Anspruch aus den
  * Stunden: `fehlt`, wenn weniger angehakt ist als zusteht, `zuviel`, wenn mehr angehakt ist, als
- * die Stunden hergeben (etwa veraltete Stunden oder ein Tippfehler).
+ * die Stunden hergeben (etwa veraltete Stunden oder ein Tippfehler); `reihenfolge`, wenn eine
+ * höhere Stufe ohne ihre Vorstufen erfasst ist (Gold ohne Silber).
  */
 export function leistungAbgleich(stunden: number, erhalten: Erhalten): LeistungAbgleich {
+  if (reihenfolgeProbleme(erhalten, [LEISTUNGSABZEICHEN]).length > 0) return 'reihenfolge';
   const rang = (schluessel: EhrungSchluessel | null) =>
     schluessel ? LEISTUNGSABZEICHEN.indexOf(schluessel) : -1;
   const hoechsteErhalten = [...LEISTUNGSABZEICHEN]
@@ -216,9 +267,17 @@ export function ehrenzeichenErfuellt(
 }
 
 export interface Anspruch {
-  /** Höchste nach den Daten zu vergebende Auszeichnung der Gruppe. */
+  /** Höchste nach den Daten zustehende Auszeichnung der Gruppe. */
   erfuellt: EhrungSchluessel | null;
-  /** Erfüllt, aber noch nicht als erhalten angehakt. */
+  /**
+   * Noch zu vergebende Stufen bis einschließlich `erfuellt`, in Vergabereihenfolge. Bei einer
+   * Staffel zählen nur Stufen oberhalb der höchsten erhaltenen; Lücken darunter sind ein
+   * Reihenfolgeproblem, keine fällige Ehrung.
+   */
+  offen: EhrungSchluessel[];
+  /** Die Stufe, die jetzt vergeben werden kann: die erste offene. */
+  naechste: EhrungSchluessel | null;
+  /** Irgendetwas ist offen. */
   faellig: boolean;
 }
 
@@ -229,8 +288,25 @@ export interface Ansprueche {
   ehrenzeichen: Anspruch;
 }
 
-function anspruch(erfuellt: EhrungSchluessel | null, erhalten: Erhalten): Anspruch {
-  return { erfuellt, faellig: erfuellt !== null && !hatErhalten(erhalten, erfuellt) };
+function anspruch(
+  erfuellt: EhrungSchluessel | null,
+  erhalten: Erhalten,
+  staffel: readonly EhrungSchluessel[] | null = null,
+): Anspruch {
+  if (!erfuellt) return { erfuellt: null, offen: [], naechste: null, faellig: false };
+  let offen: EhrungSchluessel[];
+  if (staffel) {
+    const hoechste = staffel.reduce(
+      (stand, schluessel, index) => (hatErhalten(erhalten, schluessel) ? index : stand),
+      -1,
+    );
+    offen = staffel
+      .slice(0, staffel.indexOf(erfuellt) + 1)
+      .filter((schluessel, index) => index > hoechste && !hatErhalten(erhalten, schluessel));
+  } else {
+    offen = hatErhalten(erhalten, erfuellt) ? [] : [erfuellt];
+  }
+  return { erfuellt, offen, naechste: offen[0] ?? null, faellig: offen.length > 0 };
 }
 
 export function ansprueche(
@@ -239,12 +315,17 @@ export function ansprueche(
 ): Ansprueche {
   const jahre = mitgliedsjahre(person.eintrittsdatum, jahr);
   return {
-    leistung: anspruch(leistungsabzeichenErfuellt(person.stunden), person.erhalten),
+    leistung: anspruch(
+      leistungsabzeichenErfuellt(person.stunden),
+      person.erhalten,
+      LEISTUNGSABZEICHEN,
+    ),
     jubilaeum: anspruch(jubilaeumErfuellt(jahre), person.erhalten),
     uhr: anspruch(uhrErfuellt(jahre), person.erhalten),
     ehrenzeichen: anspruch(
       ehrenzeichenErfuellt(person.besondereVerdienste, jahre, person.erhalten, jahr),
       person.erhalten,
+      EHRENZEICHEN,
     ),
   };
 }
@@ -253,7 +334,12 @@ export interface ZuEhrender {
   nachname: string;
   vorname: string;
   gruppe: 'Leistungsabzeichen' | 'Jubiläumszeichen' | 'Jubiläumsuhr' | 'Ehrenzeichen';
+  /** Die Stufe, die jetzt vergeben werden kann. */
   auszeichnung: EhrungSchluessel;
+  /** Höchste zustehende Stufe; höher als `auszeichnung`, wenn zuerst Vorstufen zu vergeben sind. */
+  anspruchBis: EhrungSchluessel;
+  /** Warnungen zu Staffel und Reihenfolge, leer wenn alles stimmig ist. */
+  hinweis: string;
   /** Woraus sich der Anspruch ergibt, zum Nachlesen auf der Liste. */
   grundlage: string;
   /** Bereits erhaltene Auszeichnungen derselben Gruppe, etwa „Bronze 2012“. */
@@ -261,9 +347,67 @@ export interface ZuEhrender {
 }
 
 /**
- * Alle noch offenen Ehrungen: je Person und Gruppe die höchste nach den Daten zu vergebende
- * Auszeichnung, sofern sie noch nicht als erhalten angehakt ist. Sortiert nach Gruppe, Stufe,
- * Nach- und Vorname.
+ * Warnungen zu einer Gruppe: der Anspruch geht über die jetzt vergebbare Stufe hinaus (Silber
+ * steht zu, aber erst Bronze kann vergeben werden) oder Erhaltenes steht ohne Vorstufen da.
+ */
+export function staffelHinweise(
+  erhalten: Erhalten,
+  anspruch: Anspruch,
+  gruppe: readonly EhrungSchluessel[],
+): string[] {
+  const hinweise: string[] = [];
+  const name = (schluessel: EhrungSchluessel) => EHRUNG_BEZEICHNUNG[schluessel];
+  if (anspruch.erfuellt && anspruch.naechste && anspruch.offen.length > 1) {
+    hinweise.push(
+      `Anspruch bis ${name(anspruch.erfuellt)}, aber zuerst ${name(anspruch.naechste)} vergeben.`,
+    );
+  }
+  for (const problem of reihenfolgeProbleme(erhalten, [gruppe])) {
+    hinweise.push(
+      `${name(problem.vorhanden)} erfasst, aber ${problem.fehlend.map(name).join(' und ')} fehlt.`,
+    );
+  }
+  return hinweise;
+}
+
+export interface Warnung {
+  nachname: string;
+  vorname: string;
+  gruppe: string;
+  text: string;
+}
+
+/** Alle Warnungen über den Bestand, unabhängig davon, ob gerade etwas zu vergeben ist. */
+export function warnungen(
+  personen: readonly Pick<
+    EhrungPerson,
+    'nachname' | 'vorname' | 'stunden' | 'eintrittsdatum' | 'besondereVerdienste' | 'erhalten'
+  >[],
+  jahr: number = aktuellesJahr(),
+): Warnung[] {
+  const liste: Warnung[] = [];
+  for (const person of personen) {
+    const a = ansprueche(person, jahr);
+    for (const [gruppe, name, schluessel] of [
+      [a.leistung, 'Leistungsabzeichen', LEISTUNGSABZEICHEN],
+      [a.ehrenzeichen, 'Ehrenzeichen', EHRENZEICHEN],
+    ] as const) {
+      for (const text of staffelHinweise(person.erhalten, gruppe, schluessel)) {
+        liste.push({ nachname: person.nachname, vorname: person.vorname, gruppe: name, text });
+      }
+    }
+  }
+  return liste.sort(
+    (x, y) =>
+      x.nachname.localeCompare(y.nachname, 'de') || x.vorname.localeCompare(y.vorname, 'de'),
+  );
+}
+
+/**
+ * Alle jetzt zu vergebenden Ehrungen: je Person und Gruppe die nächste vergebbare Stufe. Bei einer
+ * Staffel (Bronze → Silber → Gold, Ehrenzeichen → Band → Nadel) ist das die erste noch fehlende
+ * Stufe, auch wenn der Anspruch weiter reicht; der Unterschied steht als Hinweis dabei. Sortiert
+ * nach Stufe, Nach- und Vorname.
  */
 export function zuEhrende(
   personen: readonly Pick<
@@ -285,7 +429,7 @@ export function zuEhrende(
     const seit = person.eintrittsdatum ? formatiereDatum(person.eintrittsdatum) : '';
     for (const gruppe of gruppen) {
       const anspruch = a[gruppe.art];
-      if (!anspruch.faellig || !anspruch.erfuellt) continue;
+      if (!anspruch.naechste || !anspruch.erfuellt) continue;
       const grundlage =
         gruppe.art === 'leistung'
           ? `${person.stunden.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Stunden`
@@ -303,7 +447,9 @@ export function zuEhrende(
         nachname: person.nachname,
         vorname: person.vorname,
         gruppe: gruppe.name,
-        auszeichnung: anspruch.erfuellt,
+        auszeichnung: anspruch.naechste,
+        anspruchBis: anspruch.erfuellt,
+        hinweis: staffelHinweise(person.erhalten, anspruch, gruppe.schluessel).join(' '),
         grundlage,
         bisher,
       });

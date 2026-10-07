@@ -36,18 +36,20 @@ describe('Export „Zu Ehrende“', () => {
       2026,
     );
     const mappe = XLSX.read(daten, { type: 'array' });
-    expect(mappe.SheetNames).toEqual(['Zu Ehrende 2026']);
+    expect(mappe.SheetNames).toEqual(['Zu Ehrende 2026', 'Warnungen']);
     const zeilen = XLSX.utils.sheet_to_json<Record<string, string>>(
       mappe.Sheets['Zu Ehrende 2026'],
     );
     expect(zeilen).toEqual([
       {
-        Auszeichnung: 'Gold',
+        Auszeichnung: 'Silber',
         Gruppe: 'Leistungsabzeichen',
         Nachname: 'Muster',
         Vorname: 'Test',
         Grundlage: '4.500 Stunden',
         'Bisher erhalten': 'Bronze 2012',
+        'Anspruch bis': 'Gold',
+        Warnung: 'Anspruch bis Gold, aber zuerst Silber vergeben.',
       },
       {
         Auszeichnung: '25 Jahre',
@@ -56,7 +58,14 @@ describe('Export „Zu Ehrende“', () => {
         Vorname: 'Test',
         Grundlage: '26 Jahre Mitglied (seit 01.03.2000)',
         'Bisher erhalten': '',
+        'Anspruch bis': '',
+        Warnung: '',
       },
+    ]);
+    const warnungen = XLSX.utils.sheet_to_json<Record<string, string>>(mappe.Sheets['Warnungen']);
+    expect(warnungen.map((w) => `${w['Nachname']}: ${w['Warnung']}`)).toEqual([
+      'Fertig: Gold erfasst, aber Bronze und Silber fehlt.',
+      'Muster: Anspruch bis Gold, aber zuerst Silber vergeben.',
     ]);
   });
 
