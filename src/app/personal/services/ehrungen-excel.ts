@@ -1,6 +1,7 @@
 import {
   EHRUNG_BEZEICHNUNG,
   ansprueche,
+  hatErhalten,
   mitgliedsjahre,
   type EhrungPerson,
   type EhrungSchluessel,
@@ -14,7 +15,7 @@ const JA = 'ja';
 /**
  * Excel-Fassung der Ehrungen: dieselben Spalten wie die Arbeitstabelle „Ehrungen
  * 2026", Name in Nach- und Vorname getrennt, dazu die einzelnen Auszeichnungen
- * als Ja-Spalten. Die „Erfüllt"-Spalten sind zum Zeitpunkt des Exports berechnete
+ * als Spalten mit dem Vergabejahr (oder „ja“, wenn das Jahr unbekannt ist). Die „Erfüllt"-Spalten sind zum Zeitpunkt des Exports berechnete
  * Werte, keine Formeln – die Datei bleibt ein Stand und rechnet nicht mit.
  */
 export async function ehrungenExcelErzeugen(
@@ -22,8 +23,9 @@ export async function ehrungenExcelErzeugen(
   jahr: number,
 ): Promise<ArrayBuffer> {
   const XLSX = await import('@e965/xlsx');
+  /** Vergabejahr, bei unbekanntem Jahr „ja“, sonst leer. */
   const hat = (person: EhrungPerson, schluessel: EhrungSchluessel) =>
-    person.erhalten.includes(schluessel) ? JA : '';
+    hatErhalten(person.erhalten, schluessel) ? (person.erhalten[schluessel] ?? JA) : '';
   const bezeichnung = (schluessel: EhrungSchluessel | null) =>
     schluessel ? EHRUNG_BEZEICHNUNG[schluessel] : '';
 

@@ -103,7 +103,7 @@ class FakeStatement {
         stunden,
         eintrittsdatum,
         besondere_verdienste: 0,
-        erhalten: '[]',
+        erhalten: '{}',
         geaendert_am: am,
         geaendert_von: von,
         version: 1,

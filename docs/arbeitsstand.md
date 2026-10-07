@@ -2906,11 +2906,13 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
 - **Stundenimport:** Text „Nachname, Vorname 6.546,98“ (auch Excel-Schreibweise `947.62`), Vorschau
   (neu/geändert/unverändert, Fehlerzeilen), Abgleich über Namen; fehlende Personen im Text bleiben
   unverändert. **Eintritt aus HiOrg:** Button holt `mitglied_seit` aus der Personal-Antwort.
-- **Bewusst nicht übernommen:** die Spalte „Erhalten Jahr“ der Arbeitstabelle; das Blatt mit den
-  Notizen. Die Excel-Datei enthält berechnete Werte statt der Formeln.
+- **Überarbeitung:** Vergabejahr je erhaltener Auszeichnung (Excel-Spalten zeigen das Jahr), Material-Tabelle
+  mit Sortierung (Standard Stunden absteigend), farbige Chips (Bronze/Silber/Gold, Tokens in
+  `tokens.less`), Suche und Filter (Auszeichnung, Erhalten/Fällig/Jahr fehlt), Vollbild.
+- **Bewusst nicht übernommen:** das Blatt mit den Notizen der Arbeitstabelle. Die Excel-Datei enthält berechnete Werte statt der Formeln.
 - **Vor dem Deployment:** Migration `0014_ehrungen.sql` auf `BENUTZER_DB` anwenden
   (`wrangler d1 migrations apply BENUTZER_DB`); Worker und Frontend gemeinsam ausrollen.
-- Geprüft: `npm run build`, `npm test` (Angular 1023 + 29, Worker 829 Tests), `npm run format:check`.
+- Geprüft: `npm run build`, `npm test` (Angular 1024 + 29, Worker 830 Tests), `npm run format:check`.
   Im Browser (Headless-Chromium, Desktop 1400×900 und mobil 390×844, nachgebildete API mit zwei
   erfundenen Personen): Seite lädt, Häkchen ändern „Speichern (1)“, Importvorschau zählt neu/geändert
   und meldet die Fehlerzeile; kein horizontaler Seitenüberlauf, Tabelle scrollt im Rahmen.

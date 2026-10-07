@@ -150,7 +150,7 @@ describe('Ehrungen: Einzelspeicherung', () => {
   const koerper = {
     eintrittsdatum: '1999-05-06',
     besondereVerdienste: true,
-    erhalten: ['gold', 'bronze'],
+    erhalten: { gold: 2021, bronze: null },
   };
 
   it('speichert mit If-Match, ordnet kanonisch und erhöht die Version', async () => {
@@ -166,7 +166,7 @@ describe('Ehrungen: Einzelspeicherung', () => {
       {
         eintrittsdatum: '1999-05-06',
         besondereVerdienste: true,
-        erhalten: ['bronze', 'gold'],
+        erhalten: { bronze: null, gold: 2021 },
         version: 2,
       },
     ]);
@@ -196,7 +196,7 @@ describe('Ehrungen: Einzelspeicherung', () => {
       anfrage(
         `/api/personal/ehrungen/${id}`,
         'PUT',
-        { ...koerper, erhalten: ['platin'] },
+        { ...koerper, erhalten: { platin: 2020 } },
         { 'If-Match': '"1"' },
       ),
       umgebung(db),
@@ -211,6 +211,26 @@ describe('Ehrungen: Einzelspeicherung', () => {
       IDENTITAET,
     );
     expect(fremd.status).toBe(404);
+  });
+
+  it('lehnt unmögliche Vergabejahre ab und liest die frühere Liste ohne Jahr', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await angelegt(db);
+    for (const jahr of [1899, 2201, 2020.5, '2020']) {
+      const antwort = await verarbeiteEhrungen(
+        anfrage(
+          `/api/personal/ehrungen/${id}`,
+          'PUT',
+          { ...koerper, erhalten: { gold: jahr } },
+          { 'If-Match': '"1"' },
+        ),
+        umgebung(db),
+        IDENTITAET,
+      );
+      expect(antwort.status).toBe(400);
+    }
+    db.zeilen.get(id)!.erhalten = '["silber"]';
+    expect((await liste(db))[0]['erhalten']).toEqual({ silber: null });
   });
 
   it('löscht eine Person', async () => {

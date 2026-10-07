@@ -39,6 +39,33 @@ export const EHRUNG_BEZEICHNUNG: Readonly<Record<EhrungSchluessel, string>> = {
   ehrennadel: 'Ehrennadel am Band des Johanniterordens',
 };
 
+/** Kurzbeschriftung für Chips und Feldnamen. */
+export const EHRUNG_KURZ: Readonly<Record<EhrungSchluessel, string>> = {
+  bronze: 'Bronze',
+  silber: 'Silber',
+  gold: 'Gold',
+  'jubilaeum-25': '25 Jahre',
+  'jubilaeum-40': '40 Jahre',
+  'jubilaeum-50': '50 Jahre',
+  'jubilaeum-60': '60 Jahre',
+  ehrenzeichen: 'Ehrenzeichen',
+  'ehrenzeichen-bande': 'Am Bande',
+  ehrennadel: 'Ehrennadel',
+};
+
+/**
+ * Erhaltene Auszeichnungen mit dem Jahr der Vergabe; `null` heißt „erhalten,
+ * Jahr unbekannt“. Eine nicht vorhandene Eigenschaft heißt „nicht erhalten“.
+ */
+export type Erhalten = Partial<Record<EhrungSchluessel, number | null>>;
+
+export const VERGABEJAHR_MINIMUM = 1900;
+export const VERGABEJAHR_MAXIMUM = 2200;
+
+export function hatErhalten(erhalten: Erhalten, schluessel: EhrungSchluessel): boolean {
+  return Object.hasOwn(erhalten, schluessel);
+}
+
 export const LEISTUNGSABZEICHEN: readonly EhrungSchluessel[] = ['bronze', 'silber', 'gold'];
 export const JUBILAEUMSZEICHEN: readonly EhrungSchluessel[] = [
   'jubilaeum-25',
@@ -60,7 +87,7 @@ export interface EhrungPerson {
   /** `JJJJ-MM-TT` oder `null`. */
   eintrittsdatum: string | null;
   besondereVerdienste: boolean;
-  erhalten: EhrungSchluessel[];
+  erhalten: Erhalten;
   version: number;
   geaendertAm: string;
   geaendertVon: string;
@@ -121,8 +148,8 @@ export interface Ansprueche {
   ehrenzeichen: Anspruch;
 }
 
-function anspruch(erfuellt: EhrungSchluessel | null, erhalten: readonly string[]): Anspruch {
-  return { erfuellt, faellig: erfuellt !== null && !erhalten.includes(erfuellt) };
+function anspruch(erfuellt: EhrungSchluessel | null, erhalten: Erhalten): Anspruch {
+  return { erfuellt, faellig: erfuellt !== null && !hatErhalten(erhalten, erfuellt) };
 }
 
 export function ansprueche(
@@ -227,6 +254,21 @@ export function istEhrungSchluessel(wert: unknown): wert is EhrungSchluessel {
   return typeof wert === 'string' && (EHRUNG_SCHLUESSEL as readonly string[]).includes(wert);
 }
 
+export function istErhalten(wert: unknown): wert is Erhalten {
+  return (
+    istObjekt(wert) &&
+    Object.entries(wert).every(
+      ([schluessel, jahr]) =>
+        istEhrungSchluessel(schluessel) &&
+        (jahr === null ||
+          (typeof jahr === 'number' &&
+            Number.isInteger(jahr) &&
+            jahr >= VERGABEJAHR_MINIMUM &&
+            jahr <= VERGABEJAHR_MAXIMUM)),
+    )
+  );
+}
+
 export function istEhrungPerson(wert: unknown): wert is EhrungPerson {
   return (
     istObjekt(wert) &&
@@ -239,8 +281,7 @@ export function istEhrungPerson(wert: unknown): wert is EhrungPerson {
       (typeof wert['eintrittsdatum'] === 'string' &&
         /^\d{4}-\d{2}-\d{2}$/.test(wert['eintrittsdatum']))) &&
     typeof wert['besondereVerdienste'] === 'boolean' &&
-    Array.isArray(wert['erhalten']) &&
-    wert['erhalten'].every(istEhrungSchluessel) &&
+    istErhalten(wert['erhalten']) &&
     typeof wert['version'] === 'number' &&
     typeof wert['geaendertAm'] === 'string' &&
     typeof wert['geaendertVon'] === 'string'

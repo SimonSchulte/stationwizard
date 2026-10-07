@@ -69,14 +69,6 @@
 
 .import {
   margin-bottom: var(--space-lg);
-  padding: var(--space-md);
-  background: var(--surface-secondary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-
-  h2 {
-    margin: 0 0 var(--space-sm);
-  }
 }
 
 .import-text {
@@ -115,41 +107,32 @@
   color: var(--text-secondary);
 }
 
-// Breite Tabelle kontrolliert horizontal scrollen statt die Seite zu verbreitern.
+// Breite Tabelle kontrolliert in ihrem Rahmen scrollen statt die Seite zu verbreitern.
 .tabellenbereich {
   max-width: 100%;
-  overflow-x: auto;
+  overflow: auto;
+}
+
+.tabellenbereich {
+  max-height: calc(100dvh - 22rem);
 }
 
 .ehrungen-tabelle {
   width: 100%;
-  min-width: 1400px;
-  border-collapse: collapse;
-
-  th,
-  td {
-    padding: var(--space-2xs) var(--space-sm);
-    border-bottom: 1px solid var(--border-light);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  th {
-    background: var(--surface-tertiary);
-    font-weight: 500;
-  }
-
-  .gruppe {
-    text-align: center;
-    border-left: 1px solid var(--border-medium);
-  }
+  min-width: 1500px;
 
   .zahl {
     text-align: right;
   }
 
-  .mitte {
-    text-align: center;
+  th.mat-mdc-header-cell,
+  td.mat-mdc-cell {
+    padding-inline: var(--space-sm);
+    vertical-align: middle;
+  }
+
+  td.mat-mdc-cell {
+    padding-block: var(--space-xs);
   }
 
   tr.geaendert td {
@@ -157,24 +140,108 @@
   }
 }
 
-.datum {
-  padding: var(--space-2xs);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  background: var(--surface-primary);
-  color: var(--text-primary);
-  font: inherit;
+.datumsfeld,
+.jahrfeld {
+  // Kompakte Felder in der Tabellenzeile, damit die Zeilen nicht unnötig hoch werden.
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
 }
 
-.zuvergeben {
-  color: var(--text-secondary);
+.datumsfeld {
+  width: 11.5rem;
+}
 
-  &.faellig {
-    padding: var(--space-2xs) var(--space-sm);
-    border-radius: var(--radius-chip);
-    background: var(--status-warn-bg);
-    color: var(--text-primary);
-    font-weight: 500;
+.gruppenzelle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 15rem;
+}
+
+.jahresfelder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.jahrfeld {
+  width: 9rem;
+}
+
+.jahr-fehlt {
+  color: var(--status-warn);
+}
+
+// Farben der Chips: Fläche und Schrift paarweise aus den zentralen Tokens.
+.chipfarbe(@flaeche, @schrift) {
+  --mat-chip-elevated-selected-container-color: @flaeche;
+  --mat-chip-selected-label-text-color: @schrift;
+  --mat-chip-with-icon-selected-icon-color: @schrift;
+  --mat-chip-elevated-container-color: @flaeche;
+  --mat-chip-label-text-color: @schrift;
+  --mat-chip-with-icon-icon-color: @schrift;
+}
+
+mat-chip-option,
+mat-chip {
+  &.chip-bronze {
+    .chipfarbe(var(--abzeichen-bronze-bg), var(--abzeichen-bronze-text));
+  }
+
+  &.chip-silber {
+    .chipfarbe(var(--abzeichen-silber-bg), var(--abzeichen-silber-text));
+  }
+
+  &.chip-gold {
+    .chipfarbe(var(--abzeichen-gold-bg), var(--abzeichen-gold-text));
+  }
+
+  &.chip-jubilaeum {
+    .chipfarbe(var(--abzeichen-jubilaeum-bg), var(--abzeichen-jubilaeum-text));
+  }
+
+  &.chip-ehrenzeichen {
+    .chipfarbe(var(--abzeichen-ehre-bg), var(--abzeichen-ehre-text));
+  }
+}
+
+// Nicht gewählte Optionen zurückhaltend, damit gewählte auffallen.
+mat-chip-option:not(.mdc-evolution-chip--selected) {
+  --mat-chip-elevated-container-color: var(--surface-secondary);
+  --mat-chip-label-text-color: var(--text-secondary);
+}
+
+mat-chip.erledigt {
+  opacity: 0.7;
+}
+
+mat-chip.chip-neu {
+  --mat-chip-elevated-container-color: var(--status-ok-bg);
+  --mat-chip-label-text-color: var(--status-ok);
+}
+
+.status {
+  flex: 0 0 auto;
+}
+
+.auswahl {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+:host(.vollbild) {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: auto;
+  background: var(--surface-primary);
+
+  .inhalt {
+    max-width: none;
+  }
+
+  .tabellenbereich {
+    max-height: calc(100dvh - 15rem);
   }
 }
 

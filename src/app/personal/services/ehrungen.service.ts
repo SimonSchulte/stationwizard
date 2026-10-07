@@ -1,13 +1,13 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { istEhrungPerson, type EhrungPerson, type EhrungSchluessel } from './ehrungen-regeln';
+import { istEhrungPerson, type EhrungPerson, type Erhalten } from './ehrungen-regeln';
 
 const PFAD = '/api/personal/ehrungen';
 
 export interface EhrungAenderung {
   eintrittsdatum: string | null;
   besondereVerdienste: boolean;
-  erhalten: EhrungSchluessel[];
+  erhalten: Erhalten;
 }
 
 export interface EhrungImportEintrag {

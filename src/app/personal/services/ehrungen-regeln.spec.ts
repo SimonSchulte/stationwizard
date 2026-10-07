@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   ansprueche,
   ehrenzeichenErfuellt,
+  istErhalten,
   jubilaeumErfuellt,
   leistungsabzeichenErfuellt,
   mitgliedsjahre,
   personSchluessel,
+  type Erhalten,
   stundenLesen,
   stundenTextLesen,
 } from './ehrungen-regeln';
@@ -59,7 +61,7 @@ describe('Ansprüche', () => {
     stunden: 4500,
     eintrittsdatum: '1990-05-01',
     besondereVerdienste: true,
-    erhalten: [] as never[],
+    erhalten: {} as Erhalten,
   };
 
   it('meldet erfüllte, noch nicht erhaltene Auszeichnungen als fällig', () => {
@@ -70,14 +72,17 @@ describe('Ansprüche', () => {
   });
 
   it('ist nicht mehr fällig, sobald die erfüllte Stufe angehakt ist', () => {
-    const a = ansprueche({ ...person, erhalten: ['gold', 'jubilaeum-25', 'ehrennadel'] }, 2026);
+    const a = ansprueche(
+      { ...person, erhalten: { gold: 2020, 'jubilaeum-25': null, ehrennadel: 2024 } },
+      2026,
+    );
     expect(a.leistung.faellig).toBe(false);
     expect(a.jubilaeum.faellig).toBe(false);
     expect(a.ehrenzeichen.faellig).toBe(false);
   });
 
   it('bleibt fällig, wenn nur eine niedrigere Stufe erhalten ist', () => {
-    expect(ansprueche({ ...person, erhalten: ['bronze'] }, 2026).leistung.faellig).toBe(true);
+    expect(ansprueche({ ...person, erhalten: { bronze: 2015 } }, 2026).leistung.faellig).toBe(true);
   });
 });
 
@@ -113,5 +118,16 @@ describe('Stundenimport', () => {
 
   it('gleicht Namen unabhängig von Groß-/Kleinschreibung und Leerraum ab', () => {
     expect(personSchluessel(' MUSTER ', 'Max  Karl')).toBe(personSchluessel('muster', 'max karl'));
+  });
+});
+
+describe('Erhaltene Auszeichnungen mit Jahr', () => {
+  it('prüft Schlüssel und Vergabejahr', () => {
+    expect(istErhalten({})).toBe(true);
+    expect(istErhalten({ gold: 2021, bronze: null })).toBe(true);
+    expect(istErhalten({ platin: 2021 })).toBe(false);
+    expect(istErhalten({ gold: 1850 })).toBe(false);
+    expect(istErhalten({ gold: '2021' })).toBe(false);
+    expect(istErhalten(['gold'])).toBe(false);
   });
 });

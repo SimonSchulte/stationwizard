@@ -687,8 +687,10 @@ Die Ehrungen (`src/app/personal/pages/ehrungen/`, `worker/src/ehrungen.ts`, Rout
 „am Bande“, „Ehrennadel am Band des Johanniterordens“). Eine Zeile je Person in
 `ehrungen_personen` (`BENUTZER_DB`, Migration `0014_ehrungen.sql`) mit eigener Version. Gespeichert
 wird nur, was erfasst oder importiert ist: Stunden, Eintrittsdatum, „Besondere Verdienste“ und die
-bereits erhaltenen Auszeichnungen (JSON-Array fester Schlüssel, Liste in `ehrungen.ts` **und**
-`ehrungen-regeln.ts`). Was zu vergeben ist, wird im Client berechnet (`ehrungen-regeln.ts`) und nie
+bereits erhaltenen Auszeichnungen mit dem **Jahr der Vergabe** (JSON-Objekt Schlüssel → Jahr oder
+`null` für „erhalten, Jahr unbekannt“; feste Schlüsselliste in `ehrungen.ts` **und**
+`ehrungen-regeln.ts`; ein Jahr wird beim Anhaken bewusst nicht vorbelegt, ein fehlendes ist
+markiert und filterbar; die früher gespeicherte Liste ohne Jahre wird als `null`-Jahre gelesen). Was zu vergeben ist, wird im Client berechnet (`ehrungen-regeln.ts`) und nie
 gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach Mitgliedsjahren
 (laufendes Jahr minus Eintrittsjahr, ab 25/40/50/60, höchstes erreichtes), Ehrenzeichen nur bei
 „Besondere Verdienste“ und Eintrittsdatum (> 4/6/12 Jahre) – die Schwellen der Leistungs- und
@@ -697,7 +699,10 @@ noch nicht angehakt. Der Stundenimport (`POST …/import`, ein Aufruf für den g
 über Nachname und Vorname ab (`personSchluessel()`, Vergleichsform in Worker, Client und
 Migration gemeinsam ändern), legt neue Personen an, aktualisiert vorhandene nur mit der
 bekannten Version (sonst Ergebnis `konflikt`) und schreibt nichts, wenn sich nichts ändert. Die
-Seite schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
+Seite (Material: Tabelle mit Sortierung – Standard Stunden absteigend –, Chips in den Farben
+Bronze/Silber/Gold aus den `--abzeichen-*`-Tokens, Datumsauswahl, Suche, Filter nach Auszeichnung
+und Status Alle/Erhalten/Fällig/Jahr fehlt, Vollbild über die Fullscreen-API mit Rückfall auf eine
+Vollbild-Fläche) schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
 Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
 (`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
 unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist

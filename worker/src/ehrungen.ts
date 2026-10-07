@@ -63,15 +63,35 @@ function pruefeStunden(wert: unknown): number | null {
   return Math.round(wert * 100) / 100;
 }
 
-function pruefeErhalten(wert: unknown): string[] | null {
-  if (!Array.isArray(wert)) return null;
+/** Jahr der Vergabe; `null` heißt „erhalten, Jahr unbekannt“ (Bestände aus mehreren Aktenlagen). */
+const JAHR_MINIMUM = 1900;
+const JAHR_MAXIMUM = 2200;
+
+export type Erhalten = Partial<Record<(typeof EHRUNG_SCHLUESSEL)[number], number | null>>;
+
+/** Erhaltene Auszeichnungen mit Vergabejahr, in kanonischer Reihenfolge; unbekannte Schlüssel lehnen ab. */
+function pruefeErhalten(wert: unknown): Erhalten | null {
+  if (!istObjekt(wert)) return null;
   const bekannt = new Set<string>(EHRUNG_SCHLUESSEL);
-  const gesetzt = new Set<string>();
-  for (const eintrag of wert) {
-    if (typeof eintrag !== 'string' || !bekannt.has(eintrag)) return null;
-    gesetzt.add(eintrag);
+  if (Object.keys(wert).some((schluessel) => !bekannt.has(schluessel))) return null;
+  const ergebnis: Erhalten = {};
+  for (const schluessel of EHRUNG_SCHLUESSEL) {
+    if (!Object.hasOwn(wert, schluessel)) continue;
+    const jahr = wert[schluessel];
+    if (jahr === null) {
+      ergebnis[schluessel] = null;
+    } else if (
+      typeof jahr === 'number' &&
+      Number.isInteger(jahr) &&
+      jahr >= JAHR_MINIMUM &&
+      jahr <= JAHR_MAXIMUM
+    ) {
+      ergebnis[schluessel] = jahr;
+    } else {
+      return null;
+    }
   }
-  return EHRUNG_SCHLUESSEL.filter((schluessel) => gesetzt.has(schluessel));
+  return ergebnis;
 }
 
 interface PersonZeile {
@@ -88,11 +108,16 @@ interface PersonZeile {
   version: number;
 }
 
-function leseErhaltenSpalte(text: string): string[] {
+/** Liest die Spalte; die frühere Liste fester Schlüssel (ohne Jahr) wird als „Jahr unbekannt“ gelesen. */
+function leseErhaltenSpalte(text: string): Erhalten {
   try {
-    return pruefeErhalten(JSON.parse(text)) ?? [];
+    const roh: unknown = JSON.parse(text);
+    if (Array.isArray(roh)) {
+      return pruefeErhalten(Object.fromEntries(roh.map((schluessel) => [schluessel, null]))) ?? {};
+    }
+    return pruefeErhalten(roh) ?? {};
   } catch {
-    return [];
+    return {};
   }
 }
 
@@ -333,7 +358,7 @@ async function importiere(
             `INSERT INTO ehrungen_personen
                (id, nachname, vorname, schluessel, stunden, eintrittsdatum, besondere_verdienste,
                 erhalten, geaendert_am, geaendert_von, version)
-             VALUES (?, ?, ?, ?, ?, ?, 0, '[]', ?, ?, 1)`,
+             VALUES (?, ?, ?, ?, ?, ?, 0, '{}', ?, ?, 1)`,
           )
           .bind(
             crypto.randomUUID(),
