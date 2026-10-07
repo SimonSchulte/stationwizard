@@ -16,4 +16,8 @@ export const personalRouten: Routes = [
         (modul) => modul.Fuehrerscheinliste,
       ),
   },
+  {
+    path: 'ehrungen',
+    loadComponent: () => import('./pages/ehrungen/ehrungen').then((modul) => modul.Ehrungen),
+  },
 ];

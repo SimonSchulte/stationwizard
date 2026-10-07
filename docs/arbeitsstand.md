@@ -2893,3 +2893,26 @@ Nachschärfung in dieser Sitzung.
 - Geprüft: `npm run build`, `npm test` (Angular 1005 + 29, Worker 810 Tests), `npm run
 worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neuen Seite auf
   Desktop und Mobil, die Migration gegen die echte D1-Datenbank.
+
+## Personal: Ehrungen
+
+- **Neu:** Seite `/personal/ehrungen` (Button „Ehrungen“ in der Personalübersicht). Nachbildung der
+  Tabelle „Ehrungen 2026“ mit Nach- und Vorname getrennt, Leistungsabzeichen (Bronze/Silber/Gold),
+  Jubiläumszeichen (25/40/50/60), Ehrenzeichen (3 Stufen), „Besondere Verdienste“, Eintrittsdatum,
+  „Zu vergeben“ je Gruppe (hervorgehoben, wenn noch nicht angehakt), Suche, Filter „Nur Fällige“,
+  Excel-Export.
+- **Daten:** Tabelle `ehrungen_personen` in `BENUTZER_DB` (Migration `0014_ehrungen.sql`), Worker
+  `worker/src/ehrungen.ts` (`GET`, `PUT`/`DELETE <UUID>` mit `If-Match`, `POST /import`).
+- **Stundenimport:** Text „Nachname, Vorname 6.546,98“ (auch Excel-Schreibweise `947.62`), Vorschau
+  (neu/geändert/unverändert, Fehlerzeilen), Abgleich über Namen; fehlende Personen im Text bleiben
+  unverändert. **Eintritt aus HiOrg:** Button holt `mitglied_seit` aus der Personal-Antwort.
+- **Bewusst nicht übernommen:** die Spalte „Erhalten Jahr“ der Arbeitstabelle; das Blatt mit den
+  Notizen. Die Excel-Datei enthält berechnete Werte statt der Formeln.
+- **Vor dem Deployment:** Migration `0014_ehrungen.sql` auf `BENUTZER_DB` anwenden
+  (`wrangler d1 migrations apply BENUTZER_DB`); Worker und Frontend gemeinsam ausrollen.
+- Geprüft: `npm run build`, `npm test` (Angular 1023 + 29, Worker 829 Tests), `npm run format:check`.
+  Im Browser (Headless-Chromium, Desktop 1400×900 und mobil 390×844, nachgebildete API mit zwei
+  erfundenen Personen): Seite lädt, Häkchen ändern „Speichern (1)“, Importvorschau zählt neu/geändert
+  und meldet die Fehlerzeile; kein horizontaler Seitenüberlauf, Tabelle scrollt im Rahmen.
+  **Nicht geprüft:** echte D1-Migration, echter HiOrg-Abruf (Feld `mitglied_seit` nicht gegen die
+  echte API bestätigt), Speichern/Import gegen den echten Worker, Touch-Bedienung am Gerät.

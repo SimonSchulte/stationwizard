@@ -1,0 +1,197 @@
+@import '../../../kern/kopfleiste.less';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.listen-kopfleiste {
+  .kopfleiste-basis();
+
+  white-space: normal;
+}
+
+.kopfleiste-icon {
+  color: var(--mat-sys-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.inhalt {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.rueckmeldung {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-base);
+  background: var(--surface-secondary);
+  border-left: 4px solid var(--status-ok);
+  border-radius: var(--radius-sm);
+}
+
+.fehler {
+  color: var(--status-error);
+  padding: var(--space-sm) 0;
+}
+
+.leer,
+.hinweis,
+.legende {
+  color: var(--text-secondary);
+}
+
+.leer {
+  font-style: italic;
+}
+
+.legende {
+  margin-top: var(--space-md);
+  font-size: 0.875rem;
+}
+
+.laden {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg) 0;
+  color: var(--text-secondary);
+}
+
+.import {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+
+  h2 {
+    margin: 0 0 var(--space-sm);
+  }
+}
+
+.import-text {
+  width: 100%;
+}
+
+.vorschau {
+  font-weight: 500;
+}
+
+.import-fehler {
+  margin: 0 0 var(--space-sm);
+  padding-left: var(--space-lg);
+  color: var(--status-error);
+}
+
+.import-aktionen {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.suche {
+  flex: 1 1 280px;
+  max-width: 480px;
+}
+
+.anzahl {
+  color: var(--text-secondary);
+}
+
+// Breite Tabelle kontrolliert horizontal scrollen statt die Seite zu verbreitern.
+.tabellenbereich {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.ehrungen-tabelle {
+  width: 100%;
+  min-width: 1400px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: var(--space-2xs) var(--space-sm);
+    border-bottom: 1px solid var(--border-light);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    background: var(--surface-tertiary);
+    font-weight: 500;
+  }
+
+  .gruppe {
+    text-align: center;
+    border-left: 1px solid var(--border-medium);
+  }
+
+  .zahl {
+    text-align: right;
+  }
+
+  .mitte {
+    text-align: center;
+  }
+
+  tr.geaendert td {
+    background: var(--warning-bg);
+  }
+}
+
+.datum {
+  padding: var(--space-2xs);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.zuvergeben {
+  color: var(--text-secondary);
+
+  &.faellig {
+    padding: var(--space-2xs) var(--space-sm);
+    border-radius: var(--radius-chip);
+    background: var(--status-warn-bg);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+}
+
+.nur-lesehilfe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 780px) {
+  .inhalt {
+    padding: var(--space-md);
+  }
+
+  .listen-kopfleiste .spacer {
+    display: none;
+  }
+}

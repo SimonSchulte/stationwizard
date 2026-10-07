@@ -195,6 +195,9 @@ Prüfungen und offene Abnahmegrenzen.
 | `/hiorg/verbinden`, `/hiorg/rueckruf`              | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                             |
 | `/api/personal/fuehrerschein-vorlage`              | GET / PUT          | Word-Vorlage der Führerscheinliste: Metadaten bzw. Ersetzen; Update nur mit `If-Match`   |
 | `/api/personal/fuehrerschein-vorlage/datei`        | GET                | Rohinhalt der Vorlage; der Worker liest ihn nie, er verwahrt sie nur                     |
+| `/api/personal/ehrungen`                           | GET                | Ehrungen aller Personen mit Version je Person                                            |
+| `/api/personal/ehrungen/<UUID>`                    | PUT / DELETE       | Erhaltene Auszeichnungen, Eintrittsdatum, Verdienste; Update nur mit `If-Match`          |
+| `/api/personal/ehrungen/import`                    | POST               | Sammelimport für Stunden bzw. Eintrittsdaten; Ergebnis je Eintrag                        |
 | `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
@@ -677,6 +680,31 @@ Metadaten bzw. Ersetzen (`If-Match`/`If-None-Match` wie bei der Excel-Arbeitsmap
 Übergangslösung „Rechte vorerst alle, Rollen später". `leseBegrenzt()`/`istZip()`
 (vormals nur in `nextcloud.ts`) stehen jetzt gemeinsam in `worker/src/binaer-lesen.ts`,
 damit der Upload nicht dieselbe Größenprüfung ein zweites Mal bekommt.
+
+Die Ehrungen (`src/app/personal/pages/ehrungen/`, `worker/src/ehrungen.ts`, Route
+`/personal/ehrungen`) bilden die Arbeitstabelle „Ehrungen 2026“ nach: Leistungsabzeichen
+(Bronze/Silber/Gold), Jubiläumszeichen (25/40/50/60 Jahre) und Ehrenzeichen („Ehrenzeichen“,
+„am Bande“, „Ehrennadel am Band des Johanniterordens“). Eine Zeile je Person in
+`ehrungen_personen` (`BENUTZER_DB`, Migration `0014_ehrungen.sql`) mit eigener Version. Gespeichert
+wird nur, was erfasst oder importiert ist: Stunden, Eintrittsdatum, „Besondere Verdienste“ und die
+bereits erhaltenen Auszeichnungen (JSON-Array fester Schlüssel, Liste in `ehrungen.ts` **und**
+`ehrungen-regeln.ts`). Was zu vergeben ist, wird im Client berechnet (`ehrungen-regeln.ts`) und nie
+gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach Mitgliedsjahren
+(laufendes Jahr minus Eintrittsjahr, ab 25/40/50/60, höchstes erreichtes), Ehrenzeichen nur bei
+„Besondere Verdienste“ und Eintrittsdatum (> 4/6/12 Jahre) – die Schwellen der Leistungs- und
+Ehrenzeichen stammen aus den Formeln der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
+noch nicht angehakt. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht
+über Nachname und Vorname ab (`personSchluessel()`, Vergleichsform in Worker, Client und
+Migration gemeinsam ändern), legt neue Personen an, aktualisiert vorhandene nur mit der
+bekannten Version (sonst Ergebnis `konflikt`) und schreibt nichts, wenn sich nichts ändert. Die
+Seite schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
+Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
+(`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
+unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist
+**nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Der Excel-Export
+(`ehrungen-excel.ts`, `@e965/xlsx` dynamisch) enthält Name getrennt in Nach-/Vorname, die einzelnen
+Auszeichnungen und die „Erfüllt“-Spalten als berechnete Werte, keine Formeln. Rollenvergabe fehlt
+auch hier – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig

@@ -808,6 +808,31 @@ export interface HiorgPersonAusgabe {
   qualifikationen: { liste: string | null; name: string | null; kurz: string | null }[];
   telefon?: string;
   fahrerlaubnis: HiorgFahrerlaubnis | null;
+  /** Eintrittsdatum als `JJJJ-MM-TT`, nur wenn bei HiOrg erfasst und lesbar. */
+  mitgliedSeit?: string;
+}
+
+/**
+ * `attributes.mitglied_seit` (Feldname vom Betreiber benannt, nicht aus der
+ * offiziellen Feldbeschreibung belegt). Anders als bei den übrigen Feldern
+ * verwirft ein unlesbarer Wert nicht die ganze Antwort: das Datum ist nur eine
+ * Zusatzangabe, `undefined` bedeutet „nicht verwertbar".
+ */
+export function leseMitgliedSeit(wert: unknown): string | undefined {
+  if (typeof wert !== 'string') return undefined;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(wert.trim());
+  const deutsch = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(wert.trim());
+  const [jahr, monat, tag] = iso
+    ? [iso[1], iso[2], iso[3]]
+    : deutsch
+      ? [deutsch[3], deutsch[2], deutsch[1]]
+      : [];
+  if (!jahr) return undefined;
+  const text = `${jahr}-${monat}-${tag}`;
+  const datum = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(datum.getTime()) && datum.toISOString().slice(0, 10) === text
+    ? text
+    : undefined;
 }
 
 function optionalerText(wert: unknown): string | null | undefined {
@@ -882,6 +907,8 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
     const fahrerlaubnis = leseFahrerlaubnis(attribute['fahrerlaubnis']);
     if (fahrerlaubnis === undefined) return undefined;
 
+    const mitgliedSeit = leseMitgliedSeit(attribute['mitglied_seit']);
+
     personen.push({
       id,
       vorname,
@@ -890,6 +917,7 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
       qualifikationen,
       ...(handy ? { telefon: handy } : {}),
       fahrerlaubnis,
+      ...(mitgliedSeit ? { mitgliedSeit } : {}),
     });
   }
   return personen;

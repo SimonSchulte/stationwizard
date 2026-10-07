@@ -10,6 +10,9 @@
         : 'HiOrg-Server-API nicht verbunden'
     }}</span>
   </span>
+  <button mat-stroked-button routerLink="/personal/ehrungen">
+    <mat-icon>military_tech</mat-icon> Ehrungen
+  </button>
   @if (verbindung() === 'verbunden') {
     <button mat-stroked-button routerLink="/personal/fuehrerscheine">
       <mat-icon>badge</mat-icon> Führerscheinliste

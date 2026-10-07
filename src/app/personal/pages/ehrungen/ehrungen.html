@@ -1,0 +1,252 @@
+<mat-toolbar class="listen-kopfleiste">
+  <mat-icon class="kopfleiste-icon">military_tech</mat-icon>
+  <span class="toolbar-title">Ehrungen {{ jahr }}</span>
+  <span class="spacer"></span>
+  <button mat-stroked-button routerLink="/personal">
+    <mat-icon>arrow_back</mat-icon> Personal
+  </button>
+  <button mat-stroked-button (click)="importOffen.set(!importOffen())" [disabled]="arbeitet()">
+    <mat-icon>playlist_add</mat-icon> Stunden importieren
+  </button>
+  <button
+    mat-stroked-button
+    (click)="eintrittAusHiorg()"
+    [disabled]="arbeitet() || laedt()"
+    matTooltip="Eintrittsdatum (mitglied_seit) für Personen dieser Liste aus HiOrg übernehmen"
+  >
+    <mat-icon>event</mat-icon> Eintritt aus HiOrg
+  </button>
+  <button mat-stroked-button (click)="excelHerunterladen()" [disabled]="zeilen().length === 0">
+    <mat-icon>download</mat-icon> Excel
+  </button>
+  <button mat-button (click)="neuLaden()" [disabled]="laedt() || arbeitet()">
+    <mat-icon>refresh</mat-icon> Neu laden
+  </button>
+  @if (anzahlGeaendert() > 0) {
+    <button mat-button (click)="verwerfen()" [disabled]="arbeitet()">Verwerfen</button>
+  }
+  <button mat-flat-button (click)="speichern()" [disabled]="anzahlGeaendert() === 0 || arbeitet()">
+    <mat-icon>save</mat-icon> Speichern ({{ anzahlGeaendert() }})
+  </button>
+</mat-toolbar>
+
+<div class="inhalt">
+  @if (rueckmeldung()) {
+    <p class="rueckmeldung" role="status">
+      <span>{{ rueckmeldung() }}</span>
+      <button mat-icon-button matTooltip="Ausblenden" (click)="rueckmeldung.set('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </p>
+  }
+  @if (fehler()) {
+    <p class="fehler" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (importOffen()) {
+    <section class="import" aria-label="Stundenimport">
+      <h2>Stunden importieren</h2>
+      <p class="hinweis">
+        Eine Person je Zeile: <code>Nachname, Vorname 6.546,98</code>. Vorhandene Personen werden
+        über Nachname und Vorname gefunden und in ihren Stunden aktualisiert, neue werden angelegt.
+        Personen, die im Text fehlen, bleiben unverändert.
+      </p>
+      <mat-form-field class="import-text" subscriptSizing="dynamic">
+        <mat-label>Text einfügen</mat-label>
+        <textarea
+          matInput
+          rows="8"
+          [value]="importText()"
+          (input)="importText.set($any($event.target).value)"
+        ></textarea>
+      </mat-form-field>
+      @if (importText().trim()) {
+        <p class="vorschau" role="status">
+          {{ importVorschau().neu }} neu · {{ importVorschau().geaendert }} geändert ·
+          {{ importVorschau().unveraendert }} unverändert
+          @if (importVorschau().doppelt) {
+            · {{ importVorschau().doppelt }} doppelt im Text (nur die erste Zeile zählt)
+          }
+        </p>
+        @if (importVorschau().fehler.length > 0) {
+          <ul class="import-fehler" role="alert">
+            @for (f of importVorschau().fehler; track f.zeile) {
+              <li>Zeile {{ f.zeile }}: {{ f.grund }} – „{{ f.text }}“</li>
+            }
+          </ul>
+        }
+      }
+      <div class="import-aktionen">
+        <button
+          mat-flat-button
+          (click)="stundenUebernehmen()"
+          [disabled]="arbeitet() || importVorschau().eintraege.length === 0"
+        >
+          Übernehmen
+        </button>
+        <button mat-button (click)="importOffen.set(false)">Schließen</button>
+      </div>
+    </section>
+  }
+
+  <div class="werkzeuge">
+    <mat-form-field class="suche" subscriptSizing="dynamic">
+      <mat-label>Suchen</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        [value]="suche()"
+        (input)="suche.set($any($event.target).value)"
+        placeholder="Nachname oder Vorname"
+      />
+    </mat-form-field>
+    <mat-slide-toggle [checked]="nurFaellige()" (change)="nurFaellige.set($event.checked)">
+      Nur Fällige
+    </mat-slide-toggle>
+    <span class="anzahl" role="status">
+      {{ gefiltert().length }} von {{ zeilen().length }} Personen
+    </span>
+  </div>
+
+  @if (laedt()) {
+    <div class="laden" role="status">
+      <mat-spinner diameter="36" />
+      <span>Ehrungen werden geladen…</span>
+    </div>
+  } @else if (zeilen().length === 0) {
+    <p class="leer">
+      Noch keine Personen erfasst. Über „Stunden importieren“ die Stundenliste einfügen.
+    </p>
+  } @else if (gefiltert().length === 0) {
+    <p class="leer">Keine Person passt zu Suche und Filter.</p>
+  } @else {
+    <div class="tabellenbereich">
+      <table class="ehrungen-tabelle">
+        <thead>
+          <tr>
+            <th rowspan="2">Nachname</th>
+            <th rowspan="2">Vorname</th>
+            <th rowspan="2" class="zahl">Stunden</th>
+            <th rowspan="2">Mitglied seit</th>
+            <th rowspan="2" class="zahl">Jahre</th>
+            <th colspan="4" class="gruppe">Leistungsabzeichen</th>
+            <th colspan="5" class="gruppe">Jubiläumszeichen</th>
+            <th rowspan="2" class="mitte">Besondere Verdienste</th>
+            <th colspan="4" class="gruppe">Ehrenzeichen</th>
+            <th rowspan="2"><span class="nur-lesehilfe">Aktionen</span></th>
+          </tr>
+          <tr>
+            <th class="mitte">Bronze</th>
+            <th class="mitte">Silber</th>
+            <th class="mitte">Gold</th>
+            <th>Zu vergeben</th>
+            <th class="mitte">25</th>
+            <th class="mitte">40</th>
+            <th class="mitte">50</th>
+            <th class="mitte">60</th>
+            <th>Zu vergeben</th>
+            <th class="mitte">Ehrenzeichen</th>
+            <th class="mitte">am Bande</th>
+            <th class="mitte">Ehrennadel</th>
+            <th>Zu vergeben</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (zeile of gefiltert(); track zeile.person.id) {
+            <tr [class.geaendert]="zeile.geaendert">
+              <td>
+                <strong>{{ zeile.person.nachname }}</strong>
+              </td>
+              <td>{{ zeile.person.vorname }}</td>
+              <td class="zahl">{{ stundenAnzeige(zeile.person.stunden) }}</td>
+              <td>
+                <input
+                  class="datum"
+                  type="date"
+                  [value]="zeile.stand.eintrittsdatum ?? ''"
+                  (change)="eintritt(zeile, $any($event.target).value)"
+                  [attr.aria-label]="'Mitglied seit, ' + zeile.person.nachname"
+                />
+              </td>
+              <td class="zahl">{{ zeile.jahre ?? '–' }}</td>
+
+              @for (schluessel of leistung; track schluessel) {
+                <td class="mitte">
+                  <mat-checkbox
+                    [checked]="hat(zeile, schluessel)"
+                    (change)="umschalten(zeile, schluessel, $event.checked)"
+                    [aria-label]="bezeichnung[schluessel] + ' erhalten, ' + zeile.person.nachname"
+                  />
+                </td>
+              }
+              <td>
+                @if (zeile.ansprueche.leistung.erfuellt; as erfuellt) {
+                  <span class="zuvergeben" [class.faellig]="zeile.ansprueche.leistung.faellig">
+                    {{ bezeichnung[erfuellt] }}
+                  </span>
+                }
+              </td>
+
+              @for (schluessel of jubilaeum; track schluessel) {
+                <td class="mitte">
+                  <mat-checkbox
+                    [checked]="hat(zeile, schluessel)"
+                    (change)="umschalten(zeile, schluessel, $event.checked)"
+                    [aria-label]="bezeichnung[schluessel] + ' erhalten, ' + zeile.person.nachname"
+                  />
+                </td>
+              }
+              <td>
+                @if (zeile.ansprueche.jubilaeum.erfuellt; as erfuellt) {
+                  <span class="zuvergeben" [class.faellig]="zeile.ansprueche.jubilaeum.faellig">
+                    {{ bezeichnung[erfuellt] }}
+                  </span>
+                }
+              </td>
+
+              <td class="mitte">
+                <mat-checkbox
+                  [checked]="zeile.stand.besondereVerdienste"
+                  (change)="verdienste(zeile, $event.checked)"
+                  [aria-label]="'Besondere Verdienste, ' + zeile.person.nachname"
+                />
+              </td>
+              @for (schluessel of ehrenzeichen; track schluessel) {
+                <td class="mitte">
+                  <mat-checkbox
+                    [checked]="hat(zeile, schluessel)"
+                    (change)="umschalten(zeile, schluessel, $event.checked)"
+                    [aria-label]="bezeichnung[schluessel] + ' erhalten, ' + zeile.person.nachname"
+                  />
+                </td>
+              }
+              <td>
+                @if (zeile.ansprueche.ehrenzeichen.erfuellt; as erfuellt) {
+                  <span class="zuvergeben" [class.faellig]="zeile.ansprueche.ehrenzeichen.faellig">
+                    {{ bezeichnung[erfuellt] }}
+                  </span>
+                }
+              </td>
+              <td>
+                <button
+                  mat-icon-button
+                  matTooltip="Person entfernen"
+                  (click)="loeschen(zeile)"
+                  [attr.aria-label]="'Person entfernen, ' + zeile.person.nachname"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="legende">
+      „Zu vergeben“ ist die höchste Auszeichnung, die nach Stunden (&gt; 1000 Bronze, &gt; 2000
+      Silber, &gt; 4000 Gold), Mitgliedsjahren ({{ jahr }} minus Eintrittsjahr; Jubiläum ab 25, 40,
+      50, 60) und – für Ehrenzeichen – bei „Besondere Verdienste“ (&gt; 4, &gt; 6, &gt; 12 Jahre)
+      erreicht ist. Hervorgehoben, wenn sie noch nicht als erhalten angehakt ist.
+    </p>
+  }
+</div>
