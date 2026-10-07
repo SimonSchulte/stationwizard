@@ -1,0 +1,49 @@
+<h2 mat-dialog-title>Änderungsprotokoll Stunden – {{ daten.name }}</h2>
+<mat-dialog-content>
+  @if (laedt()) {
+    <div class="laden" role="status">
+      <mat-spinner diameter="28" />
+      <span>Protokoll wird geladen…</span>
+    </div>
+  } @else if (fehler()) {
+    <p class="fehler" role="alert">{{ fehler() }}</p>
+  } @else if (eintraege().length === 0) {
+    <p class="leer">Für diese Person ist noch keine Änderung der Stunden protokolliert.</p>
+  } @else {
+    <table class="verlauf">
+      <thead>
+        <tr>
+          <th>Zeitpunkt</th>
+          <th>Art</th>
+          <th class="zahl">Vorher</th>
+          <th class="zahl">Nachher</th>
+          <th>Benutzer</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (eintrag of eintraege(); track $index) {
+          <tr>
+            <td>{{ zeit(eintrag.zeitpunkt) }}</td>
+            <td>
+              <span class="art">
+                <mat-icon [matTooltip]="eintrag.feld === 'stunden-import' ? 'Import' : 'Manuell'">{{
+                  eintrag.feld === 'stunden-import' ? 'cloud_download' : 'edit'
+                }}</mat-icon>
+                {{ eintrag.feld === 'stunden-import' ? 'Import' : 'Manuell' }}
+                @if (eintrag.stand) {
+                  <span class="stand">· Stand {{ eintrag.stand }}</span>
+                }
+              </span>
+            </td>
+            <td class="zahl">{{ zahl(eintrag.alt) }}</td>
+            <td class="zahl">{{ zahl(eintrag.neu) }}</td>
+            <td>{{ eintrag.benutzer }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Schließen</button>
+</mat-dialog-actions>

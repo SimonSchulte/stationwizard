@@ -2893,3 +2893,75 @@ Nachschärfung in dieser Sitzung.
 - Geprüft: `npm run build`, `npm test` (Angular 1005 + 29, Worker 810 Tests), `npm run
 worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neuen Seite auf
   Desktop und Mobil, die Migration gegen die echte D1-Datenbank.
+
+## Personal: Ehrungen
+
+- **Neu:** Seite `/personal/ehrungen` (Button „Ehrungen“ in der Personalübersicht). Nachbildung der
+  Tabelle „Ehrungen 2026“ mit Nach- und Vorname getrennt, Leistungsabzeichen (Bronze/Silber/Gold),
+  Jubiläumszeichen (25/40/50/60), Ehrenzeichen (3 Stufen), „Besondere Verdienste“, Eintrittsdatum,
+  „Zu vergeben“ je Gruppe (hervorgehoben, wenn noch nicht angehakt), Suche, Filter „Nur Fällige“,
+  Excel-Export.
+- **Daten:** Tabelle `ehrungen_personen` in `BENUTZER_DB` (Migration `0014_ehrungen.sql`), Worker
+  `worker/src/ehrungen.ts` (`GET`, `PUT`/`DELETE <UUID>` mit `If-Match`, `POST /import`).
+- **Stundenimport:** Text „Nachname, Vorname 6.546,98“ (auch Excel-Schreibweise `947.62`), Vorschau
+  (neu/geändert/unverändert, Fehlerzeilen), Abgleich über Namen; fehlende Personen im Text bleiben
+  unverändert. **Eintritt aus HiOrg:** Button holt `mitglied_seit` aus der Personal-Antwort.
+- **Überarbeitung:** Vergabejahr je erhaltener Auszeichnung (Excel-Spalten zeigen das Jahr), Material-Tabelle
+  mit Sortierung (Standard Stunden absteigend), farbige Chips (Bronze/Silber/Gold, Tokens in
+  `tokens.less`), Suche und Filter (Auszeichnung, Erhalten/Fällig/Jahr fehlt), Vollbild.
+- **Bewusst nicht übernommen:** das Blatt mit den Notizen der Arbeitstabelle. Die Excel-Datei enthält berechnete Werte statt der Formeln.
+- **Vor dem Deployment:** Migration `0014_ehrungen.sql` auf `BENUTZER_DB` anwenden
+  (`wrangler d1 migrations apply BENUTZER_DB`); Worker und Frontend gemeinsam ausrollen.
+- Geprüft: `npm run build`, `npm test` (Angular 1024 + 29, Worker 830 Tests), `npm run format:check`.
+  Im Browser (Headless-Chromium, Desktop 1400×900 und mobil 390×844, nachgebildete API mit zwei
+  erfundenen Personen): Seite lädt, Häkchen ändern „Speichern (1)“, Importvorschau zählt neu/geändert
+  und meldet die Fehlerzeile; kein horizontaler Seitenüberlauf, Tabelle scrollt im Rahmen.
+  **Nicht geprüft:** echte D1-Migration, echter HiOrg-Abruf (Feld `mitglied_seit` nicht gegen die
+  echte API bestätigt), Speichern/Import gegen den echten Worker, Touch-Bedienung am Gerät.
+- **Abgleich:** Symbol vor jeder Zeile (Haken bzw. Warnung mit Erklärung), wenn die angehakten
+  Leistungsabzeichen zum Anspruch aus den Stunden passen bzw. nicht passen. Im Browser mit drei
+  erfundenen Personen (passt / fehlt / zu viel) geprüft; Jubiläum und Ehrenzeichen sind darin nicht enthalten.
+- **Export „Zu Ehrende“:** Excel-Liste aller offenen Ehrungen (Auszeichnung, Gruppe, Name, Grundlage, bisher
+  Erhaltenes), Knopf mit Anzahl in der Kopfleiste. Mit Test (Rücklesen der Datei) und im Browser auf
+  Desktop und Mobil geprüft (Download löst aus, keine Seitenfehler); die Datei selbst wurde nicht in Excel geöffnet.
+- **Ehrenzeichen nachgeschärft:** Ehrenzeichen ab 4, am Bande ab 6 Dienstjahren (jeweils mit „Besondere
+  Verdienste“), Ehrennadel 12 Jahre nach Verleihung des Ehrenzeichens am Bande (Vergabejahr nötig). Zuvor
+  galt „> 4/6/12 Mitgliedsjahre“ aus der Arbeitstabelle. Mit Unit-Tests abgesichert; nicht im Browser neu angesehen.
+- **Performance der Ehrungen-Seite:** Gemessen am Produktionsbuild (Headless-Chromium, 150 Personen,
+  erfundene Daten; absolute Zeiten dieser Umgebung, nur das Verhältnis zählt). Vorher: ca. 29.000
+  DOM-Knoten, ein Häkchen kostete ca. 1,6 s, Sortieren 0,4–0,7 s. Ursachen: jede Änderung erzeugte neue
+  Zeilenobjekte, die Tabelle baute dadurch **alle** Zeilen samt Chips, Datumsfeldern und Jahresfeldern
+  neu auf, und alle Zeilen standen gleichzeitig im DOM. Jetzt: Zeilenobjekte bleiben für unveränderte
+  Personen gleich, `trackBy` je Person, Seitenweise Anzeige (25/50/100, `mat-paginator`). Nachher: ca.
+  5.100 Knoten, Häkchen ca. 0,2 s, Suche/Filter 0,13–0,34 s, unabhängig von der Personenzahl (600 Personen
+  gemessen). Nicht gemessen: echtes Gerät (Handy), echte Netzlaufzeit des Workers.
+- **Jubiläumsuhr:** neue Gruppe mit 30/40/50 Jahren (Spalte, Chips, Filter, Excel-Spalten, Eintrag in „Zu
+  Ehrende“). Damen/Herren wird erst beim Export „Zu Ehrende“ aus der HiOrg-Anrede (`attributes.anrede`)
+  bestimmt, wenn HiOrg verbunden ist; sonst steht „(Damen/Herren offen)“ in der Liste und die Seite meldet
+  es. Unit-Tests für Regel, Anrede-Erkennung, Export und Worker-Feld; im Browser nicht erneut angesehen.
+  **Nicht belegt:** die in HiOrg tatsächlich verwendeten Anrede-Werte und dass das Feld `anrede` im
+  Personal-Abruf geliefert wird – gegen die echte API nicht geprüft.
+- **Stunden nachtragen und Protokoll:** Neben der Importzahl gibt es einen manuellen Nachtrag je Person; für
+  alle Berechnungen (Leistungsabzeichen, Abgleich, „Zu Ehrende“, Sortierung, Excel) zählt die größere Zahl. Die
+  Spalte zeigt beide (Symbole Import/Manuell mit Tooltip, welche zählt). Jede Änderung einer Stundenzahl
+  (Import, auch Erstanlage, und Nachtrag) steht im Änderungsprotokoll (`ehrungen_aenderungen`, Dialog je
+  Zeile mit Zeitpunkt, Art, vorher/nachher, Benutzer). Mit Worker-Tests (Protokoll, Version/Rennen, Prüfung der
+  Eingabe) und Browserlauf (Nachtrag, ungültige Eingabe, Dialog) auf Desktop und Mobil geprüft.
+  **Migration `0015_ehrungen_stunden_manuell.sql`:** am 2026-10-07 auf `BENUTZER_DB` angewendet, nachdem der
+  Ehrungsmanager mit neuem Worker-Code, aber ohne die Migration eine leere Liste zeigte (die Daten waren
+  vorhanden, 109 Personen; der Client lehnte die Antwort ohne `stundenManuell` ab). Der Worker liefert
+  `stundenManuell` jetzt auch ohne die Spalte als `null`. Reihenfolge künftig: Migration vor dem Ausrollen.
+- **Navigation als Baum:** „Personal“ ist in der Sidenav ein aufklappbarer Zweig mit Übersicht, Führerscheine und
+  Ehrungsmanager (`mat-tree`). Im Browser auf Desktop und Mobil geprüft (Aufklappen, Navigation, aktiver Zweig).
+  Nicht geprüft: Bedienung per Tastatur/Screenreader über das Maß der Material-Standards hinaus.
+- **Stand zu manuellen Stunden:** Jeder manuelle Nachtrag verlangt ein Jahr („Stand“, Pflichtfeld neben der
+  Zahl; ohne Stand ist „Speichern“ gesperrt und der Worker antwortet 400). Der Stand steht im
+  Änderungsprotokoll, auch eine reine Änderung des Stands wird protokolliert; Excel hat eine Spalte „Stand manuell
+  (Jahr)“. Migration `0016_ehrungen_stunden_stand.sql` ist am 2026-10-07 **vor** dem Ausrollen auf `BENUTZER_DB`
+  angewendet (109 Personen unverändert). Worker-Tests (Pflicht, Protokoll, Entfernen) und Browserlauf (Feld erscheint,
+  Speichern gesperrt/frei, Stand im PUT) geprüft; Mobil für diese Änderung nicht erneut gesichtet.
+
+- Ehrungsmanager, Staffelung: Gold nur nach Silber, Silber nur nach Bronze (ebenso Ehrenzeichen → am Bande → Ehrennadel).
+  Chips gesperrt, „Zu vergeben“ zeigt die nächste Stufe, Warnungen in Zeile und Export (Spalten „Anspruch bis“/„Warnung“,
+  Blatt „Warnungen“). Keine serverseitige Durchsetzung. Geprüft: Build, `npm test` (Client 1046, Worker 843),
+  Formatprüfung, Desktop-Sichtprüfung im Browser mit erfundenen Daten; Mobilansicht nach dieser Änderung nicht erneut geprüft.

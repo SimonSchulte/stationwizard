@@ -195,6 +195,10 @@ Prüfungen und offene Abnahmegrenzen.
 | `/hiorg/verbinden`, `/hiorg/rueckruf`              | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                             |
 | `/api/personal/fuehrerschein-vorlage`              | GET / PUT          | Word-Vorlage der Führerscheinliste: Metadaten bzw. Ersetzen; Update nur mit `If-Match`   |
 | `/api/personal/fuehrerschein-vorlage/datei`        | GET                | Rohinhalt der Vorlage; der Worker liest ihn nie, er verwahrt sie nur                     |
+| `/api/personal/ehrungen`                           | GET                | Ehrungen aller Personen mit Version je Person                                            |
+| `/api/personal/ehrungen/<UUID>`                    | PUT / DELETE       | Erhaltene Auszeichnungen, Eintrittsdatum, Verdienste; Update nur mit `If-Match`          |
+| `/api/personal/ehrungen/import`                    | POST               | Sammelimport für Stunden bzw. Eintrittsdaten; Ergebnis je Eintrag                        |
+| `/api/personal/ehrungen/<UUID>/aenderungen`        | GET                | Änderungsprotokoll der Stundenzahlen, neueste zuerst; nur lesend                         |
 | `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
@@ -677,6 +681,59 @@ Metadaten bzw. Ersetzen (`If-Match`/`If-None-Match` wie bei der Excel-Arbeitsmap
 Übergangslösung „Rechte vorerst alle, Rollen später". `leseBegrenzt()`/`istZip()`
 (vormals nur in `nextcloud.ts`) stehen jetzt gemeinsam in `worker/src/binaer-lesen.ts`,
 damit der Upload nicht dieselbe Größenprüfung ein zweites Mal bekommt.
+
+Die Hauptnavigation (Sidenav in `app.html`, Daten `NAVIGATION` in `app.ts`) ist ein `mat-tree`: „Personal“ klappt
+auf und führt als eigene Seiten zu Übersicht (`/personal`, nur exakt aktiv), Führerscheine und Ehrungsmanager;
+beim Besuch einer Personal-Seite ist der Zweig aufgeklappt.
+
+Der **Ehrungsmanager** (Seitentitel und Menüknopf; früher „Ehrungen 2026“, `src/app/personal/pages/ehrungen/`, `worker/src/ehrungen.ts`, Route
+`/personal/ehrungen`) bilden die Arbeitstabelle „Ehrungen 2026“ nach: Leistungsabzeichen
+(Bronze/Silber/Gold), Jubiläumszeichen (25/40/50/60 Jahre) und Ehrenzeichen („Ehrenzeichen“,
+„am Bande“, „Ehrennadel am Band des Johanniterordens“). Eine Zeile je Person in
+`ehrungen_personen` (`BENUTZER_DB`, Migration `0014_ehrungen.sql`) mit eigener Version. Gespeichert
+wird nur, was erfasst oder importiert ist: Stunden (Import `stunden` und manueller Nachtrag `stunden_manuell`, Migration `0015`; für **alle** Berechnungen zählt die größere der beiden Zahlen, `wirksameStunden()` in Worker und Client gemeinsam ändern; die Seite zeigt beide mit Symbol und Tooltip), zu jedem manuellen Nachtrag gehört zwingend ein **Stand** (Jahr, `stunden_manuell_stand`, Migration `0016`; der Worker lehnt einen Nachtrag ohne Stand mit 400 ab, die Seite sperrt „Speichern“, solange er fehlt; das Protokoll hält den Stand des neuen Werts fest, auch eine reine Änderung des Stands erzeugt einen Eintrag), Eintrittsdatum, „Besondere Verdienste“ und die
+bereits erhaltenen Auszeichnungen mit dem **Jahr der Vergabe** (JSON-Objekt Schlüssel → Jahr oder
+`null` für „erhalten, Jahr unbekannt“; feste Schlüsselliste in `ehrungen.ts` **und**
+`ehrungen-regeln.ts`; ein Jahr wird beim Anhaken bewusst nicht vorbelegt, ein fehlendes ist
+markiert und filterbar; die früher gespeicherte Liste ohne Jahre wird als `null`-Jahre gelesen). Was zu vergeben ist, wird im Client berechnet (`ehrungen-regeln.ts`) und nie
+gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach Mitgliedsjahren
+(laufendes Jahr minus Eintrittsjahr, ab 25/40/50/60, höchstes erreichtes), Ehrenzeichen nur bei
+„Besondere Verdienste“ und Eintrittsdatum (Ehrenzeichen ab 4, am Bande ab 6 Dienstjahren, Ehrennadel
+12 Jahre nach Verleihung des Ehrenzeichens am Bande – dessen Vergabejahr muss erfasst sein, sonst
+bleibt die Ehrennadel unerreicht; so vom Betreiber vorgegeben, die Arbeitstabelle rechnete noch
+anders). Die Schwellen der Leistungsabzeichen stammen aus der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
+noch nicht angehakt. **Staffelung**: Leistungsabzeichen (Bronze → Silber → Gold) und Ehrenzeichen (Ehrenzeichen → am Bande → Ehrennadel) werden nur der Reihe nach vergeben; die Seite sperrt die Chips einer höheren Stufe, solange die Vorstufe fehlt (`chipGesperrt()`), „Zu vergeben“ und der Export „Zu Ehrende“ nennen die nächste vergebbare Stufe (`Anspruch.naechste`), und eine Warnung (`staffelHinweise()`/`warnungen()`) erscheint, wenn der Anspruch weiter reicht („Anspruch bis Silber, aber zuerst Bronze vergeben“) oder Erhaltenes ohne Vorstufe erfasst ist. Der Excel-Export enthält in beiden Exporten eine Spalte „Hinweis“ (im Export „Zu Ehrende“ dazu „Anspruch bis“) und ein Blatt „Warnungen“. Nur clientseitig: der Worker erzwingt die Staffel nicht (Altbestand bleibt speicherbar); Jubiläumszeichen und -uhr sind keine Staffel. Die **Jubiläumsuhr** (30/40/50 Jahre ununterbrochene aktive Tätigkeit, Schlüssel `uhr-30/40/50`, ab
+erreicht, höchste Stufe) wird wie das Jubiläumszeichen aus dem Eintrittsdatum berechnet; Unterbrechungen
+der Tätigkeit sind nicht erfasst und werden nicht geprüft. Erfasst wird nur „Jubiläumsuhr“ plus Stufe;
+ob Damen- oder Herrenuhr, ermittelt allein der Export „Zu Ehrende“ aus der HiOrg-Anrede
+(`attributes.anrede`, in `filterePersonal()` als kurzer Text durchgereicht, nie gespeichert;
+`uhrArtAusAnrede()` erkennt nur Frau/Herr und gleichbedeutende Kürzel – die tatsächlichen HiOrg-Werte sind
+nicht belegt, alles Unklare bleibt in der Liste „(Damen/Herren offen)“). Ein Symbol vor jeder Zeile gleicht das höchste angehakte Leistungsabzeichen mit
+dem Anspruch aus den Stunden ab (`leistungAbgleich()`: Haken bei Übereinstimmung, Warnung bei
+fehlendem oder zu viel angehaktem Abzeichen); Jubiläum und Ehrenzeichen gehen nicht in dieses
+Symbol ein. Jede Änderung einer Stundenzahl – Import (auch die Erstanlage) und manueller Nachtrag – schreibt der Worker
+in `ehrungen_aenderungen` (Zeitpunkt und Benutzer aus der geprüften Anmeldung, nie aus dem Anfragekörper; Name
+und Person bleiben im Protokoll, auch wenn die Person entfernt wird; in derselben `db.batch()` wie die
+Änderung, mit der Version nach dem Schreiben als Bedingung, damit ein verlorenes Rennen keinen Eintrag erzeugt;
+unveränderte Zahlen erzeugen keinen Eintrag). Lesen über `GET …/<UUID>/aenderungen`, Anzeige im Dialog der
+Zeile. Eintrittsdatum, Häkchen und Verdienste werden nicht protokolliert. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht
+über Nachname und Vorname ab (`personSchluessel()`, Vergleichsform in Worker, Client und
+Migration gemeinsam ändern), legt neue Personen an, aktualisiert vorhandene nur mit der
+bekannten Version (sonst Ergebnis `konflikt`) und schreibt nichts, wenn sich nichts ändert. Die
+Seite (Material: Tabelle mit Sortierung – Standard Stunden absteigend –, Chips in den Farben
+Bronze/Silber/Gold aus den `--abzeichen-*`-Tokens, Datumsauswahl, Suche, Filter nach Auszeichnung
+und Status Alle/Erhalten/Fällig/Jahr fehlt, Vollbild über die Fullscreen-API mit Rückfall auf eine
+Vollbild-Fläche; seitenweise Anzeige mit `mat-paginator` und stabile Zeilenobjekte mit `trackBy`,
+weil sonst jede Änderung alle Zeilen neu aufbaut) schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
+Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
+(`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
+unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist
+**nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Der Export „Zu Ehrende“
+(`zuEhrende()`, `zuEhrendeExcelErzeugen()`) listet je Person und Gruppe die höchste fällige, noch nicht
+angehakte Auszeichnung mit Grundlage und bereits Erhaltenem. Der Excel-Export
+(`ehrungen-excel.ts`, `@e965/xlsx` dynamisch) enthält Name getrennt in Nach-/Vorname, die einzelnen
+Auszeichnungen und die „Erfüllt“-Spalten als berechnete Werte, keine Formeln. Rollenvergabe fehlt
+auch hier – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
 Beim HiOrg-Kalenderfeed ist die vollständige URL aus `HIORGSERVER_CALENDER_FEED` selbst
 das Zugangsdatum: die Anmeldedaten stehen als Query-Parameter darin. Sie bleibt vollständig

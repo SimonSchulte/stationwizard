@@ -22,6 +22,10 @@ export interface HiorgPerson {
   qualifikationen: { liste: string | null; name: string | null; kurz: string | null }[];
   telefon?: string;
   fahrerlaubnis?: HiorgFahrerlaubnis | null;
+  /** Eintrittsdatum `JJJJ-MM-TT` (HiOrg `mitglied_seit`), falls erfasst. */
+  mitgliedSeit?: string;
+  /** HiOrg `anrede`, nur zur Wahl Damen-/Herrenuhr beim Export. */
+  anrede?: string;
 }
 
 export type HiorgVerbindung = 'ungeprueft' | 'nicht-eingerichtet' | 'getrennt' | 'verbunden';
@@ -106,6 +110,8 @@ export function istHiorgPerson(wert: unknown): wert is HiorgPerson {
         istTextOderNull(q['kurz']),
     ) &&
     (wert['telefon'] === undefined || istText(wert['telefon'])) &&
+    (wert['mitgliedSeit'] === undefined || istText(wert['mitgliedSeit'])) &&
+    (wert['anrede'] === undefined || istText(wert['anrede'])) &&
     (fahrerlaubnis === undefined || fahrerlaubnis === null || istHiorgFahrerlaubnis(fahrerlaubnis))
   );
 }
