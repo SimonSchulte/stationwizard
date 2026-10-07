@@ -107,6 +107,23 @@ export function leistungsabzeichenErfuellt(stunden: number): EhrungSchluessel | 
   return null;
 }
 
+export type LeistungAbgleich = 'passt' | 'fehlt' | 'zuviel';
+
+/**
+ * Vergleicht das höchste als erhalten angehakte Leistungsabzeichen mit dem Anspruch aus den
+ * Stunden: `fehlt`, wenn weniger angehakt ist als zusteht, `zuviel`, wenn mehr angehakt ist, als
+ * die Stunden hergeben (etwa veraltete Stunden oder ein Tippfehler).
+ */
+export function leistungAbgleich(stunden: number, erhalten: Erhalten): LeistungAbgleich {
+  const rang = (schluessel: EhrungSchluessel | null) =>
+    schluessel ? LEISTUNGSABZEICHEN.indexOf(schluessel) : -1;
+  const hoechsteErhalten = [...LEISTUNGSABZEICHEN]
+    .reverse()
+    .find((schluessel) => hatErhalten(erhalten, schluessel));
+  const unterschied = rang(hoechsteErhalten ?? null) - rang(leistungsabzeichenErfuellt(stunden));
+  return unterschied === 0 ? 'passt' : unterschied < 0 ? 'fehlt' : 'zuviel';
+}
+
 /** Mitgliedsjahre als Unterschied der Kalenderjahre, wie `YEAR(TODAY()) - YEAR(C)` der Tabelle. */
 export function mitgliedsjahre(eintrittsdatum: string | null, jahr: number): number | null {
   if (!eintrittsdatum || !/^\d{4}-\d{2}-\d{2}$/.test(eintrittsdatum)) return null;

@@ -44,6 +44,7 @@ import {
   aktuellesJahr,
   ansprueche,
   hatErhalten,
+  leistungAbgleich,
   mitgliedsjahre,
   personSchluessel,
   stundenTextLesen,
@@ -52,6 +53,7 @@ import {
   type EhrungPerson,
   type EhrungSchluessel,
   type Erhalten,
+  type LeistungAbgleich,
 } from '../../services/ehrungen-regeln';
 import { EhrungenService, type EhrungAenderung } from '../../services/ehrungen.service';
 
@@ -61,6 +63,7 @@ interface Zeile {
   stand: EhrungAenderung;
   ansprueche: Ansprueche;
   jahre: number | null;
+  abgleich: LeistungAbgleich;
   /** Einmal je Berechnung erzeugt: ein neues Date je Prüfung ließe die Bindung nie zur Ruhe kommen. */
   eintrittAlsDatum: Date | null;
   geaendert: boolean;
@@ -133,6 +136,7 @@ export class Ehrungen implements OnInit {
   readonly bezeichnung = EHRUNG_BEZEICHNUNG;
   readonly kurz = EHRUNG_KURZ;
   readonly spalten = [
+    'abgleich',
     'nachname',
     'vorname',
     'stunden',
@@ -187,6 +191,7 @@ export class Ehrungen implements OnInit {
         stand,
         ansprueche: ansprueche({ ...person, ...stand }, this.jahr),
         jahre: mitgliedsjahre(stand.eintrittsdatum, this.jahr),
+        abgleich: leistungAbgleich(person.stunden, stand.erhalten),
         eintrittAlsDatum: stand.eintrittsdatum ? isoZuLokalesDatum(stand.eintrittsdatum) : null,
         geaendert: person.id in entwurf,
       };
@@ -404,6 +409,17 @@ export class Ehrungen implements OnInit {
 
   jahrVon(zeile: Zeile, schluessel: EhrungSchluessel): number | null {
     return zeile.stand.erhalten[schluessel] ?? null;
+  }
+
+  abgleichText(zeile: Zeile): string {
+    switch (zeile.abgleich) {
+      case 'fehlt':
+        return `Leistungsabzeichen fehlt: nach den Stunden steht ${this.kurzBezeichnung(zeile.ansprueche.leistung.erfuellt)} zu, angehakt ist weniger.`;
+      case 'zuviel':
+        return 'Mehr Leistungsabzeichen angehakt, als die Stunden hergeben. Stunden oder Häkchen prüfen.';
+      default:
+        return 'Leistungsabzeichen passen zu den Stunden.';
+    }
   }
 
   anspruchVon(zeile: Zeile, gruppe: number): Anspruch {

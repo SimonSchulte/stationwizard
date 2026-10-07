@@ -4,6 +4,7 @@ import {
   ehrenzeichenErfuellt,
   istErhalten,
   jubilaeumErfuellt,
+  leistungAbgleich,
   leistungsabzeichenErfuellt,
   mitgliedsjahre,
   personSchluessel,
@@ -129,5 +130,23 @@ describe('Erhaltene Auszeichnungen mit Jahr', () => {
     expect(istErhalten({ gold: 1850 })).toBe(false);
     expect(istErhalten({ gold: '2021' })).toBe(false);
     expect(istErhalten(['gold'])).toBe(false);
+  });
+});
+
+describe('Abgleich der Leistungsabzeichen', () => {
+  it('passt, wenn das höchste angehakte Abzeichen dem Anspruch entspricht', () => {
+    expect(leistungAbgleich(500, {})).toBe('passt');
+    expect(leistungAbgleich(4500, { gold: 2020 })).toBe('passt');
+    expect(leistungAbgleich(2500, { bronze: null, silber: 2019 })).toBe('passt');
+  });
+
+  it('meldet ein fehlendes Abzeichen, auch wenn nur eine niedrigere Stufe angehakt ist', () => {
+    expect(leistungAbgleich(4500, {})).toBe('fehlt');
+    expect(leistungAbgleich(4500, { bronze: 2015 })).toBe('fehlt');
+  });
+
+  it('meldet mehr angehakte Abzeichen, als die Stunden hergeben', () => {
+    expect(leistungAbgleich(500, { bronze: 2015 })).toBe('zuviel');
+    expect(leistungAbgleich(1200, { gold: 2015 })).toBe('zuviel');
   });
 });

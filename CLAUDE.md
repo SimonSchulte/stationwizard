@@ -695,7 +695,10 @@ gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach 
 (laufendes Jahr minus Eintrittsjahr, ab 25/40/50/60, höchstes erreichtes), Ehrenzeichen nur bei
 „Besondere Verdienste“ und Eintrittsdatum (> 4/6/12 Jahre) – die Schwellen der Leistungs- und
 Ehrenzeichen stammen aus den Formeln der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
-noch nicht angehakt. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht
+noch nicht angehakt. Ein Symbol vor jeder Zeile gleicht das höchste angehakte Leistungsabzeichen mit
+dem Anspruch aus den Stunden ab (`leistungAbgleich()`: Haken bei Übereinstimmung, Warnung bei
+fehlendem oder zu viel angehaktem Abzeichen); Jubiläum und Ehrenzeichen gehen nicht in dieses
+Symbol ein. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht
 über Nachname und Vorname ab (`personSchluessel()`, Vergleichsform in Worker, Client und
 Migration gemeinsam ändern), legt neue Personen an, aktualisiert vorhandene nur mit der
 bekannten Version (sonst Ergebnis `konflikt`) und schreibt nichts, wenn sich nichts ändert. Die

@@ -183,6 +183,19 @@
         (matSortChange)="sortierung.set($event)"
         class="ehrungen-tabelle"
       >
+        <ng-container matColumnDef="abgleich">
+          <th mat-header-cell *matHeaderCellDef><span class="nur-lesehilfe">Abgleich</span></th>
+          <td mat-cell *matCellDef="let zeile">
+            <mat-icon
+              class="abgleich"
+              [class.passt]="zeile.abgleich === 'passt'"
+              [matTooltip]="abgleichText(zeile)"
+              [attr.aria-label]="abgleichText(zeile)"
+              role="img"
+              >{{ zeile.abgleich === 'passt' ? 'check_circle' : 'warning' }}</mat-icon
+            >
+          </td>
+        </ng-container>
         <ng-container matColumnDef="nachname">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Nachname</th>
           <td mat-cell *matCellDef="let zeile">

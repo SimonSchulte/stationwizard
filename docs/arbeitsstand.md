@@ -2918,3 +2918,6 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   und meldet die Fehlerzeile; kein horizontaler Seitenüberlauf, Tabelle scrollt im Rahmen.
   **Nicht geprüft:** echte D1-Migration, echter HiOrg-Abruf (Feld `mitglied_seit` nicht gegen die
   echte API bestätigt), Speichern/Import gegen den echten Worker, Touch-Bedienung am Gerät.
+- **Abgleich:** Symbol vor jeder Zeile (Haken bzw. Warnung mit Erklärung), wenn die angehakten
+  Leistungsabzeichen zum Anspruch aus den Stunden passen bzw. nicht passen. Im Browser mit drei
+  erfundenen Personen (passt / fehlt / zu viel) geprüft; Jubiläum und Ehrenzeichen sind darin nicht enthalten.
