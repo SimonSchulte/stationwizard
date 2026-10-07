@@ -44,6 +44,7 @@ import {
   EHRUNG_BEZEICHNUNG,
   EHRUNG_SCHLUESSEL,
   EHRUNG_KURZ,
+  JUBILAEUMSUHREN,
   JUBILAEUMSZEICHEN,
   LEISTUNGSABZEICHEN,
   VERGABEJAHR_MAXIMUM,
@@ -62,6 +63,8 @@ import {
   type EhrungSchluessel,
   type Erhalten,
   type LeistungAbgleich,
+  type UhrArt,
+  uhrArtAusAnrede,
 } from '../../services/ehrungen-regeln';
 import { EhrungenService, type EhrungAenderung } from '../../services/ehrungen.service';
 
@@ -92,11 +95,12 @@ function gleich(a: EhrungAenderung, b: EhrungAenderung): boolean {
 
 export type StatusFilter = 'alle' | 'erhalten' | 'faellig' | 'ohne-jahr';
 
-type Gruppe = 'leistung' | 'jubilaeum' | 'ehrenzeichen';
+type Gruppe = 'leistung' | 'jubilaeum' | 'uhr' | 'ehrenzeichen';
 
 function gruppeVon(schluessel: EhrungSchluessel): Gruppe {
   if (LEISTUNGSABZEICHEN.includes(schluessel)) return 'leistung';
-  return JUBILAEUMSZEICHEN.includes(schluessel) ? 'jubilaeum' : 'ehrenzeichen';
+  if (JUBILAEUMSZEICHEN.includes(schluessel)) return 'jubilaeum';
+  return JUBILAEUMSUHREN.includes(schluessel) ? 'uhr' : 'ehrenzeichen';
 }
 
 /**
@@ -153,6 +157,7 @@ export class Ehrungen implements OnInit {
     'jahre',
     'leistung',
     'jubilaeum',
+    'uhr',
     'verdienste',
     'ehrenzeichen',
     'aktionen',
@@ -160,10 +165,13 @@ export class Ehrungen implements OnInit {
   readonly gruppen: { name: string; schluessel: readonly EhrungSchluessel[] }[] = [
     { name: 'Leistungsabzeichen', schluessel: LEISTUNGSABZEICHEN },
     { name: 'Jubiläumszeichen', schluessel: JUBILAEUMSZEICHEN },
+    { name: 'Jubiläumsuhr', schluessel: JUBILAEUMSUHREN },
     { name: 'Ehrenzeichen', schluessel: EHRENZEICHEN },
   ];
   readonly leistung = LEISTUNGSABZEICHEN;
   readonly jubilaeum = JUBILAEUMSZEICHEN;
+  readonly uhren = JUBILAEUMSUHREN;
+  readonly gruppenSpalten = ['leistung', 'jubilaeum', 'uhr', 'ehrenzeichen'];
   readonly ehrenzeichen = EHRENZEICHEN;
   readonly jahr = aktuellesJahr();
 
@@ -489,9 +497,12 @@ export class Ehrungen implements OnInit {
   }
 
   anspruchVon(zeile: Zeile, gruppe: number): Anspruch {
-    return [zeile.ansprueche.leistung, zeile.ansprueche.jubilaeum, zeile.ansprueche.ehrenzeichen][
-      gruppe
-    ]!;
+    return [
+      zeile.ansprueche.leistung,
+      zeile.ansprueche.jubilaeum,
+      zeile.ansprueche.uhr,
+      zeile.ansprueche.ehrenzeichen,
+    ][gruppe]!;
   }
 
   kurzBezeichnung(schluessel: EhrungSchluessel | null): string {
@@ -707,11 +718,45 @@ export class Ehrungen implements OnInit {
     }
   }
 
+  /**
+   * Excel „Zu Ehrende“. Für die Jubiläumsuhr (Damen/Herren) fragt der Export die HiOrg-Anrede ab,
+   * sofern eine Uhr offen ist und HiOrg verbunden ist; die Anrede wird nicht gespeichert.
+   */
   async zuEhrendeHerunterladen(): Promise<void> {
     this.fehler.set('');
+    this.rueckmeldung.set('');
     try {
       const personen = this.zeilen().map((zeile) => ({ ...zeile.person, ...zeile.stand }));
-      const daten = await zuEhrendeExcelErzeugen(personen, this.jahr);
+      const uhrArten = new Map<string, UhrArt>();
+      let hinweis = '';
+      if (zuEhrende(personen, this.jahr).some((eintrag) => eintrag.gruppe === 'Jubiläumsuhr')) {
+        this.arbeitet.set(true);
+        try {
+          if ((await this.hiorg.verbindungLaden()) === 'verbunden') {
+            for (const person of await this.hiorg.personalLaden()) {
+              const art = uhrArtAusAnrede(person.anrede);
+              if (art) uhrArten.set(personSchluessel(person.nachname, person.vorname), art);
+            }
+          } else {
+            hinweis = 'HiOrg ist nicht verbunden';
+          }
+        } catch {
+          hinweis = 'HiOrg war nicht erreichbar';
+        } finally {
+          this.arbeitet.set(false);
+        }
+        const offen = zuEhrende(personen, this.jahr).filter(
+          (eintrag) =>
+            eintrag.gruppe === 'Jubiläumsuhr' &&
+            !uhrArten.has(personSchluessel(eintrag.nachname, eintrag.vorname)),
+        ).length;
+        if (offen > 0) {
+          this.rueckmeldung.set(
+            `${hinweis ? hinweis + ': ' : ''}Bei ${offen} Jubiläumsuhr(en) ließ sich Damen/Herren nicht aus der HiOrg-Anrede ermitteln und bleibt in der Liste offen.`,
+          );
+        }
+      }
+      const daten = await zuEhrendeExcelErzeugen(personen, this.jahr, uhrArten);
       dateiHerunterladen(daten, `zu-ehrende-${heuteIso()}.xlsx`, EHRUNGEN_EXCEL_MEDIENTYP);
     } catch (fehler) {
       this.fehler.set(

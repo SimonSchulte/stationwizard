@@ -9,6 +9,8 @@ import {
   mitgliedsjahre,
   personSchluessel,
   type Erhalten,
+  uhrArtAusAnrede,
+  uhrErfuellt,
   zuEhrende,
   stundenLesen,
   stundenTextLesen,
@@ -189,6 +191,7 @@ describe('Zu Ehrende', () => {
     expect(liste.map((e) => `${e.nachname}:${e.auszeichnung}`)).toEqual([
       'Voll:gold',
       'Voll:jubilaeum-25',
+      'Voll:uhr-30',
       'Voll:ehrenzeichen-bande',
     ]);
   });
@@ -212,5 +215,55 @@ describe('Zu Ehrende', () => {
       2026,
     );
     expect(liste.map((e) => e.nachname)).toEqual(['Alpha', 'Zeta', 'Mitte']);
+  });
+});
+
+describe('Jubiläumsuhr', () => {
+  it('staffelt ab 30, 40 und 50 Jahren', () => {
+    expect(uhrErfuellt(null)).toBeNull();
+    expect(uhrErfuellt(29)).toBeNull();
+    expect(uhrErfuellt(30)).toBe('uhr-30');
+    expect(uhrErfuellt(39)).toBe('uhr-30');
+    expect(uhrErfuellt(40)).toBe('uhr-40');
+    expect(uhrErfuellt(55)).toBe('uhr-50');
+  });
+
+  it('ist fällig, bis die erfüllte Stufe angehakt ist, unabhängig vom Jubiläumszeichen', () => {
+    const person = {
+      stunden: 0,
+      eintrittsdatum: '1990-01-01',
+      besondereVerdienste: false,
+      erhalten: { 'jubilaeum-25': 2015 } as Erhalten,
+    };
+    expect(ansprueche(person, 2026).uhr).toEqual({ erfuellt: 'uhr-30', faellig: true });
+    expect(ansprueche({ ...person, erhalten: { 'uhr-30': 2021 } }, 2026).uhr.faellig).toBe(false);
+  });
+
+  it('erscheint in „Zu Ehrende“ als eigene Gruppe', () => {
+    const liste = zuEhrende(
+      [
+        {
+          nachname: 'Alt',
+          vorname: 'Anna',
+          stunden: 0,
+          eintrittsdatum: '1980-01-01',
+          besondereVerdienste: false,
+          erhalten: {},
+        },
+      ],
+      2026,
+    );
+    expect(liste.map((e) => `${e.gruppe}:${e.auszeichnung}`)).toEqual([
+      'Jubiläumszeichen:jubilaeum-40',
+      'Jubiläumsuhr:uhr-40',
+    ]);
+  });
+
+  it('leitet Damen-/Herrenuhr nur aus eindeutiger Anrede ab', () => {
+    expect(uhrArtAusAnrede('Frau')).toBe('Damen');
+    expect(uhrArtAusAnrede(' herr ')).toBe('Herren');
+    expect(uhrArtAusAnrede('Divers')).toBeNull();
+    expect(uhrArtAusAnrede('')).toBeNull();
+    expect(uhrArtAusAnrede(undefined)).toBeNull();
   });
 });

@@ -697,7 +697,13 @@ gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach 
 12 Jahre nach Verleihung des Ehrenzeichens am Bande – dessen Vergabejahr muss erfasst sein, sonst
 bleibt die Ehrennadel unerreicht; so vom Betreiber vorgegeben, die Arbeitstabelle rechnete noch
 anders). Die Schwellen der Leistungsabzeichen stammen aus der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
-noch nicht angehakt. Ein Symbol vor jeder Zeile gleicht das höchste angehakte Leistungsabzeichen mit
+noch nicht angehakt. Die **Jubiläumsuhr** (30/40/50 Jahre ununterbrochene aktive Tätigkeit, Schlüssel `uhr-30/40/50`, ab
+erreicht, höchste Stufe) wird wie das Jubiläumszeichen aus dem Eintrittsdatum berechnet; Unterbrechungen
+der Tätigkeit sind nicht erfasst und werden nicht geprüft. Erfasst wird nur „Jubiläumsuhr“ plus Stufe;
+ob Damen- oder Herrenuhr, ermittelt allein der Export „Zu Ehrende“ aus der HiOrg-Anrede
+(`attributes.anrede`, in `filterePersonal()` als kurzer Text durchgereicht, nie gespeichert;
+`uhrArtAusAnrede()` erkennt nur Frau/Herr und gleichbedeutende Kürzel – die tatsächlichen HiOrg-Werte sind
+nicht belegt, alles Unklare bleibt in der Liste „(Damen/Herren offen)“). Ein Symbol vor jeder Zeile gleicht das höchste angehakte Leistungsabzeichen mit
 dem Anspruch aus den Stunden ab (`leistungAbgleich()`: Haken bei Übereinstimmung, Warnung bei
 fehlendem oder zu viel angehaktem Abzeichen); Jubiläum und Ehrenzeichen gehen nicht in dieses
 Symbol ein. Der Stundenimport (`POST …/import`, ein Aufruf für den ganzen Text) gleicht

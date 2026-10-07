@@ -24,6 +24,8 @@ export interface HiorgPerson {
   fahrerlaubnis?: HiorgFahrerlaubnis | null;
   /** Eintrittsdatum `JJJJ-MM-TT` (HiOrg `mitglied_seit`), falls erfasst. */
   mitgliedSeit?: string;
+  /** HiOrg `anrede`, nur zur Wahl Damen-/Herrenuhr beim Export. */
+  anrede?: string;
 }
 
 export type HiorgVerbindung = 'ungeprueft' | 'nicht-eingerichtet' | 'getrennt' | 'verbunden';
@@ -109,6 +111,7 @@ export function istHiorgPerson(wert: unknown): wert is HiorgPerson {
     ) &&
     (wert['telefon'] === undefined || istText(wert['telefon'])) &&
     (wert['mitgliedSeit'] === undefined || istText(wert['mitgliedSeit'])) &&
+    (wert['anrede'] === undefined || istText(wert['anrede'])) &&
     (fahrerlaubnis === undefined || fahrerlaubnis === null || istHiorgFahrerlaubnis(fahrerlaubnis))
   );
 }

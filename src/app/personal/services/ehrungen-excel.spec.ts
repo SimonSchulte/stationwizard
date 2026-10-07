@@ -1,7 +1,7 @@
 import * as XLSX from '@e965/xlsx';
 import { describe, expect, it } from 'vitest';
 import { zuEhrendeExcelErzeugen } from './ehrungen-excel';
-import type { EhrungPerson } from './ehrungen-regeln';
+import { personSchluessel, type EhrungPerson } from './ehrungen-regeln';
 
 function person(nachname: string, ueberschreibung: Partial<EhrungPerson> = {}): EhrungPerson {
   return {
@@ -54,6 +54,25 @@ describe('Export „Zu Ehrende“', () => {
         Grundlage: '26 Jahre Mitglied (seit 01.03.2000)',
         'Bisher erhalten': '',
       },
+    ]);
+  });
+
+  it('nennt bei der Jubiläumsuhr Damen oder Herren aus der Anrede, sonst „offen“', async () => {
+    const daten = await zuEhrendeExcelErzeugen(
+      [
+        person('Alt', { eintrittsdatum: '1990-01-01', erhalten: { 'jubilaeum-25': 2015 } }),
+        person('Ohne', { eintrittsdatum: '1990-01-01', erhalten: { 'jubilaeum-25': 2015 } }),
+      ],
+      2026,
+      new Map([[personSchluessel('Alt', 'Test'), 'Damen' as const]]),
+    );
+    const mappe = XLSX.read(daten, { type: 'array' });
+    const zeilen = XLSX.utils.sheet_to_json<Record<string, string>>(
+      mappe.Sheets['Zu Ehrende 2026'],
+    );
+    expect(zeilen.map((z) => `${z['Nachname']}: ${z['Auszeichnung']}`)).toEqual([
+      'Alt: Jubiläumsuhr Damen 30 Jahre',
+      'Ohne: Jubiläumsuhr (Damen/Herren offen) 30 Jahre',
     ]);
   });
 });

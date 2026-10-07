@@ -1,9 +1,12 @@
 import {
   EHRUNG_BEZEICHNUNG,
+  EHRUNG_KURZ,
   ansprueche,
   hatErhalten,
   mitgliedsjahre,
+  personSchluessel,
   zuEhrende,
+  type UhrArt,
   type EhrungPerson,
   type EhrungSchluessel,
 } from './ehrungen-regeln';
@@ -45,6 +48,10 @@ export async function ehrungenExcelErzeugen(
     'Jubiläumszeichen 50 Jahre',
     'Jubiläumszeichen 60 Jahre',
     'Erfüllt Jubiläumszeichen',
+    'Jubiläumsuhr 30 Jahre',
+    'Jubiläumsuhr 40 Jahre',
+    'Jubiläumsuhr 50 Jahre',
+    'Erfüllt Jubiläumsuhr',
     'Ehrenzeichen',
     'Ehrenzeichen am Bande',
     EHRUNG_BEZEICHNUNG.ehrennadel,
@@ -68,6 +75,10 @@ export async function ehrungenExcelErzeugen(
       hat(person, 'jubilaeum-50'),
       hat(person, 'jubilaeum-60'),
       bezeichnung(a.jubilaeum.erfuellt),
+      hat(person, 'uhr-30'),
+      hat(person, 'uhr-40'),
+      hat(person, 'uhr-50'),
+      bezeichnung(a.uhr.erfuellt),
       hat(person, 'ehrenzeichen'),
       hat(person, 'ehrenzeichen-bande'),
       hat(person, 'ehrennadel'),
@@ -88,15 +99,23 @@ export async function ehrungenExcelErzeugen(
 /**
  * Liste „Zu Ehrende“: eine Zeile je noch offener Ehrung (siehe `zuEhrende()`), sortiert nach
  * Auszeichnung und Name, mit der Grundlage des Anspruchs und bereits Erhaltenem derselben Gruppe.
+ * Bei der Jubiläumsuhr steht Damen oder Herren aus `uhrArten` (Schlüssel: `personSchluessel()`,
+ * ermittelt aus der HiOrg-Anrede); ohne Eintrag bleibt die Art ausdrücklich offen.
  */
 export async function zuEhrendeExcelErzeugen(
   personen: readonly EhrungPerson[],
   jahr: number,
+  uhrArten: ReadonlyMap<string, UhrArt> = new Map(),
 ): Promise<ArrayBuffer> {
   const XLSX = await import('@e965/xlsx');
+  const auszeichnung = (eintrag: ReturnType<typeof zuEhrende>[number]) => {
+    if (eintrag.gruppe !== 'Jubiläumsuhr') return EHRUNG_BEZEICHNUNG[eintrag.auszeichnung];
+    const art = uhrArten.get(personSchluessel(eintrag.nachname, eintrag.vorname));
+    return `Jubiläumsuhr ${art ?? '(Damen/Herren offen)'} ${EHRUNG_KURZ[eintrag.auszeichnung]}`;
+  };
   const kopf = ['Auszeichnung', 'Gruppe', 'Nachname', 'Vorname', 'Grundlage', 'Bisher erhalten'];
   const zeilen = zuEhrende(personen, jahr).map((eintrag) => [
-    EHRUNG_BEZEICHNUNG[eintrag.auszeichnung],
+    auszeichnung(eintrag),
     eintrag.gruppe,
     eintrag.nachname,
     eintrag.vorname,

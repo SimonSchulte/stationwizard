@@ -810,6 +810,8 @@ export interface HiorgPersonAusgabe {
   fahrerlaubnis: HiorgFahrerlaubnis | null;
   /** Eintrittsdatum als `JJJJ-MM-TT`, nur wenn bei HiOrg erfasst und lesbar. */
   mitgliedSeit?: string;
+  /** `attributes.anrede` (z. B. „Herr“/„Frau“), nur für die Wahl Damen-/Herrenuhr beim Export. */
+  anrede?: string;
 }
 
 /**
@@ -833,6 +835,17 @@ export function leseMitgliedSeit(wert: unknown): string | undefined {
   return !Number.isNaN(datum.getTime()) && datum.toISOString().slice(0, 10) === text
     ? text
     : undefined;
+}
+
+/**
+ * `attributes.anrede`: nur ein kurzer Text; alles andere gilt als nicht erfasst, ohne die ganze
+ * Antwort zu verwerfen. Der Wert wird nie gespeichert und dient allein der Wahl zwischen
+ * Damen- und Herrenuhr (`Ehrungen`).
+ */
+export function leseAnrede(wert: unknown): string | undefined {
+  if (typeof wert !== 'string') return undefined;
+  const text = wert.trim();
+  return text.length > 0 && text.length <= 40 ? text : undefined;
 }
 
 function optionalerText(wert: unknown): string | null | undefined {
@@ -908,6 +921,7 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
     if (fahrerlaubnis === undefined) return undefined;
 
     const mitgliedSeit = leseMitgliedSeit(attribute['mitglied_seit']);
+    const anrede = leseAnrede(attribute['anrede']);
 
     personen.push({
       id,
@@ -918,6 +932,7 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
       ...(handy ? { telefon: handy } : {}),
       fahrerlaubnis,
       ...(mitgliedSeit ? { mitgliedSeit } : {}),
+      ...(anrede ? { anrede } : {}),
     });
   }
   return personen;

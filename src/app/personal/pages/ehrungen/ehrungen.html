@@ -245,7 +245,7 @@
         </ng-container>
 
         @for (gruppe of gruppen; track gruppe.name; let index = $index) {
-          <ng-container [matColumnDef]="['leistung', 'jubilaeum', 'ehrenzeichen'][index]">
+          <ng-container [matColumnDef]="gruppenSpalten[index]">
             <th mat-header-cell *matHeaderCellDef>{{ gruppe.name }}</th>
             <td mat-cell *matCellDef="let zeile">
               <div class="gruppenzelle">
@@ -294,10 +294,7 @@
                   }
                 </div>
 
-                @if (
-                  zeile.ansprueche[['leistung', 'jubilaeum', 'ehrenzeichen'][index]];
-                  as anspruch
-                ) {
+                @if (anspruchVon(zeile, index); as anspruch) {
                   @if (anspruch.erfuellt; as erfuellt) {
                     <mat-chip-set aria-label="Zu vergeben">
                       <mat-chip

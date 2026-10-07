@@ -19,6 +19,9 @@ export const EHRUNG_SCHLUESSEL = [
   'jubilaeum-40',
   'jubilaeum-50',
   'jubilaeum-60',
+  'uhr-30',
+  'uhr-40',
+  'uhr-50',
   'ehrenzeichen',
   'ehrenzeichen-bande',
   'ehrennadel',
@@ -34,6 +37,9 @@ export const EHRUNG_BEZEICHNUNG: Readonly<Record<EhrungSchluessel, string>> = {
   'jubilaeum-40': '40 Jahre',
   'jubilaeum-50': '50 Jahre',
   'jubilaeum-60': '60 Jahre',
+  'uhr-30': 'Jubiläumsuhr 30 Jahre',
+  'uhr-40': 'Jubiläumsuhr 40 Jahre',
+  'uhr-50': 'Jubiläumsuhr 50 Jahre',
   ehrenzeichen: 'Ehrenzeichen',
   'ehrenzeichen-bande': 'Ehrenzeichen am Bande',
   ehrennadel: 'Ehrennadel am Band des Johanniterordens',
@@ -48,6 +54,9 @@ export const EHRUNG_KURZ: Readonly<Record<EhrungSchluessel, string>> = {
   'jubilaeum-40': '40 Jahre',
   'jubilaeum-50': '50 Jahre',
   'jubilaeum-60': '60 Jahre',
+  'uhr-30': '30 Jahre',
+  'uhr-40': '40 Jahre',
+  'uhr-50': '50 Jahre',
   ehrenzeichen: 'Ehrenzeichen',
   'ehrenzeichen-bande': 'Am Bande',
   ehrennadel: 'Ehrennadel',
@@ -73,6 +82,7 @@ export const JUBILAEUMSZEICHEN: readonly EhrungSchluessel[] = [
   'jubilaeum-50',
   'jubilaeum-60',
 ];
+export const JUBILAEUMSUHREN: readonly EhrungSchluessel[] = ['uhr-30', 'uhr-40', 'uhr-50'];
 export const EHRENZEICHEN: readonly EhrungSchluessel[] = [
   'ehrenzeichen',
   'ehrenzeichen-bande',
@@ -140,6 +150,32 @@ export function jubilaeumErfuellt(jahre: number | null): EhrungSchluessel | null
   return null;
 }
 
+/**
+ * Jubiläumsuhr: 30, 40 und 50 Jahre ununterbrochene aktive Tätigkeit, ab erreicht. Gerechnet wird
+ * aus dem Eintrittsdatum; Unterbrechungen der Tätigkeit sind nicht erfasst und werden nicht geprüft.
+ */
+export function uhrErfuellt(jahre: number | null): EhrungSchluessel | null {
+  if (jahre === null) return null;
+  if (jahre >= 50) return 'uhr-50';
+  if (jahre >= 40) return 'uhr-40';
+  if (jahre >= 30) return 'uhr-30';
+  return null;
+}
+
+export type UhrArt = 'Damen' | 'Herren';
+
+/**
+ * Damen- oder Herrenuhr nach der HiOrg-Anrede; `null`, wenn die Anrede fehlt oder nicht eindeutig
+ * ist. Die tatsächlich in HiOrg verwendeten Werte sind nicht belegt – unbekannte Werte führen
+ * deshalb zu `null` statt zu einer Vermutung.
+ */
+export function uhrArtAusAnrede(anrede: string | undefined): UhrArt | null {
+  const text = anrede?.trim().toLocaleLowerCase('de') ?? '';
+  if (/^(frau|fr\.?|weiblich|w)$/.test(text)) return 'Damen';
+  if (/^(herr|herrn|hr\.?|männlich|maennlich|m)$/.test(text)) return 'Herren';
+  return null;
+}
+
 /** Ehrennadel: so viele Jahre nach der Verleihung des Ehrenzeichens am Bande. */
 export const EHRENNADEL_WARTEZEIT_JAHRE = 12;
 
@@ -177,6 +213,7 @@ export interface Anspruch {
 export interface Ansprueche {
   leistung: Anspruch;
   jubilaeum: Anspruch;
+  uhr: Anspruch;
   ehrenzeichen: Anspruch;
 }
 
@@ -192,6 +229,7 @@ export function ansprueche(
   return {
     leistung: anspruch(leistungsabzeichenErfuellt(person.stunden), person.erhalten),
     jubilaeum: anspruch(jubilaeumErfuellt(jahre), person.erhalten),
+    uhr: anspruch(uhrErfuellt(jahre), person.erhalten),
     ehrenzeichen: anspruch(
       ehrenzeichenErfuellt(person.besondereVerdienste, jahre, person.erhalten, jahr),
       person.erhalten,
@@ -202,7 +240,7 @@ export function ansprueche(
 export interface ZuEhrender {
   nachname: string;
   vorname: string;
-  gruppe: 'Leistungsabzeichen' | 'Jubiläumszeichen' | 'Ehrenzeichen';
+  gruppe: 'Leistungsabzeichen' | 'Jubiläumszeichen' | 'Jubiläumsuhr' | 'Ehrenzeichen';
   auszeichnung: EhrungSchluessel;
   /** Woraus sich der Anspruch ergibt, zum Nachlesen auf der Liste. */
   grundlage: string;
@@ -225,6 +263,7 @@ export function zuEhrende(
   const gruppen = [
     { name: 'Leistungsabzeichen', schluessel: LEISTUNGSABZEICHEN, art: 'leistung' },
     { name: 'Jubiläumszeichen', schluessel: JUBILAEUMSZEICHEN, art: 'jubilaeum' },
+    { name: 'Jubiläumsuhr', schluessel: JUBILAEUMSUHREN, art: 'uhr' },
     { name: 'Ehrenzeichen', schluessel: EHRENZEICHEN, art: 'ehrenzeichen' },
   ] as const;
   const eintraege: ZuEhrender[] = [];
@@ -238,7 +277,7 @@ export function zuEhrende(
       const grundlage =
         gruppe.art === 'leistung'
           ? `${person.stunden.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Stunden`
-          : gruppe.art === 'jubilaeum'
+          : gruppe.art === 'jubilaeum' || gruppe.art === 'uhr'
             ? `${jahre} Jahre Mitglied (seit ${seit})`
             : `Besondere Verdienste, ${jahre} Jahre Mitglied (seit ${seit})`;
       const bisher = gruppe.schluessel

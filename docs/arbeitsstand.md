@@ -2935,3 +2935,9 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Personen gleich, `trackBy` je Person, Seitenweise Anzeige (25/50/100, `mat-paginator`). Nachher: ca.
   5.100 Knoten, Häkchen ca. 0,2 s, Suche/Filter 0,13–0,34 s, unabhängig von der Personenzahl (600 Personen
   gemessen). Nicht gemessen: echtes Gerät (Handy), echte Netzlaufzeit des Workers.
+- **Jubiläumsuhr:** neue Gruppe mit 30/40/50 Jahren (Spalte, Chips, Filter, Excel-Spalten, Eintrag in „Zu
+  Ehrende“). Damen/Herren wird erst beim Export „Zu Ehrende“ aus der HiOrg-Anrede (`attributes.anrede`)
+  bestimmt, wenn HiOrg verbunden ist; sonst steht „(Damen/Herren offen)“ in der Liste und die Seite meldet
+  es. Unit-Tests für Regel, Anrede-Erkennung, Export und Worker-Feld; im Browser nicht erneut angesehen.
+  **Nicht belegt:** die in HiOrg tatsächlich verwendeten Anrede-Werte und dass das Feld `anrede` im
+  Personal-Abruf geliefert wird – gegen die echte API nicht geprüft.
