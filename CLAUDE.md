@@ -709,7 +709,9 @@ Vollbild-Fläche) schreibt Häkchen gesammelt über „Speichern“, ein `PUT` j
 Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
 (`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
 unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist
-**nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Der Excel-Export
+**nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Der Export „Zu Ehrende“
+(`zuEhrende()`, `zuEhrendeExcelErzeugen()`) listet je Person und Gruppe die höchste fällige, noch nicht
+angehakte Auszeichnung mit Grundlage und bereits Erhaltenem. Der Excel-Export
 (`ehrungen-excel.ts`, `@e965/xlsx` dynamisch) enthält Name getrennt in Nach-/Vorname, die einzelnen
 Auszeichnungen und die „Erfüllt“-Spalten als berechnete Werte, keine Formeln. Rollenvergabe fehlt
 auch hier – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.

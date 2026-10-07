@@ -3,6 +3,7 @@ import {
   ansprueche,
   hatErhalten,
   mitgliedsjahre,
+  zuEhrende,
   type EhrungPerson,
   type EhrungSchluessel,
 } from './ehrungen-regeln';
@@ -81,5 +82,30 @@ export async function ehrungenExcelErzeugen(
   }));
   const mappe = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(mappe, blatt, `Ehrungen ${jahr}`);
+  return XLSX.write(mappe, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
+
+/**
+ * Liste „Zu Ehrende“: eine Zeile je noch offener Ehrung (siehe `zuEhrende()`), sortiert nach
+ * Auszeichnung und Name, mit der Grundlage des Anspruchs und bereits Erhaltenem derselben Gruppe.
+ */
+export async function zuEhrendeExcelErzeugen(
+  personen: readonly EhrungPerson[],
+  jahr: number,
+): Promise<ArrayBuffer> {
+  const XLSX = await import('@e965/xlsx');
+  const kopf = ['Auszeichnung', 'Gruppe', 'Nachname', 'Vorname', 'Grundlage', 'Bisher erhalten'];
+  const zeilen = zuEhrende(personen, jahr).map((eintrag) => [
+    EHRUNG_BEZEICHNUNG[eintrag.auszeichnung],
+    eintrag.gruppe,
+    eintrag.nachname,
+    eintrag.vorname,
+    eintrag.grundlage,
+    eintrag.bisher,
+  ]);
+  const blatt = XLSX.utils.aoa_to_sheet([kopf, ...zeilen]);
+  blatt['!cols'] = [38, 20, 20, 20, 44, 28].map((wch) => ({ wch }));
+  const mappe = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(mappe, blatt, `Zu Ehrende ${jahr}`);
   return XLSX.write(mappe, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 }

@@ -31,7 +31,11 @@ import { heuteIso, isoZuLokalesDatum, lokalesDatumZuIso } from '../../../kern/ka
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
 import { WorkerFehler } from '../../../kern/worker-client';
-import { ehrungenExcelErzeugen, EHRUNGEN_EXCEL_MEDIENTYP } from '../../services/ehrungen-excel';
+import {
+  ehrungenExcelErzeugen,
+  EHRUNGEN_EXCEL_MEDIENTYP,
+  zuEhrendeExcelErzeugen,
+} from '../../services/ehrungen-excel';
 import {
   EHRENZEICHEN,
   EHRUNG_BEZEICHNUNG,
@@ -46,6 +50,7 @@ import {
   hatErhalten,
   leistungAbgleich,
   mitgliedsjahre,
+  zuEhrende,
   personSchluessel,
   stundenTextLesen,
   type Anspruch,
@@ -250,6 +255,15 @@ export class Ehrungen implements OnInit {
   readonly filterAktiv = computed(
     () =>
       this.suche().trim() !== '' || this.auszeichnungen().length > 0 || this.status() !== 'alle',
+  );
+
+  /** Anzahl offener Ehrungen im angezeigten Stand, für den Export „Zu Ehrende“. */
+  readonly anzahlZuEhrende = computed(
+    () =>
+      zuEhrende(
+        this.zeilen().map((zeile) => ({ ...zeile.person, ...zeile.stand })),
+        this.jahr,
+      ).length,
   );
 
   readonly anzahlGeaendert = computed(() => Object.keys(this.entwurf()).length);
@@ -637,6 +651,19 @@ export class Ehrungen implements OnInit {
     } catch (fehler) {
       this.fehler.set(
         fehler instanceof Error ? fehler.message : 'Die Excel-Datei konnte nicht erstellt werden.',
+      );
+    }
+  }
+
+  async zuEhrendeHerunterladen(): Promise<void> {
+    this.fehler.set('');
+    try {
+      const personen = this.zeilen().map((zeile) => ({ ...zeile.person, ...zeile.stand }));
+      const daten = await zuEhrendeExcelErzeugen(personen, this.jahr);
+      dateiHerunterladen(daten, `zu-ehrende-${heuteIso()}.xlsx`, EHRUNGEN_EXCEL_MEDIENTYP);
+    } catch (fehler) {
+      this.fehler.set(
+        fehler instanceof Error ? fehler.message : 'Die Liste konnte nicht erstellt werden.',
       );
     }
   }

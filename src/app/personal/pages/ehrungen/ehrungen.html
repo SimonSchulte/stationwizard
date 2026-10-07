@@ -19,6 +19,14 @@
   <button mat-stroked-button (click)="excelHerunterladen()" [disabled]="zeilen().length === 0">
     <mat-icon>download</mat-icon> Excel
   </button>
+  <button
+    mat-stroked-button
+    (click)="zuEhrendeHerunterladen()"
+    [disabled]="anzahlZuEhrende() === 0"
+    matTooltip="Excel-Liste aller noch offenen Ehrungen (zu vergeben, aber nicht als erhalten angehakt)"
+  >
+    <mat-icon>military_tech</mat-icon> Zu Ehrende ({{ anzahlZuEhrende() }})
+  </button>
   <button mat-button (click)="neuLaden()" [disabled]="laedt() || arbeitet()">
     <mat-icon>refresh</mat-icon> Neu laden
   </button>

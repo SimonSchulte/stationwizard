@@ -2921,3 +2921,6 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
 - **Abgleich:** Symbol vor jeder Zeile (Haken bzw. Warnung mit Erklärung), wenn die angehakten
   Leistungsabzeichen zum Anspruch aus den Stunden passen bzw. nicht passen. Im Browser mit drei
   erfundenen Personen (passt / fehlt / zu viel) geprüft; Jubiläum und Ehrenzeichen sind darin nicht enthalten.
+- **Export „Zu Ehrende“:** Excel-Liste aller offenen Ehrungen (Auszeichnung, Gruppe, Name, Grundlage, bisher
+  Erhaltenes), Knopf mit Anzahl in der Kopfleiste. Mit Test (Rücklesen der Datei) und im Browser auf
+  Desktop und Mobil geprüft (Download löst aus, keine Seitenfehler); die Datei selbst wurde nicht in Excel geöffnet.

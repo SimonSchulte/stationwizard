@@ -1,4 +1,4 @@
-import { heuteIso } from '../../kern/kalender/datum';
+import { formatiereDatum, heuteIso } from '../../kern/kalender/datum';
 
 /**
  * Fachregeln der Ehrungen. Gespeichert wird nur, was erfasst oder importiert
@@ -182,6 +182,74 @@ export function ansprueche(
       person.erhalten,
     ),
   };
+}
+
+export interface ZuEhrender {
+  nachname: string;
+  vorname: string;
+  gruppe: 'Leistungsabzeichen' | 'Jubiläumszeichen' | 'Ehrenzeichen';
+  auszeichnung: EhrungSchluessel;
+  /** Woraus sich der Anspruch ergibt, zum Nachlesen auf der Liste. */
+  grundlage: string;
+  /** Bereits erhaltene Auszeichnungen derselben Gruppe, etwa „Bronze 2012“. */
+  bisher: string;
+}
+
+/**
+ * Alle noch offenen Ehrungen: je Person und Gruppe die höchste nach den Daten zu vergebende
+ * Auszeichnung, sofern sie noch nicht als erhalten angehakt ist. Sortiert nach Gruppe, Stufe,
+ * Nach- und Vorname.
+ */
+export function zuEhrende(
+  personen: readonly Pick<
+    EhrungPerson,
+    'nachname' | 'vorname' | 'stunden' | 'eintrittsdatum' | 'besondereVerdienste' | 'erhalten'
+  >[],
+  jahr: number = aktuellesJahr(),
+): ZuEhrender[] {
+  const gruppen = [
+    { name: 'Leistungsabzeichen', schluessel: LEISTUNGSABZEICHEN, art: 'leistung' },
+    { name: 'Jubiläumszeichen', schluessel: JUBILAEUMSZEICHEN, art: 'jubilaeum' },
+    { name: 'Ehrenzeichen', schluessel: EHRENZEICHEN, art: 'ehrenzeichen' },
+  ] as const;
+  const eintraege: ZuEhrender[] = [];
+  for (const person of personen) {
+    const a = ansprueche(person, jahr);
+    const jahre = mitgliedsjahre(person.eintrittsdatum, jahr);
+    const seit = person.eintrittsdatum ? formatiereDatum(person.eintrittsdatum) : '';
+    for (const gruppe of gruppen) {
+      const anspruch = a[gruppe.art];
+      if (!anspruch.faellig || !anspruch.erfuellt) continue;
+      const grundlage =
+        gruppe.art === 'leistung'
+          ? `${person.stunden.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Stunden`
+          : gruppe.art === 'jubilaeum'
+            ? `${jahre} Jahre Mitglied (seit ${seit})`
+            : `Besondere Verdienste, ${jahre} Jahre Mitglied (seit ${seit})`;
+      const bisher = gruppe.schluessel
+        .filter((schluessel) => hatErhalten(person.erhalten, schluessel))
+        .map((schluessel) => {
+          const vergeben = person.erhalten[schluessel];
+          return vergeben ? `${EHRUNG_KURZ[schluessel]} ${vergeben}` : EHRUNG_KURZ[schluessel];
+        })
+        .join(', ');
+      eintraege.push({
+        nachname: person.nachname,
+        vorname: person.vorname,
+        gruppe: gruppe.name,
+        auszeichnung: anspruch.erfuellt,
+        grundlage,
+        bisher,
+      });
+    }
+  }
+  const rang = (eintrag: ZuEhrender) => EHRUNG_SCHLUESSEL.indexOf(eintrag.auszeichnung);
+  return eintraege.sort(
+    (a, b) =>
+      rang(a) - rang(b) ||
+      a.nachname.localeCompare(b.nachname, 'de') ||
+      a.vorname.localeCompare(b.vorname, 'de'),
+  );
 }
 
 export function aktuellesJahr(): number {

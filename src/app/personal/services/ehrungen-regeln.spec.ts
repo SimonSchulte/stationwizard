@@ -9,6 +9,7 @@ import {
   mitgliedsjahre,
   personSchluessel,
   type Erhalten,
+  zuEhrende,
   stundenLesen,
   stundenTextLesen,
 } from './ehrungen-regeln';
@@ -148,5 +149,54 @@ describe('Abgleich der Leistungsabzeichen', () => {
   it('meldet mehr angehakte Abzeichen, als die Stunden hergeben', () => {
     expect(leistungAbgleich(500, { bronze: 2015 })).toBe('zuviel');
     expect(leistungAbgleich(1200, { gold: 2015 })).toBe('zuviel');
+  });
+});
+
+describe('Zu Ehrende', () => {
+  const person = (nachname: string, ueberschreibung: object = {}) => ({
+    nachname,
+    vorname: 'Test',
+    stunden: 0,
+    eintrittsdatum: null,
+    besondereVerdienste: false,
+    erhalten: {} as Erhalten,
+    ...ueberschreibung,
+  });
+
+  it('nimmt nur offene Ehrungen auf, je Gruppe die höchste', () => {
+    const liste = zuEhrende(
+      [
+        person('Voll', { stunden: 4500, eintrittsdatum: '1990-05-01', besondereVerdienste: true }),
+        person('Erledigt', { stunden: 4500, erhalten: { gold: 2020 } }),
+        person('Nichts', { stunden: 100 }),
+      ],
+      2026,
+    );
+    expect(liste.map((e) => `${e.nachname}:${e.auszeichnung}`)).toEqual([
+      'Voll:gold',
+      'Voll:jubilaeum-25',
+      'Voll:ehrennadel',
+    ]);
+  });
+
+  it('nennt Grundlage und bisher Erhaltenes', () => {
+    const [eintrag] = zuEhrende(
+      [person('Anna', { stunden: 4500.5, erhalten: { bronze: 2012, silber: null } })],
+      2026,
+    );
+    expect(eintrag.grundlage).toBe('4.500,5 Stunden');
+    expect(eintrag.bisher).toBe('Bronze 2012, Silber');
+  });
+
+  it('sortiert nach Stufe, dann nach Name', () => {
+    const liste = zuEhrende(
+      [
+        person('Zeta', { stunden: 1500 }),
+        person('Alpha', { stunden: 1500 }),
+        person('Mitte', { stunden: 2500 }),
+      ],
+      2026,
+    );
+    expect(liste.map((e) => e.nachname)).toEqual(['Alpha', 'Zeta', 'Mitte']);
   });
 });
