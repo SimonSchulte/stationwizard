@@ -2927,3 +2927,11 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
 - **Ehrenzeichen nachgeschärft:** Ehrenzeichen ab 4, am Bande ab 6 Dienstjahren (jeweils mit „Besondere
   Verdienste“), Ehrennadel 12 Jahre nach Verleihung des Ehrenzeichens am Bande (Vergabejahr nötig). Zuvor
   galt „> 4/6/12 Mitgliedsjahre“ aus der Arbeitstabelle. Mit Unit-Tests abgesichert; nicht im Browser neu angesehen.
+- **Performance der Ehrungen-Seite:** Gemessen am Produktionsbuild (Headless-Chromium, 150 Personen,
+  erfundene Daten; absolute Zeiten dieser Umgebung, nur das Verhältnis zählt). Vorher: ca. 29.000
+  DOM-Knoten, ein Häkchen kostete ca. 1,6 s, Sortieren 0,4–0,7 s. Ursachen: jede Änderung erzeugte neue
+  Zeilenobjekte, die Tabelle baute dadurch **alle** Zeilen samt Chips, Datumsfeldern und Jahresfeldern
+  neu auf, und alle Zeilen standen gleichzeitig im DOM. Jetzt: Zeilenobjekte bleiben für unveränderte
+  Personen gleich, `trackBy` je Person, Seitenweise Anzeige (25/50/100, `mat-paginator`). Nachher: ca.
+  5.100 Knoten, Häkchen ca. 0,2 s, Suche/Filter 0,13–0,34 s, unabhängig von der Personenzahl (600 Personen
+  gemessen). Nicht gemessen: echtes Gerät (Handy), echte Netzlaufzeit des Workers.

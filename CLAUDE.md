@@ -707,7 +707,8 @@ bekannten Version (sonst Ergebnis `konflikt`) und schreibt nichts, wenn sich nic
 Seite (Material: Tabelle mit Sortierung – Standard Stunden absteigend –, Chips in den Farben
 Bronze/Silber/Gold aus den `--abzeichen-*`-Tokens, Datumsauswahl, Suche, Filter nach Auszeichnung
 und Status Alle/Erhalten/Fällig/Jahr fehlt, Vollbild über die Fullscreen-API mit Rückfall auf eine
-Vollbild-Fläche) schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
+Vollbild-Fläche; seitenweise Anzeige mit `mat-paginator` und stabile Zeilenobjekte mit `trackBy`,
+weil sonst jede Änderung alle Zeilen neu aufbaut) schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
 Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
 (`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
 unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist

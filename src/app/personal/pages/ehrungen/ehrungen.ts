@@ -5,8 +5,10 @@ import {
   DestroyRef,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -18,6 +20,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, type Sort } from '@angular/material/sort';
@@ -118,6 +121,7 @@ function gruppeVon(schluessel: EhrungSchluessel): Gruppe {
     MatIconModule,
     MatInputModule,
     MatNativeDateModule,
+    MatPaginatorModule,
     MatProgressSpinnerModule,
     MatSelectModule,
     MatSortModule,
@@ -182,25 +186,48 @@ export class Ehrungen implements OnInit {
   readonly importOffen = signal(false);
   readonly importText = signal('');
 
+  /**
+   * Zeilen bleiben für unveränderte Personen dieselben Objekte: bei einem Häkchen ändert sich nur
+   * eine Zeile, die Tabelle erkennt die übrigen als gleich und baut sie nicht neu auf.
+   */
+  private zeilenZwischenspeicher = new Map<
+    string,
+    { person: EhrungPerson; stand: EhrungAenderung | undefined; zeile: Zeile }
+  >();
+
   readonly zeilen = computed<Zeile[]>(() => {
     const entwurf = this.entwurf();
-    return this.dienst.personen().map((person) => {
+    const neu = new Map<
+      string,
+      { person: EhrungPerson; stand: EhrungAenderung | undefined; zeile: Zeile }
+    >();
+    const zeilen = this.dienst.personen().map((person) => {
+      const bearbeitet = entwurf[person.id];
+      const bekannt = this.zeilenZwischenspeicher.get(person.id);
+      if (bekannt && bekannt.person === person && bekannt.stand === bearbeitet) {
+        neu.set(person.id, bekannt);
+        return bekannt.zeile;
+      }
       const gespeichert: EhrungAenderung = {
         eintrittsdatum: person.eintrittsdatum,
         besondereVerdienste: person.besondereVerdienste,
         erhalten: person.erhalten,
       };
-      const stand = entwurf[person.id] ?? gespeichert;
-      return {
+      const stand = bearbeitet ?? gespeichert;
+      const zeile: Zeile = {
         person,
         stand,
         ansprueche: ansprueche({ ...person, ...stand }, this.jahr),
         jahre: mitgliedsjahre(stand.eintrittsdatum, this.jahr),
         abgleich: leistungAbgleich(person.stunden, stand.erhalten),
         eintrittAlsDatum: stand.eintrittsdatum ? isoZuLokalesDatum(stand.eintrittsdatum) : null,
-        geaendert: person.id in entwurf,
+        geaendert: bearbeitet !== undefined,
       };
+      neu.set(person.id, { person, stand: bearbeitet, zeile });
+      return zeile;
     });
+    this.zeilenZwischenspeicher = neu;
+    return zeilen;
   });
 
   readonly gefiltert = computed(() => {
@@ -252,6 +279,23 @@ export class Ehrungen implements OnInit {
     });
   });
 
+  /** Die Tabelle zeigt nur eine Seite: mehrere hundert Zeilen mit je gut hundert Knoten bremsen jede Eingabe. */
+  readonly seitenGroessen = [25, 50, 100];
+  readonly seite = signal(0);
+  readonly seitenGroesse = signal(25);
+  readonly sichtbar = computed(() => {
+    const von = this.seite() * this.seitenGroesse();
+    return this.sortiert().slice(von, von + this.seitenGroesse());
+  });
+
+  /** Gleiche Zeile, gleiche Ansicht – auch wenn sich Daten der Zeile ändern. */
+  readonly zeileId = (_index: number, zeile: Zeile): string => zeile.person.id;
+
+  seiteGewechselt(ereignis: PageEvent): void {
+    this.seite.set(ereignis.pageIndex);
+    this.seitenGroesse.set(ereignis.pageSize);
+  }
+
   readonly filterAktiv = computed(
     () =>
       this.suche().trim() !== '' || this.auszeichnungen().length > 0 || this.status() !== 'alle',
@@ -298,6 +342,14 @@ export class Ehrungen implements OnInit {
 
   constructor() {
     inject(VerlassenSchutz).registrieren(() => this.anzahlGeaendert() > 0);
+    // Neue Suche, neuer Filter oder neue Sortierung beginnt wieder auf der ersten Seite.
+    effect(() => {
+      this.suche();
+      this.auszeichnungen();
+      this.status();
+      this.sortierung();
+      untracked(() => this.seite.set(0));
+    });
     // Esc beendet das Browser-Vollbild; die Seite folgt, statt im Zwischenzustand zu bleiben.
     const beiVollbildwechsel = () => {
       if (!this.dokument.fullscreenElement) this.vollbild.set(false);

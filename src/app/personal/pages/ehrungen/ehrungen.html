@@ -185,7 +185,8 @@
       <table
         mat-table
         matSort
-        [dataSource]="sortiert()"
+        [dataSource]="sichtbar()"
+        [trackBy]="zeileId"
         [matSortActive]="sortierung().active"
         [matSortDirection]="sortierung().direction"
         (matSortChange)="sortierung.set($event)"
@@ -353,6 +354,14 @@
         ></tr>
       </table>
     </div>
+    <mat-paginator
+      [length]="sortiert().length"
+      [pageIndex]="seite()"
+      [pageSize]="seitenGroesse()"
+      [pageSizeOptions]="seitenGroessen"
+      (page)="seiteGewechselt($event)"
+      aria-label="Seite der Personenliste"
+    />
     <p class="legende">
       „Zu vergeben“ ist die höchste Auszeichnung, die nach Stunden (&gt; 1000 Bronze, &gt; 2000
       Silber, &gt; 4000 Gold), Mitgliedsjahren ({{ jahr }} minus Eintrittsjahr; Jubiläum ab 25, 40,
