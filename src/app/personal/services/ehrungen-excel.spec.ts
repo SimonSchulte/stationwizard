@@ -11,6 +11,7 @@ function person(nachname: string, ueberschreibung: Partial<EhrungPerson> = {}): 
     stunden: 0,
     stundenImport: 0,
     stundenManuell: null,
+    stundenManuellStand: null,
     eintrittsdatum: null,
     besondereVerdienste: false,
     erhalten: {},

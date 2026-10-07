@@ -99,6 +99,8 @@ export interface EhrungPerson {
   stundenImport: number;
   /** Von Hand nachgetragen; `null`, wenn nichts nachgetragen ist. */
   stundenManuell: number | null;
+  /** Jahr, für das der manuelle Nachtrag gilt; gehört zwingend zu jedem Nachtrag. */
+  stundenManuellStand: number | null;
   /** `JJJJ-MM-TT` oder `null`. */
   eintrittsdatum: string | null;
   besondereVerdienste: boolean;
@@ -428,6 +430,9 @@ export function istEhrungPerson(wert: unknown): wert is EhrungPerson {
     Number.isFinite(wert['stunden']) &&
     typeof wert['stundenImport'] === 'number' &&
     Number.isFinite(wert['stundenImport']) &&
+    (wert['stundenManuellStand'] === null ||
+      (typeof wert['stundenManuellStand'] === 'number' &&
+        Number.isInteger(wert['stundenManuellStand']))) &&
     (wert['stundenManuell'] === null ||
       (typeof wert['stundenManuell'] === 'number' && Number.isFinite(wert['stundenManuell']))) &&
     (wert['eintrittsdatum'] === null ||

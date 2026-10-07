@@ -691,7 +691,7 @@ Der **Ehrungsmanager** (Seitentitel und Menüknopf; früher „Ehrungen 2026“,
 (Bronze/Silber/Gold), Jubiläumszeichen (25/40/50/60 Jahre) und Ehrenzeichen („Ehrenzeichen“,
 „am Bande“, „Ehrennadel am Band des Johanniterordens“). Eine Zeile je Person in
 `ehrungen_personen` (`BENUTZER_DB`, Migration `0014_ehrungen.sql`) mit eigener Version. Gespeichert
-wird nur, was erfasst oder importiert ist: Stunden (Import `stunden` und manueller Nachtrag `stunden_manuell`, Migration `0015`; für **alle** Berechnungen zählt die größere der beiden Zahlen, `wirksameStunden()` in Worker und Client gemeinsam ändern; die Seite zeigt beide mit Symbol und Tooltip), Eintrittsdatum, „Besondere Verdienste“ und die
+wird nur, was erfasst oder importiert ist: Stunden (Import `stunden` und manueller Nachtrag `stunden_manuell`, Migration `0015`; für **alle** Berechnungen zählt die größere der beiden Zahlen, `wirksameStunden()` in Worker und Client gemeinsam ändern; die Seite zeigt beide mit Symbol und Tooltip), zu jedem manuellen Nachtrag gehört zwingend ein **Stand** (Jahr, `stunden_manuell_stand`, Migration `0016`; der Worker lehnt einen Nachtrag ohne Stand mit 400 ab, die Seite sperrt „Speichern“, solange er fehlt; das Protokoll hält den Stand des neuen Werts fest, auch eine reine Änderung des Stands erzeugt einen Eintrag), Eintrittsdatum, „Besondere Verdienste“ und die
 bereits erhaltenen Auszeichnungen mit dem **Jahr der Vergabe** (JSON-Objekt Schlüssel → Jahr oder
 `null` für „erhalten, Jahr unbekannt“; feste Schlüsselliste in `ehrungen.ts` **und**
 `ehrungen-regeln.ts`; ein Jahr wird beim Anhaken bewusst nicht vorbelegt, ein fehlendes ist

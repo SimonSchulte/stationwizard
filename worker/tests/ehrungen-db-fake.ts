@@ -11,6 +11,7 @@ export interface EhrungZeile {
   schluessel: string;
   stunden: number;
   stunden_manuell: number | null;
+  stunden_manuell_stand: number | null;
   eintrittsdatum: string | null;
   besondere_verdienste: number;
   erhalten: string;
@@ -35,6 +36,7 @@ export interface ProtokollZeile {
   feld: string;
   alt: number | null;
   neu: number | null;
+  stand: number | null;
 }
 
 export class FakeEhrungenDb {
@@ -78,13 +80,16 @@ class FakeStatement {
       return { success: true, meta: { changes: 0 }, results: zeilen as T[] };
     }
     if (
-      this.query.startsWith('SELECT zeitpunkt, benutzer, feld, alt, neu FROM ehrungen_aenderungen')
+      this.query.startsWith(
+        'SELECT zeitpunkt, benutzer, feld, alt, neu, stand FROM ehrungen_aenderungen',
+      )
     ) {
       const [personId] = this.werte as [string];
       const treffer = this.db.protokoll
         .filter((eintrag) => eintrag.person_id === personId)
         .sort((a, b) => b.id - a.id)
-        .map(({ zeitpunkt, benutzer, feld, alt, neu }) => ({
+        .map(({ zeitpunkt, benutzer, feld, alt, neu, stand }) => ({
+          stand,
           zeitpunkt,
           benutzer,
           feld,
@@ -97,7 +102,9 @@ class FakeStatement {
   }
 
   async first<T>(): Promise<T | null> {
-    if (this.query.startsWith('SELECT version, stunden, stunden_manuell FROM ehrungen_personen')) {
+    if (
+      this.query.startsWith('SELECT version, stunden, stunden_manuell, stunden_manuell_stand FROM')
+    ) {
       const zeile = this.db.zeilen.get(this.werte[0] as string);
       return (
         zeile
@@ -105,6 +112,7 @@ class FakeStatement {
               version: zeile.version,
               stunden: zeile.stunden,
               stunden_manuell: zeile.stunden_manuell,
+              stunden_manuell_stand: zeile.stunden_manuell_stand ?? null,
             }
           : null
       ) as T | null;
@@ -140,6 +148,7 @@ class FakeStatement {
         schluessel,
         stunden,
         stunden_manuell: null,
+        stunden_manuell_stand: null,
         eintrittsdatum,
         besondere_verdienste: 0,
         erhalten: '{}',
@@ -173,10 +182,12 @@ class FakeStatement {
     }
 
     if (this.query.startsWith('UPDATE ehrungen_personen SET eintrittsdatum = ?')) {
-      const [eintrittsdatum, verdienste, erhalten, manuell, am, von, id, version] = this.werte as [
+      const [eintrittsdatum, verdienste, erhalten, manuell, stand, am, von, id, version] = this
+        .werte as [
         string | null,
         number,
         string,
+        number | null,
         number | null,
         string,
         string,
@@ -191,6 +202,7 @@ class FakeStatement {
         besondere_verdienste: verdienste,
         erhalten,
         stunden_manuell: manuell,
+        stunden_manuell_stand: stand,
         geaendert_am: am,
         geaendert_von: von,
         version: version + 1,
@@ -199,10 +211,11 @@ class FakeStatement {
     }
 
     if (this.query.startsWith('INSERT INTO ehrungen_aenderungen')) {
-      const [zeitpunkt, benutzer, feld, alt, neu, personId, version] = this.werte as [
+      const [zeitpunkt, benutzer, feld, alt, neu, stand, personId, version] = this.werte as [
         string,
         string,
         string,
+        number | null,
         number | null,
         number | null,
         string,
@@ -220,6 +233,7 @@ class FakeStatement {
         feld,
         alt,
         neu,
+        stand,
       });
       return ok(1);
     }

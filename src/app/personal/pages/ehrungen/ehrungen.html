@@ -33,7 +33,12 @@
   @if (anzahlGeaendert() > 0) {
     <button mat-button (click)="verwerfen()" [disabled]="arbeitet()">Verwerfen</button>
   }
-  <button mat-flat-button (click)="speichern()" [disabled]="anzahlGeaendert() === 0 || arbeitet()">
+  <button
+    mat-flat-button
+    (click)="speichern()"
+    [disabled]="anzahlGeaendert() === 0 || arbeitet() || anzahlOhneStand() > 0"
+    [matTooltip]="anzahlOhneStand() > 0 ? 'Zu manuellen Stunden fehlt der Stand (Jahr)' : ''"
+  >
     <mat-icon>save</mat-icon> Speichern ({{ anzahlGeaendert() }})
   </button>
   <button
@@ -241,6 +246,32 @@
                   [attr.aria-label]="'Stunden manuell nachtragen, ' + zeile.person.nachname"
                 />
               </mat-form-field>
+              @if (zeile.stand.stundenManuell !== null) {
+                <mat-form-field class="standfeld" appearance="outline" subscriptSizing="dynamic">
+                  <input
+                    matInput
+                    type="number"
+                    inputmode="numeric"
+                    required
+                    placeholder="Stand"
+                    [min]="vergabejahrMinimum"
+                    [max]="vergabejahrMaximum"
+                    [value]="zeile.stand.stundenManuellStand ?? ''"
+                    (change)="standNachtragen(zeile, $any($event.target))"
+                    [attr.aria-label]="
+                      'Stand (Jahr) der manuellen Stunden, ' + zeile.person.nachname
+                    "
+                  />
+                  @if (standFehlt(zeile)) {
+                    <mat-icon
+                      matSuffix
+                      class="jahr-fehlt"
+                      matTooltip="Stand (Jahr) fehlt – Pflichtangabe"
+                      >error_outline</mat-icon
+                    >
+                  }
+                </mat-form-field>
+              }
             </div>
           </td>
         </ng-container>

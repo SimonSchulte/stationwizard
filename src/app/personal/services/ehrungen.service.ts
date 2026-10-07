@@ -7,6 +7,8 @@ const PFAD = '/api/personal/ehrungen';
 export interface EhrungAenderung {
   /** Manueller Nachtrag der Stunden; `null` für keinen. */
   stundenManuell: number | null;
+  /** Pflicht, sobald `stundenManuell` gesetzt ist. */
+  stundenManuellStand: number | null;
   eintrittsdatum: string | null;
   besondereVerdienste: boolean;
   erhalten: Erhalten;
@@ -39,6 +41,8 @@ export interface StundenAenderung {
   feld: 'stunden-import' | 'stunden-manuell';
   alt: number | null;
   neu: number | null;
+  /** Stand (Jahr) des neuen Werts; nur beim manuellen Nachtrag. */
+  stand: number | null;
 }
 
 function istStundenAenderung(wert: unknown): wert is StundenAenderung {
@@ -48,7 +52,8 @@ function istStundenAenderung(wert: unknown): wert is StundenAenderung {
     typeof wert['benutzer'] === 'string' &&
     (wert['feld'] === 'stunden-import' || wert['feld'] === 'stunden-manuell') &&
     (wert['alt'] === null || typeof wert['alt'] === 'number') &&
-    (wert['neu'] === null || typeof wert['neu'] === 'number')
+    (wert['neu'] === null || typeof wert['neu'] === 'number') &&
+    (wert['stand'] === null || typeof wert['stand'] === 'number')
   );
 }
 

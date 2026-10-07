@@ -90,6 +90,7 @@ function gleich(a: EhrungAenderung, b: EhrungAenderung): boolean {
   const schluesselA = Object.keys(a.erhalten) as EhrungSchluessel[];
   return (
     a.stundenManuell === b.stundenManuell &&
+    a.stundenManuellStand === b.stundenManuellStand &&
     a.eintrittsdatum === b.eintrittsdatum &&
     a.besondereVerdienste === b.besondereVerdienste &&
     schluesselA.length === Object.keys(b.erhalten).length &&
@@ -226,6 +227,7 @@ export class Ehrungen implements OnInit {
       }
       const gespeichert: EhrungAenderung = {
         stundenManuell: person.stundenManuell,
+        stundenManuellStand: person.stundenManuellStand,
         eintrittsdatum: person.eintrittsdatum,
         besondereVerdienste: person.besondereVerdienste,
         erhalten: person.erhalten,
@@ -334,6 +336,14 @@ export class Ehrungen implements OnInit {
   );
 
   readonly anzahlGeaendert = computed(() => Object.keys(this.entwurf()).length);
+
+  /** Geänderte Zeilen mit manuellen Stunden, aber ohne Stand: sperren das Speichern. */
+  readonly anzahlOhneStand = computed(
+    () =>
+      Object.values(this.entwurf()).filter(
+        (stand) => stand.stundenManuell !== null && stand.stundenManuellStand === null,
+      ).length,
+  );
 
   /** Vorschau des Textimports gegen den geladenen Bestand. */
   readonly importVorschau = computed(() => {
@@ -448,6 +458,7 @@ export class Ehrungen implements OnInit {
   private aendern(person: EhrungPerson, neu: EhrungAenderung): void {
     const gespeichert: EhrungAenderung = {
       stundenManuell: person.stundenManuell,
+      stundenManuellStand: person.stundenManuellStand,
       eintrittsdatum: person.eintrittsdatum,
       besondereVerdienste: person.besondereVerdienste,
       erhalten: person.erhalten,
@@ -493,7 +504,37 @@ export class Ehrungen implements OnInit {
       return;
     }
     this.fehler.set('');
-    this.aendern(zeile.person, { ...zeile.stand, stundenManuell: manuell });
+    // Ohne Nachtrag gibt es keinen Stand; mit Nachtrag bleibt ein vorhandener Stand stehen.
+    this.aendern(zeile.person, {
+      ...zeile.stand,
+      stundenManuell: manuell,
+      stundenManuellStand: manuell === null ? null : zeile.stand.stundenManuellStand,
+    });
+  }
+
+  /** Pflichtangabe zum Nachtrag: das Jahr, für das die Stundenzahl gilt. */
+  standNachtragen(zeile: Zeile, feld: HTMLInputElement): void {
+    const text = feld.value.trim();
+    const jahr = Number(text);
+    const gueltig =
+      text !== '' &&
+      Number.isInteger(jahr) &&
+      jahr >= VERGABEJAHR_MINIMUM &&
+      jahr <= VERGABEJAHR_MAXIMUM;
+    if (text !== '' && !gueltig) {
+      feld.value = zeile.stand.stundenManuellStand?.toString() ?? '';
+      this.fehler.set(
+        `Der Stand muss ein Jahr zwischen ${VERGABEJAHR_MINIMUM} und ${VERGABEJAHR_MAXIMUM} sein.`,
+      );
+      return;
+    }
+    this.fehler.set('');
+    this.aendern(zeile.person, { ...zeile.stand, stundenManuellStand: gueltig ? jahr : null });
+  }
+
+  /** Ein manueller Nachtrag ohne Stand kann nicht gespeichert werden. */
+  standFehlt(zeile: Zeile): boolean {
+    return zeile.stand.stundenManuell !== null && zeile.stand.stundenManuellStand === null;
   }
 
   manuellAnzeige(zeile: Zeile): string {
@@ -516,10 +557,13 @@ export class Ehrungen implements OnInit {
 
   manuellHinweis(zeile: Zeile): string {
     if (zeile.stand.stundenManuell === null)
-      return 'Stunden manuell nachtragen (die größere Zahl zählt)';
+      return 'Stunden manuell nachtragen (die größere Zahl zählt, Stand/Jahr ist Pflicht)';
+    const stand = zeile.stand.stundenManuellStand
+      ? `Stand ${zeile.stand.stundenManuellStand}`
+      : 'Stand fehlt';
     return this.zaehltManuell(zeile)
-      ? 'Manuell nachgetragen – diese Zahl zählt'
-      : 'Manuell nachgetragen – zählt nicht, der Import ist größer oder gleich';
+      ? `Manuell nachgetragen (${stand}) – diese Zahl zählt`
+      : `Manuell nachgetragen (${stand}) – zählt nicht, der Import ist größer oder gleich`;
   }
 
   verlaufOeffnen(zeile: Zeile): void {
@@ -585,6 +629,12 @@ export class Ehrungen implements OnInit {
   /** Schreibt nur tatsächlich geänderte Personen, je mit der Version, die geladen wurde. */
   async speichern(): Promise<void> {
     if (this.arbeitet() || this.anzahlGeaendert() === 0) return;
+    if (this.anzahlOhneStand() > 0) {
+      this.fehler.set(
+        `Bei ${this.anzahlOhneStand()} Person(en) fehlt der Stand (Jahr) zu den manuellen Stunden.`,
+      );
+      return;
+    }
     this.arbeitet.set(true);
     this.fehler.set('');
     this.rueckmeldung.set('');

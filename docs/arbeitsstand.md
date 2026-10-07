@@ -2954,3 +2954,9 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
 - **Navigation als Baum:** „Personal“ ist in der Sidenav ein aufklappbarer Zweig mit Übersicht, Führerscheine und
   Ehrungsmanager (`mat-tree`). Im Browser auf Desktop und Mobil geprüft (Aufklappen, Navigation, aktiver Zweig).
   Nicht geprüft: Bedienung per Tastatur/Screenreader über das Maß der Material-Standards hinaus.
+- **Stand zu manuellen Stunden:** Jeder manuelle Nachtrag verlangt ein Jahr („Stand“, Pflichtfeld neben der
+  Zahl; ohne Stand ist „Speichern“ gesperrt und der Worker antwortet 400). Der Stand steht im
+  Änderungsprotokoll, auch eine reine Änderung des Stands wird protokolliert; Excel hat eine Spalte „Stand manuell
+  (Jahr)“. Migration `0016_ehrungen_stunden_stand.sql` ist am 2026-10-07 **vor** dem Ausrollen auf `BENUTZER_DB`
+  angewendet (109 Personen unverändert). Worker-Tests (Pflicht, Protokoll, Entfernen) und Browserlauf (Feld erscheint,
+  Speichern gesperrt/frei, Stand im PUT) geprüft; Mobil für diese Änderung nicht erneut gesichtet.

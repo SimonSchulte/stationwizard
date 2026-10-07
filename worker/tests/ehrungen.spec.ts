@@ -149,6 +149,7 @@ describe('Ehrungen: Einzelspeicherung', () => {
   }
   const koerper = {
     stundenManuell: null as number | null,
+    stundenManuellStand: null as number | null,
     eintrittsdatum: '1999-05-06',
     besondereVerdienste: true,
     erhalten: { gold: 2021, bronze: null },
@@ -295,8 +296,12 @@ describe('HiOrg mitglied_seit', () => {
 });
 
 describe('Ehrungen: Stunden nachtragen und Protokoll', () => {
-  const koerper = (manuell: number | null) => ({
+  const koerper = (
+    manuell: number | null,
+    stand: number | null = manuell === null ? null : 2025,
+  ) => ({
     stundenManuell: manuell,
+    stundenManuellStand: stand,
     eintrittsdatum: null,
     besondereVerdienste: false,
     erhalten: {},
@@ -427,5 +432,81 @@ describe('Ehrungen: Liste ohne Migration 0015', () => {
       stundenImport: 1200,
       stundenManuell: null,
     });
+  });
+});
+
+describe('Ehrungen: Stand zum manuellen Nachtrag', () => {
+  async function person(db: FakeEhrungenDb): Promise<string> {
+    await importiere(db, [{ nachname: 'Muster', vorname: 'Max', stunden: 1000 }]);
+    return (await liste(db))[0]['id'] as string;
+  }
+
+  function put(db: FakeEhrungenDb, id: string, version: number, koerper: Record<string, unknown>) {
+    return verarbeiteEhrungen(
+      anfrage(
+        `/api/personal/ehrungen/${id}`,
+        'PUT',
+        { eintrittsdatum: null, besondereVerdienste: false, erhalten: {}, ...koerper },
+        { 'If-Match': `"${version}"` },
+      ),
+      umgebung(db),
+      IDENTITAET,
+    );
+  }
+
+  it('verlangt zu jedem Nachtrag einen gültigen Stand', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    for (const stand of [undefined, null, 1850, 2025.5, '2025']) {
+      const antwort = await put(db, id, 1, { stundenManuell: 1500, stundenManuellStand: stand });
+      expect(antwort.status).toBe(400);
+    }
+    expect(db.protokoll.length).toBe(1);
+    expect((await liste(db))[0]).toMatchObject({ stundenManuell: null, stundenManuellStand: null });
+  });
+
+  it('speichert Stand und protokolliert ihn mit dem neuen Wert', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    const antwort = await put(db, id, 1, { stundenManuell: 1500, stundenManuellStand: 2024 });
+    expect(antwort.status).toBe(200);
+    expect((await liste(db))[0]).toMatchObject({ stundenManuell: 1500, stundenManuellStand: 2024 });
+    expect(db.protokoll.at(-1)).toMatchObject({
+      feld: 'stunden-manuell',
+      alt: null,
+      neu: 1500,
+      stand: 2024,
+    });
+  });
+
+  it('eine reine Änderung des Stands wird ebenfalls protokolliert', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await put(db, id, 1, { stundenManuell: 1500, stundenManuellStand: 2024 });
+    const vorher = db.protokoll.length;
+    await put(db, id, 2, { stundenManuell: 1500, stundenManuellStand: 2025 });
+    expect(db.protokoll.length).toBe(vorher + 1);
+    expect(db.protokoll.at(-1)).toMatchObject({ alt: 1500, neu: 1500, stand: 2025 });
+  });
+
+  it('das Entfernen des Nachtrags entfernt auch den Stand', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await put(db, id, 1, { stundenManuell: 1500, stundenManuellStand: 2024 });
+    await put(db, id, 2, { stundenManuell: null, stundenManuellStand: 2024 });
+    expect((await liste(db))[0]).toMatchObject({ stundenManuell: null, stundenManuellStand: null });
+  });
+
+  it('liefert das Protokoll mit Stand', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await put(db, id, 1, { stundenManuell: 1500, stundenManuellStand: 2024 });
+    const antwort = await verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}/aenderungen`),
+      umgebung(db),
+      IDENTITAET,
+    );
+    const { aenderungen } = (await antwort.json()) as { aenderungen: { stand: number | null }[] };
+    expect(aenderungen.map((a) => a.stand)).toEqual([2024, null]);
   });
 });

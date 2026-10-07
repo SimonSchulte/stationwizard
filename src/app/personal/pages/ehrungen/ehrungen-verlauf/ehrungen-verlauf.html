@@ -30,6 +30,9 @@
                   eintrag.feld === 'stunden-import' ? 'cloud_download' : 'edit'
                 }}</mat-icon>
                 {{ eintrag.feld === 'stunden-import' ? 'Import' : 'Manuell' }}
+                @if (eintrag.stand) {
+                  <span class="stand">· Stand {{ eintrag.stand }}</span>
+                }
               </span>
             </td>
             <td class="zahl">{{ zahl(eintrag.alt) }}</td>

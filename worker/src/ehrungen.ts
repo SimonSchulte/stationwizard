@@ -110,6 +110,7 @@ interface PersonZeile {
   schluessel: string;
   stunden: number;
   stunden_manuell: number | null;
+  stunden_manuell_stand: number | null;
   eintrittsdatum: string | null;
   besondere_verdienste: number;
   erhalten: string;
@@ -141,6 +142,8 @@ function zuJson(zeile: PersonZeile): Record<string, unknown> {
     stundenImport: zeile.stunden,
     // `?? null`: eine noch nicht angewendete Migration 0015 darf die Liste nicht unlesbar machen.
     stundenManuell: zeile.stunden_manuell ?? null,
+    // Dasselbe für 0016: eine fehlende Spalte darf die Liste nicht unlesbar machen.
+    stundenManuellStand: zeile.stunden_manuell_stand ?? null,
     eintrittsdatum: zeile.eintrittsdatum,
     besondereVerdienste: zeile.besondere_verdienste === 1,
     erhalten: leseErhaltenSpalte(zeile.erhalten),
@@ -205,10 +208,19 @@ async function aktualisiere(
       ? null
       : pruefeStunden(eingabe['stundenManuell'])
     : null;
+  // Stand (Jahr) ist Pflicht zu jedem Nachtrag und entfällt ohne Nachtrag.
+  const standRoh = istObjekt(eingabe) ? eingabe['stundenManuellStand'] : undefined;
+  const standGueltig =
+    typeof standRoh === 'number' &&
+    Number.isInteger(standRoh) &&
+    standRoh >= JAHR_MINIMUM &&
+    standRoh <= JAHR_MAXIMUM;
+  const stand = manuell === null ? null : standGueltig ? standRoh : undefined;
   if (
     !istObjekt(eingabe) ||
     erhalten === null ||
     (eingabe['stundenManuell'] !== null && manuell === null) ||
+    stand === undefined ||
     typeof eingabe['besondereVerdienste'] !== 'boolean' ||
     !(
       eingabe['eintrittsdatum'] === null ||
@@ -218,9 +230,16 @@ async function aktualisiere(
     return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Ungültige Angaben.', 400);
   }
   const bestehend = await db
-    .prepare('SELECT version, stunden, stunden_manuell FROM ehrungen_personen WHERE id = ?')
+    .prepare(
+      'SELECT version, stunden, stunden_manuell, stunden_manuell_stand FROM ehrungen_personen WHERE id = ?',
+    )
     .bind(id)
-    .first<{ version: number; stunden: number; stunden_manuell: number | null }>();
+    .first<{
+      version: number;
+      stunden: number;
+      stunden_manuell: number | null;
+      stunden_manuell_stand: number | null;
+    }>();
   if (!bestehend) {
     return fehlerAntwort('EHRUNGEN_NICHT_GEFUNDEN', 'Eintrag nicht gefunden.', 404);
   }
@@ -238,7 +257,7 @@ async function aktualisiere(
       .prepare(
         `UPDATE ehrungen_personen
          SET eintrittsdatum = ?, besondere_verdienste = ?, erhalten = ?, stunden_manuell = ?,
-             geaendert_am = ?, geaendert_von = ?, version = version + 1
+             stunden_manuell_stand = ?, geaendert_am = ?, geaendert_von = ?, version = version + 1
          WHERE id = ? AND version = ?`,
       )
       .bind(
@@ -246,6 +265,7 @@ async function aktualisiere(
         eingabe['besondereVerdienste'] ? 1 : 0,
         JSON.stringify(erhalten),
         manuell,
+        stand,
         jetzt,
         identitaet.email,
         id,
@@ -254,7 +274,10 @@ async function aktualisiere(
   ];
   // Protokolleintrag nur bei tatsächlicher Änderung und nur, wenn die Änderung greift
   // (die Version nach dem Update ist die Bedingung der SELECT-Zeile).
-  if (manuell !== bestehend.stunden_manuell) {
+  if (
+    manuell !== bestehend.stunden_manuell ||
+    stand !== (bestehend.stunden_manuell_stand ?? null)
+  ) {
     anweisungen.push(
       protokollAnweisung(
         db,
@@ -265,6 +288,7 @@ async function aktualisiere(
         manuell,
         id,
         erwarteteVersion + 1,
+        stand,
       ),
     );
   }
@@ -277,6 +301,7 @@ async function aktualisiere(
       besondereVerdienste: eingabe['besondereVerdienste'],
       erhalten,
       stundenManuell: manuell,
+      stundenManuellStand: stand,
       stunden: wirksameStunden(bestehend.stunden, manuell),
       geaendertAm: jetzt,
       geaendertVon: identitaet.email,
@@ -301,19 +326,21 @@ function protokollAnweisung(
   neu: number | null,
   personId: string,
   versionDanach: number,
+  /** Stand (Jahr) des neuen Werts; nur beim manuellen Nachtrag. */
+  stand: number | null = null,
 ): D1PreparedStatement {
   return db
     .prepare(
-      `INSERT INTO ehrungen_aenderungen (person_id, nachname, vorname, zeitpunkt, benutzer, feld, alt, neu)
-       SELECT id, nachname, vorname, ?, ?, ?, ?, ? FROM ehrungen_personen WHERE id = ? AND version = ?`,
+      `INSERT INTO ehrungen_aenderungen (person_id, nachname, vorname, zeitpunkt, benutzer, feld, alt, neu, stand)
+       SELECT id, nachname, vorname, ?, ?, ?, ?, ?, ? FROM ehrungen_personen WHERE id = ? AND version = ?`,
     )
-    .bind(zeitpunkt, identitaet.email, feld, alt, neu, personId, versionDanach);
+    .bind(zeitpunkt, identitaet.email, feld, alt, neu, stand, personId, versionDanach);
 }
 
 async function verlauf(db: D1Database, id: string): Promise<Response> {
   const ergebnis = await db
     .prepare(
-      `SELECT zeitpunkt, benutzer, feld, alt, neu FROM ehrungen_aenderungen
+      `SELECT zeitpunkt, benutzer, feld, alt, neu, stand FROM ehrungen_aenderungen
        WHERE person_id = ? ORDER BY id DESC LIMIT ${VERLAUF_GRENZE}`,
     )
     .bind(id)
@@ -323,6 +350,7 @@ async function verlauf(db: D1Database, id: string): Promise<Response> {
       feld: string;
       alt: number | null;
       neu: number | null;
+      stand: number | null;
     }>();
   return jsonAntwort({ aenderungen: ergebnis.results });
 }
