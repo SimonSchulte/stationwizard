@@ -356,6 +356,22 @@ describe('HiOrg-API: Personal', () => {
     }
   });
 
+  it('liefert die Anrede nur als kurzen Text und verwirft Unbrauchbares ohne die Antwort zu kippen', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(
+      Response.json({
+        data: [
+          person({ anrede: ' Frau ' }),
+          { ...person({ anrede: { x: 1 } }), id: 'zweite' },
+          { ...person({ anrede: 'x'.repeat(41) }), id: 'dritte' },
+        ],
+      }),
+    );
+    const antwort = await verarbeiteHiorgApi(personalAnfrage(), umgebung, BENUTZER);
+    const { personen } = JSON.parse(await antwort.text()) as { personen: { anrede?: string }[] };
+    expect(personen.map((p) => p.anrede)).toEqual(['Frau', undefined, undefined]);
+  });
+
   it('meldet eine fehlende Fahrerlaubnis als null statt sie zu erfinden', async () => {
     await verbinden();
     abrufen.mockResolvedValueOnce(Response.json({ data: [person({ fahrerlaubnis: null })] }));

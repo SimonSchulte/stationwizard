@@ -6,6 +6,7 @@ import {
   verarbeiteBenutzerverwaltung,
   type BenutzerverwaltungKonfiguration,
 } from './benutzer';
+import { EHRUNGEN_PFAD, verarbeiteEhrungen, type EhrungenKonfiguration } from './ehrungen';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import { EINREICHUNGEN_PFAD, verarbeiteEinreichungen } from './einreichungen';
 import {
@@ -73,7 +74,8 @@ export interface Env
     KalenderKonfiguration,
     MaterialKonfiguration,
     MaterialEinreichungenKonfiguration,
-    FuehrerscheinVorlageKonfiguration {
+    FuehrerscheinVorlageKonfiguration,
+    EhrungenKonfiguration {
   ASSETS: Fetcher;
 }
 
@@ -214,6 +216,10 @@ export default {
       url.pathname === FUEHRERSCHEIN_VORLAGE_DATEI_PFAD
     ) {
       return verarbeiteFuehrerscheinVorlage(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === EHRUNGEN_PFAD || url.pathname.startsWith(`${EHRUNGEN_PFAD}/`)) {
+      return verarbeiteEhrungen(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname.startsWith('/api/nextcloud/')) {
