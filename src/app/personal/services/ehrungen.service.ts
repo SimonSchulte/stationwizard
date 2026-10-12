@@ -1,6 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { istEhrungPerson, type EhrungPerson, type Erhalten } from './ehrungen-regeln';
+import {
+  istEhrungPerson,
+  istEhrungSchluessel,
+  type EhrungPerson,
+  type EhrungSchluessel,
+  type Erhalten,
+} from './ehrungen-regeln';
 
 const PFAD = '/api/personal/ehrungen';
 
@@ -57,6 +63,30 @@ function istStundenAenderung(wert: unknown): wert is StundenAenderung {
   );
 }
 
+/** Bearbeitungsstand einer offenen Ehrung: mit dem Ortsbeauftragten abgestimmt, beantragt. */
+export interface EhrungVorgang {
+  personId: string;
+  auszeichnung: EhrungSchluessel;
+  abgestimmtOb: boolean;
+  beantragt: boolean;
+}
+
+export type VorgangFeld = 'abgestimmtOb' | 'beantragt';
+
+export function vorgangSchluessel(personId: string, auszeichnung: EhrungSchluessel): string {
+  return `${personId}|${auszeichnung}`;
+}
+
+function istVorgang(wert: unknown): wert is EhrungVorgang {
+  return (
+    istObjekt(wert) &&
+    typeof wert['personId'] === 'string' &&
+    istEhrungSchluessel(wert['auszeichnung']) &&
+    typeof wert['abgestimmtOb'] === 'boolean' &&
+    typeof wert['beantragt'] === 'boolean'
+  );
+}
+
 function istObjekt(wert: unknown): wert is Record<string, unknown> {
   return typeof wert === 'object' && wert !== null && !Array.isArray(wert);
 }
@@ -71,6 +101,8 @@ export class EhrungenService {
   private readonly worker = inject(WorkerClient);
 
   readonly personen = signal<EhrungPerson[]>([]);
+  /** Haken der offenen Ehrungen, nach `vorgangSchluessel()`. */
+  readonly vorgaenge = signal<ReadonlyMap<string, EhrungVorgang>>(new Map());
 
   async laden(): Promise<void> {
     const antwort = await this.worker.json<unknown>(PFAD);
@@ -82,6 +114,41 @@ export class EhrungenService {
       throw new WorkerFehler('Der Server hat keine gültigen Ehrungen geliefert.', 502);
     }
     this.personen.set(antwort['personen']);
+  }
+
+  /** Alle Haken in einem Aufruf. */
+  async vorgaengeLaden(): Promise<void> {
+    const antwort = await this.worker.json<unknown>(`${PFAD}/vorgaenge`);
+    const liste = istObjekt(antwort) ? antwort['vorgaenge'] : undefined;
+    if (!Array.isArray(liste) || !liste.every(istVorgang)) {
+      throw new WorkerFehler('Der Server hat keinen gültigen Bearbeitungsstand geliefert.', 502);
+    }
+    this.vorgaenge.set(
+      new Map(liste.map((v) => [vorgangSchluessel(v.personId, v.auszeichnung), v])),
+    );
+  }
+
+  /** Setzt genau einen Haken; der Server lässt den anderen unverändert. */
+  async vorgangSetzen(
+    personId: string,
+    auszeichnung: EhrungSchluessel,
+    feld: VorgangFeld,
+    wert: boolean,
+  ): Promise<void> {
+    const antwort = await this.worker.json<unknown>(
+      `${PFAD}/${personId}/vorgaenge/${auszeichnung}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [feld]: wert }),
+      },
+    );
+    if (!istVorgang(antwort)) {
+      throw new WorkerFehler('Der Server hat keine gültige Antwort geliefert.', 502);
+    }
+    this.vorgaenge.update((alt) =>
+      new Map(alt).set(vorgangSchluessel(personId, auszeichnung), antwort),
+    );
   }
 
   async speichern(person: EhrungPerson, aenderung: EhrungAenderung): Promise<void> {
@@ -125,6 +192,9 @@ export class EhrungenService {
   async loeschen(id: string): Promise<void> {
     await this.worker.anfragen(`${PFAD}/${id}`, { method: 'DELETE' });
     this.personen.update((liste) => liste.filter((eintrag) => eintrag.id !== id));
+    this.vorgaenge.update(
+      (alt) => new Map([...alt].filter(([, vorgang]) => vorgang.personId !== id)),
+    );
   }
 
   /** Ergebnis je Eintrag in Eingabereihenfolge; danach ist der Bestand neu geladen. */

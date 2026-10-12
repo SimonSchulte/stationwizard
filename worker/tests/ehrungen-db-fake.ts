@@ -39,7 +39,17 @@ export interface ProtokollZeile {
   stand: number | null;
 }
 
+export interface VorgangTestZeile {
+  person_id: string;
+  auszeichnung: string;
+  abgestimmt_ob: number;
+  beantragt: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeEhrungenDb {
+  vorgaenge = new Map<string, VorgangTestZeile>();
   zeilen = new Map<string, EhrungZeile>();
   protokoll: ProtokollZeile[] = [];
   batchAufrufe = 0;
@@ -79,6 +89,13 @@ class FakeStatement {
       }
       return { success: true, meta: { changes: 0 }, results: zeilen as T[] };
     }
+    if (this.query === 'SELECT * FROM ehrungen_vorgaenge') {
+      return {
+        success: true,
+        meta: { changes: 0 },
+        results: [...this.db.vorgaenge.values()] as T[],
+      };
+    }
     if (
       this.query.startsWith(
         'SELECT zeitpunkt, benutzer, feld, alt, neu, stand FROM ehrungen_aenderungen',
@@ -102,6 +119,16 @@ class FakeStatement {
   }
 
   async first<T>(): Promise<T | null> {
+    if (this.query === 'SELECT version FROM ehrungen_personen WHERE id = ?') {
+      const zeile = this.db.zeilen.get(this.werte[0] as string);
+      return (zeile ? { version: zeile.version } : null) as T | null;
+    }
+    if (
+      this.query === 'SELECT * FROM ehrungen_vorgaenge WHERE person_id = ? AND auszeichnung = ?'
+    ) {
+      const [id, art] = this.werte as [string, string];
+      return (this.db.vorgaenge.get(`${id}|${art}`) ?? null) as T | null;
+    }
     if (
       this.query.startsWith('SELECT version, stunden, stunden_manuell, stunden_manuell_stand FROM')
     ) {
@@ -236,6 +263,39 @@ class FakeStatement {
         stand,
       });
       return ok(1);
+    }
+
+    if (this.query.startsWith('INSERT INTO ehrungen_vorgaenge')) {
+      const [id, art, abgestimmt, beantragt, am, von] = this.werte as [
+        string,
+        string,
+        number,
+        number,
+        string,
+        string,
+      ];
+      const schluessel = `${id}|${art}`;
+      const alt = this.db.vorgaenge.get(schluessel);
+      this.db.vorgaenge.set(schluessel, {
+        person_id: id,
+        auszeichnung: art,
+        abgestimmt_ob: alt && abgestimmt < 0 ? alt.abgestimmt_ob : Math.max(abgestimmt, 0),
+        beantragt: alt && beantragt < 0 ? alt.beantragt : Math.max(beantragt, 0),
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return ok(1);
+    }
+
+    if (this.query === 'DELETE FROM ehrungen_vorgaenge WHERE person_id = ?') {
+      let anzahl = 0;
+      for (const [schluessel, zeile] of this.db.vorgaenge) {
+        if (zeile.person_id === this.werte[0]) {
+          this.db.vorgaenge.delete(schluessel);
+          anzahl++;
+        }
+      }
+      return ok(anzahl);
     }
 
     if (this.query.startsWith('DELETE FROM ehrungen_personen WHERE id = ?')) {

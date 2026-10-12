@@ -46,6 +46,13 @@ const PERSONAL_KNOTEN: NavKnoten = {
       bezeichnung: 'Ehrungsmanager',
       icon: 'military_tech',
       link: '/personal/ehrungen',
+      exakt: true,
+      ebene: 1,
+    },
+    {
+      bezeichnung: 'Offene Ehrungen',
+      icon: 'pending_actions',
+      link: '/personal/offene-ehrungen',
       ebene: 1,
     },
   ],

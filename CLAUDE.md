@@ -199,6 +199,8 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/personal/ehrungen/<UUID>`                    | PUT / DELETE       | Erhaltene Auszeichnungen, Eintrittsdatum, Verdienste; Update nur mit `If-Match`          |
 | `/api/personal/ehrungen/import`                    | POST               | Sammelimport für Stunden bzw. Eintrittsdaten; Ergebnis je Eintrag                        |
 | `/api/personal/ehrungen/<UUID>/aenderungen`        | GET                | Änderungsprotokoll der Stundenzahlen, neueste zuerst; nur lesend                         |
+| `/api/personal/ehrungen/vorgaenge`                 | GET                | Haken „Abgestimmt OB“/„Beantragt“ aller offenen Ehrungen in einem Aufruf                 |
+| `/api/personal/ehrungen/<UUID>/vorgaenge/<art>`    | PUT                | Setzt nur die genannten Haken einer Auszeichnung; unabhängig, ohne Version               |
 | `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig               |
 | `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                     |
 | `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                           |
@@ -728,7 +730,7 @@ weil sonst jede Änderung alle Zeilen neu aufbaut) schreibt Häkchen gesammelt �
 Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
 (`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
 unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist
-**nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Der Export „Zu Ehrende“
+**nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Die Seite **Offene Ehrungen** (`/personal/offene-ehrungen`, `src/app/personal/pages/offene-ehrungen/`, Menüpunkt unter Personal) ersetzt den früheren Excel-Knopf „Zu Ehrende“ im Ehrungsmanager: sie zeigt dieselbe Liste (`zuEhrende()`, aus dem **gespeicherten** Stand, nicht aus ungesicherten Änderungen) mit den Haken „Abgestimmt OB“ (mit dem Ortsbeauftragten abgestimmt) und „Beantragt“, die sofort je Klick gespeichert werden (`ehrungen_vorgaenge` in `BENUTZER_DB`, Migration `0017`; Schlüssel Person + Auszeichnung). Die Haken sind unabhängige, idempotente Werte: jede Anfrage setzt nur das genannte Feld, deshalb gibt es bewusst keine Version und kein `If-Match`. Zeitpunkt und Benutzer setzt der Worker; beim Entfernen einer Person räumt er die Haken weg. Was offen ist, wird weiterhin nie gespeichert – erscheint eine Auszeichnung als erhalten, verschwindet sie aus der Liste (ihre Zeile bleibt unbeachtet liegen). Der Excel-Export dieser Seite (`zuEhrendeExcelErzeugen()`) enthält die Haken als Spalten. Der Export „Zu Ehrende“
 (`zuEhrende()`, `zuEhrendeExcelErzeugen()`) listet je Person und Gruppe die höchste fällige, noch nicht
 angehakte Auszeichnung mit Grundlage und bereits Erhaltenem. Der Excel-Export
 (`ehrungen-excel.ts`, `@e965/xlsx` dynamisch) enthält Name getrennt in Nach-/Vorname, die einzelnen

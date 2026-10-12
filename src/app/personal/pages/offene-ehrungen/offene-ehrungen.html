@@ -1,0 +1,130 @@
+<mat-toolbar class="listen-kopfleiste">
+  <mat-icon class="kopfleiste-icon">military_tech</mat-icon>
+  <span class="toolbar-title">Offene Ehrungen</span>
+  <span class="spacer"></span>
+  <button mat-stroked-button routerLink="/personal/ehrungen">
+    <mat-icon>arrow_back</mat-icon> Ehrungsmanager
+  </button>
+  <button
+    mat-stroked-button
+    (click)="excelHerunterladen()"
+    [disabled]="anzahlGesamt() === 0 || arbeitet() || laedt()"
+    matTooltip="Excel-Liste aller offenen Ehrungen mit Abgestimmt OB und Beantragt"
+  >
+    <mat-icon>download</mat-icon> Excel
+  </button>
+  <button mat-button (click)="laden()" [disabled]="laedt() || arbeitet()">
+    <mat-icon>refresh</mat-icon> Neu laden
+  </button>
+</mat-toolbar>
+
+<div class="inhalt">
+  @if (rueckmeldung()) {
+    <p class="rueckmeldung" role="status">
+      <span>{{ rueckmeldung() }}</span>
+      <button mat-icon-button matTooltip="Ausblenden" (click)="rueckmeldung.set('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </p>
+  }
+  @if (fehler()) {
+    <p class="fehler" role="alert">{{ fehler() }}</p>
+  }
+
+  @if (laedt()) {
+    <div class="laden" role="status">
+      <mat-spinner diameter="36" />
+      <span>Offene Ehrungen werden geladen…</span>
+    </div>
+  } @else if (anzahlGesamt() === 0) {
+    <p class="leer">
+      Keine offenen Ehrungen: Alle zustehenden Auszeichnungen sind als erhalten erfasst.
+    </p>
+  } @else {
+    <div class="filterleiste">
+      <mat-button-toggle-group
+        [value]="bearbeitung()"
+        (change)="bearbeitung.set($event.value)"
+        aria-label="Bearbeitungsstand"
+        hideSingleSelectionIndicator
+      >
+        <mat-button-toggle value="alle">Alle</mat-button-toggle>
+        <mat-button-toggle value="offen">Noch nichts erledigt</mat-button-toggle>
+        <mat-button-toggle value="abgestimmt">Abgestimmt, nicht beantragt</mat-button-toggle>
+        <mat-button-toggle value="beantragt">Beantragt</mat-button-toggle>
+      </mat-button-toggle-group>
+      <span class="zaehler">
+        {{ zeilen().length }} von {{ anzahlGesamt() }} · {{ anzahlAbgestimmt() }} abgestimmt ·
+        {{ anzahlBeantragt() }} beantragt
+      </span>
+    </div>
+
+    <div class="tabelle-rahmen">
+      <table mat-table [dataSource]="zeilen()" [trackBy]="zeileId">
+        <ng-container matColumnDef="auszeichnung">
+          <th mat-header-cell *matHeaderCellDef>Auszeichnung</th>
+          <td mat-cell *matCellDef="let zeile">
+            <strong>{{ zeile.auszeichnung }}</strong>
+            <div class="nebenzeile">{{ zeile.eintrag.gruppe }}</div>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let zeile">
+            {{ zeile.eintrag.nachname }}, {{ zeile.eintrag.vorname }}
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="grundlage">
+          <th mat-header-cell *matHeaderCellDef>Grundlage</th>
+          <td mat-cell *matCellDef="let zeile">{{ zeile.eintrag.grundlage }}</td>
+        </ng-container>
+        <ng-container matColumnDef="bisher">
+          <th mat-header-cell *matHeaderCellDef>Bisher erhalten</th>
+          <td mat-cell *matCellDef="let zeile">{{ zeile.eintrag.bisher || '–' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="abgestimmtOb">
+          <th mat-header-cell *matHeaderCellDef>Abgestimmt OB</th>
+          <td mat-cell *matCellDef="let zeile">
+            <mat-checkbox
+              [checked]="zeile.abgestimmtOb"
+              [disabled]="!vorgaengeVerfuegbar() || speichernd().has(zeile.id)"
+              (change)="haken(zeile, 'abgestimmtOb', $event.checked)"
+              [aria-label]="'Abgestimmt OB, ' + zeile.eintrag.nachname + ', ' + zeile.auszeichnung"
+            />
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="beantragt">
+          <th mat-header-cell *matHeaderCellDef>Beantragt</th>
+          <td mat-cell *matCellDef="let zeile">
+            <mat-checkbox
+              [checked]="zeile.beantragt"
+              [disabled]="!vorgaengeVerfuegbar() || speichernd().has(zeile.id)"
+              (change)="haken(zeile, 'beantragt', $event.checked)"
+              [aria-label]="'Beantragt, ' + zeile.eintrag.nachname + ', ' + zeile.auszeichnung"
+            />
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="hinweis">
+          <th mat-header-cell *matHeaderCellDef>Hinweis</th>
+          <td mat-cell *matCellDef="let zeile">
+            @if (zeile.eintrag.hinweis) {
+              <span class="staffel-hinweis" role="note">
+                <mat-icon aria-hidden="true">warning</mat-icon> {{ zeile.eintrag.hinweis }}
+              </span>
+            }
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="spalten; sticky: true"></tr>
+        <tr mat-row *matRowDef="let zeile; columns: spalten"></tr>
+      </table>
+    </div>
+    @if (zeilen().length === 0) {
+      <p class="leer">Keine Einträge in dieser Ansicht.</p>
+    }
+    <p class="legende">
+      Die Liste zeigt je Person und Gruppe die nächste vergebbare Stufe aus dem gespeicherten Stand
+      des Ehrungsmanagers. Sobald die Auszeichnung dort als erhalten erfasst ist, verschwindet sie
+      hier.
+    </p>
+  }
+</div>

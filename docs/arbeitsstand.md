@@ -2965,3 +2965,10 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Chips gesperrt, „Zu vergeben“ zeigt die nächste Stufe, Warnungen in Zeile und Export (Spalten „Anspruch bis“/„Warnung“,
   Blatt „Warnungen“). Keine serverseitige Durchsetzung. Geprüft: Build, `npm test` (Client 1046, Worker 843),
   Formatprüfung, Desktop-Sichtprüfung im Browser mit erfundenen Daten; Mobilansicht nach dieser Änderung nicht erneut geprüft.
+
+- Offene Ehrungen: neue Seite `/personal/offene-ehrungen` mit Haken „Abgestimmt OB“ und „Beantragt“ (sofort gespeichert,
+  Tabelle `ehrungen_vorgaenge`, Migration `0017`, `GET …/ehrungen/vorgaenge`, `PUT …/<UUID>/vorgaenge/<Auszeichnung>`),
+  Excel-Export samt Haken; ersetzt den Excel-Knopf „Zu Ehrende“ im Ehrungsmanager. **Migration 0017 vor dem Rollout des
+  Workers anwenden**; ohne sie lädt die Seite die Liste, sperrt aber die Haken. Geprüft: Build, `npm test` (Client 1052,
+  Worker 846), Formatprüfung, Browser (Desktop 1280 px und Mobil 390 px, Haken setzen gegen simulierte API mit erfundenen
+  Daten). Nicht gegen die echte Datenbank oder echte HiOrg-Anreden geprüft; auf dem Handy scrollt die Tabelle horizontal.

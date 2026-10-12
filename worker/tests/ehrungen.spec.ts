@@ -510,3 +510,68 @@ describe('Ehrungen: Stand zum manuellen Nachtrag', () => {
     expect(aenderungen.map((a) => a.stand)).toEqual([2024, null]);
   });
 });
+
+describe('Ehrungen: Abgestimmt OB und Beantragt', () => {
+  async function person(db: FakeEhrungenDb): Promise<string> {
+    await importiere(db, [{ nachname: 'Muster', vorname: 'Max', stunden: 10 }]);
+    return (await liste(db))[0]['id'] as string;
+  }
+  const setzen = (db: FakeEhrungenDb, id: string, art: string, koerper: unknown) =>
+    verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}/vorgaenge/${art}`, 'PUT', koerper),
+      umgebung(db),
+      IDENTITAET,
+    );
+  const alle = async (db: FakeEhrungenDb) =>
+    (
+      (await (
+        await verarbeiteEhrungen(
+          anfrage('/api/personal/ehrungen/vorgaenge'),
+          umgebung(db),
+          IDENTITAET,
+        )
+      ).json()) as { vorgaenge: Record<string, unknown>[] }
+    ).vorgaenge;
+
+  it('setzt die Haken unabhängig voneinander und protokolliert den Benutzer aus der Anmeldung', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    expect((await setzen(db, id, 'silber', { abgestimmtOb: true })).status).toBe(200);
+    expect((await setzen(db, id, 'silber', { beantragt: true })).status).toBe(200);
+    expect(await alle(db)).toEqual([
+      expect.objectContaining({
+        personId: id,
+        auszeichnung: 'silber',
+        abgestimmtOb: true,
+        beantragt: true,
+        geaendertVon: IDENTITAET.email,
+      }),
+    ]);
+    await setzen(db, id, 'silber', { abgestimmtOb: false });
+    expect((await alle(db))[0]).toMatchObject({ abgestimmtOb: false, beantragt: true });
+  });
+
+  it('lehnt unbekannte Auszeichnungen, leere und fremde Felder und unbekannte Personen ab', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    expect((await setzen(db, id, 'platin', { beantragt: true })).status).toBe(400);
+    expect((await setzen(db, id, 'gold', {})).status).toBe(400);
+    expect((await setzen(db, id, 'gold', { beantragt: 'ja' })).status).toBe(400);
+    expect((await setzen(db, id, 'gold', { beantragt: true, version: 2 })).status).toBe(400);
+    const fremd = '00000000-0000-4000-8000-000000000000';
+    expect((await setzen(db, fremd, 'gold', { beantragt: true })).status).toBe(404);
+    expect(db.vorgaenge.size).toBe(0);
+  });
+
+  it('räumt die Haken beim Entfernen der Person weg', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await setzen(db, id, 'bronze', { beantragt: true });
+    await verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}`, 'DELETE'),
+      umgebung(db),
+      IDENTITAET,
+    );
+    expect(await alle(db)).toEqual([]);
+  });
+});

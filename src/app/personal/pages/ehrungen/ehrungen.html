@@ -21,11 +21,10 @@
   </button>
   <button
     mat-stroked-button
-    (click)="zuEhrendeHerunterladen()"
-    [disabled]="anzahlZuEhrende() === 0"
-    matTooltip="Excel-Liste aller noch offenen Ehrungen (zu vergeben, aber nicht als erhalten angehakt)"
+    routerLink="/personal/offene-ehrungen"
+    matTooltip="Alle noch offenen Ehrungen mit Abgestimmt OB und Beantragt (gespeicherter Stand) und Excel-Export"
   >
-    <mat-icon>military_tech</mat-icon> Zu Ehrende ({{ anzahlZuEhrende() }})
+    <mat-icon>pending_actions</mat-icon> Offene Ehrungen ({{ anzahlZuEhrende() }})
   </button>
   <button mat-button (click)="neuLaden()" [disabled]="laedt() || arbeitet()">
     <mat-icon>refresh</mat-icon> Neu laden

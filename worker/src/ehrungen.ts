@@ -24,6 +24,8 @@ const EHRUNGEN_IMPORT_PFAD = '/api/personal/ehrungen/import';
 const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const EINZEL_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})$`, 'i');
 const VERLAUF_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/aenderungen$`, 'i');
+const VORGANG_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/vorgaenge/([a-z0-9-]+)$`, 'i');
+const VORGAENGE_LISTE_PFAD = '/api/personal/ehrungen/vorgaenge';
 const VERLAUF_GRENZE = 200;
 
 /** Feste Schlüsselliste in kanonischer Reihenfolge; Gegenstück im Client. */
@@ -360,7 +362,91 @@ async function loesche(db: D1Database, id: string): Promise<Response> {
   if (ergebnis.meta.changes === 0) {
     return fehlerAntwort('EHRUNGEN_NICHT_GEFUNDEN', 'Eintrag nicht gefunden.', 404);
   }
+  // Kein Fremdschlüssel: die Haken der Person räumt der Worker selbst weg.
+  await db.prepare('DELETE FROM ehrungen_vorgaenge WHERE person_id = ?').bind(id).run();
   return new Response(null, { status: 204 });
+}
+
+interface VorgangZeile {
+  person_id: string;
+  auszeichnung: string;
+  abgestimmt_ob: number;
+  beantragt: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
+function vorgangZuJson(zeile: VorgangZeile): Record<string, unknown> {
+  return {
+    personId: zeile.person_id,
+    auszeichnung: zeile.auszeichnung,
+    abgestimmtOb: zeile.abgestimmt_ob === 1,
+    beantragt: zeile.beantragt === 1,
+    geaendertAm: zeile.geaendert_am,
+    geaendertVon: zeile.geaendert_von,
+  };
+}
+
+/** Alle Haken in einem Aufruf (Free-Tier: kein Abruf je Person). */
+async function vorgaengeListe(db: D1Database): Promise<Response> {
+  const ergebnis = await db.prepare('SELECT * FROM ehrungen_vorgaenge').all<VorgangZeile>();
+  return jsonAntwort({ vorgaenge: ergebnis.results.map(vorgangZuJson) });
+}
+
+/**
+ * Setzt „Abgestimmt OB“ und/oder „Beantragt“ einer Ehrung. Nur die genannten Felder ändern sich;
+ * Zeitpunkt und Benutzer kommen aus der geprüften Anmeldung.
+ */
+async function vorgangSetzen(
+  anfrage: Request,
+  db: D1Database,
+  personId: string,
+  auszeichnung: string,
+  identitaet: Benutzer,
+): Promise<Response> {
+  if (!(EHRUNG_SCHLUESSEL as readonly string[]).includes(auszeichnung)) {
+    return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Unbekannte Auszeichnung.', 400);
+  }
+  const koerper = await lesePruefeKoerper(anfrage, EINZEL_GRENZE);
+  if (koerper instanceof Response) return koerper;
+  const eingabe = koerper.inhalt;
+  const abgestimmt = istObjekt(eingabe) ? eingabe['abgestimmtOb'] : undefined;
+  const beantragt = istObjekt(eingabe) ? eingabe['beantragt'] : undefined;
+  if (
+    !istObjekt(eingabe) ||
+    Object.keys(eingabe).some(
+      (schluessel) => schluessel !== 'abgestimmtOb' && schluessel !== 'beantragt',
+    ) ||
+    (abgestimmt === undefined && beantragt === undefined) ||
+    (abgestimmt !== undefined && typeof abgestimmt !== 'boolean') ||
+    (beantragt !== undefined && typeof beantragt !== 'boolean')
+  ) {
+    return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Ungültige Angaben.', 400);
+  }
+  const person = await db
+    .prepare('SELECT version FROM ehrungen_personen WHERE id = ?')
+    .bind(personId)
+    .first<{ version: number }>();
+  if (!person) return fehlerAntwort('EHRUNGEN_NICHT_GEFUNDEN', 'Eintrag nicht gefunden.', 404);
+  const jetzt = new Date().toISOString();
+  // Fehlendes Feld: -1 = unverändert (beim Einfügen 0).
+  const wert = (feld: unknown) => (feld === undefined ? -1 : feld ? 1 : 0);
+  await db
+    .prepare(
+      `INSERT INTO ehrungen_vorgaenge (person_id, auszeichnung, abgestimmt_ob, beantragt, geaendert_am, geaendert_von)
+       VALUES (?1, ?2, MAX(?3, 0), MAX(?4, 0), ?5, ?6)
+       ON CONFLICT (person_id, auszeichnung) DO UPDATE SET
+         abgestimmt_ob = CASE WHEN ?3 < 0 THEN abgestimmt_ob ELSE ?3 END,
+         beantragt = CASE WHEN ?4 < 0 THEN beantragt ELSE ?4 END,
+         geaendert_am = ?5, geaendert_von = ?6`,
+    )
+    .bind(personId, auszeichnung, wert(abgestimmt), wert(beantragt), jetzt, identitaet.email)
+    .run();
+  const zeile = await db
+    .prepare('SELECT * FROM ehrungen_vorgaenge WHERE person_id = ? AND auszeichnung = ?')
+    .bind(personId, auszeichnung)
+    .first<VorgangZeile>();
+  return jsonAntwort(zeile ? vorgangZuJson(zeile) : {});
 }
 
 interface ImportEintrag {
@@ -577,6 +663,15 @@ export async function verarbeiteEhrungen(
   try {
     if (url.pathname === EHRUNGEN_PFAD) {
       return anfrage.method === 'GET' ? await liste(db) : nichtErlaubt('GET');
+    }
+    if (url.pathname === VORGAENGE_LISTE_PFAD) {
+      return anfrage.method === 'GET' ? await vorgaengeListe(db) : nichtErlaubt('GET');
+    }
+    const vorgang = VORGANG_PFAD.exec(url.pathname);
+    if (vorgang?.[1] && vorgang[2]) {
+      return anfrage.method === 'PUT'
+        ? await vorgangSetzen(anfrage, db, vorgang[1], vorgang[2], identitaet)
+        : nichtErlaubt('PUT');
     }
     if (url.pathname === EHRUNGEN_IMPORT_PFAD) {
       return anfrage.method === 'POST'

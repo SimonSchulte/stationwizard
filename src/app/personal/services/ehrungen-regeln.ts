@@ -331,6 +331,8 @@ export function ansprueche(
 }
 
 export interface ZuEhrender {
+  /** Id der Person; `null`, wenn die übergebene Person keine hat (nur in Tests). */
+  personId: string | null;
   nachname: string;
   vorname: string;
   gruppe: 'Leistungsabzeichen' | 'Jubiläumszeichen' | 'Jubiläumsuhr' | 'Ehrenzeichen';
@@ -410,10 +412,11 @@ export function warnungen(
  * nach Stufe, Nach- und Vorname.
  */
 export function zuEhrende(
-  personen: readonly Pick<
+  personen: readonly (Pick<
     EhrungPerson,
     'nachname' | 'vorname' | 'stunden' | 'eintrittsdatum' | 'besondereVerdienste' | 'erhalten'
-  >[],
+  > &
+    Partial<Pick<EhrungPerson, 'id'>>)[],
   jahr: number = aktuellesJahr(),
 ): ZuEhrender[] {
   const gruppen = [
@@ -444,6 +447,7 @@ export function zuEhrende(
         })
         .join(', ');
       eintraege.push({
+        personId: person.id ?? null,
         nachname: person.nachname,
         vorname: person.vorname,
         gruppe: gruppe.name,

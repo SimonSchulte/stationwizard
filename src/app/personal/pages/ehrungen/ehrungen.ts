@@ -35,11 +35,7 @@ import { heuteIso, isoZuLokalesDatum, lokalesDatumZuIso } from '../../../kern/ka
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
 import { WorkerFehler } from '../../../kern/worker-client';
-import {
-  ehrungenExcelErzeugen,
-  EHRUNGEN_EXCEL_MEDIENTYP,
-  zuEhrendeExcelErzeugen,
-} from '../../services/ehrungen-excel';
+import { ehrungenExcelErzeugen, EHRUNGEN_EXCEL_MEDIENTYP } from '../../services/ehrungen-excel';
 import {
   EHRENZEICHEN,
   EHRUNG_BEZEICHNUNG,
@@ -68,8 +64,6 @@ import {
   type EhrungSchluessel,
   type Erhalten,
   type LeistungAbgleich,
-  type UhrArt,
-  uhrArtAusAnrede,
 } from '../../services/ehrungen-regeln';
 import { EhrungenService, type EhrungAenderung } from '../../services/ehrungen.service';
 import { EhrungenVerlauf, type VerlaufDaten } from './ehrungen-verlauf/ehrungen-verlauf';
@@ -866,53 +860,6 @@ export class Ehrungen implements OnInit {
     } catch (fehler) {
       this.fehler.set(
         fehler instanceof Error ? fehler.message : 'Die Excel-Datei konnte nicht erstellt werden.',
-      );
-    }
-  }
-
-  /**
-   * Excel „Zu Ehrende“. Für die Jubiläumsuhr (Damen/Herren) fragt der Export die HiOrg-Anrede ab,
-   * sofern eine Uhr offen ist und HiOrg verbunden ist; die Anrede wird nicht gespeichert.
-   */
-  async zuEhrendeHerunterladen(): Promise<void> {
-    this.fehler.set('');
-    this.rueckmeldung.set('');
-    try {
-      const personen = this.zeilen().map((zeile) => zeile.aktuell);
-      const uhrArten = new Map<string, UhrArt>();
-      let hinweis = '';
-      if (zuEhrende(personen, this.jahr).some((eintrag) => eintrag.gruppe === 'Jubiläumsuhr')) {
-        this.arbeitet.set(true);
-        try {
-          if ((await this.hiorg.verbindungLaden()) === 'verbunden') {
-            for (const person of await this.hiorg.personalLaden()) {
-              const art = uhrArtAusAnrede(person.anrede);
-              if (art) uhrArten.set(personSchluessel(person.nachname, person.vorname), art);
-            }
-          } else {
-            hinweis = 'HiOrg ist nicht verbunden';
-          }
-        } catch {
-          hinweis = 'HiOrg war nicht erreichbar';
-        } finally {
-          this.arbeitet.set(false);
-        }
-        const offen = zuEhrende(personen, this.jahr).filter(
-          (eintrag) =>
-            eintrag.gruppe === 'Jubiläumsuhr' &&
-            !uhrArten.has(personSchluessel(eintrag.nachname, eintrag.vorname)),
-        ).length;
-        if (offen > 0) {
-          this.rueckmeldung.set(
-            `${hinweis ? hinweis + ': ' : ''}Bei ${offen} Jubiläumsuhr(en) ließ sich Damen/Herren nicht aus der HiOrg-Anrede ermitteln und bleibt in der Liste offen.`,
-          );
-        }
-      }
-      const daten = await zuEhrendeExcelErzeugen(personen, this.jahr, uhrArten);
-      dateiHerunterladen(daten, `zu-ehrende-${heuteIso()}.xlsx`, EHRUNGEN_EXCEL_MEDIENTYP);
-    } catch (fehler) {
-      this.fehler.set(
-        fehler instanceof Error ? fehler.message : 'Die Liste konnte nicht erstellt werden.',
       );
     }
   }

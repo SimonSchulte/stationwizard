@@ -11,6 +11,7 @@ import {
   type EhrungSchluessel,
   warnungen,
 } from './ehrungen-regeln';
+import { vorgangSchluessel, type EhrungVorgang } from './ehrungen.service';
 
 export const EHRUNGEN_EXCEL_MEDIENTYP =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -119,6 +120,7 @@ export async function zuEhrendeExcelErzeugen(
   personen: readonly EhrungPerson[],
   jahr: number,
   uhrArten: ReadonlyMap<string, UhrArt> = new Map(),
+  vorgaenge: ReadonlyMap<string, Pick<EhrungVorgang, 'abgestimmtOb' | 'beantragt'>> = new Map(),
 ): Promise<ArrayBuffer> {
   const XLSX = await import('@e965/xlsx');
   const auszeichnung = (eintrag: ReturnType<typeof zuEhrende>[number]) => {
@@ -133,21 +135,30 @@ export async function zuEhrendeExcelErzeugen(
     'Vorname',
     'Grundlage',
     'Bisher erhalten',
+    'Abgestimmt OB',
+    'Beantragt',
     'Anspruch bis',
     'Hinweis',
   ];
-  const zeilen = zuEhrende(personen, jahr).map((eintrag) => [
-    auszeichnung(eintrag),
-    eintrag.gruppe,
-    eintrag.nachname,
-    eintrag.vorname,
-    eintrag.grundlage,
-    eintrag.bisher,
-    eintrag.anspruchBis === eintrag.auszeichnung ? '' : EHRUNG_BEZEICHNUNG[eintrag.anspruchBis],
-    eintrag.hinweis,
-  ]);
+  const zeilen = zuEhrende(personen, jahr).map((eintrag) => {
+    const stand = eintrag.personId
+      ? vorgaenge.get(vorgangSchluessel(eintrag.personId, eintrag.auszeichnung))
+      : undefined;
+    return [
+      auszeichnung(eintrag),
+      eintrag.gruppe,
+      eintrag.nachname,
+      eintrag.vorname,
+      eintrag.grundlage,
+      eintrag.bisher,
+      stand?.abgestimmtOb ? JA : '',
+      stand?.beantragt ? JA : '',
+      eintrag.anspruchBis === eintrag.auszeichnung ? '' : EHRUNG_BEZEICHNUNG[eintrag.anspruchBis],
+      eintrag.hinweis,
+    ];
+  });
   const blatt = XLSX.utils.aoa_to_sheet([kopf, ...zeilen]);
-  blatt['!cols'] = [38, 20, 20, 20, 44, 28, 30, 60].map((wch) => ({ wch }));
+  blatt['!cols'] = [38, 20, 20, 20, 44, 28, 15, 12, 30, 60].map((wch) => ({ wch }));
   const mappe = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(mappe, blatt, `Zu Ehrende ${jahr}`);
   anWarnungenAnhaengen(XLSX, mappe, personen, jahr);

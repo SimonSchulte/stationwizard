@@ -1,6 +1,7 @@
 import * as XLSX from '@e965/xlsx';
 import { describe, expect, it } from 'vitest';
 import { ehrungenExcelErzeugen, zuEhrendeExcelErzeugen } from './ehrungen-excel';
+import { vorgangSchluessel } from './ehrungen.service';
 import { personSchluessel, type EhrungPerson } from './ehrungen-regeln';
 
 function person(nachname: string, ueberschreibung: Partial<EhrungPerson> = {}): EhrungPerson {
@@ -48,6 +49,8 @@ describe('Export „Zu Ehrende“', () => {
         Vorname: 'Test',
         Grundlage: '4.500 Stunden',
         'Bisher erhalten': 'Bronze 2012',
+        'Abgestimmt OB': '',
+        Beantragt: '',
         'Anspruch bis': 'Gold',
         Hinweis: 'Anspruch bis Gold, aber zuerst Silber vergeben.',
       },
@@ -58,6 +61,8 @@ describe('Export „Zu Ehrende“', () => {
         Vorname: 'Test',
         Grundlage: '26 Jahre Mitglied (seit 01.03.2000)',
         'Bisher erhalten': '',
+        'Abgestimmt OB': '',
+        Beantragt: '',
         'Anspruch bis': '',
         Hinweis: '',
       },
@@ -85,6 +90,33 @@ describe('Export „Zu Ehrende“', () => {
     expect(zeilen.map((z) => `${z['Nachname']}: ${z['Auszeichnung']}`)).toEqual([
       'Alt: Jubiläumsuhr Damen 30 Jahre',
       'Ohne: Jubiläumsuhr (Damen/Herren offen) 30 Jahre',
+    ]);
+  });
+});
+
+describe('Export „Zu Ehrende“ mit Bearbeitungsstand', () => {
+  it('führt Abgestimmt OB und Beantragt je Person und Auszeichnung', async () => {
+    const daten = await zuEhrendeExcelErzeugen(
+      [
+        person('Anna', { stunden: 1500, erhalten: {} }),
+        person('Bert', { stunden: 1500, erhalten: {} }),
+      ],
+      2026,
+      new Map(),
+      new Map([
+        [vorgangSchluessel('Anna', 'bronze'), { abgestimmtOb: true, beantragt: false }],
+        [vorgangSchluessel('Bert', 'bronze'), { abgestimmtOb: true, beantragt: true }],
+        // gleiche Person, andere Auszeichnung: darf nicht zugeordnet werden
+        [vorgangSchluessel('Anna', 'silber'), { abgestimmtOb: true, beantragt: true }],
+      ]),
+    );
+    const mappe = XLSX.read(daten, { type: 'array' });
+    const zeilen = XLSX.utils.sheet_to_json<Record<string, string>>(
+      mappe.Sheets['Zu Ehrende 2026'],
+    );
+    expect(zeilen.map((z) => [z['Nachname'], z['Abgestimmt OB'], z['Beantragt']])).toEqual([
+      ['Anna', 'ja', ''],
+      ['Bert', 'ja', 'ja'],
     ]);
   });
 });
