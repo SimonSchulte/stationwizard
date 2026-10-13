@@ -2981,7 +2981,7 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   vermerkt „zuletzt erstellt am“. Neue Spalte „Begründung“, Tätigkeit wird je Download abgefragt, LV/RV kommen
   aus den neuen Organisationsstammdaten der Systemkonfiguration (nur Zugführung). Straße, Wohnort,
   Geburtsdatum bleiben leer, weil Anschrift und Geburtsdaten den Worker nie verlassen. Formular im
-  Verwaltungsbereich unter „Ehrungsantrag-Vorlage“ hochladen. **Migration `0018_ehrungsantrag.sql` vor dem
+  Verwaltungsbereich unter „Ehrungsantrag-Vorlage“ hochladen. **Migration `0019_ehrungsantrag.sql` vor dem
   Rollout des Workers auf `BENUTZER_DB` anwenden** (Spalten `begruendung`/`antrag_erstellt_am`, Tabelle
   `ehrungsantrag_vorlage`, Startbestand LV/RV). Geprüft: Build, `npm test` (Client 1060, Worker 854),
   `worker:check`, `test:spa`, `deploy:dry-run`, Formatprüfung; Browser (Desktop 1400 px, Mobil 390 px) gegen

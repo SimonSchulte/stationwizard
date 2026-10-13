@@ -7,7 +7,7 @@ import { starkesEtag, versionAusEtag } from './etag';
 /**
  * Gemeinsame Ablage einer einzelnen hinterlegten Dokumentvorlage, die der Client füllt: die
  * Word-Vorlage der Führerscheinliste (`fuehrerschein-vorlage.ts`, Migration 0012) und das
- * PDF-Formular des Ehrungsantrags (`ehrungsantrag-vorlage.ts`, Migration 0018). Der Worker liest
+ * PDF-Formular des Ehrungsantrags (`ehrungsantrag-vorlage.ts`, Migration 0019). Der Worker liest
  * oder schreibt dabei nie in die Datei hinein, er verwahrt sie nur. Genau eine Zeile mit fester
  * `id` je Tabelle; Ersetzen nur mit `If-Match`, Neuanlage nur mit `If-None-Match: *`.
  */

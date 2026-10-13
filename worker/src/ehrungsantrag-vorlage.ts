@@ -9,7 +9,7 @@ import {
  * PDF-Formular „Antrag auf Verleihung einer Auszeichnung“ (Seite „Offene Ehrungen“): im
  * Verwaltungsbereich hinterlegt, im Browser mit den Daten des Ehrungsmanagers gefüllt
  * (`personal/services/ehrungsantrag-pdf.ts`). Der Worker verwahrt die Datei nur; Ablage gemeinsam
- * mit der Führerschein-Vorlage in `datei-vorlage.ts`, Migration 0018.
+ * mit der Führerschein-Vorlage in `datei-vorlage.ts`, Migration 0019.
  */
 export type EhrungsantragVorlageKonfiguration = DateiVorlageKonfiguration;
 
