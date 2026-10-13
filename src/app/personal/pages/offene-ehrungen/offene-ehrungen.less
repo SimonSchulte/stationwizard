@@ -22,7 +22,9 @@
 
 .inhalt {
   width: 100%;
-  max-width: var(--content-width);
+  // Breite Tabelle mit Begründung und Hinweis: wie die Fahrzeugliste die volle Breite nutzen,
+  // sonst wird die letzte Spalte auf großen Bildschirmen abgeschnitten.
+  max-width: none;
   margin: 0 auto;
   padding: var(--space-lg);
 }
@@ -110,7 +112,22 @@ table {
 }
 
 .begruendung-zelle {
-  min-width: 240px;
+  width: 28%;
+  min-width: 200px;
+}
+
+.hinweis-zelle {
+  min-width: 170px;
+}
+
+// Neun Spalten: engere Zellabstände, damit die Tabelle ab 1280 px ohne Querscrollen auskommt.
+.mat-mdc-header-cell,
+.mat-mdc-cell {
+  padding-inline: var(--space-sm);
+}
+
+.name-zelle {
+  min-width: 140px;
 }
 
 .begruendung {

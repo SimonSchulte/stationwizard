@@ -2991,3 +2991,6 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   gefüllten PDFs (mit dem echten Formular, nur lokal), Systemkonfiguration und Vorlagenseite. Nicht geprüft:
   gegen die echte Datenbank, echte HiOrg-Gruppen und -Anreden, Öffnen des PDFs in Adobe Reader; am Handy
   scrollt die Tabelle horizontal.
+  Nachtrag: „Offene Ehrungen“ nutzt die volle Seitenbreite (wie die Fahrzeugliste) mit engeren Zellabständen;
+  im Browser bei 2000 px und 1280 px ohne Querscrollen und ohne abgeschnittenen Hinweis geprüft, bei 390 px
+  scrollt die Tabelle weiterhin in ihrem Rahmen.
