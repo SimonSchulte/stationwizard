@@ -27,6 +27,7 @@ import {
 } from './fuehrerschein-vorlage';
 import {
   HIORG_CODE_PFAD,
+  HIORG_ANTRAGSDATEN_MUSTER,
   HIORG_PERSONAL_PFAD,
   HIORG_RUECKRUF_PFAD,
   HIORG_VERBINDEN_PFAD,
@@ -207,7 +208,8 @@ export default {
     if (
       url.pathname === HIORG_VERBINDUNG_PFAD ||
       url.pathname === HIORG_CODE_PFAD ||
-      url.pathname === HIORG_PERSONAL_PFAD
+      url.pathname === HIORG_PERSONAL_PFAD ||
+      HIORG_ANTRAGSDATEN_MUSTER.test(url.pathname)
     ) {
       return verarbeiteHiorgApi(anfrage, umgebung, benutzer);
     }

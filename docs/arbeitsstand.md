@@ -2994,3 +2994,10 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Nachtrag: „Offene Ehrungen“ nutzt die volle Seitenbreite (wie die Fahrzeugliste) mit engeren Zellabständen;
   im Browser bei 2000 px und 1280 px ohne Querscrollen und ohne abgeschnittenen Hinweis geprüft, bei 390 px
   scrollt die Tabelle weiterhin in ihrem Rahmen.
+  Nachtrag: Straße, Wohnort und Geburtsdatum stehen jetzt im Antrag, auf Wunsch des Betreibers. Neuer Endpunkt
+  `GET /api/hiorg/personal/<Id>/antragsdaten` gibt nur Anrede, `adresse`, `plz`, `ort` und `gebdat` genau einer
+  Person heraus (nicht in der allgemeinen Liste, nie gespeichert); die Feldnamen stammen aus der offiziellen
+  Beispielantwort, **gegen die echte API nicht geprüft**. Frau/Herr kommt aus derselben Antwort; war HiOrg beim
+  Öffnen der Seite nicht verbunden, wird die Zuordnung beim Download nachgeladen (vorher blieb das Kästchen leer).
+  Geprüft: Worker-Tests (Feldauswahl, eine Person, 404, Methode/Query), Client-Tests, Browser mit simulierter
+  API (Abruf genau einmal je Antrag, PDF mit Straße, Wohnort, Geburtsdatum und Kreuz bei Frau).

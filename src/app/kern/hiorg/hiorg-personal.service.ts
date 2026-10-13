@@ -28,6 +28,33 @@ export interface HiorgPerson {
   anrede?: string;
 }
 
+/**
+ * Nur für das Ausfüllen des Ehrungsantrags, je Person einzeln abgerufen
+ * (`GET /api/hiorg/personal/<Id>/antragsdaten`); wird nie gespeichert. `null`, wo bei HiOrg
+ * nichts Verwertbares erfasst ist.
+ */
+export interface HiorgAntragsdaten {
+  anrede: string | null;
+  strasse: string | null;
+  plz: string | null;
+  ort: string | null;
+  /** `JJJJ-MM-TT`. */
+  geburtsdatum: string | null;
+}
+
+export function istHiorgAntragsdaten(wert: unknown): wert is HiorgAntragsdaten {
+  return (
+    istObjekt(wert) &&
+    istTextOderNull(wert['anrede']) &&
+    istTextOderNull(wert['strasse']) &&
+    istTextOderNull(wert['plz']) &&
+    istTextOderNull(wert['ort']) &&
+    (wert['geburtsdatum'] === null ||
+      (typeof wert['geburtsdatum'] === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(wert['geburtsdatum'])))
+  );
+}
+
 export type HiorgVerbindung = 'ungeprueft' | 'nicht-eingerichtet' | 'getrennt' | 'verbunden';
 
 /**
@@ -172,6 +199,17 @@ export class HiorgPersonalService {
       (a, b) =>
         a.nachname.localeCompare(b.nachname, 'de') || a.vorname.localeCompare(b.vorname, 'de'),
     );
+  }
+
+  /** Anschrift, Geburtsdatum und Anrede genau einer Person, bewusst nur beim Erstellen eines Antrags. */
+  async antragsdatenLaden(personId: string): Promise<HiorgAntragsdaten> {
+    const antwort = await this.worker.json<unknown>(
+      `/api/hiorg/personal/${encodeURIComponent(personId)}/antragsdaten`,
+    );
+    if (!istHiorgAntragsdaten(antwort)) {
+      throw new WorkerFehler('Der Server hat keine gültigen Antragsdaten geliefert.', 502);
+    }
+    return antwort;
   }
 
   /** Manueller Rückruf: die aus dem Anmelde-Tab kopierte Adresse an den Worker geben. */

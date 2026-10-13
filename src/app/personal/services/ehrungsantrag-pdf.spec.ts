@@ -57,6 +57,12 @@ function daten(ueberschreibung: Partial<EhrungsantragDaten> = {}): Ehrungsantrag
     taetigkeit: 'Sanitätshelfer',
     begruendung: '  Besonderer Einsatz  ',
     anrede: 'Herren',
+    anschrift: {
+      strasse: 'Beispielweg 1',
+      plz: '12345',
+      ort: 'Musterstadt',
+      geburtsdatum: '1970-02-07',
+    },
     ...ueberschreibung,
   };
 }
@@ -80,21 +86,23 @@ describe('ehrungsantragFuellen', () => {
     expect(text('Bronze_2')).toBe('2015');
     expect(text('25 Jahre')).toBe('erhalten');
     expect(text('Gold_2')).toBe('');
-    // Anschrift und Geburtsdatum bleiben leer, aber vorhanden und beschreibbar.
-    expect(text('Straße')).toBe('');
-    expect(text('Geburtsdatum')).toBe('');
+    // Anschrift und Geburtsdatum aus HiOrg; die Felder bleiben beschreibbar.
+    expect(text('Straße')).toBe('Beispielweg 1');
+    expect(text('Wohnort')).toBe('12345 Musterstadt');
+    expect(text('Geburtsdatum')).toBe('07.02.1970');
     expect(formular.getTextField('Straße').isReadOnly()).toBe(false);
     // Genau die beantragte Auszeichnung ist angekreuzt.
     const angekreuzt = KAESTCHEN.filter((name) => formular.getCheckBox(name).isChecked());
     expect(angekreuzt).toEqual(['Herr', 'Leistungsabzeichen_2']);
   });
 
-  it('lässt Frau/Herr ohne eindeutige Anrede und ein fehlendes Eintrittsdatum leer', async () => {
+  it('lässt Frau/Herr, Anschrift und Eintrittsdatum leer, wenn sie nicht vorliegen', async () => {
     const formular = await lesen(
       await ehrungsantragFuellen(
         await vorlage(),
         daten({
           anrede: null,
+          anschrift: null,
           auszeichnung: 'ehrennadel',
           person: { ...daten().person, eintrittsdatum: null },
         }),
@@ -104,6 +112,9 @@ describe('ehrungsantragFuellen', () => {
     expect(formular.getCheckBox('Herr').isChecked()).toBe(false);
     expect(formular.getCheckBox('Ehrennadel mit Band des').isChecked()).toBe(true);
     expect(formular.getTextField('Mitglied seit').getText() ?? '').toBe('');
+    for (const feld of ['Straße', 'Wohnort', 'Geburtsdatum']) {
+      expect(formular.getTextField(feld).getText() ?? '').toBe('');
+    }
   });
 
   it('bricht bei einer unpassenden Vorlage ab, statt halb zu füllen', async () => {

@@ -21,7 +21,10 @@ import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter
 import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import { gruppenJePersonLaden } from '../../services/hiorg-gruppen';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { HiorgPersonalService } from '../../../kern/hiorg/hiorg-personal.service';
+import {
+  HiorgPersonalService,
+  type HiorgAntragsdaten,
+} from '../../../kern/hiorg/hiorg-personal.service';
 import { WorkerFehler } from '../../../kern/worker-client';
 import { ApiSystemkonfigurationStorage } from '../../../systemkonfiguration/storage/api-systemkonfiguration-storage';
 import { EHRUNGSANTRAG_MEDIENTYP, ehrungsantragFuellen } from '../../services/ehrungsantrag-pdf';
@@ -126,6 +129,8 @@ export class OffeneEhrungen implements OnInit {
   private letzteTaetigkeit = '';
   /** HiOrg-Anrede je Person (für Frau/Herr im Antrag); nie gespeichert. */
   private readonly anredeJePerson = signal<ReadonlyMap<string, string>>(new Map());
+  /** HiOrg-Id je Person, um beim Antrag deren Anschrift einzeln abzurufen; nie gespeichert. */
+  private hiorgIdJePerson: ReadonlyMap<string, string> = new Map();
   /** Gruppen je Person aus HiOrg (Best effort, ohne Verbindung leer); leere Auswahl heißt alle. */
   private readonly gruppenJePerson = signal<ReadonlyMap<string, string[]>>(new Map());
   readonly gruppen = computed(() =>
@@ -224,11 +229,43 @@ export class OffeneEhrungen implements OnInit {
       this.laedt.set(false);
     }
     // Nur für den Gruppenfilter; die Tabelle wartet nicht darauf.
-    if (this.gruppenJePerson().size === 0) {
-      const ergebnis = await gruppenJePersonLaden(this.hiorg);
-      this.gruppenJePerson.set(ergebnis.gruppen);
-      this.anredeJePerson.set(ergebnis.anreden);
-      this.gruppenHinweis.set(ergebnis.hinweis);
+    if (this.gruppenJePerson().size === 0) await this.hiorgZuordnungLaden();
+  }
+
+  private async hiorgZuordnungLaden(): Promise<void> {
+    const ergebnis = await gruppenJePersonLaden(this.hiorg);
+    this.gruppenJePerson.set(ergebnis.gruppen);
+    this.anredeJePerson.set(ergebnis.anreden);
+    this.hiorgIdJePerson = ergebnis.ids;
+    this.gruppenHinweis.set(ergebnis.hinweis);
+  }
+
+  /**
+   * Anrede und Anschrift für den Antrag. Fehlt die HiOrg-Zuordnung (etwa weil HiOrg beim Öffnen
+   * der Seite nicht verbunden war), wird sie einmal nachgeladen. Ohne Treffer bleiben die Felder
+   * leer; der Grund steht in `hinweis`.
+   */
+  private async antragsangaben(
+    schluessel: string,
+  ): Promise<{ anschrift: HiorgAntragsdaten | null; anrede: string | undefined; hinweis: string }> {
+    if (this.hiorgIdJePerson.size === 0) await this.hiorgZuordnungLaden();
+    const anrede = this.anredeJePerson().get(schluessel);
+    if (this.hiorgIdJePerson.size === 0) {
+      return { anschrift: null, anrede, hinweis: this.gruppenHinweis() || 'HiOrg nicht verbunden' };
+    }
+    const id = this.hiorgIdJePerson.get(schluessel);
+    if (!id) {
+      return {
+        anschrift: null,
+        anrede,
+        hinweis: 'Person in HiOrg nicht eindeutig gefunden (Name abweichend oder doppelt)',
+      };
+    }
+    try {
+      const anschrift = await this.hiorg.antragsdatenLaden(id);
+      return { anschrift, anrede: anschrift.anrede ?? anrede, hinweis: '' };
+    } catch {
+      return { anschrift: null, anrede, hinweis: 'Anschrift aus HiOrg nicht abrufbar' };
     }
   }
 
@@ -348,8 +385,9 @@ export class OffeneEhrungen implements OnInit {
       ]);
       const { organisationLandesverband, organisationRegionalverband } =
         konfiguration.einstellungen;
-      const schluessel = personSchluessel(person.nachname, person.vorname);
-      const anrede = uhrArtAusAnrede(this.anredeJePerson().get(schluessel));
+      const angaben = await this.antragsangaben(personSchluessel(person.nachname, person.vorname));
+      const anrede = uhrArtAusAnrede(angaben.anrede);
+      const anschrift = angaben.anschrift;
       const aktuell = this.dienst.vorgaenge().get(zeile.id);
       const pdf = await ehrungsantragFuellen(vorlage, {
         person,
@@ -359,6 +397,7 @@ export class OffeneEhrungen implements OnInit {
         taetigkeit,
         begruendung: aktuell?.begruendung ?? zeile.begruendung,
         anrede,
+        anschrift,
       });
       dateiHerunterladen(
         pdf.slice(),
@@ -370,7 +409,15 @@ export class OffeneEhrungen implements OnInit {
         offen.push('Landes- bzw. Regionalverband (Systemkonfiguration, Organisationsstammdaten)');
       }
       if (!anrede) offen.push('Frau/Herr');
-      offen.push('Straße, Wohnort, Geburtsdatum und Unterschriften');
+      const fehlend = [
+        !anschrift?.strasse && 'Straße',
+        !(anschrift?.plz || anschrift?.ort) && 'Wohnort',
+        !anschrift?.geburtsdatum && 'Geburtsdatum',
+      ].filter((feld): feld is string => !!feld);
+      if (fehlend.length > 0) {
+        offen.push(`${fehlend.join(', ')}${angaben.hinweis ? ` (${angaben.hinweis})` : ''}`);
+      }
+      offen.push('Datum der Verleihung und Unterschriften');
       this.rueckmeldung.set(`Antrag erstellt. Von Hand zu ergänzen: ${offen.join('; ')}.`);
       const vermerkt = await this.vorgangSpeichern(zeile, () =>
         this.dienst.vorgangAendern(personId, zeile.eintrag.auszeichnung, { antragErstellt: true }),

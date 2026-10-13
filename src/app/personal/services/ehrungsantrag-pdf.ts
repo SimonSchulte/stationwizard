@@ -2,10 +2,10 @@ import type { EhrungPerson, EhrungSchluessel, UhrArt } from './ehrungen-regeln';
 
 /**
  * Füllt das PDF-Formular „Antrag auf Verleihung einer Auszeichnung“ (Johanniter, Revision 3.2) im
- * Browser. Die Formularfelder bleiben Formularfelder – nichts wird abgeflacht –, sodass Straße,
- * Wohnort, Geburtsdatum, Datum der Verleihung und Unterschriften danach von Hand ergänzt werden
- * können. Anschrift und Geburtsdaten verlassen den Worker nie (siehe `hiorg-api.ts`), deshalb
- * bleiben diese Felder hier immer leer.
+ * Browser. Die Formularfelder bleiben Formularfelder – nichts wird abgeflacht –, sodass alles
+ * Fehlende (Datum der Verleihung, Unterschriften, nicht erfasste Angaben) danach von Hand ergänzt
+ * werden kann. Straße, Wohnort und Geburtsdatum kommen nur für diesen Antrag einzeln aus HiOrg
+ * (`GET /api/hiorg/personal/<Id>/antragsdaten`) und werden nie gespeichert.
  *
  * Die Feldnamen stammen aus der Vorlage selbst und sind teils irreführend: das Feld für
  * „Name, Vorname“ heißt `über den Landesverband einzureichen`, die Begründung `Text1`, die
@@ -19,6 +19,9 @@ export const EHRUNGSANTRAG_MEDIENTYP = 'application/pdf';
 const FELD_NAME = 'über den Landesverband einzureichen';
 const FELD_LV = 'LV';
 const FELD_RV = 'RVKV';
+const FELD_STRASSE = 'Straße';
+const FELD_WOHNORT = 'Wohnort';
+const FELD_GEBURTSDATUM = 'Geburtsdatum';
 const FELD_MITGLIED_SEIT = 'Mitglied seit';
 const FELD_TAETIGKEIT = 'Tätigkeit';
 const FELD_DIENSTSTUNDEN = 'Dienststunden';
@@ -64,6 +67,9 @@ const TEXTFELDER = [
   FELD_NAME,
   FELD_LV,
   FELD_RV,
+  FELD_STRASSE,
+  FELD_WOHNORT,
+  FELD_GEBURTSDATUM,
   FELD_MITGLIED_SEIT,
   FELD_TAETIGKEIT,
   FELD_DIENSTSTUNDEN,
@@ -81,6 +87,14 @@ export interface EhrungsantragDaten {
   begruendung: string;
   /** Aus der HiOrg-Anrede; `null` lässt Frau/Herr offen. */
   anrede: UhrArt | null;
+  /** Aus HiOrg für genau diesen Antrag; fehlt sie, bleiben die Felder leer. */
+  anschrift?: {
+    strasse: string | null;
+    plz: string | null;
+    ort: string | null;
+    /** `JJJJ-MM-TT`. */
+    geburtsdatum: string | null;
+  } | null;
 }
 
 /** `JJJJ-MM-TT` → `TT.MM.JJJJ`; ohne Zeitzonenumrechnung, damit sich der Tag nicht verschiebt. */
@@ -144,6 +158,9 @@ export async function ehrungsantragFuellen(
   text(FELD_NAME, `${daten.person.nachname}, ${daten.person.vorname}`);
   text(FELD_LV, daten.landesverband);
   text(FELD_RV, daten.regionalverband);
+  text(FELD_STRASSE, daten.anschrift?.strasse ?? '');
+  text(FELD_WOHNORT, [daten.anschrift?.plz, daten.anschrift?.ort].filter(Boolean).join(' '));
+  text(FELD_GEBURTSDATUM, deutschesDatum(daten.anschrift?.geburtsdatum ?? null));
   text(FELD_MITGLIED_SEIT, deutschesDatum(daten.person.eintrittsdatum));
   text(FELD_TAETIGKEIT, daten.taetigkeit.trim());
   text(FELD_DIENSTSTUNDEN, daten.person.stunden.toLocaleString('de-DE'));
