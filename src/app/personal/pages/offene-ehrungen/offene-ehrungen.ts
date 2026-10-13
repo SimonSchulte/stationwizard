@@ -9,7 +9,9 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -18,7 +20,12 @@ import { RouterLink } from '@angular/router';
 import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
 import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import { gruppenJePersonLaden } from '../../services/hiorg-gruppen';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { HiorgPersonalService } from '../../../kern/hiorg/hiorg-personal.service';
+import { WorkerFehler } from '../../../kern/worker-client';
+import { ApiSystemkonfigurationStorage } from '../../../systemkonfiguration/storage/api-systemkonfiguration-storage';
+import { EHRUNGSANTRAG_MEDIENTYP, ehrungsantragFuellen } from '../../services/ehrungsantrag-pdf';
+import { EhrungsantragVorlageService } from '../../services/fuehrerschein-vorlage.service';
 import { heuteIso } from '../../../kern/kalender/datum';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { EHRUNGEN_EXCEL_MEDIENTYP, zuEhrendeExcelErzeugen } from '../../services/ehrungen-excel';
@@ -32,11 +39,7 @@ import {
   type UhrArt,
   type ZuEhrender,
 } from '../../services/ehrungen-regeln';
-import {
-  EhrungenService,
-  vorgangSchluessel,
-  type VorgangFeld,
-} from '../../services/ehrungen.service';
+import { EhrungenService, vorgangSchluessel } from '../../services/ehrungen.service';
 
 type Bearbeitung = 'alle' | 'offen' | 'abgestimmt' | 'beantragt';
 
@@ -47,13 +50,31 @@ interface Zeile {
   auszeichnung: string;
   abgestimmtOb: boolean;
   beantragt: boolean;
+  /** Gespeicherte Begründung; leer, wenn keine erfasst ist. */
+  begruendung: string;
+  antragErstelltAm: string | null;
+}
+
+/** Nur Buchstaben, Ziffern und Bindestriche im Dateinamen. */
+function dateinamenTeil(text: string): string {
+  return (
+    text
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/ß/g, 'ss')
+      .replace(/[^A-Za-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'person'
+  );
 }
 
 /**
  * Offene Ehrungen: alle jetzt zu vergebenden, noch nicht als erhalten erfassten Auszeichnungen
- * (aus dem gespeicherten Stand, nicht aus ungesicherten Änderungen des Ehrungsmanagers) mit den
- * Haken „Abgestimmt OB“ und „Beantragt“. Die Haken werden sofort je Klick gespeichert; der
- * Excel-Export enthält dieselbe Liste samt Haken.
+ * (aus dem gespeicherten Stand, nicht aus ungesicherten Änderungen des Ehrungsmanagers) mit dem
+ * Haken „Abgestimmt OB“, einer Begründung und dem Antrag als PDF. Haken und Begründung werden
+ * sofort gespeichert; der Download füllt die im Verwaltungsbereich hinterlegte Antragsvorlage
+ * (`ehrungsantrag-pdf.ts`) und vermerkt den Zeitpunkt, der als „zuletzt erstellt am“ erscheint
+ * und den Vorgang als beantragt zählt. Der Excel-Export enthält dieselbe Liste samt Haken.
  */
 @Component({
   selector: 'app-offene-ehrungen',
@@ -62,7 +83,9 @@ interface Zeile {
     MatButtonModule,
     MatButtonToggleModule,
     MatCheckboxModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
     MatProgressSpinnerModule,
     MatTableModule,
     MatToolbarModule,
@@ -76,6 +99,9 @@ interface Zeile {
 export class OffeneEhrungen implements OnInit {
   private readonly dienst = inject(EhrungenService);
   private readonly hiorg = inject(HiorgPersonalService);
+  private readonly dialogDienst = inject(DialogDienst);
+  private readonly antragVorlage = inject(EhrungsantragVorlageService);
+  private readonly systemkonfiguration = inject(ApiSystemkonfigurationStorage);
 
   readonly jahr = aktuellesJahr();
   readonly spalten = [
@@ -84,7 +110,8 @@ export class OffeneEhrungen implements OnInit {
     'grundlage',
     'bisher',
     'abgestimmtOb',
-    'beantragt',
+    'begruendung',
+    'antrag',
     'hinweis',
   ];
 
@@ -93,6 +120,12 @@ export class OffeneEhrungen implements OnInit {
   readonly fehler = signal('');
   readonly rueckmeldung = signal('');
   readonly bearbeitung = signal<Bearbeitung>('alle');
+  /** Begründungen, die gerade bearbeitet und noch nicht gespeichert sind, je Zeilen-Id. */
+  readonly begruendungEntwurf = signal<ReadonlyMap<string, string>>(new Map());
+  /** Zuletzt eingegebene Tätigkeit, nur für diese Sitzung als Vorschlag. */
+  private letzteTaetigkeit = '';
+  /** HiOrg-Anrede je Person (für Frau/Herr im Antrag); nie gespeichert. */
+  private readonly anredeJePerson = signal<ReadonlyMap<string, string>>(new Map());
   /** Gruppen je Person aus HiOrg (Best effort, ohne Verbindung leer); leere Auswahl heißt alle. */
   private readonly gruppenJePerson = signal<ReadonlyMap<string, string[]>>(new Map());
   readonly gruppen = computed(() =>
@@ -126,6 +159,8 @@ export class OffeneEhrungen implements OnInit {
         auszeichnung: this.auszeichnungText(eintrag.auszeichnung),
         abgestimmtOb: stand?.abgestimmtOb ?? false,
         beantragt: stand?.beantragt ?? false,
+        begruendung: stand?.begruendung ?? '',
+        antragErstelltAm: stand?.antragErstelltAm ?? null,
       };
     });
   });
@@ -192,6 +227,7 @@ export class OffeneEhrungen implements OnInit {
     if (this.gruppenJePerson().size === 0) {
       const ergebnis = await gruppenJePersonLaden(this.hiorg);
       this.gruppenJePerson.set(ergebnis.gruppen);
+      this.anredeJePerson.set(ergebnis.anreden);
       this.gruppenHinweis.set(ergebnis.hinweis);
     }
   }
@@ -204,23 +240,156 @@ export class OffeneEhrungen implements OnInit {
     return EHRUNG_BEZEICHNUNG[schluessel];
   }
 
-  async haken(zeile: Zeile, feld: VorgangFeld, wert: boolean): Promise<void> {
-    const personId = zeile.eintrag.personId;
-    if (!personId || this.speichernd().has(zeile.id)) return;
+  private async vorgangSpeichern(zeile: Zeile, aktion: () => Promise<void>): Promise<boolean> {
+    if (!zeile.eintrag.personId || this.speichernd().has(zeile.id)) return false;
     this.fehler.set('');
     this.speichernd.update((alt) => new Set(alt).add(zeile.id));
     try {
-      await this.dienst.vorgangSetzen(personId, zeile.eintrag.auszeichnung, feld, wert);
+      await aktion();
+      return true;
     } catch (fehler) {
       this.fehler.set(
-        fehler instanceof Error ? fehler.message : 'Der Haken konnte nicht gespeichert werden.',
+        fehler instanceof Error ? fehler.message : 'Der Stand konnte nicht gespeichert werden.',
       );
+      return false;
     } finally {
       this.speichernd.update((alt) => {
         const neu = new Set(alt);
         neu.delete(zeile.id);
         return neu;
       });
+    }
+  }
+
+  async abgestimmt(zeile: Zeile, wert: boolean): Promise<void> {
+    const personId = zeile.eintrag.personId;
+    if (!personId) return;
+    await this.vorgangSpeichern(zeile, () =>
+      this.dienst.vorgangSetzen(personId, zeile.eintrag.auszeichnung, 'abgestimmtOb', wert),
+    );
+  }
+
+  begruendungText(zeile: Zeile): string {
+    return this.begruendungEntwurf().get(zeile.id) ?? zeile.begruendung;
+  }
+
+  begruendungGeaendert(zeile: Zeile, text: string): void {
+    this.begruendungEntwurf.update((alt) => new Map(alt).set(zeile.id, text));
+  }
+
+  /** Speichert beim Verlassen des Feldes, und nur, wenn sich der Text tatsächlich geändert hat. */
+  async begruendungSpeichern(zeile: Zeile): Promise<boolean> {
+    const entwurf = this.begruendungEntwurf().get(zeile.id);
+    const personId = zeile.eintrag.personId;
+    if (entwurf === undefined || !personId) return true;
+    if (entwurf.trim() === zeile.begruendung) {
+      this.entwurfVerwerfen(zeile.id);
+      return true;
+    }
+    const gespeichert = await this.vorgangSpeichern(zeile, () =>
+      this.dienst.vorgangAendern(personId, zeile.eintrag.auszeichnung, { begruendung: entwurf }),
+    );
+    if (gespeichert) this.entwurfVerwerfen(zeile.id);
+    return gespeichert;
+  }
+
+  private entwurfVerwerfen(id: string): void {
+    this.begruendungEntwurf.update((alt) => {
+      const neu = new Map(alt);
+      neu.delete(id);
+      return neu;
+    });
+  }
+
+  /** `TT.MM.JJJJ` des zuletzt erstellten Antrags in Berliner Zeit. */
+  erstelltAm(zeile: Zeile): string {
+    if (!zeile.antragErstelltAm) return '';
+    const zeitpunkt = new Date(zeile.antragErstelltAm);
+    return Number.isNaN(zeitpunkt.getTime())
+      ? ''
+      : zeitpunkt.toLocaleDateString('de-DE', {
+          timeZone: 'Europe/Berlin',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        });
+  }
+
+  /**
+   * Füllt die hinterlegte Antragsvorlage für diese Zeile und lädt sie herunter. Die Tätigkeit
+   * wird jedes Mal abgefragt; LV und RV kommen aus den Organisationsstammdaten. Erst nach dem
+   * Download wird der Antrag am Server vermerkt.
+   */
+  async antragHerunterladen(zeile: Zeile): Promise<void> {
+    const personId = zeile.eintrag.personId;
+    const person = this.dienst.personen().find((p) => p.id === personId);
+    if (!personId || !person || this.arbeitet()) return;
+    this.fehler.set('');
+    this.rueckmeldung.set('');
+    if (!(await this.begruendungSpeichern(zeile))) return;
+    const taetigkeit = await this.dialogDienst.eingabe(
+      `Antrag für ${person.vorname} ${person.nachname}: ${zeile.auszeichnung}. Die Tätigkeit erscheint im Formular unter „Tätigkeit“.`,
+      'Antrag erstellen',
+      'Tätigkeit',
+      {
+        bestaetigenLabel: 'PDF erstellen',
+        wert: this.letzteTaetigkeit,
+        leerErlaubt: true,
+        maxLaenge: 120,
+      },
+    );
+    if (taetigkeit === null) return;
+    this.letzteTaetigkeit = taetigkeit;
+    this.arbeitet.set(true);
+    try {
+      const [vorlage, konfiguration] = await Promise.all([
+        this.antragVorlage.datenLaden(),
+        this.systemkonfiguration.laden(),
+      ]);
+      const { organisationLandesverband, organisationRegionalverband } =
+        konfiguration.einstellungen;
+      const schluessel = personSchluessel(person.nachname, person.vorname);
+      const anrede = uhrArtAusAnrede(this.anredeJePerson().get(schluessel));
+      const aktuell = this.dienst.vorgaenge().get(zeile.id);
+      const pdf = await ehrungsantragFuellen(vorlage, {
+        person,
+        auszeichnung: zeile.eintrag.auszeichnung,
+        landesverband: organisationLandesverband,
+        regionalverband: organisationRegionalverband,
+        taetigkeit,
+        begruendung: aktuell?.begruendung ?? zeile.begruendung,
+        anrede,
+      });
+      dateiHerunterladen(
+        pdf.slice(),
+        `antrag-${dateinamenTeil(person.nachname)}-${dateinamenTeil(person.vorname)}-${zeile.eintrag.auszeichnung}.pdf`,
+        EHRUNGSANTRAG_MEDIENTYP,
+      );
+      const offen: string[] = [];
+      if (!organisationLandesverband || !organisationRegionalverband) {
+        offen.push('Landes- bzw. Regionalverband (Systemkonfiguration, Organisationsstammdaten)');
+      }
+      if (!anrede) offen.push('Frau/Herr');
+      offen.push('Straße, Wohnort, Geburtsdatum und Unterschriften');
+      this.rueckmeldung.set(`Antrag erstellt. Von Hand zu ergänzen: ${offen.join('; ')}.`);
+      const vermerkt = await this.vorgangSpeichern(zeile, () =>
+        this.dienst.vorgangAendern(personId, zeile.eintrag.auszeichnung, { antragErstellt: true }),
+      );
+      if (!vermerkt) {
+        this.fehler.set(
+          'Der Antrag wurde heruntergeladen, aber „zuletzt erstellt am“ konnte nicht gespeichert werden.',
+        );
+      }
+    } catch (fehler) {
+      this.fehler.set(
+        fehler instanceof WorkerFehler && fehler.status === 404
+          ? 'Es ist noch keine Antragsvorlage hinterlegt. Bitte im Verwaltungsbereich unter „Ehrungsantrag-Vorlage“ hochladen.'
+          : fehler instanceof Error
+            ? fehler.message
+            : 'Der Antrag konnte nicht erstellt werden.',
+      );
+    } finally {
+      this.arbeitet.set(false);
     }
   }
 

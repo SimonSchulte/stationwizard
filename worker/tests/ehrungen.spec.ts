@@ -551,6 +551,53 @@ describe('Ehrungen: Abgestimmt OB und Beantragt', () => {
     expect((await alle(db))[0]).toMatchObject({ abgestimmtOb: false, beantragt: true });
   });
 
+  it('speichert die Begründung getrennt von den Haken und leert sie mit leerem Text', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await setzen(db, id, 'ehrenzeichen', { abgestimmtOb: true });
+    expect(
+      (await setzen(db, id, 'ehrenzeichen', { begruendung: '  Langjähriger Einsatz  ' })).status,
+    ).toBe(200);
+    expect((await alle(db))[0]).toMatchObject({
+      abgestimmtOb: true,
+      begruendung: 'Langjähriger Einsatz',
+      antragErstelltAm: null,
+    });
+    await setzen(db, id, 'ehrenzeichen', { beantragt: false });
+    expect((await alle(db))[0]).toMatchObject({ begruendung: 'Langjähriger Einsatz' });
+    await setzen(db, id, 'ehrenzeichen', { begruendung: '' });
+    expect((await alle(db))[0]).toMatchObject({ begruendung: '' });
+    expect(db.vorgaenge.get(`${id}|ehrenzeichen`)?.begruendung).toBeNull();
+  });
+
+  it('vermerkt einen erstellten Antrag mit Serverzeitpunkt und setzt Beantragt', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    const vorher = new Date().toISOString();
+    expect((await setzen(db, id, 'gold', { antragErstellt: true })).status).toBe(200);
+    const [vorgang] = await alle(db);
+    expect(vorgang).toMatchObject({ beantragt: true, geaendertVon: IDENTITAET.email });
+    expect(typeof vorgang?.['antragErstelltAm']).toBe('string');
+    expect(String(vorgang?.['antragErstelltAm']) >= vorher).toBe(true);
+    // Ein anderes Feld lässt den Zeitpunkt stehen.
+    await setzen(db, id, 'gold', { abgestimmtOb: true });
+    expect((await alle(db))[0]?.['antragErstelltAm']).toBe(vorgang?.['antragErstelltAm']);
+  });
+
+  it('lehnt einen vorgegebenen Zeitpunkt, zu lange Begründungen und Widersprüche ab', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    expect((await setzen(db, id, 'gold', { antragErstellt: '2020-01-01' })).status).toBe(400);
+    expect((await setzen(db, id, 'gold', { antragErstellt: false })).status).toBe(400);
+    expect((await setzen(db, id, 'gold', { antragErstelltAm: '2020-01-01' })).status).toBe(400);
+    expect((await setzen(db, id, 'gold', { antragErstellt: true, beantragt: false })).status).toBe(
+      400,
+    );
+    expect((await setzen(db, id, 'gold', { begruendung: 'x'.repeat(2001) })).status).toBe(400);
+    expect((await setzen(db, id, 'gold', { begruendung: 3 })).status).toBe(400);
+    expect(db.vorgaenge.size).toBe(0);
+  });
+
   it('lehnt unbekannte Auszeichnungen, leere und fremde Felder und unbekannte Personen ab', async () => {
     const db = new FakeEhrungenDb();
     const id = await person(db);

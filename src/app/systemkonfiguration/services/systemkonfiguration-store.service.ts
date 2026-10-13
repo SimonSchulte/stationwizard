@@ -8,14 +8,9 @@ function fehlermeldung(fehler: unknown, ersatz: string): string {
   return fehler instanceof Error ? fehler.message : ersatz;
 }
 
+/** Alle Felder: auch Material- und Organisationsangaben gelten als ungespeicherte Änderung. */
 function gleich(a: Einstellungen, b: Einstellungen): boolean {
-  return (
-    a.kmBerichtEmpfaenger === b.kmBerichtEmpfaenger &&
-    a.kmBerichtVersandweg === b.kmBerichtVersandweg &&
-    a.kmBerichtBetreff === b.kmBerichtBetreff &&
-    a.kmAmpelSchwellenwertGelbMonate === b.kmAmpelSchwellenwertGelbMonate &&
-    a.kmAmpelSchwellenwertRotMonate === b.kmAmpelSchwellenwertRotMonate
-  );
+  return (Object.keys(a) as (keyof Einstellungen)[]).every((feld) => a[feld] === b[feld]);
 }
 
 /**

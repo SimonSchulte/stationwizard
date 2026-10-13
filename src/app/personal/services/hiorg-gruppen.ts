@@ -4,6 +4,8 @@ import { personSchluessel } from './ehrungen-regeln';
 export interface GruppenJePerson {
   /** Gruppen je Person, Schlüssel `personSchluessel()`. */
   gruppen: Map<string, string[]>;
+  /** HiOrg-Anrede je Person (gleicher Schlüssel), nur wo erfasst; wird nie gespeichert. */
+  anreden: Map<string, string>;
   /** Warum keine Gruppen vorliegen; leer, wenn sie geladen werden konnten. */
   hinweis: string;
 }
@@ -15,20 +17,25 @@ export interface GruppenJePerson {
  */
 export async function gruppenJePersonLaden(hiorg: HiorgPersonalService): Promise<GruppenJePerson> {
   const gruppen = new Map<string, string[]>();
+  const anreden = new Map<string, string>();
   try {
     if ((await hiorg.verbindungLaden()) !== 'verbunden') {
       return {
         gruppen,
+        anreden,
         hinweis: 'Gruppen nicht verfügbar: Die HiOrg-Server-API ist nicht verbunden.',
       };
     }
     for (const person of await hiorg.personalLaden()) {
-      gruppen.set(personSchluessel(person.nachname, person.vorname), person.gruppen);
+      const schluessel = personSchluessel(person.nachname, person.vorname);
+      gruppen.set(schluessel, person.gruppen);
+      if (person.anrede) anreden.set(schluessel, person.anrede);
     }
-    return { gruppen, hinweis: '' };
+    return { gruppen, anreden, hinweis: '' };
   } catch {
     return {
       gruppen: new Map(),
+      anreden: new Map(),
       hinweis: 'Gruppen nicht verfügbar: Das HiOrg-Personal konnte nicht geladen werden.',
     };
   }

@@ -51,6 +51,12 @@ export interface Einstellungen {
   materialMaengelSegEmpfaenger: string;
   materialVersandweg: Versandweg;
   materialBetreff: string;
+  /**
+   * Organisationsstammdaten für Formulare (Ehrungsantrag). Ändern darf sie serverseitig nur die
+   * Zugführung.
+   */
+  organisationLandesverband: string;
+  organisationRegionalverband: string;
 }
 
 /**
@@ -58,6 +64,9 @@ export interface Einstellungen {
  * Einblendregel – durchgesetzt wird sie im Worker.
  */
 export const MATERIAL_ROLLEN: readonly string[] = ['zugfuehrung', 'gruppenfuehrung-sanitaet'];
+
+/** Hauptrollen, die die Organisationsstammdaten ändern dürfen; Einblendregel wie oben. */
+export const ORGANISATION_ROLLEN: readonly string[] = ['zugfuehrung'];
 
 /** Ob ein Versandweg am Worker tatsächlich eingerichtet ist. */
 export interface VersandwegStatus {

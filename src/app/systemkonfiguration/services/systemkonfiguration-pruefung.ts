@@ -29,7 +29,9 @@ function istEinstellungen(wert: unknown): wert is Einstellungen {
     istText(wert['materialMaengelLandEmpfaenger']) &&
     istText(wert['materialMaengelSegEmpfaenger']) &&
     istVersandweg(wert['materialVersandweg']) &&
-    istText(wert['materialBetreff'])
+    istText(wert['materialBetreff']) &&
+    istText(wert['organisationLandesverband']) &&
+    istText(wert['organisationRegionalverband'])
   );
 }
 

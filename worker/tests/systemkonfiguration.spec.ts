@@ -26,7 +26,9 @@ const MATERIAL_STANDARD = {
   materialBetreff: 'Materialmeldung',
 };
 
-const VOLLSTAENDIG = { ...KILOMETER, ...MATERIAL_STANDARD };
+const ORGANISATION_STANDARD = { organisationLandesverband: '', organisationRegionalverband: '' };
+
+const VOLLSTAENDIG = { ...KILOMETER, ...MATERIAL_STANDARD, ...ORGANISATION_STANDARD };
 
 function anfrage(init?: RequestInit): Request {
   return new Request('https://stationwizard.example.test/api/systemkonfiguration', init);
@@ -261,6 +263,44 @@ describe('Rollenschranke der Materialeinstellungen', () => {
       );
     },
   );
+
+  it('lässt nur die Zugführung die Organisationsstammdaten ändern', async () => {
+    const gruppenfuehrung = mitRolle('gruppenfuehrung-sanitaet');
+    const verwehrt = await verarbeiteSystemkonfiguration(
+      speichern({ organisationLandesverband: 'Nordrhein-Westfalen' }),
+      umgebung(gruppenfuehrung),
+      IDENTITAET,
+    );
+    expect(verwehrt.status).toBe(403);
+    expect(gruppenfuehrung.systemkonfiguration.has('organisation_landesverband')).toBe(false);
+
+    const zugfuehrung = mitRolle('zugfuehrung');
+    const erlaubt = await verarbeiteSystemkonfiguration(
+      speichern({
+        organisationLandesverband: ' Nordrhein-Westfalen ',
+        organisationRegionalverband: 'Ostwestfalen',
+      }),
+      umgebung(zugfuehrung),
+      IDENTITAET,
+    );
+    expect(erlaubt.status).toBe(200);
+    expect(await leseEinstellungen(zugfuehrung as never)).toMatchObject({
+      organisationLandesverband: 'Nordrhein-Westfalen',
+      organisationRegionalverband: 'Ostwestfalen',
+    });
+  });
+
+  it('lehnt Steuerzeichen und überlange Organisationsnamen ab', async () => {
+    const db = mitRolle('zugfuehrung');
+    for (const wert of ['Nord\nrhein', 'x'.repeat(101), 7]) {
+      const antwort = await verarbeiteSystemkonfiguration(
+        speichern({ organisationRegionalverband: wert }),
+        umgebung(db),
+        IDENTITAET,
+      );
+      expect(antwort.status).toBe(400);
+    }
+  });
 
   it('verwehrt sie der Gruppenführung einer anderen Gruppe', async () => {
     const antwort = await verarbeiteSystemkonfiguration(

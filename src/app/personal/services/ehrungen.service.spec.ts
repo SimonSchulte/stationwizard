@@ -13,6 +13,8 @@ const VORGANG = {
   auszeichnung: 'silber',
   abgestimmtOb: true,
   beantragt: false,
+  begruendung: '',
+  antragErstelltAm: null,
   geaendertAm: 'x',
   geaendertVon: 'y',
 };

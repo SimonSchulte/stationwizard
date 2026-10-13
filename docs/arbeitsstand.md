@@ -2972,3 +2972,20 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Workers anwenden**; ohne sie lädt die Seite die Liste, sperrt aber die Haken. Geprüft: Build, `npm test` (Client 1052,
   Worker 846), Formatprüfung, Browser (Desktop 1280 px und Mobil 390 px, Haken setzen gegen simulierte API mit erfundenen
   Daten). Nicht gegen die echte Datenbank oder echte HiOrg-Anreden geprüft; auf dem Handy scrollt die Tabelle horizontal.
+
+- Personal: Gruppenfilter und Ehrungsantrag (PR #70). Alle Personalmasken haben einen Mehrfachauswahl-Filter
+  „Gruppen“ aus HiOrg `gruppen_namen` und eine Spalte „Gruppen“; Ehrungsmanager und Offene Ehrungen holen die
+  Gruppen best effort über einen zusätzlichen `GET /api/hiorg/personal` und nennen den Grund, wenn keine
+  vorliegen. In „Offene Ehrungen“ ersetzt der Knopf **Antrag** den Haken „Beantragt“: er füllt das PDF-Formular
+  „Antrag auf Verleihung einer Auszeichnung“ (Rev. 3.2) im Browser (`pdf-lib`, Felder bleiben ausfüllbar) und
+  vermerkt „zuletzt erstellt am“. Neue Spalte „Begründung“, Tätigkeit wird je Download abgefragt, LV/RV kommen
+  aus den neuen Organisationsstammdaten der Systemkonfiguration (nur Zugführung). Straße, Wohnort,
+  Geburtsdatum bleiben leer, weil Anschrift und Geburtsdaten den Worker nie verlassen. Formular im
+  Verwaltungsbereich unter „Ehrungsantrag-Vorlage“ hochladen. **Migration `0018_ehrungsantrag.sql` vor dem
+  Rollout des Workers auf `BENUTZER_DB` anwenden** (Spalten `begruendung`/`antrag_erstellt_am`, Tabelle
+  `ehrungsantrag_vorlage`, Startbestand LV/RV). Geprüft: Build, `npm test` (Client 1060, Worker 854),
+  `worker:check`, `test:spa`, `deploy:dry-run`, Formatprüfung; Browser (Desktop 1400 px, Mobil 390 px) gegen
+  simulierte API mit erfundenen Daten: Begründung speichern, Tätigkeitsabfrage, Download und Inhalt des
+  gefüllten PDFs (mit dem echten Formular, nur lokal), Systemkonfiguration und Vorlagenseite. Nicht geprüft:
+  gegen die echte Datenbank, echte HiOrg-Gruppen und -Anreden, Öffnen des PDFs in Adobe Reader; am Handy
+  scrollt die Tabelle horizontal.

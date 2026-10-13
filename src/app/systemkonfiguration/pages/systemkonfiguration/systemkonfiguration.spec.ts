@@ -17,6 +17,8 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     materialMaengelSegEmpfaenger: '',
     materialVersandweg: 'email-routing',
     materialBetreff: 'Materialmeldung',
+    organisationLandesverband: '',
+    organisationRegionalverband: '',
     ...ueberschreibung,
   };
 }

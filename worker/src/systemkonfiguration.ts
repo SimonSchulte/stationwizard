@@ -46,6 +46,9 @@ export interface Einstellungen {
   materialMaengelSegEmpfaenger: string;
   materialVersandweg: Versandweg;
   materialBetreff: string;
+  /** Organisationsstammdaten für Formulare (Ehrungsantrag): Landesverband und Regionalverband. */
+  organisationLandesverband: string;
+  organisationRegionalverband: string;
 }
 
 /**
@@ -55,6 +58,19 @@ export interface Einstellungen {
  * `zugfuehrung` steht ausdrücklich in der Aufzählung, nicht implizit.
  */
 const MATERIAL_ROLLEN: readonly string[] = ['zugfuehrung', 'gruppenfuehrung-sanitaet'];
+
+/** Organisationsstammdaten bestimmen, was auf jedem Antrag steht; das entscheidet die Zugführung. */
+const ORGANISATION_ROLLEN: readonly string[] = ['zugfuehrung'];
+
+const ORGANISATIONSNAME_GRENZE = 100;
+
+/** Leerer Name ist gültig (noch nicht festgelegt); keine Steuerzeichen, begrenzte Länge. */
+function pruefeOrganisationsname(wert: unknown): string | null {
+  if (typeof wert !== 'string') return null;
+  const name = wert.trim();
+  if (name.length > ORGANISATIONSNAME_GRENZE || enthaeltSteuerzeichen(name)) return null;
+  return name;
+}
 
 interface Beschreibung<S extends keyof Einstellungen> {
   /** Spaltenwert in der Tabelle; bewusst stabil und unabhängig vom Feldnamen. */
@@ -175,6 +191,18 @@ const EINSTELLUNGEN: { [S in keyof Einstellungen]: Beschreibung<S> } = {
     standard: 'Materialmeldung',
     pruefe: pruefeBetreff,
     erfordertRolle: MATERIAL_ROLLEN,
+  },
+  organisationLandesverband: {
+    schluessel: 'organisation_landesverband',
+    standard: '',
+    pruefe: pruefeOrganisationsname,
+    erfordertRolle: ORGANISATION_ROLLEN,
+  },
+  organisationRegionalverband: {
+    schluessel: 'organisation_regionalverband',
+    standard: '',
+    pruefe: pruefeOrganisationsname,
+    erfordertRolle: ORGANISATION_ROLLEN,
   },
 };
 
@@ -332,13 +360,15 @@ async function speichere(
     // Die Rolle wird genau einmal gelesen, und nur wenn ein geschützter
     // Schlüssel überhaupt betroffen ist.
     const zuordnung = await leseRolle(db, identitaet.email);
-    const erlaubt = geschuetzt.every((feld) =>
-      hatEineRolle(zuordnung?.rolle ?? null, EINSTELLUNGEN[feld].erfordertRolle ?? []),
+    const verwehrt = geschuetzt.find(
+      (feld) => !hatEineRolle(zuordnung?.rolle ?? null, EINSTELLUNGEN[feld].erfordertRolle ?? []),
     );
-    if (!erlaubt) {
+    if (verwehrt) {
       return fehlerAntwort(
         'SYSTEMKONFIGURATION_ROLLE_FEHLT',
-        'Diese Einstellung darf nur die Zugführung oder die Gruppenführung Sanität ändern.',
+        EINSTELLUNGEN[verwehrt].erfordertRolle === ORGANISATION_ROLLEN
+          ? 'Die Organisationsstammdaten darf nur die Zugführung ändern.'
+          : 'Diese Einstellung darf nur die Zugführung oder die Gruppenführung Sanität ändern.',
         403,
       );
     }

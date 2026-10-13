@@ -10,6 +10,7 @@ import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/serv
 import {
   Einstellungen,
   MATERIAL_ROLLEN,
+  ORGANISATION_ROLLEN,
   VERSANDWEGE,
   VERSANDWEG_HINWEIS,
   VERSANDWEG_LABEL,
@@ -64,9 +65,21 @@ export class Systemkonfiguration implements OnInit {
     MATERIAL_ROLLEN.includes(this.benutzerStore.eigeneRolle() ?? ''),
   );
 
+  /** Reine Einblendregel wie oben; gesperrt wird serverseitig. */
+  readonly darfOrganisationAendern = computed(() =>
+    ORGANISATION_ROLLEN.includes(this.benutzerStore.eigeneRolle() ?? ''),
+  );
+
   ngOnInit(): void {
     void this.store.laden();
     void this.benutzerStore.listeLaden();
+  }
+
+  organisationAendern(
+    feld: 'organisationLandesverband' | 'organisationRegionalverband',
+    wert: string,
+  ): void {
+    this.store.entwurfAendern({ [feld]: wert });
   }
 
   materialAendern(feld: keyof Einstellungen, wert: string): void {

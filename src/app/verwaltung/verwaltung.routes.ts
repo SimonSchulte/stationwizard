@@ -58,4 +58,12 @@ export const verwaltungRouten: Routes = [
         (modul) => modul.FuehrerscheinVorlageVerwaltung,
       ),
   },
+  {
+    path: 'ehrungsantrag-vorlage',
+    data: { vorlage: 'ehrungsantrag' },
+    loadComponent: () =>
+      import('../personal/pages/fuehrerschein-vorlage-verwaltung/fuehrerschein-vorlage-verwaltung').then(
+        (modul) => modul.FuehrerscheinVorlageVerwaltung,
+      ),
+  },
 ];

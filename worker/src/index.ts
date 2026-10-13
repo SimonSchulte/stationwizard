@@ -15,6 +15,11 @@ import {
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
 import {
+  EHRUNGSANTRAG_VORLAGE_DATEI_PFAD,
+  EHRUNGSANTRAG_VORLAGE_PFAD,
+  verarbeiteEhrungsantragVorlage,
+} from './ehrungsantrag-vorlage';
+import {
   FUEHRERSCHEIN_VORLAGE_DATEI_PFAD,
   FUEHRERSCHEIN_VORLAGE_PFAD,
   verarbeiteFuehrerscheinVorlage,
@@ -216,6 +221,13 @@ export default {
       url.pathname === FUEHRERSCHEIN_VORLAGE_DATEI_PFAD
     ) {
       return verarbeiteFuehrerscheinVorlage(anfrage, umgebung, benutzer);
+    }
+
+    if (
+      url.pathname === EHRUNGSANTRAG_VORLAGE_PFAD ||
+      url.pathname === EHRUNGSANTRAG_VORLAGE_DATEI_PFAD
+    ) {
+      return verarbeiteEhrungsantragVorlage(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === EHRUNGEN_PFAD || url.pathname.startsWith(`${EHRUNGEN_PFAD}/`)) {

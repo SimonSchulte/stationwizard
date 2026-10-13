@@ -15,6 +15,8 @@ const ANTWORT = {
     materialMaengelSegEmpfaenger: '',
     materialVersandweg: 'email-routing',
     materialBetreff: 'Materialmeldung',
+    organisationLandesverband: '',
+    organisationRegionalverband: '',
   },
   versandwege: [
     { weg: 'email-routing', verfuegbar: true },
