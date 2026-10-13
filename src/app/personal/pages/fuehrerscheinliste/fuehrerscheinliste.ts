@@ -71,7 +71,7 @@ export class Fuehrerscheinliste implements OnInit {
   private readonly hiorg = inject(HiorgPersonalService);
   private readonly vorlageDienst = inject(FuehrerscheinVorlageService);
 
-  readonly spalten = ['name', 'klassen', 'beschraenkung', 'nummer', 'datum'];
+  readonly spalten = ['name', 'gruppen', 'klassen', 'beschraenkung', 'nummer', 'datum'];
   readonly verbindung = this.hiorg.verbindung;
   readonly laedt = signal(false);
   readonly fehler = signal('');

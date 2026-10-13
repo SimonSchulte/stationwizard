@@ -200,6 +200,18 @@ export class Ehrungen implements OnInit {
     gruppenSammeln(Array.from(this.gruppenJePerson().values(), (gruppen) => ({ gruppen }))),
   );
   readonly gruppenAuswahl = signal<string[]>([]);
+  /** Die Gruppenspalte erscheint nur, wenn HiOrg Gruppen geliefert hat. */
+  readonly angezeigteSpalten = computed(() =>
+    this.hiorgGruppen().length > 0
+      ? this.spalten.flatMap((s) => (s === 'vorname' ? [s, 'hiorgGruppen'] : [s]))
+      : this.spalten,
+  );
+
+  hiorgGruppenText(person: EhrungPerson): string {
+    return (
+      this.gruppenJePerson().get(personSchluessel(person.nachname, person.vorname)) ?? []
+    ).join(', ');
+  }
   readonly vollbild = signal(false);
   /** Standard: meiste Stunden zuerst. Leere Richtung heißt Reihenfolge des Servers (Name). */
   readonly sortierung = signal<Sort>({ active: 'stunden', direction: 'desc' });

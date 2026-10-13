@@ -77,6 +77,10 @@
             {{ zeile.eintrag.nachname }}, {{ zeile.eintrag.vorname }}
           </td>
         </ng-container>
+        <ng-container matColumnDef="gruppen">
+          <th mat-header-cell *matHeaderCellDef>Gruppen</th>
+          <td mat-cell *matCellDef="let zeile">{{ gruppenText(zeile) }}</td>
+        </ng-container>
         <ng-container matColumnDef="grundlage">
           <th mat-header-cell *matHeaderCellDef>Grundlage</th>
           <td mat-cell *matCellDef="let zeile">{{ zeile.eintrag.grundlage }}</td>
@@ -117,8 +121,8 @@
             }
           </td>
         </ng-container>
-        <tr mat-header-row *matHeaderRowDef="spalten; sticky: true"></tr>
-        <tr mat-row *matRowDef="let zeile; columns: spalten"></tr>
+        <tr mat-header-row *matHeaderRowDef="angezeigteSpalten(); sticky: true"></tr>
+        <tr mat-row *matRowDef="let zeile; columns: angezeigteSpalten()"></tr>
       </table>
     </div>
     @if (zeilen().length === 0) {

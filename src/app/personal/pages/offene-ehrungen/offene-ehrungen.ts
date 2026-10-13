@@ -99,6 +99,19 @@ export class OffeneEhrungen implements OnInit {
     gruppenSammeln(Array.from(this.gruppenJePerson().values(), (gruppen) => ({ gruppen }))),
   );
   readonly gruppenAuswahl = signal<string[]>([]);
+  /** Die Gruppenspalte erscheint nur, wenn HiOrg Gruppen geliefert hat. */
+  readonly angezeigteSpalten = computed(() =>
+    this.gruppen().length > 0
+      ? this.spalten.flatMap((s) => (s === 'name' ? [s, 'gruppen'] : [s]))
+      : this.spalten,
+  );
+
+  gruppenText(zeile: Zeile): string {
+    return (
+      this.gruppenJePerson().get(personSchluessel(zeile.eintrag.nachname, zeile.eintrag.vorname)) ??
+      []
+    ).join(', ');
+  }
   /** Schlüssel der Zeilen, deren Haken gerade gespeichert wird. */
   readonly speichernd = signal<ReadonlySet<string>>(new Set());
   /** Ob die Haken geladen werden konnten; ohne sie bleibt die Liste lesbar, die Haken sind gesperrt. */

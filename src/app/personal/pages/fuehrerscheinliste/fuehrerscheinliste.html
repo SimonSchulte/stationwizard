@@ -101,6 +101,10 @@
                   >, {{ person.vorname }}
                 </td>
               </ng-container>
+              <ng-container matColumnDef="gruppen">
+                <th mat-header-cell *matHeaderCellDef>Gruppen</th>
+                <td mat-cell *matCellDef="let person">{{ person.gruppen.join(', ') }}</td>
+              </ng-container>
               <ng-container matColumnDef="klassen">
                 <th mat-header-cell *matHeaderCellDef>Klassen</th>
                 <td mat-cell *matCellDef="let person">

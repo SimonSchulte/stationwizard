@@ -49,6 +49,9 @@
                   (change)="umschalten(person, $event.checked)"
                 >
                   <span class="name">{{ person.nachname }} {{ person.vorname }}</span>
+                  @if (person.gruppen.length > 0) {
+                    <span class="details">{{ person.gruppen.join(', ') }}</span>
+                  }
                   @if (qualifikationen(person)) {
                     <span class="details">{{ qualifikationen(person) }}</span>
                   }
