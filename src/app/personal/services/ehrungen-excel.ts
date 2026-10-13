@@ -121,6 +121,8 @@ export async function zuEhrendeExcelErzeugen(
   jahr: number,
   uhrArten: ReadonlyMap<string, UhrArt> = new Map(),
   vorgaenge: ReadonlyMap<string, Pick<EhrungVorgang, 'abgestimmtOb' | 'beantragt'>> = new Map(),
+  /** Nur Einträge mit diesen `vorgangSchluessel()`; ohne Angabe alle. */
+  nur?: ReadonlySet<string>,
 ): Promise<ArrayBuffer> {
   const XLSX = await import('@e965/xlsx');
   const auszeichnung = (eintrag: ReturnType<typeof zuEhrende>[number]) => {
@@ -140,23 +142,29 @@ export async function zuEhrendeExcelErzeugen(
     'Anspruch bis',
     'Hinweis',
   ];
-  const zeilen = zuEhrende(personen, jahr).map((eintrag) => {
-    const stand = eintrag.personId
-      ? vorgaenge.get(vorgangSchluessel(eintrag.personId, eintrag.auszeichnung))
-      : undefined;
-    return [
-      auszeichnung(eintrag),
-      eintrag.gruppe,
-      eintrag.nachname,
-      eintrag.vorname,
-      eintrag.grundlage,
-      eintrag.bisher,
-      stand?.abgestimmtOb ? JA : '',
-      stand?.beantragt ? JA : '',
-      eintrag.anspruchBis === eintrag.auszeichnung ? '' : EHRUNG_BEZEICHNUNG[eintrag.anspruchBis],
-      eintrag.hinweis,
-    ];
-  });
+  const zeilen = zuEhrende(personen, jahr)
+    .filter(
+      (eintrag) =>
+        !nur ||
+        (!!eintrag.personId && nur.has(vorgangSchluessel(eintrag.personId, eintrag.auszeichnung))),
+    )
+    .map((eintrag) => {
+      const stand = eintrag.personId
+        ? vorgaenge.get(vorgangSchluessel(eintrag.personId, eintrag.auszeichnung))
+        : undefined;
+      return [
+        auszeichnung(eintrag),
+        eintrag.gruppe,
+        eintrag.nachname,
+        eintrag.vorname,
+        eintrag.grundlage,
+        eintrag.bisher,
+        stand?.abgestimmtOb ? JA : '',
+        stand?.beantragt ? JA : '',
+        eintrag.anspruchBis === eintrag.auszeichnung ? '' : EHRUNG_BEZEICHNUNG[eintrag.anspruchBis],
+        eintrag.hinweis,
+      ];
+    });
   const blatt = XLSX.utils.aoa_to_sheet([kopf, ...zeilen]);
   blatt['!cols'] = [38, 20, 20, 20, 44, 28, 15, 12, 30, 60].map((wch) => ({ wch }));
   const mappe = XLSX.utils.book_new();

@@ -14,7 +14,7 @@
         mat-flat-button
         (click)="dokumentHerunterladen()"
         [disabled]="laedt() || dokumentWirdErstellt() || dokumentZeilen().length === 0"
-        matTooltip="Trägt Name, Führerscheindatum und -nummer in die hinterlegte Word-Vorlage ein"
+        matTooltip="Trägt Name, Führerscheindatum und -nummer der angezeigten Personen (aktuelle Filter) in die hinterlegte Word-Vorlage ein"
       >
         @if (dokumentWirdErstellt()) {
           <mat-progress-spinner diameter="18" mode="indeterminate" />

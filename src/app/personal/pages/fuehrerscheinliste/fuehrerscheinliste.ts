@@ -98,9 +98,9 @@ export class Fuehrerscheinliste implements OnInit {
     );
   });
 
-  /** Nur Personen mit erfasster Führerscheinnummer – sonst gäbe es fürs Dokument nichts einzutragen. */
+  /** Folgt Suche und Gruppenfilter. Nur Personen mit erfasster Führerscheinnummer – sonst gäbe es fürs Dokument nichts einzutragen. */
   readonly dokumentZeilen = computed<FuehrerscheinDokumentZeile[]>(() =>
-    this.personen()
+    this.gefiltert()
       .map((person): FuehrerscheinDokumentZeile | null => {
         const nummer = person.fahrerlaubnis?.fuehrerscheinnummer;
         if (!nummer) return null;

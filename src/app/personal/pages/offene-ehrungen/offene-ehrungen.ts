@@ -222,7 +222,7 @@ export class OffeneEhrungen implements OnInit {
     try {
       const personen = this.dienst.personen();
       const uhrArten = new Map<string, UhrArt>();
-      const offeneUhren = this.alleZeilen().filter((z) => z.eintrag.gruppe === 'Jubiläumsuhr');
+      const offeneUhren = this.zeilen().filter((z) => z.eintrag.gruppe === 'Jubiläumsuhr');
       if (offeneUhren.length > 0) {
         let hinweis = '';
         try {
@@ -251,6 +251,7 @@ export class OffeneEhrungen implements OnInit {
         this.jahr,
         uhrArten,
         this.dienst.vorgaenge(),
+        new Set(this.zeilen().map((zeile) => zeile.id)),
       );
       dateiHerunterladen(daten, `offene-ehrungen-${heuteIso()}.xlsx`, EHRUNGEN_EXCEL_MEDIENTYP);
     } catch (fehler) {
