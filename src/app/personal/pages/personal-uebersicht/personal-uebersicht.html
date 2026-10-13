@@ -69,6 +69,7 @@
               placeholder="Name, Gruppe oder Qualifikation"
             />
           </mat-form-field>
+          <app-gruppen-filter [gruppen]="gruppen()" [(auswahl)]="gruppenAuswahl" />
           <span class="anzahl" role="status">
             {{ gefiltert().length }} von {{ personen().length }} Personen
           </span>

@@ -15,6 +15,9 @@ import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
+import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
+import { gruppenJePersonLaden } from '../../services/hiorg-gruppen';
 import { HiorgPersonalService } from '../../../kern/hiorg/hiorg-personal.service';
 import { heuteIso } from '../../../kern/kalender/datum';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
@@ -55,6 +58,7 @@ interface Zeile {
 @Component({
   selector: 'app-offene-ehrungen',
   imports: [
+    GruppenFilter,
     MatButtonModule,
     MatButtonToggleModule,
     MatCheckboxModule,
@@ -89,6 +93,12 @@ export class OffeneEhrungen implements OnInit {
   readonly fehler = signal('');
   readonly rueckmeldung = signal('');
   readonly bearbeitung = signal<Bearbeitung>('alle');
+  /** Gruppen je Person aus HiOrg (Best effort, ohne Verbindung leer); leere Auswahl heißt alle. */
+  private readonly gruppenJePerson = signal<ReadonlyMap<string, string[]>>(new Map());
+  readonly gruppen = computed(() =>
+    gruppenSammeln(Array.from(this.gruppenJePerson().values(), (gruppen) => ({ gruppen }))),
+  );
+  readonly gruppenAuswahl = signal<string[]>([]);
   /** Schlüssel der Zeilen, deren Haken gerade gespeichert wird. */
   readonly speichernd = signal<ReadonlySet<string>>(new Set());
   /** Ob die Haken geladen werden konnten; ohne sie bleibt die Liste lesbar, die Haken sind gesperrt. */
@@ -111,14 +121,22 @@ export class OffeneEhrungen implements OnInit {
 
   readonly zeilen = computed(() => {
     const filter = this.bearbeitung();
-    return this.alleZeilen().filter((zeile) =>
-      filter === 'alle'
-        ? true
-        : filter === 'offen'
-          ? !zeile.abgestimmtOb && !zeile.beantragt
-          : filter === 'abgestimmt'
-            ? zeile.abgestimmtOb && !zeile.beantragt
-            : zeile.beantragt,
+    const gruppenAuswahl = this.gruppenAuswahl();
+    const gruppenJePerson = this.gruppenJePerson();
+    return this.alleZeilen().filter(
+      (zeile) =>
+        passtZuGruppen(
+          gruppenJePerson.get(personSchluessel(zeile.eintrag.nachname, zeile.eintrag.vorname)) ??
+            [],
+          gruppenAuswahl,
+        ) &&
+        (filter === 'alle'
+          ? true
+          : filter === 'offen'
+            ? !zeile.abgestimmtOb && !zeile.beantragt
+            : filter === 'abgestimmt'
+              ? zeile.abgestimmtOb && !zeile.beantragt
+              : zeile.beantragt),
     );
   });
 
@@ -158,6 +176,10 @@ export class OffeneEhrungen implements OnInit {
       );
     } finally {
       this.laedt.set(false);
+    }
+    // Nur für den Gruppenfilter; die Tabelle wartet nicht darauf.
+    if (this.gruppenJePerson().size === 0) {
+      this.gruppenJePerson.set(await gruppenJePersonLaden(this.hiorg));
     }
   }
 

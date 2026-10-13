@@ -134,6 +134,10 @@
       }
     </mat-form-field>
 
+    @if (hiorgGruppen().length > 0) {
+      <app-gruppen-filter [gruppen]="hiorgGruppen()" [(auswahl)]="gruppenAuswahl" />
+    }
+
     <mat-form-field class="auswahl" appearance="outline" subscriptSizing="dynamic">
       <mat-label>Auszeichnung</mat-label>
       <mat-select

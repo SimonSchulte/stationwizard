@@ -30,6 +30,11 @@
             placeholder="Name oder Gruppe"
           />
         </mat-form-field>
+        <app-gruppen-filter
+          class="volle-breite"
+          [gruppen]="gruppen()"
+          [(auswahl)]="gruppenAuswahl"
+        />
         @if (personen().length === 0) {
           <p class="leer">Der HiOrg-Server hat kein aktives Personal geliefert.</p>
         } @else if (gefiltert().length === 0) {

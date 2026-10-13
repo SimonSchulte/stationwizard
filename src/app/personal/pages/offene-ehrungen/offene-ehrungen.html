@@ -53,6 +53,9 @@
         <mat-button-toggle value="abgestimmt">Abgestimmt, nicht beantragt</mat-button-toggle>
         <mat-button-toggle value="beantragt">Beantragt</mat-button-toggle>
       </mat-button-toggle-group>
+      @if (gruppen().length > 0) {
+        <app-gruppen-filter [gruppen]="gruppen()" [(auswahl)]="gruppenAuswahl" />
+      }
       <span class="zaehler">
         {{ zeilen().length }} von {{ anzahlGesamt() }} · {{ anzahlAbgestimmt() }} abgestimmt ·
         {{ anzahlBeantragt() }} beantragt

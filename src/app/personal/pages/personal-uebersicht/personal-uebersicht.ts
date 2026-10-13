@@ -16,6 +16,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
+import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import {
   HIORG_ERGEBNIS_TEXTE,
   HiorgPersonalService,
@@ -33,6 +35,7 @@ import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbin
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-personal-uebersicht',
   imports: [
+    GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,
     MatFormFieldModule,
@@ -62,10 +65,15 @@ export class PersonalUebersicht implements OnInit {
   readonly rueckmeldung = signal('');
   readonly rueckmeldungErfolg = signal(false);
 
+  readonly gruppen = computed(() => gruppenSammeln(this.personen()));
+  readonly gruppenAuswahl = signal<string[]>([]);
+
   readonly gefiltert = computed(() => {
     const suche = this.suche().trim().toLocaleLowerCase('de');
-    if (!suche) return this.personen();
-    return this.personen().filter((person) =>
+    const auswahl = this.gruppenAuswahl();
+    const personen = this.personen().filter((person) => passtZuGruppen(person.gruppen, auswahl));
+    if (!suche) return personen;
+    return personen.filter((person) =>
       [
         person.nachname,
         person.vorname,

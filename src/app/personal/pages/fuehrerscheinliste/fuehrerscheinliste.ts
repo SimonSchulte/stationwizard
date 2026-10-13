@@ -15,6 +15,8 @@ import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
+import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import { heuteIso } from '../../../kern/kalender/datum';
 import { HiorgPersonalService, type HiorgPerson } from '../../../kern/hiorg/hiorg-personal.service';
 import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
@@ -50,6 +52,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuehrerscheinliste',
   imports: [
+    GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,
     MatFormFieldModule,
@@ -80,10 +83,15 @@ export class Fuehrerscheinliste implements OnInit {
   readonly dokumentWirdErstellt = signal(false);
   readonly dokumentFehler = signal('');
 
+  readonly gruppen = computed(() => gruppenSammeln(this.personen()));
+  readonly gruppenAuswahl = signal<string[]>([]);
+
   readonly gefiltert = computed(() => {
     const suche = this.suche().trim().toLocaleLowerCase('de');
-    if (!suche) return this.personen();
-    return this.personen().filter((person) =>
+    const auswahl = this.gruppenAuswahl();
+    const personen = this.personen().filter((person) => passtZuGruppen(person.gruppen, auswahl));
+    if (!suche) return personen;
+    return personen.filter((person) =>
       [person.nachname, person.vorname, ...(person.fahrerlaubnis?.klassen ?? [])].some((teil) =>
         teil.toLocaleLowerCase('de').includes(suche),
       ),
