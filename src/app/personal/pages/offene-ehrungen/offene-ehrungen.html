@@ -62,6 +62,10 @@
       </span>
     </div>
 
+    @if (gruppenHinweis()) {
+      <p class="hinweis" role="status">{{ gruppenHinweis() }}</p>
+    }
+
     <div class="tabelle-rahmen">
       <table mat-table [dataSource]="zeilen()" [trackBy]="zeileId">
         <ng-container matColumnDef="auszeichnung">

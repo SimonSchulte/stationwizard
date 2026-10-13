@@ -200,11 +200,9 @@ export class Ehrungen implements OnInit {
     gruppenSammeln(Array.from(this.gruppenJePerson().values(), (gruppen) => ({ gruppen }))),
   );
   readonly gruppenAuswahl = signal<string[]>([]);
-  /** Die Gruppenspalte erscheint nur, wenn HiOrg Gruppen geliefert hat. */
+  readonly gruppenHinweis = signal('');
   readonly angezeigteSpalten = computed(() =>
-    this.hiorgGruppen().length > 0
-      ? this.spalten.flatMap((s) => (s === 'vorname' ? [s, 'hiorgGruppen'] : [s]))
-      : this.spalten,
+    this.spalten.flatMap((s) => (s === 'vorname' ? [s, 'hiorgGruppen'] : [s])),
   );
 
   hiorgGruppenText(person: EhrungPerson): string {
@@ -497,7 +495,9 @@ export class Ehrungen implements OnInit {
     }
     // Nur für den Gruppenfilter; die Tabelle wartet nicht darauf.
     if (this.gruppenJePerson().size === 0) {
-      this.gruppenJePerson.set(await gruppenJePersonLaden(this.hiorg));
+      const ergebnis = await gruppenJePersonLaden(this.hiorg);
+      this.gruppenJePerson.set(ergebnis.gruppen);
+      this.gruppenHinweis.set(ergebnis.hinweis);
     }
   }
 

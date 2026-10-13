@@ -1,22 +1,35 @@
 import { HiorgPersonalService } from '../../kern/hiorg/hiorg-personal.service';
 import { personSchluessel } from './ehrungen-regeln';
 
+export interface GruppenJePerson {
+  /** Gruppen je Person, Schlüssel `personSchluessel()`. */
+  gruppen: Map<string, string[]>;
+  /** Warum keine Gruppen vorliegen; leer, wenn sie geladen werden konnten. */
+  hinweis: string;
+}
+
 /**
- * Gruppen je Person (Schlüssel `personSchluessel()`) für Seiten, deren Personen aus der
- * Datenbank stammen und nicht aus HiOrg. Best effort: ohne Verbindung oder bei einem Fehler ist
- * das Ergebnis leer, die Seite bleibt ohne Gruppenfilter nutzbar. Nichts wird gespeichert.
+ * Gruppen je Person für Seiten, deren Personen aus der Datenbank stammen und nicht aus HiOrg.
+ * Best effort: ohne Verbindung oder bei einem Fehler ist `gruppen` leer und `hinweis` nennt den
+ * Grund, die Seite bleibt nutzbar. Nichts wird gespeichert.
  */
-export async function gruppenJePersonLaden(
-  hiorg: HiorgPersonalService,
-): Promise<Map<string, string[]>> {
-  const ergebnis = new Map<string, string[]>();
+export async function gruppenJePersonLaden(hiorg: HiorgPersonalService): Promise<GruppenJePerson> {
+  const gruppen = new Map<string, string[]>();
   try {
-    if ((await hiorg.verbindungLaden()) !== 'verbunden') return ergebnis;
-    for (const person of await hiorg.personalLaden()) {
-      ergebnis.set(personSchluessel(person.nachname, person.vorname), person.gruppen);
+    if ((await hiorg.verbindungLaden()) !== 'verbunden') {
+      return {
+        gruppen,
+        hinweis: 'Gruppen nicht verfügbar: Die HiOrg-Server-API ist nicht verbunden.',
+      };
     }
+    for (const person of await hiorg.personalLaden()) {
+      gruppen.set(personSchluessel(person.nachname, person.vorname), person.gruppen);
+    }
+    return { gruppen, hinweis: '' };
   } catch {
-    ergebnis.clear();
+    return {
+      gruppen: new Map(),
+      hinweis: 'Gruppen nicht verfügbar: Das HiOrg-Personal konnte nicht geladen werden.',
+    };
   }
-  return ergebnis;
 }

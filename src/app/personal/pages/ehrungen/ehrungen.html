@@ -117,6 +117,10 @@
     </mat-card>
   }
 
+  @if (gruppenHinweis()) {
+    <p class="hinweis" role="status">{{ gruppenHinweis() }}</p>
+  }
+
   <div class="werkzeuge">
     <mat-form-field class="suche" appearance="outline" subscriptSizing="dynamic">
       <mat-label>Suchen</mat-label>
