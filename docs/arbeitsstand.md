@@ -2983,7 +2983,9 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Geburtsdatum bleiben leer, weil Anschrift und Geburtsdaten den Worker nie verlassen. Formular im
   Verwaltungsbereich unter „Ehrungsantrag-Vorlage“ hochladen. **Migration `0019_ehrungsantrag.sql` vor dem
   Rollout des Workers auf `BENUTZER_DB` anwenden** (Spalten `begruendung`/`antrag_erstellt_am`, Tabelle
-  `ehrungsantrag_vorlage`, Startbestand LV/RV). Geprüft: Build, `npm test` (Client 1060, Worker 854),
+  `ehrungsantrag_vorlage`, Startbestand LV/RV). Die Migration ist am 2026-10-13 auf `BENUTZER_DB` angewendet und in
+  `d1_migrations` eingetragen (Nummer 0019, weil 0018 durch `0018_ehrungen_zustaendigkeit.sql` belegt ist);
+  Kontrollabfrage: beide Spalten, die Tabelle und LV/RV vorhanden. Geprüft: Build, `npm test` (Client 1060, Worker 854),
   `worker:check`, `test:spa`, `deploy:dry-run`, Formatprüfung; Browser (Desktop 1400 px, Mobil 390 px) gegen
   simulierte API mit erfundenen Daten: Begründung speichern, Tätigkeitsabfrage, Download und Inhalt des
   gefüllten PDFs (mit dem echten Formular, nur lokal), Systemkonfiguration und Vorlagenseite. Nicht geprüft:
