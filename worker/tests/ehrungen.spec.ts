@@ -575,3 +575,63 @@ describe('Ehrungen: Abgestimmt OB und Beantragt', () => {
     expect(await alle(db)).toEqual([]);
   });
 });
+
+describe('Ehrungen: zuständiger OV', () => {
+  async function person(db: FakeEhrungenDb): Promise<string> {
+    await importiere(db, [{ nachname: 'Muster', vorname: 'Max', stunden: 10 }]);
+    return (await liste(db))[0]['id'] as string;
+  }
+  const setzen = (db: FakeEhrungenDb, id: string, koerper: unknown) =>
+    verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}/zustaendigkeit`, 'PUT', koerper),
+      umgebung(db),
+      IDENTITAET,
+    );
+  const alle = async (db: FakeEhrungenDb) =>
+    (
+      (await (
+        await verarbeiteEhrungen(
+          anfrage('/api/personal/ehrungen/vorgaenge'),
+          umgebung(db),
+          IDENTITAET,
+        )
+      ).json()) as { zustaendigkeiten: Record<string, unknown>[] }
+    ).zustaendigkeiten;
+
+  it('setzt, ändert und löscht den OV und nimmt den Benutzer aus der Anmeldung', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    expect((await setzen(db, id, { ov: 'bielefeld' })).status).toBe(200);
+    expect(await alle(db)).toEqual([
+      expect.objectContaining({ personId: id, ov: 'bielefeld', geaendertVon: IDENTITAET.email }),
+    ]);
+    await setzen(db, id, { ov: 'werther' });
+    expect(await alle(db)).toEqual([expect.objectContaining({ ov: 'werther' })]);
+    const geloescht = await setzen(db, id, { ov: null });
+    expect(await geloescht.json()).toEqual({ personId: id, ov: null });
+    expect(await alle(db)).toEqual([]);
+  });
+
+  it('lehnt unbekannte OV, fremde Felder und unbekannte Personen ab', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    expect((await setzen(db, id, { ov: 'minden' })).status).toBe(400);
+    expect((await setzen(db, id, {})).status).toBe(400);
+    expect((await setzen(db, id, { ov: 'werther', version: 1 })).status).toBe(400);
+    const fremd = '00000000-0000-4000-8000-000000000000';
+    expect((await setzen(db, fremd, { ov: 'werther' })).status).toBe(404);
+    expect(db.zustaendigkeiten.size).toBe(0);
+  });
+
+  it('räumt den OV beim Entfernen der Person weg', async () => {
+    const db = new FakeEhrungenDb();
+    const id = await person(db);
+    await setzen(db, id, { ov: 'bielefeld' });
+    await verarbeiteEhrungen(
+      anfrage(`/api/personal/ehrungen/${id}`, 'DELETE'),
+      umgebung(db),
+      IDENTITAET,
+    );
+    expect(await alle(db)).toEqual([]);
+  });
+});

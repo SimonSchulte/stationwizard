@@ -11,7 +11,12 @@ import {
   type EhrungSchluessel,
   warnungen,
 } from './ehrungen-regeln';
-import { vorgangSchluessel, type EhrungVorgang } from './ehrungen.service';
+import {
+  OV_BEZEICHNUNG,
+  vorgangSchluessel,
+  type EhrungVorgang,
+  type OvSchluessel,
+} from './ehrungen.service';
 
 export const EHRUNGEN_EXCEL_MEDIENTYP =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -121,6 +126,7 @@ export async function zuEhrendeExcelErzeugen(
   jahr: number,
   uhrArten: ReadonlyMap<string, UhrArt> = new Map(),
   vorgaenge: ReadonlyMap<string, Pick<EhrungVorgang, 'abgestimmtOb' | 'beantragt'>> = new Map(),
+  zustaendigeOv: ReadonlyMap<string, OvSchluessel> = new Map(),
 ): Promise<ArrayBuffer> {
   const XLSX = await import('@e965/xlsx');
   const auszeichnung = (eintrag: ReturnType<typeof zuEhrende>[number]) => {
@@ -135,6 +141,7 @@ export async function zuEhrendeExcelErzeugen(
     'Vorname',
     'Grundlage',
     'Bisher erhalten',
+    'Zuständiger OV',
     'Abgestimmt OB',
     'Beantragt',
     'Anspruch bis',
@@ -151,6 +158,7 @@ export async function zuEhrendeExcelErzeugen(
       eintrag.vorname,
       eintrag.grundlage,
       eintrag.bisher,
+      ovText(eintrag.personId, zustaendigeOv),
       stand?.abgestimmtOb ? JA : '',
       stand?.beantragt ? JA : '',
       eintrag.anspruchBis === eintrag.auszeichnung ? '' : EHRUNG_BEZEICHNUNG[eintrag.anspruchBis],
@@ -158,11 +166,19 @@ export async function zuEhrendeExcelErzeugen(
     ];
   });
   const blatt = XLSX.utils.aoa_to_sheet([kopf, ...zeilen]);
-  blatt['!cols'] = [38, 20, 20, 20, 44, 28, 15, 12, 30, 60].map((wch) => ({ wch }));
+  blatt['!cols'] = [38, 20, 20, 20, 44, 28, 16, 15, 12, 30, 60].map((wch) => ({ wch }));
   const mappe = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(mappe, blatt, `Zu Ehrende ${jahr}`);
   anWarnungenAnhaengen(XLSX, mappe, personen, jahr);
   return XLSX.write(mappe, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
+
+function ovText(
+  personId: string | null | undefined,
+  zustaendigeOv: ReadonlyMap<string, OvSchluessel>,
+) {
+  const ov = personId ? zustaendigeOv.get(personId) : undefined;
+  return ov ? OV_BEZEICHNUNG[ov] : '';
 }
 
 /** Blatt „Warnungen“ (Staffel und Reihenfolge); entfällt, wenn nichts zu warnen ist. */

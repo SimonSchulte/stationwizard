@@ -26,7 +26,11 @@ const EINZEL_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})$`, 'i');
 const VERLAUF_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/aenderungen$`, 'i');
 const VORGANG_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/vorgaenge/([a-z0-9-]+)$`, 'i');
 const VORGAENGE_LISTE_PFAD = '/api/personal/ehrungen/vorgaenge';
+const ZUSTAENDIGKEIT_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/zustaendigkeit$`, 'i');
 const VERLAUF_GRENZE = 200;
+
+/** Feste Liste der Ortsverbände; Gegenstück im Client (`ehrungen.service.ts`). */
+export const OV_SCHLUESSEL = ['bielefeld', 'werther'] as const;
 
 /** Feste Schlüsselliste in kanonischer Reihenfolge; Gegenstück im Client. */
 export const EHRUNG_SCHLUESSEL = [
@@ -364,7 +368,72 @@ async function loesche(db: D1Database, id: string): Promise<Response> {
   }
   // Kein Fremdschlüssel: die Haken der Person räumt der Worker selbst weg.
   await db.prepare('DELETE FROM ehrungen_vorgaenge WHERE person_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM ehrungen_zustaendigkeit WHERE person_id = ?').bind(id).run();
   return new Response(null, { status: 204 });
+}
+
+interface ZustaendigkeitZeile {
+  person_id: string;
+  ov: string;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
+function zustaendigkeitZuJson(zeile: ZustaendigkeitZeile): Record<string, unknown> {
+  return {
+    personId: zeile.person_id,
+    ov: zeile.ov,
+    geaendertAm: zeile.geaendert_am,
+    geaendertVon: zeile.geaendert_von,
+  };
+}
+
+/**
+ * Setzt oder löscht (`ov: null`) den zuständigen Ortsverband einer Person. Antwort: der neue
+ * Eintrag beziehungsweise `{ personId, ov: null }`.
+ */
+async function zustaendigkeitSetzen(
+  anfrage: Request,
+  db: D1Database,
+  personId: string,
+  identitaet: Benutzer,
+): Promise<Response> {
+  const koerper = await lesePruefeKoerper(anfrage, EINZEL_GRENZE);
+  if (koerper instanceof Response) return koerper;
+  const eingabe = koerper.inhalt;
+  const ov = istObjekt(eingabe) ? eingabe['ov'] : undefined;
+  if (
+    !istObjekt(eingabe) ||
+    Object.keys(eingabe).some((schluessel) => schluessel !== 'ov') ||
+    !(ov === null || (typeof ov === 'string' && (OV_SCHLUESSEL as readonly string[]).includes(ov)))
+  ) {
+    return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Ungültige Angaben.', 400);
+  }
+  const person = await db
+    .prepare('SELECT version FROM ehrungen_personen WHERE id = ?')
+    .bind(personId)
+    .first<{ version: number }>();
+  if (!person) return fehlerAntwort('EHRUNGEN_NICHT_GEFUNDEN', 'Eintrag nicht gefunden.', 404);
+  if (ov === null) {
+    await db
+      .prepare('DELETE FROM ehrungen_zustaendigkeit WHERE person_id = ?')
+      .bind(personId)
+      .run();
+    return jsonAntwort({ personId, ov: null });
+  }
+  await db
+    .prepare(
+      `INSERT INTO ehrungen_zustaendigkeit (person_id, ov, geaendert_am, geaendert_von)
+       VALUES (?1, ?2, ?3, ?4)
+       ON CONFLICT (person_id) DO UPDATE SET ov = ?2, geaendert_am = ?3, geaendert_von = ?4`,
+    )
+    .bind(personId, ov, new Date().toISOString(), identitaet.email)
+    .run();
+  const zeile = await db
+    .prepare('SELECT * FROM ehrungen_zustaendigkeit WHERE person_id = ?')
+    .bind(personId)
+    .first<ZustaendigkeitZeile>();
+  return jsonAntwort(zeile ? zustaendigkeitZuJson(zeile) : { personId, ov });
 }
 
 interface VorgangZeile {
@@ -390,7 +459,13 @@ function vorgangZuJson(zeile: VorgangZeile): Record<string, unknown> {
 /** Alle Haken in einem Aufruf (Free-Tier: kein Abruf je Person). */
 async function vorgaengeListe(db: D1Database): Promise<Response> {
   const ergebnis = await db.prepare('SELECT * FROM ehrungen_vorgaenge').all<VorgangZeile>();
-  return jsonAntwort({ vorgaenge: ergebnis.results.map(vorgangZuJson) });
+  const zustaendig = await db
+    .prepare('SELECT * FROM ehrungen_zustaendigkeit')
+    .all<ZustaendigkeitZeile>();
+  return jsonAntwort({
+    vorgaenge: ergebnis.results.map(vorgangZuJson),
+    zustaendigkeiten: zustaendig.results.map(zustaendigkeitZuJson),
+  });
 }
 
 /**
@@ -671,6 +746,12 @@ export async function verarbeiteEhrungen(
     if (vorgang?.[1] && vorgang[2]) {
       return anfrage.method === 'PUT'
         ? await vorgangSetzen(anfrage, db, vorgang[1], vorgang[2], identitaet)
+        : nichtErlaubt('PUT');
+    }
+    const zustaendigkeitId = ZUSTAENDIGKEIT_PFAD.exec(url.pathname)?.[1];
+    if (zustaendigkeitId) {
+      return anfrage.method === 'PUT'
+        ? await zustaendigkeitSetzen(anfrage, db, zustaendigkeitId, identitaet)
         : nichtErlaubt('PUT');
     }
     if (url.pathname === EHRUNGEN_IMPORT_PFAD) {
