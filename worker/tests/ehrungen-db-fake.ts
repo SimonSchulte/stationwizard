@@ -50,8 +50,16 @@ export interface VorgangTestZeile {
   geaendert_von: string;
 }
 
+export interface ZustaendigkeitTestZeile {
+  person_id: string;
+  ov: string;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeEhrungenDb {
   vorgaenge = new Map<string, VorgangTestZeile>();
+  zustaendigkeiten = new Map<string, ZustaendigkeitTestZeile>();
   zeilen = new Map<string, EhrungZeile>();
   protokoll: ProtokollZeile[] = [];
   batchAufrufe = 0;
@@ -98,6 +106,13 @@ class FakeStatement {
         results: [...this.db.vorgaenge.values()] as T[],
       };
     }
+    if (this.query === 'SELECT * FROM ehrungen_zustaendigkeit') {
+      return {
+        success: true,
+        meta: { changes: 0 },
+        results: [...this.db.zustaendigkeiten.values()] as T[],
+      };
+    }
     if (
       this.query.startsWith(
         'SELECT zeitpunkt, benutzer, feld, alt, neu, stand FROM ehrungen_aenderungen',
@@ -130,6 +145,9 @@ class FakeStatement {
     ) {
       const [id, art] = this.werte as [string, string];
       return (this.db.vorgaenge.get(`${id}|${art}`) ?? null) as T | null;
+    }
+    if (this.query === 'SELECT * FROM ehrungen_zustaendigkeit WHERE person_id = ?') {
+      return (this.db.zustaendigkeiten.get(this.werte[0] as string) ?? null) as T | null;
     }
     if (
       this.query.startsWith('SELECT version, stunden, stunden_manuell, stunden_manuell_stand FROM')
@@ -293,6 +311,21 @@ class FakeStatement {
         geaendert_von: von,
       });
       return ok(1);
+    }
+
+    if (this.query.startsWith('INSERT INTO ehrungen_zustaendigkeit')) {
+      const [id, ov, am, von] = this.werte as [string, string, string, string];
+      this.db.zustaendigkeiten.set(id, {
+        person_id: id,
+        ov,
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return ok(1);
+    }
+
+    if (this.query === 'DELETE FROM ehrungen_zustaendigkeit WHERE person_id = ?') {
+      return ok(this.db.zustaendigkeiten.delete(this.werte[0] as string) ? 1 : 0);
     }
 
     if (this.query === 'DELETE FROM ehrungen_vorgaenge WHERE person_id = ?') {

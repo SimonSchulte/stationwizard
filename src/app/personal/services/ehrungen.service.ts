@@ -93,6 +93,27 @@ export function vorgangSchluessel(personId: string, auszeichnung: EhrungSchluess
   return `${personId}|${auszeichnung}`;
 }
 
+/** Feste Liste der Ortsverbände; Gegenstück im Worker (`OV_SCHLUESSEL`). */
+export const OV_SCHLUESSEL = ['bielefeld', 'werther'] as const;
+export type OvSchluessel = (typeof OV_SCHLUESSEL)[number];
+export const OV_BEZEICHNUNG: Record<OvSchluessel, string> = {
+  bielefeld: 'Bielefeld',
+  werther: 'Werther',
+};
+
+export function istOvSchluessel(wert: unknown): wert is OvSchluessel {
+  return typeof wert === 'string' && (OV_SCHLUESSEL as readonly string[]).includes(wert);
+}
+
+interface Zustaendigkeit {
+  personId: string;
+  ov: OvSchluessel;
+}
+
+function istZustaendigkeit(wert: unknown): wert is Zustaendigkeit {
+  return istObjekt(wert) && typeof wert['personId'] === 'string' && istOvSchluessel(wert['ov']);
+}
+
 function istVorgang(wert: unknown): wert is EhrungVorgang {
   return (
     istObjekt(wert) &&
@@ -122,6 +143,9 @@ export class EhrungenService {
   /** Haken der offenen Ehrungen, nach `vorgangSchluessel()`. */
   readonly vorgaenge = signal<ReadonlyMap<string, EhrungVorgang>>(new Map());
 
+  /** Zuständiger Ortsverband je Person-Id; Personen ohne Auswahl fehlen. */
+  readonly zustaendigeOv = signal<ReadonlyMap<string, OvSchluessel>>(new Map());
+
   async laden(): Promise<void> {
     const antwort = await this.worker.json<unknown>(PFAD);
     if (
@@ -138,12 +162,41 @@ export class EhrungenService {
   async vorgaengeLaden(): Promise<void> {
     const antwort = await this.worker.json<unknown>(`${PFAD}/vorgaenge`);
     const liste = istObjekt(antwort) ? antwort['vorgaenge'] : undefined;
-    if (!Array.isArray(liste) || !liste.every(istVorgang)) {
+    const zustaendig = istObjekt(antwort) ? antwort['zustaendigkeiten'] : undefined;
+    if (
+      !Array.isArray(liste) ||
+      !liste.every(istVorgang) ||
+      !Array.isArray(zustaendig) ||
+      !zustaendig.every(istZustaendigkeit)
+    ) {
       throw new WorkerFehler('Der Server hat keinen gültigen Bearbeitungsstand geliefert.', 502);
     }
     this.vorgaenge.set(
       new Map(liste.map((v) => [vorgangSchluessel(v.personId, v.auszeichnung), v])),
     );
+    this.zustaendigeOv.set(new Map(zustaendig.map((z) => [z.personId, z.ov])));
+  }
+
+  /** Setzt den zuständigen OV einer Person; `null` entfernt die Auswahl. */
+  async zustaendigkeitSetzen(personId: string, ov: OvSchluessel | null): Promise<void> {
+    const antwort = await this.worker.json<unknown>(`${PFAD}/${personId}/zustaendigkeit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ov }),
+    });
+    const gueltig =
+      ov === null
+        ? istObjekt(antwort) && antwort['ov'] === null
+        : istZustaendigkeit(antwort) && antwort.ov === ov;
+    if (!gueltig) {
+      throw new WorkerFehler('Der Server hat keine gültige Antwort geliefert.', 502);
+    }
+    this.zustaendigeOv.update((alt) => {
+      const neu = new Map(alt);
+      if (ov === null) neu.delete(personId);
+      else neu.set(personId, ov);
+      return neu;
+    });
   }
 
   /** Setzt genau einen Haken; der Server lässt den anderen unverändert. */
@@ -222,6 +275,11 @@ export class EhrungenService {
     this.vorgaenge.update(
       (alt) => new Map([...alt].filter(([, vorgang]) => vorgang.personId !== id)),
     );
+    this.zustaendigeOv.update((alt) => {
+      const neu = new Map(alt);
+      neu.delete(id);
+      return neu;
+    });
   }
 
   /** Ergebnis je Eintrag in Eingabereihenfolge; danach ist der Bestand neu geladen. */

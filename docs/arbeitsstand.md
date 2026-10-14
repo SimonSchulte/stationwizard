@@ -2973,6 +2973,13 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Worker 846), Formatprüfung, Browser (Desktop 1280 px und Mobil 390 px, Haken setzen gegen simulierte API mit erfundenen
   Daten). Nicht gegen die echte Datenbank oder echte HiOrg-Anreden geprüft; auf dem Handy scrollt die Tabelle horizontal.
 
+- Offene Ehrungen, Zuständiger OV: Auswahl Bielefeld/Werther je Person (Spalte in der Tabelle und im Excel-Export),
+  Tabelle `ehrungen_zustaendigkeit`, Migration `0018`, `PUT …/ehrungen/<UUID>/zustaendigkeit`; `GET …/vorgaenge` liefert
+  die Zuordnungen als `zustaendigkeiten` mit. **Migration 0018 vor dem Rollout des Workers anwenden**; ohne sie schlägt
+  das Laden des Bearbeitungsstands fehl und die Haken samt Auswahl sind gesperrt. Geprüft: Build, `npm test`
+  (Client 1055, Worker 849), Formatprüfung. **Nicht** im Browser (Desktop/Mobil) und nicht gegen die echte Datenbank
+  geprüft. Die OV-Liste ist fest (zwei Werte); weitere Ortsverbände brauchen eine Codeänderung in Worker und Client.
+
 - Personal: Gruppenfilter und Ehrungsantrag (PR #70). Alle Personalmasken haben einen Mehrfachauswahl-Filter
   „Gruppen“ aus HiOrg `gruppen_namen` und eine Spalte „Gruppen“; Ehrungsmanager und Offene Ehrungen holen die
   Gruppen best effort über einen zusätzlichen `GET /api/hiorg/personal` und nennen den Grund, wenn keine
@@ -3001,3 +3008,6 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Öffnen der Seite nicht verbunden, wird die Zuordnung beim Download nachgeladen (vorher blieb das Kästchen leer).
   Geprüft: Worker-Tests (Feldauswahl, eine Person, 404, Methode/Query), Client-Tests, Browser mit simulierter
   API (Abruf genau einmal je Antrag, PDF mit Straße, Wohnort, Geburtsdatum und Kreuz bei Frau).
+  Merge mit `main` (#71, Zuständiger OV): beide Spalten nebeneinander, Excel-Export „Offene Ehrungen“ mit OV-Spalte
+  und Filterauswahl. Spaltenbreiten nachgezogen; im Browser bei 2000 px und 1280 px ohne Querscrollen geprüft.
+  Geprüft: Build, `npm test` (Client 1063, Worker 860), `worker:check`, Formatprüfung.

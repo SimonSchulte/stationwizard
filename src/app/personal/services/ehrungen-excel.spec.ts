@@ -49,6 +49,7 @@ describe('Export „Zu Ehrende“', () => {
         Vorname: 'Test',
         Grundlage: '4.500 Stunden',
         'Bisher erhalten': 'Bronze 2012',
+        'Zuständiger OV': '',
         'Abgestimmt OB': '',
         Beantragt: '',
         'Anspruch bis': 'Gold',
@@ -61,6 +62,7 @@ describe('Export „Zu Ehrende“', () => {
         Vorname: 'Test',
         Grundlage: '26 Jahre Mitglied (seit 01.03.2000)',
         'Bisher erhalten': '',
+        'Zuständiger OV': '',
         'Abgestimmt OB': '',
         Beantragt: '',
         'Anspruch bis': '',
@@ -117,6 +119,27 @@ describe('Export „Zu Ehrende“ mit Bearbeitungsstand', () => {
     expect(zeilen.map((z) => [z['Nachname'], z['Abgestimmt OB'], z['Beantragt']])).toEqual([
       ['Anna', 'ja', ''],
       ['Bert', 'ja', 'ja'],
+    ]);
+  });
+
+  it('führt den zuständigen OV je Person', async () => {
+    const daten = await zuEhrendeExcelErzeugen(
+      [
+        person('Anna', { stunden: 1500, erhalten: {} }),
+        person('Bert', { stunden: 1500, erhalten: {} }),
+      ],
+      2026,
+      new Map(),
+      new Map(),
+      new Map([['Anna', 'werther']]),
+    );
+    const mappe = XLSX.read(daten, { type: 'array' });
+    const zeilen = XLSX.utils.sheet_to_json<Record<string, string>>(
+      mappe.Sheets['Zu Ehrende 2026'],
+    );
+    expect(zeilen.map((z) => [z['Nachname'], z['Zuständiger OV']])).toEqual([
+      ['Anna', 'Werther'],
+      ['Bert', ''],
     ]);
   });
 });

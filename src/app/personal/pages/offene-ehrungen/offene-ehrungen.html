@@ -93,6 +93,24 @@
           <th mat-header-cell *matHeaderCellDef>Bisher erhalten</th>
           <td mat-cell *matCellDef="let zeile">{{ zeile.eintrag.bisher || '–' }}</td>
         </ng-container>
+        <ng-container matColumnDef="ov">
+          <th mat-header-cell *matHeaderCellDef>Zuständiger OV</th>
+          <td mat-cell *matCellDef="let zeile">
+            <mat-select
+              class="ov-auswahl"
+              [value]="zeile.ov"
+              [disabled]="!vorgaengeVerfuegbar() || speichernd().has(zeile.id)"
+              (selectionChange)="ovWaehlen(zeile, $event.value)"
+              placeholder="–"
+              [aria-label]="'Zuständiger OV, ' + zeile.eintrag.nachname"
+            >
+              <mat-option [value]="null">–</mat-option>
+              @for (ov of ovListe; track ov) {
+                <mat-option [value]="ov">{{ ovBezeichnung[ov] }}</mat-option>
+              }
+            </mat-select>
+          </td>
+        </ng-container>
         <ng-container matColumnDef="abgestimmtOb">
           <th mat-header-cell *matHeaderCellDef>Abgestimmt OB</th>
           <td mat-cell *matCellDef="let zeile">
