@@ -11,6 +11,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -31,7 +32,11 @@ import {
 } from '../../services/ehrungen-regeln';
 import {
   EhrungenService,
+  OV_BEZEICHNUNG,
+  OV_SCHLUESSEL,
+  istOvSchluessel,
   vorgangSchluessel,
+  type OvSchluessel,
   type VorgangFeld,
 } from '../../services/ehrungen.service';
 
@@ -44,6 +49,8 @@ interface Zeile {
   auszeichnung: string;
   abgestimmtOb: boolean;
   beantragt: boolean;
+  /** Zuständiger Ortsverband der Person; `null`, solange keiner gewählt ist. */
+  ov: OvSchluessel | null;
 }
 
 /**
@@ -60,6 +67,7 @@ interface Zeile {
     MatCheckboxModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     MatTableModule,
     MatToolbarModule,
     MatTooltipModule,
@@ -79,6 +87,7 @@ export class OffeneEhrungen implements OnInit {
     'name',
     'grundlage',
     'bisher',
+    'ov',
     'abgestimmtOb',
     'beantragt',
     'hinweis',
@@ -92,10 +101,13 @@ export class OffeneEhrungen implements OnInit {
   /** Schlüssel der Zeilen, deren Haken gerade gespeichert wird. */
   readonly speichernd = signal<ReadonlySet<string>>(new Set());
   /** Ob die Haken geladen werden konnten; ohne sie bleibt die Liste lesbar, die Haken sind gesperrt. */
+  readonly ovListe = OV_SCHLUESSEL;
+  readonly ovBezeichnung = OV_BEZEICHNUNG;
   readonly vorgaengeVerfuegbar = signal(true);
 
   private readonly alleZeilen = computed<Zeile[]>(() => {
     const vorgaenge = this.dienst.vorgaenge();
+    const zustaendigeOv = this.dienst.zustaendigeOv();
     return zuEhrende(this.dienst.personen(), this.jahr).map((eintrag) => {
       const id = vorgangSchluessel(eintrag.personId ?? '', eintrag.auszeichnung);
       const stand = vorgaenge.get(id);
@@ -105,6 +117,7 @@ export class OffeneEhrungen implements OnInit {
         auszeichnung: this.auszeichnungText(eintrag.auszeichnung),
         abgestimmtOb: stand?.abgestimmtOb ?? false,
         beantragt: stand?.beantragt ?? false,
+        ov: zustaendigeOv.get(eintrag.personId ?? '') ?? null,
       };
     });
   });
@@ -189,6 +202,30 @@ export class OffeneEhrungen implements OnInit {
     }
   }
 
+  /** Speichert den zuständigen OV der Person; er gilt für alle ihre offenen Ehrungen. */
+  async ovWaehlen(zeile: Zeile, wert: unknown): Promise<void> {
+    const personId = zeile.eintrag.personId;
+    const ov = istOvSchluessel(wert) ? wert : null;
+    if (!personId || this.speichernd().has(zeile.id)) return;
+    this.fehler.set('');
+    this.speichernd.update((alt) => new Set(alt).add(zeile.id));
+    try {
+      await this.dienst.zustaendigkeitSetzen(personId, ov);
+    } catch (fehler) {
+      this.fehler.set(
+        fehler instanceof Error
+          ? fehler.message
+          : 'Der zuständige OV konnte nicht gespeichert werden.',
+      );
+    } finally {
+      this.speichernd.update((alt) => {
+        const neu = new Set(alt);
+        neu.delete(zeile.id);
+        return neu;
+      });
+    }
+  }
+
   /**
    * Excel mit denselben Zeilen und Haken. Für die Jubiläumsuhr (Damen/Herren) fragt der Export die
    * HiOrg-Anrede ab, sofern eine Uhr offen ist und HiOrg verbunden ist; sie wird nicht gespeichert.
@@ -229,6 +266,7 @@ export class OffeneEhrungen implements OnInit {
         this.jahr,
         uhrArten,
         this.dienst.vorgaenge(),
+        this.dienst.zustaendigeOv(),
       );
       dateiHerunterladen(daten, `offene-ehrungen-${heuteIso()}.xlsx`, EHRUNGEN_EXCEL_MEDIENTYP);
     } catch (fehler) {

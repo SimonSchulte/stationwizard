@@ -2972,3 +2972,10 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Workers anwenden**; ohne sie lädt die Seite die Liste, sperrt aber die Haken. Geprüft: Build, `npm test` (Client 1052,
   Worker 846), Formatprüfung, Browser (Desktop 1280 px und Mobil 390 px, Haken setzen gegen simulierte API mit erfundenen
   Daten). Nicht gegen die echte Datenbank oder echte HiOrg-Anreden geprüft; auf dem Handy scrollt die Tabelle horizontal.
+
+- Offene Ehrungen, Zuständiger OV: Auswahl Bielefeld/Werther je Person (Spalte in der Tabelle und im Excel-Export),
+  Tabelle `ehrungen_zustaendigkeit`, Migration `0018`, `PUT …/ehrungen/<UUID>/zustaendigkeit`; `GET …/vorgaenge` liefert
+  die Zuordnungen als `zustaendigkeiten` mit. **Migration 0018 vor dem Rollout des Workers anwenden**; ohne sie schlägt
+  das Laden des Bearbeitungsstands fehl und die Haken samt Auswahl sind gesperrt. Geprüft: Build, `npm test`
+  (Client 1055, Worker 849), Formatprüfung. **Nicht** im Browser (Desktop/Mobil) und nicht gegen die echte Datenbank
+  geprüft. Die OV-Liste ist fest (zwei Werte); weitere Ortsverbände brauchen eine Codeänderung in Worker und Client.
