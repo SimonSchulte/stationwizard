@@ -1,16 +1,12 @@
 <mat-toolbar class="kopfleiste">
   <mat-icon class="kopfleiste-icon">description</mat-icon>
-  <span class="toolbar-title">Führerschein-Vorlage</span>
+  <span class="toolbar-title">{{ art.titel }}</span>
   <span class="spacer"></span>
   <a mat-button routerLink="/verwaltung">Zurück zur Verwaltung</a>
 </mat-toolbar>
 
 <div class="inhalt">
-  <p class="beschreibung">
-    Die Word-Vorlage, die die Führerscheinliste beim Herunterladen füllt (Name, Führerscheindatum
-    und -nummer je Person). Die übrigen Spalten der Vorlage – Ausstellungsort, Fahrgastbeförderung,
-    Prüfung und Unterschrift – bleiben für die Eintragung von Hand.
-  </p>
+  <p class="beschreibung">{{ art.beschreibung }}</p>
 
   @if (fehler()) {
     <p class="fehler" role="alert">{{ fehler() }}</p>
@@ -54,14 +50,10 @@
     <section class="abschnitt">
       <h2>{{ vorlage()!.vorhanden ? 'Vorlage ersetzen' : 'Vorlage hochladen' }}</h2>
       <label class="datei-feld">
-        <input
-          type="file"
-          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          (change)="dateiGewaehlt($event)"
-        />
+        <input type="file" [accept]="art.accept" (change)="dateiGewaehlt($event)" />
         <span class="datei-knopf">
           <mat-icon>upload_file</mat-icon>
-          .docx-Datei auswählen
+          {{ art.endungText }}-Datei auswählen
         </span>
       </label>
       @if (gewaehlteDatei()) {

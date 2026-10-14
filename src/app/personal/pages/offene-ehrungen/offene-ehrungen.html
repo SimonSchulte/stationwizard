@@ -9,7 +9,7 @@
     mat-stroked-button
     (click)="excelHerunterladen()"
     [disabled]="anzahlGesamt() === 0 || arbeitet() || laedt()"
-    matTooltip="Excel-Liste aller offenen Ehrungen mit Abgestimmt OB und Beantragt"
+    matTooltip="Excel-Liste der angezeigten offenen Ehrungen (aktuelle Filter) mit Abgestimmt OB und Beantragt (Antrag erstellt)"
   >
     <mat-icon>download</mat-icon> Excel
   </button>
@@ -53,11 +53,18 @@
         <mat-button-toggle value="abgestimmt">Abgestimmt, nicht beantragt</mat-button-toggle>
         <mat-button-toggle value="beantragt">Beantragt</mat-button-toggle>
       </mat-button-toggle-group>
+      @if (gruppen().length > 0) {
+        <app-gruppen-filter [gruppen]="gruppen()" [(auswahl)]="gruppenAuswahl" />
+      }
       <span class="zaehler">
         {{ zeilen().length }} von {{ anzahlGesamt() }} · {{ anzahlAbgestimmt() }} abgestimmt ·
         {{ anzahlBeantragt() }} beantragt
       </span>
     </div>
+
+    @if (gruppenHinweis()) {
+      <p class="hinweis" role="status">{{ gruppenHinweis() }}</p>
+    }
 
     <div class="tabelle-rahmen">
       <table mat-table [dataSource]="zeilen()" [trackBy]="zeileId">
@@ -70,9 +77,13 @@
         </ng-container>
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Name</th>
-          <td mat-cell *matCellDef="let zeile">
+          <td mat-cell *matCellDef="let zeile" class="name-zelle">
             {{ zeile.eintrag.nachname }}, {{ zeile.eintrag.vorname }}
           </td>
+        </ng-container>
+        <ng-container matColumnDef="gruppen">
+          <th mat-header-cell *matHeaderCellDef>Gruppen</th>
+          <td mat-cell *matCellDef="let zeile">{{ gruppenText(zeile) }}</td>
         </ng-container>
         <ng-container matColumnDef="grundlage">
           <th mat-header-cell *matHeaderCellDef>Grundlage</th>
@@ -106,25 +117,56 @@
             <mat-checkbox
               [checked]="zeile.abgestimmtOb"
               [disabled]="!vorgaengeVerfuegbar() || speichernd().has(zeile.id)"
-              (change)="haken(zeile, 'abgestimmtOb', $event.checked)"
+              (change)="abgestimmt(zeile, $event.checked)"
               [aria-label]="'Abgestimmt OB, ' + zeile.eintrag.nachname + ', ' + zeile.auszeichnung"
             />
           </td>
         </ng-container>
-        <ng-container matColumnDef="beantragt">
-          <th mat-header-cell *matHeaderCellDef>Beantragt</th>
+        <ng-container matColumnDef="begruendung">
+          <th mat-header-cell *matHeaderCellDef>Begründung</th>
+          <td mat-cell *matCellDef="let zeile" class="begruendung-zelle">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="begruendung">
+              <textarea
+                matInput
+                rows="2"
+                maxlength="2000"
+                placeholder="Freitext für den Antrag"
+                [disabled]="!vorgaengeVerfuegbar() || speichernd().has(zeile.id)"
+                [value]="begruendungText(zeile)"
+                (input)="begruendungGeaendert(zeile, $any($event.target).value)"
+                (blur)="begruendungSpeichern(zeile)"
+                [attr.aria-label]="
+                  'Begründung, ' + zeile.eintrag.nachname + ', ' + zeile.auszeichnung
+                "
+              ></textarea>
+            </mat-form-field>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="antrag">
+          <th mat-header-cell *matHeaderCellDef>Antrag</th>
           <td mat-cell *matCellDef="let zeile">
-            <mat-checkbox
-              [checked]="zeile.beantragt"
-              [disabled]="!vorgaengeVerfuegbar() || speichernd().has(zeile.id)"
-              (change)="haken(zeile, 'beantragt', $event.checked)"
-              [aria-label]="'Beantragt, ' + zeile.eintrag.nachname + ', ' + zeile.auszeichnung"
-            />
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="!vorgaengeVerfuegbar() || arbeitet() || speichernd().has(zeile.id)"
+              (click)="antragHerunterladen(zeile)"
+              matTooltip="Antragsformular als PDF, vorausgefüllt und weiter ausfüllbar"
+              [attr.aria-label]="
+                'Antrag herunterladen, ' + zeile.eintrag.nachname + ', ' + zeile.auszeichnung
+              "
+            >
+              <mat-icon>picture_as_pdf</mat-icon> Antrag
+            </button>
+            @if (erstelltAm(zeile)) {
+              <div class="nebenzeile">zuletzt erstellt am {{ erstelltAm(zeile) }}</div>
+            } @else if (zeile.beantragt) {
+              <div class="nebenzeile">als beantragt markiert</div>
+            }
           </td>
         </ng-container>
         <ng-container matColumnDef="hinweis">
           <th mat-header-cell *matHeaderCellDef>Hinweis</th>
-          <td mat-cell *matCellDef="let zeile">
+          <td mat-cell *matCellDef="let zeile" class="hinweis-zelle">
             @if (zeile.eintrag.hinweis) {
               <span class="staffel-hinweis" role="note">
                 <mat-icon aria-hidden="true">warning</mat-icon> {{ zeile.eintrag.hinweis }}
@@ -132,8 +174,8 @@
             }
           </td>
         </ng-container>
-        <tr mat-header-row *matHeaderRowDef="spalten; sticky: true"></tr>
-        <tr mat-row *matRowDef="let zeile; columns: spalten"></tr>
+        <tr mat-header-row *matHeaderRowDef="angezeigteSpalten(); sticky: true"></tr>
+        <tr mat-row *matRowDef="let zeile; columns: angezeigteSpalten()"></tr>
       </table>
     </div>
     @if (zeilen().length === 0) {
@@ -142,7 +184,8 @@
     <p class="legende">
       Die Liste zeigt je Person und Gruppe die nächste vergebbare Stufe aus dem gespeicherten Stand
       des Ehrungsmanagers. Sobald die Auszeichnung dort als erhalten erfasst ist, verschwindet sie
-      hier.
+      hier. „Antrag“ füllt das im Verwaltungsbereich hinterlegte Antragsformular und zählt den
+      Vorgang danach als beantragt; die Begründung wird beim Verlassen des Feldes gespeichert.
     </p>
   }
 </div>

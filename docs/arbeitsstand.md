@@ -2979,3 +2979,35 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   das Laden des Bearbeitungsstands fehl und die Haken samt Auswahl sind gesperrt. Geprüft: Build, `npm test`
   (Client 1055, Worker 849), Formatprüfung. **Nicht** im Browser (Desktop/Mobil) und nicht gegen die echte Datenbank
   geprüft. Die OV-Liste ist fest (zwei Werte); weitere Ortsverbände brauchen eine Codeänderung in Worker und Client.
+
+- Personal: Gruppenfilter und Ehrungsantrag (PR #70). Alle Personalmasken haben einen Mehrfachauswahl-Filter
+  „Gruppen“ aus HiOrg `gruppen_namen` und eine Spalte „Gruppen“; Ehrungsmanager und Offene Ehrungen holen die
+  Gruppen best effort über einen zusätzlichen `GET /api/hiorg/personal` und nennen den Grund, wenn keine
+  vorliegen. In „Offene Ehrungen“ ersetzt der Knopf **Antrag** den Haken „Beantragt“: er füllt das PDF-Formular
+  „Antrag auf Verleihung einer Auszeichnung“ (Rev. 3.2) im Browser (`pdf-lib`, Felder bleiben ausfüllbar) und
+  vermerkt „zuletzt erstellt am“. Neue Spalte „Begründung“, Tätigkeit wird je Download abgefragt, LV/RV kommen
+  aus den neuen Organisationsstammdaten der Systemkonfiguration (nur Zugführung). Straße, Wohnort,
+  Geburtsdatum bleiben leer, weil Anschrift und Geburtsdaten den Worker nie verlassen. Formular im
+  Verwaltungsbereich unter „Ehrungsantrag-Vorlage“ hochladen. **Migration `0019_ehrungsantrag.sql` vor dem
+  Rollout des Workers auf `BENUTZER_DB` anwenden** (Spalten `begruendung`/`antrag_erstellt_am`, Tabelle
+  `ehrungsantrag_vorlage`, Startbestand LV/RV). Die Migration ist am 2026-10-13 auf `BENUTZER_DB` angewendet und in
+  `d1_migrations` eingetragen (Nummer 0019, weil 0018 durch `0018_ehrungen_zustaendigkeit.sql` belegt ist);
+  Kontrollabfrage: beide Spalten, die Tabelle und LV/RV vorhanden. Geprüft: Build, `npm test` (Client 1060, Worker 854),
+  `worker:check`, `test:spa`, `deploy:dry-run`, Formatprüfung; Browser (Desktop 1400 px, Mobil 390 px) gegen
+  simulierte API mit erfundenen Daten: Begründung speichern, Tätigkeitsabfrage, Download und Inhalt des
+  gefüllten PDFs (mit dem echten Formular, nur lokal), Systemkonfiguration und Vorlagenseite. Nicht geprüft:
+  gegen die echte Datenbank, echte HiOrg-Gruppen und -Anreden, Öffnen des PDFs in Adobe Reader; am Handy
+  scrollt die Tabelle horizontal.
+  Nachtrag: „Offene Ehrungen“ nutzt die volle Seitenbreite (wie die Fahrzeugliste) mit engeren Zellabständen;
+  im Browser bei 2000 px und 1280 px ohne Querscrollen und ohne abgeschnittenen Hinweis geprüft, bei 390 px
+  scrollt die Tabelle weiterhin in ihrem Rahmen.
+  Nachtrag: Straße, Wohnort und Geburtsdatum stehen jetzt im Antrag, auf Wunsch des Betreibers. Neuer Endpunkt
+  `GET /api/hiorg/personal/<Id>/antragsdaten` gibt nur Anrede, `adresse`, `plz`, `ort` und `gebdat` genau einer
+  Person heraus (nicht in der allgemeinen Liste, nie gespeichert); die Feldnamen stammen aus der offiziellen
+  Beispielantwort, **gegen die echte API nicht geprüft**. Frau/Herr kommt aus derselben Antwort; war HiOrg beim
+  Öffnen der Seite nicht verbunden, wird die Zuordnung beim Download nachgeladen (vorher blieb das Kästchen leer).
+  Geprüft: Worker-Tests (Feldauswahl, eine Person, 404, Methode/Query), Client-Tests, Browser mit simulierter
+  API (Abruf genau einmal je Antrag, PDF mit Straße, Wohnort, Geburtsdatum und Kreuz bei Frau).
+  Merge mit `main` (#71, Zuständiger OV): beide Spalten nebeneinander, Excel-Export „Offene Ehrungen“ mit OV-Spalte
+  und Filterauswahl. Spaltenbreiten nachgezogen; im Browser bei 2000 px und 1280 px ohne Querscrollen geprüft.
+  Geprüft: Build, `npm test` (Client 1063, Worker 860), `worker:check`, Formatprüfung.

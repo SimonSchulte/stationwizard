@@ -459,6 +459,71 @@ describe('HiOrg-API: Personal', () => {
   });
 });
 
+describe('HiOrg-API: Antragsdaten einer Person', () => {
+  const antragsAnfrage = (id = '9aabc46f91700bf0d97f625b7c5eeacf') =>
+    new Request(`${ORIGIN}/api/hiorg/personal/${id}/antragsdaten`);
+
+  it('gibt nur Anrede, Straße, PLZ, Ort und Geburtsdatum genau dieser Person heraus', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(
+      Response.json({
+        data: [
+          { ...person({ adresse: 'Andere Straße 9', gebdat: '1990-05-05' }), id: 'andere' },
+          person({ anrede: 'Herr', plz: '12345', ort: 'Musterhausen', gebdat: '07.02.1985' }),
+        ],
+      }),
+    );
+    const antwort = await verarbeiteHiorgApi(antragsAnfrage(), umgebung, BENUTZER);
+    expect(antwort.status).toBe(200);
+    const text = await antwort.text();
+    expect(JSON.parse(text)).toEqual({
+      anrede: 'Herr',
+      strasse: 'Erfundene Straße 1',
+      plz: '12345',
+      ort: 'Musterhausen',
+      geburtsdatum: '1985-02-07',
+    });
+    for (const verboten of ['Andere Straße', 'DE000', 'soja', 'geheim', '7B9205K0C65', 'Erika']) {
+      expect(text).not.toContain(verboten);
+    }
+  });
+
+  it('meldet fehlende oder unbrauchbare Felder als null', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(
+      Response.json({ data: [person({ adresse: 'Zeile\nzwei', gebdat: 'unbekannt', ort: 42 })] }),
+    );
+    const antwort = await verarbeiteHiorgApi(antragsAnfrage(), umgebung, BENUTZER);
+    expect(await antwort.json()).toEqual({
+      anrede: null,
+      strasse: null,
+      plz: null,
+      ort: null,
+      geburtsdatum: null,
+    });
+  });
+
+  it('antwortet 404, wenn die Person nicht im Personal ist, und lehnt fremde Formen ab', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(Response.json({ data: [person()] }));
+    const fehlt = await verarbeiteHiorgApi(antragsAnfrage('unbekannt'), umgebung, BENUTZER);
+    expect(fehlt.status).toBe(404);
+    expect(fehlt.headers.get('X-Stationwizard-Diagnose')).toBe('HIORG_PERSON_NICHT_GEFUNDEN');
+    const post = await verarbeiteHiorgApi(
+      new Request(antragsAnfrage().url, { method: 'POST' }),
+      umgebung,
+      BENUTZER,
+    );
+    expect(post.status).toBe(405);
+    const query = await verarbeiteHiorgApi(
+      new Request(`${antragsAnfrage().url}?felder=iban`),
+      umgebung,
+      BENUTZER,
+    );
+    expect(query.status).toBe(400);
+  });
+});
+
 describe('HiOrg-API: manueller Rückruf über den Access-Callback', () => {
   function codeAnfrage(adresse: unknown, cookie: string | undefined = COOKIE): Request {
     return new Request(`${ORIGIN}/api/hiorg/verbindung/code`, {

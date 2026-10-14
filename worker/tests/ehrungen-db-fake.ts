@@ -44,6 +44,8 @@ export interface VorgangTestZeile {
   auszeichnung: string;
   abgestimmt_ob: number;
   beantragt: number;
+  begruendung: string | null;
+  antrag_erstellt_am: string | null;
   geaendert_am: string;
   geaendert_von: string;
 }
@@ -284,14 +286,18 @@ class FakeStatement {
     }
 
     if (this.query.startsWith('INSERT INTO ehrungen_vorgaenge')) {
-      const [id, art, abgestimmt, beantragt, am, von] = this.werte as [
-        string,
-        string,
-        number,
-        number,
-        string,
-        string,
-      ];
+      const [id, art, abgestimmt, beantragt, begruendungSetzen, begruendung, erstellt, am, von] =
+        this.werte as [
+          string,
+          string,
+          number,
+          number,
+          number,
+          string | null,
+          number,
+          string,
+          string,
+        ];
       const schluessel = `${id}|${art}`;
       const alt = this.db.vorgaenge.get(schluessel);
       this.db.vorgaenge.set(schluessel, {
@@ -299,6 +305,8 @@ class FakeStatement {
         auszeichnung: art,
         abgestimmt_ob: alt && abgestimmt < 0 ? alt.abgestimmt_ob : Math.max(abgestimmt, 0),
         beantragt: alt && beantragt < 0 ? alt.beantragt : Math.max(beantragt, 0),
+        begruendung: begruendungSetzen === 1 ? begruendung : (alt?.begruendung ?? null),
+        antrag_erstellt_am: erstellt === 1 ? am : (alt?.antrag_erstellt_am ?? null),
         geaendert_am: am,
         geaendert_von: von,
       });

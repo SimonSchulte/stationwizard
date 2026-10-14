@@ -14,7 +14,7 @@
         mat-flat-button
         (click)="dokumentHerunterladen()"
         [disabled]="laedt() || dokumentWirdErstellt() || dokumentZeilen().length === 0"
-        matTooltip="Trägt Name, Führerscheindatum und -nummer in die hinterlegte Word-Vorlage ein"
+        matTooltip="Trägt Name, Führerscheindatum und -nummer der angezeigten Personen (aktuelle Filter) in die hinterlegte Word-Vorlage ein"
       >
         @if (dokumentWirdErstellt()) {
           <mat-progress-spinner diameter="18" mode="indeterminate" />
@@ -81,6 +81,7 @@
               placeholder="Name oder Klasse"
             />
           </mat-form-field>
+          <app-gruppen-filter [gruppen]="gruppen()" [(auswahl)]="gruppenAuswahl" />
           <span class="anzahl" role="status">
             {{ gefiltert().length }} von {{ personen().length }} Personen
           </span>
@@ -99,6 +100,10 @@
                   <strong>{{ person.nachname }}</strong
                   >, {{ person.vorname }}
                 </td>
+              </ng-container>
+              <ng-container matColumnDef="gruppen">
+                <th mat-header-cell *matHeaderCellDef>Gruppen</th>
+                <td mat-cell *matCellDef="let person">{{ person.gruppen.join(', ') }}</td>
               </ng-container>
               <ng-container matColumnDef="klassen">
                 <th mat-header-cell *matHeaderCellDef>Klassen</th>

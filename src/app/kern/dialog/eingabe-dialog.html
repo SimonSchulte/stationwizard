@@ -1,0 +1,25 @@
+<h2 mat-dialog-title>{{ daten.titel }}</h2>
+<mat-dialog-content>
+  <p class="nachricht">{{ daten.nachricht }}</p>
+  <mat-form-field appearance="outline" class="eingabe">
+    <mat-label>{{ daten.label }}</mat-label>
+    <input
+      matInput
+      cdkFocusInitial
+      [attr.maxlength]="daten.maxLaenge"
+      [value]="wert()"
+      (input)="wert.set($any($event.target).value)"
+      (keydown.enter)="(daten.leerErlaubt || wert().trim()) && dialogRef.close(wert().trim())"
+    />
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button [mat-dialog-close]="null">Abbrechen</button>
+  <button
+    mat-flat-button
+    [disabled]="!daten.leerErlaubt && !wert().trim()"
+    [mat-dialog-close]="wert().trim()"
+  >
+    {{ daten.bestaetigenLabel }}
+  </button>
+</mat-dialog-actions>

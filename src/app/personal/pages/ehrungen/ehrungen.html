@@ -117,6 +117,10 @@
     </mat-card>
   }
 
+  @if (gruppenHinweis()) {
+    <p class="hinweis" role="status">{{ gruppenHinweis() }}</p>
+  }
+
   <div class="werkzeuge">
     <mat-form-field class="suche" appearance="outline" subscriptSizing="dynamic">
       <mat-label>Suchen</mat-label>
@@ -133,6 +137,10 @@
         </button>
       }
     </mat-form-field>
+
+    @if (hiorgGruppen().length > 0) {
+      <app-gruppen-filter [gruppen]="hiorgGruppen()" [(auswahl)]="gruppenAuswahl" />
+    }
 
     <mat-form-field class="auswahl" appearance="outline" subscriptSizing="dynamic">
       <mat-label>Auszeichnung</mat-label>
@@ -218,6 +226,10 @@
         <ng-container matColumnDef="vorname">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Vorname</th>
           <td mat-cell *matCellDef="let zeile">{{ zeile.person.vorname }}</td>
+        </ng-container>
+        <ng-container matColumnDef="hiorgGruppen">
+          <th mat-header-cell *matHeaderCellDef>Gruppen</th>
+          <td mat-cell *matCellDef="let zeile">{{ hiorgGruppenText(zeile.person) }}</td>
         </ng-container>
         <ng-container matColumnDef="stunden">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="zahl">Stunden</th>
@@ -415,10 +427,10 @@
           </td>
         </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="spalten; sticky: true"></tr>
+        <tr mat-header-row *matHeaderRowDef="angezeigteSpalten(); sticky: true"></tr>
         <tr
           mat-row
-          *matRowDef="let zeile; columns: spalten"
+          *matRowDef="let zeile; columns: angezeigteSpalten()"
           [class.geaendert]="zeile.geaendert"
         ></tr>
       </table>

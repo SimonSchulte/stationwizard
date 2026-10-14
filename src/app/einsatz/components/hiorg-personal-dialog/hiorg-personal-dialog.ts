@@ -6,6 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
+import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
 import { HiorgPersonalService, type HiorgPerson } from '../../../kern/hiorg/hiorg-personal.service';
 import { ImportService } from '../../services/import.service';
@@ -16,6 +18,7 @@ import { PlanungStoreService } from '../../services/planung-store.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-hiorg-personal-dialog',
   imports: [
+    GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,
     MatCheckboxModule,
@@ -45,10 +48,15 @@ export class HiorgPersonalDialog {
     () => new Set((this.store.active()?.einsatzkraefte ?? []).map((e) => e.name)),
   );
 
+  readonly gruppen = computed(() => gruppenSammeln(this.personen()));
+  readonly gruppenAuswahl = signal<string[]>([]);
+
   readonly gefiltert = computed(() => {
     const suche = this.suche().trim().toLocaleLowerCase('de');
-    if (!suche) return this.personen();
-    return this.personen().filter((person) =>
+    const auswahl = this.gruppenAuswahl();
+    const personen = this.personen().filter((person) => passtZuGruppen(person.gruppen, auswahl));
+    if (!suche) return personen;
+    return personen.filter((person) =>
       [person.nachname, person.vorname, ...person.gruppen].some((teil) =>
         teil.toLocaleLowerCase('de').includes(suche),
       ),

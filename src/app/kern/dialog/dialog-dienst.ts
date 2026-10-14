@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
+import { EingabeDialog, type EingabeDialogDaten } from './eingabe-dialog';
 import { GemeinsamerDialog, GemeinsameDialogDaten } from './gemeinsamer-dialog';
 
 /** Gemeinsame Hinweise und Bestätigungen beider Fachbereiche. */
@@ -18,6 +19,36 @@ export class DialogDienst {
 
   async hinweis(nachricht: string, titel = 'Hinweis'): Promise<void> {
     await this.oeffnen({ titel, nachricht, bestaetigenLabel: 'Verstanden' });
+  }
+
+  /** Fragt einen kurzen Freitext ab; `null` bei Abbrechen. */
+  async eingabe(
+    nachricht: string,
+    titel: string,
+    label: string,
+    optionen: Partial<
+      Pick<EingabeDialogDaten, 'bestaetigenLabel' | 'wert' | 'leerErlaubt' | 'maxLaenge'>
+    > = {},
+  ): Promise<string | null> {
+    const referenz = this.dialog.open<EingabeDialog, EingabeDialogDaten, string | null>(
+      EingabeDialog,
+      {
+        data: {
+          titel,
+          nachricht,
+          label,
+          bestaetigenLabel: optionen.bestaetigenLabel ?? 'Übernehmen',
+          wert: optionen.wert ?? '',
+          leerErlaubt: optionen.leerErlaubt ?? false,
+          maxLaenge: optionen.maxLaenge ?? 200,
+        },
+        width: '520px',
+        maxWidth: '94vw',
+        restoreFocus: true,
+      },
+    );
+    const ergebnis = await firstValueFrom(referenz.afterClosed(), { defaultValue: null });
+    return typeof ergebnis === 'string' ? ergebnis : null;
   }
 
   private async oeffnen(daten: GemeinsameDialogDaten): Promise<boolean> {

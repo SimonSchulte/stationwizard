@@ -63,15 +63,31 @@ function istStundenAenderung(wert: unknown): wert is StundenAenderung {
   );
 }
 
-/** Bearbeitungsstand einer offenen Ehrung: mit dem Ortsbeauftragten abgestimmt, beantragt. */
+/**
+ * Bearbeitungsstand einer offenen Ehrung: mit dem Ortsbeauftragten abgestimmt, beantragt,
+ * Begründung für den Antrag und Zeitpunkt des zuletzt erstellten Antrags.
+ */
 export interface EhrungVorgang {
   personId: string;
   auszeichnung: EhrungSchluessel;
   abgestimmtOb: boolean;
   beantragt: boolean;
+  /** Leer, wenn keine Begründung erfasst ist. */
+  begruendung: string;
+  /** ISO-Zeitpunkt, den der Worker beim Erstellen des Antrags setzt; `null` ohne Antrag. */
+  antragErstelltAm: string | null;
 }
 
 export type VorgangFeld = 'abgestimmtOb' | 'beantragt';
+
+/** Was eine Anfrage am Bearbeitungsstand ändert; fehlende Felder bleiben, wie sie sind. */
+export interface VorgangAenderung {
+  abgestimmtOb?: boolean;
+  beantragt?: boolean;
+  begruendung?: string;
+  /** Vermerkt einen erstellten Antrag; Zeitpunkt und „Beantragt“ setzt der Worker. */
+  antragErstellt?: true;
+}
 
 export function vorgangSchluessel(personId: string, auszeichnung: EhrungSchluessel): string {
   return `${personId}|${auszeichnung}`;
@@ -104,7 +120,9 @@ function istVorgang(wert: unknown): wert is EhrungVorgang {
     typeof wert['personId'] === 'string' &&
     istEhrungSchluessel(wert['auszeichnung']) &&
     typeof wert['abgestimmtOb'] === 'boolean' &&
-    typeof wert['beantragt'] === 'boolean'
+    typeof wert['beantragt'] === 'boolean' &&
+    typeof wert['begruendung'] === 'string' &&
+    (wert['antragErstelltAm'] === null || typeof wert['antragErstelltAm'] === 'string')
   );
 }
 
@@ -188,12 +206,21 @@ export class EhrungenService {
     feld: VorgangFeld,
     wert: boolean,
   ): Promise<void> {
+    await this.vorgangAendern(personId, auszeichnung, { [feld]: wert });
+  }
+
+  /** Ändert nur die genannten Felder des Bearbeitungsstands. */
+  async vorgangAendern(
+    personId: string,
+    auszeichnung: EhrungSchluessel,
+    aenderung: VorgangAenderung,
+  ): Promise<void> {
     const antwort = await this.worker.json<unknown>(
       `${PFAD}/${personId}/vorgaenge/${auszeichnung}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [feld]: wert }),
+        body: JSON.stringify(aenderung),
       },
     );
     if (!istVorgang(antwort)) {

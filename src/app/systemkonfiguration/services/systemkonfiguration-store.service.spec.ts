@@ -17,6 +17,8 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     materialMaengelSegEmpfaenger: '',
     materialVersandweg: 'email-routing',
     materialBetreff: 'Materialmeldung',
+    organisationLandesverband: '',
+    organisationRegionalverband: '',
     ...ueberschreibung,
   };
 }
@@ -63,6 +65,16 @@ describe('SystemkonfigurationStoreService', () => {
     expect(service.ungespeichert()).toBe(false);
 
     service.entwurfAendern({ kmBerichtEmpfaenger: 'andere@example.test' });
+    expect(service.ungespeichert()).toBe(true);
+  });
+
+  it.each([
+    [{ materialBetreff: 'Anderer Betreff' }],
+    [{ organisationRegionalverband: 'Anderer Verband' }],
+  ])('zählt auch Material- und Organisationsfelder als ungespeichert (%o)', async (aenderung) => {
+    storage.laden.mockResolvedValue(konfiguration());
+    await service.laden();
+    service.entwurfAendern(aenderung);
     expect(service.ungespeichert()).toBe(true);
   });
 

@@ -58,6 +58,13 @@ export const HIORG_RUECKRUF_PFAD = '/hiorg/rueckruf';
 export const HIORG_VERBINDUNG_PFAD = '/api/hiorg/verbindung';
 export const HIORG_CODE_PFAD = '/api/hiorg/verbindung/code';
 export const HIORG_PERSONAL_PFAD = '/api/hiorg/personal';
+/**
+ * Anschrift, Geburtsdatum und Anrede genau einer Person, ausschließlich für das Ausfüllen des
+ * Ehrungsantrags (Seite „Offene Ehrungen“). Die einzige Stelle, an der Anschrift und
+ * Geburtsdatum den Worker verlassen – nie in der allgemeinen Personalliste.
+ */
+export const HIORG_ANTRAGSDATEN_MUSTER =
+  /^\/api\/hiorg\/personal\/([A-Za-z0-9_-]{1,128})\/antragsdaten$/;
 
 /** Feste Ziele aus der offiziellen OpenAPI-Beschreibung; nie aus Konfiguration abgeleitet. */
 export const HIORG_AUTORISIERUNG_URL = 'https://api.hiorg-server.de/oauth/v1/authorize';
@@ -454,7 +461,8 @@ export async function verarbeiteHiorgApi(
     }
   }
 
-  if (pfad === HIORG_PERSONAL_PFAD) {
+  const antragsdaten = HIORG_ANTRAGSDATEN_MUSTER.exec(pfad);
+  if (pfad === HIORG_PERSONAL_PFAD || antragsdaten) {
     if (anfrage.method !== 'GET') {
       return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, {
         Allow: 'GET',
@@ -471,7 +479,10 @@ export async function verarbeiteHiorgApi(
         503,
       );
     }
-    return personalAbrufen(zugang, benutzer.email);
+    const personId = antragsdaten?.[1];
+    return personalAbrufen(zugang, benutzer.email, (inhalt) =>
+      personId ? antragsdatenAusPersonal(inhalt, personId) : filterePersonal(inhalt),
+    );
   }
 
   return fehlerAntwort('API_NICHT_GEFUNDEN', 'API-Endpunkt nicht gefunden.', 404);
@@ -518,7 +529,16 @@ function transportFehler(
   }
 }
 
-async function personalAbrufen(zugang: Zugang, email: string): Promise<Response> {
+/**
+ * Ruft das Personal mit dem gespeicherten Token ab und gibt nur zurück, was `auswahl` aus der
+ * Rohantwort heraussucht. `undefined` heißt: unerwartete Form, die ganze Antwort wird verworfen;
+ * `null` heißt: die gesuchte Person ist nicht dabei.
+ */
+async function personalAbrufen(
+  zugang: Zugang,
+  email: string,
+  auswahl: (inhalt: unknown) => HiorgPersonAusgabe[] | HiorgAntragsdaten | null | undefined,
+): Promise<Response> {
   let gespeichert: string | null;
   try {
     gespeichert = await verbindungLesen(zugang.db, email);
@@ -557,15 +577,22 @@ async function personalAbrufen(zugang: Zugang, email: string): Promise<Response>
 
   switch (abruf.art) {
     case 'erfolg': {
-      const personen = filterePersonal(abruf.inhalt);
+      const ergebnis = auswahl(abruf.inhalt);
+      if (ergebnis === null) {
+        return fehlerAntwort(
+          'HIORG_PERSON_NICHT_GEFUNDEN',
+          'Die Person ist im HiOrg-Personal nicht enthalten.',
+          404,
+        );
+      }
       // Auch ein fremder Server darf ein Token nicht in einem erlaubten Textfeld spiegeln.
       if (
-        !personen ||
-        enthaeltGeheimnis(personen, [token.zugang, token.erneuerung, zugang.clientSecret])
+        !ergebnis ||
+        enthaeltGeheimnis(ergebnis, [token.zugang, token.erneuerung, zugang.clientSecret])
       ) {
         return transportFehler('ungueltig');
       }
-      return jsonAntwort({ personen });
+      return jsonAntwort(Array.isArray(ergebnis) ? { personen: ergebnis } : ergebnis);
     }
     case 'nicht-autorisiert':
       await verbindungLoeschenStill(zugang.db, email);
@@ -936,6 +963,52 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
     });
   }
   return personen;
+}
+
+/** Felder des Ehrungsantrags; `null`, wo bei HiOrg nichts Verwertbares erfasst ist. */
+export interface HiorgAntragsdaten {
+  anrede: string | null;
+  strasse: string | null;
+  plz: string | null;
+  ort: string | null;
+  /** `JJJJ-MM-TT`. */
+  geburtsdatum: string | null;
+}
+
+/** Kurzer Text ohne Steuerzeichen, sonst „nicht erfasst“ – wie `leseAnrede()`, nur länger. */
+function leseKurztext(wert: unknown, hoechstlaenge = 120): string | null {
+  if (typeof wert !== 'string') return null;
+  const text = wert.trim();
+  if (text.length === 0 || text.length > hoechstlaenge) return null;
+  for (const zeichen of text) {
+    const code = zeichen.codePointAt(0) ?? 0;
+    if (code < 0x20 || code === 0x7f) return null;
+  }
+  return text;
+}
+
+/**
+ * Sucht genau eine Person nach ihrer HiOrg-Id und gibt nur Anrede, Straße (`adresse`), PLZ, Ort
+ * und Geburtsdatum (`gebdat`) heraus – die Felder, die das Antragsformular verlangt. Feldnamen
+ * aus der offiziellen Beispielantwort der Personal-Ressource. Ein unlesbares einzelnes Feld wird
+ * `null`, eine unerwartete Gesamtform verwirft die Antwort.
+ */
+export function antragsdatenAusPersonal(
+  inhalt: unknown,
+  personId: string,
+): HiorgAntragsdaten | null | undefined {
+  if (!istObjekt(inhalt) || !Array.isArray(inhalt['data'])) return undefined;
+  const eintrag = inhalt['data'].find((e) => istObjekt(e) && e['id'] === personId);
+  if (!eintrag) return null;
+  if (!istObjekt(eintrag) || !istObjekt(eintrag['attributes'])) return undefined;
+  const attribute = eintrag['attributes'];
+  return {
+    anrede: leseAnrede(attribute['anrede']) ?? null,
+    strasse: leseKurztext(attribute['adresse']),
+    plz: leseKurztext(attribute['plz'], 16),
+    ort: leseKurztext(attribute['ort']),
+    geburtsdatum: leseMitgliedSeit(attribute['gebdat']) ?? null,
+  };
 }
 
 function enthaeltGeheimnis(daten: unknown, geheim: (string | null)[]): boolean {

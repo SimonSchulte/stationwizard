@@ -30,6 +30,9 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
+import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
+import { gruppenJePersonLaden } from '../../services/hiorg-gruppen';
 import { HiorgPersonalService } from '../../../kern/hiorg/hiorg-personal.service';
 import { heuteIso, isoZuLokalesDatum, lokalesDatumZuIso } from '../../../kern/kalender/datum';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
@@ -121,6 +124,7 @@ function gruppeVon(schluessel: EhrungSchluessel): Gruppe {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ehrungen',
   imports: [
+    GruppenFilter,
     MatButtonModule,
     MatButtonToggleModule,
     MatCardModule,
@@ -190,6 +194,22 @@ export class Ehrungen implements OnInit {
   /** Gewählte Auszeichnungen; leer heißt alle. */
   readonly auszeichnungen = signal<EhrungSchluessel[]>([]);
   readonly status = signal<StatusFilter>('alle');
+  /** Gruppen je Person aus HiOrg (Best effort, ohne Verbindung leer); leere Auswahl heißt alle. */
+  private readonly gruppenJePerson = signal<ReadonlyMap<string, string[]>>(new Map());
+  readonly hiorgGruppen = computed(() =>
+    gruppenSammeln(Array.from(this.gruppenJePerson().values(), (gruppen) => ({ gruppen }))),
+  );
+  readonly gruppenAuswahl = signal<string[]>([]);
+  readonly gruppenHinweis = signal('');
+  readonly angezeigteSpalten = computed(() =>
+    this.spalten.flatMap((s) => (s === 'vorname' ? [s, 'hiorgGruppen'] : [s])),
+  );
+
+  hiorgGruppenText(person: EhrungPerson): string {
+    return (
+      this.gruppenJePerson().get(personSchluessel(person.nachname, person.vorname)) ?? []
+    ).join(', ');
+  }
   readonly vollbild = signal(false);
   /** Standard: meiste Stunden zuerst. Leere Richtung heißt Reihenfolge des Servers (Name). */
   readonly sortierung = signal<Sort>({ active: 'stunden', direction: 'desc' });
@@ -265,8 +285,16 @@ export class Ehrungen implements OnInit {
     const suche = this.suche().trim().toLocaleLowerCase('de');
     const gewaehlt = this.auszeichnungen();
     const status = this.status();
+    const gruppenAuswahl = this.gruppenAuswahl();
+    const gruppenJePerson = this.gruppenJePerson();
     return this.zeilen().filter(
       (zeile) =>
+        (gruppenAuswahl.length === 0 ||
+          passtZuGruppen(
+            gruppenJePerson.get(personSchluessel(zeile.person.nachname, zeile.person.vorname)) ??
+              [],
+            gruppenAuswahl,
+          )) &&
         (!suche ||
           `${zeile.person.nachname} ${zeile.person.vorname}`
             .toLocaleLowerCase('de')
@@ -329,7 +357,10 @@ export class Ehrungen implements OnInit {
 
   readonly filterAktiv = computed(
     () =>
-      this.suche().trim() !== '' || this.auszeichnungen().length > 0 || this.status() !== 'alle',
+      this.suche().trim() !== '' ||
+      this.auszeichnungen().length > 0 ||
+      this.status() !== 'alle' ||
+      this.gruppenAuswahl().length > 0,
   );
 
   /** Anzahl offener Ehrungen im angezeigten Stand, für den Export „Zu Ehrende“. */
@@ -386,6 +417,7 @@ export class Ehrungen implements OnInit {
       this.suche();
       this.auszeichnungen();
       this.status();
+      this.gruppenAuswahl();
       this.sortierung();
       untracked(() => this.seite.set(0));
     });
@@ -441,6 +473,7 @@ export class Ehrungen implements OnInit {
     this.suche.set('');
     this.auszeichnungen.set([]);
     this.status.set('alle');
+    this.gruppenAuswahl.set([]);
   }
 
   ngOnInit(): void {
@@ -459,6 +492,12 @@ export class Ehrungen implements OnInit {
       );
     } finally {
       this.laedt.set(false);
+    }
+    // Nur für den Gruppenfilter; die Tabelle wartet nicht darauf.
+    if (this.gruppenJePerson().size === 0) {
+      const ergebnis = await gruppenJePersonLaden(this.hiorg);
+      this.gruppenJePerson.set(ergebnis.gruppen);
+      this.gruppenHinweis.set(ergebnis.hinweis);
     }
   }
 

@@ -1,0 +1,10 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
+  <mat-label>Gruppen</mat-label>
+  <mat-select multiple [value]="auswahl()" (selectionChange)="auswahl.set($event.value)">
+    @for (gruppe of gruppen(); track gruppe) {
+      <mat-option [value]="gruppe">{{ gruppe }}</mat-option>
+    } @empty {
+      <mat-option disabled>Keine Gruppen gefunden</mat-option>
+    }
+  </mat-select>
+</mat-form-field>

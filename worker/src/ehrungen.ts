@@ -441,9 +441,16 @@ interface VorgangZeile {
   auszeichnung: string;
   abgestimmt_ob: number;
   beantragt: number;
+  begruendung: string | null;
+  antrag_erstellt_am: string | null;
   geaendert_am: string;
   geaendert_von: string;
 }
+
+/** Freitext für das Feld „Begründung“ des Antragsformulars. */
+const BEGRUENDUNG_GRENZE = 2000;
+/** Eine Begründung mit 2000 Zeichen kann in UTF-8 deutlich mehr als 4 KB belegen. */
+const VORGANG_GRENZE = 16 * 1024;
 
 function vorgangZuJson(zeile: VorgangZeile): Record<string, unknown> {
   return {
@@ -451,6 +458,8 @@ function vorgangZuJson(zeile: VorgangZeile): Record<string, unknown> {
     auszeichnung: zeile.auszeichnung,
     abgestimmtOb: zeile.abgestimmt_ob === 1,
     beantragt: zeile.beantragt === 1,
+    begruendung: zeile.begruendung ?? '',
+    antragErstelltAm: zeile.antrag_erstellt_am ?? null,
     geaendertAm: zeile.geaendert_am,
     geaendertVon: zeile.geaendert_von,
   };
@@ -468,9 +477,13 @@ async function vorgaengeListe(db: D1Database): Promise<Response> {
   });
 }
 
+const VORGANG_FELDER = ['abgestimmtOb', 'beantragt', 'begruendung', 'antragErstellt'];
+
 /**
- * Setzt „Abgestimmt OB“ und/oder „Beantragt“ einer Ehrung. Nur die genannten Felder ändern sich;
- * Zeitpunkt und Benutzer kommen aus der geprüften Anmeldung.
+ * Setzt „Abgestimmt OB“, „Beantragt“, die Begründung und/oder vermerkt einen erstellten Antrag.
+ * Nur die genannten Felder ändern sich. Zeitpunkte und Benutzer kommen aus der geprüften
+ * Anmeldung; `antragErstellt` ist nur `true` und setzt den Zeitpunkt serverseitig sowie
+ * `beantragt`.
  */
 async function vorgangSetzen(
   anfrage: Request,
@@ -482,19 +495,28 @@ async function vorgangSetzen(
   if (!(EHRUNG_SCHLUESSEL as readonly string[]).includes(auszeichnung)) {
     return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Unbekannte Auszeichnung.', 400);
   }
-  const koerper = await lesePruefeKoerper(anfrage, EINZEL_GRENZE);
+  const koerper = await lesePruefeKoerper(anfrage, VORGANG_GRENZE);
   if (koerper instanceof Response) return koerper;
   const eingabe = koerper.inhalt;
-  const abgestimmt = istObjekt(eingabe) ? eingabe['abgestimmtOb'] : undefined;
-  const beantragt = istObjekt(eingabe) ? eingabe['beantragt'] : undefined;
   if (
     !istObjekt(eingabe) ||
-    Object.keys(eingabe).some(
-      (schluessel) => schluessel !== 'abgestimmtOb' && schluessel !== 'beantragt',
-    ) ||
-    (abgestimmt === undefined && beantragt === undefined) ||
+    Object.keys(eingabe).length === 0 ||
+    Object.keys(eingabe).some((schluessel) => !VORGANG_FELDER.includes(schluessel))
+  ) {
+    return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Ungültige Angaben.', 400);
+  }
+  const abgestimmt = eingabe['abgestimmtOb'];
+  const beantragt = eingabe['beantragt'];
+  const begruendungRoh = eingabe['begruendung'];
+  const antragErstellt = eingabe['antragErstellt'];
+  const begruendung = typeof begruendungRoh === 'string' ? begruendungRoh.trim() : undefined;
+  if (
     (abgestimmt !== undefined && typeof abgestimmt !== 'boolean') ||
-    (beantragt !== undefined && typeof beantragt !== 'boolean')
+    (beantragt !== undefined && typeof beantragt !== 'boolean') ||
+    (begruendungRoh !== undefined &&
+      (begruendung === undefined || begruendung.length > BEGRUENDUNG_GRENZE)) ||
+    (antragErstellt !== undefined && antragErstellt !== true) ||
+    (antragErstellt === true && beantragt === false)
   ) {
     return fehlerAntwort('EHRUNGEN_DATEI_UNGUELTIG', 'Ungültige Angaben.', 400);
   }
@@ -508,14 +530,26 @@ async function vorgangSetzen(
   const wert = (feld: unknown) => (feld === undefined ? -1 : feld ? 1 : 0);
   await db
     .prepare(
-      `INSERT INTO ehrungen_vorgaenge (person_id, auszeichnung, abgestimmt_ob, beantragt, geaendert_am, geaendert_von)
-       VALUES (?1, ?2, MAX(?3, 0), MAX(?4, 0), ?5, ?6)
+      `INSERT INTO ehrungen_vorgaenge (person_id, auszeichnung, abgestimmt_ob, beantragt, begruendung, antrag_erstellt_am, geaendert_am, geaendert_von)
+       VALUES (?1, ?2, MAX(?3, 0), MAX(?4, 0), ?6, CASE WHEN ?7 = 1 THEN ?8 ELSE NULL END, ?8, ?9)
        ON CONFLICT (person_id, auszeichnung) DO UPDATE SET
          abgestimmt_ob = CASE WHEN ?3 < 0 THEN abgestimmt_ob ELSE ?3 END,
          beantragt = CASE WHEN ?4 < 0 THEN beantragt ELSE ?4 END,
-         geaendert_am = ?5, geaendert_von = ?6`,
+         begruendung = CASE WHEN ?5 = 1 THEN ?6 ELSE begruendung END,
+         antrag_erstellt_am = CASE WHEN ?7 = 1 THEN ?8 ELSE antrag_erstellt_am END,
+         geaendert_am = ?8, geaendert_von = ?9`,
     )
-    .bind(personId, auszeichnung, wert(abgestimmt), wert(beantragt), jetzt, identitaet.email)
+    .bind(
+      personId,
+      auszeichnung,
+      wert(abgestimmt),
+      antragErstellt === true ? 1 : wert(beantragt),
+      begruendung === undefined ? 0 : 1,
+      begruendung ? begruendung : null,
+      antragErstellt === true ? 1 : 0,
+      jetzt,
+      identitaet.email,
+    )
     .run();
   const zeile = await db
     .prepare('SELECT * FROM ehrungen_vorgaenge WHERE person_id = ? AND auszeichnung = ?')

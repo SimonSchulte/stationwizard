@@ -158,6 +158,8 @@ describe('FuhrparkUebersicht', () => {
       materialMaengelSegEmpfaenger: '',
       materialVersandweg: 'email-routing',
       materialBetreff: '',
+      organisationLandesverband: '',
+      organisationRegionalverband: '',
     });
     const komponente = await erzeugeUebersicht([
       { provide: FahrzeugStoreService, useValue: fahrzeugeStoreMock([kritisch]) },

@@ -15,6 +15,11 @@ import {
   type FahrzeugeKonfiguration,
 } from './fahrzeuge';
 import {
+  EHRUNGSANTRAG_VORLAGE_DATEI_PFAD,
+  EHRUNGSANTRAG_VORLAGE_PFAD,
+  verarbeiteEhrungsantragVorlage,
+} from './ehrungsantrag-vorlage';
+import {
   FUEHRERSCHEIN_VORLAGE_DATEI_PFAD,
   FUEHRERSCHEIN_VORLAGE_PFAD,
   verarbeiteFuehrerscheinVorlage,
@@ -22,6 +27,7 @@ import {
 } from './fuehrerschein-vorlage';
 import {
   HIORG_CODE_PFAD,
+  HIORG_ANTRAGSDATEN_MUSTER,
   HIORG_PERSONAL_PFAD,
   HIORG_RUECKRUF_PFAD,
   HIORG_VERBINDEN_PFAD,
@@ -202,7 +208,8 @@ export default {
     if (
       url.pathname === HIORG_VERBINDUNG_PFAD ||
       url.pathname === HIORG_CODE_PFAD ||
-      url.pathname === HIORG_PERSONAL_PFAD
+      url.pathname === HIORG_PERSONAL_PFAD ||
+      HIORG_ANTRAGSDATEN_MUSTER.test(url.pathname)
     ) {
       return verarbeiteHiorgApi(anfrage, umgebung, benutzer);
     }
@@ -216,6 +223,13 @@ export default {
       url.pathname === FUEHRERSCHEIN_VORLAGE_DATEI_PFAD
     ) {
       return verarbeiteFuehrerscheinVorlage(anfrage, umgebung, benutzer);
+    }
+
+    if (
+      url.pathname === EHRUNGSANTRAG_VORLAGE_PFAD ||
+      url.pathname === EHRUNGSANTRAG_VORLAGE_DATEI_PFAD
+    ) {
+      return verarbeiteEhrungsantragVorlage(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === EHRUNGEN_PFAD || url.pathname.startsWith(`${EHRUNGEN_PFAD}/`)) {
