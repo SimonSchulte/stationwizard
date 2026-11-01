@@ -10,6 +10,7 @@
     [matMenuTriggerFor]="jahrMenue"
     [disabled]="kalender.zustand() !== 'verbunden'"
     matTooltip="Jahr wechseln"
+    [attr.aria-label]="'Jahr wechseln, aktuell ' + store.jahr()"
   >
     {{ store.jahr() }}
     <mat-icon inline>arrow_drop_down</mat-icon>
@@ -51,6 +52,7 @@
     matIconButton
     [disabled]="!store.kannRueckgaengig()"
     matTooltip="Rückgängig (Strg+Z)"
+    aria-label="Rückgängig"
     (click)="store.rueckgaengig()"
   >
     <mat-icon>undo</mat-icon>
@@ -59,6 +61,7 @@
     matIconButton
     [disabled]="!store.kannWiederholen()"
     matTooltip="Wiederherstellen (Strg+Umschalt+Z)"
+    aria-label="Wiederherstellen"
     (click)="store.wiederholen()"
   >
     <mat-icon>redo</mat-icon>
@@ -69,6 +72,7 @@
     [disabled]="!kannSpeichern() || !store.ungespeichert() || beschaeftigt()"
     (click)="speichern()"
     matTooltip="In der Datenbank speichern (Strg+S)"
+    aria-label="Speichern"
   >
     <mat-icon>save</mat-icon>
     <span class="knopf-text">Speichern</span>
