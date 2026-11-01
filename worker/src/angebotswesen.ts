@@ -1,7 +1,14 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { starkesEtag, versionAusEtag } from './etag';
-import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
+import {
+  istNichtleererText,
+  istObjekt,
+  istText,
+  leseJsonKoerper,
+  UUID_MUSTER,
+  UUID_REGEX,
+} from './json-lesen';
 
 /**
  * Angebotswesen (AP-A1): Preiskatalog und Angebote liegen in einer eigenen
@@ -16,9 +23,6 @@ import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json
 export interface AngebotswesenKonfiguration {
   ANGEBOTSWESEN_DB?: D1Database;
 }
-
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const UUID_REGEX = new RegExp(`^${UUID_MUSTER}$`, 'i');
 
 const PREISKATALOG_LISTE_PFAD = '/api/angebotswesen/preiskatalog';
 const PREISKATALOG_PFAD = new RegExp(`^/api/angebotswesen/preiskatalog/(${UUID_MUSTER})$`, 'i');
@@ -584,27 +588,15 @@ async function loescheAngebot(db: D1Database, id: string): Promise<Response> {
 /* Gemeinsames                                                           */
 /* -------------------------------------------------------------------- */
 
-async function lesePruefeKoerper(
+function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {
-  const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (inhaltstyp !== 'application/json') {
-    return fehlerAntwort('ANGEBOTSWESEN_INHALTSTYP_UNGUELTIG', 'Unzulässiger Inhaltstyp.', 415);
-  }
-  const abbruch = new AbortController();
-  const zeitlimit = setTimeout(() => abbruch.abort(), 10_000);
-  try {
-    const ergebnis = await leseJsonBegrenzt(anfrage, grenze, abbruch.signal);
-    if (!ergebnis.erfolg) {
-      return ergebnis.ursache === 'zu-gross'
-        ? fehlerAntwort('ANGEBOTSWESEN_DATEI_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
-        : fehlerAntwort('ANGEBOTSWESEN_DATEI_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
-    }
-    return { inhalt: ergebnis.inhalt };
-  } finally {
-    clearTimeout(zeitlimit);
-  }
+  return leseJsonKoerper(anfrage, grenze, {
+    inhaltstyp: 'ANGEBOTSWESEN_INHALTSTYP_UNGUELTIG',
+    zuGross: 'ANGEBOTSWESEN_DATEI_ZU_GROSS',
+    unlesbar: 'ANGEBOTSWESEN_DATEI_UNLESBAR',
+  });
 }
 
 /**

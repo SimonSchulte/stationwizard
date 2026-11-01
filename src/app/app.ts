@@ -15,7 +15,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTree, MatTreeModule } from '@angular/material/tree';
-import { AufgabenStoreService } from './aufgaben/services/aufgaben-store.service';
+import { AufgabenStoreService } from './kern/aufgaben/aufgaben-store.service';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
 import { VerlassenSchutz } from './kern/verlassen-schutz';

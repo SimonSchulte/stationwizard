@@ -3,56 +3,11 @@ import type { Content, ContentText, TDocumentDefinitions } from 'pdfmake/interfa
 import { Planung, Posten, Taktisch, Medizinisch, TAKTISCH_ORDER } from '../models/planung.model';
 import { DialogDienst } from '../../kern/dialog/dialog-dienst';
 import { dateiHerunterladen } from '../../kern/storage/datei-storage';
+import { ladePdfBibliothek, PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import {
   formatiereTaktischeZeit,
   formatiereTaktischeZeitAnzeige,
 } from '../../kern/kalender/taktische-zeit';
-
-/**
- * PDF unterstützt keine CSS-Variablen; dieselben Designfarben werden hier konkret geführt.
- * Exportiert, damit weitere PDF-Exporte (z. B. der Fahrzeug-Druckbogen) dieselbe Quelle
- * verwenden statt eine zweite, unabhängige Palette zu pflegen.
- */
-export const PDF_FARBEN = {
-  dunkelblau: '#000548',
-  blau: '#4A6FB8',
-  rot: '#EB003C',
-  hellgrau: '#C7CCD9',
-  alternierendeZeile: '#F5F6FA',
-  weiss: '#FFFFFF',
-  schwarz: '#000000',
-  sekundaer: '#666666',
-  beschriftung: '#444444',
-  text: '#333333',
-  platzhalter: '#AAAAAA',
-  gruen: '#2F8F68',
-  gelb: '#DEE100',
-  neutral: '#E8E8E8',
-  neutralText: '#424242',
-} as const;
-
-let geladeneBibliothek: ReturnType<typeof importierePdfBibliothek> | null = null;
-
-async function importierePdfBibliothek() {
-  const [pdfModul, schriftModul] = await Promise.all([
-    import('pdfmake/build/pdfmake'),
-    import('pdfmake/build/vfs_fonts'),
-  ]);
-  // pdfmake 0.3 exportiert die Dateiname/Base64-Map selbst, keinen .vfs-Unterknoten.
-  // https://pdfmake.github.io/docs/0.3/getting-started/client-side/
-  pdfModul.default.addVirtualFileSystem(schriftModul.default);
-  return pdfModul.default;
-}
-
-async function ladePdfBibliothek() {
-  geladeneBibliothek ??= importierePdfBibliothek();
-  try {
-    return await geladeneBibliothek;
-  } catch (ursache) {
-    geladeneBibliothek = null;
-    throw ursache;
-  }
-}
 
 @Injectable({ providedIn: 'root' })
 export class PdfExportService {

@@ -1,7 +1,14 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { starkesEtag, versionAusEtag } from './etag';
-import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
+import {
+  istNichtleererText,
+  istObjekt,
+  istText,
+  leseJsonKoerper,
+  UUID_MUSTER,
+  UUID_REGEX,
+} from './json-lesen';
 import { berlinerKalendertag } from './kalender';
 import {
   BERICHTSARTEN,
@@ -47,9 +54,6 @@ export interface MaterialKonfiguration
   extends SystemkonfigurationKonfiguration, MailVersandKonfiguration {
   FAHRZEUGE_DB?: D1Database;
 }
-
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const UUID_REGEX = new RegExp(`^${UUID_MUSTER}$`, 'i');
 
 export const MATERIAL_PRAEFIX = '/api/material';
 const VORLAGEN_LISTE_PFAD = '/api/material/vorlagen';
@@ -1388,27 +1392,15 @@ function erwarteteVersion(anfrage: Request): number | Response {
   return version;
 }
 
-export async function lesePruefeKoerper(
+export function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {
-  const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (inhaltstyp !== 'application/json') {
-    return fehlerAntwort('MATERIAL_INHALTSTYP_UNGUELTIG', 'Unzulässiger Inhaltstyp.', 415);
-  }
-  const abbruch = new AbortController();
-  const zeitlimit = setTimeout(() => abbruch.abort(), 10_000);
-  try {
-    const ergebnis = await leseJsonBegrenzt(anfrage, grenze, abbruch.signal);
-    if (!ergebnis.erfolg) {
-      return ergebnis.ursache === 'zu-gross'
-        ? fehlerAntwort('MATERIAL_DATEI_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
-        : fehlerAntwort('MATERIAL_DATEI_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
-    }
-    return { inhalt: ergebnis.inhalt };
-  } finally {
-    clearTimeout(zeitlimit);
-  }
+  return leseJsonKoerper(anfrage, grenze, {
+    inhaltstyp: 'MATERIAL_INHALTSTYP_UNGUELTIG',
+    zuGross: 'MATERIAL_DATEI_ZU_GROSS',
+    unlesbar: 'MATERIAL_DATEI_UNLESBAR',
+  });
 }
 
 /**

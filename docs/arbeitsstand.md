@@ -3011,3 +3011,66 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Merge mit `main` (#71, Zuständiger OV): beide Spalten nebeneinander, Excel-Export „Offene Ehrungen“ mit OV-Spalte
   und Filterauswahl. Spaltenbreiten nachgezogen; im Browser bei 2000 px und 1280 px ohne Querscrollen geprüft.
   Geprüft: Build, `npm test` (Client 1063, Worker 860), `worker:check`, Formatprüfung.
+
+## Architekturreview – 2026-11-01
+
+Durchgesehen: Modulgrenzen im Frontend, Konventionen aus CLAUDE.md (OnPush, getrennte
+Templates/Styles, kein `any`, keine Farbliterale in LESS, `fetch` nur im `WorkerClient`
+bzw. im Feiertagsabruf, `localStorage` nur in den aufgezählten Ausnahmen und für
+Geräteeinstellungen/den öffentlichen Feiertagscache), Worker-Routing und Duplikate im Worker,
+README und CLAUDE.md gegen den Code. Grundlage ist solide: Fachmodule sind lazy geladen,
+`kern/` importiert kein Fachmodul, jede Route ist im Worker fest verankert, und die
+bekannten Sicherheitsregeln sind eingehalten.
+
+Behoben:
+
+- **Querabhängigkeit Fahrzeuge → Einsatz:** der Druckbogen importierte `PDF_FARBEN` aus
+  `einsatz/services/pdf-export.service.ts` und lud pdfmake mit einer eigenen Kopie. Beides
+  liegt jetzt in `kern/pdf/pdf-bibliothek.ts` (`PDF_FARBEN` mit Verweis auf die
+  `--ci-*`-Tokens, `ladePdfBibliothek()` mit einmaligem Laden und Wiederholung nach einem
+  Ladefehler).
+- **Aufgaben-Store in `kern/`:** `AufgabenStoreService` lag im Seitenmodul `aufgaben/`,
+  obwohl Shell und Fahrzeugmodul ihn nutzen. Er liegt jetzt neben seinem Vertrag unter
+  `kern/aufgaben/`.
+- **Aufgabenmarke nach Material-Freigabe:** freigegebene oder abgelehnte Fahrzeugchecks
+  blieben bis zum nächsten Neuladen in der Marke „Offene Aufgaben“ stehen; nur die
+  Kilometermeldungen entfernten sich. `AufgabenStoreService.abgleichen()` gleicht nach
+  jedem Laden der Freigabeseite die Quelle `material-fahrzeugcheck` mit dem offenen
+  Bestand ab.
+- **Worker-Duplikate:** fünf wortgleiche `lesePruefeKoerper()`-Kopien (nur die Fehlercodes
+  unterschieden sich) und eine sechste Fassung ohne Zeitlimit in
+  `material-einreichungen.ts` laufen jetzt über `leseJsonKoerper()` in `json-lesen.ts`; die
+  Fehlercodes je Modul sind unverändert. Die Material-Einreichungen haben dadurch nun
+  ebenfalls das 10-s-Zeitlimit. Das UUID-Muster stand siebenmal im Worker und steht jetzt
+  einmal (`UUID_MUSTER`, `UUID_REGEX`). Neuer Test `worker/tests/json-lesen.spec.ts`.
+- **Build-Warnungen:** die bekannten CommonJS-Bibliotheken (`qrcode`, pdfmake, `base64-js`,
+  `pako`) stehen in `allowedCommonJsDependencies`; übrig bleibt nur die Budgetwarnung unten.
+- **Versehentlich eingecheckt:** `undefined/dbg.png` (Debug-Screenshot mit erfundenem
+  Namen, Pfad aus einem `undefined`-Verzeichnisnamen) entfernt.
+- **Dokumentation:** CLAUDE.md nannte `src/styles.less` als Ort der Tokens; sie liegen in
+  `src/tokens.less`. README-Tabellen (Fachbereiche, Architektur) um Personal, Material,
+  Angebotswesen, Aufgaben, Verwaltung, `oeffentlich/` und Migrationen ergänzt; „genau ein
+  Weg“ an Access vorbei auf die beiden öffentlichen Seiten korrigiert; die API-Tabelle
+  verweist auf die vollständige Liste in CLAUDE.md; Mobilhinweis auf Monats-/Listenansicht
+  aktualisiert. CLAUDE.md nennt die neuen gemeinsamen Bausteine.
+
+Offen, bewusst nicht im Review geändert:
+
+- `planning-editor.less` überschreitet mit 17 kB das Komponentenbudget (Warnung ab 12 kB).
+  Eine Aufteilung braucht eine Sichtprüfung des Editors im Browser.
+- Große Dateien mit mehreren Verantwortungen: `worker/src/material.ts` (≈1 570 Zeilen),
+  `hiorg-api.ts`, `fahrzeuge.ts`, die Seiten `ehrungen.ts` und `jahresplan.ts`. Funktional
+  in Ordnung, aber Kandidaten für eine Aufteilung nach Ressourcen bei der nächsten
+  fachlichen Änderung.
+- `package.json` erlaubt `node >= 22.12`, `.node-version` und CLAUDE.md verlangen 24.
+- Die Rollenvergabe (`PUT /api/benutzerverwaltung/<E-Mail>`) steht weiterhin jeder geprüften
+  Identität offen; das bleibt die wichtigste fachliche Lücke (siehe CLAUDE.md).
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` erfolgreich (Node 22 in der Sitzung; einzige Warnung: Budget oben).
+- `ng test`: 128 Dateien / 1067 Tests und `oeffentlich` 5 / 29 bestanden.
+- `npm run worker:test`: 30 Dateien / 865 Tests bestanden.
+- `npm run format:check` erfolgreich.
+- Keine Browserprüfung: die Änderungen betreffen keine Darstellung; die Aufgabenmarke ist
+  über den Store-Test abgesichert, nicht im Browser gesehen.

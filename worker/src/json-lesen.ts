@@ -4,7 +4,13 @@
  * weitere Endpunkte dieselben Grenzen und dieselbe Fehlerklassifikation nutzen,
  * statt sie zu duplizieren.
  */
+import { fehlerAntwort } from './antwort';
+
 export type JsonObjekt = Record<string, unknown>;
+
+/** Kleingeschriebene UUID beliebiger Version; als Teilmuster für Pfadregeln. */
+export const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+export const UUID_REGEX = new RegExp(`^${UUID_MUSTER}$`, 'i');
 
 export type LeseErgebnis =
   { erfolg: true; inhalt: unknown } | { erfolg: false; ursache: 'zu-gross' | 'ungueltig' };
@@ -82,5 +88,50 @@ export async function leseJsonBegrenzt(
   } finally {
     signal?.removeEventListener('abort', beiAbbruch);
     leser.releaseLock();
+  }
+}
+
+/** Zeitlimit für das Lesen eines Client-Anfragekörpers. */
+const KOERPER_ZEITLIMIT_MS = 10_000;
+
+/**
+ * Feste Fehlercodes eines Moduls für {@link leseJsonKoerper}. Jedes Modul behält
+ * seine eigenen Codes; nur der Ablauf ist gemeinsam. Ohne `inhaltstyp` wird der
+ * `Content-Type` nicht geprüft (bisheriges Verhalten der Ehrungen).
+ */
+export interface KoerperFehlercodes {
+  inhaltstyp?: string;
+  zuGross: string;
+  unlesbar: string;
+}
+
+/**
+ * Liest einen JSON-Anfragekörper mit Größen- und Zeitlimit und beantwortet jede
+ * Ursache mit dem festen Code des aufrufenden Moduls. Ersetzt die zuvor je Modul
+ * kopierten `lesePruefeKoerper()`-Fassungen.
+ */
+export async function leseJsonKoerper(
+  anfrage: Request,
+  grenze: number,
+  codes: KoerperFehlercodes,
+): Promise<{ inhalt: unknown } | Response> {
+  if (codes.inhaltstyp) {
+    const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
+    if (inhaltstyp !== 'application/json') {
+      return fehlerAntwort(codes.inhaltstyp, 'Unzulässiger Inhaltstyp.', 415);
+    }
+  }
+  const abbruch = new AbortController();
+  const zeitlimit = setTimeout(() => abbruch.abort(), KOERPER_ZEITLIMIT_MS);
+  try {
+    const ergebnis = await leseJsonBegrenzt(anfrage, grenze, abbruch.signal);
+    if (!ergebnis.erfolg) {
+      return ergebnis.ursache === 'zu-gross'
+        ? fehlerAntwort(codes.zuGross, 'Die Anfrage ist zu groß.', 413)
+        : fehlerAntwort(codes.unlesbar, 'Die Anfrage ist nicht lesbar.', 400);
+    }
+    return { inhalt: ergebnis.inhalt };
+  } finally {
+    clearTimeout(zeitlimit);
   }
 }

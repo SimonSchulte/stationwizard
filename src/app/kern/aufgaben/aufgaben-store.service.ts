@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { AUFGABENQUELLE, type Aufgabe } from '../../kern/aufgaben/aufgabenquelle';
+import { AUFGABENQUELLE, type Aufgabe } from './aufgabenquelle';
 
 /**
  * Sammelt die Aufgaben aller angemeldeten Fachquellen.
@@ -58,5 +58,17 @@ export class AufgabenStoreService {
   /** Entfernt eine erledigte Aufgabe, ohne alles neu zu laden. */
   entferne(id: string): void {
     this.aufgaben.update((liste) => liste.filter((aufgabe) => aufgabe.id !== id));
+  }
+
+  /**
+   * Gleicht die Aufgaben einer Quelle mit dem frisch geladenen offenen Bestand der
+   * Fachseite ab: was dort nicht mehr offen ist, verschwindet auch aus der Marke.
+   * Fügt bewusst nichts hinzu – neue Aufgaben kommen nur über {@link laden}.
+   */
+  abgleichen(kennung: string, offeneFachIds: Iterable<string>): void {
+    const offen = new Set([...offeneFachIds].map((fachId) => `${kennung}:${fachId}`));
+    this.aufgaben.update((liste) =>
+      liste.filter((aufgabe) => aufgabe.quelle !== kennung || offen.has(aufgabe.id)),
+    );
   }
 }

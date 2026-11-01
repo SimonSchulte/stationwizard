@@ -1,6 +1,6 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
-import { istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
+import { istObjekt, istText, leseJsonKoerper, UUID_MUSTER, UUID_REGEX } from './json-lesen';
 import { freigabeGruppen, leseRolle, pruefeFreigabeRecht } from './rollen';
 import type { RollenKonfiguration } from './rollen';
 
@@ -20,9 +20,6 @@ import type { RollenKonfiguration } from './rollen';
 export interface MaterialEinreichungenKonfiguration extends RollenKonfiguration {
   FAHRZEUGE_DB?: D1Database;
 }
-
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const UUID_REGEX = new RegExp(`^${UUID_MUSTER}$`, 'i');
 
 export const MATERIAL_EINREICHUNGEN_PFAD = '/api/material/einreichungen';
 const FREIGABE_PFAD = '/api/material/einreichungen/freigabe';
@@ -292,16 +289,12 @@ async function lehneAb(
 }
 
 async function leseKoerper(anfrage: Request): Promise<Record<string, unknown> | Response> {
-  const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (inhaltstyp !== 'application/json') {
-    return fehlerAntwort('MATERIAL_INHALTSTYP_UNGUELTIG', 'Unzulässiger Inhaltstyp.', 415);
-  }
-  const gelesen = await leseJsonBegrenzt(anfrage, KOERPER_GRENZE);
-  if (!gelesen.erfolg) {
-    return gelesen.ursache === 'zu-gross'
-      ? fehlerAntwort('MATERIAL_DATEI_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
-      : fehlerAntwort('MATERIAL_DATEI_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
-  }
+  const gelesen = await leseJsonKoerper(anfrage, KOERPER_GRENZE, {
+    inhaltstyp: 'MATERIAL_INHALTSTYP_UNGUELTIG',
+    zuGross: 'MATERIAL_DATEI_ZU_GROSS',
+    unlesbar: 'MATERIAL_DATEI_UNLESBAR',
+  });
+  if (gelesen instanceof Response) return gelesen;
   if (!istObjekt(gelesen.inhalt)) {
     return fehlerAntwort('MATERIAL_DATEI_UNGUELTIG', 'Ungültige Anfrage.', 400);
   }

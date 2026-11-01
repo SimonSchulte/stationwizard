@@ -1,9 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  AUFGABENQUELLE,
-  type Aufgabe,
-  type Aufgabenquelle,
-} from '../../kern/aufgaben/aufgabenquelle';
+import { AUFGABENQUELLE, type Aufgabe, type Aufgabenquelle } from './aufgabenquelle';
 import { AufgabenStoreService } from './aufgaben-store.service';
 
 function aufgabe(id: string, quelle: string, eingegangenAm: string): Aufgabe {
@@ -81,5 +77,18 @@ describe('AufgabenStoreService', () => {
     dienst.entferne('a1');
     expect(dienst.aufgaben().map((a) => a.id)).toEqual(['a2']);
     expect(laden).toHaveBeenCalledTimes(1);
+  });
+
+  it('gleicht nur die genannte Quelle mit ihrem offenen Bestand ab', async () => {
+    const dienst = store(
+      quelle('a', 'Quelle A', async () => [
+        aufgabe('a:1', 'a', '2026-09-15T08:00:00.000Z'),
+        aufgabe('a:2', 'a', '2026-09-15T09:00:00.000Z'),
+      ]),
+      quelle('b', 'Quelle B', async () => [aufgabe('b:1', 'b', '2026-09-15T10:00:00.000Z')]),
+    );
+    await dienst.laden();
+    dienst.abgleichen('a', ['2', '3']);
+    expect(dienst.aufgaben().map((a) => a.id)).toEqual(['a:2', 'b:1']);
   });
 });

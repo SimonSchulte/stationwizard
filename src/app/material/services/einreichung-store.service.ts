@@ -5,8 +5,10 @@ import {
   FREIGABE_ERGEBNIS_TEXT,
   FreigabeAntwort,
 } from '../models/einreichung.model';
+import { AufgabenStoreService } from '../../kern/aufgaben/aufgaben-store.service';
 import { ApiEinreichungStorage } from '../storage/api-einreichung-storage';
 import { EinreichungStorage } from '../storage/einreichung-storage';
+import { CHECK_AUFGABEN_KENNUNG } from './check-aufgabenquelle';
 
 function fehlermeldung(fehler: unknown, ersatz: string): string {
   return fehler instanceof Error ? fehler.message : ersatz;
@@ -16,6 +18,7 @@ function fehlermeldung(fehler: unknown, ersatz: string): string {
 @Injectable({ providedIn: 'root' })
 export class EinreichungStoreService {
   private readonly storage: EinreichungStorage = inject(ApiEinreichungStorage);
+  private readonly aufgaben = inject(AufgabenStoreService);
 
   readonly offene = signal<CheckEinreichung[]>([]);
   readonly laedt = signal(false);
@@ -43,6 +46,8 @@ export class EinreichungStoreService {
       // Eine zwischenzeitlich entschiedene Meldung darf nicht ausgewählt bleiben.
       const vorhanden = new Set(this.offene().map((eintrag) => eintrag.id));
       this.ausgewaehlt.update((auswahl) => new Set([...auswahl].filter((id) => vorhanden.has(id))));
+      // Freigegebene oder abgelehnte Meldungen verschwinden auch aus der Aufgabenmarke.
+      this.aufgaben.abgleichen(CHECK_AUFGABEN_KENNUNG, vorhanden);
     } catch (fehler) {
       this.fehler.set(fehlermeldung(fehler, 'Die Meldungen konnten nicht geladen werden.'));
     } finally {

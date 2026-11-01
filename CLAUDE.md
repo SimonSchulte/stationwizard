@@ -25,6 +25,14 @@ Prüfungen und offene Abnahmegrenzen.
 - Gemeinsame Verträge stehen in `kern/storage/datei-storage.ts`: `DateiStorage`,
   `DateiInhalt`, `StorageFaehigkeiten`, `StorageArt`, `StorageFehler` und
   `dateiHerunterladen()`. Fachliche Adapter darauf aufbauen.
+- Fachmodule importieren einander nur, wo ein Fachmodul den Store eines anderen
+  tatsächlich fachlich braucht (zum Beispiel Material → Fahrzeuge). Was mehrere Module
+  gemeinsam brauchen, gehört nach `kern/`, nicht in das Modul, das es zuerst hatte.
+  „Offene Aufgaben“ ist dafür das Muster: Vertrag (`Aufgabenquelle`,
+  `provideAufgabenquelle()`) und `AufgabenStoreService` liegen unter `kern/aufgaben/`;
+  jedes Fachmodul meldet in `app.config.ts` eine eigene Quelle an und gleicht nach einer
+  Entscheidung mit `entferne()` beziehungsweise `abgleichen()` ab, statt die
+  Aufgabenseite zu kennen. Die Seite selbst liegt unter `src/app/aufgaben/`.
 - Datums-/Kalenderhilfen unter `kern/kalender/` bevorzugen. Lokale Kalendertage nicht
   unbemerkt durch UTC-Konvertierung verschieben. Wochenraster und Feiertagsrückfallebene
   erhalten.
@@ -32,13 +40,16 @@ Prüfungen und offene Abnahmegrenzen.
 ## Darstellung
 
 - Ein Material-Theme in `src/theme.scss`. Gemeinsame Design-Tokens liegen in
-  `src/styles.less`, unter anderem `--kat-*`, `--space-*`, `--surface-*` und Statusfarben.
+  `src/tokens.less` (eingebunden von `src/styles.less`), unter anderem `--ci-*`, `--kat-*`,
+  `--space-*`, `--surface-*` und Statusfarben.
 - Farben und Abstände in Komponenten ausschließlich über zentrale CSS-Variablen
   verwenden. Fehlende Tokens zentral ergänzen; keine verstreuten Farb-/Abstandsliterale,
   Inline-Fallbackfarben oder zweiten Theme-Paletten einführen.
 - PDF-Bibliotheken benötigen konkrete Werte statt CSS-Variablennamen. Diese Werte aus der
   dafür vorgesehenen zentralen Farbquelle beziehungsweise aus aufgelösten gemeinsamen
-  Tokens beziehen, nicht eine zweite unabhängige Palette im Export pflegen.
+  Tokens beziehen, nicht eine zweite unabhängige Palette im Export pflegen. Für pdfmake ist
+  das `PDF_FARBEN` in `kern/pdf/pdf-bibliothek.ts` (Werte der `--ci-*`-Tokens, gemeinsam
+  ändern); dort lädt `ladePdfBibliothek()` pdfmake samt Schriften genau einmal.
 - Gemeinsame Hinweis-/Bestätigungsdialoge über `kern/dialog/dialog-dienst.ts` und
   `DialogDienst` verwenden; `VerlassenSchutz` für ungesicherte Änderungen erhalten.
   Gemeinsame Leerzustands- und Ladegestaltung verwenden. Fachliche Labels bleiben
@@ -152,6 +163,10 @@ Prüfungen und offene Abnahmegrenzen.
 - Keine unbereinigten Upstream-Fehler oder Auth-Header durchreichen. Fehler über
   `fehlerAntwort()` mit festen Codes und `X-Stationwizard-Diagnose`; keine Secretwerte,
   Secretlängen oder vollständigen Bindinglisten veröffentlichen.
+- JSON-Anfragekörper liest jedes Modul über `leseJsonKoerper()` aus
+  `worker/src/json-lesen.ts` (Inhaltstyp, Größen- und Zeitlimit, feste Codes des Moduls);
+  Pfadregeln bauen auf dem gemeinsamen `UUID_MUSTER`/`UUID_REGEX` derselben Datei auf.
+  Keine eigene Kopie dieser Abläufe je Modul anlegen.
 - Ursprungsschutz, feste Pfade, Größen-/Zeitlimits und Redirect-Verbot erhalten.
   `GET /api/status` belegt nur die Erreichbarkeit des Workers, nicht von EFS/Nextcloud.
 - `worker/src/profilbild.ts` kapselt den einzigen Aufruf, der das Google-Profilbild aus

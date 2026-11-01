@@ -3,7 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { AufgabenStoreService } from '../../../aufgaben/services/aufgaben-store.service';
+import { AufgabenStoreService } from '../../../kern/aufgaben/aufgaben-store.service';
 import { Ablesungseinreichung } from '../../models/fahrzeug.model';
 import {
   pruefeAblesungPlausibilitaet,

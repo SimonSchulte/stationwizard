@@ -1,7 +1,14 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { erzeugeErfassungToken } from './erfassung-token';
 import { starkesEtag, versionAusEtag } from './etag';
-import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
+import {
+  istNichtleererText,
+  istObjekt,
+  istText,
+  leseJsonKoerper,
+  UUID_MUSTER,
+  UUID_REGEX,
+} from './json-lesen';
 import {
   freigabeGruppen,
   leseRolle,
@@ -23,7 +30,6 @@ export interface GeprueftesBenutzerkonto {
   email: string;
 }
 
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const FAHRZEUG_LISTE_PFAD = '/api/fahrzeuge';
 const FAHRZEUG_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})$`, 'i');
 const ABLESUNGEN_PFAD = new RegExp(`^/api/fahrzeuge/(${UUID_MUSTER})/ablesungen$`, 'i');
@@ -86,7 +92,7 @@ function pruefeFahrzeugEingabe(wert: unknown): FahrzeugEingabe | null {
   if (
     !istObjekt(wert) ||
     !istNichtleererText(wert['id']) ||
-    !new RegExp(`^${UUID_MUSTER}$`, 'i').test(wert['id']) ||
+    !UUID_REGEX.test(wert['id']) ||
     !istNichtleererText(wert['bezeichnung']) ||
     !istText(wert['funkrufname']) ||
     !istText(wert['kennzeichen']) ||
@@ -509,27 +515,15 @@ async function leseFahrzeug(db: D1Database, id: string): Promise<Response> {
  * Exportiert für `einreichungen.ts`: dieselben Grenzen und dieselbe
  * Fehlerklassifikation für jeden Fahrzeug-Schreibendpunkt.
  */
-export async function lesePruefeKoerper(
+export function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {
-  const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (inhaltstyp !== 'application/json') {
-    return fehlerAntwort('FAHRZEUGE_INHALTSTYP_UNGUELTIG', 'Unzulässiger Inhaltstyp.', 415);
-  }
-  const abbruch = new AbortController();
-  const zeitlimit = setTimeout(() => abbruch.abort(), 10_000);
-  try {
-    const ergebnis = await leseJsonBegrenzt(anfrage, grenze, abbruch.signal);
-    if (!ergebnis.erfolg) {
-      return ergebnis.ursache === 'zu-gross'
-        ? fehlerAntwort('FAHRZEUGE_DATEI_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
-        : fehlerAntwort('FAHRZEUGE_DATEI_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
-    }
-    return { inhalt: ergebnis.inhalt };
-  } finally {
-    clearTimeout(zeitlimit);
-  }
+  return leseJsonKoerper(anfrage, grenze, {
+    inhaltstyp: 'FAHRZEUGE_INHALTSTYP_UNGUELTIG',
+    zuGross: 'FAHRZEUGE_DATEI_ZU_GROSS',
+    unlesbar: 'FAHRZEUGE_DATEI_UNLESBAR',
+  });
 }
 
 /**

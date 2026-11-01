@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CheckEinreichung } from '../models/einreichung.model';
+import { AufgabenStoreService } from '../../kern/aufgaben/aufgaben-store.service';
 import { ApiEinreichungStorage } from '../storage/api-einreichung-storage';
 import { EinreichungStoreService } from './einreichung-store.service';
 
@@ -67,6 +68,25 @@ describe('EinreichungStoreService', () => {
     storage.ladeOffene.mockResolvedValue([einreichung()]);
     await service.laden();
     expect([...service.ausgewaehlt()]).toEqual(['e1']);
+  });
+
+  it('nimmt entschiedene Meldungen auch aus der Aufgabenmarke', async () => {
+    const aufgaben = TestBed.inject(AufgabenStoreService);
+    aufgaben.aufgaben.set(
+      ['e1', 'e2'].map((id) => ({
+        id: `material-fahrzeugcheck:${id}`,
+        quelle: 'material-fahrzeugcheck',
+        titel: id,
+        beschreibung: '',
+        eingegangenAm: '2026-09-15T08:00:00.000Z',
+        routerLink: ['/aufgaben/fahrzeugchecks'],
+        dringlichkeit: 'normal' as const,
+      })),
+    );
+    storage.ladeOffene.mockResolvedValue([einreichung({ id: 'e2' })]);
+    await service.laden();
+    expect(aufgaben.anzahl()).toBe(1);
+    expect(aufgaben.aufgaben()[0]?.id).toBe('material-fahrzeugcheck:e2');
   });
 
   it('meldet das Ergebnis je Eintrag, nicht pauschal "erfolgreich"', async () => {

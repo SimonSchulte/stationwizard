@@ -1,7 +1,7 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { starkesEtag, versionAusEtag } from './etag';
-import { istNichtleererText, istObjekt, leseJsonBegrenzt } from './json-lesen';
+import { istNichtleererText, istObjekt, leseJsonKoerper, UUID_MUSTER } from './json-lesen';
 
 /**
  * Ehrungen im Personalmodul: Leistungsabzeichen, Jubiläumszeichen und
@@ -21,7 +21,6 @@ export interface EhrungenKonfiguration {
 
 export const EHRUNGEN_PFAD = '/api/personal/ehrungen';
 const EHRUNGEN_IMPORT_PFAD = '/api/personal/ehrungen/import';
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const EINZEL_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})$`, 'i');
 const VERLAUF_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/aenderungen$`, 'i');
 const VORGANG_PFAD = new RegExp(`^${EHRUNGEN_PFAD}/(${UUID_MUSTER})/vorgaenge/([a-z0-9-]+)$`, 'i');
@@ -161,23 +160,14 @@ function zuJson(zeile: PersonZeile): Record<string, unknown> {
   };
 }
 
-async function lesePruefeKoerper(
+function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {
-  const abbruch = new AbortController();
-  const zeitlimit = setTimeout(() => abbruch.abort(), 10_000);
-  try {
-    const ergebnis = await leseJsonBegrenzt(anfrage, grenze, abbruch.signal);
-    if (!ergebnis.erfolg) {
-      return ergebnis.ursache === 'zu-gross'
-        ? fehlerAntwort('EHRUNGEN_DATEI_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
-        : fehlerAntwort('EHRUNGEN_DATEI_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
-    }
-    return { inhalt: ergebnis.inhalt };
-  } finally {
-    clearTimeout(zeitlimit);
-  }
+  return leseJsonKoerper(anfrage, grenze, {
+    zuGross: 'EHRUNGEN_DATEI_ZU_GROSS',
+    unlesbar: 'EHRUNGEN_DATEI_UNLESBAR',
+  });
 }
 
 async function liste(db: D1Database): Promise<Response> {

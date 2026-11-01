@@ -2,7 +2,7 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { Groessenfehler, leseBegrenzt, verwerfeInhalt } from './binaer-lesen';
 import { hostname, istUmleitung, redigiere, ursachenText } from './diagnose';
-import { istObjekt } from './json-lesen';
+import { istObjekt, UUID_MUSTER } from './json-lesen';
 import { leseZugangsdatum, type Zugangsdatum } from './zugangsdaten';
 
 export interface NextcloudKonfiguration {
@@ -12,7 +12,6 @@ export interface NextcloudKonfiguration {
 }
 
 const PEP_GRENZE = 2 * 1024 * 1024;
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const PLANUNGS_PFAD = new RegExp(`^/api/nextcloud/planungen/(${UUID_MUSTER})$`, 'i');
 const DATEINAME = new RegExp(`^(${UUID_MUSTER})\\.pep\\.json$`, 'i');
 const PROPFIND_INHALT = `<?xml version="1.0" encoding="UTF-8"?>

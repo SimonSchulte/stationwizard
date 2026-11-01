@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { DatePipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { AufgabenStoreService } from '../../services/aufgaben-store.service';
+import { AufgabenStoreService } from '../../../kern/aufgaben/aufgaben-store.service';
 import type { Aufgabe } from '../../../kern/aufgaben/aufgabenquelle';
 
 interface Gruppe {
