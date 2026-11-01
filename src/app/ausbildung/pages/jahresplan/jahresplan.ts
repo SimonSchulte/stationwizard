@@ -18,7 +18,6 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -77,6 +76,7 @@ import {
   jahrVon,
   monatIndex,
 } from '../../../kern/kalender/datum';
+import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
 
 /** Hauptansicht: Wochenraster links, Ideen/Auswertung/KatS-A-Plan rechts. */
 @Component({
@@ -114,7 +114,7 @@ import {
 export class Jahresplan {
   private readonly dialog = inject(MatDialog);
   private readonly dialogDienst = inject(DialogDienst);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly meldungen = inject(MeldungsDienst);
   readonly store = inject(PlanStore);
   readonly kalender = inject(KalenderDatenService);
   readonly feiertage = inject(FeiertagService);
@@ -432,7 +432,7 @@ export class Jahresplan {
       if (this.kalender.zustand() === 'nicht-eingerichtet') {
         return;
       }
-      this.melde(fehlertext(ursache), 10000, true);
+      this.melde(fehlertext(ursache), 'fehler');
     }
   }
 
@@ -481,8 +481,7 @@ export class Jahresplan {
       this.hiorg.zustand() === 'geladen'
         ? `${this.hiorg.eintraege().length} HiOrg-Termine geladen.`
         : this.hiorg.fehler() || 'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet.',
-      6000,
-      this.hiorg.zustand() === 'fehler',
+      this.hiorg.zustand() === 'fehler' ? 'fehler' : 'info',
     );
   }
 
@@ -509,8 +508,7 @@ export class Jahresplan {
       this.hiorg.zustand() === 'geladen'
         ? `${this.hiorg.eintraege().length} HiOrg-Testtermine geladen.`
         : this.hiorg.fehler() || 'Testdaten konnten nicht geladen werden.',
-      6000,
-      this.hiorg.zustand() === 'fehler',
+      this.hiorg.zustand() === 'fehler' ? 'fehler' : 'info',
     );
   }
 
@@ -714,8 +712,7 @@ export class Jahresplan {
     if (!this.kannSpeichern()) {
       this.melde(
         'Die Kalender-Datenbank ist nicht verbunden. Sichere deine Änderungen als Excel-Kopie.',
-        10000,
-        true,
+        'fehler',
       );
       return;
     }
@@ -733,7 +730,7 @@ export class Jahresplan {
         await this.konfliktBehandeln(ursache);
         return;
       }
-      this.melde(fehlertext(ursache), 10000, true);
+      this.melde(fehlertext(ursache), 'fehler');
     }
   }
 
@@ -784,7 +781,7 @@ export class Jahresplan {
       const { meldungen } = await this.kalender.laden();
       this.melde(meldungen.length ? meldungen.join(' ') : 'Neu geladen.');
     } catch (ursache) {
-      this.melde(fehlertext(ursache), 10000, true);
+      this.melde(fehlertext(ursache), 'fehler');
     }
   }
 
@@ -813,11 +810,8 @@ export class Jahresplan {
     }
   }
 
-  private melde(text: string, dauer = 5000, fehler = false): void {
-    this.snackBar.open(text, 'OK', {
-      duration: dauer,
-      panelClass: fehler ? 'fehler-snack' : undefined,
-    });
+  private melde(text: string, art: MeldungArt = 'info'): void {
+    this.meldungen.zeige(art, text);
   }
 }
 

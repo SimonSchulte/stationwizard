@@ -19,6 +19,7 @@ import { AufgabenStoreService } from './kern/aufgaben/aufgaben-store.service';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
 import { VerlassenSchutz } from './kern/verlassen-schutz';
+import { Meldung } from './kern/zustand/zustand';
 
 /** Eintrag der Hauptnavigation; Einträge mit `kinder` klappen als Baum auf. */
 export interface NavKnoten {
@@ -78,6 +79,7 @@ const NAVIGATION: NavKnoten[] = [
 @Component({
   selector: 'app-root',
   imports: [
+    Meldung,
     RouterLink,
     RouterLinkActive,
     RouterOutlet,

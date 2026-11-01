@@ -1,0 +1,12 @@
+<div class="inhalt" matSnackBarLabel>
+  <mat-icon class="symbol" aria-hidden="true">{{ symbol }}</mat-icon>
+  <span class="text">{{ daten.text }}</span>
+</div>
+<div matSnackBarActions>
+  @if (daten.aktion) {
+    <button matButton matSnackBarAction>{{ daten.aktion }}</button>
+  }
+  <button matIconButton aria-label="Meldung schließen" (click)="schliessen()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>

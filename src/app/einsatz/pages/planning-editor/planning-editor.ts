@@ -55,11 +55,13 @@ import {
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
+import { Meldung } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-editor',
   imports: [
+    Meldung,
     MatButtonModule,
     MatDialogModule,
     MatIconModule,

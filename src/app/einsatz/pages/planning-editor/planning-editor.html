@@ -222,31 +222,28 @@
 
     <!-- Description Sub-Bar -->
     @if (p.hiorg_einsatz_id && efsApi.fehler()) {
-      <div class="cloud-status cloud-status--fehler" role="alert">
-        <span>{{ efsApi.fehler() }}</span>
-        <button matButton (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
+      <app-meldung art="fehler">
+        {{ efsApi.fehler() }}
+        <button matButton meldungAktion (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
           Erneut versuchen
         </button>
-      </div>
+      </app-meldung>
     }
     @if (cloudSpeichert()) {
-      <p class="cloud-status" role="status">Einsatzplanung wird in Nextcloud gespeichert…</p>
+      <app-meldung art="info">Einsatzplanung wird in Nextcloud gespeichert…</app-meldung>
     }
     @if (cloudStatus()) {
-      <p class="cloud-status" role="status">{{ cloudStatus() }}</p>
+      <app-meldung art="erfolg">{{ cloudStatus() }}</app-meldung>
     }
     @if (cloudFehler()) {
-      <div class="cloud-status cloud-status--fehler" role="alert">
-        <span
-          >{{ cloudFehler() }} Deine lokalen Änderungen bleiben erhalten. Bei einem Versionskonflikt
-          zuerst JSON herunterladen und die Änderungen mit dem neu geladenen Stand
-          zusammenführen.</span
-        >
-        <button matButton (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
+      <app-meldung art="fehler">
+        {{ cloudFehler() }} Deine lokalen Änderungen bleiben erhalten. Bei einem Versionskonflikt
+        zuerst über „JSON herunterladen“ in der Werkzeugleiste sichern und die Änderungen mit dem
+        neu geladenen Stand zusammenführen.
+        <button matButton meldungAktion (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
           Erneut versuchen
         </button>
-        <button matButton (click)="save()">JSON herunterladen</button>
-      </div>
+      </app-meldung>
     }
     <div class="editor-subbar">
       <mat-icon class="subbar-icon">notes</mat-icon>

@@ -25,19 +25,6 @@
   padding-bottom: calc(var(--space-2xl) + var(--space-xl));
 }
 
-.entwurf-hinweis {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  padding: var(--space-sm) var(--space-base);
-  margin-bottom: var(--space-base);
-  border-radius: var(--radius-md);
-  background: var(--warning-bg);
-  border: 1px solid var(--warning-border);
-  font-size: var(--font-size-sm);
-}
-
 .vorlage-zeile {
   display: flex;
   align-items: center;
@@ -90,22 +77,6 @@
 
 .abschliessen {
   flex: 1;
-}
-
-/*
- * Eigene Zeile über den Knöpfen: `order: -1` statt einer eigenen Hülle, damit
- * die Leiste ohne Inhalt nicht höher wird als bisher.
- */
-.entwurf-status {
-  flex: 1 0 100%;
-  order: -1;
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-
-  &.fehler {
-    color: var(--status-error);
-  }
 }
 
 @media (max-width: 780px) {

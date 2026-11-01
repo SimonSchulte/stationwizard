@@ -153,10 +153,10 @@
           </p>
 
           @if (!darfMaterialAendern()) {
-            <p class="hinweis" role="status">
-              <mat-icon aria-hidden="true">lock</mat-icon>
-              Nur lesbar: dafür fehlt die Rolle „Zugführung" oder „Gruppenführung Sanität".
-            </p>
+            <app-meldung art="info"
+              >Materialberichte nur lesbar: dafür fehlt die Rolle „Zugführung" oder „Gruppenführung
+              Sanität".</app-meldung
+            >
           }
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
@@ -242,10 +242,9 @@
           </p>
 
           @if (!darfOrganisationAendern()) {
-            <p class="hinweis" role="status">
-              <mat-icon aria-hidden="true">lock</mat-icon>
-              Nur lesbar: dafür fehlt die Rolle „Zugführung".
-            </p>
+            <app-meldung art="info"
+              >Organisationsstammdaten nur lesbar: dafür fehlt die Rolle „Zugführung".</app-meldung
+            >
           }
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">

@@ -12,7 +12,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import { KalenderDatenService } from '../../services/kalender-daten.service';
@@ -22,7 +21,7 @@ import {
   vorhandeneKatsThemen,
 } from '../../services/jahresuebernahme';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
-import { Meldung } from '../../../kern/zustand/zustand';
+import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
 /**
  * Übernahme von Offenen Ideen und KatS-Ausbildungsplan-Themen aus einem Jahr in
@@ -53,7 +52,7 @@ import { Meldung } from '../../../kern/zustand/zustand';
 export class Jahresuebernahme {
   private readonly kalender = inject(KalenderDatenService);
   private readonly router = inject(Router);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly meldungen = inject(MeldungsDienst);
 
   readonly zustand = this.kalender.zustand;
   readonly jahre = this.kalender.verfuegbareJahre;
@@ -190,11 +189,10 @@ export class Jahresuebernahme {
       this.fehler.set(ursache instanceof Error ? ursache.message : String(ursache));
       return;
     }
-    this.snackBar.open(
+    this.meldungen.erfolg(
       `${ergebnis.ideen.length} Idee(n) und ${ergebnis.katsThemen.length} KatS-Thema/-Themen ` +
         `nach ${ziel.jahr} übernommen. Zum Sichern im Kalender „Speichern“ wählen.`,
-      'OK',
-      { duration: 10000 },
+      { dauerMs: 10_000 },
     );
     void this.router.navigateByUrl('/kalender');
   }

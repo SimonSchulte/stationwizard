@@ -24,17 +24,11 @@
 
 <div class="inhalt">
   @if (rueckmeldung()) {
-    <app-meldung [art]="rueckmeldungErfolg() ? 'erfolg' : 'warnung'">
+    <app-meldung
+      [art]="rueckmeldungErfolg() ? 'erfolg' : 'warnung'"
+      (geschlossen)="rueckmeldung.set('')"
+    >
       {{ rueckmeldung() }}
-      <button
-        matIconButton
-        meldungAktion
-        matTooltip="Ausblenden"
-        aria-label="Meldung ausblenden"
-        (click)="rueckmeldung.set('')"
-      >
-        <mat-icon>close</mat-icon>
-      </button>
     </app-meldung>
   }
 

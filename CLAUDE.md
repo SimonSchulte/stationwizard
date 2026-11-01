@@ -23,7 +23,7 @@ Prüfungen und offene Abnahmegrenzen.
   `einsatz/components/` (`PositionZeile`, `StaerkeBlock`, `QualifikationsChips`,
   `AnforderungsAuswahl`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
   `StundenImport`), `ausbildung/components/` (`MonatsNavigation`, `HiorgEbenenAuswahl`),
-  `kern/` (`Seitenkopf`, `Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
+  `kern/` (`Seitenkopf`, `MeldungsDienst`/`Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
   `Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
   Vor einer neuen Komponente nach einer vorhandenen suchen.
 - Worker-Module nach demselben Muster: `<modul>.ts` verteilt nur die festen Pfade,
@@ -77,8 +77,17 @@ Prüfungen und offene Abnahmegrenzen.
     Nebenaktionen `matButton`, Symbolknöpfe `matIconButton`; viele Nebenaktionen in ein
     `more_vert`-Menü. Keine nativen `<button>` mit eigener Gestaltung, keine
     `mat-raised-button`/`mat-stroked-button`-Altschreibweisen, kein `color="primary"`.
-  - **Zustände** `kern/zustand/`: `app-meldung` (`fehler`/`warnung`/`info`/`erfolg`, Aktion per
-    `meldungAktion`), `app-leerzustand`, `app-ladeanzeige` – keine eigenen `.error-hint`,
+  - **Meldungen** (Fehler, Warnungen, Hinweise, Erfolg) erscheinen ausschließlich als
+    Material-Snackbar über den `MeldungsDienst` (`kern/zustand/meldungs-dienst.ts`):
+    Warteschlange statt Verdrängung, Farbe je Art über die `--mat-snack-bar-*`-Tokens in
+    `styles.less`, Fehler und Warnungen `assertive` angesagt. In Templates deklarativ mit
+    `<app-meldung art="…">` (unsichtbare Brücke: erscheint das Element, öffnet sich die
+    Snackbar; verschwindet es, schließt sie sich; eine `meldungAktion`-Schaltfläche wird die
+    Snackbar-Aktion, `(geschlossen)` meldet das Schließen durch die Person), im Code mit
+    `meldungen.fehler(…)` usw. Kein `MatSnackBar.open()` direkt, keine Inline-Hinweiskästen.
+    Ausgenommen sind Fehler eines Formularfelds (`mat-error`) und Hinweise an einer
+    Tabellenzeile oder Karte (etwa Staffelhinweise, „Name weicht ab“, Importvorschau).
+  - **Zustände** `kern/zustand/`: `app-leerzustand`, `app-ladeanzeige` – keine eigenen
     `.empty-state` oder Spinner-Blöcke.
   - **Suche** `kern/suchfeld/` (`[(wert)]` an ein Signal); **Filter** als
     `mat-button-toggle-group` (eine Auswahl aus wenigen Werten) oder `mat-chip-listbox`

@@ -1,4 +1,6 @@
-/** Gemeinsame Zustandsbausteine: Meldung, Leerzustand und Ladeanzeige. */
+/** Gemeinsame Zustandsbausteine: Meldungen (als Snackbar), Leerzustand und Ladeanzeige. */
 export { Ladeanzeige } from './ladeanzeige';
 export { Leerzustand } from './leerzustand';
-export { Meldung, type MeldungArt } from './meldung';
+export { Meldung } from './meldung';
+export type { MeldungArt } from './meldung-art';
+export { MeldungsDienst, type MeldungOptionen, type MeldungsGriff } from './meldungs-dienst';

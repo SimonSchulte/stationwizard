@@ -37,19 +37,20 @@
   }
 
   @if (entwurfGefundenAm(); as gesichertAm) {
-    <div class="entwurf-hinweis" role="status">
-      <mat-icon aria-hidden="true">history</mat-icon>
-      <span>
-        Zwischenstand vom {{ gesichertAm | date: 'dd.MM.yyyy, HH:mm' }} {{ quellentext() }}
-        fortgesetzt.
-      </span>
-      @if (andererEntwurf(); as anderer) {
-        <button matButton (click)="store.anderenEntwurfVerwenden()">
-          Stand vom {{ anderer.gespeichertAm | date: 'dd.MM., HH:mm' }} verwenden
+    <app-meldung art="info">
+      Zwischenstand vom {{ gesichertAm | date: 'dd.MM.yyyy, HH:mm' }} {{ quellentext() }}
+      fortgesetzt.
+      <button matButton meldungAktion (click)="entwurfVerwerfen()">Verwerfen</button>
+    </app-meldung>
+    @if (andererEntwurf(); as anderer) {
+      <app-meldung art="warnung">
+        Es gibt einen weiteren Zwischenstand vom
+        {{ anderer.gespeichertAm | date: 'dd.MM., HH:mm' }}.
+        <button matButton meldungAktion (click)="store.anderenEntwurfVerwenden()">
+          Diesen verwenden
         </button>
-      }
-      <button matButton (click)="entwurfVerwerfen()">Verwerfen</button>
-    </div>
+      </app-meldung>
+    }
   }
 
   @if (auftrag(); as a) {
@@ -139,11 +140,11 @@
       }
     </button>
     @if (entwurfFehler(); as fehler) {
-      <p class="entwurf-status fehler" role="alert">{{ fehler }}</p>
+      <app-meldung art="fehler">{{ fehler }}</app-meldung>
     } @else if (entwurfGesichertAm(); as gesichertAm) {
-      <p class="entwurf-status" role="status">
+      <app-meldung art="erfolg">
         Zwischenstand gesichert · {{ gesichertAm | date: 'HH:mm' }} · auf jedem Gerät fortsetzbar
-      </p>
+      </app-meldung>
     }
   </div>
 }

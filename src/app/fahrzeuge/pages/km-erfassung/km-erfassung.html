@@ -27,9 +27,8 @@
     </header>
 
     @if (erfolgreichErfasst()) {
-      <div class="erfolg" role="status">
-        <mat-icon>check_circle</mat-icon>
-        <p>Kilometerstand gespeichert. Danke!</p>
+      <app-meldung art="erfolg">Kilometerstand gespeichert. Danke!</app-meldung>
+      <div class="erfolg">
         <div class="erfolg-aktionen">
           <button matButton="outlined" (click)="weitereErfassung()">
             Weitere Ablesung erfassen

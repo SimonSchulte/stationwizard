@@ -3201,3 +3201,47 @@ den dichten Kalenderleisten.
   bedient – gerade diese Zustände waren Teil der Prüfung.
 - Nicht geprüft: Dialoge im Einzelnen und Seiten, die nur mit echten Daten Inhalt zeigen
   (Fahrzeugdetail mit Ablesungen, Behälter-Check, Angebotseditor).
+
+## Meldungen als Material-Snackbar – 2026-11-01
+
+Auftrag: alle Warnungen, Hinweise und Fehler als Material-Snackbar ausgeben.
+
+- `MeldungsDienst` (`kern/zustand/meldungs-dienst.ts`) ist die einzige Ausgabestelle:
+  `MatSnackBar.openFromComponent()` mit eigenem Inhalt `MeldungSnackbar` (Symbol, Text,
+  optionale Aktion über `matSnackBarAction`, Schließen-Knopf). Eine Snackbar zeigt immer nur
+  eine Meldung, deshalb eine Warteschlange: weitere Meldungen folgen nacheinander, eine noch
+  wartende verschwindet, wenn ihr Anlass entfällt. Dauer: Erfolg/Hinweis 5 s,
+  Warnung/Fehler 10 s, mit Aktion („Erneut versuchen“) bleiben sie stehen. Fehler und
+  Warnungen werden `assertive` angesagt. Farben über `--mat-snack-bar-*` in `styles.less`;
+  die Warnfläche ist abgedunkelt, weil Weiß auf `--status-warn` nur 3,8:1 Kontrast hatte (jetzt
+  5,5:1; Fehler 5,6, Erfolg 5,1, Hinweis 18,8).
+- `<app-meldung>` bleibt in den 33 Templates stehen, zeigt aber selbst nichts mehr an, sondern
+  ist eine unsichtbare Brücke: Erscheint das Element, öffnet sich die Snackbar; ändert sich
+  der Text, wird sie ersetzt; verschwindet es (Zustand behoben, Seite verlassen), schließt
+  sie sich. Eine `meldungAktion`-Schaltfläche wird zur Snackbar-Aktion und wird beim Klick
+  ausgelöst; `(geschlossen)` ersetzt die früheren Ausblenden-Knöpfe der Rückmeldungen.
+- Zusätzlich umgestellt: Sitzung abgelaufen und Benutzerfehler in der App-Hülle, EFS- und
+  Nextcloud-Status im Einsatz-Editor (der Konflikthinweis verweist auf „JSON herunterladen“ in
+  der Werkzeugleiste, weil eine Snackbar nur eine Aktion trägt), Gruppenhinweise der
+  Ehrungsseiten, fehlende Führerschein-Vorlage (Aktion „Hochladen“), „nur lesbar“ in der
+  Systemkonfiguration, Entwurf und Sicherung beim Fahrzeugcheck (zweite Wahl „anderen Stand
+  verwenden“ als eigene Meldung), Erfolg der Kilometererfassung sowie die bisherigen direkten
+  `MatSnackBar.open()`-Aufrufe in Kalender und Jahresübernahme.
+- Bewusst an ihrem Ort geblieben: Feldfehler (`mat-error`), die Fehlerliste der
+  Stundenimport-Vorschau, Staffelhinweise je Tabellenzeile, „Name weicht ab“ an HiOrg-Karten,
+  Zähler („3 von 3 Personen“), Fortschritts- und Ladeanzeigen.
+- Folge, die ehrlich zu benennen ist: Schlägt das erste Laden einer Seite fehl, bleibt deren
+  Inhaltsbereich leer, sobald die Fehler-Snackbar geschlossen ist (vorher stand der Fehler samt
+  „Erneut versuchen“ dauerhaft auf der Seite). Mit Aktion bleibt die Snackbar bis zum Schließen
+  stehen; „Neu laden“ in den Seitenköpfen bleibt der zweite Weg.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Neue Tests: `meldungs-dienst.spec.ts` (Warteschlange, Dauer, Aktion, Herausnehmen,
+  Schließen durch die Person), `zustand.spec.ts` (Brücke: Text und Aktion, Ersetzen,
+  Schließen beim Verschwinden), `app.spec.ts` prüft die echte Snackbar bei abgelaufener
+  Sitzung.
+- Headless-Chromium auf 1400×900 und 390×844 gegen den Attrappen-Server: Fehler mit
+  „Erneut versuchen“ (Personal), zwei Fehler nacheinander (Offene Aufgaben), Warnung
+  (Ehrungsmanager), Hinweis mit Aktion „Zum Kalender“ (Kalender-Übernahme), keine Snackbar
+  ohne Anlass (Kalender), keine verwaiste Snackbar nach Seitenwechsel.

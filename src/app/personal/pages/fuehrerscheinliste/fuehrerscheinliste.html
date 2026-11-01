@@ -36,10 +36,10 @@
   </p>
 
   @if (!vorlageLaedt() && vorlage() && !vorlage()!.vorhanden) {
-    <p class="hinweis-vorlage" role="status">
+    <app-meldung art="warnung">
       Für den Word-Export ist noch keine Vorlage hinterlegt.
-      <a routerLink="/verwaltung/fuehrerschein-vorlage">Im Verwaltungsbereich hochladen</a>.
-    </p>
+      <a matButton meldungAktion routerLink="/verwaltung/fuehrerschein-vorlage">Hochladen</a>
+    </app-meldung>
   }
 
   @if (fehler()) {

@@ -20,20 +20,14 @@
 
 <div class="list-content">
   @if (hiorgRueckmeldung()) {
-    <app-meldung [art]="hiorgVerbunden() ? 'erfolg' : 'warnung'">
+    <app-meldung
+      [art]="hiorgVerbunden() ? 'erfolg' : 'warnung'"
+      (geschlossen)="hiorgRueckmeldung.set('')"
+    >
       {{ hiorgRueckmeldung() }}
       @if (hiorgVerbunden()) {
         Personal übernimmst du im Editor über „Personal aus HiOrg-Server übernehmen“.
       }
-      <button
-        matIconButton
-        meldungAktion
-        matTooltip="Ausblenden"
-        aria-label="Meldung ausblenden"
-        (click)="hiorgRueckmeldung.set('')"
-      >
-        <mat-icon>close</mat-icon>
-      </button>
     </app-meldung>
   }
   <section class="cloud-planungen" aria-labelledby="cloud-planungen-titel">

@@ -19,17 +19,8 @@
 
 <div class="inhalt">
   @if (rueckmeldung()) {
-    <app-meldung art="info">
+    <app-meldung art="info" (geschlossen)="rueckmeldung.set('')">
       {{ rueckmeldung() }}
-      <button
-        matIconButton
-        meldungAktion
-        matTooltip="Ausblenden"
-        aria-label="Meldung ausblenden"
-        (click)="rueckmeldung.set('')"
-      >
-        <mat-icon>close</mat-icon>
-      </button>
     </app-meldung>
   }
   @if (fehler()) {
@@ -66,7 +57,7 @@
     </div>
 
     @if (gruppenHinweis()) {
-      <p class="hinweis" role="status">{{ gruppenHinweis() }}</p>
+      <app-meldung art="warnung">{{ gruppenHinweis() }}</app-meldung>
     }
 
     <div class="tabelle-rahmen">

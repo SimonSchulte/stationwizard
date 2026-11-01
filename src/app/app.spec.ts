@@ -77,12 +77,16 @@ describe('Gemeinsame Anwendung', () => {
     expect(ereignis.preventDefault).toHaveBeenCalledOnce();
   });
 
-  it('zeigt bei abgelaufener Sitzung eine neue Anmeldung und blendet die alte Identität aus', () => {
+  it('zeigt bei abgelaufener Sitzung eine neue Anmeldung und blendet die alte Identität aus', async () => {
     TestBed.inject(WorkerClient).zustand.set('sitzung-abgelaufen');
     const ansicht = TestBed.createComponent(App);
     ansicht.detectChanges();
+    await ansicht.whenStable();
     const element = ansicht.nativeElement as HTMLElement;
-    expect(element.querySelector('[role="alert"]')?.textContent).toContain('Erneut anmelden');
+    // Die Meldung erscheint als Material-Snackbar im globalen Overlay.
+    const snackbar = document.querySelector('app-meldung-snackbar');
+    expect(snackbar?.textContent).toContain('Sitzung abgelaufen');
+    expect(snackbar?.textContent).toContain('Erneut anmelden');
     expect(element.querySelector('.benutzer')?.textContent).not.toContain('Uebung');
   });
 });

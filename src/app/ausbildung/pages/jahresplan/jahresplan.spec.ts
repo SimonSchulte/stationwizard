@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MeldungsDienst } from '../../../kern/zustand/zustand';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { PlanStore } from '../../services/plan-store';
@@ -62,7 +62,7 @@ describe('Bestätigungen im Ausbildungsplan', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -197,7 +197,7 @@ describe('Monatsfilter im Jahresplan', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -282,7 +282,7 @@ describe('HiOrg-Statuschip', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -354,7 +354,7 @@ describe('Automatisches Laden aus der Kalender-Datenbank', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -417,7 +417,7 @@ describe('Datenbank-Chip und Speichern', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const snackBar = { open: vi.fn() };
+  const meldungen = { zeige: vi.fn() };
   let ansicht: Jahresplan;
 
   beforeEach(() => {
@@ -428,7 +428,7 @@ describe('Datenbank-Chip und Speichern', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: snackBar },
+        { provide: MeldungsDienst, useValue: meldungen },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -505,7 +505,7 @@ describe('Tageszellen mit vielen Einträgen', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: { open: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -581,7 +581,7 @@ describe('Ansichten und Ideen auf Lücken', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const snackBar = { open: vi.fn() };
+  const meldungen = { zeige: vi.fn() };
   let store: PlanStore;
 
   function erzeuge(): Jahresplan {
@@ -590,7 +590,7 @@ describe('Ansichten und Ideen auf Lücken', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MatSnackBar, useValue: snackBar },
+        { provide: MeldungsDienst, useValue: meldungen },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -639,11 +639,7 @@ describe('Ansichten und Ideen auf Lücken', () => {
     const belegt = store.termine().filter((t) => t.datum === '2020-01-06');
     expect(belegt.map((t) => t.thema)).toEqual(['Erfundene Idee']);
     expect(store.backlog()).toEqual([]);
-    expect(snackBar.open).toHaveBeenCalledWith(
-      expect.stringContaining('eingeplant'),
-      'OK',
-      expect.anything(),
-    );
+    expect(meldungen.zeige).toHaveBeenCalledWith('info', expect.stringContaining('eingeplant'));
   });
 
   it('legt eine Idee auf einen Diensttag ohne Platzhalter, ohne einen Termin zu ersetzen', () => {
@@ -670,10 +666,9 @@ describe('Ansichten und Ideen auf Lücken', () => {
     ansicht.ideeAufNaechsteLuecke(idee);
 
     expect(store.backlog().map((t) => t.id)).toEqual(['idee']);
-    expect(snackBar.open).toHaveBeenCalledWith(
+    expect(meldungen.zeige).toHaveBeenCalledWith(
+      'info',
       expect.stringContaining('Keine Lücke mehr'),
-      'OK',
-      expect.anything(),
     );
   });
 });
