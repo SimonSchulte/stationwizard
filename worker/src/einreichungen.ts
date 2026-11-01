@@ -1,10 +1,10 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import {
   lesePruefeKoerper,
-  protokolliereAenderung,
   type FahrzeugeKonfiguration,
   type GeprueftesBenutzerkonto,
-} from './fahrzeuge';
+} from './fahrzeuge-gemeinsam';
+import { protokolliereAenderung } from './fahrzeuge-protokoll';
 import { istObjekt, UUID_MUSTER } from './json-lesen';
 import { freigabeGruppen, leseRolle, pruefeFreigabeRecht } from './rollen';
 

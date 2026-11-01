@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { personSchluessel, verarbeiteEhrungen } from '../src/ehrungen';
-import { leseMitgliedSeit } from '../src/hiorg-api';
+import { verarbeiteEhrungen } from '../src/ehrungen';
+import { personSchluessel } from '../src/ehrungen-gemeinsam';
+import { leseMitgliedSeit } from '../src/hiorg-personal-felder';
 import { FakeEhrungenDb } from './ehrungen-db-fake';
 
 const IDENTITAET = { email: 'geprueft@example.test' };

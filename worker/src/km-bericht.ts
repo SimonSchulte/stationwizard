@@ -1,5 +1,5 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
-import type { GeprueftesBenutzerkonto } from './fahrzeuge';
+import type { GeprueftesBenutzerkonto } from './fahrzeuge-gemeinsam';
 import { berlinerKalendertag } from './kalender';
 import { VERSANDFEHLER_ANTWORTEN } from './mail-versand';
 import { MAIL_FARBEN, datum, kopfzelle, maskiere, zahl, zelle } from './mail-format';

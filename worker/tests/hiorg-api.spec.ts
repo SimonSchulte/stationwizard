@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { verarbeiteHiorgApi } from '../src/hiorg-api';
 import {
   HIORG_AUTORISIERUNG_URL,
   HIORG_PERSONAL_URL,
   HIORG_TOKEN_URL,
-  verarbeiteHiorgApi,
-  verarbeiteHiorgRueckruf,
-  verarbeiteHiorgVerbinden,
   type HiorgApiKonfiguration,
-} from '../src/hiorg-api';
+} from '../src/hiorg-gemeinsam';
+import { verarbeiteHiorgRueckruf, verarbeiteHiorgVerbinden } from '../src/hiorg-oauth';
 
 const ORIGIN = 'https://stationwizard.example';
 const TEAM_DOMAIN = 'https://erfundenes-team.cloudflareaccess.com';
