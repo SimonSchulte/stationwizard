@@ -62,7 +62,7 @@ describe('Bestätigungen im Ausbildungsplan', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -211,7 +211,7 @@ describe('Monatsfilter im Jahresplan', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -296,7 +296,7 @@ describe('HiOrg-Statuschip', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -368,7 +368,7 @@ describe('Automatisches Laden aus der Kalender-Datenbank', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -431,7 +431,7 @@ describe('Datenbank-Chip und Speichern', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const meldungen = { zeige: vi.fn() };
+  const meldungen = { zeige: vi.fn(), info: vi.fn() };
   let ansicht: Jahresplan;
 
   beforeEach(() => {
@@ -519,7 +519,7 @@ describe('Tageszellen mit vielen Einträgen', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -595,7 +595,7 @@ describe('Ansichten und Ideen auf Lücken', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const meldungen = { zeige: vi.fn() };
+  const meldungen = { zeige: vi.fn(), info: vi.fn() };
   let store: PlanStore;
 
   function erzeuge(): Jahresplan {
@@ -653,7 +653,10 @@ describe('Ansichten und Ideen auf Lücken', () => {
     const belegt = store.termine().filter((t) => t.datum === '2020-01-06');
     expect(belegt.map((t) => t.thema)).toEqual(['Erfundene Idee']);
     expect(store.backlog()).toEqual([]);
-    expect(meldungen.zeige).toHaveBeenCalledWith('info', expect.stringContaining('eingeplant'));
+    expect(meldungen.info).toHaveBeenCalledWith(
+      expect.stringContaining('eingeplant'),
+      expect.objectContaining({ aktion: 'Rückgängig' }),
+    );
   });
 
   it('legt eine Idee auf einen Diensttag ohne Platzhalter, ohne einen Termin zu ersetzen', () => {

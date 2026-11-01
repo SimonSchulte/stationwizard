@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { DialogDienst } from '../../kern/dialog/dialog-dienst';
-import { MeldungsDienst } from '../../kern/zustand/zustand';
 import { PlanStore } from './plan-store';
+import { RueckgaengigDienst } from './rueckgaengig-dienst';
 
 /**
  * Löscht einen Termin oder eine Idee und bietet sofort „Rückgängig“ an. Gemeinsam für
@@ -10,30 +9,12 @@ import { PlanStore } from './plan-store';
 @Injectable({ providedIn: 'root' })
 export class TerminLoeschenDienst {
   private readonly store = inject(PlanStore);
-  private readonly meldungen = inject(MeldungsDienst);
-  private readonly dialogDienst = inject(DialogDienst);
+  private readonly rueckgaengig = inject(RueckgaengigDienst);
 
   loesche(id: string): void {
     const termin = this.store.terminNachId(id);
     this.store.loescheTermin(id);
-    const standNachLoeschen = this.store.dokument();
-    const name = kurzname(termin?.thema || termin?.hinweis || '');
-    this.meldungen.info(`„${name}“ gelöscht.`, {
-      aktion: 'Rückgängig',
-      dauerMs: 8_000,
-      beiAktion: () => {
-        // Nur zurücknehmen, wenn seither nichts anderes geändert wurde; sonst würde
-        // „Rückgängig“ eine fremde Änderung treffen.
-        if (this.store.dokument() === standNachLoeschen) {
-          this.store.rueckgaengig();
-        } else {
-          void this.dialogDienst.hinweis(
-            'Seit dem Löschen wurde der Kalender weiter geändert. Mit Strg+Z lassen sich die Schritte einzeln zurücknehmen.',
-            'Rückgängig nicht möglich',
-          );
-        }
-      },
-    });
+    this.rueckgaengig.melde(`„${kurzname(termin?.thema || termin?.hinweis || '')}“ gelöscht.`);
   }
 }
 

@@ -97,28 +97,13 @@
 }
 
 .plan-suche {
-  display: flex;
-  align-items: center;
-  gap: var(--space-compact);
-  padding: calc(var(--space-unit) * 5) calc(var(--space-unit) * 10);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-chip);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
+  // Gleiche Höhe wie die übrigen Bedienelemente der Plan-Kopfzeile.
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
+  --mat-form-field-container-text-size: 0.875rem;
 
-  input {
-    width: 170px;
-    border: 0;
-    background: var(--surface-transparent);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 0.8125rem;
-    outline: none;
-  }
-
-  &:focus-within {
-    border-color: var(--mat-sys-primary);
-  }
+  width: 14rem;
+  flex: 0 1 14rem;
 }
 
 /* Ansichtsschalter der Plan-Kopfzeile, gleiche Anmutung wie die Diensttags-Marke. */
@@ -304,12 +289,8 @@
   }
 
   .plan-suche {
-    flex: 1 1 auto;
-
-    input {
-      width: auto;
-      min-width: 0;
-    }
+    flex: 1 1 100%;
+    width: auto;
   }
 
   .seitenleiste {

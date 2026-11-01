@@ -64,6 +64,7 @@ import {
   baueTagesInhalt,
 } from '../../services/tages-inhalt';
 import { PlanStore } from '../../services/plan-store';
+import { RueckgaengigDienst } from '../../services/rueckgaengig-dienst';
 import { TerminLoeschenDienst } from '../../services/termin-loeschen';
 import { KalenderDatenService } from '../../services/kalender-daten.service';
 import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
@@ -77,6 +78,7 @@ import {
   jahrVon,
   monatIndex,
 } from '../../../kern/kalender/datum';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
 
 /** Hauptansicht: Wochenraster links, Ideen/Auswertung/KatS-A-Plan rechts. */
@@ -84,6 +86,7 @@ import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
   selector: 'app-jahresplan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Suchfeld,
     StatusChip,
     HiorgEbenenAuswahl,
     MonatsNavigation,
@@ -117,6 +120,7 @@ export class Jahresplan {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly meldungen = inject(MeldungsDienst);
   private readonly terminLoeschen = inject(TerminLoeschenDienst);
+  private readonly rueckgaengig = inject(RueckgaengigDienst);
   readonly store = inject(PlanStore);
   readonly kalender = inject(KalenderDatenService);
   readonly feiertage = inject(FeiertagService);
@@ -538,7 +542,7 @@ export class Jahresplan {
       return;
     }
     this.store.aktualisiereTermin(abweichung.terminId, { thema: abweichung.hiorg.name });
-    this.melde('Thema aus HiOrg übernommen – rückgängig mit Strg+Z.');
+    this.rueckgaengig.melde('Thema aus HiOrg übernommen.');
   }
 
   /** Werkzeug (c): Aus einem HiOrg-Termin ohne Gegenstück einen Plantermin machen. */
@@ -612,7 +616,9 @@ export class Jahresplan {
     }
     if (gezogen.datum === null) {
       this.store.ausBacklogAufTermin(gezogen.id, ziel.id);
-      this.melde(`„${kurz(gezogen.thema)}“ auf ${formatiereDatum(ziel.datum!)} eingeplant.`);
+      this.rueckgaengig.melde(
+        `„${kurz(gezogen.thema)}“ auf ${formatiereDatum(ziel.datum!)} eingeplant.`,
+      );
     } else {
       this.store.tauscheDatum(gezogen.id, ziel.id);
     }
@@ -626,7 +632,7 @@ export class Jahresplan {
     } else {
       this.store.verschiebeAufDatum(gezogen.id, datum);
     }
-    this.melde(`„${kurz(gezogen.thema)}“ auf ${formatiereDatum(datum)} gelegt.`);
+    this.rueckgaengig.melde(`„${kurz(gezogen.thema)}“ auf ${formatiereDatum(datum)} gelegt.`);
   }
 
   // ----------------------------------------------------------------- Termine
@@ -648,12 +654,14 @@ export class Jahresplan {
         const beleger = this.store.termine().find((t) => t.datum === datum && t.id !== termin.id);
         if (beleger) {
           this.store.tauscheDatum(termin.id, beleger.id);
-          this.melde(
+          this.rueckgaengig.melde(
             `„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben, Termine getauscht.`,
           );
         } else {
           this.store.verschiebeAufDatum(termin.id, datum);
-          this.melde(`„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben.`);
+          this.rueckgaengig.melde(
+            `„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben.`,
+          );
         }
       });
   }
@@ -685,7 +693,9 @@ export class Jahresplan {
 
   zuBacklog(termin: Termin): void {
     this.store.zuBacklog(termin.id);
-    this.melde(`„${kurz(termin.thema || termin.hinweis)}“ in die offenen Ideen verschoben.`);
+    this.rueckgaengig.melde(
+      `„${kurz(termin.thema || termin.hinweis)}“ in die offenen Ideen verschoben.`,
+    );
   }
 
   loeschen(id: string): void {
@@ -711,7 +721,9 @@ export class Jahresplan {
     } else {
       this.store.ausBacklogAufDatum(idee.id, luecke.datum);
     }
-    this.melde(`„${kurz(idee.thema)}“ auf ${formatiereDatum(luecke.datum)} eingeplant.`);
+    this.rueckgaengig.melde(
+      `„${kurz(idee.thema)}“ auf ${formatiereDatum(luecke.datum)} eingeplant.`,
+    );
   }
 
   /** Auswahl der Monatsansicht: Ablage auf einem anderen Termin. */

@@ -210,34 +210,36 @@
           </button>
         }
       } @else {
-        <button
-          class="diensttags-marke"
-          [class.hat-luecken]="luecken().length > 0"
-          [class.aktiv]="nurLuecken()"
-          [matTooltip]="
-            luecken().length
-              ? 'Nur ' + diensttagLabel() + 'e ohne Ausbildung anzeigen'
-              : 'Jeder ' + diensttagLabel() + ' des Jahres ist belegt'
-          "
-          (click)="nurLuecken.set(!nurLuecken())"
-        >
-          <mat-icon inline>{{ luecken().length ? 'error_outline' : 'check_circle' }}</mat-icon>
-          {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
-        </button>
-
-        @if (hiorgAbgleich().anzahlAbweichungen > 0) {
+        @if (ansicht() !== 'jahr') {
           <button
-            class="abweichungs-marke"
-            [class.aktiv]="nurAbweichungen()"
-            matTooltip="Nur Wochen mit abweichender HiOrg-Bezeichnung anzeigen"
-            (click)="nurAbweichungen.set(!nurAbweichungen())"
+            class="diensttags-marke"
+            [class.hat-luecken]="luecken().length > 0"
+            [class.aktiv]="nurLuecken()"
+            [matTooltip]="
+              luecken().length
+                ? 'Nur ' + diensttagLabel() + 'e ohne Ausbildung anzeigen'
+                : 'Jeder ' + diensttagLabel() + ' des Jahres ist belegt'
+            "
+            (click)="nurLuecken.set(!nurLuecken())"
           >
-            <mat-icon inline>warning</mat-icon>
-            {{ hiorgAbgleich().anzahlAbweichungen }} Namensabweichung(en)
+            <mat-icon inline>{{ luecken().length ? 'error_outline' : 'check_circle' }}</mat-icon>
+            {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
           </button>
-        }
 
-        <app-hiorg-ebenen-auswahl [(ebene)]="hiorgEbene" />
+          @if (hiorgAbgleich().anzahlAbweichungen > 0) {
+            <button
+              class="abweichungs-marke"
+              [class.aktiv]="nurAbweichungen()"
+              matTooltip="Nur Wochen mit abweichender HiOrg-Bezeichnung anzeigen"
+              (click)="nurAbweichungen.set(!nurAbweichungen())"
+            >
+              <mat-icon inline>warning</mat-icon>
+              {{ hiorgAbgleich().anzahlAbweichungen }} Namensabweichung(en)
+            </button>
+          }
+
+          <app-hiorg-ebenen-auswahl [(ebene)]="hiorgEbene" />
+        }
 
         <mat-button-toggle-group
           class="ansicht-umschalter"
@@ -260,23 +262,23 @@
           </mat-button-toggle>
         </mat-button-toggle-group>
 
-        <app-monats-navigation
-          [monat]="monat()"
-          [imAktuellenMonat]="imAktuellenMonat()"
-          (monatGewaehlt)="waehleMonat($event)"
-          (zumAktuellenMonat)="zumAktuellenMonat()"
-        />
+        <!--
+          Der Jahresüberblick zeigt immer das ganze Jahr ohne Filter; Monat, Suche und
+          Filtermarken gelten nur für Monat und Liste und fehlen dort deshalb.
+        -->
+        @if (ansicht() !== 'jahr') {
+          <app-monats-navigation
+            [monat]="suche().trim() ? null : monat()"
+            [imAktuellenMonat]="imAktuellenMonat()"
+            (monatGewaehlt)="waehleMonat($event)"
+            (zumAktuellenMonat)="zumAktuellenMonat()"
+          />
+        }
 
         <span class="fueller"></span>
-        <label class="plan-suche">
-          <mat-icon inline>search</mat-icon>
-          <input
-            type="search"
-            placeholder="Im Plan suchen"
-            [value]="suche()"
-            (input)="suche.set($any($event.target).value)"
-          />
-        </label>
+        @if (ansicht() !== 'jahr') {
+          <app-suchfeld class="plan-suche" beschriftung="Im Plan suchen" [(wert)]="suche" />
+        }
         <button matButton="tonal" (click)="neuerTermin()">
           <mat-icon>add</mat-icon>
           <span class="knopf-text">Termin</span>
