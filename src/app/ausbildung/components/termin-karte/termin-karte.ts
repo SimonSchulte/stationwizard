@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -21,7 +22,7 @@ import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 @Component({
   selector: 'app-termin-karte',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, MatTooltipModule],
   templateUrl: './termin-karte.html',
   styleUrl: './termin-karte.less',
   host: {
@@ -32,6 +33,10 @@ import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
     '[class.frei]': 'istFrei()',
     '[class.luecke]': 'luecke()',
     '[class.kompakt]': 'kompakt()',
+    '[class.bearbeitbar]': 'bearbeitbar()',
+    '[attr.tabindex]': 'bearbeitbar() ? 0 : null',
+    '(click)': 'aktivieren($event)',
+    '(keydown.enter)': 'aktivieren($event)',
   },
 })
 export class TerminKarte {
@@ -56,10 +61,30 @@ export class TerminKarte {
   /** Bietet im Menü einer Idee „Auf nächste Lücke legen“ an – nur das Ideen-Panel setzt das. */
   readonly lueckeAnbieten = input(false);
 
+  /**
+   * Ein Klick oder Enter auf die Karte öffnet den Termin. Nur Randtage des Nachbarjahres
+   * sind reine Anzeige und schalten das ab.
+   */
+  readonly bearbeitbar = input(true);
+
   readonly bearbeiten = output<void>();
+  /** „Verschieben nach Datum …“: die Tastatur- und Touch-Alternative zum Ziehen. */
+  readonly datumWaehlen = output<void>();
   readonly loeschen = output<void>();
   readonly verschieben = output<void>();
   readonly naechsteLuecke = output<void>();
+
+  /** Klick und Enter auf die Karte, nicht auf ihre eigenen Knöpfe, Links und Menüs. */
+  aktivieren(ereignis: Event): void {
+    if (!this.bearbeitbar()) {
+      return;
+    }
+    const ziel = ereignis.target;
+    if (ziel instanceof Element && ziel.closest('button, a, [role="menuitem"]')) {
+      return;
+    }
+    this.bearbeiten.emit();
+  }
 
   /** Direktlink auf die Detailseite im HiOrg-Server, falls dieser Termin verknüpft ist. */
   readonly hiorgLink = computed(() => {

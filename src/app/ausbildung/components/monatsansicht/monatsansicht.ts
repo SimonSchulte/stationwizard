@@ -80,6 +80,7 @@ export class Monatsansicht {
   readonly tagGewaehlt = output<string>();
   readonly bearbeiten = output<string>();
   readonly zuBacklog = output<Termin>();
+  readonly datumWaehlen = output<Termin>();
   readonly loeschen = output<string>();
   readonly anlegen = output<string>();
   readonly nameUebernehmen = output<HiorgAbweichung>();

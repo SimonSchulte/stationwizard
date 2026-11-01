@@ -264,11 +264,12 @@ a.hiorg-link-symbol {
   --mat-icon-button-state-layer-size: 30px;
 
   flex: 0 0 auto;
-  opacity: 0.45;
+  opacity: 0.7;
   transition: opacity 120ms ease;
 }
 
 :host(:hover) .menue-knopf,
+:host(:focus-within) .menue-knopf,
 .menue-knopf:focus-visible {
   opacity: 1;
 }
@@ -331,4 +332,34 @@ a.hiorg-link-symbol {
   color: var(--text-secondary);
   font-size: 0.6875rem;
   white-space: nowrap;
+}
+
+/* Klick und Enter auf die Karte öffnen den Termin. */
+:host(.bearbeitbar) {
+  cursor: pointer;
+}
+
+:host(.bearbeitbar:focus-visible) {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 1px;
+}
+
+.menue-loeschen {
+  color: var(--status-error);
+}
+
+/*
+ * Touch: keine Hover-Zustände. Das Menü bleibt voll sichtbar, und die unsichtbare
+ * Trefferfläche der kleinen Knöpfe wird größer, ohne die Karte zu vergrößern.
+ */
+@media (hover: none), (pointer: coarse) {
+  .menue-knopf,
+  :host(.kompakt) .menue-knopf {
+    opacity: 1;
+
+    ::ng-deep .mat-mdc-button-touch-target {
+      width: 40px;
+      height: 40px;
+    }
+  }
 }

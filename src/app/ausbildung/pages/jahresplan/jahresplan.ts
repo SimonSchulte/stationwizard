@@ -631,6 +631,33 @@ export class Jahresplan {
 
   // ----------------------------------------------------------------- Termine
 
+  /**
+   * „Verschieben nach Datum …“: das Gegenstück zum Ziehen für Tastatur und Touch. Wie beim
+   * Ziehen tauscht ein belegter Zieltag das Datum mit seinem Termin, ein freier wird belegt.
+   */
+  terminVerschiebenNach(termin: Termin): void {
+    this.dialog
+      .open(DatumDialog, {
+        data: { titel: 'Verschieben nach Datum', vorgabe: termin.datum } satisfies DatumDialogDaten,
+      })
+      .afterClosed()
+      .subscribe((datum?: string) => {
+        if (!datum || datum === termin.datum) {
+          return;
+        }
+        const beleger = this.store.termine().find((t) => t.datum === datum && t.id !== termin.id);
+        if (beleger) {
+          this.store.tauscheDatum(termin.id, beleger.id);
+          this.melde(
+            `„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben, Termine getauscht.`,
+          );
+        } else {
+          this.store.verschiebeAufDatum(termin.id, datum);
+          this.melde(`„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben.`);
+        }
+      });
+  }
+
   neuerTermin(): void {
     this.dialog
       .open(DatumDialog, {

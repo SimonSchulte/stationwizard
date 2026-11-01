@@ -56,3 +56,15 @@
 .anlegen:focus-visible {
   opacity: 1;
 }
+
+/* Touch: das „+“ muss ohne Hover auffindbar und gut zu treffen sein. */
+@media (hover: none), (pointer: coarse) {
+  .anlegen {
+    opacity: 1;
+
+    ::ng-deep .mat-mdc-button-touch-target {
+      width: 40px;
+      height: 40px;
+    }
+  }
+}

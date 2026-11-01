@@ -95,6 +95,7 @@
                       [kompakt]="false"
                       (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
                       (verschieben)="zuBacklog.emit(karte.termin.termin)"
+                      (datumWaehlen)="datumWaehlen.emit(karte.termin.termin)"
                       (loeschen)="loeschen.emit(karte.termin.termin.id)"
                     />
                   </div>
