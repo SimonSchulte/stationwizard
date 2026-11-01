@@ -3304,3 +3304,12 @@ Bewusst offen:
   (`plan.model.ts` **und** `kalender-planung.ts`) und Excel-Schema entfernen.
 - Geprüft: Build, `npm test`, Prettier; Sichtprüfung gegen die Worker-Attrappe (Desktop). Nicht
   gesondert am Handy geprüft: Monats-/Wochenendfarben und die KatS-Ansicht.
+
+### Kalender: Reihenfolge im Termin-Dialog
+
+Gewählt wurde der Vorschlag „Thema zuerst“: Thema (zuerst fokussiert), Rolle und Ausbilder, Art
+(Dienst/Termin), „Wann“ (Datum, Von, Bis), dann die einklappbaren Bereiche „Mehrtägig“,
+„KatS-Ausbildungsplan“ und „Weitere Angaben“ (jetzt mit dem Hinweisfeld). Jeder Bereich fasst seinen
+Inhalt in einer Zeile zusammen und steht offen, wenn dort schon etwas erfasst ist. Eine Idee ohne
+Datum zeigt weder Datum noch „Mehrtägig“. Gesichtet gegen die Worker-Attrappe auf Desktop und
+Handy-Breite.

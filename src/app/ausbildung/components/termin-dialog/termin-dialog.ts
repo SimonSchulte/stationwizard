@@ -21,6 +21,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { filter } from 'rxjs';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
+  formatiereDatum,
   isoZuLokalesDatum,
   lokalesDatumZuIso,
   lokalesDatumZuZeit,
@@ -109,14 +110,20 @@ export class TerminDialog {
   /** Stand beim Öffnen, um ungesicherte Eingaben zu erkennen. */
   private readonly ausgangsstand = JSON.stringify(this.entwurf());
   readonly geaendert = computed(() => JSON.stringify(this.entwurf()) !== this.ausgangsstand);
-  /** „Weitere Angaben“ stehen offen, sobald dort schon etwas erfasst ist. */
+  /** Bereiche stehen offen, sobald dort schon etwas erfasst ist; sonst genügt ihre Zusammenfassung. */
   readonly weitereOffen = [
+    this.entwurf().hinweis,
     this.entwurf().material,
     this.entwurf().anforderungen,
     this.entwurf().notizen,
     this.entwurf().hgmInhalt,
     this.entwurf().hgmTitel,
-  ].some((t) => t.trim() !== '');
+  ].some((text) => text.trim() !== '');
+  readonly katsOffen =
+    this.entwurf().katsThemaId !== null ||
+    this.entwurf().katsPflicht ||
+    this.entwurf().katsTitel.trim() !== '';
+  readonly mehrtaegigOffen = this.entwurf().datumBis !== null;
   readonly istIdee = computed(() => this.entwurf().datum === null);
 
   /** Stabile `Date`-Referenzen für die Picker: nur bei geändertem Wert neu erzeugt. */
@@ -148,6 +155,22 @@ export class TerminDialog {
     return (
       e.datumBis === null && e.beginnZeit !== '' && e.endeZeit !== '' && e.endeZeit < e.beginnZeit
     );
+  });
+  /** Eine Zeile für den eingeklappten Bereich „Mehrtägig“. */
+  readonly mehrtaegigText = computed(() => {
+    const bis = this.entwurf().datumBis;
+    return bis ? `bis ${formatiereDatum(bis)}` : 'eintägig';
+  });
+
+  /** Eine Zeile für den eingeklappten Bereich „KatS-Ausbildungsplan“. */
+  readonly katsText = computed(() => {
+    const e = this.entwurf();
+    const thema = this.katsThemen().find((t) => t.id === e.katsThemaId);
+    const bezug = thema
+      ? `${thema.nummer ? thema.nummer + ' · ' : ''}${thema.titel}`
+      : e.katsTitel.trim().replace(/\s+/g, ' ');
+    const text = [bezug, e.katsPflicht ? 'Pflicht' : ''].filter((teil) => teil).join(' · ');
+    return text || 'kein Bezug';
   });
   readonly kannSpeichern = computed(() => !this.endeVorBeginn());
 

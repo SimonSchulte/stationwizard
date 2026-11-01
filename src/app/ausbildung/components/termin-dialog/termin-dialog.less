@@ -6,6 +6,20 @@
   // (`.mat-mdc-dialog-container .mat-mdc-dialog-title + .mat-mdc-dialog-content`);
   // ohne Gegenwert wird das schwebende Label der ersten Zeile oben abgeschnitten.
   padding-top: var(--space-md) !important;
+
+  // Der Inhalt scrollt; ohne das schrumpfen Umschalter und Bereiche in der Spalte auf 0.
+  > * {
+    flex-shrink: 0;
+  }
+}
+
+.typ-wahl {
+  align-self: flex-start;
+}
+
+.bereich {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
 }
 
 .reihe {
