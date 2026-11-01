@@ -143,6 +143,7 @@
       [ngModel]="entwurf().katsTitel"
       (ngModelChange)="setze('katsTitel', $event)"
     ></textarea>
+    <mat-hint>Wird beim Wählen eines Themas oben übernommen und lässt sich anpassen.</mat-hint>
   </mat-form-field>
 
   <mat-checkbox [ngModel]="entwurf().katsPflicht" (ngModelChange)="setze('katsPflicht', $event)">
@@ -161,51 +162,60 @@
     }
   </div>
 
-  <h3 class="abschnitt">Organisation</h3>
-  <mat-form-field appearance="outline">
-    <mat-label>Benötigtes Material</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().material"
-      (ngModelChange)="setze('material', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Besondere Anforderungen</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().anforderungen"
-      (ngModelChange)="setze('anforderungen', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Notizen</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().notizen"
-      (ngModelChange)="setze('notizen', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <div class="reihe">
-    <mat-form-field appearance="outline" class="schmal">
-      <mat-label>HGM 4 Inhalt</mat-label>
-      <input
+  <mat-expansion-panel class="weitere" [expanded]="weitereOffen">
+    <mat-expansion-panel-header>
+      <mat-panel-title>Weitere Angaben</mat-panel-title>
+      <mat-panel-description>Material, Anforderungen, Notizen, HGM 4</mat-panel-description>
+    </mat-expansion-panel-header>
+    <mat-form-field appearance="outline">
+      <mat-label>Benötigtes Material</mat-label>
+      <textarea
         matInput
-        [ngModel]="entwurf().hgmInhalt"
-        (ngModelChange)="setze('hgmInhalt', $event)"
-      />
+        rows="2"
+        [ngModel]="entwurf().material"
+        (ngModelChange)="setze('material', $event)"
+      ></textarea>
     </mat-form-field>
-    <mat-form-field appearance="outline" class="breit">
-      <mat-label>HGM 4 Original-Titel</mat-label>
-      <input matInput [ngModel]="entwurf().hgmTitel" (ngModelChange)="setze('hgmTitel', $event)" />
+
+    <mat-form-field appearance="outline">
+      <mat-label>Besondere Anforderungen</mat-label>
+      <textarea
+        matInput
+        rows="2"
+        [ngModel]="entwurf().anforderungen"
+        (ngModelChange)="setze('anforderungen', $event)"
+      ></textarea>
     </mat-form-field>
-  </div>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Notizen</mat-label>
+      <textarea
+        matInput
+        rows="2"
+        [ngModel]="entwurf().notizen"
+        (ngModelChange)="setze('notizen', $event)"
+      ></textarea>
+    </mat-form-field>
+
+    <div class="reihe">
+      <mat-form-field appearance="outline" class="schmal">
+        <mat-label>HGM 4 Inhalt</mat-label>
+        <input
+          matInput
+          [ngModel]="entwurf().hgmInhalt"
+          (ngModelChange)="setze('hgmInhalt', $event)"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="breit">
+        <mat-label>HGM 4 Original-Titel</mat-label>
+        <input
+          matInput
+          [ngModel]="entwurf().hgmTitel"
+          (ngModelChange)="setze('hgmTitel', $event)"
+        />
+      </mat-form-field>
+    </div>
+  </mat-expansion-panel>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">

@@ -1,5 +1,5 @@
 <div class="filter">
-  <mat-chip-listbox multiple aria-label="Nach Kategorie filtern">
+  <mat-chip-listbox multiple aria-label="Nach Rolle filtern">
     @for (kategorie of kategorieOptionen; track kategorie) {
       <mat-chip-option
         [selected]="kategorien().has(kategorie)"
@@ -120,7 +120,7 @@
                     (click)="schalteSammelkarte(tag.slot.datum)"
                   >
                     <mat-icon inline>cloud_download</mat-icon>
-                    HiOrg · {{ karte.anzahl }} Einträge
+                    HiOrg · {{ karte.anzahl }} Termine
                     <mat-icon inline class="sammel-pfeil">{{
                       istAufgeklappt(tag.slot.datum) ? 'expand_less' : 'expand_more'
                     }}</mat-icon>

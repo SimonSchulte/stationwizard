@@ -3245,3 +3245,42 @@ Auftrag: alle Warnungen, Hinweise und Fehler als Material-Snackbar ausgeben.
   „Erneut versuchen“ (Personal), zwei Fehler nacheinander (Offene Aufgaben), Warnung
   (Ehrungsmanager), Hinweis mit Aktion „Zum Kalender“ (Kalender-Übernahme), keine Snackbar
   ohne Anlass (Kalender), keine verwaiste Snackbar nach Seitenwechsel.
+
+## Kalender: UI-Review und Überarbeitung
+
+Anlass war ein Review der Kalenderoberfläche auf Bedienbarkeit, Inkonsistenzen und Lücken.
+Umgesetzt (alles unter `src/app/ausbildung/`):
+
+- **Kurzbefehle:** Strg+Z/Y gelten nicht in Textfeldern, keiner der Kurzbefehle bei offenem
+  Dialog. Der Termin-Dialog fragt bei Esc, Hintergrundklick und „Abbrechen“ nach, wenn Eingaben
+  offen sind.
+- **Rückgängig in Meldungen:** `services/rueckgaengig-dienst.ts` meldet Löschen, Verschieben,
+  Einplanen und „Thema aus HiOrg übernehmen“ mit der Snackbar-Aktion „Rückgängig“; sie greift nur,
+  wenn seither nichts anderes geändert wurde. `services/termin-loeschen.ts` baut darauf auf.
+- **Karte:** Klick oder Enter öffnen den Termin (Doppelklick entfällt), Menüpunkt
+  „Verschieben nach Datum …“ als Alternative zum Ziehen (belegter Tag: Tausch wie beim Ziehen),
+  Löschen abgesetzt. Touch: „+“ und Menü ohne Hover sichtbar, größere Trefferflächen.
+- **Lesbarkeit:** keine Schrift unter 12 px (Ausnahme KW-Datumsbereich 11 px, mobil ausgeblendet),
+  Randtage Deckkraft 0.75, Tageszahl mindestens 24 × 24 px.
+- **Kopfzeile:** Filtermarken sind `mat-chip-option`, die Plan-Suche `app-suchfeld`; die
+  Jahresansicht blendet Filter, Ebene, Monatsnavigation und Suche aus. Rückgängig/Wiederholen
+  liegen mobil im Menü. Das Mehr-Menü ist gegliedert (Einstellungen, Datenbank und Excel, HiOrg).
+- **Begriffe:** „Rolle“ (nicht „Kategorie“), „HiOrg-Termine“, „Ausbildungsthema noch offen“,
+  mobile Navigation „Ideen & Auswertung“.
+- **Dialog:** „Weitere Angaben“ einklappbar (offen, wenn dort schon etwas steht), mobil
+  Vollbild mit einer Spalte, „Neues Jahr“ mit Rückfrage.
+- Weitere Kleinigkeiten: „+N weitere“ ist ein Knopf, Liste springt auf die heutige Woche,
+  Legende im Jahresüberblick, Plural „Namensabweichung(en)“, `aria-label` an Symbolknöpfen.
+
+Geprüft: `npm run build`, `npm test`, `npm run format:check`. Sichtprüfung mit Playwright
+(Desktop 1366 px, Handy 390 px, Touch-Emulation) gegen eine **Attrappe** des Workers mit erfundenen
+Daten; keine echte Anmeldung, kein echtes Gerät. Kontrastwerte wurden nicht gemessen.
+
+Bewusst offen:
+
+- **Jahr löschen oder umbenennen** gibt es nicht; dafür fehlt ein Worker-Endpunkt, und die
+  erlaubte API-Oberfläche kennt keinen. Mitigation: das Jahresmenü fragt vor dem Anlegen nach.
+- Drag & Drop selbst bleibt mausorientiert; die Tastatur- und Touch-Alternative ist
+  „Verschieben nach Datum …“.
+- Die Rasterkarten bleiben am Handy eng; der Rollenchip ist dort ausgeblendet (der Streifen
+  trägt die Farbe), die Liste ist die gedachte Handyansicht.

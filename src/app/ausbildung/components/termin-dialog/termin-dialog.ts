@@ -5,7 +5,13 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import {
+  MAT_DIALOG_DATA,
+  MatDialog,
+  MatDialogModule,
+  MatDialogRef,
+} from '@angular/material/dialog';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -39,6 +45,23 @@ export interface TerminDialogDaten {
   datum?: string | null;
 }
 
+/**
+ * Öffnet den Termin-Dialog: auf schmalen Displays als Vollbild, sonst als 760 px breites
+ * Fenster. Die Seiten rufen nur diese Funktion, damit beide Wege gleich aussehen.
+ */
+export function oeffneTerminDialog(dialog: MatDialog, daten: TerminDialogDaten): void {
+  const schmal =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 600px)').matches;
+  dialog.open(TerminDialog, {
+    data: daten,
+    ...(schmal
+      ? { width: '100vw', maxWidth: '100vw', height: '100dvh', maxHeight: '100dvh' }
+      : { width: '760px', maxWidth: '94vw' }),
+  });
+}
+
 /** Bearbeitet einen Termin oder eine Idee – dasselbe Formular für beide. */
 @Component({
   selector: 'app-termin-dialog',
@@ -50,6 +73,7 @@ export interface TerminDialogDaten {
     MatCheckboxModule,
     MatDatepickerModule,
     MatDialogModule,
+    MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -85,6 +109,14 @@ export class TerminDialog {
   /** Stand beim Öffnen, um ungesicherte Eingaben zu erkennen. */
   private readonly ausgangsstand = JSON.stringify(this.entwurf());
   readonly geaendert = computed(() => JSON.stringify(this.entwurf()) !== this.ausgangsstand);
+  /** „Weitere Angaben“ stehen offen, sobald dort schon etwas erfasst ist. */
+  readonly weitereOffen = [
+    this.entwurf().material,
+    this.entwurf().anforderungen,
+    this.entwurf().notizen,
+    this.entwurf().hgmInhalt,
+    this.entwurf().hgmTitel,
+  ].some((t) => t.trim() !== '');
   readonly istIdee = computed(() => this.entwurf().datum === null);
 
   /** Stabile `Date`-Referenzen für die Picker: nur bei geändertem Wert neu erzeugt. */

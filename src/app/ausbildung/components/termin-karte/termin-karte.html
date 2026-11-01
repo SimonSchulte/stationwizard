@@ -57,7 +57,7 @@
       matIconButton
       class="menue-knopf"
       [matMenuTriggerFor]="menue"
-      aria-label="Aktionen für diesen Eintrag"
+      [attr.aria-label]="'Aktionen für ' + titelKurz()"
       (click)="$event.stopPropagation()"
     >
       <mat-icon>more_vert</mat-icon>
@@ -68,15 +68,20 @@
 <div class="titel">
   @if (istFortsetzung()) {
     <span class="fortsetzung-text" [matTooltip]="termin().thema || zeitraumText()">
-      {{ kompakt() ? '' : termin().thema }}
+      @if (kompakt()) {
+        <mat-icon inline aria-hidden="true">subdirectory_arrow_right</mat-icon>
+        <span class="nur-lesehilfe">Fortsetzung: {{ termin().thema }}</span>
+      } @else {
+        {{ termin().thema }}
+      }
     </span>
   } @else if (luecke()) {
     <span class="luecke-text" [matTooltip]="kompakt() ? 'Ausbildung fehlt' : ''">
       <mat-icon inline>error_outline</mat-icon>{{ kompakt() ? 'fehlt' : 'Ausbildung fehlt' }}
     </span>
   } @else if (istFrei()) {
-    <span class="platzhalter" [matTooltip]="kompakt() ? 'Freier Ausbildungsslot' : ''">
-      {{ kompakt() ? 'frei' : 'Freier Ausbildungsslot' }}
+    <span class="platzhalter" [matTooltip]="kompakt() ? 'Ausbildungsthema noch offen' : ''">
+      {{ kompakt() ? 'offen' : 'Ausbildungsthema noch offen' }}
     </span>
   } @else if (termin().thema) {
     {{ termin().thema }}

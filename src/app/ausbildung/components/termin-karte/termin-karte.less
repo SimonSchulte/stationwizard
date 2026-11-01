@@ -232,6 +232,7 @@ a.hiorg-link-symbol {
 }
 
 .rolle-chip {
+  flex-shrink: 0;
   max-width: 100%;
   padding: var(--space-unit) var(--space-sm);
   overflow: hidden;
@@ -361,5 +362,41 @@ a.hiorg-link-symbol {
       width: 40px;
       height: 40px;
     }
+  }
+}
+
+/* Verdeckter Text nur für Screenreader. */
+.nur-lesehilfe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * Schmale Rasterkarte: das Menü sitzt in der Ecke statt eine eigene Zeile im umbrechenden
+ * Kopf zu belegen.
+ */
+:host(.kompakt:not(.fortsetzung)) {
+  .kopf {
+    padding-inline-end: 26px;
+  }
+
+  .menue-knopf {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+  }
+}
+
+/*
+ * Schmale Rasterspalten (Handy): der Rollenchip würde auf „S“ zusammengedrückt und
+ * irreführen. Der farbige Streifen links trägt die Rolle, die Liste nennt sie im Klartext.
+ */
+@media (max-width: 780px) {
+  :host(.kompakt) .rolle-chip {
+    display: none;
   }
 }

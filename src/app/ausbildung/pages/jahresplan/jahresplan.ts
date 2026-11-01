@@ -14,6 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -35,7 +36,10 @@ import {
   Monatsansicht,
 } from '../../components/monatsansicht/monatsansicht';
 import { Jahresueberblick } from '../../components/jahresueberblick/jahresueberblick';
-import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/termin-dialog';
+import {
+  TerminDialogDaten,
+  oeffneTerminDialog,
+} from '../../components/termin-dialog/termin-dialog';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
 import { HiorgEintrag, istMehrtaegig } from '../../models/hiorg-kalender.model';
@@ -97,6 +101,7 @@ import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
     KatsPanel,
     MatButtonModule,
     MatButtonToggleModule,
+    MatChipsModule,
     MatDividerModule,
     MatIconModule,
     MatMenuModule,
@@ -133,6 +138,9 @@ export class Jahresplan {
 
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
+  readonly bundeslandName = computed(
+    () => BUNDESLAENDER.find((l) => l.code === this.feiertage.bundesland())?.name ?? '',
+  );
   readonly wochentageIso = WOCHENTAGE_ISO;
   readonly beschaeftigt = this.kalender.beschaeftigt;
 
@@ -579,7 +587,11 @@ export class Jahresplan {
     this.diensttagService.setze(wochentag);
     const ergaenzt = this.store.ergaenzeFehlendeDiensttage(wochentag);
     if (ergaenzt) {
-      this.melde(`${ergaenzt} fehlende(r) ${diensttagName(wochentag)} als Zeilen ergänzt.`);
+      this.melde(
+        ergaenzt === 1
+          ? `1 fehlender ${diensttagName(wochentag)} als Zeile ergänzt.`
+          : `${ergaenzt} fehlende ${diensttagName(wochentag)}e als Zeilen ergänzt.`,
+      );
     }
   }
 
@@ -688,7 +700,7 @@ export class Jahresplan {
   }
 
   private oeffneDialog(daten: TerminDialogDaten): void {
-    this.dialog.open(TerminDialog, { data: daten, width: '760px', maxWidth: '94vw' });
+    oeffneTerminDialog(this.dialog, daten);
   }
 
   zuBacklog(termin: Termin): void {
@@ -741,6 +753,23 @@ export class Jahresplan {
   /** Wechselt zu einem bereits vorhandenen Jahr des Kalenders. */
   waehleJahr(jahr: number): void {
     this.kalender.waehleJahr(jahr);
+  }
+
+  /**
+   * Aus dem Jahresmenü: fragt vorher nach, weil sich ein angelegtes Jahr in der Oberfläche
+   * nicht wieder entfernen lässt (nur ungespeichert über „Neu laden“).
+   */
+  async neuesJahrAnlegen(): Promise<void> {
+    const jahr = this.naechstesJahr();
+    if (
+      await this.dialogDienst.bestaetigen(
+        `Das Jahr ${jahr} wird mit leeren Listen angelegt. Nach dem Speichern lässt es sich in der Oberfläche nicht mehr entfernen.`,
+        'Neues Jahr anlegen',
+        'Anlegen',
+      )
+    ) {
+      this.neuesJahr(jahr);
+    }
   }
 
   /** Legt ein neues Jahr an und wechselt dorthin; gespeichert wird es mit „Speichern“. */

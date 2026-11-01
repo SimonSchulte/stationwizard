@@ -74,6 +74,13 @@ export class TerminKarte {
   readonly verschieben = output<void>();
   readonly naechsteLuecke = output<void>();
 
+  /** Kurzer Name für Beschriftungen, damit gleiche Menüknöpfe unterscheidbar bleiben. */
+  readonly titelKurz = computed(() => {
+    const t = this.termin();
+    const text = (t.thema || t.hinweis).replace(/\s+/g, ' ').trim();
+    return text.length > 40 ? `${text.slice(0, 38)}…` : text || 'Eintrag';
+  });
+
   /** Klick und Enter auf die Karte, nicht auf ihre eigenen Knöpfe, Links und Menüs. */
   aktivieren(ereignis: Event): void {
     if (!this.bearbeitbar()) {

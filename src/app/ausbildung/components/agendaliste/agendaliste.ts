@@ -2,6 +2,8 @@ import { CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  afterNextRender,
   computed,
   inject,
   input,
@@ -49,6 +51,17 @@ import { MatChipsModule } from '@angular/material/chips';
 })
 export class Agendaliste {
   private readonly store = inject(PlanStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  constructor() {
+    // Beim Öffnen steht die Liste auf dem heutigen Tag (oder dem nächsten sichtbaren),
+    // statt im Januar zu beginnen.
+    afterNextRender(() => {
+      const heute = this.host.nativeElement.querySelector<HTMLElement>('.tag.heute');
+      const woche = heute?.closest<HTMLElement>('.woche');
+      (woche ?? heute)?.scrollIntoView({ block: 'start' });
+    });
+  }
 
   readonly wochen = input.required<readonly WochenZeile[]>();
   readonly tagesInhalte = input.required<ReadonlyMap<string, TagesInhalt>>();

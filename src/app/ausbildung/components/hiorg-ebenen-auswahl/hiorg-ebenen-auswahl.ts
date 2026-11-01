@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, model } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -7,7 +8,7 @@ import type { HiorgEbene } from '../../services/tages-inhalt';
 /** Wie dicht die HiOrg-Termine im Raster stehen: einzeln, gesammelt oder ausgeblendet. */
 @Component({
   selector: 'app-hiorg-ebenen-auswahl',
-  imports: [MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
   templateUrl: './hiorg-ebenen-auswahl.html',
   styleUrl: './hiorg-ebenen-auswahl.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
