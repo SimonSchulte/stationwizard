@@ -1,43 +1,43 @@
-<section class="seite">
-  <header class="kopf">
-    <h1>Offene Aufgaben</h1>
-    <button type="button" (click)="neuLaden()" [disabled]="store.laedt()">
-      <mat-icon aria-hidden="true">refresh</mat-icon>
-      Aktualisieren
-    </button>
-  </header>
+<app-seitenkopf titel="Offene Aufgaben" icon="task_alt">
+  <button matButton="outlined" (click)="neuLaden()" [disabled]="store.laedt()">
+    <mat-icon>refresh</mat-icon> Aktualisieren
+  </button>
+</app-seitenkopf>
 
+<div class="seite">
   @for (fehler of fehlerListe(); track fehler[0]) {
-    <p class="error-hint" role="alert">{{ fehler[0] }}: {{ fehler[1] }}</p>
+    <app-meldung art="fehler">{{ fehler[0] }}: {{ fehler[1] }}</app-meldung>
   }
 
   @if (store.laedt() && store.anzahl() === 0) {
-    <p class="empty-hint">Aufgaben werden geladen …</p>
+    <app-ladeanzeige text="Aufgaben werden geladen …" />
   } @else if (store.anzahl() === 0) {
-    <div class="empty-state">
-      <mat-icon aria-hidden="true">task_alt</mat-icon>
-      <p>Keine offenen Aufgaben.</p>
-      <p class="empty-hint">
-        Hier erscheinen unter anderem Kilometermeldungen, die über den öffentlichen QR-Code
-        eingegangen sind und noch freigegeben werden müssen.
-      </p>
-    </div>
+    <app-leerzustand icon="task_alt" titel="Keine offenen Aufgaben.">
+      Hier erscheinen unter anderem Kilometermeldungen, die über den öffentlichen QR-Code
+      eingegangen sind und noch freigegeben werden müssen.
+    </app-leerzustand>
   } @else {
     @for (gruppe of gruppen(); track gruppe.kennung) {
       <h2 class="gruppe">{{ gruppe.bezeichnung }} ({{ gruppe.aufgaben.length }})</h2>
-      <ul class="liste">
+      <mat-nav-list class="liste">
         @for (aufgabe of gruppe.aufgaben; track aufgabe.id) {
-          <li class="aufgabe" [class.hinweis]="aufgabe.dringlichkeit === 'hinweis'">
-            <a [routerLink]="aufgabe.routerLink">
-              <span class="titel">{{ aufgabe.titel }}</span>
-              <span class="beschreibung">{{ aufgabe.beschreibung }}</span>
-              <span class="eingang">
-                eingegangen {{ aufgabe.eingegangenAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
-              </span>
-            </a>
-          </li>
+          <a
+            mat-list-item
+            class="aufgabe"
+            [class.hinweis]="aufgabe.dringlichkeit === 'hinweis'"
+            [routerLink]="aufgabe.routerLink"
+          >
+            <mat-icon matListItemIcon>{{
+              aufgabe.dringlichkeit === 'hinweis' ? 'warning' : 'assignment_turned_in'
+            }}</mat-icon>
+            <span matListItemTitle>{{ aufgabe.titel }}</span>
+            <span matListItemLine>{{ aufgabe.beschreibung }}</span>
+            <span matListItemLine class="eingang">
+              eingegangen {{ aufgabe.eingegangenAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+            </span>
+          </a>
         }
-      </ul>
+      </mat-nav-list>
     }
   }
-</section>
+</div>

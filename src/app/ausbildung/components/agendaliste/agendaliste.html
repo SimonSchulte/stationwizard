@@ -1,29 +1,26 @@
-<div class="filter" role="group" aria-label="Filter der Agenda">
-  @for (kategorie of kategorieOptionen; track kategorie) {
-    <button
-      type="button"
-      class="filter-chip"
-      [class.aktiv]="kategorien().has(kategorie)"
-      [style.--kat-farbe]="farbe(kategorie)"
-      [attr.aria-pressed]="kategorien().has(kategorie)"
-      (click)="schalteKategorie(kategorie)"
-    >
-      <span class="kat-punkt" aria-hidden="true"></span>
-      {{ kategorie }}
-    </button>
-  }
-  <span class="filter-trenner" aria-hidden="true"></span>
-  @for (option of typOptionen; track option.wert) {
-    <button
-      type="button"
-      class="filter-chip"
-      [class.aktiv]="typ() === option.wert"
-      [attr.aria-pressed]="typ() === option.wert"
-      (click)="typ.set(option.wert)"
-    >
-      {{ option.text }}
-    </button>
-  }
+<div class="filter">
+  <mat-chip-listbox multiple aria-label="Nach Kategorie filtern">
+    @for (kategorie of kategorieOptionen; track kategorie) {
+      <mat-chip-option
+        [selected]="kategorien().has(kategorie)"
+        [style.--kat-farbe]="farbe(kategorie)"
+        (selectionChange)="$event.isUserInput && schalteKategorie(kategorie)"
+      >
+        <span matChipAvatar class="kat-punkt" aria-hidden="true"></span>
+        {{ kategorie }}
+      </mat-chip-option>
+    }
+  </mat-chip-listbox>
+  <mat-chip-listbox
+    aria-label="Nach Art filtern"
+    hideSingleSelectionIndicator
+    [value]="typ()"
+    (change)="$event.value && typ.set($event.value)"
+  >
+    @for (option of typOptionen; track option.wert) {
+      <mat-chip-option [value]="option.wert">{{ option.text }}</mat-chip-option>
+    }
+  </mat-chip-listbox>
 </div>
 
 <div class="liste">

@@ -1,14 +1,11 @@
-<mat-toolbar class="listen-kopfleiste">
-  <a mat-icon-button routerLink="/verwaltung" aria-label="Zurück zur Verwaltung">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <mat-icon class="kopfleiste-icon" aria-hidden="true">checklist</mat-icon>
-  <span class="toolbar-title">Prüfvorlagen</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="neueVorlage()">
-    <mat-icon>add</mat-icon> Neue Vorlage
-  </button>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Prüfvorlagen"
+  icon="checklist"
+  zurueck="/verwaltung"
+  zurueckText="Zurück zur Verwaltung"
+>
+  <button matButton="filled" (click)="neueVorlage()"><mat-icon>add</mat-icon> Neue Vorlage</button>
+</app-seitenkopf>
 
 <div class="listen-inhalt">
   <p class="beschreibung">
@@ -17,37 +14,28 @@
     verändert deshalb keinen bereits durchgeführten Check.
   </p>
 
-  <label class="suchfeld">
-    <span class="visuell-versteckt">Vorlagen durchsuchen</span>
-    <input
-      type="search"
-      placeholder="Vorlage suchen …"
-      [value]="suche()"
-      (input)="suche.set($any($event.target).value)"
-    />
-  </label>
+  <app-suchfeld
+    class="suchfeld"
+    [(wert)]="suche"
+    beschriftung="Vorlagen durchsuchen"
+    platzhalter="Vorlage suchen"
+  />
 
   @if (laedt()) {
-    <p role="status">Prüfvorlagen werden geladen …</p>
+    <app-ladeanzeige text="Prüfvorlagen werden geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
   @if (loeschFehler()) {
-    <p class="error-hint" role="alert">{{ loeschFehler() }}</p>
+    <app-meldung art="fehler">{{ loeschFehler() }}</app-meldung>
   }
 
   @if (!laedt() && !fehler() && gefiltert().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon" aria-hidden="true">checklist</mat-icon>
-      <p class="empty-hint">
-        @if (suche()) {
-          Keine Vorlage passt zur Suche.
-        } @else {
-          Noch keine Prüfvorlage angelegt.
-        }
-      </p>
-    </div>
+    <app-leerzustand
+      icon="checklist"
+      [titel]="suche() ? 'Keine Vorlage passt zur Suche.' : 'Noch keine Prüfvorlage angelegt.'"
+    />
   } @else {
     <ul class="vorlagen">
       @for (kopf of gefiltert(); track kopf.id) {
@@ -60,7 +48,7 @@
             <span class="vorlage-geaendert">{{ kopf.geaendertAm | date: 'dd.MM.yyyy' }}</span>
           </a>
           <button
-            mat-icon-button
+            matIconButton
             [disabled]="loeschtId() === kopf.id"
             (click)="vorlageLoeschen(kopf)"
             [attr.aria-label]="'Prüfvorlage ' + kopf.bezeichnung + ' löschen'"

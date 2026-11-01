@@ -19,6 +19,11 @@ Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 | Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                                                                                                                   | `/#/einsatz`        |
 | Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                                                                                                                            | `/#/einsatz/editor` |
 | Fahrzeuge          | Fuhrpark-Dashboard mit Tabs (Übersicht, Liste Fahrzeuge, Liste Wartungen); Fahrzeugdetail mit Stammdaten, Wartungsterminen, Kilometerverlauf (inkl. Korrektur und Löschen), QR-Codes, Druckbogen und Änderungsprotokoll | `/#/fahrzeuge`      |
+| Personal           | HiOrg-Personalübersicht, Führerscheinliste (Word-Vorlage), Ehrungsmanager und Offene Ehrungen mit Antragsformular                                                                                                       | `/#/personal`       |
+| Materialverwaltung | Prüfvorlagen, Behälter je Fahrzeug, Fahrzeugcheck mit Zwischenstand, Berichte (Bestellschein, Mängelanzeige)                                                                                                            | `/#/material`       |
+| Angebotswesen      | Preiskatalog und Angebote mit Schichten, Materialpauschale, Pauschalpreis und kopierbarer Kostenaufstellung                                                                                                             | `/#/angebotswesen`  |
+| Offene Aufgaben    | Freigabe öffentlicher Kilometermeldungen und Fahrzeugchecks; Marke mit Anzahl in der Navigation                                                                                                                         | `/#/aufgaben`       |
+| Verwaltung         | Einstieg in Stammdatenimport, Kalender-Übernahme, Systemkonfiguration, Prüfvorlagen, Benutzer und Dateivorlagen; kein Zugriffsschutz                                                                                    | `/#/verwaltung`     |
 
 Hash-Routing bleibt vorerst bewusst erhalten. Der Worker ist bereits mit
 `not_found_handling = "single-page-application"` vorbereitet, aber der reale
@@ -37,18 +42,28 @@ Hinweis- und Bestätigungsdialoge nutzen den gemeinsamen `DialogDienst`. Der
 `VerlassenSchutz` warnt vor dem Verlust ungesicherter Änderungen. Taktische Zeitangaben
 und Kalenderhilfen liegen im Kern; Sommer-/Winterzeit wird dabei berücksichtigt.
 
-| Pfad                  | Verantwortung                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------- |
-| `src/app/ausbildung/` | Kalender: D1-Anbindung, Excel-Import/-Download, Planoperationen, Jahresraster, Oberfläche   |
-| `src/app/einsatz/`    | Einsatzmodelle, Qualifikationsmatching, EFS-Mapping, PEP-/PDF-Export und Editor             |
-| `src/app/fahrzeuge/`  | Fahrzeugstammdaten, Wartungstermine, Kilometerstände, Änderungsprotokoll; D1 als Persistenz |
-| `src/app/kern/`       | Startseite, `WorkerClient`, gemeinsame Dateispeicherverträge und Kalenderutilities          |
-| `src/app/app.*`       | Gemeinsame Shell, Navigation und Anwendungsrouten                                           |
-| `src/styles.less`     | Gemeinsame CSS-Variablen, Typografie und Oberflächenregeln                                  |
-| `src/theme.scss`      | Ein Material-Theme für alle Fachbereiche                                                    |
-| `worker/src/`         | Access-Prüfung, feste API-Routen, Nextcloud- und EFS-Proxys                                 |
-| `worker/tests/`       | Worker-Tests und isolierter Test der Static Assets mit workerd                              |
-| `docs/`               | Einrichtung, Verifizierungsstand und bekannte Grenzen                                       |
+| Pfad                           | Verantwortung                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `src/app/ausbildung/`          | Kalender: D1-Anbindung, Excel-Import/-Download, Planoperationen, Monats-/Listen-/Jahresansicht    |
+| `src/app/einsatz/`             | Einsatzmodelle, Qualifikationsmatching, EFS-Mapping, PEP-/PDF-Export und Editor                   |
+| `src/app/fahrzeuge/`           | Fahrzeugstammdaten, Wartungstermine, Kilometerstände, Änderungsprotokoll; D1 als Persistenz       |
+| `src/app/personal/`            | HiOrg-Personal (nur Anzeige), Führerscheinliste, Ehrungen und Ehrungsantrag                       |
+| `src/app/material/`            | Prüfvorlagen, Behälter, Fahrzeugcheck und Freigabe öffentlicher Checks                            |
+| `src/app/angebotswesen/`       | Preiskatalog und Angebotskalkulation                                                              |
+| `src/app/aufgaben/`            | Seite „Offene Aufgaben“; die Quellen melden die Fachmodule über `provideAufgabenquelle()` an      |
+| `src/app/benutzerverwaltung/`  | Rollenvergabe an bereits angemeldete Personen                                                     |
+| `src/app/systemkonfiguration/` | Betriebseinstellungen aus fester Schlüsselliste                                                   |
+| `src/app/verwaltung/`          | Nur Einstieg in administrative Seiten; Fachlogik bleibt beim Fachmodul                            |
+| `src/app/kern/`                | Startseite, `WorkerClient`, Dialoge, Aufgabenvertrag und -store, Kalender-, Text-, PDF-Grundlagen |
+| `src/app/app.*`                | Gemeinsame Shell, Navigation und Anwendungsrouten                                                 |
+| `src/tokens.less`              | Gemeinsame Design-Tokens (`--ci-*`, `--kat-*`, `--space-*`, `--surface-*`, Statusfarben)          |
+| `src/styles.less`              | Typografie und globale Oberflächenregeln; bindet `tokens.less` ein                                |
+| `src/theme.scss`               | Ein Material-Theme für alle Fachbereiche                                                          |
+| `oeffentlich/`                 | Zweites, sehr kleines Build-Ziel für die öffentliche Kilometermeldung und den öffentlichen Check  |
+| `worker/src/`                  | Access-Prüfung, feste API-Routen, D1-Module, EFS-/Nextcloud-/HiOrg-Anbindung, Mailversand         |
+| `worker/migrations/`           | D1-Schemata je Datenbank                                                                          |
+| `worker/tests/`                | Worker-Tests und isolierter Test der Static Assets mit workerd                                    |
+| `docs/`                        | Einrichtung, Konzepte, Verifizierungsstand und bekannte Grenzen                                   |
 
 Nextcloud- und HiOrg-Aufrufe gehen ausschließlich an API-Pfade derselben Origin; der Worker
 kontaktiert diese Systeme serverseitig. Öffentliche Feiertagsdaten werden weiterhin direkt
@@ -68,11 +83,13 @@ Access-Schlüssel, den konfigurierten Aussteller und die Audience. Abgelaufene o
 Tokens werden abgewiesen. `run_worker_first = true` führt diese Prüfung vor **allen** Assets
 und APIs aus. Bei fehlender Konfiguration bleibt der Worker geschlossen.
 
-Genau ein Weg führt bewusst daran vorbei: die öffentliche Kilometermeldung unter
-`/e/<Token>`, damit Helferinnen und Helfer ohne Google-Konto den Kilometerstand am Fahrzeug
-melden können. Der QR-Code trägt dafür ein unerratbares Token je Fahrzeug, die Seite ist ein
-eigenes, sehr kleines Build-Ziel ohne jeden Weg in die App, und eine Meldung wird erst durch
-die Freigabe der Zug- oder Gruppenführung zum echten Kilometerstand. Die zugehörige, eng
+Zwei Wege führen bewusst daran vorbei: die öffentliche Kilometermeldung unter `/e/<Token>`
+und der öffentliche Fahrzeugcheck unter `/c/<Token>`, damit Helferinnen und Helfer ohne
+Google-Konto am Fahrzeug melden können. Der QR-Code trägt dafür ein unerratbares Token je
+Fahrzeug beziehungsweise je Behälter, beide Seiten liegen in einem eigenen, sehr kleinen
+Build-Ziel ohne jeden Weg in die App, und eine Meldung wird erst durch die Freigabe der Zug-
+oder Gruppenführung zum echten Kilometerstand beziehungsweise Check. Die festen Pfadmuster
+stehen in `OEFFENTLICHE_MUSTER` (`worker/src/oeffentliche-erfassung.ts`). Die zugehörige, eng
 begrenzte Access-Regel steht in [Einrichtung](docs/einrichtung.md).
 
 `ACCESS_TEAM_DOMAIN` und `ACCESS_AUD` sind Worker-Laufzeitvariablen. Nextcloud- und
@@ -88,7 +105,9 @@ Client zeigt Verbindungs- und Sitzungsfehler an; er enthält keine Upstream-Zuga
 
 ### API-Verträge
 
-Alle folgenden Endpunkte benötigen eine verifizierte Access-Anmeldung:
+Die vollständige, verbindliche Liste aller Endpunkte steht in
+[CLAUDE.md](CLAUDE.md#erlaubte-api-oberfläche). Hier nur die Grundverträge; alle folgenden
+Endpunkte benötigen eine verifizierte Access-Anmeldung:
 
 | Endpunkt                                  | Methode          | Inhalt                                                                                              |
 | ----------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------- |
@@ -97,7 +116,7 @@ Alle folgenden Endpunkte benötigen eine verifizierte Access-Anmeldung:
 | `/api/efs/checkapikey`                    | POST             | JSON `{}`; prüft den serverseitig konfigurierten EFS-Zugang                                         |
 | `/api/efs/getveranstaltungen`             | POST             | JSON `{}`; Veranstaltungen aus HiOrg                                                                |
 | `/api/efs/getveranstaltung`               | POST             | JSON `{ "id": "…" }`; Details einer Veranstaltung                                                   |
-| `/api/kalender`, `/api/kalender/…`        | GET / POST / PUT | Kalender in D1: alle Jahre und Ideen lesen, Jahr/Ideen versioniert speichern, einmalige Migration   |
+| `/api/kalender`, `/api/kalender/…`        | GET / POST / PUT | Kalender in D1: alle Jahre samt Ideen lesen, Jahr versioniert speichern, einmalige Migration        |
 | `/api/nextcloud/planungen`                | GET              | `{ "dateien": [{ "id": "…", "etag": "…" }] }` mit UUIDs und Dateiversionen                          |
 | `/api/nextcloud/planungen/<UUID>`         | GET / PUT        | Genau eine `.pep.json` im gesonderten Ordner                                                        |
 | `/api/hiorg/kalender`                     | GET              | `{ "status": "OK", "eintraege": [...] }`; HiOrg-Kalenderfeed, nur lesend, optional `?monat=JJJJ-MM` |
@@ -225,9 +244,9 @@ Details zu Secrets, Access-Richtlinie und Domainanbindung stehen im
 
 ## Mobil und bekannte fachliche Abweichungen
 
-Die Ausbildungsplanung behält `mobilAnsicht`, die Umschaltung zwischen Plan- und
-Listenansicht sowie die untere Navigation bis einschließlich 780 Pixel bei. Das breite
-Wochenraster kann horizontal gescrollt werden. Für den Einsatzplaner sind responsive
+Der Kalender behält `mobilAnsicht` und die untere Navigation bis einschließlich 780 Pixel
+bei; dort startet er in der Listenansicht. Das Monatsraster scrollt horizontal in seinem
+Rahmen und bleibt eine Desktop-Darstellung. Für den Einsatzplaner sind responsive
 Anpassungen vorbereitet; für umfangreiche Zuordnungen wird vorerst Desktopbedienung
 empfohlen.
 

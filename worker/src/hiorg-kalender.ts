@@ -30,9 +30,9 @@ export interface HiorgKalenderKonfiguration {
   HIORGSERVER_CALENDER_FEED?: Zugangsdatum;
 }
 
-export const HIORG_KALENDER_PFAD = '/api/hiorg/kalender';
+const HIORG_KALENDER_PFAD = '/api/hiorg/kalender';
 export const MAX_HIORG_KALENDER_ANTWORT_BYTES = 1024 * 1024;
-export const HIORG_KALENDER_ZEITLIMIT_MS = 15_000;
+const HIORG_KALENDER_ZEITLIMIT_MS = 15_000;
 
 /** Fester Fremddienst: der Worker leitet das Ziel nie von Konfiguration ab. */
 const ERLAUBTER_HOST = 'hiorg-server.de';
@@ -323,7 +323,7 @@ function setzeMonate(ziel: string, monate: number): string {
  * Der konfigurierte Feed-Zugang in der Form, die das Secret tatsächlich hat.
  * `geheimnisse` benennt, was davon in Antworten und Logs nie auftauchen darf.
  */
-export type FeedZugang =
+type FeedZugang =
   | { art: 'url'; ziel: string; geheimnisse: string[] }
   | { art: 'lab'; token: string; geheimnisse: string[] };
 
@@ -345,7 +345,7 @@ export type FeedZugang =
  *   `bereinigeEreignisUrl()`); ein so kopierter Freigabelink hätte sonst
  *   Parameter wie `amp;lab` und damit gar kein `lab`.
  */
-export function pruefeFeedZugang(wert: string | undefined): FeedZugang | undefined {
+function pruefeFeedZugang(wert: string | undefined): FeedZugang | undefined {
   const roh = (wert ?? '').trim();
   if (!roh) return undefined;
   if (!SCHEMA_MUSTER.test(roh)) {
@@ -501,7 +501,7 @@ const ENTITAETEN = new Map([
  * laufen muss; der Client bekommt dadurch genau eine, bereits saubere Fassung.
  * Ein Link mit fremdem Ziel entfällt – der Eintrag selbst bleibt erhalten.
  */
-export function bereinigeEreignisUrl(roh: string): string | undefined {
+function bereinigeEreignisUrl(roh: string): string | undefined {
   const dekodiert = dekodiereEntitaeten(roh);
   if (UNZULAESSIGE_ZEICHEN.test(dekodiert)) return undefined;
   try {

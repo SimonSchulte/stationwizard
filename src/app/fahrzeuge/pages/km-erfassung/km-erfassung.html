@@ -1,15 +1,15 @@
-<mat-toolbar class="erfassung-kopfleiste">
-  <a mat-icon-button routerLink="/fahrzeuge/liste" aria-label="Zurück zur Fahrzeugliste">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">Kilometerstand erfassen</span>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Kilometerstand erfassen"
+  icon="speed"
+  zurueck="/fahrzeuge/liste"
+  zurueckText="Zurück zur Fahrzeugliste"
+/>
 
 <div class="erfassung">
   @if (ladeLaeuft()) {
-    <p role="status">Fahrzeug wird geladen …</p>
+    <app-ladeanzeige text="Fahrzeug wird geladen …" />
   } @else if (ladeFehler()) {
-    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ ladeFehler() }}</app-meldung>
   } @else if (fahrzeug(); as fahrzeug) {
     <header class="kopf">
       <mat-icon aria-hidden="true">local_shipping</mat-icon>
@@ -27,12 +27,13 @@
     </header>
 
     @if (erfolgreichErfasst()) {
-      <div class="erfolg" role="status">
-        <mat-icon>check_circle</mat-icon>
-        <p>Kilometerstand gespeichert. Danke!</p>
+      <app-meldung art="erfolg">Kilometerstand gespeichert. Danke!</app-meldung>
+      <div class="erfolg">
         <div class="erfolg-aktionen">
-          <button mat-stroked-button (click)="weitereErfassung()">Weitere Ablesung erfassen</button>
-          <a mat-button routerLink="/fahrzeuge/liste">Zurück zur Fahrzeugliste</a>
+          <button matButton="outlined" (click)="weitereErfassung()">
+            Weitere Ablesung erfassen
+          </button>
+          <a matButton routerLink="/fahrzeuge/liste">Zurück zur Fahrzeugliste</a>
         </div>
       </div>
     } @else {
@@ -57,14 +58,14 @@
       </mat-form-field>
 
       @if (hinweis() === 'rueckschritt') {
-        <p class="hinweis-warnung" role="alert">
-          Dieser Stand liegt unter dem letzten bekannten Wert. Bei einem Tachotausch bitte in der
-          Bemerkung vermerken.
-        </p>
+        <app-meldung art="warnung"
+          >Dieser Stand liegt unter dem letzten bekannten Wert. Bei einem Tachotausch bitte in der
+          Bemerkung vermerken.</app-meldung
+        >
       } @else if (hinweis() === 'unplausibler-sprung') {
-        <p class="hinweis-warnung" role="alert">
-          Große Differenz zum letzten Stand. Bitte kurz prüfen, ob der Wert stimmt.
-        </p>
+        <app-meldung art="warnung"
+          >Große Differenz zum letzten Stand. Bitte kurz prüfen, ob der Wert stimmt.</app-meldung
+        >
       }
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -83,12 +84,11 @@
       </mat-form-field>
 
       @if (ablesungStore.erfassungsFehler()) {
-        <p class="error-hint" role="alert">{{ ablesungStore.erfassungsFehler() }}</p>
+        <app-meldung art="fehler">{{ ablesungStore.erfassungsFehler() }}</app-meldung>
       }
 
       <button
-        mat-raised-button
-        color="primary"
+        matButton="filled"
         class="speichern-button"
         (click)="speichern()"
         [disabled]="standZahl() === null || ablesungStore.erfasstGerade()"

@@ -1,35 +1,22 @@
 <div class="filterzeile">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
-    <mat-label>Suche</mat-label>
-    <input
-      matInput
-      [value]="suche()"
-      (input)="suche.set($any($event.target).value)"
-      placeholder="Bezeichnung, Funkrufname oder Kennzeichen"
-    />
-    <mat-icon matSuffix>search</mat-icon>
-  </mat-form-field>
+  <app-suchfeld
+    class="suchfeld"
+    [(wert)]="suche"
+    beschriftung="Suchen"
+    platzhalter="Bezeichnung, Funkrufname oder Kennzeichen"
+  />
 
-  <div class="eigentuemer-pillen" role="group" aria-label="Nach Eigentümer filtern">
-    <button
-      type="button"
-      class="pille"
-      [class.pille--aktiv]="eigentuemerFilter() === 'alle'"
-      (click)="eigentuemerFilter.set('alle')"
-    >
-      Alle
-    </button>
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Nach Eigentümer filtern"
+    [value]="eigentuemerFilter()"
+    (change)="eigentuemerFilter.set($event.value)"
+  >
+    <mat-button-toggle value="alle">Alle</mat-button-toggle>
     @for (wert of EIGENTUEMER; track wert) {
-      <button
-        type="button"
-        class="pille"
-        [class.pille--aktiv]="eigentuemerFilter() === wert"
-        (click)="eigentuemerFilter.set(wert)"
-      >
-        {{ EIGENTUEMER_LABEL[wert] }}
-      </button>
+      <mat-button-toggle [value]="wert">{{ EIGENTUEMER_LABEL[wert] }}</mat-button-toggle>
     }
-  </div>
+  </mat-button-toggle-group>
 
   <span class="anzahl-hinweis">{{ gefiltert().length }} von {{ gesamtAnzahl() }} Fahrzeugen</span>
 </div>
@@ -63,19 +50,20 @@
 
   <div class="detail">
     @if (ladeLaeuft()) {
-      <p role="status">Fahrzeug wird geladen …</p>
+      <app-ladeanzeige text="Fahrzeug wird geladen …" />
     }
     @if (ladeFehler()) {
-      <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+      <app-meldung art="fehler">{{ ladeFehler() }}</app-meldung>
     }
     @if (speicherKonflikt()) {
-      <div class="konflikt-hinweis" role="alert">
-        <mat-icon>warning</mat-icon>
-        <span>{{ speicherFehler() }}</span>
-        <button mat-stroked-button (click)="nachKonfliktNeuLaden()">Aktuellen Stand laden</button>
-      </div>
+      <app-meldung art="warnung">
+        {{ speicherFehler() }}
+        <button matButton="outlined" meldungAktion (click)="nachKonfliktNeuLaden()">
+          Aktuellen Stand laden
+        </button>
+      </app-meldung>
     } @else if (speicherFehler()) {
-      <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+      <app-meldung art="fehler">{{ speicherFehler() }}</app-meldung>
     }
 
     @if (ausgewaehltesFahrzeug(); as fahrzeug) {
@@ -91,7 +79,7 @@
           </div>
         </div>
         <button
-          mat-stroked-button
+          matButton="outlined"
           type="button"
           (click)="bearbeitungBeginnen()"
           [disabled]="bearbeitungModus()"
@@ -182,8 +170,7 @@
         </mat-form-field>
         <div class="bearbeiten-aktionen">
           <button
-            mat-raised-button
-            color="primary"
+            matButton="filled"
             type="button"
             (click)="stammdatenSpeichern()"
             [disabled]="!bearbeitungModus() || !kannStammdatenSpeichern()"
@@ -191,7 +178,7 @@
             {{ speichertGerade() ? 'Speichert …' : 'Speichern' }}
           </button>
           <button
-            mat-button
+            matButton
             type="button"
             (click)="stammdatenAbbrechen()"
             [disabled]="!bearbeitungModus() || speichertGerade()"
@@ -233,8 +220,7 @@
                 <span matSuffix>km</span>
               </mat-form-field>
               <button
-                mat-raised-button
-                color="primary"
+                matButton="filled"
                 (click)="kmErfassen()"
                 [disabled]="kmEingabeZahl() === null || ablesungStore.erfasstGerade()"
               >
@@ -242,16 +228,16 @@
               </button>
             </div>
             @if (kmEingabeFehler(); as fehler) {
-              <p class="hinweis-warnung" role="alert">{{ fehler }}</p>
+              <app-meldung art="warnung">{{ fehler }}</app-meldung>
             } @else if (kmHinweis() === 'rueckschritt') {
-              <p class="hinweis-warnung" role="alert">
-                Dieser Stand liegt unter dem letzten bekannten Wert.
-              </p>
+              <app-meldung art="warnung"
+                >Dieser Stand liegt unter dem letzten bekannten Wert.</app-meldung
+              >
             } @else if (kmHinweis() === 'unplausibler-sprung') {
-              <p class="hinweis-warnung" role="alert">Große Differenz zum letzten Stand.</p>
+              <app-meldung art="warnung">Große Differenz zum letzten Stand.</app-meldung>
             }
             @if (ablesungStore.erfassungsFehler()) {
-              <p class="error-hint" role="alert">{{ ablesungStore.erfassungsFehler() }}</p>
+              <app-meldung art="fehler">{{ ablesungStore.erfassungsFehler() }}</app-meldung>
             }
             @if (kmBestaetigung(); as bestaetigung) {
               <p class="bestaetigung">
@@ -279,7 +265,7 @@
               <span class="termin-text">{{ eintrag.text }}</span>
               @if (eintrag.status.termin.erledigtAm === null) {
                 <button
-                  type="button"
+                  matButton
                   class="termin-aktion"
                   (click)="terminAlsErledigtMelden(eintrag.status.termin.id)"
                 >
@@ -313,8 +299,7 @@
             <mat-datepicker #neuerTerminPicker></mat-datepicker>
           </mat-form-field>
           <button
-            mat-raised-button
-            color="primary"
+            matButton="filled"
             (click)="neuerTerminHinzufuegen()"
             [disabled]="!neuerTerminBezeichnung().trim() || speichertGerade()"
           >

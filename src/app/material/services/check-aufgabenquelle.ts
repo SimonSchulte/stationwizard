@@ -2,6 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { Aufgabe, Aufgabenquelle } from '../../kern/aufgaben/aufgabenquelle';
 import { ApiEinreichungStorage } from '../storage/api-einreichung-storage';
 
+/** Kennung der Fahrzeugcheck-Quelle in „Offene Aufgaben". */
+export const CHECK_AUFGABEN_KENNUNG = 'material-fahrzeugcheck';
+
 /**
  * Meldet offene Fahrzeugcheck-Einreichungen an „Offene Aufgaben".
  *
@@ -10,7 +13,7 @@ import { ApiEinreichungStorage } from '../storage/api-einreichung-storage';
  */
 @Injectable({ providedIn: 'root' })
 export class CheckAufgabenquelle implements Aufgabenquelle {
-  readonly kennung = 'material-fahrzeugcheck';
+  readonly kennung = CHECK_AUFGABEN_KENNUNG;
   readonly bezeichnung = 'Fahrzeugchecks';
 
   private readonly storage = inject(ApiEinreichungStorage);

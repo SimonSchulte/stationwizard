@@ -12,8 +12,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import { KalenderDatenService } from '../../services/kalender-daten.service';
@@ -22,6 +20,8 @@ import {
   vorhandeneIdeen,
   vorhandeneKatsThemen,
 } from '../../services/jahresuebernahme';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
 /**
  * Übernahme von Offenen Ideen und KatS-Ausbildungsplan-Themen aus einem Jahr in
@@ -36,6 +36,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-jahresuebernahme',
   imports: [
+    Meldung,
+    Seitenkopf,
     RouterLink,
     MatButtonModule,
     MatCheckboxModule,
@@ -43,7 +45,6 @@ import {
     MatIconModule,
     MatProgressBarModule,
     MatSelectModule,
-    MatToolbarModule,
   ],
   templateUrl: './jahresuebernahme.html',
   styleUrl: './jahresuebernahme.less',
@@ -51,7 +52,7 @@ import {
 export class Jahresuebernahme {
   private readonly kalender = inject(KalenderDatenService);
   private readonly router = inject(Router);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly meldungen = inject(MeldungsDienst);
 
   readonly zustand = this.kalender.zustand;
   readonly jahre = this.kalender.verfuegbareJahre;
@@ -188,11 +189,10 @@ export class Jahresuebernahme {
       this.fehler.set(ursache instanceof Error ? ursache.message : String(ursache));
       return;
     }
-    this.snackBar.open(
+    this.meldungen.erfolg(
       `${ergebnis.ideen.length} Idee(n) und ${ergebnis.katsThemen.length} KatS-Thema/-Themen ` +
         `nach ${ziel.jahr} übernommen. Zum Sichern im Kalender „Speichern“ wählen.`,
-      'OK',
-      { duration: 10000 },
+      { dauerMs: 10_000 },
     );
     void this.router.navigateByUrl('/kalender');
   }

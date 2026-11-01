@@ -1,17 +1,7 @@
-@import '../../../kern/kopfleiste.less';
-
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.detail-kopfleiste {
-  .kopfleiste-basis();
-}
-
-.spacer {
-  flex: 1;
 }
 
 .detail-content {
@@ -24,29 +14,9 @@
   gap: var(--space-lg);
 }
 
-.error-hint {
-  color: var(--status-error);
-  padding: var(--space-sm) 0;
-}
-
 .empty-hint {
   color: var(--text-secondary);
   font-style: italic;
-}
-
-.konflikt-hinweis {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--status-warn);
-  border-radius: var(--space-xs);
-  background: var(--surface-secondary);
-  color: var(--status-warn);
-
-  span {
-    flex: 1;
-  }
 }
 
 .abschnitt {

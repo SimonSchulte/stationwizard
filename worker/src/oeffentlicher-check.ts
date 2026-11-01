@@ -3,7 +3,7 @@ import { ERFASSUNG_TOKEN_MUSTER, gleichInKonstanterZeit } from './erfassung-toke
 import { istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
 import { berlinerKalendertag } from './kalender';
 import { VorlagenFach, pruefePositionen, zaehleKennzahlen } from './material-check';
-import { SCHUTZ_HEADER, pruefeUrsprung } from './oeffentliche-erfassung';
+import { pruefeUrsprung, SCHUTZ_HEADER } from './oeffentlich-schutz';
 
 /**
  * Öffentlicher Fahrzeugcheck – der zweite Weg am Zugangsschutz vorbei, nach

@@ -1,11 +1,11 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import {
   lesePruefeKoerper,
-  protokolliereAenderung,
   type FahrzeugeKonfiguration,
   type GeprueftesBenutzerkonto,
-} from './fahrzeuge';
-import { istObjekt } from './json-lesen';
+} from './fahrzeuge-gemeinsam';
+import { protokolliereAenderung } from './fahrzeuge-protokoll';
+import { istObjekt, UUID_MUSTER } from './json-lesen';
 import { freigabeGruppen, leseRolle, pruefeFreigabeRecht } from './rollen';
 
 /**
@@ -22,7 +22,6 @@ import { freigabeGruppen, leseRolle, pruefeFreigabeRecht } from './rollen';
  * `einreichungen` sonst als unbekannt ab.
  */
 
-const UUID_MUSTER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 export const EINREICHUNGEN_PFAD = '/api/fahrzeuge/einreichungen';
 const FREIGABE_PFAD = new RegExp(`^/api/fahrzeuge/einreichungen/(${UUID_MUSTER})/freigabe$`, 'i');
 const ABLEHNUNG_PFAD = new RegExp(`^/api/fahrzeuge/einreichungen/(${UUID_MUSTER})/ablehnung$`, 'i');

@@ -1,0 +1,13 @@
+:host {
+  display: block;
+  min-width: 12rem;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+// Der Löschknopf übernimmt; die browsereigene Löschmarke des Suchfelds entfällt.
+input[type='search']::-webkit-search-cancel-button {
+  appearance: none;
+}

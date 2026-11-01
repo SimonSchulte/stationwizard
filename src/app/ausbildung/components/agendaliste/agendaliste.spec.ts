@@ -56,10 +56,11 @@ describe('Agendaliste', () => {
 
   const element = () => fixture.nativeElement as HTMLElement;
   const tage = () => [...element().querySelectorAll('article.tag')];
+  // Material-Chips: geklickt und ausgewählt wird die primäre Aktion der Option.
   const chip = (text: string) =>
-    [...element().querySelectorAll<HTMLButtonElement>('.filter-chip')].find(
-      (b) => b.textContent?.trim() === text,
-    )!;
+    [...element().querySelectorAll<HTMLElement>('mat-chip-option')]
+      .find((option) => option.textContent?.trim() === text)!
+      .querySelector<HTMLElement>('.mdc-evolution-chip__action--primary')!;
 
   beforeEach(() => TestBed.configureTestingModule({}));
 
@@ -101,7 +102,7 @@ describe('Agendaliste', () => {
     expect(tage()).toHaveLength(1);
     expect(tage()[0].textContent).toContain('Erfundenes SAN-Thema');
     expect(element().querySelector('.tag.luecke')).toBeNull();
-    expect(chip('SAN').getAttribute('aria-pressed')).toBe('true');
+    expect(chip('SAN').getAttribute('aria-selected')).toBe('true');
 
     chip('SAN').click();
     fixture.detectChanges();

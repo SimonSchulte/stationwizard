@@ -11,15 +11,17 @@ import { Router } from '@angular/router';
 import { erzeugeTaktischesZeichen } from 'taktische-zeichen-core';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { MatchService } from '../../services/match.service';
+import { MatchService, MEDIZINISCH_LABEL, TAKTISCH_LABEL } from '../../services/match.service';
+import { planungIst, planungSoll, postenIst, postenSoll } from '../../services/staerke';
+import type { DragData, DropData } from '../../models/drag-drop.model';
+import { PositionZeile } from '../../components/position-zeile/position-zeile';
+import { QualifikationsChips } from '../../components/qualifikations-chips/qualifikations-chips';
+import { StaerkeBlock } from '../../components/staerke-block/staerke-block';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { MatListModule } from '@angular/material/list';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
@@ -45,47 +47,26 @@ import {
   Planung,
   Posten,
   Position,
-  TAKTISCH_ORDER,
-  MEDIZINISCH_ORDER,
   Taktisch,
   Medizinisch,
+  TAKTISCH_ORDER,
+  MEDIZINISCH_ORDER,
 } from '../../models/planung.model';
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
-
-interface DragData {
-  einsatzkraftId: string;
-  fromPostenId: string | null;
-  fromPositionId: string | null;
-}
-
-interface DropData {
-  postenId: string;
-  positionId: string;
-}
-
-type MatchLevel = 'full' | 'partial' | 'mismatch' | 'neutral';
-
-interface Staerke {
-  fuhrer: number;
-  unterfuehrer: number;
-  helfer: number;
-  gesamt: number;
-}
+import { Meldung } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-editor',
   imports: [
+    Meldung,
     MatButtonModule,
     MatDialogModule,
     MatIconModule,
     MatToolbarModule,
-    MatSidenavModule,
-    MatChipsModule,
     MatExpansionModule,
-    MatListModule,
     MatDividerModule,
     MatTooltipModule,
     MatSelectModule,
@@ -97,6 +78,9 @@ interface Staerke {
     MatTimepickerModule,
     DragDropModule,
     MatMenuModule,
+    PositionZeile,
+    QualifikationsChips,
+    StaerkeBlock,
   ],
   providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './planning-editor.html',
@@ -131,6 +115,12 @@ export class PlanningEditor {
     erzeugeTaktischesZeichen({ grundzeichen: 'person', funktion: 'fuehrungskraft' }).dataUrl,
   );
 
+  constructor() {
+    // Einmal beim Öffnen laden, nicht aus dem Template: dort schriebe das Laden während des
+    // Renderns in ein Signal (NG0600).
+    this.fahrzeugeQuelle.sicherstellenGeladen();
+  }
+
   readonly planung = this.store.active;
   readonly canUndo = this.store.canUndo;
   readonly efsUpdating = signal(false);
@@ -142,35 +132,14 @@ export class PlanningEditor {
     this.assignedListCollapsed.update((v) => !v);
   }
 
-  readonly TAKTISCH_LABEL: Record<Taktisch, string> = {
-    H: 'Helfer',
-    KSH: 'Katastrophenschutzhelfer',
-    GF: 'Gruppenführer',
-    ZF: 'Zugführer',
-    GdSA: 'Grundlagen der Stabsarbeit',
-    VF: 'Verbandsführer',
-  };
+  readonly TAKTISCH_LABEL = TAKTISCH_LABEL;
 
-  readonly MEDIZINISCH_LABEL: Record<Medizinisch, string> = {
-    EH: 'Ersthelfer',
-    SSD: 'Schulsanitätsdienst',
-    SanH: 'Sanitätshelfer',
-    RH: 'Rettungshelfer',
-    RS: 'Rettungssanitäter',
-    RA: 'Rettungsassistent',
-    NotSan: 'Notfallsanitäter',
-    A: 'Arzt',
-    NA: 'Notarzt',
-  };
-
-  readonly TAKTISCH_OPTIONS: (Taktisch | null)[] = [null, ...TAKTISCH_ORDER];
-  readonly MEDIZINISCH_OPTIONS: (Medizinisch | null)[] = [null, ...MEDIZINISCH_ORDER];
+  readonly MEDIZINISCH_LABEL = MEDIZINISCH_LABEL;
 
   /** null = not focused (show stored vehicle); string = focused/typing */
   readonly fahrzeugFilter = signal<Record<string, string | null>>({});
 
   filteredFahrzeuge(postenId: string): Fahrzeug[] {
-    this.fahrzeugeQuelle.sicherstellenGeladen();
     const fahrzeuge = this.fahrzeugeQuelle.fahrzeuge();
     const q = (this.fahrzeugFilter()[postenId] ?? '').toLowerCase();
     if (!q) return fahrzeuge;
@@ -511,44 +480,8 @@ export class PlanningEditor {
     return this.abgleich.medizinischColor(tag);
   }
 
-  positionMatchClass(position: Position, einsatzkraft?: Einsatzkraft | null): string {
-    if (!einsatzkraft) return 'neutral';
-    return this.matchLevel(position, einsatzkraft);
-  }
-
   unassignFromPosition(postenId: string, positionId: string): void {
     this.store.unassignFromPosition(postenId, positionId);
-  }
-
-  private matchLevel(position: Position, person: Einsatzkraft): MatchLevel {
-    const req = position.requirements;
-    let satisfied = 0;
-    let total = 0;
-
-    if (req.taktisch !== null) {
-      total++;
-      const reqIdx = TAKTISCH_ORDER.indexOf(req.taktisch);
-      const personIdx = Math.max(
-        -1,
-        ...(person.tags.taktisch ?? []).map((t) => TAKTISCH_ORDER.indexOf(t)),
-      );
-      if (personIdx >= reqIdx) satisfied++;
-    }
-
-    if (req.medizinisch !== null) {
-      total++;
-      const reqIdx = MEDIZINISCH_ORDER.indexOf(req.medizinisch);
-      const personIdx = Math.max(
-        -1,
-        ...(person.tags.medizinisch ?? []).map((t) => MEDIZINISCH_ORDER.indexOf(t)),
-      );
-      if (personIdx >= reqIdx) satisfied++;
-    }
-
-    if (total === 0) return 'full';
-    if (satisfied === total) return 'full';
-    if (satisfied > 0) return 'partial';
-    return 'mismatch';
   }
 
   assignedPerson(position: Position): Einsatzkraft | null {
@@ -556,56 +489,10 @@ export class PlanningEditor {
     return this.planung()!.einsatzkraefte.find((e) => e.id === position.assigned!.id) ?? null;
   }
 
-  private sollRole(t: Taktisch | null): 'fuhrer' | 'unterfuehrer' | 'helfer' {
-    if (t === 'ZF' || t === 'VF') return 'fuhrer';
-    if (t === 'GF') return 'unterfuehrer';
-    return 'helfer';
-  }
-
-  private istRole(person: Einsatzkraft): 'fuhrer' | 'unterfuehrer' | 'helfer' {
-    const maxIdx = Math.max(
-      -1,
-      ...(person.tags.taktisch ?? []).map((t) => TAKTISCH_ORDER.indexOf(t)),
-    );
-    const top = maxIdx >= 0 ? TAKTISCH_ORDER[maxIdx] : null;
-    if (top === 'ZF' || top === 'VF') return 'fuhrer';
-    if (top === 'GF') return 'unterfuehrer';
-    return 'helfer';
-  }
-
-  postenSoll(posten: Posten): Staerke {
-    const s = { fuhrer: 0, unterfuehrer: 0, helfer: 0, gesamt: posten.positions.length };
-    for (const pos of posten.positions) s[this.sollRole(pos.requirements.taktisch)]++;
-    return s;
-  }
-
-  postenIst(posten: Posten): Staerke {
-    const assigned = posten.positions.filter((p) => p.assigned);
-    const s = { fuhrer: 0, unterfuehrer: 0, helfer: 0, gesamt: assigned.length };
-    for (const pos of assigned) s[this.sollRole(pos.requirements.taktisch)]++;
-    return s;
-  }
-
-  planungSoll(planung: Planung): Staerke {
-    const all = planung.posten.flatMap((p) => p.positions);
-    const s = { fuhrer: 0, unterfuehrer: 0, helfer: 0, gesamt: all.length };
-    for (const pos of all) s[this.sollRole(pos.requirements.taktisch)]++;
-    return s;
-  }
-
-  planungIst(planung: Planung): Staerke {
-    const assigned = planung.posten.flatMap((p) => p.positions).filter((p) => p.assigned);
-    const s = { fuhrer: 0, unterfuehrer: 0, helfer: 0, gesamt: assigned.length };
-    for (const pos of assigned) s[this.sollRole(pos.requirements.taktisch)]++;
-    return s;
-  }
-
-  staerkeStatus(ist: number, soll: number): string {
-    if (soll === 0 && ist === 0) return 'status-neutral';
-    if (ist < soll) return 'status-under';
-    if (ist > soll) return 'status-over';
-    return 'status-met';
-  }
+  protected readonly postenSoll = postenSoll;
+  protected readonly postenIst = postenIst;
+  protected readonly planungSoll = planungSoll;
+  protected readonly planungIst = planungIst;
 
   unassignedRoster(planung: Planung): Einsatzkraft[] {
     const assignedIds = new Set(

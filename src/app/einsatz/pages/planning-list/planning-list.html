@@ -1,57 +1,48 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon">assignment</mat-icon>
-  <span class="toolbar-title">Personaleinsatzplanung</span>
-  <span class="spacer"></span>
-  <span
+<app-seitenkopf titel="Personaleinsatzplanung" icon="assignment">
+  <app-verbindungsstatus
     class="verbindungsstatus"
-    [class.verbunden]="efsApi.erreichbar()"
-    [matTooltip]="
+    [verbunden]="efsApi.erreichbar()"
+    [text]="efsApi.erreichbar() ? 'HiOrg-Server verbunden' : 'HiOrg-Server nicht verbunden'"
+    [tooltip]="
       efsApi.fehler() ||
       (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
     "
-  >
-    <mat-icon>{{ efsApi.erreichbar() ? 'cloud_done' : 'cloud_off' }}</mat-icon>
-    <span>{{
-      efsApi.erreichbar() ? 'HiOrg-Server verbunden' : 'HiOrg-Server nicht verbunden'
-    }}</span>
-  </span>
-  <button mat-stroked-button (click)="loadFromFile()" class="toolbar-btn">
+  />
+  <button matButton="outlined" (click)="loadFromFile()" class="toolbar-btn">
     <mat-icon>folder_open</mat-icon>
     Datei öffnen
   </button>
-  <button mat-raised-button color="primary" (click)="createNew()" class="toolbar-btn">
+  <button matButton="filled" (click)="createNew()" class="toolbar-btn">
     <mat-icon>add</mat-icon>
     Neue Planung
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="list-content">
   @if (hiorgRueckmeldung()) {
-    <p class="hiorg-rueckmeldung" [class.erfolg]="hiorgVerbunden()" role="status">
-      <span>
-        {{ hiorgRueckmeldung() }}
-        @if (hiorgVerbunden()) {
-          Personal übernimmst du im Editor über „Personal aus HiOrg-Server übernehmen“.
-        }
-      </span>
-      <button mat-icon-button matTooltip="Ausblenden" (click)="hiorgRueckmeldung.set('')">
-        <mat-icon>close</mat-icon>
-      </button>
-    </p>
+    <app-meldung
+      [art]="hiorgVerbunden() ? 'erfolg' : 'warnung'"
+      (geschlossen)="hiorgRueckmeldung.set('')"
+    >
+      {{ hiorgRueckmeldung() }}
+      @if (hiorgVerbunden()) {
+        Personal übernimmst du im Editor über „Personal aus HiOrg-Server übernehmen“.
+      }
+    </app-meldung>
   }
   <section class="cloud-planungen" aria-labelledby="cloud-planungen-titel">
     <div class="section-header">
       <h2 id="cloud-planungen-titel">Gespeicherte Einsatzpläne</h2>
-      <button mat-stroked-button (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
+      <button matButton="outlined" (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
         <mat-icon>refresh</mat-icon> Aktualisieren
       </button>
     </div>
     @if (cloud.listeLaedt()) {
-      <p role="status">Gespeicherte Einsatzpläne werden geladen…</p>
+      <app-ladeanzeige text="Gespeicherte Einsatzpläne werden geladen…" />
     }
     @if (cloud.listenFehler()) {
-      <p class="error-hint" role="alert">{{ cloud.listenFehler() }}</p>
-      <button mat-button (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
+      <app-meldung art="fehler">{{ cloud.listenFehler() }}</app-meldung>
+      <button matButton (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
         Erneut versuchen
       </button>
     } @else if (!cloud.listeLaedt() && cloud.dateien().length === 0) {
@@ -60,16 +51,16 @@
       </p>
     }
     @if (cloudFehler()) {
-      <p class="error-hint" role="alert">
-        {{ cloudFehler() }} Deine lokalen Planungen bleiben erhalten.
-      </p>
+      <app-meldung art="fehler"
+        >{{ cloudFehler() }} Deine lokalen Planungen bleiben erhalten.</app-meldung
+      >
     }
     <ul class="cloud-dateien">
       @for (datei of cloud.dateien(); track datei.id) {
         <li>
           <span>{{ cloud.namen()[datei.id] || datei.id }}</span>
           <button
-            mat-stroked-button
+            matButton="outlined"
             (click)="cloudPlanungLaden(datei.id)"
             [disabled]="cloudLadeId() !== null"
           >
@@ -84,7 +75,7 @@
     <div class="section-header">
       <h2>Veranstaltungen (HiOrg-Server)</h2>
       <button
-        mat-icon-button
+        matIconButton
         matTooltip="Aktualisieren"
         (click)="loadEfsEinsaetze()"
         [disabled]="efsLoading()"
@@ -99,8 +90,8 @@
         <span>Veranstaltungen werden geladen…</span>
       </div>
     } @else if (efsError()) {
-      <p class="error-hint" role="alert">{{ efsError() }}</p>
-      <button mat-button (click)="loadEfsEinsaetze()">Erneut versuchen</button>
+      <app-meldung art="fehler">{{ efsError() }}</app-meldung>
+      <button matButton (click)="loadEfsEinsaetze()">Erneut versuchen</button>
     } @else {
       @if (upcomingGruppen().length > 0) {
         <h3>Anstehende Veranstaltungen</h3>
@@ -206,13 +197,11 @@
   <h2>Lokale Planungen</h2>
 
   @if (planungen().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon">groups</mat-icon>
-      <p class="empty-hint">Noch keine Planungen vorhanden.</p>
-      <button mat-raised-button color="primary" (click)="createNew()">
+    <app-leerzustand icon="groups" titel="Noch keine Planungen vorhanden.">
+      <button leerAktion matButton="filled" (click)="createNew()">
         <mat-icon>add</mat-icon> Neue Planung erstellen
       </button>
-    </div>
+    </app-leerzustand>
   }
 
   <div class="card-grid">
@@ -237,11 +226,7 @@
           }
         </mat-card-content>
         <mat-card-actions>
-          <button
-            mat-stroked-button
-            color="secondary"
-            (click)="openPlanung(planung.id); $event.stopPropagation()"
-          >
+          <button matButton="outlined" (click)="openPlanung(planung.id); $event.stopPropagation()">
             <mat-icon>open_in_new</mat-icon>
             Öffnen
           </button>

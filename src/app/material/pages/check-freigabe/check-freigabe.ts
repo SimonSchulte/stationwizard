@@ -7,18 +7,20 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { Checkposition } from '../../models/check.model';
 import { CheckEinreichung } from '../../models/einreichung.model';
 import { HERKUNFT_LABEL } from '../../models/pruefvorlage.model';
 import { artikelVerfallsstatus, heuteBerlin } from '../../services/check-status';
 import { EinreichungStoreService } from '../../services/einreichung-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 /**
  * Freigabe öffentlich eingereichter Fahrzeugchecks.
@@ -34,13 +36,17 @@ import { EinreichungStoreService } from '../../services/einreichung-store.servic
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-check-freigabe',
   imports: [
+    MatInputModule,
+    MatFormFieldModule,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     DatePipe,
-    RouterLink,
     MatButtonModule,
     MatCheckboxModule,
     MatExpansionModule,
     MatIconModule,
-    MatToolbarModule,
   ],
   templateUrl: './check-freigabe.html',
   styleUrl: './check-freigabe.less',

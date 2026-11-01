@@ -20,7 +20,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DatePipe } from '@angular/common';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
@@ -50,6 +49,8 @@ import { ApiErfassungslinkStorage } from '../../storage/api-erfassungslink-stora
 import { erzeugeQrDataUrl, erzeugeQrSvg, fahrzeugQrZiele } from '../../services/fahrzeug-qr';
 import { ermittleWartungsstatus, WartungsAmpel } from '../../services/wartungsstatus';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   return {
@@ -66,6 +67,9 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-detail',
   imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     DatePipe,
     RouterLink,
     MatButtonModule,
@@ -79,7 +83,6 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTooltipModule,
-    MatToolbarModule,
     KilometerBilanz,
   ],
   providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],

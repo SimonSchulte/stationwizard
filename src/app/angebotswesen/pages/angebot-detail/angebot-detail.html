@@ -1,36 +1,31 @@
-<mat-toolbar class="detail-kopfleiste">
-  <a mat-icon-button routerLink="/angebotswesen/angebote" aria-label="Zurück zur Angebotsliste">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">{{ store.entwurf()?.bezeichnung || 'Neues Angebot' }}</span>
-  <span class="spacer"></span>
-  <button
-    mat-raised-button
-    color="primary"
-    (click)="speichern()"
-    [disabled]="store.speichertGerade()"
-  >
+<app-seitenkopf
+  [titel]="store.entwurf()?.bezeichnung || 'Neues Angebot'"
+  zurueck="/angebotswesen/angebote"
+  zurueckText="Zurück zur Angebotsliste"
+>
+  <button matButton="filled" (click)="speichern()" [disabled]="store.speichertGerade()">
     <mat-icon>save</mat-icon>
     {{ store.speichertGerade() ? 'Speichert …' : 'Speichern' }}
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="detail-content">
   @if (store.ladeLaeuft()) {
-    <p role="status">Angebot wird geladen …</p>
+    <app-ladeanzeige text="Angebot wird geladen …" />
   }
   @if (store.ladeFehler()) {
-    <p class="error-hint" role="alert">{{ store.ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>
   }
 
   @if (store.speicherKonflikt()) {
-    <div class="konflikt-hinweis" role="alert">
-      <mat-icon>warning</mat-icon>
-      <span>{{ store.speicherFehler() }}</span>
-      <button mat-stroked-button (click)="nachKonfliktNeuLaden()">Aktuellen Stand laden</button>
-    </div>
+    <app-meldung art="warnung">
+      {{ store.speicherFehler() }}
+      <button matButton="outlined" meldungAktion (click)="nachKonfliktNeuLaden()">
+        Aktuellen Stand laden
+      </button>
+    </app-meldung>
   } @else if (store.speicherFehler()) {
-    <p class="error-hint" role="alert">{{ store.speicherFehler() }}</p>
+    <app-meldung art="fehler">{{ store.speicherFehler() }}</app-meldung>
   }
 
   @if (store.entwurf(); as entwurf) {
@@ -77,7 +72,7 @@
     <section class="abschnitt">
       <div class="section-header">
         <h2>Schichten</h2>
-        <button mat-stroked-button type="button" (click)="schichtHinzufuegen()">
+        <button matButton="outlined" type="button" (click)="schichtHinzufuegen()">
           <mat-icon>add</mat-icon> Schicht hinzufügen
         </button>
       </div>
@@ -143,7 +138,7 @@
       <app-angebot-kalkulationstabelle [angebot]="entwurf" />
 
       <div class="aktionen">
-        <button mat-stroked-button type="button" (click)="tabelleKopieren()">
+        <button matButton="outlined" type="button" (click)="tabelleKopieren()">
           <mat-icon>content_copy</mat-icon> Als Word-Tabelle kopieren
         </button>
       </div>

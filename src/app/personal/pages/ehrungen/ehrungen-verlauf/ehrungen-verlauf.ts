@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { EhrungenService, type StundenAenderung } from '../../../services/ehrungen.service';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../../kern/zustand/zustand';
 
 export interface VerlaufDaten {
   id: string;
@@ -17,7 +18,15 @@ export interface VerlaufDaten {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ehrungen-verlauf',
-  imports: [MatDialogModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule],
+  imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    MatDialogModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatTooltipModule,
+  ],
   templateUrl: './ehrungen-verlauf.html',
   styleUrl: './ehrungen-verlauf.less',
 })

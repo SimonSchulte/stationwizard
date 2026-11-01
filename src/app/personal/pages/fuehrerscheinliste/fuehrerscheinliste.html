@@ -1,17 +1,16 @@
-<mat-toolbar class="listen-kopfleiste">
-  <a mat-icon-button routerLink="/personal" aria-label="Zurück zur Personalübersicht">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <mat-icon class="kopfleiste-icon">badge</mat-icon>
-  <span class="toolbar-title">Führerscheinliste</span>
-  <span class="spacer"></span>
+<app-seitenkopf
+  titel="Führerscheinliste"
+  icon="badge"
+  zurueck="/personal"
+  zurueckText="Zurück zur Personalübersicht"
+>
   @if (verbindung() === 'verbunden') {
-    <button mat-stroked-button (click)="laden()" [disabled]="laedt()">
+    <button matButton="outlined" (click)="laden()" [disabled]="laedt()">
       <mat-icon>refresh</mat-icon> Aktualisieren
     </button>
     @if (vorlage()?.vorhanden) {
       <button
-        mat-flat-button
+        matButton="filled"
         (click)="dokumentHerunterladen()"
         [disabled]="laedt() || dokumentWirdErstellt() || dokumentZeilen().length === 0"
         matTooltip="Trägt Name, Führerscheindatum und -nummer der angezeigten Personen (aktuelle Filter) in die hinterlegte Word-Vorlage ein"
@@ -25,10 +24,9 @@
       </button>
     }
   }
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="inhalt">
-  <h1>Führerscheinliste</h1>
   <p class="hinweis">Name, Vorname und die bei HiOrg erfasste Fahrerlaubnis je Person.</p>
   <p class="hinweis">
     <mat-icon class="pruefziffer gueltig" inline>check_circle</mat-icon> /
@@ -38,49 +36,46 @@
   </p>
 
   @if (!vorlageLaedt() && vorlage() && !vorlage()!.vorhanden) {
-    <p class="hinweis-vorlage" role="status">
+    <app-meldung art="warnung">
       Für den Word-Export ist noch keine Vorlage hinterlegt.
-      <a routerLink="/verwaltung/fuehrerschein-vorlage">Im Verwaltungsbereich hochladen</a>.
-    </p>
+      <a matButton meldungAktion routerLink="/verwaltung/fuehrerschein-vorlage">Hochladen</a>
+    </app-meldung>
   }
 
   @if (fehler()) {
-    <p class="fehler" role="alert">{{ fehler() }}</p>
-    <button mat-button (click)="laden()" [disabled]="laedt()">Erneut versuchen</button>
+    <app-meldung art="fehler"
+      >{{ fehler() }}
+      <button matButton meldungAktion (click)="laden()" [disabled]="laedt()">
+        Erneut versuchen
+      </button>
+    </app-meldung>
   }
 
   @if (dokumentFehler()) {
-    <p class="fehler" role="alert">{{ dokumentFehler() }}</p>
+    <app-meldung art="fehler">{{ dokumentFehler() }}</app-meldung>
   }
 
   @if (laedt()) {
-    <div class="laden" role="status">
-      <mat-spinner diameter="36" />
-      <span>Personal wird vom HiOrg-Server geladen…</span>
-    </div>
+    <app-ladeanzeige text="Personal wird vom HiOrg-Server geladen…" />
   } @else {
     @switch (verbindung()) {
       @case ('nicht-eingerichtet') {
-        <p class="leer">
+        <app-meldung art="warnung">
           Die HiOrg-Server-API ist am Server noch nicht eingerichtet (Client-ID, Client-Secret und
           Datenbankmigration).
-        </p>
+        </app-meldung>
       }
       @case ('getrennt') {
         <app-hiorg-verbinden class="verbinden" ziel="personal" (verbunden)="laden()" />
       }
       @case ('verbunden') {
         <div class="werkzeuge">
-          <mat-form-field class="suche" subscriptSizing="dynamic">
-            <mat-label>Suchen</mat-label>
-            <mat-icon matPrefix>search</mat-icon>
-            <input
-              matInput
-              [value]="suche()"
-              (input)="suche.set($any($event.target).value)"
-              placeholder="Name oder Klasse"
-            />
-          </mat-form-field>
+          <app-suchfeld
+            class="suche"
+            [(wert)]="suche"
+            beschriftung="Suchen"
+            platzhalter="Name oder Klasse"
+          />
           <app-gruppen-filter [gruppen]="gruppen()" [(auswahl)]="gruppenAuswahl" />
           <span class="anzahl" role="status">
             {{ gefiltert().length }} von {{ personen().length }} Personen
@@ -88,9 +83,9 @@
         </div>
 
         @if (personen().length === 0) {
-          <p class="leer">Der HiOrg-Server hat kein aktives Personal geliefert.</p>
+          <app-leerzustand kompakt titel="Der HiOrg-Server hat kein aktives Personal geliefert." />
         } @else if (gefiltert().length === 0) {
-          <p class="leer">Keine Person passt zur Suche.</p>
+          <app-leerzustand kompakt titel="Keine Person passt zur Suche." />
         } @else {
           <div class="tabellenbereich">
             <table mat-table [dataSource]="gefiltert()" class="fuehrerschein-tabelle">

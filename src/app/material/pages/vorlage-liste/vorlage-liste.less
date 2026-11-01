@@ -1,32 +1,7 @@
-@import '../../../kern/kopfleiste.less';
-
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.listen-kopfleiste {
-  .kopfleiste-basis();
-}
-
-.kopfleiste-icon {
-  color: var(--ci-red);
-  margin-right: var(--space-sm);
-}
-
-.toolbar-title {
-  // Lange Vorlagennamen kappen statt sie am Rand abzuschneiden. `min-width: 0`
-  // erlaubt dem Flex-Element überhaupt erst, unter seine Textbreite zu
-  // schrumpfen.
-  min-width: 0;
-  flex: 0 1 auto;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.spacer {
-  flex: 1;
 }
 
 .listen-inhalt {
@@ -56,40 +31,6 @@
     color: var(--text-primary);
     font: inherit;
   }
-}
-
-.visuell-versteckt {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.error-hint {
-  color: var(--status-error);
-  padding: var(--space-sm) 0;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-2xl) 0;
-}
-
-.empty-state-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
-  color: var(--text-disabled);
-}
-
-.empty-hint {
-  color: var(--text-secondary);
-  font-style: italic;
 }
 
 .vorlagen {
@@ -131,12 +72,6 @@
 }
 
 @media (max-width: 600px) {
-  .toolbar-title {
-    // Eigene, volle Zeile: neben Zurück-Pfeil, Symbol und Speichern-Knopf
-    // blieben dem Namen sonst rund 60 Pixel.
-    flex: 1 0 100%;
-  }
-
   .listen-inhalt {
     padding: var(--space-md);
   }

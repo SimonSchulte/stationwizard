@@ -13,6 +13,8 @@ import {
   BERICHTSARTEN,
   Berichtsart,
 } from '../../storage/check-storage';
+import { Meldung } from '../../../kern/zustand/zustand';
+import { MatListModule } from '@angular/material/list';
 
 export interface BerichtDialogDaten {
   checkId: string;
@@ -32,6 +34,8 @@ export interface BerichtDialogDaten {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-bericht-dialog',
   imports: [
+    MatListModule,
+    Meldung,
     MatButtonModule,
     MatDialogModule,
     MatFormFieldModule,

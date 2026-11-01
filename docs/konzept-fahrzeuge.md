@@ -446,7 +446,7 @@ nachvollziehbar sein — wer hat wann was geändert. Umsetzung:
   tatsächlicher Änderung — ein Speichern ohne Unterschied erzeugt keinen Eintrag),
   Kilometerstand erfassen, Kilometerstand löschen.
 - `beschreibung` wird serverseitig aus dem tatsächlichen Unterschied zwischen altem und
-  neuem Stand erzeugt (`worker/src/fahrzeuge.ts`, `diffFahrzeug`), nicht aus einer
+  neuem Stand erzeugt (`worker/src/fahrzeuge-protokoll.ts`, `diffFahrzeug`), nicht aus einer
   Freitexteingabe des Clients — sonst könnte eine ungenaue oder unehrliche Beschreibung
   eingetragen werden. Mehrere Feldänderungen in einem Speichervorgang landen als mehrere,
   mit `\n` getrennte Zeilen in einem einzelnen Protokolleintrag.
@@ -519,7 +519,7 @@ werden. `InMemoryFahrzeugStorage` und `FakeFahrzeugeDb` bilden die Regel nach, d
 in Fach- und Workertests tatsächlich geprüft wird.
 
 Die Vergleichsform steht damit an drei Stellen — im Index, in `kennzeichenVergeben()`
-(`worker/src/fahrzeuge.ts`, als SQL-Ausdruck) und in
+(`worker/src/fahrzeuge-stammdaten.ts`, als SQL-Ausdruck) und in
 `src/app/fahrzeuge/services/kennzeichen.ts` (für Anzeige und Importvorschau). Sie wird nur
 gemeinsam geändert. Ein bewusster Unterschied bleibt: SQLites `upper()` arbeitet nur auf
 ASCII, `toUpperCase()` auch darüber hinaus. Die Oberfläche erkennt damit höchstens mehr

@@ -1,14 +1,14 @@
 <h2 mat-dialog-title>Änderungsprotokoll Stunden – {{ daten.name }}</h2>
 <mat-dialog-content>
   @if (laedt()) {
-    <div class="laden" role="status">
-      <mat-spinner diameter="28" />
-      <span>Protokoll wird geladen…</span>
-    </div>
+    <app-ladeanzeige text="Protokoll wird geladen…" />
   } @else if (fehler()) {
-    <p class="fehler" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   } @else if (eintraege().length === 0) {
-    <p class="leer">Für diese Person ist noch keine Änderung der Stunden protokolliert.</p>
+    <app-leerzustand
+      kompakt
+      titel="Für diese Person ist noch keine Änderung der Stunden protokolliert."
+    />
   } @else {
     <table class="verlauf">
       <thead>

@@ -1,10 +1,9 @@
-<mat-toolbar class="listen-kopfleiste">
-  <a mat-icon-button routerLink="/aufgaben" aria-label="Zurück zu den offenen Aufgaben">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <mat-icon class="kopfleiste-icon" aria-hidden="true">fact_check</mat-icon>
-  <span class="toolbar-title">Fahrzeugchecks freigeben</span>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Fahrzeugchecks freigeben"
+  icon="fact_check"
+  zurueck="/aufgaben"
+  zurueckText="Zurück zu den offenen Aufgaben"
+/>
 
 <div class="listen-inhalt">
   <p class="beschreibung">
@@ -14,20 +13,17 @@
   </p>
 
   @if (laedt()) {
-    <p role="status">Meldungen werden geladen …</p>
+    <app-ladeanzeige text="Meldungen werden geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
   @if (meldung()) {
-    <p class="meldung" role="status">{{ meldung() }}</p>
+    <app-meldung art="info">{{ meldung() }}</app-meldung>
   }
 
   @if (!laedt() && offene().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon" aria-hidden="true">inbox</mat-icon>
-      <p class="empty-hint">Keine offenen Meldungen.</p>
-    </div>
+    <app-leerzustand icon="inbox" titel="Keine offenen Meldungen." />
   } @else {
     <div class="werkzeuge">
       <mat-checkbox [checked]="alleAusgewaehlt()" (change)="store.alleUmschalten()">
@@ -64,12 +60,12 @@
 
           <div class="karte-aktionen">
             @if (aufgeklappt().has(eintrag.id)) {
-              <button mat-button (click)="zuklappen(eintrag.id)">Abweichungen verbergen</button>
+              <button matButton (click)="zuklappen(eintrag.id)">Abweichungen verbergen</button>
             } @else {
-              <button mat-button (click)="aufklappen(eintrag.id)">Abweichungen ansehen</button>
+              <button matButton (click)="aufklappen(eintrag.id)">Abweichungen ansehen</button>
             }
             @if (ablehnungFuer() !== eintrag.id) {
-              <button mat-button (click)="ablehnungBeginnen(eintrag.id)">Ablehnen</button>
+              <button matButton (click)="ablehnungBeginnen(eintrag.id)">Ablehnen</button>
             }
           </div>
 
@@ -93,19 +89,19 @@
 
           @if (ablehnungFuer() === eintrag.id) {
             <div class="ablehnung">
-              <label>
-                <span>Grund der Ablehnung</span>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grund">
+                <mat-label>Grund der Ablehnung</mat-label>
                 <textarea
+                  matInput
                   rows="2"
                   [value]="ablehnungsgrund()"
                   (input)="ablehnungsgrund.set($any($event.target).value)"
                 ></textarea>
-              </label>
+              </mat-form-field>
               <div class="ablehnung-aktionen">
-                <button mat-button (click)="ablehnungAbbrechen()">Abbrechen</button>
+                <button matButton (click)="ablehnungAbbrechen()">Abbrechen</button>
                 <button
-                  mat-raised-button
-                  color="primary"
+                  matButton="filled"
                   [disabled]="!ablehnungsgrund().trim() || arbeitet()"
                   (click)="ablehnungBestaetigen(eintrag)"
                 >
@@ -122,7 +118,7 @@
 
 @if (hatAuswahl()) {
   <div class="fussleiste">
-    <button mat-raised-button color="primary" [disabled]="arbeitet()" (click)="freigeben()">
+    <button matButton="filled" [disabled]="arbeitet()" (click)="freigeben()">
       @if (arbeitet()) {
         Wird freigegeben …
       } @else {

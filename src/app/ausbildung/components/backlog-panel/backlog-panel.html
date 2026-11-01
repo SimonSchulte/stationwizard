@@ -1,13 +1,5 @@
 <div class="werkzeuge">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suche">
-    <mat-label>Ideen durchsuchen</mat-label>
-    <input matInput [ngModel]="suche()" (ngModelChange)="suche.set($event)" />
-    @if (suche()) {
-      <button matIconButton matSuffix aria-label="Suche leeren" (click)="suche.set('')">
-        <mat-icon>close</mat-icon>
-      </button>
-    }
-  </mat-form-field>
+  <app-suchfeld class="suche" [(wert)]="suche" beschriftung="Ideen durchsuchen" />
 
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="rolle">
     <mat-label>Rolle</mat-label>

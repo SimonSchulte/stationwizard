@@ -12,7 +12,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
@@ -24,6 +23,10 @@ import {
   type HiorgPerson,
 } from '../../../kern/hiorg/hiorg-personal.service';
 import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
+import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /**
  * Übersicht über das gesamte aktive Personal, das das verbundene HiOrg-Konto
@@ -35,6 +38,12 @@ import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbin
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-personal-uebersicht',
   imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    Verbindungsstatus,
     GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,
@@ -43,7 +52,6 @@ import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbin
     MatInputModule,
     MatProgressSpinnerModule,
     MatTableModule,
-    MatToolbarModule,
     MatTooltipModule,
     RouterLink,
   ],

@@ -1,0 +1,62 @@
+@import '../kopfleiste.less';
+
+:host {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.seitenkopf {
+  .kopfleiste-basis();
+
+  position: static;
+  justify-content: space-between;
+  row-gap: var(--space-xs);
+  white-space: normal;
+}
+
+.titelzeile {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.symbol {
+  flex: 0 0 auto;
+  color: var(--mat-sys-primary);
+}
+
+.titel {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: var(--mat-sys-title-large);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+
+  &:empty {
+    display: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .titel {
+    font: var(--mat-sys-title-medium);
+  }
+
+  .aktionen {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+}

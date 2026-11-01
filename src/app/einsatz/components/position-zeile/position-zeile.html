@@ -1,0 +1,74 @@
+<div class="position-label-cell">
+  <button
+    matIconButton
+    class="postenfuehrer-btn"
+    [class.postenfuehrer-btn--active]="position().isPostenfuehrer"
+    matTooltip="Postenführer"
+    (click)="postenfuehrerUmschalten.emit(); $event.stopPropagation()"
+  >
+    <img [src]="postenfuehrerSymbol()" class="postenfuehrer-tz-icon" alt="Postenführer" />
+  </button>
+  <input
+    class="position-label-input"
+    [value]="position().label"
+    (click)="$event.stopPropagation()"
+    (blur)="bezeichnungUebernehmen($event)"
+  />
+</div>
+<div class="position-reqs">
+  <app-anforderungs-auswahl
+    art="taktisch"
+    [wert]="position().requirements.taktisch"
+    (gewaehlt)="taktischUebernehmen($event)"
+  />
+  <app-anforderungs-auswahl
+    art="medizinisch"
+    [wert]="position().requirements.medizinisch"
+    (gewaehlt)="medizinischUebernehmen($event)"
+  />
+</div>
+<div
+  cdkDropList
+  cdkDropListSortingDisabled
+  [cdkDropListData]="ablageDaten()"
+  [class]="ablageKlasse()"
+  (cdkDropListDropped)="abgelegt.emit($event)"
+>
+  <mat-icon
+    class="match-status-icon"
+    [class.match-status-icon--full]="eignung() === 'full'"
+    [class.match-status-icon--partial]="eignung() === 'partial'"
+    [class.match-status-icon--mismatch]="eignung() === 'mismatch'"
+    [class.match-status-icon--empty]="!position().assigned"
+  >
+    {{ symbol() }}
+  </mat-icon>
+  @if (position().assigned; as besetzt) {
+    <div
+      cdkDrag
+      [cdkDragData]="ziehDaten()"
+      (cdkDragStarted)="ziehenGestartet.emit($event)"
+      (cdkDragEnded)="ziehenBeendet.emit()"
+      class="assigned-drag-item"
+    >
+      <mat-icon class="assign-icon">person</mat-icon>
+      <div class="assigned-name-block">
+        <span>{{ besetzt.name }}</span>
+        @if (besetzung(); as person) {
+          <app-qualifikations-chips [tags]="person.tags" [klein]="true" />
+        }
+      </div>
+    </div>
+    <button
+      matIconButton
+      class="unassign-btn"
+      matTooltip="Zuteilung aufheben"
+      (click)="zuteilungAufheben.emit(); $event.stopPropagation()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  } @else {
+    <mat-icon class="assign-icon unassigned">person_add</mat-icon>
+    <span class="unassigned-label">Nicht besetzt</span>
+  }
+</div>

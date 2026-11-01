@@ -1,29 +1,21 @@
 import { Injectable } from '@angular/core';
 import type { Column, Content, TDocumentDefinitions } from 'pdfmake/interfaces';
-import { PDF_FARBEN } from '../../einsatz/services/pdf-export.service';
+import { ladePdfBibliothek, PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { dateiHerunterladen } from '../../kern/storage/datei-storage';
 import { Fahrzeugstamm } from '../models/fahrzeug.model';
 import type { ErfassungslinkMitFahrzeug } from '../storage/erfassungslink-storage';
 import { erzeugeQrSvg, fahrzeugQrZiele } from './fahrzeug-qr';
 
 /**
- * Aufkleberbogen mit beiden QR-Codes, dynamisch importiert (analog
- * `pdf-export.service.ts`). Nutzt dieselbe Farbquelle statt einer eigenen
- * Palette. Papierformat und Anzahl je Blatt sind eine offene Fachfrage
- * (siehe docs/konzept-fahrzeuge.md, Abschnitt 9); dieser Bogen druckt
- * vorerst einen Satz pro Fahrzeug auf A4. Als Dienst geführt (statt einer
+ * Aufkleberbogen mit beiden QR-Codes; pdfmake und Farben kommen aus der
+ * gemeinsamen Grundlage `kern/pdf/pdf-bibliothek.ts`. Papierformat und
+ * Anzahl je Blatt sind eine offene Fachfrage (siehe docs/konzept-fahrzeuge.md,
+ * Abschnitt 9); dieser Bogen druckt vorerst einen Satz pro Fahrzeug auf A4. Als Dienst geführt (statt einer
  * freien Funktion), damit er sich wie `PdfExportService` über Angular DI
  * durch Tests ersetzen lässt.
  */
 @Injectable({ providedIn: 'root' })
 export class FahrzeugDruckbogenService {
-  private async ladePdfMake() {
-    const { default: pdfMake } = await import('pdfmake/build/pdfmake');
-    const { default: vfsFonts } = await import('pdfmake/build/vfs_fonts');
-    pdfMake.addVirtualFileSystem(vfsFonts);
-    return pdfMake;
-  }
-
   async erzeugeUndSpeichere(
     fahrzeug: Fahrzeugstamm,
     erfassungToken: string | null = null,
@@ -35,7 +27,7 @@ export class FahrzeugDruckbogenService {
       ziele.oeffentlichUrl ? erzeugeQrSvg(ziele.oeffentlichUrl) : Promise.resolve(null),
     ]);
 
-    const pdfMake = await this.ladePdfMake();
+    const pdfMake = await ladePdfBibliothek();
 
     const spalte = (titel: string, svg: string, ziel: string): Column => ({
       stack: [
@@ -161,7 +153,7 @@ export class FahrzeugDruckbogenService {
       }),
     );
 
-    const pdfMake = await this.ladePdfMake();
+    const pdfMake = await ladePdfBibliothek();
 
     const zelle = (fahrzeug: ErfassungslinkMitFahrzeug, svg: string | null): Content => ({
       stack: [

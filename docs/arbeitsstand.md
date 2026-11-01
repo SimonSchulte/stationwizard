@@ -3011,3 +3011,237 @@ worker:check`, `npm run format:check`. **Nicht geprüft:** Browsersicht der neue
   Merge mit `main` (#71, Zuständiger OV): beide Spalten nebeneinander, Excel-Export „Offene Ehrungen“ mit OV-Spalte
   und Filterauswahl. Spaltenbreiten nachgezogen; im Browser bei 2000 px und 1280 px ohne Querscrollen geprüft.
   Geprüft: Build, `npm test` (Client 1063, Worker 860), `worker:check`, Formatprüfung.
+
+## Architekturreview – 2026-11-01
+
+Durchgesehen: Modulgrenzen im Frontend, Konventionen aus CLAUDE.md (OnPush, getrennte
+Templates/Styles, kein `any`, keine Farbliterale in LESS, `fetch` nur im `WorkerClient`
+bzw. im Feiertagsabruf, `localStorage` nur in den aufgezählten Ausnahmen und für
+Geräteeinstellungen/den öffentlichen Feiertagscache), Worker-Routing und Duplikate im Worker,
+README und CLAUDE.md gegen den Code. Grundlage ist solide: Fachmodule sind lazy geladen,
+`kern/` importiert kein Fachmodul, jede Route ist im Worker fest verankert, und die
+bekannten Sicherheitsregeln sind eingehalten.
+
+Behoben:
+
+- **Querabhängigkeit Fahrzeuge → Einsatz:** der Druckbogen importierte `PDF_FARBEN` aus
+  `einsatz/services/pdf-export.service.ts` und lud pdfmake mit einer eigenen Kopie. Beides
+  liegt jetzt in `kern/pdf/pdf-bibliothek.ts` (`PDF_FARBEN` mit Verweis auf die
+  `--ci-*`-Tokens, `ladePdfBibliothek()` mit einmaligem Laden und Wiederholung nach einem
+  Ladefehler).
+- **Aufgaben-Store in `kern/`:** `AufgabenStoreService` lag im Seitenmodul `aufgaben/`,
+  obwohl Shell und Fahrzeugmodul ihn nutzen. Er liegt jetzt neben seinem Vertrag unter
+  `kern/aufgaben/`.
+- **Aufgabenmarke nach Material-Freigabe:** freigegebene oder abgelehnte Fahrzeugchecks
+  blieben bis zum nächsten Neuladen in der Marke „Offene Aufgaben“ stehen; nur die
+  Kilometermeldungen entfernten sich. `AufgabenStoreService.abgleichen()` gleicht nach
+  jedem Laden der Freigabeseite die Quelle `material-fahrzeugcheck` mit dem offenen
+  Bestand ab.
+- **Worker-Duplikate:** fünf wortgleiche `lesePruefeKoerper()`-Kopien (nur die Fehlercodes
+  unterschieden sich) und eine sechste Fassung ohne Zeitlimit in
+  `material-einreichungen.ts` laufen jetzt über `leseJsonKoerper()` in `json-lesen.ts`; die
+  Fehlercodes je Modul sind unverändert. Die Material-Einreichungen haben dadurch nun
+  ebenfalls das 10-s-Zeitlimit. Das UUID-Muster stand siebenmal im Worker und steht jetzt
+  einmal (`UUID_MUSTER`, `UUID_REGEX`). Neuer Test `worker/tests/json-lesen.spec.ts`.
+- **Build-Warnungen:** die bekannten CommonJS-Bibliotheken (`qrcode`, pdfmake, `base64-js`,
+  `pako`) stehen in `allowedCommonJsDependencies`; übrig bleibt nur die Budgetwarnung unten.
+- **Versehentlich eingecheckt:** `undefined/dbg.png` (Debug-Screenshot mit erfundenem
+  Namen, Pfad aus einem `undefined`-Verzeichnisnamen) entfernt.
+- **Dokumentation:** CLAUDE.md nannte `src/styles.less` als Ort der Tokens; sie liegen in
+  `src/tokens.less`. README-Tabellen (Fachbereiche, Architektur) um Personal, Material,
+  Angebotswesen, Aufgaben, Verwaltung, `oeffentlich/` und Migrationen ergänzt; „genau ein
+  Weg“ an Access vorbei auf die beiden öffentlichen Seiten korrigiert; die API-Tabelle
+  verweist auf die vollständige Liste in CLAUDE.md; Mobilhinweis auf Monats-/Listenansicht
+  aktualisiert. CLAUDE.md nennt die neuen gemeinsamen Bausteine.
+
+Offen, bewusst nicht im Review geändert:
+
+- ~~`planning-editor.less` über dem Komponentenbudget~~ und ~~große Dateien mit mehreren
+  Verantwortungen~~ – erledigt im folgenden Abschnitt.
+- `package.json` erlaubt `node >= 22.12`, `.node-version` und CLAUDE.md verlangen 24.
+- Die Rollenvergabe (`PUT /api/benutzerverwaltung/<E-Mail>`) steht weiterhin jeder geprüften
+  Identität offen; das bleibt die wichtigste fachliche Lücke (siehe CLAUDE.md).
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` erfolgreich (Node 22 in der Sitzung; einzige Warnung: Budget oben).
+- `ng test`: 128 Dateien / 1067 Tests und `oeffentlich` 5 / 29 bestanden.
+- `npm run worker:test`: 30 Dateien / 865 Tests bestanden.
+- `npm run format:check` erfolgreich.
+- Keine Browserprüfung: die Änderungen betreffen keine Darstellung; die Aufgabenmarke ist
+  über den Store-Test abgesichert, nicht im Browser gesehen.
+
+## Große Dateien zerlegt, kleine wiederverwendbare Bausteine – 2026-11-01
+
+Auftrag: die großen Dateien angehen, grundsätzlich möglichst kleine wiederverwendbare
+Komponenten. Reine Umstrukturierung; Pfade, Fehlercodes, Grenzen und Fachverhalten sind
+unverändert, mit zwei benannten Ausnahmen unten.
+
+**Worker** – fünf Module verteilen nur noch Pfade, je Ressource eine Datei, gemeinsame
+Konfiguration in `<modul>-gemeinsam.ts`:
+
+| Vorher                 | Nachher (Verteiler + Teile)                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `material.ts` 1 573    | 228 + `material-gemeinsam`, `-vorlagen`, `-behaelter`, `-checkablauf`, `-pruefcodes`, `-berichtsversand`                         |
+| `hiorg-api.ts` 1 108   | 221 + `hiorg-gemeinsam`, `hiorg-oauth`, `hiorg-upstream`, `hiorg-tokenablage`, `hiorg-personal-felder`                           |
+| `fahrzeuge.ts` 1 031   | 133 + `fahrzeuge-gemeinsam`, `-pruefung`, `-zeilen`, `-protokoll`, `-stammdaten`, `-ablesungen`, `-erfassungslinks`, `-kurzlink` |
+| `ehrungen.ts` 815      | 93 + `ehrungen-gemeinsam`, `-personen`, `-import`, `-vorgaenge`, `-zustaendigkeit`                                               |
+| `angebotswesen.ts` 690 | 113 + `angebotswesen-gemeinsam`, `-preiskatalog`, `-angebot-pruefung`, `-angebote`                                               |
+
+Die größte Worker-Datei hat jetzt 571 Zeilen (`kalender-planung.ts`). Der einzige
+Importzyklus (`oeffentliche-erfassung.ts` ↔ `oeffentlicher-check.ts`) ist über
+`oeffentlich-schutz.ts` aufgelöst; der Worker hat keine Zyklen mehr.
+
+**Frontend** – neue, rein darstellende Komponenten mit `input()`/`output()`:
+
+- Einsatz: `PositionZeile` (eine Position samt Ablageziel), `AnforderungsAuswahl` (Chip mit
+  Menü, für taktisch und medizinisch), `QualifikationsChips` (vorher viermal kopiert),
+  `StaerkeBlock` (vorher zweimal), reine Stärkeberechnung `services/staerke.ts`. Entfernt:
+  die wortgleiche Kopie der Abgleichlogik und der Bezeichnungslisten aus dem Editor (beides
+  kommt aus dem `MatchService`). `planning-editor.less` liegt wieder im Budget.
+- Personal: `AuszeichnungsGruppe`, `StundenZelle`, `StundenImport`; Tabellenlogik
+  (`zeileBerechnen`, `passtZuFilter`, `sortiereZeilen`) in `pages/ehrungen/ehrungen-tabelle.ts`,
+  Staffelsperre als `stufeGesperrt()` in `ehrungen-regeln.ts`.
+- Kalender: `MonatsNavigation`, `HiorgEbenenAuswahl`.
+- Kern: `Verbindungsstatus` (Einsatzplanung und Personalübersicht, vorher zweimal),
+  `StatusChip` (Datenbank- und HiOrg-Chip des Kalenders), `marke.less` (Form der drei
+  Marken der Plan-Kopfzeile), `.tag-chip--vf` global in `styles.less`.
+
+Seitengrößen (TS/HTML/LESS): Editor 752/918/1 056 → 637/576/739, Ehrungsmanager
+909/457/363 → 661/305/195, Jahresplan 870/473/428 → 847/393/341.
+
+**Bewusste Abweichungen:** (1) `Verbindungsstatus` vereinheitlicht die beiden früheren
+Fassungen; in der Einsatzplanung rücken Symbol und Text dadurch um wenige Pixel enger
+(Abstand `--space-xs` statt `--space-sm`, 0,875 rem). (2) Der Verbandsführer-Chip trägt
+seinen Rand jetzt auch in einer besetzten Position (vorher nur im Helferpool).
+
+**Nebenbei gefunden und behoben:** Der Editor lud die Fahrzeugliste aus einer
+Template-Funktion (`filteredFahrzeuge()`), schrieb dadurch beim Rendern in ein Signal und
+warf NG0600 in der Konsole. Das Laden steht jetzt einmal im Konstruktor.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` ohne Warnungen; `npm test`: App 135 Dateien / 1 086 Tests, öffentlich
+  5 / 29, Worker 30 / 865 – alle bestanden; `npm run format:check`,
+  `npm run deploy:dry-run` erfolgreich.
+- `npm run test:spa` lief in dieser Umgebung **erfolgreich** durch (workerd mit echtem
+  Bundle: SPA-Direkteinstiege, Access-Pflicht, Bypass der öffentlichen Seiten, API-404).
+  Das Hash-Routing bleibt trotzdem, bis auch die Browserprüfung der Direkteinstiege gegen
+  den echten Worker vorliegt.
+- Sichtprüfung in Headless-Chromium auf 1400×900 und 390×844 gegen `ng serve` mit einem
+  Attrappen-Server (erfundene Daten, außerhalb des Repositorys, danach gelöscht): Kalender,
+  Ehrungsmanager, Personal, Einsatzliste, Editor mit geladener Planung. Pixelvergleich
+  gegen den Stand vor dem Umbau (zweiter `ng serve` auf Commit `c744e0a`): Ehrungsmanager,
+  Personal, Kalender und Editor gleich; Unterschied nur bei der Verbindungsanzeige der
+  Einsatzplanung (siehe oben). Zwei dabei gefundene Abweichungen behoben: Polsterung des
+  `StatusChip` (Material überdeckte die frühere Angabe; jetzt ausdrücklich der tatsächlich
+  gezeichnete Wert) und 1,2 px Zeilenhöhe der unbesetzten Position (Host von
+  `AnforderungsAuswahl` jetzt `inline-flex`). Bedienung geprüft: Anforderung per Menü
+  ändern, Helfer aus dem Pool auf eine freie Position ziehen (Abgleich „passt“), Chip in
+  der Staffel anhaken („Speichern (1)“), Monat blättern, HiOrg-Ebene wählen.
+- Bestehend und nicht Teil dieses Umbaus: Im Ehrungsmanager überlappen bei schmalen
+  Jahres-/Standfeldern ohne Wert Beschriftung und Warnsymbol – im alten Stand identisch.
+
+## UI-Prüfung: Konsistenz, Material statt Eigenbau – 2026-11-01
+
+Auftrag: UI auf Konsistenz, Bedienbarkeit und korrekte Darstellung prüfen; einheitliches
+Design, möglichst Material-Komponenten statt eigener Entwicklungen. Ausgangspunkt war ein
+Durchgang über alle 27 Routen auf 1400×900 und 390×844 (Attrappen-Server mit erfundenen
+Daten, außerhalb des Repositorys).
+
+**Befunde vorher:** 14 verschiedene Kopfleisten-Klassen bei 28 Toolbars; Zurück-Navigation auf
+drei Arten (Pfeil links, Textknopf „Zurück zu …“ rechts, Pfeil-Knopf mit Text); zwei Seiten
+ganz ohne Kopf (Offene Aufgaben, Kilometermeldungen freigeben) mit eigenem Aktualisieren-Knopf;
+mindestens vier Optiken für Fehler (roter Text, Kasten mit Rand, `befund`-Absätze,
+Konflikthinweise), drei für Leerzustände und Ladeanzeigen; vier Suchfeld-Varianten (Lupe vorn
+oder hinten, Rahmen oder gefüllt, mit/ohne Löschknopf) und zwei native Suchfelder; eigene
+Filter-„Pillen“ und Filter-Chips; 28 native Knöpfe, drei native Textfelder; fünf
+Schreibweisen für Knöpfe (`mat-raised-button color="primary"`, `mat-flat-button`,
+`matButton="filled"` …); sieben gleichrangige Knöpfe im Ehrungsmanager (mobil fünf Zeilen);
+doppelte Titel (Personal „Übersicht“, Führerscheinliste); mobil abgeschnittene Titel und eine
+abgeschnittene Filterleiste (Offene Ehrungen); überlappende Beschriftung und Warnsymbol in den
+Jahres- und Standfeldern des Ehrungsmanagers.
+
+**Umgesetzt:**
+
+- `kern/seitenkopf/Seitenkopf` (`mat-toolbar`) auf allen Fachseiten außer Kalender und
+  Einsatz-Editor: Zurück-Pfeil links, Symbol, Titel mit Kürzung, Aktionen rechts, mobil eine
+  eigene Aktionszeile.
+- `kern/zustand/`: `Meldung` (vier Arten, `alert`/`status`, Aktion rechts, bricht mobil um),
+  `Leerzustand`, `Ladeanzeige`; überall statt der Eigenbauten, auch für Konflikthinweise
+  („Aktuellen Stand laden“) und ausblendbare Rückmeldungen.
+- `kern/suchfeld/Suchfeld` an elf Stellen.
+- Filter: Eigentümer im Fuhrpark als `mat-button-toggle-group`, Agendaliste als zwei
+  `mat-chip-listbox` (Kategorien mehrfach, Art einfach). Offene Aufgaben als `mat-nav-list`,
+  Kilometermeldungen als `mat-card` mit `mat-card-actions`, Belegwahl im Berichtsdialog als
+  `mat-action-list`, alle Textfelder als `mat-form-field`.
+- Knöpfe einheitlich (`filled`/`outlined`/Text/`matIconButton`, kein `color`); im
+  Ehrungsmanager Hauptaktion Speichern, sichtbar Stundenimport und Offene Ehrungen, Rest im
+  Menü.
+- Jahres-, Stand- und Nachtragsfelder mit dauerhaft oben stehender Beschriftung
+  (`floatLabel="always"`) und Platzhalter, etwas breiter – keine Überlappung mehr.
+- Doppelte Titel entfernt, Filterleiste der Offenen Ehrungen bricht mobil um.
+- Rund 1 350 Zeilen tote Stile aus den Seiten-LESS-Dateien entfernt.
+
+**Bewusst nicht umgestellt:** Kalender-Werkzeugleiste und Einsatz-Editor (dichte eigene
+Werkzeugleisten mit Feldern), Kalenderzellen und Tagesnummern, Jahresüberblick-Zellen, die
+Checkposition (große Tippflächen fürs Handy), die Inline-Felder des Editors, die Master-Liste
+im Fuhrpark, die HTML-Tabellen der Kostenaufstellung (werden als Word-Tabelle kopiert) und
+die kleinen Tabellen im Kilometerbericht und im Stundenverlauf. `matButton="tonal"` bleibt in
+den dichten Kalenderleisten.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` ohne Warnungen; `npm test`: App 136 Dateien / 1 088 Tests, öffentlich 5 / 29,
+  Worker 30 / 865 – alle bestanden; `npm run format:check` erfolgreich.
+- Sichtprüfung in Headless-Chromium auf 1400×900 und 390×844 über alle 27 Routen vor und nach
+  der Umstellung, ohne Konsolenfehler und ohne horizontalen Überlauf; Vergrößerung der
+  Jahresfelder im Ehrungsmanager. Gegen einen Attrappen-Server, nicht gegen den echten Worker;
+  viele Seiten zeigten dabei ihren Fehlerzustand, weil die Attrappe nur wenige Endpunkte
+  bedient – gerade diese Zustände waren Teil der Prüfung.
+- Nicht geprüft: Dialoge im Einzelnen und Seiten, die nur mit echten Daten Inhalt zeigen
+  (Fahrzeugdetail mit Ablesungen, Behälter-Check, Angebotseditor).
+
+## Meldungen als Material-Snackbar – 2026-11-01
+
+Auftrag: alle Warnungen, Hinweise und Fehler als Material-Snackbar ausgeben.
+
+- `MeldungsDienst` (`kern/zustand/meldungs-dienst.ts`) ist die einzige Ausgabestelle:
+  `MatSnackBar.openFromComponent()` mit eigenem Inhalt `MeldungSnackbar` (Symbol, Text,
+  optionale Aktion über `matSnackBarAction`, Schließen-Knopf). Eine Snackbar zeigt immer nur
+  eine Meldung, deshalb eine Warteschlange: weitere Meldungen folgen nacheinander, eine noch
+  wartende verschwindet, wenn ihr Anlass entfällt. Dauer: Erfolg/Hinweis 5 s,
+  Warnung/Fehler 10 s, mit Aktion („Erneut versuchen“) bleiben sie stehen. Fehler und
+  Warnungen werden `assertive` angesagt. Farben über `--mat-snack-bar-*` in `styles.less`;
+  die Warnfläche ist abgedunkelt, weil Weiß auf `--status-warn` nur 3,8:1 Kontrast hatte (jetzt
+  5,5:1; Fehler 5,6, Erfolg 5,1, Hinweis 18,8).
+- `<app-meldung>` bleibt in den 33 Templates stehen, zeigt aber selbst nichts mehr an, sondern
+  ist eine unsichtbare Brücke: Erscheint das Element, öffnet sich die Snackbar; ändert sich
+  der Text, wird sie ersetzt; verschwindet es (Zustand behoben, Seite verlassen), schließt
+  sie sich. Eine `meldungAktion`-Schaltfläche wird zur Snackbar-Aktion und wird beim Klick
+  ausgelöst; `(geschlossen)` ersetzt die früheren Ausblenden-Knöpfe der Rückmeldungen.
+- Zusätzlich umgestellt: Sitzung abgelaufen und Benutzerfehler in der App-Hülle, EFS- und
+  Nextcloud-Status im Einsatz-Editor (der Konflikthinweis verweist auf „JSON herunterladen“ in
+  der Werkzeugleiste, weil eine Snackbar nur eine Aktion trägt), Gruppenhinweise der
+  Ehrungsseiten, fehlende Führerschein-Vorlage (Aktion „Hochladen“), „nur lesbar“ in der
+  Systemkonfiguration, Entwurf und Sicherung beim Fahrzeugcheck (zweite Wahl „anderen Stand
+  verwenden“ als eigene Meldung), Erfolg der Kilometererfassung sowie die bisherigen direkten
+  `MatSnackBar.open()`-Aufrufe in Kalender und Jahresübernahme.
+- Bewusst an ihrem Ort geblieben: Feldfehler (`mat-error`), die Fehlerliste der
+  Stundenimport-Vorschau, Staffelhinweise je Tabellenzeile, „Name weicht ab“ an HiOrg-Karten,
+  Zähler („3 von 3 Personen“), Fortschritts- und Ladeanzeigen.
+- Folge, die ehrlich zu benennen ist: Schlägt das erste Laden einer Seite fehl, bleibt deren
+  Inhaltsbereich leer, sobald die Fehler-Snackbar geschlossen ist (vorher stand der Fehler samt
+  „Erneut versuchen“ dauerhaft auf der Seite). Mit Aktion bleibt die Snackbar bis zum Schließen
+  stehen; „Neu laden“ in den Seitenköpfen bleibt der zweite Weg.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- Neue Tests: `meldungs-dienst.spec.ts` (Warteschlange, Dauer, Aktion, Herausnehmen,
+  Schließen durch die Person), `zustand.spec.ts` (Brücke: Text und Aktion, Ersetzen,
+  Schließen beim Verschwinden), `app.spec.ts` prüft die echte Snackbar bei abgelaufener
+  Sitzung.
+- Headless-Chromium auf 1400×900 und 390×844 gegen den Attrappen-Server: Fehler mit
+  „Erneut versuchen“ (Personal), zwei Fehler nacheinander (Offene Aufgaben), Warnung
+  (Ehrungsmanager), Hinweis mit Aktion „Zum Kalender“ (Kalender-Übernahme), keine Snackbar
+  ohne Anlass (Kalender), keine verwaiste Snackbar nach Seitenwechsel.

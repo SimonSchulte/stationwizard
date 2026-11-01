@@ -1,0 +1,228 @@
+/* Aus dem Einsatzplan-Editor übernommen; :host ist die Zeile selbst. */
+:host {
+  display: grid;
+  grid-template-columns: 1fr 120px 1.6fr;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) calc(var(--space-unit) * 10);
+  border-radius: var(--radius-compact);
+  border: 1px solid var(--border-light);
+  background: var(--surface-tertiary);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.position-label-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.position-label-input {
+  background: var(--surface-transparent);
+  border: none;
+  border-bottom: 1px solid var(--surface-transparent);
+  font-size: 0.875rem;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: var(--space-2xs) var(--space-xs);
+  margin: calc(var(--space-2xs) * -1) calc(var(--space-xs) * -1);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  flex: 1;
+  min-width: 0;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+
+  &:hover {
+    border-bottom-color: var(--border-medium);
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom: 2px solid var(--ci-blue);
+    background: var(--surface-hover);
+    padding-bottom: var(--space-unit);
+  }
+}
+
+.position-reqs {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.assigned-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.position-assigned {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.875rem;
+  border-left: 3px solid var(--surface-transparent);
+  padding-left: var(--space-sm);
+  border-radius: var(--radius-xs);
+
+  .assign-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  &.match-full {
+    border-left-color: var(--drag-match-full-border);
+    background: var(--drag-match-full-bg);
+  }
+
+  &.match-partial {
+    border-left-color: var(--drag-match-partial-border);
+    background: var(--drag-match-partial-bg);
+  }
+
+  &.match-mismatch {
+    border-left-color: var(--drag-mismatch-border);
+    background: var(--drag-mismatch-bg);
+  }
+
+  &.match-neutral {
+    border-left-color: var(--status-neutral);
+    color: var(--text-secondary);
+  }
+}
+
+.unassigned-label {
+  color: var(--text-disabled);
+  font-style: italic;
+}
+
+.assigned-drag-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: grab;
+  width: 100%;
+}
+
+.match-status-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+  color: var(--text-disabled);
+
+  &--full {
+    color: var(--status-match);
+  }
+  &--partial {
+    color: var(--status-over);
+  }
+  &--mismatch {
+    color: var(--status-under);
+  }
+  &--empty {
+    color: var(--text-disabled);
+  }
+}
+
+.unassign-btn {
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+
+  .mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    color: var(--status-under);
+  }
+}
+
+:host(:hover) .unassign-btn {
+  opacity: 1;
+}
+
+.postenfuehrer-btn {
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  flex-shrink: 0;
+  opacity: 0;
+  border-radius: 50%;
+  outline: 2px dashed var(--surface-transparent);
+  outline-offset: var(--space-unit);
+  transition:
+    opacity 0.15s,
+    outline-color 0.15s,
+    background-color 0.15s;
+
+  .postenfuehrer-tz-icon {
+    width: 20px;
+    height: auto;
+    display: block;
+  }
+
+  &--active {
+    opacity: 1 !important;
+    outline: 2px solid var(--ci-blue) !important;
+    outline-offset: var(--space-unit);
+    background-color: color-mix(in srgb, var(--ci-blue) 12%, var(--surface-transparent)) !important;
+  }
+}
+
+:host(:hover) .postenfuehrer-btn {
+  opacity: 1;
+  outline-color: var(--border-medium);
+}
+
+:host(:hover) .postenfuehrer-btn--active {
+  outline-color: var(--ci-blue);
+}
+
+.cdk-drag-preview {
+  background: var(--surface-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-drag);
+  padding: var(--space-compact) var(--space-sm);
+  font-size: 0.85rem;
+  opacity: 0.92;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-sm);
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}
+
+.cdk-drop-list-dragging .position-assigned:not(.cdk-drag-placeholder) {
+  transition: transform 200ms ease;
+}
+
+.cdk-drop-list-dragging {
+  background: var(--surface-tertiary);
+}

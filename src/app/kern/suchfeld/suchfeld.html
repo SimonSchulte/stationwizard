@@ -1,0 +1,17 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
+  <mat-label>{{ beschriftung() }}</mat-label>
+  <mat-icon matPrefix>search</mat-icon>
+  <input
+    matInput
+    type="search"
+    autocomplete="off"
+    [placeholder]="platzhalter()"
+    [value]="wert()"
+    (input)="uebernehmen($event)"
+  />
+  @if (wert()) {
+    <button matIconButton matSuffix type="button" aria-label="Suche leeren" (click)="wert.set('')">
+      <mat-icon>close</mat-icon>
+    </button>
+  }
+</mat-form-field>

@@ -1,13 +1,12 @@
-<mat-toolbar class="preiskatalog-kopfleiste">
-  <a mat-icon-button routerLink="/angebotswesen" aria-label="Zurück zum Angebotswesen">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">Preiskatalog</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="neuerEintrag()">
+<app-seitenkopf
+  titel="Preiskatalog"
+  zurueck="/angebotswesen"
+  zurueckText="Zurück zum Angebotswesen"
+>
+  <button matButton="filled" (click)="neuerEintrag()">
     <mat-icon>add</mat-icon> Neuer Eintrag
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="preiskatalog-content">
   <p class="beschreibung">
@@ -17,18 +16,18 @@
   </p>
 
   @if (store.listeLaedt()) {
-    <p role="status">Preiskatalog wird geladen …</p>
+    <app-ladeanzeige text="Preiskatalog wird geladen …" />
   }
   @if (store.listeFehler()) {
-    <p class="error-hint" role="alert">{{ store.listeFehler() }}</p>
+    <app-meldung art="fehler">{{ store.listeFehler() }}</app-meldung>
   }
   @if (store.speicherFehler()) {
-    <p class="error-hint" role="alert">
-      {{ store.speicherFehler() }}
+    <app-meldung art="fehler"
+      >{{ store.speicherFehler() }}
       @if (store.speicherKonflikt()) {
-        <button mat-button (click)="store.laden()">Aktuellen Stand laden</button>
+        <button matButton (click)="store.laden()">Aktuellen Stand laden</button>
       }
-    </p>
+    </app-meldung>
   }
 
   @if (!store.listeLaedt() && store.eintraege().length === 0) {
@@ -86,7 +85,7 @@
               </td>
               <td>
                 <button
-                  mat-icon-button
+                  matIconButton
                   [disabled]="store.loeschtId() === eintrag.id"
                   (click)="eintragLoeschen(eintrag)"
                   aria-label="Eintrag löschen"

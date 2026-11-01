@@ -1,40 +1,32 @@
-<mat-toolbar class="editor-kopfleiste">
-  <a mat-icon-button routerLink="/material/vorlagen" aria-label="Zurück zu den Prüfvorlagen">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <mat-icon class="kopfleiste-icon" aria-hidden="true">checklist</mat-icon>
-  <span class="toolbar-title">
-    @if (entwurf()) {
-      {{ entwurf()!.bezeichnung || 'Neue Prüfvorlage' }}
-    } @else {
-      Prüfvorlage
-    }
-  </span>
-  <span class="spacer"></span>
+<app-seitenkopf
+  [titel]="entwurf() ? entwurf()!.bezeichnung || 'Neue Prüfvorlage' : 'Prüfvorlage'"
+  icon="checklist"
+  zurueck="/material/vorlagen"
+  zurueckText="Zurück zu den Prüfvorlagen"
+>
   <button
-    mat-raised-button
-    color="primary"
+    matButton="filled"
     [disabled]="!speicherbar() || !hatAenderungen() || speichertGerade()"
     (click)="speichern()"
   >
     <mat-icon>save</mat-icon> Speichern
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="editor-inhalt">
   @if (laedt()) {
-    <p role="status">Prüfvorlage wird geladen …</p>
+    <app-ladeanzeige text="Prüfvorlage wird geladen …" />
   }
   @if (ladeFehler()) {
-    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ ladeFehler() }}</app-meldung>
   }
   @if (speicherFehler()) {
-    <p class="error-hint" role="alert">
-      {{ speicherFehler() }}
+    <app-meldung art="fehler"
+      >{{ speicherFehler() }}
       @if (speicherKonflikt()) {
-        <button mat-button (click)="standAnzeigen()">Gespeicherten Stand ansehen</button>
+        <button matButton (click)="standAnzeigen()">Gespeicherten Stand ansehen</button>
       }
-    </p>
+    </app-meldung>
   }
 
   @if (entwurf(); as vorlage) {
@@ -71,16 +63,13 @@
     <section aria-labelledby="faecher-titel">
       <div class="faecher-kopf">
         <h2 id="faecher-titel">Fächer</h2>
-        <button mat-stroked-button (click)="fachHinzufuegen()">
+        <button matButton="outlined" (click)="fachHinzufuegen()">
           <mat-icon>add</mat-icon> Fach hinzufügen
         </button>
       </div>
 
       @if (vorlage.faecher.length === 0) {
-        <div class="empty-state">
-          <mat-icon class="empty-state-icon" aria-hidden="true">inventory_2</mat-icon>
-          <p class="empty-hint">Noch kein Fach angelegt.</p>
-        </div>
+        <app-leerzustand icon="inventory_2" titel="Noch kein Fach angelegt." />
       }
 
       <mat-accordion multi>
@@ -101,7 +90,7 @@
                 />
               </mat-form-field>
               <button
-                mat-icon-button
+                matIconButton
                 [disabled]="ersteszeile"
                 (click)="fachVerschieben(fach.id, -1)"
                 aria-label="Fach nach oben"
@@ -109,7 +98,7 @@
                 <mat-icon>arrow_upward</mat-icon>
               </button>
               <button
-                mat-icon-button
+                matIconButton
                 [disabled]="letztes"
                 (click)="fachVerschieben(fach.id, 1)"
                 aria-label="Fach nach unten"
@@ -117,7 +106,7 @@
                 <mat-icon>arrow_downward</mat-icon>
               </button>
               <button
-                mat-icon-button
+                matIconButton
                 (click)="fachEntfernen(fach.id, fach.bezeichnung)"
                 aria-label="Fach entfernen"
               >
@@ -193,7 +182,7 @@
                     Verfallsdatum
                   </mat-checkbox>
                   <button
-                    mat-icon-button
+                    matIconButton
                     (click)="artikelEntfernen(fach.id, artikel.id)"
                     aria-label="Artikel entfernen"
                   >
@@ -203,7 +192,7 @@
               }
             </ul>
 
-            <button mat-stroked-button (click)="artikelHinzufuegen(fach.id)">
+            <button matButton="outlined" (click)="artikelHinzufuegen(fach.id)">
               <mat-icon>add</mat-icon> Artikel hinzufügen
             </button>
           </mat-expansion-panel>

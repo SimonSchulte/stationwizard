@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { kurzlinkWeiterleitung, verarbeiteFahrzeuge } from '../src/fahrzeuge';
+import { verarbeiteFahrzeuge } from '../src/fahrzeuge';
+import { kurzlinkWeiterleitung } from '../src/fahrzeuge-kurzlink';
 import { FakeBenutzerDb } from './benutzer-db-fake';
 import { FakeFahrzeugeDb } from './fahrzeug-db-fake';
 

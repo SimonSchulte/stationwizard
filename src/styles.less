@@ -36,9 +36,24 @@ body {
   transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
 }
 
-.mat-mdc-snack-bar-container.fehler-snack {
-  --mdc-snackbar-container-color: var(--status-error);
-  --mdc-snackbar-supporting-text-color: var(--text-on-dark);
+/* Meldungen als Material-Snackbar (kern/zustand/meldungs-dienst.ts): Farbe je Art über die
+   Snackbar-Tokens. Die Snackbar hängt im globalen CDK-Overlay, deshalb hier und nicht in der
+   Komponente. */
+.mat-mdc-snack-bar-container.meldung-snack {
+  --mat-snack-bar-container-color: var(--ci-dark-blue);
+  --mat-snack-bar-supporting-text-color: var(--text-on-dark);
+  --mat-snack-bar-button-color: var(--text-on-dark);
+  --mat-icon-button-icon-color: var(--text-on-dark);
+}
+.mat-mdc-snack-bar-container.meldung-snack--fehler {
+  --mat-snack-bar-container-color: var(--status-error);
+}
+.mat-mdc-snack-bar-container.meldung-snack--warnung {
+  /* Abgedunkelt, damit weiße Schrift den WCAG-Kontrast (4,5:1) erreicht. */
+  --mat-snack-bar-container-color: color-mix(in srgb, var(--status-warn) 80%, var(--ci-dark-blue));
+}
+.mat-mdc-snack-bar-container.meldung-snack--erfolg {
+  --mat-snack-bar-container-color: var(--status-ok);
 }
 
 :focus-visible {
@@ -61,6 +76,10 @@ body {
 .tag-chip--sm {
   padding: 0 var(--space-xs);
   font-size: 0.65rem;
+}
+/* Verbandsführer: weißer Chip, deshalb mit Rand gegen den hellen Hintergrund. */
+.tag-chip--vf {
+  border: 1px solid var(--ci-dark-blue);
 }
 .tag-zusatz,
 .req-any {

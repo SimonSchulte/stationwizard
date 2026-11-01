@@ -57,6 +57,9 @@ import {
   WartungsAmpel,
   Wartungsstatus,
 } from '../../services/wartungsstatus';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 
 /** Vereinheitlicht Kilometer- und Wartungsampel auf dieselbe Dreifarbdarstellung. */
 export function ampelKlasse(ampel: KilometerAmpel | WartungsAmpel | null): string {
@@ -122,6 +125,10 @@ interface TerminAnzeige {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuhrpark-uebersicht',
   imports: [
+    MatButtonToggleModule,
+    Suchfeld,
+    Meldung,
+    Ladeanzeige,
     DatePipe,
     MatButtonModule,
     MatDatepickerModule,

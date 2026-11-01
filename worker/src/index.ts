@@ -1,19 +1,19 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
-import { verarbeiteAngebotswesen, type AngebotswesenKonfiguration } from './angebotswesen';
+import { verarbeiteAngebotswesen } from './angebotswesen';
+import type { AngebotswesenKonfiguration } from './angebotswesen-gemeinsam';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import {
   registriereZugriff,
   verarbeiteBenutzerverwaltung,
   type BenutzerverwaltungKonfiguration,
 } from './benutzer';
-import { EHRUNGEN_PFAD, verarbeiteEhrungen, type EhrungenKonfiguration } from './ehrungen';
+import { EHRUNGEN_PFAD, verarbeiteEhrungen } from './ehrungen';
+import type { EhrungenKonfiguration } from './ehrungen-gemeinsam';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import { EINREICHUNGEN_PFAD, verarbeiteEinreichungen } from './einreichungen';
-import {
-  kurzlinkWeiterleitung,
-  verarbeiteFahrzeuge,
-  type FahrzeugeKonfiguration,
-} from './fahrzeuge';
+import { verarbeiteFahrzeuge } from './fahrzeuge';
+import type { FahrzeugeKonfiguration } from './fahrzeuge-gemeinsam';
+import { kurzlinkWeiterleitung } from './fahrzeuge-kurzlink';
 import {
   EHRUNGSANTRAG_VORLAGE_DATEI_PFAD,
   EHRUNGSANTRAG_VORLAGE_PFAD,
@@ -25,18 +25,17 @@ import {
   verarbeiteFuehrerscheinVorlage,
   type FuehrerscheinVorlageKonfiguration,
 } from './fuehrerschein-vorlage';
+import { verarbeiteHiorgApi } from './hiorg-api';
 import {
-  HIORG_CODE_PFAD,
   HIORG_ANTRAGSDATEN_MUSTER,
+  HIORG_CODE_PFAD,
   HIORG_PERSONAL_PFAD,
   HIORG_RUECKRUF_PFAD,
   HIORG_VERBINDEN_PFAD,
   HIORG_VERBINDUNG_PFAD,
-  verarbeiteHiorgApi,
-  verarbeiteHiorgRueckruf,
-  verarbeiteHiorgVerbinden,
   type HiorgApiKonfiguration,
-} from './hiorg-api';
+} from './hiorg-gemeinsam';
+import { verarbeiteHiorgRueckruf, verarbeiteHiorgVerbinden } from './hiorg-oauth';
 import { verarbeiteHiorgKalender, type HiorgKalenderKonfiguration } from './hiorg-kalender';
 import { KALENDER_PFAD, verarbeiteKalender, type KalenderKonfiguration } from './kalender-planung';
 import {
@@ -45,7 +44,8 @@ import {
   verarbeiteKmBericht,
   type KmBerichtKonfiguration,
 } from './km-bericht';
-import { verarbeiteMaterial, type MaterialKonfiguration } from './material';
+import { verarbeiteMaterial } from './material';
+import type { MaterialKonfiguration } from './material-gemeinsam';
 import {
   MATERIAL_EINREICHUNGEN_PFAD,
   verarbeiteMaterialEinreichungen,

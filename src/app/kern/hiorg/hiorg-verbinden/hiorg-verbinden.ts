@@ -19,6 +19,7 @@ import {
   hiorgVerbindenAdresse,
   type HiorgRueckkehrZiel,
 } from '../hiorg-personal.service';
+import { Meldung } from '../../zustand/zustand';
 
 /**
  * Stellt die Verbindung zur HiOrg-Server-API her – für Einsatzplanung und
@@ -29,7 +30,7 @@ import {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-hiorg-verbinden',
-  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [Meldung, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
   templateUrl: './hiorg-verbinden.html',
   styleUrl: './hiorg-verbinden.less',
 })

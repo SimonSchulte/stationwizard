@@ -1,0 +1,43 @@
+<button
+  matIconButton
+  [disabled]="monat() === null || monat() === 0"
+  matTooltip="Vorheriger Monat"
+  aria-label="Vorheriger Monat"
+  (click)="verschieben(-1)"
+>
+  <mat-icon>chevron_left</mat-icon>
+</button>
+<button matButton class="monat" [matMenuTriggerFor]="monatMenue" matTooltip="Monat wählen">
+  {{ titel() }}
+  <mat-icon inline>arrow_drop_down</mat-icon>
+</button>
+<button
+  matIconButton
+  [disabled]="monat() === null || monat() === 11"
+  matTooltip="Nächster Monat"
+  aria-label="Nächster Monat"
+  (click)="verschieben(1)"
+>
+  <mat-icon>chevron_right</mat-icon>
+</button>
+<button
+  matIconButton
+  [disabled]="imAktuellenMonat()"
+  matTooltip="Zum aktuellen Monat"
+  aria-label="Zum aktuellen Monat"
+  (click)="zumAktuellenMonat.emit()"
+>
+  <mat-icon>today</mat-icon>
+</button>
+<mat-menu #monatMenue="matMenu">
+  @for (name of monatsnamen; track name; let i = $index) {
+    <button mat-menu-item (click)="monatGewaehlt.emit(i)">
+      <mat-icon>{{ i === monat() ? 'check' : '' }}</mat-icon>
+      <span>{{ name }}</span>
+    </button>
+  }
+  <button mat-menu-item (click)="monatGewaehlt.emit(null)">
+    <mat-icon>{{ monat() === null ? 'check' : 'calendar_month' }}</mat-icon>
+    <span>Ganzes Jahr</span>
+  </button>
+</mat-menu>

@@ -1,7 +1,7 @@
 import type { Benutzer } from './anmeldung';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { starkesEtag, versionAusEtag } from './etag';
-import { istNichtleererText, istObjekt, istText, leseJsonBegrenzt } from './json-lesen';
+import { istNichtleererText, istObjekt, istText, leseJsonKoerper } from './json-lesen';
 
 /**
  * Kalender (früher Ausbildungsplanung): Jahresblätter samt ihren
@@ -499,27 +499,15 @@ function bereitsBefuellt(): Response {
 /* Gemeinsames                                                           */
 /* -------------------------------------------------------------------- */
 
-async function lesePruefeKoerper(
+function lesePruefeKoerper(
   anfrage: Request,
   grenze: number,
 ): Promise<{ inhalt: unknown } | Response> {
-  const inhaltstyp = anfrage.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (inhaltstyp !== 'application/json') {
-    return fehlerAntwort('KALENDER_INHALTSTYP_UNGUELTIG', 'Unzulässiger Inhaltstyp.', 415);
-  }
-  const abbruch = new AbortController();
-  const zeitlimit = setTimeout(() => abbruch.abort(), 10_000);
-  try {
-    const ergebnis = await leseJsonBegrenzt(anfrage, grenze, abbruch.signal);
-    if (!ergebnis.erfolg) {
-      return ergebnis.ursache === 'zu-gross'
-        ? fehlerAntwort('KALENDER_DATEN_ZU_GROSS', 'Die Anfrage ist zu groß.', 413)
-        : fehlerAntwort('KALENDER_DATEN_UNLESBAR', 'Die Anfrage ist nicht lesbar.', 400);
-    }
-    return { inhalt: ergebnis.inhalt };
-  } finally {
-    clearTimeout(zeitlimit);
-  }
+  return leseJsonKoerper(anfrage, grenze, {
+    inhaltstyp: 'KALENDER_INHALTSTYP_UNGUELTIG',
+    zuGross: 'KALENDER_DATEN_ZU_GROSS',
+    unlesbar: 'KALENDER_DATEN_UNLESBAR',
+  });
 }
 
 function methodeNichtErlaubt(erlaubt: string): Response {

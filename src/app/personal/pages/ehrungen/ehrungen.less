@@ -1,23 +1,7 @@
-@import '../../../kern/kopfleiste.less';
-
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.listen-kopfleiste {
-  .kopfleiste-basis();
-
-  white-space: normal;
-}
-
-.kopfleiste-icon {
-  color: var(--mat-sys-primary);
-}
-
-.spacer {
-  flex: 1;
 }
 
 .inhalt {
@@ -43,15 +27,9 @@
   color: var(--status-error);
   padding: var(--space-sm) 0;
 }
-
-.leer,
 .hinweis,
 .legende {
   color: var(--text-secondary);
-}
-
-.leer {
-  font-style: italic;
 }
 
 .legende {
@@ -65,29 +43,6 @@
   gap: var(--space-md);
   padding: var(--space-lg) 0;
   color: var(--text-secondary);
-}
-
-.import {
-  margin-bottom: var(--space-lg);
-}
-
-.import-text {
-  width: 100%;
-}
-
-.vorschau {
-  font-weight: 500;
-}
-
-.import-fehler {
-  margin: 0 0 var(--space-sm);
-  padding-left: var(--space-lg);
-  color: var(--status-error);
-}
-
-.import-aktionen {
-  display: flex;
-  gap: var(--space-sm);
 }
 
 .werkzeuge {
@@ -144,78 +99,6 @@
   min-width: 15rem;
 }
 
-.stunden-kopf {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.stunden-wirksam {
-  font-weight: 500;
-  text-align: right;
-}
-
-.stundenquellen {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  margin-top: var(--space-2xs);
-}
-
-.quelle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-
-  mat-icon {
-    width: 1.1rem;
-    height: 1.1rem;
-    font-size: 1.1rem;
-  }
-
-  &.zaehlt {
-    color: var(--text-primary);
-    font-weight: 500;
-  }
-}
-
-.manuellfeld {
-  --mat-form-field-container-height: 36px;
-  --mat-form-field-container-vertical-padding: 6px;
-
-  width: 8.5rem;
-}
-
-.standfeld {
-  --mat-form-field-container-height: 36px;
-  --mat-form-field-container-vertical-padding: 6px;
-
-  width: 5.75rem;
-}
-
-.manuell-icon {
-  color: var(--text-secondary);
-}
-
-.staffel-hinweis {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2xs);
-  color: var(--status-warn);
-  font-size: 0.8125rem;
-  line-height: 1.3;
-
-  mat-icon {
-    flex: 0 0 auto;
-    width: 1.1rem;
-    height: 1.1rem;
-    font-size: 1.1rem;
-  }
-}
-
 .abgleich {
   color: var(--status-warn);
 
@@ -224,32 +107,11 @@
   }
 }
 
-.datumsfeld,
-.jahrfeld {
+.datumsfeld {
   // Kompakte Felder in der Tabellenzeile, damit die Zeilen nicht unnötig hoch werden.
   --mat-form-field-container-height: 40px;
   --mat-form-field-container-vertical-padding: 8px;
-}
-
-.datumsfeld {
   width: 11.5rem;
-}
-
-.gruppenzelle {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  min-width: 17rem;
-}
-
-.jahresfelder {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-
-.jahrfeld {
-  width: 5.25rem;
 }
 
 // Jahresfelder brauchen die Platz fressenden Pfeile des Zahlenfelds nicht.
@@ -265,58 +127,6 @@ input[type='number'] {
 
 .jahr-fehlt {
   color: var(--status-warn);
-}
-
-// Farben der Chips: Fläche und Schrift paarweise aus den zentralen Tokens.
-.chipfarbe(@flaeche, @schrift) {
-  --mat-chip-elevated-selected-container-color: @flaeche;
-  --mat-chip-selected-label-text-color: @schrift;
-  --mat-chip-with-icon-selected-icon-color: @schrift;
-  --mat-chip-elevated-container-color: @flaeche;
-  --mat-chip-label-text-color: @schrift;
-  --mat-chip-with-icon-icon-color: @schrift;
-}
-
-mat-chip-option,
-mat-chip {
-  &.chip-bronze {
-    .chipfarbe(var(--abzeichen-bronze-bg), var(--abzeichen-bronze-text));
-  }
-
-  &.chip-silber {
-    .chipfarbe(var(--abzeichen-silber-bg), var(--abzeichen-silber-text));
-  }
-
-  &.chip-gold {
-    .chipfarbe(var(--abzeichen-gold-bg), var(--abzeichen-gold-text));
-  }
-
-  &.chip-jubilaeum {
-    .chipfarbe(var(--abzeichen-jubilaeum-bg), var(--abzeichen-jubilaeum-text));
-  }
-
-  &.chip-uhr {
-    .chipfarbe(var(--abzeichen-uhr-bg), var(--abzeichen-uhr-text));
-  }
-
-  &.chip-ehrenzeichen {
-    .chipfarbe(var(--abzeichen-ehre-bg), var(--abzeichen-ehre-text));
-  }
-}
-
-// Nicht gewählte Optionen zurückhaltend, damit gewählte auffallen.
-mat-chip-option:not(.mdc-evolution-chip--selected) {
-  --mat-chip-elevated-container-color: var(--surface-secondary);
-  --mat-chip-label-text-color: var(--text-secondary);
-}
-
-mat-chip.erledigt {
-  opacity: 0.7;
-}
-
-mat-chip.chip-neu {
-  --mat-chip-elevated-container-color: var(--status-ok-bg);
-  --mat-chip-label-text-color: var(--status-ok);
 }
 
 .status {
@@ -355,9 +165,5 @@ mat-chip.chip-neu {
 @media (max-width: 780px) {
   .inhalt {
     padding: var(--space-md);
-  }
-
-  .listen-kopfleiste .spacer {
-    display: none;
   }
 }

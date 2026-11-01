@@ -204,7 +204,7 @@ der Serverzeit; ein gleichnamiges Feld im Anfragekörper wird verworfen.
 Jede Anlage, Stammdaten-/Wartungsänderung sowie Kilometererfassung/-löschung erzeugt
 serverseitig einen Eintrag im Änderungsprotokoll (`fahrzeug_aenderungen`,
 `worker/migrations/fahrzeuge/0002_fahrzeug_aenderungen.sql`). Die Beschreibung entsteht aus dem
-tatsächlichen Unterschied zum vorherigen Stand (`diffFahrzeug` in `worker/src/fahrzeuge.ts`),
+tatsächlichen Unterschied zum vorherigen Stand (`diffFahrzeug` in `worker/src/fahrzeuge-protokoll.ts`),
 nie aus einer Client-Eingabe; es gibt keinen Endpunkt, über den ein Client selbst einen
 Eintrag schreiben könnte.
 
@@ -216,7 +216,7 @@ antwortet mit `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`; verliert er das Rennen gege
 gleichzeitige Anfrage, übersetzt er die Indexverletzung in dieselbe Antwort. Der Index ist
 partiell: ein leeres Kennzeichen bleibt erlaubt und mehrfach möglich. Wird die
 Vergleichsform geändert, muss das an drei Stellen gemeinsam geschehen – Migration,
-`kennzeichenVergeben()` in `worker/src/fahrzeuge.ts` und
+`kennzeichenVergeben()` in `worker/src/fahrzeuge-stammdaten.ts` und
 `src/app/fahrzeuge/services/kennzeichen.ts`.
 
 `0003` auf eine **bestehende** Datenbank anwenden: zuerst prüfen, ob der Bestand schon

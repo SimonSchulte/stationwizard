@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MeldungsDienst } from '../../../kern/zustand/zustand';
 import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Jahresblatt, KatsThema, leererTermin, leeresJahresblatt } from '../../models/plan.model';
@@ -39,14 +39,14 @@ describe('Jahresuebernahme', () => {
     uebernehmeInJahr: vi.fn(),
     laden: vi.fn(),
   };
-  const snackBar = { open: vi.fn() };
+  const meldungen = { erfolg: vi.fn(), zeige: vi.fn() };
 
   function erzeuge(): Jahresuebernahme {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         { provide: KalenderDatenService, useValue: kalender },
-        { provide: MatSnackBar, useValue: snackBar },
+        { provide: MeldungsDienst, useValue: meldungen },
       ],
     });
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -82,7 +82,7 @@ describe('Jahresuebernahme', () => {
     expect(ideen).toHaveLength(1);
     expect(ideen[0].thema).toBe('Erfundene Idee A');
     expect(ideen[0].katsThemaId).toBe(themen[0].id);
-    expect(snackBar.open).toHaveBeenCalled();
+    expect(meldungen.erfolg).toHaveBeenCalled();
     expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalledWith('/kalender');
   });
 

@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { AufgabenStoreService } from '../../../aufgaben/services/aufgaben-store.service';
+import { AufgabenStoreService } from '../../../kern/aufgaben/aufgaben-store.service';
 import { Ablesungseinreichung } from '../../models/fahrzeug.model';
 import {
   pruefeAblesungPlausibilitaet,
@@ -14,6 +13,12 @@ import {
   EinreichungNichtOffenFehler,
   FreigabeVerweigertFehler,
 } from '../../storage/einreichung-storage';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 const HINWEIS_TEXT: Readonly<Record<'rueckschritt' | 'unplausibler-sprung', string>> = {
   rueckschritt:
@@ -35,7 +40,19 @@ const HINWEIS_TEXT: Readonly<Record<'rueckschritt' | 'unplausibler-sprung', stri
  */
 @Component({
   selector: 'app-ablesung-freigabe',
-  imports: [DatePipe, DecimalPipe, MatIconModule, RouterLink],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    Ladeanzeige,
+    Leerzustand,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    Meldung,
+    Seitenkopf,
+  ],
   templateUrl: './ablesung-freigabe.html',
   styleUrl: './ablesung-freigabe.less',
   changeDetection: ChangeDetectionStrategy.OnPush,

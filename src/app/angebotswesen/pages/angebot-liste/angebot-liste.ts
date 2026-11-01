@@ -3,12 +3,13 @@ import { DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { Angebot } from '../../models/angebot.model';
 import { angebotGesamtCent } from '../../services/angebot-kalkulation';
 import { AngebotStoreService } from '../../services/angebot-store.service';
 import { formatEuro } from '../../services/waehrung';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 interface AngebotZeile {
   angebot: Angebot;
@@ -18,7 +19,7 @@ interface AngebotZeile {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebot-liste',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatToolbarModule],
+  imports: [Meldung, Ladeanzeige, Seitenkopf, DatePipe, RouterLink, MatButtonModule, MatIconModule],
   templateUrl: './angebot-liste.html',
   styleUrl: './angebot-liste.less',
 })

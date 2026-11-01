@@ -2,13 +2,10 @@
 
 <mat-dialog-content>
   @if (laedt()) {
-    <div class="laden" role="status">
-      <mat-spinner diameter="32" />
-      <span>HiOrg-Personal wird geladen…</span>
-    </div>
+    <app-ladeanzeige text="HiOrg-Personal wird geladen…" />
   } @else {
     @if (fehler()) {
-      <p class="fehler" role="alert">{{ fehler() }}</p>
+      <app-meldung art="fehler">{{ fehler() }}</app-meldung>
     }
     @switch (verbindung()) {
       @case ('nicht-eingerichtet') {
@@ -21,15 +18,12 @@
         <app-hiorg-verbinden ziel="einsatz" (verbunden)="laden()" />
       }
       @case ('verbunden') {
-        <mat-form-field class="volle-breite">
-          <mat-label>Suchen</mat-label>
-          <input
-            matInput
-            [value]="suche()"
-            (input)="suche.set($any($event.target).value)"
-            placeholder="Name oder Gruppe"
-          />
-        </mat-form-field>
+        <app-suchfeld
+          class="volle-breite"
+          [(wert)]="suche"
+          beschriftung="Suchen"
+          platzhalter="Name oder Gruppe"
+        />
         <app-gruppen-filter
           class="volle-breite"
           [gruppen]="gruppen()"
@@ -70,22 +64,17 @@
 
 <mat-dialog-actions align="end">
   @if (verbindung() === 'verbunden') {
-    <button mat-button (click)="trennen()" [disabled]="laedt()">Verbindung trennen</button>
-    <button mat-button (click)="alleSichtbarenWaehlen()" [disabled]="laedt()">
+    <button matButton (click)="trennen()" [disabled]="laedt()">Verbindung trennen</button>
+    <button matButton (click)="alleSichtbarenWaehlen()" [disabled]="laedt()">
       Alle sichtbaren wählen
     </button>
   }
-  <button mat-button (click)="dialogRef.close()">Abbrechen</button>
+  <button matButton (click)="dialogRef.close()">Abbrechen</button>
   @if (verbindung() === 'verbunden') {
-    <button
-      mat-raised-button
-      color="primary"
-      [disabled]="anzahlAuswahl() === 0"
-      (click)="uebernehmen()"
-    >
+    <button matButton="filled" [disabled]="anzahlAuswahl() === 0" (click)="uebernehmen()">
       {{ anzahlAuswahl() }} übernehmen
     </button>
   } @else if (fehler() && !laedt()) {
-    <button mat-button (click)="laden()">Erneut versuchen</button>
+    <button matButton (click)="laden()">Erneut versuchen</button>
   }
 </mat-dialog-actions>

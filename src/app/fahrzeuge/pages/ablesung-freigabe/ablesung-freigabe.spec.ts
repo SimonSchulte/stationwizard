@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { AufgabenStoreService } from '../../../aufgaben/services/aufgaben-store.service';
+import { AufgabenStoreService } from '../../../kern/aufgaben/aufgaben-store.service';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { Ablesungseinreichung } from '../../models/fahrzeug.model';
 import { ApiEinreichungStorage } from '../../storage/api-einreichung-storage';

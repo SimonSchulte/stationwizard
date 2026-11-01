@@ -1,0 +1,69 @@
+<mat-chip-listbox multiple [attr.aria-label]="name() + ', ' + person()">
+  @for (schluessel of stufen(); track schluessel) {
+    <mat-chip-option
+      [class]="chipKlasse(schluessel)"
+      [selected]="hat(schluessel)"
+      [disabled]="gesperrt(schluessel)"
+      (selectionChange)="
+        $event.isUserInput && umgeschaltet.emit({ schluessel, angehakt: $event.selected })
+      "
+    >
+      {{ kurz[schluessel] }}
+    </mat-chip-option>
+  }
+</mat-chip-listbox>
+
+<div class="jahresfelder">
+  @for (schluessel of stufen(); track schluessel) {
+    @if (hat(schluessel)) {
+      <mat-form-field
+        class="jahrfeld"
+        appearance="outline"
+        floatLabel="always"
+        subscriptSizing="dynamic"
+      >
+        <mat-label>{{ kurz[schluessel] }}</mat-label>
+        <input
+          matInput
+          type="number"
+          inputmode="numeric"
+          placeholder="Jahr"
+          [min]="jahrMinimum"
+          [max]="jahrMaximum"
+          [value]="jahrVon(schluessel) ?? ''"
+          [attr.aria-label]="bezeichnung[schluessel] + ', Jahr der Vergabe'"
+          (change)="jahrUebernehmen(schluessel, $event)"
+        />
+        @if (jahrVon(schluessel) === null) {
+          <mat-icon matSuffix class="jahr-fehlt" matTooltip="Vergabejahr fehlt"
+            >error_outline</mat-icon
+          >
+        }
+      </mat-form-field>
+    }
+  }
+</div>
+
+@if (anzeigeStufe(); as erfuellt) {
+  <mat-chip-set aria-label="Zu vergeben">
+    <mat-chip
+      [class]="chipKlasse(erfuellt)"
+      [class.erledigt]="!anspruch().faellig"
+      [matTooltip]="
+        anspruch().faellig
+          ? 'Jetzt zu vergeben, noch nicht als erhalten angehakt'
+          : 'Bereits erhalten'
+      "
+    >
+      <mat-icon matChipAvatar>{{
+        anspruch().faellig ? 'workspace_premium' : 'check_circle'
+      }}</mat-icon>
+      Zu vergeben: {{ kurz[erfuellt] }}
+    </mat-chip>
+  </mat-chip-set>
+}
+@for (hinweis of hinweise(); track hinweis) {
+  <span class="staffel-hinweis" role="note">
+    <mat-icon aria-hidden="true">warning</mat-icon> {{ hinweis }}
+  </span>
+}

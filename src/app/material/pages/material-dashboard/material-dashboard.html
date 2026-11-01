@@ -1,11 +1,8 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon" aria-hidden="true">inventory_2</mat-icon>
-  <span class="toolbar-title">Materialverwaltung</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="neuerBehaelter()">
+<app-seitenkopf titel="Materialverwaltung" icon="inventory_2">
+  <button matButton="filled" (click)="neuerBehaelter()">
     <mat-icon>add</mat-icon> Neuer Behälter
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="listen-inhalt">
   <p class="beschreibung">
@@ -22,39 +19,29 @@
     </p>
   }
 
-  <label class="suchfeld">
-    <span class="visuell-versteckt">Behälter durchsuchen</span>
-    <input
-      type="search"
-      placeholder="Behälter oder Fahrzeug suchen …"
-      [value]="suche()"
-      (input)="suche.set($any($event.target).value)"
-    />
-  </label>
+  <app-suchfeld
+    class="suchfeld"
+    [(wert)]="suche"
+    beschriftung="Behälter durchsuchen"
+    platzhalter="Behälter oder Fahrzeug suchen"
+  />
 
   @if (laedt()) {
-    <p role="status">Behälter werden geladen …</p>
+    <app-ladeanzeige text="Behälter werden geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (!laedt() && !fehler() && gruppen().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon" aria-hidden="true">inventory_2</mat-icon>
-      <p class="empty-hint">
-        @if (suche()) {
-          Kein Behälter passt zur Suche.
-        } @else {
-          Noch kein Behälter angelegt.
-        }
-      </p>
+    <app-leerzustand
+      icon="inventory_2"
+      [titel]="suche() ? 'Kein Behälter passt zur Suche.' : 'Noch kein Behälter angelegt.'"
+    >
       @if (!suche()) {
-        <button mat-raised-button color="primary" (click)="neuerBehaelter()">
-          Ersten Behälter anlegen
-        </button>
+        <button matButton="filled" (click)="neuerBehaelter()">Ersten Behälter anlegen</button>
       }
-    </div>
+    </app-leerzustand>
   } @else {
     @for (gruppe of gruppen(); track gruppe.fahrzeugId) {
       <section class="fahrzeug" [attr.aria-label]="'Behälter von ' + gruppe.bezeichnung">
@@ -79,7 +66,7 @@
                 }
               </a>
               <a
-                mat-stroked-button
+                matButton="outlined"
                 class="check-knopf"
                 [routerLink]="['/material/behaelter', eintrag.id, 'check']"
               >

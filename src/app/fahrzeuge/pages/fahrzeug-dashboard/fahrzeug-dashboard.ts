@@ -2,9 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/cor
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { FuhrparkUebersicht } from '../../components/fuhrpark-uebersicht/fuhrpark-uebersicht';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 /**
  * Fuhrpark-Dashboard: die Fahrzeugseite selbst, ohne Tab-Umwege. Kilometer-
@@ -18,7 +19,15 @@ import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-dashboard',
-  imports: [MatButtonModule, MatIconModule, MatToolbarModule, FuhrparkUebersicht],
+  imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    MatButtonModule,
+    MatIconModule,
+    FuhrparkUebersicht,
+  ],
   templateUrl: './fahrzeug-dashboard.html',
   styleUrl: './fahrzeug-dashboard.less',
 })

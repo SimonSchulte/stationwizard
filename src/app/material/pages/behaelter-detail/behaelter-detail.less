@@ -1,30 +1,7 @@
-@import '../../../kern/kopfleiste.less';
-
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.detail-kopfleiste {
-  .kopfleiste-basis();
-}
-
-.kopfleiste-icon {
-  color: var(--ci-red);
-  margin-right: var(--space-sm);
-}
-
-.toolbar-title {
-  min-width: 0;
-  flex: 0 1 auto;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.spacer {
-  flex: 1;
 }
 
 .detail-inhalt {
@@ -32,11 +9,6 @@
   max-width: 720px;
   margin: 0 auto;
   width: 100%;
-}
-
-.error-hint {
-  color: var(--status-error);
-  padding: var(--space-sm) 0;
 }
 
 .stammdaten {
@@ -95,9 +67,5 @@
 @media (max-width: 780px) {
   .detail-inhalt {
     padding: var(--space-md);
-  }
-
-  .toolbar-title {
-    flex: 1 0 100%;
   }
 }

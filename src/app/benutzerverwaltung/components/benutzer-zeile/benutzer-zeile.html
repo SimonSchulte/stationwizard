@@ -9,7 +9,7 @@
       </span>
     </div>
     <a
-      mat-icon-button
+      matIconButton
       class="google-admin-link"
       [href]="googleAdminLink()"
       target="_blank"
@@ -56,8 +56,7 @@
     }
 
     <button
-      mat-flat-button
-      color="primary"
+      matButton="filled"
       class="uebernehmen-button"
       [disabled]="!hatAenderung() || speichert()"
       (click)="uebernehmenKlick()"

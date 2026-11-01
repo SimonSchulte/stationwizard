@@ -12,7 +12,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
@@ -35,6 +34,9 @@ import {
   FuehrerscheinVorlageService,
   type FuehrerscheinVorlageMetadaten,
 } from '../../services/fuehrerschein-vorlage.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /**
  * Führerscheinliste: dieselbe organisationsweite HiOrg-Personalabfrage wie
@@ -52,6 +54,11 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuehrerscheinliste',
   imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,
@@ -60,7 +67,6 @@ import {
     MatInputModule,
     MatProgressSpinnerModule,
     MatTableModule,
-    MatToolbarModule,
     MatTooltipModule,
     RouterLink,
   ],

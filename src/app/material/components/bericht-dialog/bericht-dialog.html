@@ -9,14 +9,15 @@
 <mat-dialog-content>
   @if (!gewaehlt()) {
     <p class="einleitung">{{ daten.behaelterBezeichnung }} · geprüft am {{ daten.geprueftAm }}</p>
-    <div class="auswahl">
+    <mat-action-list class="auswahl">
       @for (art of arten; track art) {
-        <button type="button" class="belegknopf" (click)="waehle(art)">
-          <span class="belegtitel">{{ titel[art] }}</span>
-          <span class="belegtext">{{ erklaerung[art] }}</span>
+        <button mat-list-item (click)="waehle(art)">
+          <mat-icon matListItemIcon>description</mat-icon>
+          <span matListItemTitle>{{ titel[art] }}</span>
+          <span matListItemLine>{{ erklaerung[art] }}</span>
         </button>
       }
-    </div>
+    </mat-action-list>
   } @else {
     @if (laedt()) {
       <p role="status" class="laedt">
@@ -25,13 +26,13 @@
       </p>
     }
     @if (fehler()) {
-      <p class="error-hint" role="alert">{{ fehler() }}</p>
+      <app-meldung art="fehler">{{ fehler() }}</app-meldung>
     }
     @if (gesendetAn()) {
-      <p class="erfolg" role="status">
-        <mat-icon aria-hidden="true">mark_email_read</mat-icon>
-        Gesendet an {{ gesendetAn() }}.
-      </p>
+      <app-meldung art="erfolg"
+        ><mat-icon aria-hidden="true">mark_email_read</mat-icon> Gesendet an
+        {{ gesendetAn() }}.</app-meldung
+      >
     }
     @if (text()) {
       <pre class="bericht">{{ text() }}</pre>
@@ -53,16 +54,16 @@
 
 <mat-dialog-actions align="end">
   @if (gewaehlt()) {
-    <button mat-button (click)="zurueck()">Andere Auswahl</button>
-    <button mat-button [disabled]="!text()" (click)="kopieren()">
+    <button matButton (click)="zurueck()">Andere Auswahl</button>
+    <button matButton [disabled]="!text()" (click)="kopieren()">
       @if (kopiert()) {
         Kopiert
       } @else {
         Kopieren
       }
     </button>
-    <button mat-button [disabled]="!text()" (click)="herunterladen()">Herunterladen</button>
-    <button mat-raised-button color="primary" [disabled]="!text() || sendet()" (click)="senden()">
+    <button matButton [disabled]="!text()" (click)="herunterladen()">Herunterladen</button>
+    <button matButton="filled" [disabled]="!text() || sendet()" (click)="senden()">
       @if (sendet()) {
         Wird gesendet …
       } @else {
@@ -70,6 +71,6 @@
       }
     </button>
   } @else {
-    <button mat-button (click)="schliessen()">Schließen</button>
+    <button matButton (click)="schliessen()">Schließen</button>
   }
 </mat-dialog-actions>

@@ -1,28 +1,23 @@
-<mat-toolbar class="dashboard-kopfleiste">
-  <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
-  <span class="toolbar-title">Fahrzeuge</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+<app-seitenkopf titel="Fahrzeuge" icon="local_shipping">
+  <button matButton="filled" (click)="neuesFahrzeug()">
     <mat-icon>add</mat-icon> Neues Fahrzeug
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="dashboard-content">
   @if (listeLaedt()) {
-    <p role="status">Fahrzeuge werden geladen …</p>
+    <app-ladeanzeige text="Fahrzeuge werden geladen …" />
   }
   @if (listeFehler()) {
-    <p class="error-hint" role="alert">{{ listeFehler() }}</p>
+    <app-meldung art="fehler">{{ listeFehler() }}</app-meldung>
   }
 
   @if (!listeLaedt() && !listeFehler() && fahrzeuge().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon">local_shipping</mat-icon>
-      <p class="empty-hint">Noch keine Fahrzeuge angelegt.</p>
-      <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+    <app-leerzustand icon="local_shipping" titel="Noch keine Fahrzeuge angelegt.">
+      <button leerAktion matButton="filled" (click)="neuesFahrzeug()">
         <mat-icon>add</mat-icon> Neues Fahrzeug anlegen
       </button>
-    </div>
+    </app-leerzustand>
   }
 
   @if (fahrzeuge().length > 0) {

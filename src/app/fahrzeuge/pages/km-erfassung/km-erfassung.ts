@@ -4,23 +4,26 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { heuteIso } from '../../../kern/kalender/datum';
 import { EingebbareQuelle, Fahrzeugstamm } from '../../models/fahrzeug.model';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
 import { AblesungHinweis, pruefeAblesungPlausibilitaet } from '../../services/ablesung-pruefung';
 import { ApiFahrzeugStorage } from '../../storage/api-fahrzeug-storage';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-km-erfassung',
   imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatToolbarModule,
   ],
   templateUrl: './km-erfassung.html',
   styleUrl: './km-erfassung.less',

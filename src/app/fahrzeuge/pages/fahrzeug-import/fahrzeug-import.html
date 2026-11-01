@@ -1,9 +1,9 @@
-<mat-toolbar class="import-kopfleiste">
-  <mat-icon class="kopfleiste-icon">upload_file</mat-icon>
-  <span class="toolbar-title">Fahrzeuge importieren</span>
-  <span class="spacer"></span>
-  <a mat-button routerLink="/verwaltung">Zurück zur Verwaltung</a>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Fahrzeuge importieren"
+  icon="upload_file"
+  zurueck="/verwaltung"
+  zurueckText="Zurück zur Verwaltung"
+/>
 
 <div class="import-inhalt">
   <section class="abschnitt">
@@ -19,7 +19,7 @@
       Jedes Kennzeichen wird nur einmalig importiert. Ist es schon vergeben, wird die Zeile
       abgewiesen – ein bestehendes Fahrzeug wird nie überschrieben.
     </p>
-    <button mat-stroked-button type="button" (click)="vorlageHerunterladen()">
+    <button matButton="outlined" type="button" (click)="vorlageHerunterladen()">
       <mat-icon>download</mat-icon>
       Mustervorlage herunterladen
     </button>
@@ -38,13 +38,13 @@
       <p class="dateiname">{{ dateiname() }}</p>
     }
     @if (liestEin()) {
-      <p role="status">Datei wird gelesen …</p>
+      <app-ladeanzeige text="Datei wird gelesen …" />
     }
     @if (fehler()) {
-      <p class="error-hint" role="alert">{{ fehler() }}</p>
+      <app-meldung art="fehler">{{ fehler() }}</app-meldung>
     }
     @for (spaltenfehler of vorschau().spaltenfehler; track spaltenfehler) {
-      <p class="error-hint" role="alert">{{ spaltenfehler }}</p>
+      <app-meldung art="fehler">{{ spaltenfehler }}</app-meldung>
     }
     @for (hinweis of vorschau().hinweise; track hinweis) {
       <p class="empty-hint">{{ hinweis }}</p>
@@ -88,17 +88,16 @@
         <p role="status">{{ erledigt() }} von {{ gesamt() }} angelegt …</p>
       }
       <div class="aktionen">
-        <button
-          mat-raised-button
-          color="primary"
-          type="button"
-          [disabled]="!bereit()"
-          (click)="importStarten()"
-        >
+        <button matButton="filled" type="button" [disabled]="!bereit()" (click)="importStarten()">
           <mat-icon>playlist_add</mat-icon>
           {{ gesamt() }} Fahrzeug(e) anlegen
         </button>
-        <button mat-stroked-button type="button" [disabled]="laeuftGerade()" (click)="neueDatei()">
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="laeuftGerade()"
+          (click)="neueDatei()"
+        >
           Andere Datei
         </button>
       </div>
@@ -131,12 +130,12 @@
         }
       </ul>
       <div class="aktionen">
-        <button mat-stroked-button type="button" (click)="berichtHerunterladen()">
+        <button matButton="outlined" type="button" (click)="berichtHerunterladen()">
           <mat-icon>download</mat-icon>
           Bericht als CSV herunterladen
         </button>
-        <button mat-stroked-button type="button" (click)="neueDatei()">Andere Datei</button>
-        <a mat-button routerLink="/fahrzeuge/liste">Zur Fahrzeugliste</a>
+        <button matButton="outlined" type="button" (click)="neueDatei()">Andere Datei</button>
+        <a matButton routerLink="/fahrzeuge/liste">Zur Fahrzeugliste</a>
       </div>
     </section>
   }

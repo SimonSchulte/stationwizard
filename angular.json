@@ -31,6 +31,13 @@
               }
             ],
             "styles": ["src/theme.scss", "src/styles.less"],
+            "allowedCommonJsDependencies": [
+              "qrcode",
+              "pdfmake/build/pdfmake",
+              "pdfmake/build/vfs_fonts",
+              "base64-js",
+              "pako"
+            ],
             "outputPath": "dist/stationwizard"
           },
           "configurations": {

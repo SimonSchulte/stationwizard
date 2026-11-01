@@ -1,0 +1,22 @@
+<div class="staerke-row soll" role="row">
+  <span class="staerke-label" role="gridcell">Soll</span>
+  @for (spalte of teile; track spalte) {
+    <span class="staerke-num" role="gridcell">{{ soll()[spalte] }}</span>
+    <span class="staerke-sep" role="gridcell">/</span>
+  }
+  <span class="staerke-num" role="gridcell"
+    ><span class="gesamt-num">{{ soll().gesamt }}</span></span
+  >
+</div>
+<div class="staerke-row ist" role="row">
+  <span class="staerke-label" role="gridcell">Ist</span>
+  @for (spalte of teile; track spalte) {
+    <span class="staerke-num" role="gridcell" [class]="status(ist()[spalte], soll()[spalte])">{{
+      ist()[spalte]
+    }}</span>
+    <span class="staerke-sep" role="gridcell">/</span>
+  }
+  <span class="staerke-num" role="gridcell" [class]="status(ist().gesamt, soll().gesamt)"
+    ><span class="gesamt-num">{{ ist().gesamt }}</span></span
+  >
+</div>

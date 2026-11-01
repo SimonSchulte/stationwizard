@@ -1,74 +1,67 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon">badge</mat-icon>
-  <span class="toolbar-title">Personal</span>
-  <span class="spacer"></span>
-  <span class="verbindungsstatus" [class.verbunden]="verbindung() === 'verbunden'">
-    <mat-icon>{{ verbindung() === 'verbunden' ? 'cloud_done' : 'cloud_off' }}</mat-icon>
-    <span>{{
+<app-seitenkopf titel="Personal" icon="badge">
+  <app-verbindungsstatus
+    class="verbindungsstatus"
+    [verbunden]="verbindung() === 'verbunden'"
+    [text]="
       verbindung() === 'verbunden'
         ? 'HiOrg-Server-API verbunden'
         : 'HiOrg-Server-API nicht verbunden'
-    }}</span>
-  </span>
-  <button mat-stroked-button routerLink="/personal/ehrungen">
+    "
+  />
+  <button matButton="outlined" routerLink="/personal/ehrungen">
     <mat-icon>military_tech</mat-icon> Ehrungsmanager
   </button>
   @if (verbindung() === 'verbunden') {
-    <button mat-stroked-button routerLink="/personal/fuehrerscheine">
+    <button matButton="outlined" routerLink="/personal/fuehrerscheine">
       <mat-icon>badge</mat-icon> Führerscheinliste
     </button>
-    <button mat-stroked-button (click)="laden()" [disabled]="laedt()">
+    <button matButton="outlined" (click)="laden()" [disabled]="laedt()">
       <mat-icon>refresh</mat-icon> Aktualisieren
     </button>
-    <button mat-button (click)="trennen()" [disabled]="laedt()">Verbindung trennen</button>
+    <button matButton (click)="trennen()" [disabled]="laedt()">Verbindung trennen</button>
   }
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="inhalt">
   @if (rueckmeldung()) {
-    <p class="rueckmeldung" [class.erfolg]="rueckmeldungErfolg()" role="status">
-      <span>{{ rueckmeldung() }}</span>
-      <button mat-icon-button matTooltip="Ausblenden" (click)="rueckmeldung.set('')">
-        <mat-icon>close</mat-icon>
-      </button>
-    </p>
+    <app-meldung
+      [art]="rueckmeldungErfolg() ? 'erfolg' : 'warnung'"
+      (geschlossen)="rueckmeldung.set('')"
+    >
+      {{ rueckmeldung() }}
+    </app-meldung>
   }
 
-  <h1>Übersicht</h1>
-
   @if (fehler()) {
-    <p class="fehler" role="alert">{{ fehler() }}</p>
-    <button mat-button (click)="laden()" [disabled]="laedt()">Erneut versuchen</button>
+    <app-meldung art="fehler"
+      >{{ fehler() }}
+      <button matButton meldungAktion (click)="laden()" [disabled]="laedt()">
+        Erneut versuchen
+      </button>
+    </app-meldung>
   }
 
   @if (laedt()) {
-    <div class="laden" role="status">
-      <mat-spinner diameter="36" />
-      <span>Personal wird vom HiOrg-Server geladen…</span>
-    </div>
+    <app-ladeanzeige text="Personal wird vom HiOrg-Server geladen…" />
   } @else {
     @switch (verbindung()) {
       @case ('nicht-eingerichtet') {
-        <p class="leer">
+        <app-meldung art="warnung">
           Die HiOrg-Server-API ist am Server noch nicht eingerichtet (Client-ID, Client-Secret und
           Datenbankmigration).
-        </p>
+        </app-meldung>
       }
       @case ('getrennt') {
         <app-hiorg-verbinden class="verbinden" ziel="personal" (verbunden)="laden()" />
       }
       @case ('verbunden') {
         <div class="werkzeuge">
-          <mat-form-field class="suche" subscriptSizing="dynamic">
-            <mat-label>Suchen</mat-label>
-            <mat-icon matPrefix>search</mat-icon>
-            <input
-              matInput
-              [value]="suche()"
-              (input)="suche.set($any($event.target).value)"
-              placeholder="Name, Gruppe oder Qualifikation"
-            />
-          </mat-form-field>
+          <app-suchfeld
+            class="suche"
+            [(wert)]="suche"
+            beschriftung="Suchen"
+            platzhalter="Name, Gruppe oder Qualifikation"
+          />
           <app-gruppen-filter [gruppen]="gruppen()" [(auswahl)]="gruppenAuswahl" />
           <span class="anzahl" role="status">
             {{ gefiltert().length }} von {{ personen().length }} Personen
@@ -76,9 +69,9 @@
         </div>
 
         @if (personen().length === 0) {
-          <p class="leer">Der HiOrg-Server hat kein aktives Personal geliefert.</p>
+          <app-leerzustand kompakt titel="Der HiOrg-Server hat kein aktives Personal geliefert." />
         } @else if (gefiltert().length === 0) {
-          <p class="leer">Keine Person passt zur Suche.</p>
+          <app-leerzustand kompakt titel="Keine Person passt zur Suche." />
         } @else {
           <div class="tabellenbereich">
             <table mat-table [dataSource]="gefiltert()" class="personal-tabelle">

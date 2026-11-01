@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { distinctUntilChanged, map } from 'rxjs';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DatePipe } from '@angular/common';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { heuteIso } from '../../../kern/kalender/datum';
@@ -22,6 +21,8 @@ import { AngebotStoreService } from '../../services/angebot-store.service';
 import { PreiskatalogStoreService } from '../../services/preiskatalog-store.service';
 import { TabellenZwischenablageService } from '../../services/tabellen-zwischenablage';
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 function neueSchicht(): Schicht {
   return { id: crypto.randomUUID(), datum: heuteIso(), von: '08:00', bis: '20:00', positionen: [] };
@@ -31,14 +32,15 @@ function neueSchicht(): Schicht {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebot-detail',
   imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     DatePipe,
-    RouterLink,
     MatButtonModule,
     MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatToolbarModule,
     AngebotKalkulationstabelle,
     SchichtEditor,
   ],

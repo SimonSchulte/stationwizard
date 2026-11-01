@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { distinctUntilChanged, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -9,7 +9,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
   HERKUENFTE,
@@ -23,6 +22,8 @@ import {
   neuerArtikel,
   neuesFach,
 } from '../../services/pruefvorlage-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 /**
  * Bearbeitet eine Prüfvorlage als Ganzes: Kopfdaten, Fächer und Artikel. Der
@@ -34,7 +35,10 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-vorlage-editor',
   imports: [
-    RouterLink,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     MatButtonModule,
     MatCheckboxModule,
     MatExpansionModule,
@@ -42,7 +46,6 @@ import {
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatToolbarModule,
   ],
   templateUrl: './vorlage-editor.html',
   styleUrl: './vorlage-editor.less',

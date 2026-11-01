@@ -16,7 +16,6 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { SaveLoadService } from '../../services/save-load.service';
@@ -24,11 +23,19 @@ import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
+import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-list',
   imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    Verbindungsstatus,
     DatePipe,
     MatButtonModule,
     MatCardModule,
@@ -37,7 +44,6 @@ import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
     MatProgressSpinnerModule,
     MatTableModule,
     MatTooltipModule,
-    MatToolbarModule,
   ],
   templateUrl: './planning-list.html',
   styleUrl: './planning-list.less',

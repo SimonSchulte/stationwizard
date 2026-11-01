@@ -2,6 +2,7 @@ import { fehlerAntwort, jsonAntwort } from './antwort';
 import { ERFASSUNG_TOKEN_MUSTER, gleichInKonstanterZeit } from './erfassung-token';
 import { istObjekt, leseJsonBegrenzt } from './json-lesen';
 import { berlinerKalendertag } from './kalender';
+import { pruefeUrsprung, SCHUTZ_HEADER } from './oeffentlich-schutz';
 import { verarbeiteOeffentlichenCheck } from './oeffentlicher-check';
 
 /**
@@ -68,14 +69,6 @@ const STAND_MAX = 9_999_999;
  */
 const MAX_OFFENE_JE_FAHRZEUG = 5;
 const WIEDERHOLFENSTER_MS = 60_000;
-
-/** Header jeder öffentlichen Antwort. */
-export const SCHUTZ_HEADER: Readonly<Record<string, string>> = {
-  'Cache-Control': 'no-store',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'no-referrer',
-  'X-Robots-Tag': 'noindex, nofollow',
-};
 
 /**
  * Strikt, weil sie es sein kann: das Build-Ziel bindet Stil und Skript als
@@ -246,26 +239,6 @@ async function liefereDatei(
     status: 200,
     headers: header,
   });
-}
-
-/**
- * Die Ursprungsprüfung aus `index.ts` läuft vor diesem Zweig nicht – sie steht
- * dort hinter `pruefeAnmeldung`. Hier ist sie strenger als die globale: ein
- * fehlender `Origin` wird nicht geduldet, weil die Meldung garantiert aus einem
- * Browser derselben Origin abgeschickt wird.
- */
-export function pruefeUrsprung(anfrage: Request, url: URL): Response | null {
-  const ursprung = anfrage.headers.get('Origin');
-  const site = anfrage.headers.get('Sec-Fetch-Site');
-  if (ursprung !== url.origin || (site !== null && site !== 'same-origin')) {
-    return fehlerAntwort(
-      'ANFRAGE_URSPRUNG_UNGUELTIG',
-      'Meldungen sind nur aus dieser Anwendung erlaubt.',
-      403,
-      SCHUTZ_HEADER,
-    );
-  }
-  return null;
 }
 
 interface FahrzeugFuerMeldung {

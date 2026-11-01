@@ -103,6 +103,30 @@ export function staffelVon(schluessel: EhrungSchluessel): readonly EhrungSchlues
   return STAFFELN.find((staffel) => staffel.includes(schluessel)) ?? null;
 }
 
+/**
+ * Staffel: Gold erst nach Silber, Silber erst nach Bronze (ebenso Ehrenzeichen → Band → Nadel).
+ * Eine Stufe lässt sich nur anhaken, wenn ihre Vorstufe erhalten ist, und nur abhaken, solange
+ * keine höhere Stufe erhalten ist. Bestehende Lücken unterhalb einer erfassten Stufe lassen sich
+ * nachtragen, damit sich alte Bestände bereinigen lassen.
+ */
+export function stufeGesperrt(erhalten: Erhalten, schluessel: EhrungSchluessel): boolean {
+  const staffel = staffelVon(schluessel);
+  if (!staffel) return false;
+  const index = staffel.indexOf(schluessel);
+  const hoehereErhalten = staffel.slice(index + 1).some((stufe) => hatErhalten(erhalten, stufe));
+  if (hatErhalten(erhalten, schluessel)) return hoehereErhalten;
+  const vorstufe = staffel[index - 1];
+  return vorstufe !== undefined && !hatErhalten(erhalten, vorstufe) && !hoehereErhalten;
+}
+
+export type EhrungGruppe = 'leistung' | 'jubilaeum' | 'uhr' | 'ehrenzeichen';
+
+export function gruppeVon(schluessel: EhrungSchluessel): EhrungGruppe {
+  if (LEISTUNGSABZEICHEN.includes(schluessel)) return 'leistung';
+  if (JUBILAEUMSZEICHEN.includes(schluessel)) return 'jubilaeum';
+  return JUBILAEUMSUHREN.includes(schluessel) ? 'uhr' : 'ehrenzeichen';
+}
+
 export function vorstufe(schluessel: EhrungSchluessel): EhrungSchluessel | null {
   const staffel = staffelVon(schluessel);
   const index = staffel ? staffel.indexOf(schluessel) : -1;
