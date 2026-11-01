@@ -2,14 +2,15 @@
   <mat-icon class="kopfleiste-icon">badge</mat-icon>
   <span class="toolbar-title">Personal</span>
   <span class="spacer"></span>
-  <span class="verbindungsstatus" [class.verbunden]="verbindung() === 'verbunden'">
-    <mat-icon>{{ verbindung() === 'verbunden' ? 'cloud_done' : 'cloud_off' }}</mat-icon>
-    <span>{{
+  <app-verbindungsstatus
+    class="verbindungsstatus"
+    [verbunden]="verbindung() === 'verbunden'"
+    [text]="
       verbindung() === 'verbunden'
         ? 'HiOrg-Server-API verbunden'
         : 'HiOrg-Server-API nicht verbunden'
-    }}</span>
-  </span>
+    "
+  />
   <button mat-stroked-button routerLink="/personal/ehrungen">
     <mat-icon>military_tech</mat-icon> Ehrungsmanager
   </button>

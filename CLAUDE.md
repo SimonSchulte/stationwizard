@@ -16,6 +16,18 @@ Prüfungen und offene Abnahmegrenzen.
   mit `signal()` und `computed()` führen. Keine neuen `NgModule`, kein `zone.js`.
 - Komponentennamen ohne `Component`-Suffix. Templates und LESS getrennt in `<name>.html`
   und `<name>.less`; keine großen Inline-Templates oder Inline-Styles.
+- Kleine, wiederverwendbare Bausteine statt großer Seiten. Seiten halten Zustand und rufen
+  Dienste; was sich wiederholt oder einen eigenen Zweck hat, wird eine rein darstellende
+  Komponente mit `input()`/`output()` unter `<modul>/components/` (fachlich) oder `kern/`
+  (fachübergreifend), reine Berechnungen eine Funktion mit eigenem Test. Beispiele:
+  `einsatz/components/` (`PositionZeile`, `StaerkeBlock`, `QualifikationsChips`,
+  `AnforderungsAuswahl`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
+  `StundenImport`), `ausbildung/components/` (`MonatsNavigation`, `HiorgEbenenAuswahl`),
+  `kern/` (`Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
+  Vor einer neuen Komponente nach einer vorhandenen suchen.
+- Worker-Module nach demselben Muster: `<modul>.ts` verteilt nur die festen Pfade,
+  `<modul>-gemeinsam.ts` hält Konfiguration, Grenzen und Körperlesen, je Ressource eine
+  eigene Datei (etwa `material-vorlagen.ts`, `fahrzeuge-ablesungen.ts`). Keine Importzyklen.
 - Strict TypeScript und `strictTemplates` erhalten, einschließlich
   `noPropertyAccessFromIndexSignature`. Unbekannte externe Daten prüfen, bevor sie in
   Domänenmodelle gelangen; Prüfungen nicht durch `any` oder ungeprüfte Casts umgehen.
@@ -636,7 +648,7 @@ mehrfach erlaubt. Der Worker prüft vorab und antwortet mit
 `409 / FAHRZEUG_KENNZEICHEN_VERGEBEN`, übersetzt aber auch eine Indexverletzung aus einem
 Rennen in dieselbe Antwort — die Vorabprüfung nicht als alleinigen Schutz behandeln. Die
 Vergleichsform steht an drei Stellen und wird nur gemeinsam geändert: Migration,
-`kennzeichenVergeben()` in `worker/src/fahrzeuge.ts` und
+`kennzeichenVergeben()` in `worker/src/fahrzeuge-stammdaten.ts` und
 `src/app/fahrzeuge/services/kennzeichen.ts`. `InMemoryFahrzeugStorage` und
 `FakeFahrzeugeDb` bilden die Regel nach; das so erhalten. Die Fachschicht sieht
 `KennzeichenVergebenFehler`, nicht `FahrzeugKonfliktFehler` — erneutes Laden hilft hier
@@ -650,7 +662,8 @@ zuerst einen Nachweis durch die echte API und deren offizielle Dokumentation. Di
 Nextcloud-Routen sind kein generischer WebDAV-Proxy; keine frei wählbaren Pfade oder
 Löschmethoden ergänzen.
 
-Die HiOrg-Server-API (`worker/src/hiorg-api.ts`) ist ein zweiter, von EFS unabhängiger
+Die HiOrg-Server-API (`worker/src/hiorg-api.ts` als Verteiler, dazu `hiorg-oauth.ts`,
+`hiorg-upstream.ts`, `hiorg-tokenablage.ts`, `hiorg-personal-felder.ts`) ist ein zweiter, von EFS unabhängiger
 Weg: OAuth2 Authorization Code mit `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET`, je
 Access-Identität ein eigenes HiOrg-Konto, Token nur AES-GCM-verschlüsselt in
 `hiorg_verbindungen` (`BENUTZER_DB`). Redirect-URI ist standardmäßig der Access-Callback
@@ -665,11 +678,11 @@ Bankverbindung, Ernährung, Allergien, Bemerkungen, Rechte oder benutzerdefinier
 Die Fahrerlaubnis (`attributes.fahrerlaubnis`: `klassen`, `beschraenkung`,
 `fuehrerscheinnummer`, `fuehrerscheindatum`) ist die eine bewusste Ausnahme von „keine
 Führerscheindaten" – belegt durch die offizielle Feldbeschreibung der Personal-Ressource
-(`filterePersonal()`/`HiorgFahrerlaubnis` in `hiorg-api.ts`) – und verlässt den Worker
+(`filterePersonal()`/`HiorgFahrerlaubnis` in `hiorg-personal-felder.ts`) – und verlässt den Worker
 ausschließlich für die Führerscheinliste
 (`src/app/personal/pages/fuehrerscheinliste/`). Die zweite, ebenso eng gefasste Ausnahme sind
 **Anschrift und Geburtsdatum für den Ehrungsantrag**: `GET /api/hiorg/personal/<Id>/antragsdaten`
-(`antragsdatenAusPersonal()` in `hiorg-api.ts`, vom Betreiber beauftragt, Feldnamen `adresse`,
+(`antragsdatenAusPersonal()` in `hiorg-personal-felder.ts`, vom Betreiber beauftragt, Feldnamen `adresse`,
 `plz`, `ort`, `gebdat`, `anrede` aus der offiziellen Beispielantwort der Personal-Ressource) liest
 denselben belegten Personalabruf, gibt aber nur diese fünf Felder genau **einer** Person heraus –
 nie in der allgemeinen Personalliste, nie gespeichert, abgerufen erst beim Erstellen eines
@@ -725,7 +738,7 @@ Der **Ehrungsmanager** (Seitentitel und Menüknopf; früher „Ehrungen 2026“,
 `ehrungen_personen` (`BENUTZER_DB`, Migration `0014_ehrungen.sql`) mit eigener Version. Gespeichert
 wird nur, was erfasst oder importiert ist: Stunden (Import `stunden` und manueller Nachtrag `stunden_manuell`, Migration `0015`; für **alle** Berechnungen zählt die größere der beiden Zahlen, `wirksameStunden()` in Worker und Client gemeinsam ändern; die Seite zeigt beide mit Symbol und Tooltip), zu jedem manuellen Nachtrag gehört zwingend ein **Stand** (Jahr, `stunden_manuell_stand`, Migration `0016`; der Worker lehnt einen Nachtrag ohne Stand mit 400 ab, die Seite sperrt „Speichern“, solange er fehlt; das Protokoll hält den Stand des neuen Werts fest, auch eine reine Änderung des Stands erzeugt einen Eintrag), Eintrittsdatum, „Besondere Verdienste“ und die
 bereits erhaltenen Auszeichnungen mit dem **Jahr der Vergabe** (JSON-Objekt Schlüssel → Jahr oder
-`null` für „erhalten, Jahr unbekannt“; feste Schlüsselliste in `ehrungen.ts` **und**
+`null` für „erhalten, Jahr unbekannt“; feste Schlüsselliste in `ehrungen-gemeinsam.ts` (Worker) **und**
 `ehrungen-regeln.ts`; ein Jahr wird beim Anhaken bewusst nicht vorbelegt, ein fehlendes ist
 markiert und filterbar; die früher gespeicherte Liste ohne Jahre wird als `null`-Jahre gelesen). Was zu vergeben ist, wird im Client berechnet (`ehrungen-regeln.ts`) und nie
 gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach Mitgliedsjahren
@@ -734,7 +747,7 @@ gespeichert: Leistungsabzeichen nach Stunden (> 1000/2000/4000), Jubiläum nach 
 12 Jahre nach Verleihung des Ehrenzeichens am Bande – dessen Vergabejahr muss erfasst sein, sonst
 bleibt die Ehrennadel unerreicht; so vom Betreiber vorgegeben, die Arbeitstabelle rechnete noch
 anders). Die Schwellen der Leistungsabzeichen stammen aus der Arbeitstabelle. „Fällig“ heißt: die erfüllte Stufe ist
-noch nicht angehakt. **Staffelung**: Leistungsabzeichen (Bronze → Silber → Gold) und Ehrenzeichen (Ehrenzeichen → am Bande → Ehrennadel) werden nur der Reihe nach vergeben; die Seite sperrt die Chips einer höheren Stufe, solange die Vorstufe fehlt (`chipGesperrt()`), „Zu vergeben“ und der Export „Zu Ehrende“ nennen die nächste vergebbare Stufe (`Anspruch.naechste`), und eine Warnung (`staffelHinweise()`/`warnungen()`) erscheint, wenn der Anspruch weiter reicht („Anspruch bis Silber, aber zuerst Bronze vergeben“) oder Erhaltenes ohne Vorstufe erfasst ist. Der Excel-Export enthält in beiden Exporten eine Spalte „Hinweis“ (im Export „Zu Ehrende“ dazu „Anspruch bis“) und ein Blatt „Warnungen“. Nur clientseitig: der Worker erzwingt die Staffel nicht (Altbestand bleibt speicherbar); Jubiläumszeichen und -uhr sind keine Staffel. Die **Jubiläumsuhr** (30/40/50 Jahre ununterbrochene aktive Tätigkeit, Schlüssel `uhr-30/40/50`, ab
+noch nicht angehakt. **Staffelung**: Leistungsabzeichen (Bronze → Silber → Gold) und Ehrenzeichen (Ehrenzeichen → am Bande → Ehrennadel) werden nur der Reihe nach vergeben; die Seite sperrt die Chips einer höheren Stufe, solange die Vorstufe fehlt (`stufeGesperrt()` in `ehrungen-regeln.ts`), „Zu vergeben“ und der Export „Zu Ehrende“ nennen die nächste vergebbare Stufe (`Anspruch.naechste`), und eine Warnung (`staffelHinweise()`/`warnungen()`) erscheint, wenn der Anspruch weiter reicht („Anspruch bis Silber, aber zuerst Bronze vergeben“) oder Erhaltenes ohne Vorstufe erfasst ist. Der Excel-Export enthält in beiden Exporten eine Spalte „Hinweis“ (im Export „Zu Ehrende“ dazu „Anspruch bis“) und ein Blatt „Warnungen“. Nur clientseitig: der Worker erzwingt die Staffel nicht (Altbestand bleibt speicherbar); Jubiläumszeichen und -uhr sind keine Staffel. Die **Jubiläumsuhr** (30/40/50 Jahre ununterbrochene aktive Tätigkeit, Schlüssel `uhr-30/40/50`, ab
 erreicht, höchste Stufe) wird wie das Jubiläumszeichen aus dem Eintrittsdatum berechnet; Unterbrechungen
 der Tätigkeit sind nicht erfasst und werden nicht geprüft. Erfasst wird nur „Jubiläumsuhr“ plus Stufe;
 ob Damen- oder Herrenuhr, ermittelt allein der Export „Zu Ehrende“ aus der HiOrg-Anrede
@@ -758,7 +771,7 @@ und Status Alle/Erhalten/Fällig/Jahr fehlt, Vollbild über die Fullscreen-API m
 Vollbild-Fläche; seitenweise Anzeige mit `mat-paginator` und stabile Zeilenobjekte mit `trackBy`,
 weil sonst jede Änderung alle Zeilen neu aufbaut) schreibt Häkchen gesammelt über „Speichern“, ein `PUT` je tatsächlich geänderter Person.
 Der Eintrittsdatum-Abgleich mit HiOrg nutzt `mitglied_seit` aus der Personal-Antwort
-(`leseMitgliedSeit()` in `hiorg-api.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
+(`leseMitgliedSeit()` in `hiorg-personal-felder.ts`, nur als `mitgliedSeit` im Format `JJJJ-MM-TT`; ein
 unlesbarer Wert verwirft die Antwort nicht). Der Feldname wurde vom Betreiber genannt und ist
 **nicht** gegen die offizielle HiOrg-Feldbeschreibung oder die echte API belegt. Die Seite **Offene Ehrungen** (`/personal/offene-ehrungen`, `src/app/personal/pages/offene-ehrungen/`, Menüpunkt unter Personal) ersetzt den früheren Excel-Knopf „Zu Ehrende“ im Ehrungsmanager: sie zeigt dieselbe Liste (`zuEhrende()`, aus dem **gespeicherten** Stand, nicht aus ungesicherten Änderungen) mit den Haken „Abgestimmt OB“ (mit dem Ortsbeauftragten abgestimmt) und „Beantragt“, die sofort je Klick gespeichert werden (`ehrungen_vorgaenge` in `BENUTZER_DB`, Migration `0017`; Schlüssel Person + Auszeichnung). Die Haken sind unabhängige, idempotente Werte: jede Anfrage setzt nur das genannte Feld, deshalb gibt es bewusst keine Version und kein `If-Match`. Zeitpunkt und Benutzer setzt der Worker; beim Entfernen einer Person räumt er die Haken weg. Was offen ist, wird weiterhin nie gespeichert – erscheint eine Auszeichnung als erhalten, verschwindet sie aus der Liste (ihre Zeile bleibt unbeachtet liegen). Je Person (nicht je Auszeichnung) wählt die Seite den **Zuständigen OV** (`bielefeld`, `werther`; feste Liste `OV_SCHLUESSEL` in Worker und Client gemeinsam ändern; Tabelle `ehrungen_zustaendigkeit`, Migration `0018`, ohne Version; `GET …/vorgaenge` liefert sie als `zustaendigkeiten` mit, `PUT …/<UUID>/zustaendigkeit` setzt oder löscht sie mit `ov: null`); der Excel-Export enthält die Spalte "Zuständiger OV". Der Excel-Export dieser Seite (`zuEhrendeExcelErzeugen()`) enthält die Haken als Spalten. **Antrag:** an die Stelle des Hakens „Beantragt“ ist ein Knopf getreten, der das PDF-Formular „Antrag auf Verleihung einer Auszeichnung“ (Revision 3.2) im Browser füllt (`ehrungsantrag-pdf.ts`, `pdf-lib` dynamisch importiert) und herunterlädt; die Felder bleiben ausfüllbar, nichts wird abgeflacht. Gefüllt werden Name, Frau/Herr (nur bei eindeutiger HiOrg-Anrede), LV/RV aus den Organisationsstammdaten, Mitglied seit (Eintrittsdatum), Tätigkeit (bei jedem Download abgefragt, nicht gespeichert), Dienststunden (wirksame Stunden), „verliehen am“ der bereits erhaltenen Auszeichnungen (nur das Vergabejahr, ohne Jahr „erhalten“), das Kästchen der beantragten Auszeichnung (Leistungsabzeichen in der allgemeinen Zeile, nie Jugend/Ausland) und die Begründung aus der gleichnamigen Spalte (Freitext, beim Verlassen des Feldes gespeichert, Spalte `begruendung`, höchstens 2000 Zeichen). Straße, Wohnort (PLZ und Ort) und Geburtsdatum kommen beim Download einzeln aus `GET /api/hiorg/personal/<Id>/antragsdaten` (siehe HiOrg-Abschnitt), ebenso die Anrede für Frau/Herr; ist HiOrg beim Öffnen der Seite nicht verbunden, wird die Zuordnung beim Download einmal nachgeladen. Fehlt etwas, bleibt das Feld leer und die Seite nennt den Grund. Datum der Verleihung und Unterschriften bleiben immer leer. Nach dem Download vermerkt `PUT …/vorgaenge/<art>` mit `{ "antragErstellt": true }` den Zeitpunkt (`antrag_erstellt_am`, nur vom Worker gesetzt, nie aus dem Körper) und setzt `beantragt`, damit der Filter „Beantragt“ weiter gilt; angezeigt wird „zuletzt erstellt am <Datum>“. Das Formular liegt wie die Führerschein-Vorlage im Verwaltungsbereich (`/verwaltung/ehrungsantrag-vorlage`, Tabelle `ehrungsantrag_vorlage`, Migration `0019`; gemeinsame Ablage `worker/src/datei-vorlage.ts` und `DateiVorlageDienst`, gemeinsame Verwaltungsseite mit `data: { vorlage: 'ehrungsantrag' }`). Die Feldnamen sind an die Revision 3.2 gebunden (`ANTRAG_KAESTCHEN`, `VERLIEHEN_AM_FELD`); fehlen Felder, lehnt die Verwaltungsseite den Upload ab und der Download bricht ab, statt halb zu füllen. Der Export „Zu Ehrende“
 (`zuEhrende()`, `zuEhrendeExcelErzeugen()`) listet je Person und Gruppe die höchste fällige, noch nicht

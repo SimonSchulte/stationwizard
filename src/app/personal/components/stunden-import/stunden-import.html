@@ -1,0 +1,50 @@
+<mat-card appearance="outlined" class="import" aria-label="Stundenimport">
+  <mat-card-header>
+    <mat-card-title>Stunden importieren</mat-card-title>
+    <mat-card-subtitle>
+      Eine Person je Zeile: <code>Nachname, Vorname 6.546,98</code>
+    </mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <p class="hinweis">
+      Vorhandene Personen werden über Nachname und Vorname gefunden und in ihren Stunden
+      aktualisiert, neue werden angelegt. Personen, die im Text fehlen, bleiben unverändert.
+    </p>
+    <mat-form-field class="import-text" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Text einfügen</mat-label>
+      <textarea
+        matInput
+        rows="8"
+        [value]="text()"
+        (input)="text.set($any($event.target).value)"
+      ></textarea>
+    </mat-form-field>
+    @if (text().trim()) {
+      <mat-chip-set aria-label="Vorschau des Imports">
+        <mat-chip class="chip-neu">{{ vorschau().neu }} neu</mat-chip>
+        <mat-chip>{{ vorschau().geaendert }} geändert</mat-chip>
+        <mat-chip>{{ vorschau().unveraendert }} unverändert</mat-chip>
+        @if (vorschau().doppelt) {
+          <mat-chip>{{ vorschau().doppelt }} doppelt im Text</mat-chip>
+        }
+      </mat-chip-set>
+      @if (vorschau().fehler.length > 0) {
+        <ul class="import-fehler" role="alert">
+          @for (f of vorschau().fehler; track f.zeile) {
+            <li>Zeile {{ f.zeile }}: {{ f.grund }} – „{{ f.text }}“</li>
+          }
+        </ul>
+      }
+    }
+  </mat-card-content>
+  <mat-card-actions align="end">
+    <button mat-button (click)="schliessen.emit()">Schließen</button>
+    <button
+      mat-flat-button
+      (click)="uebernehmen.emit(vorschau().eintraege)"
+      [disabled]="arbeitet() || vorschau().eintraege.length === 0"
+    >
+      Übernehmen
+    </button>
+  </mat-card-actions>
+</mat-card>

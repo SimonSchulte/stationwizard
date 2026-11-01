@@ -1,0 +1,43 @@
+<div class="stunden-kopf">
+  <span class="quelle" [class.zaehlt]="!zaehltManuell()" [matTooltip]="importHinweis()">
+    <mat-icon>cloud_download</mat-icon>
+    {{ anzeige(importiert()) }}
+  </span>
+  <span class="stunden-wirksam" matTooltip="Wirksame Stunden: die größere Zahl zählt">{{
+    anzeige(wirksam())
+  }}</span>
+</div>
+<div class="stundenquellen">
+  <mat-form-field class="manuellfeld" appearance="outline" subscriptSizing="dynamic">
+    <mat-icon matPrefix [matTooltip]="manuellHinweis()" class="manuell-icon">edit</mat-icon>
+    <input
+      matInput
+      inputmode="decimal"
+      placeholder="manuell"
+      [value]="manuellText()"
+      (change)="manuellUebernehmen($event)"
+      [attr.aria-label]="'Stunden manuell nachtragen, ' + person()"
+    />
+  </mat-form-field>
+  @if (manuell() !== null) {
+    <mat-form-field class="standfeld" appearance="outline" subscriptSizing="dynamic">
+      <input
+        matInput
+        type="number"
+        inputmode="numeric"
+        required
+        placeholder="Stand"
+        [min]="jahrMinimum"
+        [max]="jahrMaximum"
+        [value]="stand() ?? ''"
+        (change)="standUebernehmen($event)"
+        [attr.aria-label]="'Stand (Jahr) der manuellen Stunden, ' + person()"
+      />
+      @if (standFehlt()) {
+        <mat-icon matSuffix class="jahr-fehlt" matTooltip="Stand (Jahr) fehlt – Pflichtangabe"
+          >error_outline</mat-icon
+        >
+      }
+    </mat-form-field>
+  }
+</div>

@@ -27,33 +27,23 @@
     </button>
   </mat-menu>
 
-  <button
-    matButton
+  <app-status-chip
     class="quelle"
-    [class.verbunden]="kalender.zustand() === 'verbunden'"
-    [matTooltip]="datenbankStatus().tooltip"
-    [attr.aria-label]="datenbankStatus().tooltip"
-    [disabled]="beschaeftigt()"
-    (click)="neuLaden()"
+    [anzeige]="datenbankStatus()"
+    [verbunden]="kalender.zustand() === 'verbunden'"
+    [gesperrt]="beschaeftigt()"
+    (gewaehlt)="neuLaden()"
   >
-    <mat-icon inline>{{ datenbankStatus().icon }}</mat-icon>
-    <span class="knopf-text">{{ datenbankStatus().text }}</span>
     @if (store.ungespeichert()) {
       <span class="ungespeichert" matTooltip="Es gibt ungespeicherte Änderungen">•</span>
     }
-  </button>
+  </app-status-chip>
 
-  <button
-    matButton
-    class="hiorg-status"
-    [class.verbunden]="hiorg.zustand() === 'geladen'"
-    [matTooltip]="hiorgStatus().tooltip"
-    [attr.aria-label]="hiorgStatus().tooltip"
-    (click)="hiorgNeuLaden()"
-  >
-    <mat-icon inline>{{ hiorgStatus().icon }}</mat-icon>
-    <span class="knopf-text">{{ hiorgStatus().text }}</span>
-  </button>
+  <app-status-chip
+    [anzeige]="hiorgStatus()"
+    [verbunden]="hiorg.zustand() === 'geladen'"
+    (gewaehlt)="hiorgNeuLaden()"
+  />
 
   <span class="fueller"></span>
 
@@ -243,33 +233,7 @@
           </button>
         }
 
-        <button
-          class="ebenen-marke"
-          [matMenuTriggerFor]="ebenenMenue"
-          matTooltip="Wie dicht die HiOrg-Termine im Raster stehen"
-        >
-          <mat-icon inline>cloud_download</mat-icon>
-          HiOrg: {{ hiorgEbeneLabel() }}
-          <mat-icon inline>arrow_drop_down</mat-icon>
-        </button>
-        <mat-menu #ebenenMenue="matMenu">
-          <div class="menue-kopf" (click)="$event.stopPropagation()">
-            HiOrg-Ebene im Wochenraster. Einträge mit abweichendem Namen bleiben immer einzeln
-            sichtbar.
-          </div>
-          <button mat-menu-item (click)="setzeHiorgEbene('einzeln')">
-            <mat-icon>{{ hiorgEbene() === 'einzeln' ? 'check' : '' }}</mat-icon>
-            <span>Einzeln</span>
-          </button>
-          <button mat-menu-item (click)="setzeHiorgEbene('gesammelt')">
-            <mat-icon>{{ hiorgEbene() === 'gesammelt' ? 'check' : '' }}</mat-icon>
-            <span>Gesammelt</span>
-          </button>
-          <button mat-menu-item (click)="setzeHiorgEbene('aus')">
-            <mat-icon>{{ hiorgEbene() === 'aus' ? 'check' : '' }}</mat-icon>
-            <span>Ausgeblendet</span>
-          </button>
-        </mat-menu>
+        <app-hiorg-ebenen-auswahl [(ebene)]="hiorgEbene" />
 
         <mat-button-toggle-group
           class="ansicht-umschalter"
@@ -292,56 +256,12 @@
           </mat-button-toggle>
         </mat-button-toggle-group>
 
-        <span class="monats-navigation">
-          <button
-            matIconButton
-            [disabled]="monat() === null || monat() === 0"
-            matTooltip="Vorheriger Monat"
-            aria-label="Vorheriger Monat"
-            (click)="verschiebeMonat(-1)"
-          >
-            <mat-icon>chevron_left</mat-icon>
-          </button>
-          <button
-            matButton
-            class="monat"
-            [matMenuTriggerFor]="monatMenue"
-            matTooltip="Monat wählen"
-          >
-            {{ monatsTitel() }}
-            <mat-icon inline>arrow_drop_down</mat-icon>
-          </button>
-          <button
-            matIconButton
-            [disabled]="monat() === null || monat() === 11"
-            matTooltip="Nächster Monat"
-            aria-label="Nächster Monat"
-            (click)="verschiebeMonat(1)"
-          >
-            <mat-icon>chevron_right</mat-icon>
-          </button>
-          <button
-            matIconButton
-            [disabled]="imAktuellenMonat()"
-            matTooltip="Zum aktuellen Monat"
-            aria-label="Zum aktuellen Monat"
-            (click)="zumAktuellenMonat()"
-          >
-            <mat-icon>today</mat-icon>
-          </button>
-        </span>
-        <mat-menu #monatMenue="matMenu">
-          @for (name of monatsnamen; track name; let i = $index) {
-            <button mat-menu-item (click)="waehleMonat(i)">
-              <mat-icon>{{ i === monat() ? 'check' : '' }}</mat-icon>
-              <span>{{ name }}</span>
-            </button>
-          }
-          <button mat-menu-item (click)="waehleMonat(null)">
-            <mat-icon>{{ monat() === null ? 'check' : 'calendar_month' }}</mat-icon>
-            <span>Ganzes Jahr</span>
-          </button>
-        </mat-menu>
+        <app-monats-navigation
+          [monat]="monat()"
+          [imAktuellenMonat]="imAktuellenMonat()"
+          (monatGewaehlt)="waehleMonat($event)"
+          (zumAktuellenMonat)="zumAktuellenMonat()"
+        />
 
         <span class="fueller"></span>
         <label class="plan-suche">

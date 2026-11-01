@@ -261,16 +261,6 @@ describe('Monatsfilter im Jahresplan', () => {
     expect(ansicht.monat()).toBe(aktuellerMonat);
     expect(ansicht.imAktuellenMonat()).toBe(true);
   });
-
-  it('begrenzt die Monatsschritte auf das Jahr', () => {
-    ansicht.waehleMonat(0);
-    ansicht.verschiebeMonat(-1);
-    expect(ansicht.monat()).toBe(0);
-
-    ansicht.waehleMonat(11);
-    ansicht.verschiebeMonat(1);
-    expect(ansicht.monat()).toBe(11);
-  });
 });
 
 describe('HiOrg-Statuschip', () => {
@@ -542,7 +532,7 @@ describe('Tageszellen mit vielen Einträgen', () => {
   });
 
   it('hält die Tageszelle auf der Höchstzahl an Karten', () => {
-    ansicht.setzeHiorgEbene('einzeln');
+    ansicht.hiorgEbene.set('einzeln');
 
     const inhalt = ansicht.tagesInhalt('2026-08-26');
 

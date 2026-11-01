@@ -3056,12 +3056,8 @@ Behoben:
 
 Offen, bewusst nicht im Review geändert:
 
-- `planning-editor.less` überschreitet mit 17 kB das Komponentenbudget (Warnung ab 12 kB).
-  Eine Aufteilung braucht eine Sichtprüfung des Editors im Browser.
-- Große Dateien mit mehreren Verantwortungen: `worker/src/material.ts` (≈1 570 Zeilen),
-  `hiorg-api.ts`, `fahrzeuge.ts`, die Seiten `ehrungen.ts` und `jahresplan.ts`. Funktional
-  in Ordnung, aber Kandidaten für eine Aufteilung nach Ressourcen bei der nächsten
-  fachlichen Änderung.
+- ~~`planning-editor.less` über dem Komponentenbudget~~ und ~~große Dateien mit mehreren
+  Verantwortungen~~ – erledigt im folgenden Abschnitt.
 - `package.json` erlaubt `node >= 22.12`, `.node-version` und CLAUDE.md verlangen 24.
 - Die Rollenvergabe (`PUT /api/benutzerverwaltung/<E-Mail>`) steht weiterhin jeder geprüften
   Identität offen; das bleibt die wichtigste fachliche Lücke (siehe CLAUDE.md).
@@ -3074,3 +3070,74 @@ Offen, bewusst nicht im Review geändert:
 - `npm run format:check` erfolgreich.
 - Keine Browserprüfung: die Änderungen betreffen keine Darstellung; die Aufgabenmarke ist
   über den Store-Test abgesichert, nicht im Browser gesehen.
+
+## Große Dateien zerlegt, kleine wiederverwendbare Bausteine – 2026-11-01
+
+Auftrag: die großen Dateien angehen, grundsätzlich möglichst kleine wiederverwendbare
+Komponenten. Reine Umstrukturierung; Pfade, Fehlercodes, Grenzen und Fachverhalten sind
+unverändert, mit zwei benannten Ausnahmen unten.
+
+**Worker** – fünf Module verteilen nur noch Pfade, je Ressource eine Datei, gemeinsame
+Konfiguration in `<modul>-gemeinsam.ts`:
+
+| Vorher                 | Nachher (Verteiler + Teile)                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `material.ts` 1 573    | 228 + `material-gemeinsam`, `-vorlagen`, `-behaelter`, `-checkablauf`, `-pruefcodes`, `-berichtsversand`                         |
+| `hiorg-api.ts` 1 108   | 221 + `hiorg-gemeinsam`, `hiorg-oauth`, `hiorg-upstream`, `hiorg-tokenablage`, `hiorg-personal-felder`                           |
+| `fahrzeuge.ts` 1 031   | 133 + `fahrzeuge-gemeinsam`, `-pruefung`, `-zeilen`, `-protokoll`, `-stammdaten`, `-ablesungen`, `-erfassungslinks`, `-kurzlink` |
+| `ehrungen.ts` 815      | 93 + `ehrungen-gemeinsam`, `-personen`, `-import`, `-vorgaenge`, `-zustaendigkeit`                                               |
+| `angebotswesen.ts` 690 | 113 + `angebotswesen-gemeinsam`, `-preiskatalog`, `-angebot-pruefung`, `-angebote`                                               |
+
+Die größte Worker-Datei hat jetzt 571 Zeilen (`kalender-planung.ts`). Der einzige
+Importzyklus (`oeffentliche-erfassung.ts` ↔ `oeffentlicher-check.ts`) ist über
+`oeffentlich-schutz.ts` aufgelöst; der Worker hat keine Zyklen mehr.
+
+**Frontend** – neue, rein darstellende Komponenten mit `input()`/`output()`:
+
+- Einsatz: `PositionZeile` (eine Position samt Ablageziel), `AnforderungsAuswahl` (Chip mit
+  Menü, für taktisch und medizinisch), `QualifikationsChips` (vorher viermal kopiert),
+  `StaerkeBlock` (vorher zweimal), reine Stärkeberechnung `services/staerke.ts`. Entfernt:
+  die wortgleiche Kopie der Abgleichlogik und der Bezeichnungslisten aus dem Editor (beides
+  kommt aus dem `MatchService`). `planning-editor.less` liegt wieder im Budget.
+- Personal: `AuszeichnungsGruppe`, `StundenZelle`, `StundenImport`; Tabellenlogik
+  (`zeileBerechnen`, `passtZuFilter`, `sortiereZeilen`) in `pages/ehrungen/ehrungen-tabelle.ts`,
+  Staffelsperre als `stufeGesperrt()` in `ehrungen-regeln.ts`.
+- Kalender: `MonatsNavigation`, `HiorgEbenenAuswahl`.
+- Kern: `Verbindungsstatus` (Einsatzplanung und Personalübersicht, vorher zweimal),
+  `StatusChip` (Datenbank- und HiOrg-Chip des Kalenders), `marke.less` (Form der drei
+  Marken der Plan-Kopfzeile), `.tag-chip--vf` global in `styles.less`.
+
+Seitengrößen (TS/HTML/LESS): Editor 752/918/1 056 → 637/576/739, Ehrungsmanager
+909/457/363 → 661/305/195, Jahresplan 870/473/428 → 847/393/341.
+
+**Bewusste Abweichungen:** (1) `Verbindungsstatus` vereinheitlicht die beiden früheren
+Fassungen; in der Einsatzplanung rücken Symbol und Text dadurch um wenige Pixel enger
+(Abstand `--space-xs` statt `--space-sm`, 0,875 rem). (2) Der Verbandsführer-Chip trägt
+seinen Rand jetzt auch in einer besetzten Position (vorher nur im Helferpool).
+
+**Nebenbei gefunden und behoben:** Der Editor lud die Fahrzeugliste aus einer
+Template-Funktion (`filteredFahrzeuge()`), schrieb dadurch beim Rendern in ein Signal und
+warf NG0600 in der Konsole. Das Laden steht jetzt einmal im Konstruktor.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` ohne Warnungen; `npm test`: App 135 Dateien / 1 086 Tests, öffentlich
+  5 / 29, Worker 30 / 865 – alle bestanden; `npm run format:check`,
+  `npm run deploy:dry-run` erfolgreich.
+- `npm run test:spa` lief in dieser Umgebung **erfolgreich** durch (workerd mit echtem
+  Bundle: SPA-Direkteinstiege, Access-Pflicht, Bypass der öffentlichen Seiten, API-404).
+  Das Hash-Routing bleibt trotzdem, bis auch die Browserprüfung der Direkteinstiege gegen
+  den echten Worker vorliegt.
+- Sichtprüfung in Headless-Chromium auf 1400×900 und 390×844 gegen `ng serve` mit einem
+  Attrappen-Server (erfundene Daten, außerhalb des Repositorys, danach gelöscht): Kalender,
+  Ehrungsmanager, Personal, Einsatzliste, Editor mit geladener Planung. Pixelvergleich
+  gegen den Stand vor dem Umbau (zweiter `ng serve` auf Commit `c744e0a`): Ehrungsmanager,
+  Personal, Kalender und Editor gleich; Unterschied nur bei der Verbindungsanzeige der
+  Einsatzplanung (siehe oben). Zwei dabei gefundene Abweichungen behoben: Polsterung des
+  `StatusChip` (Material überdeckte die frühere Angabe; jetzt ausdrücklich der tatsächlich
+  gezeichnete Wert) und 1,2 px Zeilenhöhe der unbesetzten Position (Host von
+  `AnforderungsAuswahl` jetzt `inline-flex`). Bedienung geprüft: Anforderung per Menü
+  ändern, Helfer aus dem Pool auf eine freie Position ziehen (Abgleich „passt“), Chip in
+  der Staffel anhaken („Speichern (1)“), Monat blättern, HiOrg-Ebene wählen.
+- Bestehend und nicht Teil dieses Umbaus: Im Ehrungsmanager überlappen bei schmalen
+  Jahres-/Standfeldern ohne Wert Beschriftung und Warnsymbol – im alten Stand identisch.

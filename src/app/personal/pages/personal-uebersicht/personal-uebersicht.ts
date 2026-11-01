@@ -24,6 +24,7 @@ import {
   type HiorgPerson,
 } from '../../../kern/hiorg/hiorg-personal.service';
 import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbinden';
+import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
 
 /**
  * Übersicht über das gesamte aktive Personal, das das verbundene HiOrg-Konto
@@ -35,6 +36,7 @@ import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbin
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-personal-uebersicht',
   imports: [
+    Verbindungsstatus,
     GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,

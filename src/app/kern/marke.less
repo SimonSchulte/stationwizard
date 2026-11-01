@@ -1,0 +1,20 @@
+// Gemeinsame Form der kleinen Statusknöpfe („Marken“) in Plan-Kopfzeilen: runde Chip-Fläche,
+// kleine Schrift, Hover-Fläche. Farben setzt die jeweilige Marke über die Tokens.
+.marke-knopf() {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-compact);
+  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}

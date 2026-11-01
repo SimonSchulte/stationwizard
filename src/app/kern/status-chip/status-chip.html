@@ -1,0 +1,13 @@
+<button
+  matButton
+  class="chip"
+  [class.verbunden]="verbunden()"
+  [matTooltip]="anzeige().tooltip"
+  [attr.aria-label]="anzeige().tooltip"
+  [disabled]="gesperrt()"
+  (click)="gewaehlt.emit()"
+>
+  <mat-icon inline>{{ anzeige().icon }}</mat-icon>
+  <span class="text">{{ anzeige().text }}</span>
+  <ng-content />
+</button>

@@ -1,4 +1,5 @@
 @import '../../../kern/kopfleiste.less';
+@import '../../../kern/marke.less';
 
 :host {
   display: flex;
@@ -35,37 +36,6 @@
 /* Quelle und HiOrg-Status teilen sich dieselbe Chip-Anmutung wie `.jahr`, damit sie
    sich klar vom Rest der Kopfleiste abgrenzen. Ein verbundener Zustand hebt sich
    zusätzlich in Grün ab, statt nur im neutralen Fließtextgrau unterzugehen. */
-.quelle,
-.hiorg-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-compact);
-  max-width: 280px;
-  padding: var(--space-2xs) var(--space-sm);
-  overflow: hidden;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-chip);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
-
-  &.verbunden {
-    border-color: var(--status-ok);
-    background: color-mix(in srgb, var(--status-ok) 10%, var(--surface-primary));
-    color: var(--status-ok);
-
-    mat-icon {
-      color: var(--status-ok);
-    }
-  }
-}
-
 .ungespeichert {
   color: var(--status-warn);
   font-size: 1.5rem;
@@ -111,22 +81,7 @@
 }
 
 .diensttags-marke {
-  display: inline-flex;
-  white-space: nowrap;
-  align-items: center;
-  gap: var(--space-compact);
-  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-chip);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
+  .marke-knopf();
 
   &.hat-luecken {
     border-color: var(--luecke-rand);
@@ -180,43 +135,12 @@
   }
 }
 
-.ebenen-marke {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-compact);
-  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-chip);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
-}
-
 .abweichungs-marke {
-  display: inline-flex;
-  white-space: nowrap;
-  align-items: center;
-  gap: var(--space-compact);
-  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 10);
-  border: 1px solid var(--hiorg-abweichung-rand);
-  border-radius: var(--radius-chip);
+  .marke-knopf();
+  border-color: var(--hiorg-abweichung-rand);
   background: var(--hiorg-abweichung-bg);
   color: var(--hiorg-abweichung-text);
-  font: inherit;
-  font-size: 0.75rem;
   font-weight: 500;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
 
   &.aktiv {
     background: var(--hiorg-abweichung-rand);
@@ -414,15 +338,4 @@
   .mobil-nav {
     display: flex;
   }
-}
-
-/* Monatsnavigation der Plan-Kopfzeile: Pfeile, Monatsmenü und „heute". */
-.monats-navigation {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2xs);
-}
-
-.monats-navigation .monat {
-  min-width: 8.5rem;
 }

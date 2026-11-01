@@ -1,0 +1,31 @@
+@for (tag of tags().taktisch ?? []; track tag) {
+  <span
+    class="tag-chip"
+    [class.tag-chip--sm]="klein()"
+    [class.tag-chip--vf]="tag === 'VF'"
+    [style.background]="taktischFarbe(tag).bg"
+    [style.color]="taktischFarbe(tag).fg"
+    [matTooltip]="beschreibung() ? taktischLabel[tag] : ''"
+    >{{ tag }}</span
+  >
+}
+@for (tag of tags().medizinisch ?? []; track tag) {
+  <span
+    class="tag-chip"
+    [class.tag-chip--sm]="klein()"
+    [style.background]="medizinischFarbe(tag).bg"
+    [style.color]="medizinischFarbe(tag).fg"
+    [matTooltip]="beschreibung() ? medizinischLabel[tag] : ''"
+    >{{ tag }}</span
+  >
+}
+@if (zusatz()) {
+  @for (tag of tags().zusatz ?? []; track tag) {
+    <span
+      class="tag-chip tag-zusatz"
+      [class.tag-chip--sm]="klein()"
+      [matTooltip]="beschreibung() && klein() ? tag : ''"
+      >{{ tag }}</span
+    >
+  }
+}

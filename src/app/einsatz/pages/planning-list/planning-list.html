@@ -2,19 +2,15 @@
   <mat-icon class="kopfleiste-icon">assignment</mat-icon>
   <span class="toolbar-title">Personaleinsatzplanung</span>
   <span class="spacer"></span>
-  <span
+  <app-verbindungsstatus
     class="verbindungsstatus"
-    [class.verbunden]="efsApi.erreichbar()"
-    [matTooltip]="
+    [verbunden]="efsApi.erreichbar()"
+    [text]="efsApi.erreichbar() ? 'HiOrg-Server verbunden' : 'HiOrg-Server nicht verbunden'"
+    [tooltip]="
       efsApi.fehler() ||
       (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
     "
-  >
-    <mat-icon>{{ efsApi.erreichbar() ? 'cloud_done' : 'cloud_off' }}</mat-icon>
-    <span>{{
-      efsApi.erreichbar() ? 'HiOrg-Server verbunden' : 'HiOrg-Server nicht verbunden'
-    }}</span>
-  </span>
+  />
   <button mat-stroked-button (click)="loadFromFile()" class="toolbar-btn">
     <mat-icon>folder_open</mat-icon>
     Datei öffnen

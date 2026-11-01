@@ -1,0 +1,20 @@
+<button
+  class="ebenen-marke"
+  [matMenuTriggerFor]="ebenenMenue"
+  matTooltip="Wie dicht die HiOrg-Termine im Raster stehen"
+>
+  <mat-icon inline>cloud_download</mat-icon>
+  HiOrg: {{ ebene() }}
+  <mat-icon inline>arrow_drop_down</mat-icon>
+</button>
+<mat-menu #ebenenMenue="matMenu">
+  <div class="menue-kopf" (click)="$event.stopPropagation()">
+    HiOrg-Ebene im Wochenraster. Einträge mit abweichendem Namen bleiben immer einzeln sichtbar.
+  </div>
+  @for (option of optionen; track option.wert) {
+    <button mat-menu-item (click)="ebene.set(option.wert)">
+      <mat-icon>{{ ebene() === option.wert ? 'check' : '' }}</mat-icon>
+      <span>{{ option.text }}</span>
+    </button>
+  }
+</mat-menu>

@@ -24,11 +24,13 @@ import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
+import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-list',
   imports: [
+    Verbindungsstatus,
     DatePipe,
     MatButtonModule,
     MatCardModule,

@@ -22,6 +22,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { StatusChip, type StatusAnzeige } from '../../../kern/status-chip/status-chip';
+import { HiorgEbenenAuswahl } from '../../components/hiorg-ebenen-auswahl/hiorg-ebenen-auswahl';
+import { MonatsNavigation } from '../../components/monats-navigation/monats-navigation';
 import { AuswertungPanel } from '../../components/auswertung-panel/auswertung-panel';
 import { BacklogPanel } from '../../components/backlog-panel/backlog-panel';
 import { DatumDialog, DatumDialogDaten } from '../../components/datum-dialog/datum-dialog';
@@ -67,7 +70,6 @@ import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { RouterLink } from '@angular/router';
 import {
-  MONATSNAMEN,
   WOCHENTAGE_ISO,
   Wochentag,
   formatiereDatum,
@@ -81,6 +83,9 @@ import {
   selector: 'app-jahresplan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    StatusChip,
+    HiorgEbenenAuswahl,
+    MonatsNavigation,
     Agendaliste,
     AuswertungPanel,
     BacklogPanel,
@@ -125,7 +130,6 @@ export class Jahresplan {
   readonly wochentageIso = WOCHENTAGE_ISO;
   readonly beschaeftigt = this.kalender.beschaeftigt;
 
-  readonly monatsnamen = MONATSNAMEN;
   readonly heute = heuteIso();
 
   /**
@@ -170,10 +174,6 @@ export class Jahresplan {
   readonly seitenleisteEingeklappt = signal(true);
   private seitenleisteManuellGesetzt = false;
 
-  readonly monatsTitel = computed(() => {
-    const monat = this.monat();
-    return monat === null ? 'Ganzes Jahr' : MONATSNAMEN[monat];
-  });
   /** Zeigt der Plan gerade den laufenden Monat des laufenden Jahres? */
   readonly imAktuellenMonat = computed(
     () => this.store.jahr() === jahrVon(this.heute) && this.monat() === monatIndex(this.heute),
@@ -184,7 +184,7 @@ export class Jahresplan {
    * nur im Overflow-Menü lesbar. Die vier Zustände von `HiorgKalenderService`
    * decken sich mit dem Fußzeilentext dort; hier kommt Symbol/„lädt"-Fall hinzu.
    */
-  readonly hiorgStatus = computed(() => {
+  readonly hiorgStatus = computed<StatusAnzeige>(() => {
     if (this.hiorg.laedt()) {
       return {
         icon: 'cloud_sync',
@@ -220,22 +220,11 @@ export class Jahresplan {
     }
   });
 
-  readonly hiorgEbeneLabel = computed(() => {
-    switch (this.hiorgEbene()) {
-      case 'einzeln':
-        return 'einzeln';
-      case 'gesammelt':
-        return 'gesammelt';
-      default:
-        return 'aus';
-    }
-  });
-
   /**
    * Kurzstatus der Kalender-Datenbank neben dem HiOrg-Chip. Löst die frühere
    * Quellenanzeige (Excel-Datei in NextCloud oder lokal) ab.
    */
-  readonly datenbankStatus = computed(() => {
+  readonly datenbankStatus = computed<StatusAnzeige>(() => {
     switch (this.kalender.zustand()) {
       case 'laedt':
         return {
@@ -457,10 +446,6 @@ export class Jahresplan {
     return this.tagesInhalte().get(datum) ?? LEERER_TAGESINHALT;
   }
 
-  setzeHiorgEbene(ebene: HiorgEbene): void {
-    this.hiorgEbene.set(ebene);
-  }
-
   abweichungenFuer(tag: HiorgTagesAbgleich, eintrag: HiorgEintrag): HiorgAbweichung[] {
     return tag.abweichungen.filter((a) => a.hiorg.schluessel === eintrag.schluessel);
   }
@@ -602,14 +587,6 @@ export class Jahresplan {
 
   waehleMonat(monat: number | null): void {
     this.monat.set(monat);
-  }
-
-  verschiebeMonat(schritt: number): void {
-    const monat = this.monat();
-    if (monat === null) {
-      return;
-    }
-    this.monat.set(Math.min(11, Math.max(0, monat + schritt)));
   }
 
   /** Zurück zum laufenden Monat – bei Bedarf samt Wechsel ins laufende Jahr. */

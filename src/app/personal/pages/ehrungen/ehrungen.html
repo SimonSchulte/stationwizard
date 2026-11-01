@@ -65,56 +65,12 @@
   }
 
   @if (importOffen()) {
-    <mat-card appearance="outlined" class="import" aria-label="Stundenimport">
-      <mat-card-header>
-        <mat-card-title>Stunden importieren</mat-card-title>
-        <mat-card-subtitle>
-          Eine Person je Zeile: <code>Nachname, Vorname 6.546,98</code>
-        </mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <p class="hinweis">
-          Vorhandene Personen werden über Nachname und Vorname gefunden und in ihren Stunden
-          aktualisiert, neue werden angelegt. Personen, die im Text fehlen, bleiben unverändert.
-        </p>
-        <mat-form-field class="import-text" appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Text einfügen</mat-label>
-          <textarea
-            matInput
-            rows="8"
-            [value]="importText()"
-            (input)="importText.set($any($event.target).value)"
-          ></textarea>
-        </mat-form-field>
-        @if (importText().trim()) {
-          <mat-chip-set aria-label="Vorschau des Imports">
-            <mat-chip class="chip-neu">{{ importVorschau().neu }} neu</mat-chip>
-            <mat-chip>{{ importVorschau().geaendert }} geändert</mat-chip>
-            <mat-chip>{{ importVorschau().unveraendert }} unverändert</mat-chip>
-            @if (importVorschau().doppelt) {
-              <mat-chip>{{ importVorschau().doppelt }} doppelt im Text</mat-chip>
-            }
-          </mat-chip-set>
-          @if (importVorschau().fehler.length > 0) {
-            <ul class="import-fehler" role="alert">
-              @for (f of importVorschau().fehler; track f.zeile) {
-                <li>Zeile {{ f.zeile }}: {{ f.grund }} – „{{ f.text }}“</li>
-              }
-            </ul>
-          }
-        }
-      </mat-card-content>
-      <mat-card-actions align="end">
-        <button mat-button (click)="importOffen.set(false)">Schließen</button>
-        <button
-          mat-flat-button
-          (click)="stundenUebernehmen()"
-          [disabled]="arbeitet() || importVorschau().eintraege.length === 0"
-        >
-          Übernehmen
-        </button>
-      </mat-card-actions>
-    </mat-card>
+    <app-stunden-import
+      [personen]="personen()"
+      [arbeitet]="arbeitet()"
+      (uebernehmen)="stundenUebernehmen($event)"
+      (schliessen)="importOffen.set(false)"
+    />
   }
 
   @if (gruppenHinweis()) {
@@ -234,60 +190,16 @@
         <ng-container matColumnDef="stunden">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="zahl">Stunden</th>
           <td mat-cell *matCellDef="let zeile" class="stundenzelle">
-            <div class="stunden-kopf">
-              <span
-                class="quelle"
-                [class.zaehlt]="!zaehltManuell(zeile)"
-                [matTooltip]="importHinweis(zeile)"
-              >
-                <mat-icon>cloud_download</mat-icon>
-                {{ stundenAnzeige(zeile.person.stundenImport) }}
-              </span>
-              <span class="stunden-wirksam" matTooltip="Wirksame Stunden: die größere Zahl zählt">{{
-                stundenAnzeige(zeile.aktuell.stunden)
-              }}</span>
-            </div>
-            <div class="stundenquellen">
-              <mat-form-field class="manuellfeld" appearance="outline" subscriptSizing="dynamic">
-                <mat-icon matPrefix [matTooltip]="manuellHinweis(zeile)" class="manuell-icon"
-                  >edit</mat-icon
-                >
-                <input
-                  matInput
-                  inputmode="decimal"
-                  placeholder="manuell"
-                  [value]="manuellAnzeige(zeile)"
-                  (change)="stundenNachtragen(zeile, $any($event.target))"
-                  [attr.aria-label]="'Stunden manuell nachtragen, ' + zeile.person.nachname"
-                />
-              </mat-form-field>
-              @if (zeile.stand.stundenManuell !== null) {
-                <mat-form-field class="standfeld" appearance="outline" subscriptSizing="dynamic">
-                  <input
-                    matInput
-                    type="number"
-                    inputmode="numeric"
-                    required
-                    placeholder="Stand"
-                    [min]="vergabejahrMinimum"
-                    [max]="vergabejahrMaximum"
-                    [value]="zeile.stand.stundenManuellStand ?? ''"
-                    (change)="standNachtragen(zeile, $any($event.target))"
-                    [attr.aria-label]="
-                      'Stand (Jahr) der manuellen Stunden, ' + zeile.person.nachname
-                    "
-                  />
-                  @if (standFehlt(zeile)) {
-                    <mat-icon
-                      matSuffix
-                      class="jahr-fehlt"
-                      matTooltip="Stand (Jahr) fehlt – Pflichtangabe"
-                      >error_outline</mat-icon
-                    >
-                  }
-                </mat-form-field>
-              }
-            </div>
+            <app-stunden-zelle
+              [person]="zeile.person.nachname"
+              [importiert]="zeile.person.stundenImport"
+              [wirksam]="zeile.aktuell.stunden"
+              [manuell]="zeile.stand.stundenManuell"
+              [stand]="zeile.stand.stundenManuellStand"
+              (manuellGeaendert)="stundenNachtragen(zeile, $event)"
+              (standGeaendert)="standNachtragen(zeile, $event)"
+              (fehler)="fehler.set($event)"
+            />
           </td>
         </ng-container>
         <ng-container matColumnDef="eintritt">
@@ -317,80 +229,16 @@
           <ng-container [matColumnDef]="gruppenSpalten[index]">
             <th mat-header-cell *matHeaderCellDef>{{ gruppe.name }}</th>
             <td mat-cell *matCellDef="let zeile">
-              <div class="gruppenzelle">
-                <mat-chip-listbox
-                  multiple
-                  [attr.aria-label]="gruppe.name + ', ' + zeile.person.nachname"
-                >
-                  @for (schluessel of gruppe.schluessel; track schluessel) {
-                    <mat-chip-option
-                      [class]="chipKlasse(schluessel)"
-                      [selected]="hat(zeile, schluessel)"
-                      [disabled]="chipGesperrt(zeile, schluessel)"
-                      (selectionChange)="
-                        $event.isUserInput && umschalten(zeile, schluessel, $event.selected)
-                      "
-                    >
-                      {{ kurz[schluessel] }}
-                    </mat-chip-option>
-                  }
-                </mat-chip-listbox>
-
-                <div class="jahresfelder">
-                  @for (schluessel of gruppe.schluessel; track schluessel) {
-                    @if (hat(zeile, schluessel)) {
-                      <mat-form-field
-                        class="jahrfeld"
-                        appearance="outline"
-                        subscriptSizing="dynamic"
-                      >
-                        <mat-label>{{ kurz[schluessel] }}</mat-label>
-                        <input
-                          matInput
-                          type="number"
-                          inputmode="numeric"
-                          [min]="vergabejahrMinimum"
-                          [max]="vergabejahrMaximum"
-                          [value]="jahrVon(zeile, schluessel) ?? ''"
-                          [attr.aria-label]="bezeichnung[schluessel] + ', Jahr der Vergabe'"
-                          (change)="vergabejahr(zeile, schluessel, $any($event.target).value)"
-                        />
-                        @if (jahrVon(zeile, schluessel) === null) {
-                          <mat-icon matSuffix class="jahr-fehlt" matTooltip="Vergabejahr fehlt"
-                            >error_outline</mat-icon
-                          >
-                        }
-                      </mat-form-field>
-                    }
-                  }
-                </div>
-
-                @if (anspruchVon(zeile, index); as anspruch) {
-                  @if (anzeigeStufe(anspruch); as erfuellt) {
-                    <mat-chip-set aria-label="Zu vergeben">
-                      <mat-chip
-                        [class]="chipKlasse(erfuellt)"
-                        [class.erledigt]="!anspruch.faellig"
-                        [matTooltip]="
-                          anspruch.faellig
-                            ? 'Jetzt zu vergeben, noch nicht als erhalten angehakt'
-                            : 'Bereits erhalten'
-                        "
-                      >
-                        <mat-icon matChipAvatar>{{
-                          anspruch.faellig ? 'workspace_premium' : 'check_circle'
-                        }}</mat-icon>
-                        Zu vergeben: {{ kurzBezeichnung(erfuellt) }}
-                      </mat-chip>
-                    </mat-chip-set>
-                  }
-                }
-                @for (hinweis of zeile.hinweise[index]; track hinweis) {
-                  <span class="staffel-hinweis" role="note">
-                    <mat-icon aria-hidden="true">warning</mat-icon> {{ hinweis }}
-                  </span>
-                }
-              </div>
+              <app-auszeichnungs-gruppe
+                [name]="gruppe.name"
+                [person]="zeile.person.nachname"
+                [stufen]="gruppe.schluessel"
+                [erhalten]="zeile.stand.erhalten"
+                [anspruch]="anspruchVon(zeile, index)"
+                [hinweise]="zeile.hinweise[index] ?? []"
+                (umgeschaltet)="umschalten(zeile, $event.schluessel, $event.angehakt)"
+                (jahrGeaendert)="vergabejahr(zeile, $event.schluessel, $event.text)"
+              />
             </td>
           </ng-container>
         }

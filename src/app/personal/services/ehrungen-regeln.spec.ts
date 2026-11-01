@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  stufeGesperrt,
   ansprueche,
   ehrenzeichenErfuellt,
   istErhalten,
@@ -348,5 +349,26 @@ describe('Wirksame Stunden', () => {
   it('lässt einen Nachtrag den Anspruch auf ein Leistungsabzeichen auslösen', () => {
     expect(leistungsabzeichenErfuellt(wirksameStunden(900, null))).toBeNull();
     expect(leistungsabzeichenErfuellt(wirksameStunden(900, 1200))).toBe('bronze');
+  });
+});
+
+describe('Staffel beim Anhaken', () => {
+  it('sperrt eine Stufe, solange die Vorstufe fehlt', () => {
+    expect(stufeGesperrt({}, 'bronze')).toBe(false);
+    expect(stufeGesperrt({}, 'silber')).toBe(true);
+    expect(stufeGesperrt({ bronze: 2020 }, 'silber')).toBe(false);
+  });
+
+  it('sperrt das Abhaken, solange eine höhere Stufe erhalten ist', () => {
+    expect(stufeGesperrt({ bronze: 2020, silber: null }, 'bronze')).toBe(true);
+    expect(stufeGesperrt({ bronze: 2020, silber: null }, 'silber')).toBe(false);
+  });
+
+  it('lässt eine Lücke unter einer erfassten Stufe nachtragen', () => {
+    expect(stufeGesperrt({ gold: 2024 }, 'silber')).toBe(false);
+  });
+
+  it('kennt keine Staffel für Jubiläumszeichen', () => {
+    expect(stufeGesperrt({}, 'jubilaeum-40')).toBe(false);
   });
 });

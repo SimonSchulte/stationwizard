@@ -150,7 +150,7 @@ Hier ist wenig zu tun — der Quellstand ist bereits richtig vorbereitet:
 
 - `src/app/fahrzeuge/services/fahrzeug-qr.ts` erzeugt Codes auf die festen Kurzpfade
   `/f/<UUID>` und `/f/<UUID>/km`.
-- `kurzlinkWeiterleitung()` in `worker/src/fahrzeuge.ts:758` leitet auf die Hash-Route weiter
+- `kurzlinkWeiterleitung()` in `worker/src/fahrzeuge-kurzlink.ts` leitet auf die Hash-Route weiter
   und setzt bei der Kilometererfassung `quelle=qr`.
 
 Mit verifizierten App Links öffnet die System-Kamera dieselbe URL in der App. Die

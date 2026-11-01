@@ -1,0 +1,30 @@
+<button class="req-chip-btn" [matMenuTriggerFor]="menue" (click)="$event.stopPropagation()">
+  @if (wert(); as aktuell) {
+    <span
+      class="tag-chip"
+      [class.tag-chip--vf]="aktuell === 'VF'"
+      [style.background]="farbe(aktuell).bg"
+      [style.color]="farbe(aktuell).fg"
+      >{{ aktuell }}</span
+    >
+  } @else {
+    <span class="tag-chip req-any">–</span>
+  }
+  <mat-icon class="req-arrow">arrow_drop_down</mat-icon>
+</button>
+<mat-menu #menue>
+  <button mat-menu-item (click)="gewaehlt.emit(null)">
+    <span class="tag-chip req-any">– Keine –</span>
+  </button>
+  @for (option of optionen(); track option) {
+    <button mat-menu-item (click)="gewaehlt.emit(option)">
+      <span
+        class="tag-chip"
+        [class.tag-chip--vf]="option === 'VF'"
+        [style.background]="farbe(option).bg"
+        [style.color]="farbe(option).fg"
+        >{{ option }}</span
+      >
+    </button>
+  }
+</mat-menu>

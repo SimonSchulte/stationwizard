@@ -1,0 +1,43 @@
+:host {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 280px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-compact);
+  max-width: 100%;
+  // So, wie Material den Knopf bisher tatsächlich gezeichnet hat (die frühere Angabe
+  // `--space-2xs`/`--space-sm` wurde von der Button-Regel überdeckt).
+  padding: 0 var(--space-md);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+
+  &.verbunden {
+    border-color: var(--status-ok);
+    background: color-mix(in srgb, var(--status-ok) 10%, var(--surface-primary));
+    color: var(--status-ok);
+
+    mat-icon {
+      color: var(--status-ok);
+    }
+  }
+}
+
+@media (max-width: 780px) {
+  .text {
+    display: none;
+  }
+}

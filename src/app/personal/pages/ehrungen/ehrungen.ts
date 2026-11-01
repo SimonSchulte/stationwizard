@@ -12,9 +12,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatChipsModule } from '@angular/material/chips';
 import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -34,7 +32,7 @@ import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter
 import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import { gruppenJePersonLaden } from '../../services/hiorg-gruppen';
 import { HiorgPersonalService } from '../../../kern/hiorg/hiorg-personal.service';
-import { heuteIso, isoZuLokalesDatum, lokalesDatumZuIso } from '../../../kern/kalender/datum';
+import { heuteIso, lokalesDatumZuIso } from '../../../kern/kalender/datum';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
 import { WorkerFehler } from '../../../kern/worker-client';
@@ -42,7 +40,6 @@ import { ehrungenExcelErzeugen, EHRUNGEN_EXCEL_MEDIENTYP } from '../../services/
 import {
   EHRENZEICHEN,
   EHRUNG_BEZEICHNUNG,
-  EHRUNG_SCHLUESSEL,
   EHRUNG_KURZ,
   JUBILAEUMSUHREN,
   JUBILAEUMSZEICHEN,
@@ -51,66 +48,27 @@ import {
   VERGABEJAHR_MINIMUM,
   aktuellesJahr,
   ansprueche,
-  hatErhalten,
-  staffelHinweise,
-  staffelVon,
-  leistungAbgleich,
-  mitgliedsjahre,
   zuEhrende,
   personSchluessel,
-  stundenLesen,
-  stundenTextLesen,
-  wirksameStunden,
   type Anspruch,
-  type Ansprueche,
   type EhrungPerson,
   type EhrungSchluessel,
   type Erhalten,
-  type LeistungAbgleich,
+  type StundenEintrag,
 } from '../../services/ehrungen-regeln';
 import { EhrungenService, type EhrungAenderung } from '../../services/ehrungen.service';
+import { StundenZelle } from '../../components/stunden-zelle/stunden-zelle';
+import { StundenImport } from '../../components/stunden-import/stunden-import';
+import {
+  passtZuFilter,
+  sortiereZeilen,
+  stimmtUeberein,
+  zeileBerechnen,
+  type StatusFilter,
+  type Zeile,
+} from './ehrungen-tabelle';
+import { AuszeichnungsGruppe } from '../../components/auszeichnungs-gruppe/auszeichnungs-gruppe';
 import { EhrungenVerlauf, type VerlaufDaten } from './ehrungen-verlauf/ehrungen-verlauf';
-
-interface Zeile {
-  person: EhrungPerson;
-  /** Angezeigter Stand: gespeicherter Stand mit den noch ungesicherten Änderungen darüber. */
-  stand: EhrungAenderung;
-  /** Warnungen je Gruppe (Reihenfolge von `gruppen`): Anspruch über die vergebbare Stufe hinaus, Lücken. */
-  hinweise: string[][];
-  /** Person mit allen noch nicht gespeicherten Änderungen; Grundlage aller Berechnungen und Exporte. */
-  aktuell: EhrungPerson;
-  ansprueche: Ansprueche;
-  jahre: number | null;
-  abgleich: LeistungAbgleich;
-  /** Einmal je Berechnung erzeugt: ein neues Date je Prüfung ließe die Bindung nie zur Ruhe kommen. */
-  eintrittAlsDatum: Date | null;
-  geaendert: boolean;
-}
-
-function gleich(a: EhrungAenderung, b: EhrungAenderung): boolean {
-  const schluesselA = Object.keys(a.erhalten) as EhrungSchluessel[];
-  return (
-    a.stundenManuell === b.stundenManuell &&
-    a.stundenManuellStand === b.stundenManuellStand &&
-    a.eintrittsdatum === b.eintrittsdatum &&
-    a.besondereVerdienste === b.besondereVerdienste &&
-    schluesselA.length === Object.keys(b.erhalten).length &&
-    schluesselA.every(
-      (schluessel) =>
-        hatErhalten(b.erhalten, schluessel) && a.erhalten[schluessel] === b.erhalten[schluessel],
-    )
-  );
-}
-
-export type StatusFilter = 'alle' | 'erhalten' | 'faellig' | 'ohne-jahr';
-
-type Gruppe = 'leistung' | 'jubilaeum' | 'uhr' | 'ehrenzeichen';
-
-function gruppeVon(schluessel: EhrungSchluessel): Gruppe {
-  if (LEISTUNGSABZEICHEN.includes(schluessel)) return 'leistung';
-  if (JUBILAEUMSZEICHEN.includes(schluessel)) return 'jubilaeum';
-  return JUBILAEUMSUHREN.includes(schluessel) ? 'uhr' : 'ehrenzeichen';
-}
 
 /**
  * Ehrungen: Leistungsabzeichen, Jubiläumszeichen und Ehrenzeichen je Person.
@@ -124,12 +82,11 @@ function gruppeVon(schluessel: EhrungSchluessel): Gruppe {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ehrungen',
   imports: [
+    AuszeichnungsGruppe,
     GruppenFilter,
     MatButtonModule,
     MatButtonToggleModule,
-    MatCardModule,
     MatCheckboxModule,
-    MatChipsModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
@@ -143,6 +100,8 @@ function gruppeVon(schluessel: EhrungSchluessel): Gruppe {
     MatToolbarModule,
     MatTooltipModule,
     RouterLink,
+    StundenImport,
+    StundenZelle,
   ],
   providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   host: { '[class.vollbild]': 'vollbild()' },
@@ -219,7 +178,7 @@ export class Ehrungen implements OnInit {
   readonly entwurf = signal<Record<string, EhrungAenderung>>({});
 
   readonly importOffen = signal(false);
-  readonly importText = signal('');
+  protected readonly personen = this.dienst.personen;
 
   /**
    * Zeilen bleiben für unveränderte Personen dieselben Objekte: bei einem Häkchen ändert sich nur
@@ -243,37 +202,7 @@ export class Ehrungen implements OnInit {
         neu.set(person.id, bekannt);
         return bekannt.zeile;
       }
-      const gespeichert: EhrungAenderung = {
-        stundenManuell: person.stundenManuell,
-        stundenManuellStand: person.stundenManuellStand,
-        eintrittsdatum: person.eintrittsdatum,
-        besondereVerdienste: person.besondereVerdienste,
-        erhalten: person.erhalten,
-      };
-      const stand = bearbeitet ?? gespeichert;
-      const aktuell: EhrungPerson = {
-        ...person,
-        ...stand,
-        stunden: wirksameStunden(person.stundenImport, stand.stundenManuell),
-      };
-      const zeile: Zeile = {
-        person,
-        stand,
-        aktuell,
-        ansprueche: ansprueche(aktuell, this.jahr),
-        hinweise: [],
-        jahre: mitgliedsjahre(stand.eintrittsdatum, this.jahr),
-        abgleich: leistungAbgleich(aktuell.stunden, stand.erhalten),
-        eintrittAlsDatum: stand.eintrittsdatum ? isoZuLokalesDatum(stand.eintrittsdatum) : null,
-        geaendert: bearbeitet !== undefined,
-      };
-      const a = zeile.ansprueche;
-      zeile.hinweise = [
-        staffelHinweise(stand.erhalten, a.leistung, LEISTUNGSABZEICHEN),
-        [],
-        [],
-        staffelHinweise(stand.erhalten, a.ehrenzeichen, EHRENZEICHEN),
-      ];
+      const zeile = zeileBerechnen(person, bearbeitet, this.jahr);
       neu.set(person.id, { person, stand: bearbeitet, zeile });
       return zeile;
     });
@@ -299,7 +228,7 @@ export class Ehrungen implements OnInit {
           `${zeile.person.nachname} ${zeile.person.vorname}`
             .toLocaleLowerCase('de')
             .includes(suche)) &&
-        this.passtZuFilter(zeile, gewaehlt, status),
+        passtZuFilter(zeile, gewaehlt, status),
     );
   });
 
@@ -307,35 +236,7 @@ export class Ehrungen implements OnInit {
     const { active, direction } = this.sortierung();
     const liste = this.gefiltert();
     if (!direction) return liste;
-    const wert = (zeile: Zeile): string | number => {
-      switch (active) {
-        case 'nachname':
-          return zeile.person.nachname.toLocaleLowerCase('de');
-        case 'vorname':
-          return zeile.person.vorname.toLocaleLowerCase('de');
-        case 'stunden':
-          return zeile.aktuell.stunden;
-        case 'eintritt':
-          return zeile.stand.eintrittsdatum ?? '';
-        default:
-          return zeile.jahre ?? -1;
-      }
-    };
-    const faktor = direction === 'asc' ? 1 : -1;
-    return [...liste].sort((a, b) => {
-      const x = wert(a);
-      const y = wert(b);
-      const vergleich =
-        typeof x === 'number' && typeof y === 'number'
-          ? x - y
-          : String(x).localeCompare(String(y), 'de');
-      // Gleiche Werte bleiben nach Nach- und Vorname geordnet.
-      return (
-        faktor * vergleich ||
-        a.person.nachname.localeCompare(b.person.nachname, 'de') ||
-        a.person.vorname.localeCompare(b.person.vorname, 'de')
-      );
-    });
+    return sortiereZeilen(liste, active, direction);
   });
 
   /** Die Tabelle zeigt nur eine Seite: mehrere hundert Zeilen mit je gut hundert Knoten bremsen jede Eingabe. */
@@ -382,34 +283,6 @@ export class Ehrungen implements OnInit {
       ).length,
   );
 
-  /** Vorschau des Textimports gegen den geladenen Bestand. */
-  readonly importVorschau = computed(() => {
-    const { eintraege, fehler } = stundenTextLesen(this.importText());
-    const bestand = new Map(
-      this.dienst
-        .personen()
-        .map((person) => [personSchluessel(person.nachname, person.vorname), person]),
-    );
-    const gesehen = new Set<string>();
-    let neu = 0;
-    let geaendert = 0;
-    let unveraendert = 0;
-    let doppelt = 0;
-    for (const eintrag of eintraege) {
-      const schluessel = personSchluessel(eintrag.nachname, eintrag.vorname);
-      if (gesehen.has(schluessel)) {
-        doppelt++;
-        continue;
-      }
-      gesehen.add(schluessel);
-      const vorhanden = bestand.get(schluessel);
-      if (!vorhanden) neu++;
-      else if (vorhanden.stunden === eintrag.stunden) unveraendert++;
-      else geaendert++;
-    }
-    return { eintraege, fehler, neu, geaendert, unveraendert, doppelt };
-  });
-
   constructor() {
     inject(VerlassenSchutz).registrieren(() => this.anzahlGeaendert() > 0);
     // Neue Suche, neuer Filter oder neue Sortierung beginnt wieder auf der ersten Seite.
@@ -446,27 +319,6 @@ export class Ehrungen implements OnInit {
     }
     this.vollbild.set(true);
     await this.dokument.documentElement.requestFullscreen().catch(() => undefined);
-  }
-
-  private passtZuFilter(zeile: Zeile, gewaehlt: EhrungSchluessel[], status: StatusFilter): boolean {
-    if (gewaehlt.length === 0 && status === 'alle') return true;
-    const schluessel = gewaehlt.length > 0 ? gewaehlt : EHRUNG_SCHLUESSEL;
-    return schluessel.some((eintrag) => {
-      const hat = hatErhalten(zeile.stand.erhalten, eintrag);
-      const anspruch = zeile.ansprueche[gruppeVon(eintrag)];
-      const zuVergeben = anspruch.erfuellt === eintrag;
-      const offen = anspruch.offen.includes(eintrag);
-      switch (status) {
-        case 'erhalten':
-          return hat;
-        case 'faellig':
-          return offen;
-        case 'ohne-jahr':
-          return hat && zeile.stand.erhalten[eintrag] === null;
-        default:
-          return hat || zuVergeben;
-      }
-    });
   }
 
   filterZuruecksetzen(): void {
@@ -511,7 +363,7 @@ export class Ehrungen implements OnInit {
     };
     this.entwurf.update((entwurf) => {
       const kopie = { ...entwurf };
-      if (gleich(neu, gespeichert)) delete kopie[person.id];
+      if (stimmtUeberein(neu, gespeichert)) delete kopie[person.id];
       else kopie[person.id] = neu;
       return kopie;
     });
@@ -540,17 +392,8 @@ export class Ehrungen implements OnInit {
     });
   }
 
-  /** Nachtrag von Hand; leer entfernt ihn, Unlesbares wird verworfen und die alte Anzeige bleibt. */
-  stundenNachtragen(zeile: Zeile, feld: HTMLInputElement): void {
-    const text = feld.value.trim();
-    const manuell = text === '' ? null : stundenLesen(text);
-    if (text !== '' && manuell === null) {
-      feld.value = this.manuellAnzeige(zeile);
-      this.fehler.set('Die Stundenzahl ist nicht lesbar. Erwartet wird zum Beispiel 1.250,5.');
-      return;
-    }
-    this.fehler.set('');
-    // Ohne Nachtrag gibt es keinen Stand; mit Nachtrag bleibt ein vorhandener Stand stehen.
+  /** Ohne Nachtrag gibt es keinen Stand; mit Nachtrag bleibt ein vorhandener Stand stehen. */
+  stundenNachtragen(zeile: Zeile, manuell: number | null): void {
     this.aendern(zeile.person, {
       ...zeile.stand,
       stundenManuell: manuell,
@@ -558,58 +401,8 @@ export class Ehrungen implements OnInit {
     });
   }
 
-  /** Pflichtangabe zum Nachtrag: das Jahr, für das die Stundenzahl gilt. */
-  standNachtragen(zeile: Zeile, feld: HTMLInputElement): void {
-    const text = feld.value.trim();
-    const jahr = Number(text);
-    const gueltig =
-      text !== '' &&
-      Number.isInteger(jahr) &&
-      jahr >= VERGABEJAHR_MINIMUM &&
-      jahr <= VERGABEJAHR_MAXIMUM;
-    if (text !== '' && !gueltig) {
-      feld.value = zeile.stand.stundenManuellStand?.toString() ?? '';
-      this.fehler.set(
-        `Der Stand muss ein Jahr zwischen ${VERGABEJAHR_MINIMUM} und ${VERGABEJAHR_MAXIMUM} sein.`,
-      );
-      return;
-    }
-    this.fehler.set('');
-    this.aendern(zeile.person, { ...zeile.stand, stundenManuellStand: gueltig ? jahr : null });
-  }
-
-  /** Ein manueller Nachtrag ohne Stand kann nicht gespeichert werden. */
-  standFehlt(zeile: Zeile): boolean {
-    return zeile.stand.stundenManuell !== null && zeile.stand.stundenManuellStand === null;
-  }
-
-  manuellAnzeige(zeile: Zeile): string {
-    return zeile.stand.stundenManuell === null
-      ? ''
-      : this.stundenAnzeige(zeile.stand.stundenManuell);
-  }
-
-  /** Welche der beiden Zahlen für die Berechnung zählt. */
-  zaehltManuell(zeile: Zeile): boolean {
-    return (zeile.stand.stundenManuell ?? 0) > zeile.person.stundenImport;
-  }
-
-  importHinweis(zeile: Zeile): string {
-    const zahl = `${this.stundenAnzeige(zeile.person.stundenImport)} Stunden aus dem Import`;
-    return this.zaehltManuell(zeile)
-      ? `${zahl} – zählt nicht, der manuelle Nachtrag ist größer`
-      : `${zahl} – diese Zahl zählt`;
-  }
-
-  manuellHinweis(zeile: Zeile): string {
-    if (zeile.stand.stundenManuell === null)
-      return 'Stunden manuell nachtragen (die größere Zahl zählt, Stand/Jahr ist Pflicht)';
-    const stand = zeile.stand.stundenManuellStand
-      ? `Stand ${zeile.stand.stundenManuellStand}`
-      : 'Stand fehlt';
-    return this.zaehltManuell(zeile)
-      ? `Manuell nachgetragen (${stand}) – diese Zahl zählt`
-      : `Manuell nachgetragen (${stand}) – zählt nicht, der Import ist größer oder gleich`;
+  standNachtragen(zeile: Zeile, jahr: number | null): void {
+    this.aendern(zeile.person, { ...zeile.stand, stundenManuellStand: jahr });
   }
 
   verlaufOeffnen(zeile: Zeile): void {
@@ -630,14 +423,6 @@ export class Ehrungen implements OnInit {
     this.aendern(zeile.person, { ...zeile.stand, eintrittsdatum: iso });
   }
 
-  hat(zeile: Zeile, schluessel: EhrungSchluessel): boolean {
-    return hatErhalten(zeile.stand.erhalten, schluessel);
-  }
-
-  jahrVon(zeile: Zeile, schluessel: EhrungSchluessel): number | null {
-    return zeile.stand.erhalten[schluessel] ?? null;
-  }
-
   abgleichText(zeile: Zeile): string {
     switch (zeile.abgleich) {
       case 'reihenfolge':
@@ -653,28 +438,6 @@ export class Ehrungen implements OnInit {
     }
   }
 
-  /**
-   * Staffel: Gold erst nach Silber, Silber erst nach Bronze (ebenso Ehrenzeichen → Band → Nadel).
-   * Eine Stufe lässt sich nur anhaken, wenn ihre Vorstufe erhalten ist, und nur abhaken, solange
-   * keine höhere Stufe erhalten ist. Bestehende Lücken unterhalb einer erfassten Stufe lassen sich
-   * nachtragen, damit sich alte Bestände bereinigen lassen.
-   */
-  chipGesperrt(zeile: Zeile, schluessel: EhrungSchluessel): boolean {
-    const staffel = staffelVon(schluessel);
-    if (!staffel) return false;
-    const erhalten = zeile.stand.erhalten;
-    const index = staffel.indexOf(schluessel);
-    const hoehereErhalten = staffel.slice(index + 1).some((stufe) => hatErhalten(erhalten, stufe));
-    if (hatErhalten(erhalten, schluessel)) return hoehereErhalten;
-    const vorstufe = staffel[index - 1];
-    return vorstufe !== undefined && !hatErhalten(erhalten, vorstufe) && !hoehereErhalten;
-  }
-
-  /** Was in der Gruppe als „Zu vergeben“ erscheint: die nächste Stufe, sonst die zuletzt erfüllte. */
-  anzeigeStufe(anspruch: Anspruch): EhrungSchluessel | null {
-    return anspruch.naechste ?? anspruch.erfuellt;
-  }
-
   anspruchVon(zeile: Zeile, gruppe: number): Anspruch {
     return [
       zeile.ansprueche.leistung,
@@ -686,11 +449,6 @@ export class Ehrungen implements OnInit {
 
   kurzBezeichnung(schluessel: EhrungSchluessel | null): string {
     return schluessel ? EHRUNG_KURZ[schluessel] : '';
-  }
-
-  /** Klasse für die Chipfarbe je Auszeichnung. */
-  chipKlasse(schluessel: EhrungSchluessel): string {
-    return `chip-${gruppeVon(schluessel) === 'leistung' ? schluessel : gruppeVon(schluessel)}`;
   }
 
   verwerfen(): void {
@@ -784,9 +542,8 @@ export class Ehrungen implements OnInit {
     }
   }
 
-  async stundenUebernehmen(): Promise<void> {
-    const vorschau = this.importVorschau();
-    if (this.arbeitet() || vorschau.eintraege.length === 0) return;
+  async stundenUebernehmen(eintraege: readonly StundenEintrag[]): Promise<void> {
+    if (this.arbeitet() || eintraege.length === 0) return;
     this.arbeitet.set(true);
     this.fehler.set('');
     this.rueckmeldung.set('');
@@ -798,7 +555,7 @@ export class Ehrungen implements OnInit {
       );
       const ergebnisse = await this.dienst.importieren(
         true,
-        vorschau.eintraege.map((eintrag) => ({
+        eintraege.map((eintrag) => ({
           ...eintrag,
           version: bestand.get(personSchluessel(eintrag.nachname, eintrag.vorname))?.version,
         })),
@@ -815,7 +572,6 @@ export class Ehrungen implements OnInit {
           `${konflikte} Person(en) wurden zwischenzeitlich geändert und nicht aktualisiert. Bitte den Import wiederholen.`,
         );
       }
-      this.importText.set('');
       this.importOffen.set(false);
     } catch (fehler) {
       this.fehler.set(fehler instanceof Error ? fehler.message : 'Der Import ist fehlgeschlagen.');
@@ -901,9 +657,5 @@ export class Ehrungen implements OnInit {
         fehler instanceof Error ? fehler.message : 'Die Excel-Datei konnte nicht erstellt werden.',
       );
     }
-  }
-
-  stundenAnzeige(stunden: number): string {
-    return stunden.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 }

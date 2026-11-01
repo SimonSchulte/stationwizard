@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { sollRolle, type StaerkeRolle } from './staerke';
 import {
   Einsatzkraft,
   Medizinisch,
@@ -10,12 +11,7 @@ import {
 
 export type MatchLevel = 'full' | 'partial' | 'mismatch' | 'neutral';
 
-export interface Staerke {
-  fuhrer: number;
-  unterfuehrer: number;
-  helfer: number;
-  gesamt: number;
-}
+export type { Staerke } from './staerke';
 
 export const TAKTISCH_LABEL: Record<Taktisch, string> = {
   H: 'Helfer',
@@ -94,10 +90,8 @@ export class MatchService {
     return { bg: 'var(--ci-blue)', fg: 'var(--ci-white)' };
   }
 
-  sollRole(t: Taktisch | null): 'fuhrer' | 'unterfuehrer' | 'helfer' {
-    if (t === 'ZF' || t === 'VF') return 'fuhrer';
-    if (t === 'GF') return 'unterfuehrer';
-    return 'helfer';
+  sollRole(t: Taktisch | null): StaerkeRolle {
+    return sollRolle(t);
   }
 
   istRole(person: Einsatzkraft): 'fuhrer' | 'unterfuehrer' | 'helfer' {

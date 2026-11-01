@@ -1,0 +1,74 @@
+:host {
+  display: block;
+}
+
+.stunden-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.stunden-wirksam {
+  font-weight: 500;
+  text-align: right;
+}
+
+.stundenquellen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-2xs);
+}
+
+.quelle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+
+  mat-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 1.1rem;
+  }
+
+  &.zaehlt {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+}
+
+.manuellfeld {
+  --mat-form-field-container-height: 36px;
+  --mat-form-field-container-vertical-padding: 6px;
+
+  width: 8.5rem;
+}
+
+.standfeld {
+  --mat-form-field-container-height: 36px;
+  --mat-form-field-container-vertical-padding: 6px;
+
+  width: 5.75rem;
+}
+
+.manuell-icon {
+  color: var(--text-secondary);
+}
+
+// Das Standfeld braucht die Platz fressenden Pfeile des Zahlenfelds nicht.
+input[type='number'] {
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+}
+
+.jahr-fehlt {
+  color: var(--status-warn);
+}
