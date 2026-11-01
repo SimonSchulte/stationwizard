@@ -78,6 +78,33 @@
   color: var(--text-secondary);
 }
 
+.zelle-huelle {
+  position: relative;
+  display: flex;
+  min-width: 0;
+
+  > .zelle {
+    flex: 1 1 auto;
+  }
+}
+
+/* „+“ in der Ecke einer Lücke: immer sichtbar, damit es auch am Handy auffindbar ist. */
+.anlegen {
+  --mat-icon-button-state-layer-size: 32px;
+
+  position: absolute;
+  right: var(--space-2xs);
+  bottom: var(--space-2xs);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--luecke-text);
+
+  mat-icon {
+    font-size: 20px;
+  }
+}
+
 .zelle {
   position: relative;
   display: flex;

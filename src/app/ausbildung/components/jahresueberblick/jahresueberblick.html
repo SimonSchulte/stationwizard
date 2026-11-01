@@ -31,28 +31,45 @@
         <div class="zeile">
           <div class="monat">{{ monat.name }}</div>
           @for (zelle of monat.zellen; track zelle.datum) {
-            <button
-              type="button"
-              class="zelle"
-              [class.luecke]="zelle.luecke"
-              [class.abweichung]="zelle.abweichung"
-              [class.heute]="zelle.datum === heute()"
-              [style.--k]="farbe(zelle)"
-              [attr.aria-label]="
-                zelle.nummer +
-                '.' +
-                (monat.index + 1) +
-                '. ' +
-                (zelle.luecke ? 'Lücke' : zelle.titel)
-              "
-              (click)="tagGewaehlt.emit(zelle.datum)"
-            >
-              <span class="nummer">{{ zelle.nummer }}.</span>
-              <span class="titel">{{ zelle.luecke ? 'Lücke' : zelle.titel }}</span>
-              @if (zelle.abweichung) {
-                <mat-icon class="warnpunkt" inline>warning</mat-icon>
+            <div class="zelle-huelle">
+              <button
+                type="button"
+                class="zelle"
+                [class.luecke]="zelle.luecke"
+                [class.abweichung]="zelle.abweichung"
+                [class.heute]="zelle.datum === heute()"
+                [style.--k]="farbe(zelle)"
+                [attr.aria-label]="
+                  zelle.nummer +
+                  '.' +
+                  (monat.index + 1) +
+                  '. ' +
+                  (zelle.luecke ? 'Lücke' : zelle.titel)
+                "
+                (click)="tagGewaehlt.emit(zelle.datum)"
+              >
+                <span class="nummer">{{ zelle.nummer }}.</span>
+                <span class="titel">{{ zelle.luecke ? 'Lücke' : zelle.titel }}</span>
+                @if (zelle.abweichung) {
+                  <mat-icon class="warnpunkt" inline>warning</mat-icon>
+                }
+              </button>
+              @if (zelle.luecke && !zelle.feiertag) {
+                <!-- Direkt aus dem Überblick eintragen: ein freier Diensttag bekommt einen Termin. -->
+                <button
+                  matIconButton
+                  type="button"
+                  class="anlegen"
+                  [attr.aria-label]="
+                    'Termin am ' + zelle.nummer + '.' + (monat.index + 1) + '. anlegen'
+                  "
+                  [matTooltip]="'Termin am ' + zelle.nummer + '.' + (monat.index + 1) + '. anlegen'"
+                  (click)="anlegen.emit(zelle.datum)"
+                >
+                  <mat-icon>add</mat-icon>
+                </button>
               }
-            </button>
+            </div>
           }
         </div>
       }

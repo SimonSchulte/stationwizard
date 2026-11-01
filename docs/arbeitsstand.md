@@ -3284,3 +3284,23 @@ Bewusst offen:
   „Verschieben nach Datum …“.
 - Die Rasterkarten bleiben am Handy eng; der Rollenchip ist dort ausgeblendet (der Streifen
   trägt die Farbe), die Liste ist die gedachte Handyansicht.
+
+### Kalender: Monatsfarben, Wochenenden, KatS-Ansicht
+
+- Monat und Liste: jeder zweite Monat ist getönt (`--monat-ungerade-bg`), Samstag und Sonntag
+  tragen einen leichten Rotton (`--wochenende-bg`, über der Monatsfläche). Der Jahresüberblick
+  hat ohnehin eine Zeile je Monat und bleibt unverändert.
+- Jahresüberblick: freie Diensttage (ohne Feiertag) haben ein „+“, das den Termin-Dialog für diesen
+  Tag öffnet. Neue Einträge und neue Ideen sind jetzt standardmäßig vom Typ „Termin“ (vorher
+  „Dienst“); ein Dienst wird bewusst gewählt. Bestehende Daten bleiben unverändert.
+- Neue Ansicht „KatS“ (Umschalter neben Monat, Liste, Jahr): alle KatS-Ausbildungen des gewählten
+  Jahres nach Monat, dazu „Themen ohne Termin“ (Pflichtthemen zuerst). Als KatS-Ausbildung gilt ein
+  datierter Termin mit verknüpftem KatS-Thema, Pflichtmarkierung oder KatS-Titel.
+- **Nachweisgruppen ausgeblendet:** Dialogabschnitt „Nachweise“, die Chips auf den Karten und der
+  Abschnitt „Nachweise & Unterweisungen“ in der Auswertung sind aus der Oberfläche entfernt. Datenmodell
+  (`Termin.nachweise`, `NACHWEISE`), Excel-Rundlauf, Worker (`kalender-planung.ts`) und
+  Jahresübernahme sind unverändert, damit nichts verloren geht. **Offen für das Backend:** klären, ob
+  die Gruppen fachlich sinnvoll sind, und sie dann entweder neu fassen oder samt Spalte, Wertelisten
+  (`plan.model.ts` **und** `kalender-planung.ts`) und Excel-Schema entfernen.
+- Geprüft: Build, `npm test`, Prettier; Sichtprüfung gegen die Worker-Attrappe (Desktop). Nicht
+  gesondert am Handy geprüft: Monats-/Wochenendfarben und die KatS-Ansicht.

@@ -61,11 +61,19 @@
   padding: var(--space-sm);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  background: var(--surface-primary);
+  background-color: var(--surface-primary);
+
+  &.monat-ungerade {
+    background-color: var(--monat-ungerade-bg);
+  }
+
+  &.wochenende {
+    background-image: linear-gradient(var(--wochenende-bg), var(--wochenende-bg));
+  }
 
   &.luecke {
     border-color: var(--luecke-rand);
-    background: var(--luecke-bg);
+    background-color: var(--luecke-bg);
   }
 
   &.heute {

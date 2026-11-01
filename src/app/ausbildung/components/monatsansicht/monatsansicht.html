@@ -20,6 +20,8 @@
         <div
           class="tag-zelle"
           [class.diensttag]="slot.istDiensttag"
+          [class.monat-ungerade]="ungeraderMonat(slot.datum)"
+          [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
           [class.ausserhalb]="!slot.imJahr"
           [class.heute]="slot.datum === heute()"
           [class.gewaehlt]="slot.datum === aktuellerTag()?.datum"

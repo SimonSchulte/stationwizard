@@ -41,6 +41,8 @@
           [cdkDropListDisabled]="tag.slot.termine.length > 0"
           (cdkDropListDropped)="aufLeeremTagAbgelegt.emit({ event: $event, datum: tag.slot.datum })"
           [class.luecke]="tag.luecke"
+          [class.monat-ungerade]="ungeraderMonat(tag.slot.datum)"
+          [class.wochenende]="tag.slot.tag === 'Sa' || tag.slot.tag === 'So'"
           [class.heute]="tag.slot.datum === heute()"
           [class.vergangen]="tag.slot.datum < heute()"
         >

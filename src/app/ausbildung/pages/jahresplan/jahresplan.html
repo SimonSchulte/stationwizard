@@ -238,7 +238,7 @@
           </button>
         }
       } @else {
-        @if (ansicht() !== 'jahr') {
+        @if (istTerminAnsicht()) {
           <mat-chip-listbox multiple class="filter-marken" aria-label="Plan filtern">
             <mat-chip-option
               class="diensttags-marke"
@@ -297,6 +297,14 @@
             <span class="knopf-text">Liste</span>
           </mat-button-toggle>
           <mat-button-toggle
+            value="kats"
+            aria-label="KatS-Ausbildungsplan"
+            matTooltip="Alle KatS-Ausbildungen des Jahres"
+          >
+            <mat-icon>fact_check</mat-icon>
+            <span class="knopf-text">KatS</span>
+          </mat-button-toggle>
+          <mat-button-toggle
             value="jahr"
             aria-label="Jahr"
             matTooltip="Jahresüberblick der Diensttage"
@@ -307,10 +315,10 @@
         </mat-button-toggle-group>
 
         <!--
-          Der Jahresüberblick zeigt immer das ganze Jahr ohne Filter; Monat, Suche und
+          Jahresüberblick und KatS-Ausbildungsplan zeigen immer das ganze Jahr ohne Filter; Monat, Suche und
           Filtermarken gelten nur für Monat und Liste und fehlen dort deshalb.
         -->
-        @if (ansicht() !== 'jahr') {
+        @if (istTerminAnsicht()) {
           <app-monats-navigation
             [monat]="suche().trim() ? null : monat()"
             [imAktuellenMonat]="imAktuellenMonat()"
@@ -320,7 +328,7 @@
         }
 
         <span class="fueller"></span>
-        @if (ansicht() !== 'jahr') {
+        @if (istTerminAnsicht()) {
           <app-suchfeld class="plan-suche" beschriftung="Im Plan suchen" [(wert)]="suche" />
         }
         <button matButton="tonal" aria-label="Neuen Termin anlegen" (click)="neuerTermin()">
@@ -358,6 +366,17 @@
           [heute]="heute"
           [diensttagLabel]="diensttagLabel()"
           (tagGewaehlt)="ueberblickTagGewaehlt($event)"
+          (anlegen)="terminAnlegen($event)"
+        />
+      }
+      @case ('kats') {
+        <app-kats-ausbildungsplan
+          [jahr]="store.jahr()"
+          [heute]="heute"
+          (bearbeiten)="bearbeiten($event)"
+          (zuBacklog)="zuBacklog($event)"
+          (datumWaehlen)="terminVerschiebenNach($event)"
+          (loeschen)="loeschen($event)"
         />
       }
       @case ('liste') {

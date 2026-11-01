@@ -77,6 +77,11 @@ export class Monatsansicht {
   /** Bei `aus` entfällt auch in der Tagesagenda der Abschnitt „HiOrg-Server“. */
   readonly hiorgEbene = input<HiorgEbene>('gesammelt');
 
+  /** Januar, März, … – jeder zweite Monat bekommt eine getönte Fläche. */
+  ungeraderMonat(datum: string): boolean {
+    return Number(datum.slice(5, 7)) % 2 === 1;
+  }
+
   readonly tagGewaehlt = output<string>();
   readonly bearbeiten = output<string>();
   readonly zuBacklog = output<Termin>();

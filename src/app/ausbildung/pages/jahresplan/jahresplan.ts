@@ -29,6 +29,7 @@ import { AuswertungPanel } from '../../components/auswertung-panel/auswertung-pa
 import { BacklogPanel } from '../../components/backlog-panel/backlog-panel';
 import { DatumDialog, DatumDialogDaten } from '../../components/datum-dialog/datum-dialog';
 import { KatsPanel } from '../../components/kats-panel/kats-panel';
+import { KatsAusbildungsplan } from '../../components/kats-ausbildungsplan/kats-ausbildungsplan';
 import { Agendaliste } from '../../components/agendaliste/agendaliste';
 import {
   AblageAufTag,
@@ -111,6 +112,7 @@ import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
     MatTooltipModule,
     Monatsansicht,
     Jahresueberblick,
+    KatsAusbildungsplan,
     RouterLink,
   ],
   templateUrl: './jahresplan.html',
@@ -165,7 +167,11 @@ export class Jahresplan {
    * (Agendaliste). Auf schmalen Bildschirmen startet die Liste, sonst das Raster.
    * Bewusst nur für diese Sitzung – eine Ansichtseinstellung wird nirgends persistiert.
    */
-  readonly ansicht = signal<'monat' | 'liste' | 'jahr'>(startAnsicht());
+  readonly ansicht = signal<'monat' | 'liste' | 'jahr' | 'kats'>(startAnsicht());
+  /** Monat und Liste teilen Filter, Monatsnavigation und Suche; Jahr und KatS zeigen immer alles. */
+  readonly istTerminAnsicht = computed(
+    () => this.ansicht() === 'monat' || this.ansicht() === 'liste',
+  );
   /** Filter der Agendaliste; leer bedeutet alle Kategorien. Nur für diese Sitzung. */
   readonly agendaKategorien = signal<ReadonlySet<Kategorie>>(new Set());
   readonly agendaTyp = signal<TypFilter>('alle');

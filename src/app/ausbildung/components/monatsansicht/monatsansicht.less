@@ -90,8 +90,25 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
 
+  background-color: var(--monat-bg, transparent);
+
+  /* Jeder zweite Monat (Januar, März, …) ist getönt. */
+  &.monat-ungerade {
+    --monat-bg: var(--monat-ungerade-bg);
+  }
+
+  /* Der Diensttag hebt sich als hellere Fläche des jeweiligen Monats ab. */
   &.diensttag {
-    background: var(--surface-tertiary);
+    background-color: color-mix(
+      in srgb,
+      var(--monat-bg, var(--surface-primary)) 35%,
+      var(--surface-primary)
+    );
+  }
+
+  /* Der Rotton liegt über der Monatsfläche und lässt sie durchscheinen. */
+  &.wochenende {
+    background-image: linear-gradient(var(--wochenende-bg), var(--wochenende-bg));
   }
 
   /* Nur zur Orientierung, aber lesbar: bei 0.45 fiel der Kontrast weit unter 4,5:1. */

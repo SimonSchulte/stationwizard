@@ -150,18 +150,6 @@
     Pflichtthema nach KatS-Ausbildungsplan
   </mat-checkbox>
 
-  <h3 class="abschnitt">Nachweise</h3>
-  <div class="nachweise">
-    @for (nachweis of nachweise; track nachweis.key) {
-      <mat-checkbox
-        [ngModel]="hatNachweis(nachweis.key)"
-        (ngModelChange)="schalteNachweis(nachweis.key, $event)"
-      >
-        {{ nachweis.kurz }}
-      </mat-checkbox>
-    }
-  </div>
-
   <mat-expansion-panel class="weitere" [expanded]="weitereOffen">
     <mat-expansion-panel-header>
       <mat-panel-title>Weitere Angaben</mat-panel-title>

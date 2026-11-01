@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import { HiorgAbgleich } from '../../services/hiorg-abgleich';
 import { UeberblickZelle, baueJahresueberblick } from '../../services/jahresueberblick';
@@ -17,7 +19,7 @@ const MONATSNAMEN = Array.from({ length: 12 }, (_, index) =>
 @Component({
   selector: 'app-jahresueberblick',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIconModule],
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
   templateUrl: './jahresueberblick.html',
   styleUrl: './jahresueberblick.less',
 })
@@ -29,6 +31,8 @@ export class Jahresueberblick {
   readonly diensttagLabel = input('Montag');
 
   readonly tagGewaehlt = output<string>();
+  /** Neuer Termin an einem freien Diensttag. */
+  readonly anlegen = output<string>();
 
   readonly daten = computed(() =>
     baueJahresueberblick(this.wochen(), this.abgleich().tageMitAbweichung),

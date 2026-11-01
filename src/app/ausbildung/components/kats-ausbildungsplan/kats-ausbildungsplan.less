@@ -1,0 +1,123 @@
+// Ansicht „KatS-Ausbildungsplan“. Farben und Abstände ausschließlich aus `src/tokens.less`.
+
+:host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-xl);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kopf h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.zusammenfassung {
+  margin: var(--space-2xs) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+
+  .offen {
+    color: var(--luecke-text);
+    font-weight: 500;
+  }
+
+  .ok {
+    color: var(--status-ok);
+  }
+}
+
+.monat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.monat-kopf {
+  margin: var(--space-sm) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tag {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: start;
+
+  &.vergangen {
+    opacity: 0.7;
+  }
+}
+
+.datum-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.datum-nummer {
+  color: var(--text-primary);
+  font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.datum-tag {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.themen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thema {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-base);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  font-size: 0.8125rem;
+
+  &.pflicht {
+    border-color: var(--luecke-rand);
+    background: var(--luecke-bg);
+    color: var(--luecke-text);
+  }
+
+  .nummer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .titel {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .marke {
+    padding: 0 var(--space-compact);
+    border-radius: var(--radius-chip);
+    background: var(--luecke-rand);
+    color: var(--text-on-dark);
+    font-size: 0.75rem;
+  }
+}

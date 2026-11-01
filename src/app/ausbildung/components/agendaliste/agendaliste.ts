@@ -141,6 +141,11 @@ export class Agendaliste {
     return this.abgleich().terminNachId.get(terminId) ?? null;
   }
 
+  /** Januar, März, … – jeder zweite Monat bekommt eine getönte Fläche. */
+  ungeraderMonat(datum: string): boolean {
+    return Number(datum.slice(5, 7)) % 2 === 1;
+  }
+
   formatKurz(iso: string): string {
     return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
   }

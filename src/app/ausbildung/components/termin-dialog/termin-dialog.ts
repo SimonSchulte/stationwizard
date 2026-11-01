@@ -28,8 +28,6 @@ import {
 } from '../../../kern/kalender/datum';
 import {
   KATEGORIEN,
-  NACHWEISE,
-  NachweisKey,
   TERMIN_TYPEN,
   Termin,
   TerminTyp,
@@ -95,7 +93,6 @@ export class TerminDialog {
   readonly kategorien = KATEGORIEN;
   readonly terminTypen = TERMIN_TYPEN;
   readonly typName = typName;
-  readonly nachweise = NACHWEISE;
   readonly katsThemen = this.store.katsThemen;
 
   private readonly vorhanden = this.daten.terminId
@@ -104,7 +101,10 @@ export class TerminDialog {
 
   readonly istNeu = this.vorhanden === undefined;
   readonly entwurf = signal<Termin>(
-    this.vorhanden ? structuredClone(this.vorhanden) : leererTermin(this.daten.datum ?? null),
+    this.vorhanden
+      ? structuredClone(this.vorhanden)
+      : // Was neu eingetragen wird, ist standardmäßig ein „Termin“; ein „Dienst“ wird bewusst gewählt.
+        { ...leererTermin(this.daten.datum ?? null), typ: 'termin' },
   );
   /** Stand beim Öffnen, um ungesicherte Eingaben zu erkennen. */
   private readonly ausgangsstand = JSON.stringify(this.entwurf());
@@ -182,17 +182,6 @@ export class TerminDialog {
 
   setze<K extends keyof Termin>(feld: K, wert: Termin[K]): void {
     this.entwurf.update((e) => ({ ...e, [feld]: wert }));
-  }
-
-  hatNachweis(key: NachweisKey): boolean {
-    return this.entwurf().nachweise.includes(key);
-  }
-
-  schalteNachweis(key: NachweisKey, aktiv: boolean): void {
-    this.entwurf.update((e) => ({
-      ...e,
-      nachweise: aktiv ? [...e.nachweise, key] : e.nachweise.filter((n) => n !== key),
-    }));
   }
 
   waehleKatsThema(id: string | null): void {

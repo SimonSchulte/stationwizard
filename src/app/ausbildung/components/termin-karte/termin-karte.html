@@ -117,14 +117,6 @@
       </span>
     }
   </div>
-
-  @if (nachweisKuerzel().length) {
-    <div class="nachweise">
-      @for (kuerzel of nachweisKuerzel(); track kuerzel) {
-        <span class="nachweis-chip">{{ kuerzel }}</span>
-      }
-    </div>
-  }
 }
 
 <mat-menu #menue="matMenu">

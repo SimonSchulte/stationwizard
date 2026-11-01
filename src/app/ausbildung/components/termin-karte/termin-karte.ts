@@ -7,7 +7,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import {
   KatsThema,
-  NACHWEISE,
   Termin,
   istMehrtaegigerTermin,
   terminArt,
@@ -158,9 +157,6 @@ export class TerminKarte {
     const datum = this.termin().datum;
     return datum ? wochentag(datum) : '';
   });
-  readonly nachweisKuerzel = computed(() =>
-    NACHWEISE.filter((n) => this.termin().nachweise.includes(n.key)).map((n) => n.kurz),
-  );
   readonly katsAnzeige = computed(() => {
     const thema = this.katsThema();
     if (thema) {
