@@ -2,6 +2,8 @@ import { CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  afterNextRender,
   computed,
   inject,
   input,
@@ -49,6 +51,17 @@ import { MatChipsModule } from '@angular/material/chips';
 })
 export class Agendaliste {
   private readonly store = inject(PlanStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  constructor() {
+    // Beim Öffnen steht die Liste auf dem heutigen Tag (oder dem nächsten sichtbaren),
+    // statt im Januar zu beginnen.
+    afterNextRender(() => {
+      const heute = this.host.nativeElement.querySelector<HTMLElement>('.tag.heute');
+      const woche = heute?.closest<HTMLElement>('.woche');
+      (woche ?? heute)?.scrollIntoView({ block: 'start' });
+    });
+  }
 
   readonly wochen = input.required<readonly WochenZeile[]>();
   readonly tagesInhalte = input.required<ReadonlyMap<string, TagesInhalt>>();
@@ -66,6 +79,7 @@ export class Agendaliste {
 
   readonly bearbeiten = output<string>();
   readonly zuBacklog = output<Termin>();
+  readonly datumWaehlen = output<Termin>();
   readonly loeschen = output<string>();
   readonly anlegen = output<string>();
   readonly nameUebernehmen = output<HiorgAbweichung>();
@@ -125,6 +139,11 @@ export class Agendaliste {
 
   hiorgTreffer(terminId: string): HiorgEintrag | null {
     return this.abgleich().terminNachId.get(terminId) ?? null;
+  }
+
+  /** Januar, März, … – jeder zweite Monat bekommt eine getönte Fläche. */
+  ungeraderMonat(datum: string): boolean {
+    return Number(datum.slice(5, 7)) % 2 === 1;
   }
 
   formatKurz(iso: string): string {

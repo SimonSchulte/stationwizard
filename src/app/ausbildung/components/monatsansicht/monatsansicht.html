@@ -20,6 +20,8 @@
         <div
           class="tag-zelle"
           [class.diensttag]="slot.istDiensttag"
+          [class.monat-ungerade]="ungeraderMonat(slot.datum)"
+          [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
           [class.ausserhalb]="!slot.imJahr"
           [class.heute]="slot.datum === heute()"
           [class.gewaehlt]="slot.datum === aktuellerTag()?.datum"
@@ -71,6 +73,7 @@
                       [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
                       [feiertag]="slot.feiertag"
                       [kompakt]="true"
+                      [bearbeitbar]="false"
                     />
                   } @else {
                     <div
@@ -100,8 +103,8 @@
                         [kompakt]="true"
                         (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
                         (verschieben)="zuBacklog.emit(karte.termin.termin)"
+                        (datumWaehlen)="datumWaehlen.emit(karte.termin.termin)"
                         (loeschen)="loeschen.emit(karte.termin.termin.id)"
-                        (dblclick)="bearbeiten.emit(karte.termin.termin.id)"
                       />
                     </div>
                   }
@@ -127,12 +130,12 @@
                   <!-- Mehrere unauffällige HiOrg-Dienste desselben Tages in einer Karte. -->
                   <div
                     class="hiorg-sammelkarte"
-                    [matTooltip]="karte.anzahl + ' HiOrg-Einträge – in der Agenda einzeln'"
+                    [matTooltip]="karte.anzahl + ' HiOrg-Termine – in der Agenda einzeln'"
                   >
                     <mat-icon inline>cloud_download</mat-icon>
                     <span class="sammel-quelle">HiOrg ·</span>
                     <span class="sammel-zahl">{{ karte.anzahl }}</span>
-                    <span class="sammel-wort">Einträge</span>
+                    <span class="sammel-wort">Termine</span>
                   </div>
                 }
               }
@@ -156,7 +159,14 @@
             }
 
             @if (inhalt.verborgen > 0) {
-              <span class="weitere-karten">+{{ inhalt.verborgen }} weitere</span>
+              <button
+                type="button"
+                class="weitere-karten"
+                [attr.aria-label]="inhalt.verborgen + ' weitere Einträge, Tag in der Agenda zeigen'"
+                (click)="$event.stopPropagation(); waehleTag(slot.datum)"
+              >
+                +{{ inhalt.verborgen }} weitere
+              </button>
             }
           </div>
         </div>
@@ -173,7 +183,9 @@
   </div>
 </div>
 
-<aside class="agenda" aria-label="Tagesagenda" aria-live="polite">
+<aside class="agenda" aria-label="Tagesagenda">
+  <!-- Nur die Überschrift wird bei einem Tagwechsel angesagt, nicht die ganze Agenda. -->
+  <p class="nur-lesehilfe" aria-live="polite">{{ agendaTitel() }}</p>
   @if (aktuellerTag(); as slot) {
     <header class="agenda-kopf">
       <h2>{{ agendaTitel() }}</h2>
@@ -206,6 +218,7 @@
             [kompakt]="false"
             (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
             (verschieben)="zuBacklog.emit(karte.termin.termin)"
+            (datumWaehlen)="datumWaehlen.emit(karte.termin.termin)"
             (loeschen)="loeschen.emit(karte.termin.termin.id)"
           />
         }
@@ -215,7 +228,7 @@
     }
 
     @if (agendaHiorg().length) {
-      <h3 class="abschnitt">HiOrg-Server</h3>
+      <h3 class="abschnitt">Aus HiOrg</h3>
       @for (karte of agendaHiorg(); track karte.schluessel) {
         @if (karte.art === 'hiorg') {
           <app-hiorg-eintrag-karte

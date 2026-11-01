@@ -62,7 +62,7 @@ describe('Bestätigungen im Ausbildungsplan', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -100,6 +100,20 @@ describe('Bestätigungen im Ausbildungsplan', () => {
     expect(kalender.laden).not.toHaveBeenCalled();
     expect(store.dokument()).toBe(inzwischen);
     expect(dialog.hinweis).toHaveBeenCalled();
+  });
+
+  it('überlässt Strg+Z in Textfeldern dem Feld statt dem Plan', () => {
+    const rueckgaengig = vi.spyOn(store, 'rueckgaengig');
+    const feld = document.createElement('textarea');
+    document.body.append(feld);
+    const ereignis = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true });
+    Object.defineProperty(ereignis, 'target', { value: feld });
+    ansicht.tastendruck(ereignis);
+    expect(rueckgaengig).not.toHaveBeenCalled();
+    expect(ereignis.defaultPrevented).toBe(false);
+    feld.remove();
+    ansicht.tastendruck(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
+    expect(rueckgaengig).toHaveBeenCalled();
   });
 
   it('zeigt einen HiOrg-Termin ohne Plangegenstück als Lücke', () => {
@@ -197,7 +211,7 @@ describe('Monatsfilter im Jahresplan', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -282,7 +296,7 @@ describe('HiOrg-Statuschip', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -354,7 +368,7 @@ describe('Automatisches Laden aus der Kalender-Datenbank', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -417,7 +431,7 @@ describe('Datenbank-Chip und Speichern', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const meldungen = { zeige: vi.fn() };
+  const meldungen = { zeige: vi.fn(), info: vi.fn() };
   let ansicht: Jahresplan;
 
   beforeEach(() => {
@@ -505,7 +519,7 @@ describe('Tageszellen mit vielen Einträgen', () => {
       providers: [
         { provide: DialogDienst, useValue: dialog },
         { provide: MatDialog, useValue: {} },
-        { provide: MeldungsDienst, useValue: { zeige: vi.fn() } },
+        { provide: MeldungsDienst, useValue: { zeige: vi.fn(), info: vi.fn() } },
         { provide: KalenderDatenService, useValue: kalender },
         {
           provide: FeiertagService,
@@ -581,7 +595,7 @@ describe('Ansichten und Ideen auf Lücken', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const meldungen = { zeige: vi.fn() };
+  const meldungen = { zeige: vi.fn(), info: vi.fn() };
   let store: PlanStore;
 
   function erzeuge(): Jahresplan {
@@ -639,7 +653,10 @@ describe('Ansichten und Ideen auf Lücken', () => {
     const belegt = store.termine().filter((t) => t.datum === '2020-01-06');
     expect(belegt.map((t) => t.thema)).toEqual(['Erfundene Idee']);
     expect(store.backlog()).toEqual([]);
-    expect(meldungen.zeige).toHaveBeenCalledWith('info', expect.stringContaining('eingeplant'));
+    expect(meldungen.info).toHaveBeenCalledWith(
+      expect.stringContaining('eingeplant'),
+      expect.objectContaining({ aktion: 'Rückgängig' }),
+    );
   });
 
   it('legt eine Idee auf einen Diensttag ohne Platzhalter, ohne einen Termin zu ersetzen', () => {

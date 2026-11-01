@@ -10,6 +10,7 @@
     [matMenuTriggerFor]="jahrMenue"
     [disabled]="kalender.zustand() !== 'verbunden'"
     matTooltip="Jahr wechseln"
+    [attr.aria-label]="'Jahr wechseln, aktuell ' + store.jahr()"
   >
     {{ store.jahr() }}
     <mat-icon inline>arrow_drop_down</mat-icon>
@@ -21,7 +22,7 @@
         <span>{{ jahr }}</span>
       </button>
     }
-    <button mat-menu-item (click)="neuesJahr()">
+    <button mat-menu-item (click)="neuesJahrAnlegen()">
       <mat-icon>add</mat-icon>
       <span>Neues Jahr ({{ naechstesJahr() }})</span>
     </button>
@@ -35,7 +36,13 @@
     (gewaehlt)="neuLaden()"
   >
     @if (store.ungespeichert()) {
-      <span class="ungespeichert" matTooltip="Es gibt ungespeicherte Änderungen">•</span>
+      <span
+        class="ungespeichert"
+        role="img"
+        aria-label="Es gibt ungespeicherte Änderungen"
+        matTooltip="Es gibt ungespeicherte Änderungen"
+        >•</span
+      >
     }
   </app-status-chip>
 
@@ -49,16 +56,20 @@
 
   <button
     matIconButton
+    class="nur-breit"
     [disabled]="!store.kannRueckgaengig()"
     matTooltip="Rückgängig (Strg+Z)"
+    aria-label="Rückgängig"
     (click)="store.rueckgaengig()"
   >
     <mat-icon>undo</mat-icon>
   </button>
   <button
     matIconButton
+    class="nur-breit"
     [disabled]="!store.kannWiederholen()"
     matTooltip="Wiederherstellen (Strg+Umschalt+Z)"
+    aria-label="Wiederherstellen"
     (click)="store.wiederholen()"
   >
     <mat-icon>redo</mat-icon>
@@ -69,6 +80,7 @@
     [disabled]="!kannSpeichern() || !store.ungespeichert() || beschaeftigt()"
     (click)="speichern()"
     matTooltip="In der Datenbank speichern (Strg+S)"
+    aria-label="Speichern"
   >
     <mat-icon>save</mat-icon>
     <span class="knopf-text">Speichern</span>
@@ -91,14 +103,10 @@
 
   <mat-menu #feiertagMenue="matMenu">
     <div class="menue-kopf" (click)="$event.stopPropagation()">
-      Feiertage aus
-      {{
-        feiertage.quelle() === 'api'
-          ? 'feiertage-api.de'
-          : feiertage.quelle() === 'zwischenspeicher'
-            ? 'dem Zwischenspeicher'
-            : 'lokaler Berechnung'
-      }}
+      Bundesland für die Feiertage
+      @if (feiertage.quelle() !== 'api') {
+        <br />Online-Abruf nicht verfügbar – es wird lokal berechnet.
+      }
     </div>
     @for (land of bundeslaender; track land.code) {
       <button mat-menu-item (click)="setzeBundesland(land.code)">
@@ -109,20 +117,42 @@
   </mat-menu>
 
   <mat-menu #mehrMenue="matMenu">
+    <!-- Auf schmalen Displays fehlen Rückgängig/Wiederholen in der Leiste. -->
+    <button
+      mat-menu-item
+      class="nur-schmal"
+      [disabled]="!store.kannRueckgaengig()"
+      (click)="store.rueckgaengig()"
+    >
+      <mat-icon>undo</mat-icon>
+      <span>Rückgängig</span>
+    </button>
+    <button
+      mat-menu-item
+      class="nur-schmal"
+      [disabled]="!store.kannWiederholen()"
+      (click)="store.wiederholen()"
+    >
+      <mat-icon>redo</mat-icon>
+      <span>Wiederherstellen</span>
+    </button>
+    <mat-divider class="nur-schmal" />
+
+    <div class="menue-gruppe">Einstellungen</div>
     <button mat-menu-item [matMenuTriggerFor]="diensttagMenue">
       <mat-icon>event_repeat</mat-icon>
       <span>Diensttag: {{ diensttagLabel() }}</span>
     </button>
     <button mat-menu-item [matMenuTriggerFor]="feiertagMenue">
       <mat-icon>flag</mat-icon>
-      <span>Feiertage: {{ feiertage.bundesland() }}</span>
+      <span>Feiertage: {{ bundeslandName() }}</span>
     </button>
 
     <mat-divider />
-
+    <div class="menue-gruppe">Datenbank und Excel</div>
     <a mat-menu-item routerLink="/kalender/uebernahme">
-      <mat-icon>event_repeat</mat-icon>
-      <span>Ideen und KatS-Plan übernehmen …</span>
+      <mat-icon>move_down</mat-icon>
+      <span>Ideen/KatS-Plan übernehmen …</span>
     </a>
     <button mat-menu-item [disabled]="!store.hatDaten()" (click)="herunterladen()">
       <mat-icon>download</mat-icon>
@@ -133,6 +163,8 @@
       <span>Aus der Datenbank neu laden</span>
     </button>
 
+    <mat-divider />
+    <div class="menue-gruppe">HiOrg</div>
     <button mat-menu-item [disabled]="hiorg.laedt()" (click)="hiorgNeuLaden()">
       <mat-icon>cloud_sync</mat-icon>
       <span>HiOrg-Termine neu laden</span>
@@ -206,34 +238,44 @@
           </button>
         }
       } @else {
-        <button
-          class="diensttags-marke"
-          [class.hat-luecken]="luecken().length > 0"
-          [class.aktiv]="nurLuecken()"
-          [matTooltip]="
-            luecken().length
-              ? 'Nur ' + diensttagLabel() + 'e ohne Ausbildung anzeigen'
-              : 'Jeder ' + diensttagLabel() + ' des Jahres ist belegt'
-          "
-          (click)="nurLuecken.set(!nurLuecken())"
-        >
-          <mat-icon inline>{{ luecken().length ? 'error_outline' : 'check_circle' }}</mat-icon>
-          {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
-        </button>
+        @if (istTerminAnsicht()) {
+          <mat-chip-listbox multiple class="filter-marken" aria-label="Plan filtern">
+            <mat-chip-option
+              class="diensttags-marke"
+              [class.hat-luecken]="luecken().length > 0"
+              [selected]="nurLuecken()"
+              [matTooltip]="
+                luecken().length
+                  ? 'Nur ' + diensttagLabel() + 'e ohne Ausbildung anzeigen'
+                  : 'Jeder ' + diensttagLabel() + ' des Jahres ist belegt'
+              "
+              (selectionChange)="$event.isUserInput && nurLuecken.set($event.selected)"
+            >
+              <mat-icon matChipAvatar>{{
+                luecken().length ? 'error_outline' : 'check_circle'
+              }}</mat-icon>
+              {{ belegteDiensttage() }}/{{ diensttagSlots().length }} {{ diensttagLabel() }}e belegt
+            </mat-chip-option>
+            @if (hiorgAbgleich().anzahlAbweichungen > 0) {
+              <mat-chip-option
+                class="abweichungs-marke"
+                matTooltip="Nur Wochen mit abweichender HiOrg-Bezeichnung anzeigen"
+                [selected]="nurAbweichungen()"
+                (selectionChange)="$event.isUserInput && nurAbweichungen.set($event.selected)"
+              >
+                <mat-icon matChipAvatar>warning</mat-icon>
+                {{ hiorgAbgleich().anzahlAbweichungen }}
+                {{
+                  hiorgAbgleich().anzahlAbweichungen === 1
+                    ? 'Namensabweichung'
+                    : 'Namensabweichungen'
+                }}
+              </mat-chip-option>
+            }
+          </mat-chip-listbox>
 
-        @if (hiorgAbgleich().anzahlAbweichungen > 0) {
-          <button
-            class="abweichungs-marke"
-            [class.aktiv]="nurAbweichungen()"
-            matTooltip="Nur Wochen mit abweichender HiOrg-Bezeichnung anzeigen"
-            (click)="nurAbweichungen.set(!nurAbweichungen())"
-          >
-            <mat-icon inline>warning</mat-icon>
-            {{ hiorgAbgleich().anzahlAbweichungen }} Namensabweichung(en)
-          </button>
+          <app-hiorg-ebenen-auswahl [(ebene)]="hiorgEbene" />
         }
-
-        <app-hiorg-ebenen-auswahl [(ebene)]="hiorgEbene" />
 
         <mat-button-toggle-group
           class="ansicht-umschalter"
@@ -242,38 +284,54 @@
           [value]="ansicht()"
           (change)="ansicht.set($event.value)"
         >
-          <mat-button-toggle value="monat" matTooltip="Monatsraster mit Tagesagenda">
+          <mat-button-toggle
+            value="monat"
+            aria-label="Monat"
+            matTooltip="Monatsraster mit Tagesagenda"
+          >
             <mat-icon>calendar_view_month</mat-icon>
             <span class="knopf-text">Monat</span>
           </mat-button-toggle>
-          <mat-button-toggle value="liste" matTooltip="Agendaliste nach Wochen">
+          <mat-button-toggle value="liste" aria-label="Liste" matTooltip="Agendaliste nach Wochen">
             <mat-icon>view_agenda</mat-icon>
             <span class="knopf-text">Liste</span>
           </mat-button-toggle>
-          <mat-button-toggle value="jahr" matTooltip="Jahresüberblick der Diensttage">
+          <mat-button-toggle
+            value="kats"
+            aria-label="KatS-Ausbildungsplan"
+            matTooltip="Alle KatS-Ausbildungen des Jahres"
+          >
+            <mat-icon>fact_check</mat-icon>
+            <span class="knopf-text">KatS</span>
+          </mat-button-toggle>
+          <mat-button-toggle
+            value="jahr"
+            aria-label="Jahr"
+            matTooltip="Jahresüberblick der Diensttage"
+          >
             <mat-icon>grid_view</mat-icon>
             <span class="knopf-text">Jahr</span>
           </mat-button-toggle>
         </mat-button-toggle-group>
 
-        <app-monats-navigation
-          [monat]="monat()"
-          [imAktuellenMonat]="imAktuellenMonat()"
-          (monatGewaehlt)="waehleMonat($event)"
-          (zumAktuellenMonat)="zumAktuellenMonat()"
-        />
+        <!--
+          Jahresüberblick und KatS-Ausbildungsplan zeigen immer das ganze Jahr ohne Filter; Monat, Suche und
+          Filtermarken gelten nur für Monat und Liste und fehlen dort deshalb.
+        -->
+        @if (istTerminAnsicht()) {
+          <app-monats-navigation
+            [monat]="suche().trim() ? null : monat()"
+            [imAktuellenMonat]="imAktuellenMonat()"
+            (monatGewaehlt)="waehleMonat($event)"
+            (zumAktuellenMonat)="zumAktuellenMonat()"
+          />
+        }
 
         <span class="fueller"></span>
-        <label class="plan-suche">
-          <mat-icon inline>search</mat-icon>
-          <input
-            type="search"
-            placeholder="Im Plan suchen"
-            [value]="suche()"
-            (input)="suche.set($any($event.target).value)"
-          />
-        </label>
-        <button matButton="tonal" (click)="neuerTermin()">
+        @if (istTerminAnsicht()) {
+          <app-suchfeld class="plan-suche" beschriftung="Im Plan suchen" [(wert)]="suche" />
+        }
+        <button matButton="tonal" aria-label="Neuen Termin anlegen" (click)="neuerTermin()">
           <mat-icon>add</mat-icon>
           <span class="knopf-text">Termin</span>
         </button>
@@ -293,6 +351,7 @@
           (anlegen)="terminAnlegen($event)"
           (bearbeiten)="bearbeiten($event)"
           (zuBacklog)="zuBacklog($event)"
+          (datumWaehlen)="terminVerschiebenNach($event)"
           (loeschen)="loeschen($event)"
           (nameUebernehmen)="uebernimmHiorgNamen($event)"
           (terminAusHiorg)="legeTerminAusHiorgAn($event)"
@@ -307,6 +366,17 @@
           [heute]="heute"
           [diensttagLabel]="diensttagLabel()"
           (tagGewaehlt)="ueberblickTagGewaehlt($event)"
+          (anlegen)="terminAnlegen($event)"
+        />
+      }
+      @case ('kats') {
+        <app-kats-ausbildungsplan
+          [jahr]="store.jahr()"
+          [heute]="heute"
+          (bearbeiten)="bearbeiten($event)"
+          (zuBacklog)="zuBacklog($event)"
+          (datumWaehlen)="terminVerschiebenNach($event)"
+          (loeschen)="loeschen($event)"
         />
       }
       @case ('liste') {
@@ -323,6 +393,7 @@
           (anlegen)="terminAnlegen($event)"
           (bearbeiten)="bearbeiten($event)"
           (zuBacklog)="zuBacklog($event)"
+          (datumWaehlen)="terminVerschiebenNach($event)"
           (loeschen)="loeschen($event)"
           (nameUebernehmen)="uebernimmHiorgNamen($event)"
           (terminAusHiorg)="legeTerminAusHiorgAn($event)"
@@ -342,10 +413,10 @@
       matIconButton
       class="seitenleiste-umschalter"
       [matTooltip]="
-        seitenleisteEingeklappt() ? 'Ideensammlung ausklappen' : 'Ideensammlung einklappen'
+        seitenleisteEingeklappt() ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'
       "
       [attr.aria-label]="
-        seitenleisteEingeklappt() ? 'Ideensammlung ausklappen' : 'Ideensammlung einklappen'
+        seitenleisteEingeklappt() ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'
       "
       (click)="seitenleisteUmschalten()"
     >
@@ -378,16 +449,26 @@
   </aside>
 </div>
 
-<nav class="mobil-nav">
-  <button [class.aktiv]="mobilAnsicht() === 'plan'" (click)="mobilAnsicht.set('plan')">
+<nav class="mobil-nav" aria-label="Bereich wählen">
+  <button
+    [class.aktiv]="mobilAnsicht() === 'plan'"
+    [attr.aria-current]="mobilAnsicht() === 'plan' ? 'page' : null"
+    (click)="mobilAnsicht.set('plan')"
+  >
     <mat-icon>calendar_month</mat-icon>
     Kalender
   </button>
-  <button [class.aktiv]="mobilAnsicht() === 'liste'" (click)="mobilAnsicht.set('liste')">
+  <button
+    [class.aktiv]="mobilAnsicht() === 'liste'"
+    [attr.aria-current]="mobilAnsicht() === 'liste' ? 'page' : null"
+    (click)="mobilAnsicht.set('liste')"
+  >
     <mat-icon>lightbulb</mat-icon>
-    Ideen &amp; mehr
+    Ideen &amp; Auswertung
     @if (store.backlog().length) {
-      <span class="mobil-nav-zahl">{{ store.backlog().length }}</span>
+      <span class="mobil-nav-zahl" [attr.aria-label]="store.backlog().length + ' offene Ideen'">{{
+        store.backlog().length
+      }}</span>
     }
   </button>
 </nav>

@@ -15,6 +15,8 @@
     matIconButton
     [class.aktiv]="nurPflicht()"
     matTooltip="Nur Pflichtthemen nach KatS-A-Plan"
+    aria-label="Nur Pflichtthemen nach KatS-A-Plan"
+    [attr.aria-pressed]="nurPflicht()"
     (click)="nurPflicht.set(!nurPflicht())"
   >
     <mat-icon>{{ nurPflicht() ? 'filter_alt' : 'filter_alt_off' }}</mat-icon>
@@ -45,7 +47,6 @@
       (verschieben)="einplanen(idee)"
       (naechsteLuecke)="aufLueckeLegen.emit(idee)"
       (loeschen)="loeschen(idee.id)"
-      (dblclick)="bearbeiten(idee.id)"
     />
   } @empty {
     <p class="leer">

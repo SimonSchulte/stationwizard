@@ -1,5 +1,5 @@
 <div class="filter">
-  <mat-chip-listbox multiple aria-label="Nach Kategorie filtern">
+  <mat-chip-listbox multiple aria-label="Nach Rolle filtern">
     @for (kategorie of kategorieOptionen; track kategorie) {
       <mat-chip-option
         [selected]="kategorien().has(kategorie)"
@@ -41,6 +41,8 @@
           [cdkDropListDisabled]="tag.slot.termine.length > 0"
           (cdkDropListDropped)="aufLeeremTagAbgelegt.emit({ event: $event, datum: tag.slot.datum })"
           [class.luecke]="tag.luecke"
+          [class.monat-ungerade]="ungeraderMonat(tag.slot.datum)"
+          [class.wochenende]="tag.slot.tag === 'Sa' || tag.slot.tag === 'So'"
           [class.heute]="tag.slot.datum === heute()"
           [class.vergangen]="tag.slot.datum < heute()"
         >
@@ -95,6 +97,7 @@
                       [kompakt]="false"
                       (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
                       (verschieben)="zuBacklog.emit(karte.termin.termin)"
+                      (datumWaehlen)="datumWaehlen.emit(karte.termin.termin)"
                       (loeschen)="loeschen.emit(karte.termin.termin.id)"
                     />
                   </div>
@@ -119,7 +122,7 @@
                     (click)="schalteSammelkarte(tag.slot.datum)"
                   >
                     <mat-icon inline>cloud_download</mat-icon>
-                    HiOrg · {{ karte.anzahl }} Einträge
+                    HiOrg · {{ karte.anzahl }} Termine
                     <mat-icon inline class="sammel-pfeil">{{
                       istAufgeklappt(tag.slot.datum) ? 'expand_less' : 'expand_more'
                     }}</mat-icon>

@@ -57,7 +57,7 @@
       matIconButton
       class="menue-knopf"
       [matMenuTriggerFor]="menue"
-      aria-label="Aktionen für diesen Eintrag"
+      [attr.aria-label]="'Aktionen für ' + titelKurz()"
       (click)="$event.stopPropagation()"
     >
       <mat-icon>more_vert</mat-icon>
@@ -68,15 +68,20 @@
 <div class="titel">
   @if (istFortsetzung()) {
     <span class="fortsetzung-text" [matTooltip]="termin().thema || zeitraumText()">
-      {{ kompakt() ? '' : termin().thema }}
+      @if (kompakt()) {
+        <mat-icon inline aria-hidden="true">subdirectory_arrow_right</mat-icon>
+        <span class="nur-lesehilfe">Fortsetzung: {{ termin().thema }}</span>
+      } @else {
+        {{ termin().thema }}
+      }
     </span>
   } @else if (luecke()) {
     <span class="luecke-text" [matTooltip]="kompakt() ? 'Ausbildung fehlt' : ''">
       <mat-icon inline>error_outline</mat-icon>{{ kompakt() ? 'fehlt' : 'Ausbildung fehlt' }}
     </span>
   } @else if (istFrei()) {
-    <span class="platzhalter" [matTooltip]="kompakt() ? 'Freier Ausbildungsslot' : ''">
-      {{ kompakt() ? 'frei' : 'Freier Ausbildungsslot' }}
+    <span class="platzhalter" [matTooltip]="kompakt() ? 'Ausbildungsthema noch offen' : ''">
+      {{ kompakt() ? 'offen' : 'Ausbildungsthema noch offen' }}
     </span>
   } @else if (termin().thema) {
     {{ termin().thema }}
@@ -112,14 +117,6 @@
       </span>
     }
   </div>
-
-  @if (nachweisKuerzel().length) {
-    <div class="nachweise">
-      @for (kuerzel of nachweisKuerzel(); track kuerzel) {
-        <span class="nachweis-chip">{{ kuerzel }}</span>
-      }
-    </div>
-  }
 }
 
 <mat-menu #menue="matMenu">
@@ -137,13 +134,20 @@
     <mat-icon>{{ termin().datum ? 'inbox' : 'event_available' }}</mat-icon>
     <span>{{ termin().datum ? 'In die offenen Ideen' : 'Datum zuweisen' }}</span>
   </button>
+  @if (termin().datum) {
+    <button mat-menu-item (click)="datumWaehlen.emit()">
+      <mat-icon>edit_calendar</mat-icon>
+      <span>Verschieben nach Datum …</span>
+    </button>
+  }
   @if (lueckeAnbieten() && !termin().datum) {
     <button mat-menu-item (click)="naechsteLuecke.emit()">
       <mat-icon>event_busy</mat-icon>
       <span>Auf nächste Lücke legen</span>
     </button>
   }
-  <button mat-menu-item (click)="loeschen.emit()">
+  <mat-divider />
+  <button mat-menu-item class="menue-loeschen" (click)="loeschen.emit()">
     <mat-icon>delete</mat-icon>
     <span>Löschen</span>
   </button>

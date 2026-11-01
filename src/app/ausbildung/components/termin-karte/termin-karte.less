@@ -53,7 +53,7 @@ a.hiorg-link-symbol {
 .fortschritt {
   flex: 0 0 auto;
   color: var(--text-secondary);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -137,7 +137,7 @@ a.hiorg-link-symbol {
 
 :host(.kompakt) .rolle-chip {
   padding: 0 calc(var(--space-unit) * 5);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
 }
 
 :host(.kompakt) .menue-knopf {
@@ -193,7 +193,7 @@ a.hiorg-link-symbol {
   border-radius: var(--radius-chip);
   background: var(--feiertag-bg);
   color: var(--feiertag-text);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   white-space: nowrap;
 
   mat-icon {
@@ -232,12 +232,13 @@ a.hiorg-link-symbol {
 }
 
 .rolle-chip {
+  flex-shrink: 0;
   max-width: 100%;
   padding: var(--space-unit) var(--space-sm);
   overflow: hidden;
   border-radius: var(--radius-chip);
   color: var(--surface-primary);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -264,11 +265,12 @@ a.hiorg-link-symbol {
   --mat-icon-button-state-layer-size: 30px;
 
   flex: 0 0 auto;
-  opacity: 0.45;
+  opacity: 0.7;
   transition: opacity 120ms ease;
 }
 
 :host(:hover) .menue-knopf,
+:host(:focus-within) .menue-knopf,
 .menue-knopf:focus-visible {
   opacity: 1;
 }
@@ -317,18 +319,68 @@ a.hiorg-link-symbol {
   }
 }
 
-.nachweise {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: var(--space-xs);
+/* Klick und Enter auf die Karte öffnen den Termin. */
+:host(.bearbeitbar) {
+  cursor: pointer;
 }
 
-.nachweis-chip {
-  padding: var(--space-unit) calc(var(--space-unit) * 7);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-chip);
-  color: var(--text-secondary);
-  font-size: 0.6875rem;
+:host(.bearbeitbar:focus-visible) {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 1px;
+}
+
+.menue-loeschen {
+  color: var(--status-error);
+}
+
+/*
+ * Touch: keine Hover-Zustände. Das Menü bleibt voll sichtbar, und die unsichtbare
+ * Trefferfläche der kleinen Knöpfe wird größer, ohne die Karte zu vergrößern.
+ */
+@media (hover: none), (pointer: coarse) {
+  .menue-knopf,
+  :host(.kompakt) .menue-knopf {
+    opacity: 1;
+
+    ::ng-deep .mat-mdc-button-touch-target {
+      width: 40px;
+      height: 40px;
+    }
+  }
+}
+
+/* Verdeckter Text nur für Screenreader. */
+.nur-lesehilfe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/*
+ * Schmale Rasterkarte: das Menü sitzt in der Ecke statt eine eigene Zeile im umbrechenden
+ * Kopf zu belegen.
+ */
+:host(.kompakt:not(.fortsetzung)) {
+  .kopf {
+    padding-inline-end: 26px;
+  }
+
+  .menue-knopf {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+  }
+}
+
+/*
+ * Schmale Rasterspalten (Handy): der Rollenchip würde auf „S“ zusammengedrückt und
+ * irreführen. Der farbige Streifen links trägt die Rolle, die Liste nennt sie im Klartext.
+ */
+@media (max-width: 780px) {
+  :host(.kompakt) .rolle-chip {
+    display: none;
+  }
 }

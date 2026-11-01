@@ -6,7 +6,57 @@
   }
 </h2>
 
+<!--
+  Reihenfolge: erst worum es geht (Thema, Rolle, Ausbilder, Art), dann wann, dann das Seltenere
+  in einklappbaren Bereichen, die ihren Inhalt in einer Zeile zusammenfassen.
+-->
 <mat-dialog-content class="inhalt">
+  <mat-form-field appearance="outline">
+    <mat-label>Thema</mat-label>
+    <textarea
+      matInput
+      cdkFocusInitial
+      rows="2"
+      [ngModel]="entwurf().thema"
+      (ngModelChange)="setze('thema', $event)"
+    ></textarea>
+  </mat-form-field>
+
+  <div class="reihe">
+    <mat-form-field appearance="outline" class="schmal">
+      <mat-label>Rolle</mat-label>
+      <mat-select [ngModel]="entwurf().kategorie" (ngModelChange)="setze('kategorie', $event)">
+        <mat-option [value]="''">– keine –</mat-option>
+        @for (kategorie of kategorien; track kategorie) {
+          <mat-option [value]="kategorie">{{ kategorie }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="breit">
+      <mat-label>Ausbilder / Verantwortlich</mat-label>
+      <input
+        matInput
+        [ngModel]="entwurf().ausbilder"
+        (ngModelChange)="setze('ausbilder', $event)"
+      />
+    </mat-form-field>
+  </div>
+
+  <mat-button-toggle-group
+    class="typ-wahl"
+    aria-label="Art des Eintrags"
+    [value]="entwurf().typ"
+    (change)="setzeTyp($event.value)"
+  >
+    @for (typ of terminTypen; track typ) {
+      <mat-button-toggle [value]="typ">
+        <mat-icon>{{ typ === 'dienst' ? 'shield' : 'event' }}</mat-icon>
+        {{ typName(typ) }}
+      </mat-button-toggle>
+    }
+  </mat-button-toggle-group>
+
+  <h3 class="abschnitt">Wann</h3>
   <div class="reihe">
     @if (!istIdee()) {
       <mat-form-field appearance="outline" class="schmal">
@@ -21,53 +71,7 @@
         <mat-datepicker-toggle matSuffix [for]="datumPicker"></mat-datepicker-toggle>
         <mat-datepicker #datumPicker></mat-datepicker>
       </mat-form-field>
-      <mat-form-field appearance="outline" class="schmal">
-        <mat-label>Datum bis (mehrtägig)</mat-label>
-        <input
-          matInput
-          [matDatepicker]="datumBisPicker"
-          [value]="datumBisWert()"
-          (dateChange)="datumBisAktualisieren($event)"
-          placeholder="TT.MM.JJJJ"
-        />
-        <mat-datepicker-toggle matSuffix [for]="datumBisPicker"></mat-datepicker-toggle>
-        <mat-datepicker #datumBisPicker></mat-datepicker>
-        @if (endeVorBeginn()) {
-          <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
-        } @else {
-          <mat-hint>Leer lassen für einen eintägigen Termin.</mat-hint>
-        }
-      </mat-form-field>
     }
-    <mat-form-field appearance="outline" class="schmal">
-      <mat-label>Rolle</mat-label>
-      <mat-select [ngModel]="entwurf().kategorie" (ngModelChange)="setze('kategorie', $event)">
-        <mat-option [value]="''">– keine –</mat-option>
-        @for (kategorie of kategorien; track kategorie) {
-          <mat-option [value]="kategorie">{{ kategorie }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    <mat-form-field appearance="outline" class="breit">
-      <mat-label>Hinweis (Veranstaltung, Feiertag …)</mat-label>
-      <input matInput [ngModel]="entwurf().hinweis" (ngModelChange)="setze('hinweis', $event)" />
-    </mat-form-field>
-  </div>
-
-  <div class="reihe">
-    <mat-button-toggle-group
-      class="typ-wahl"
-      aria-label="Art des Eintrags"
-      [value]="entwurf().typ"
-      (change)="setzeTyp($event.value)"
-    >
-      @for (typ of terminTypen; track typ) {
-        <mat-button-toggle [value]="typ">
-          <mat-icon>{{ typ === 'dienst' ? 'shield' : 'event' }}</mat-icon>
-          {{ typName(typ) }}
-        </mat-button-toggle>
-      }
-    </mat-button-toggle-group>
     <mat-form-field appearance="outline" class="schmal">
       <mat-label>Von</mat-label>
       <input
@@ -95,120 +99,141 @@
     </mat-form-field>
   </div>
 
-  <mat-form-field appearance="outline">
-    <mat-label>Thema</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().thema"
-      (ngModelChange)="setze('thema', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Ausbilder / Verantwortlich</mat-label>
-    <input matInput [ngModel]="entwurf().ausbilder" (ngModelChange)="setze('ausbilder', $event)" />
-  </mat-form-field>
-
-  <h3 class="abschnitt">KatS-Ausbildungsplan</h3>
-  <div class="reihe">
-    <mat-form-field appearance="outline" class="breit">
-      <mat-label>Bezug zum KatS-A-Plan</mat-label>
-      <mat-select [ngModel]="entwurf().katsThemaId" (ngModelChange)="waehleKatsThema($event)">
-        <mat-option [value]="null">– kein Bezug –</mat-option>
-        @for (thema of katsThemen(); track thema.id) {
-          <mat-option [value]="thema.id">
-            {{ thema.nummer ? thema.nummer + ' · ' : '' }}{{ thema.titel }}
-          </mat-option>
+  @if (!istIdee()) {
+    <mat-expansion-panel class="bereich mat-elevation-z0" [expanded]="mehrtaegigOffen">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Mehrtägig</mat-panel-title>
+        <mat-panel-description>{{ mehrtaegigText() }}</mat-panel-description>
+      </mat-expansion-panel-header>
+      <mat-form-field appearance="outline" class="schmal">
+        <mat-label>Datum bis</mat-label>
+        <input
+          matInput
+          [matDatepicker]="datumBisPicker"
+          [value]="datumBisWert()"
+          (dateChange)="datumBisAktualisieren($event)"
+          placeholder="TT.MM.JJJJ"
+        />
+        <mat-datepicker-toggle matSuffix [for]="datumBisPicker"></mat-datepicker-toggle>
+        <mat-datepicker #datumBisPicker></mat-datepicker>
+        @if (endeVorBeginn()) {
+          <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
+        } @else {
+          <mat-hint>Leer lassen für einen eintägigen Termin.</mat-hint>
         }
-      </mat-select>
-    </mat-form-field>
-    <button
-      matButton="outlined"
-      type="button"
-      [disabled]="!kannAlsKatsThema()"
-      (click)="alsKatsThemaAnlegen()"
-      matTooltip="Aktuellen Titel als neues Thema in die KatS-A-Plan-Liste aufnehmen"
-    >
-      <mat-icon>playlist_add</mat-icon>
-      Neues Thema
-    </button>
-  </div>
+      </mat-form-field>
+    </mat-expansion-panel>
+  }
 
-  <mat-form-field appearance="outline">
-    <mat-label>KatS-A-Plan Titel (Freitext)</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().katsTitel"
-      (ngModelChange)="setze('katsTitel', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <mat-checkbox [ngModel]="entwurf().katsPflicht" (ngModelChange)="setze('katsPflicht', $event)">
-    Pflichtthema nach KatS-Ausbildungsplan
-  </mat-checkbox>
-
-  <h3 class="abschnitt">Nachweise</h3>
-  <div class="nachweise">
-    @for (nachweis of nachweise; track nachweis.key) {
-      <mat-checkbox
-        [ngModel]="hatNachweis(nachweis.key)"
-        (ngModelChange)="schalteNachweis(nachweis.key, $event)"
+  <mat-expansion-panel class="bereich mat-elevation-z0" [expanded]="katsOffen">
+    <mat-expansion-panel-header>
+      <mat-panel-title>KatS-Ausbildungsplan</mat-panel-title>
+      <mat-panel-description>{{ katsText() }}</mat-panel-description>
+    </mat-expansion-panel-header>
+    <div class="reihe">
+      <mat-form-field appearance="outline" class="breit">
+        <mat-label>Bezug zum KatS-A-Plan</mat-label>
+        <mat-select [ngModel]="entwurf().katsThemaId" (ngModelChange)="waehleKatsThema($event)">
+          <mat-option [value]="null">– kein Bezug –</mat-option>
+          @for (thema of katsThemen(); track thema.id) {
+            <mat-option [value]="thema.id">
+              {{ thema.nummer ? thema.nummer + ' · ' : '' }}{{ thema.titel }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button
+        matButton="outlined"
+        type="button"
+        [disabled]="!kannAlsKatsThema()"
+        (click)="alsKatsThemaAnlegen()"
+        matTooltip="Aktuellen Titel als neues Thema in die KatS-A-Plan-Liste aufnehmen"
       >
-        {{ nachweis.kurz }}
-      </mat-checkbox>
-    }
-  </div>
+        <mat-icon>playlist_add</mat-icon>
+        Neues Thema
+      </button>
+    </div>
 
-  <h3 class="abschnitt">Organisation</h3>
-  <mat-form-field appearance="outline">
-    <mat-label>Benötigtes Material</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().material"
-      (ngModelChange)="setze('material', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Besondere Anforderungen</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().anforderungen"
-      (ngModelChange)="setze('anforderungen', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Notizen</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="entwurf().notizen"
-      (ngModelChange)="setze('notizen', $event)"
-    ></textarea>
-  </mat-form-field>
-
-  <div class="reihe">
-    <mat-form-field appearance="outline" class="schmal">
-      <mat-label>HGM 4 Inhalt</mat-label>
-      <input
+    <mat-form-field appearance="outline">
+      <mat-label>KatS-A-Plan Titel (Freitext)</mat-label>
+      <textarea
         matInput
-        [ngModel]="entwurf().hgmInhalt"
-        (ngModelChange)="setze('hgmInhalt', $event)"
-      />
+        rows="2"
+        [ngModel]="entwurf().katsTitel"
+        (ngModelChange)="setze('katsTitel', $event)"
+      ></textarea>
+      <mat-hint>Wird beim Wählen eines Themas oben übernommen und lässt sich anpassen.</mat-hint>
     </mat-form-field>
-    <mat-form-field appearance="outline" class="breit">
-      <mat-label>HGM 4 Original-Titel</mat-label>
-      <input matInput [ngModel]="entwurf().hgmTitel" (ngModelChange)="setze('hgmTitel', $event)" />
+
+    <mat-checkbox [ngModel]="entwurf().katsPflicht" (ngModelChange)="setze('katsPflicht', $event)">
+      Pflichtthema nach KatS-Ausbildungsplan
+    </mat-checkbox>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel class="bereich mat-elevation-z0" [expanded]="weitereOffen">
+    <mat-expansion-panel-header>
+      <mat-panel-title>Weitere Angaben</mat-panel-title>
+      <mat-panel-description
+        >Hinweis, Material, Anforderungen, Notizen, HGM 4</mat-panel-description
+      >
+    </mat-expansion-panel-header>
+    <mat-form-field appearance="outline">
+      <mat-label>Hinweis (Veranstaltung, Feiertag …)</mat-label>
+      <input matInput [ngModel]="entwurf().hinweis" (ngModelChange)="setze('hinweis', $event)" />
     </mat-form-field>
-  </div>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Benötigtes Material</mat-label>
+      <textarea
+        matInput
+        rows="2"
+        [ngModel]="entwurf().material"
+        (ngModelChange)="setze('material', $event)"
+      ></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Besondere Anforderungen</mat-label>
+      <textarea
+        matInput
+        rows="2"
+        [ngModel]="entwurf().anforderungen"
+        (ngModelChange)="setze('anforderungen', $event)"
+      ></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Notizen</mat-label>
+      <textarea
+        matInput
+        rows="2"
+        [ngModel]="entwurf().notizen"
+        (ngModelChange)="setze('notizen', $event)"
+      ></textarea>
+    </mat-form-field>
+
+    <div class="reihe">
+      <mat-form-field appearance="outline" class="schmal">
+        <mat-label>HGM 4 Inhalt</mat-label>
+        <input
+          matInput
+          [ngModel]="entwurf().hgmInhalt"
+          (ngModelChange)="setze('hgmInhalt', $event)"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="breit">
+        <mat-label>HGM 4 Original-Titel</mat-label>
+        <input
+          matInput
+          [ngModel]="entwurf().hgmTitel"
+          (ngModelChange)="setze('hgmTitel', $event)"
+        />
+      </mat-form-field>
+    </div>
+  </mat-expansion-panel>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton (click)="abbrechen()">Abbrechen</button>
   <button matButton="filled" [disabled]="!kannSpeichern()" (click)="speichern()">Übernehmen</button>
 </mat-dialog-actions>

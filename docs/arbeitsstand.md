@@ -3245,3 +3245,71 @@ Auftrag: alle Warnungen, Hinweise und Fehler als Material-Snackbar ausgeben.
   „Erneut versuchen“ (Personal), zwei Fehler nacheinander (Offene Aufgaben), Warnung
   (Ehrungsmanager), Hinweis mit Aktion „Zum Kalender“ (Kalender-Übernahme), keine Snackbar
   ohne Anlass (Kalender), keine verwaiste Snackbar nach Seitenwechsel.
+
+## Kalender: UI-Review und Überarbeitung
+
+Anlass war ein Review der Kalenderoberfläche auf Bedienbarkeit, Inkonsistenzen und Lücken.
+Umgesetzt (alles unter `src/app/ausbildung/`):
+
+- **Kurzbefehle:** Strg+Z/Y gelten nicht in Textfeldern, keiner der Kurzbefehle bei offenem
+  Dialog. Der Termin-Dialog fragt bei Esc, Hintergrundklick und „Abbrechen“ nach, wenn Eingaben
+  offen sind.
+- **Rückgängig in Meldungen:** `services/rueckgaengig-dienst.ts` meldet Löschen, Verschieben,
+  Einplanen und „Thema aus HiOrg übernehmen“ mit der Snackbar-Aktion „Rückgängig“; sie greift nur,
+  wenn seither nichts anderes geändert wurde. `services/termin-loeschen.ts` baut darauf auf.
+- **Karte:** Klick oder Enter öffnen den Termin (Doppelklick entfällt), Menüpunkt
+  „Verschieben nach Datum …“ als Alternative zum Ziehen (belegter Tag: Tausch wie beim Ziehen),
+  Löschen abgesetzt. Touch: „+“ und Menü ohne Hover sichtbar, größere Trefferflächen.
+- **Lesbarkeit:** keine Schrift unter 12 px (Ausnahme KW-Datumsbereich 11 px, mobil ausgeblendet),
+  Randtage Deckkraft 0.75, Tageszahl mindestens 24 × 24 px.
+- **Kopfzeile:** Filtermarken sind `mat-chip-option`, die Plan-Suche `app-suchfeld`; die
+  Jahresansicht blendet Filter, Ebene, Monatsnavigation und Suche aus. Rückgängig/Wiederholen
+  liegen mobil im Menü. Das Mehr-Menü ist gegliedert (Einstellungen, Datenbank und Excel, HiOrg).
+- **Begriffe:** „Rolle“ (nicht „Kategorie“), „HiOrg-Termine“, „Ausbildungsthema noch offen“,
+  mobile Navigation „Ideen & Auswertung“.
+- **Dialog:** „Weitere Angaben“ einklappbar (offen, wenn dort schon etwas steht), mobil
+  Vollbild mit einer Spalte, „Neues Jahr“ mit Rückfrage.
+- Weitere Kleinigkeiten: „+N weitere“ ist ein Knopf, Liste springt auf die heutige Woche,
+  Legende im Jahresüberblick, Plural „Namensabweichung(en)“, `aria-label` an Symbolknöpfen.
+
+Geprüft: `npm run build`, `npm test`, `npm run format:check`. Sichtprüfung mit Playwright
+(Desktop 1366 px, Handy 390 px, Touch-Emulation) gegen eine **Attrappe** des Workers mit erfundenen
+Daten; keine echte Anmeldung, kein echtes Gerät. Kontrastwerte wurden nicht gemessen.
+
+Bewusst offen:
+
+- **Jahr löschen oder umbenennen** gibt es nicht; dafür fehlt ein Worker-Endpunkt, und die
+  erlaubte API-Oberfläche kennt keinen. Mitigation: das Jahresmenü fragt vor dem Anlegen nach.
+- Drag & Drop selbst bleibt mausorientiert; die Tastatur- und Touch-Alternative ist
+  „Verschieben nach Datum …“.
+- Die Rasterkarten bleiben am Handy eng; der Rollenchip ist dort ausgeblendet (der Streifen
+  trägt die Farbe), die Liste ist die gedachte Handyansicht.
+
+### Kalender: Monatsfarben, Wochenenden, KatS-Ansicht
+
+- Monat und Liste: jeder zweite Monat ist getönt (`--monat-ungerade-bg`), Samstag und Sonntag
+  tragen einen leichten Rotton (`--wochenende-bg`, über der Monatsfläche). Der Jahresüberblick
+  hat ohnehin eine Zeile je Monat und bleibt unverändert.
+- Jahresüberblick: freie Diensttage (ohne Feiertag) haben ein „+“, das den Termin-Dialog für diesen
+  Tag öffnet. Neue Einträge und neue Ideen sind jetzt standardmäßig vom Typ „Termin“ (vorher
+  „Dienst“); ein Dienst wird bewusst gewählt. Bestehende Daten bleiben unverändert.
+- Neue Ansicht „KatS“ (Umschalter neben Monat, Liste, Jahr): alle KatS-Ausbildungen des gewählten
+  Jahres nach Monat, dazu „Themen ohne Termin“ (Pflichtthemen zuerst). Als KatS-Ausbildung gilt ein
+  datierter Termin mit verknüpftem KatS-Thema, Pflichtmarkierung oder KatS-Titel.
+- **Nachweisgruppen ausgeblendet:** Dialogabschnitt „Nachweise“, die Chips auf den Karten und der
+  Abschnitt „Nachweise & Unterweisungen“ in der Auswertung sind aus der Oberfläche entfernt. Datenmodell
+  (`Termin.nachweise`, `NACHWEISE`), Excel-Rundlauf, Worker (`kalender-planung.ts`) und
+  Jahresübernahme sind unverändert, damit nichts verloren geht. **Offen für das Backend:** klären, ob
+  die Gruppen fachlich sinnvoll sind, und sie dann entweder neu fassen oder samt Spalte, Wertelisten
+  (`plan.model.ts` **und** `kalender-planung.ts`) und Excel-Schema entfernen.
+- Geprüft: Build, `npm test`, Prettier; Sichtprüfung gegen die Worker-Attrappe (Desktop). Nicht
+  gesondert am Handy geprüft: Monats-/Wochenendfarben und die KatS-Ansicht.
+
+### Kalender: Reihenfolge im Termin-Dialog
+
+Gewählt wurde der Vorschlag „Thema zuerst“: Thema (zuerst fokussiert), Rolle und Ausbilder, Art
+(Dienst/Termin), „Wann“ (Datum, Von, Bis), dann die einklappbaren Bereiche „Mehrtägig“,
+„KatS-Ausbildungsplan“ und „Weitere Angaben“ (jetzt mit dem Hinweisfeld). Jeder Bereich fasst seinen
+Inhalt in einer Zeile zusammen und steht offen, wenn dort schon etwas erfasst ist. Eine Idee ohne
+Datum zeigt weder Datum noch „Mehrtägig“. Gesichtet gegen die Worker-Attrappe auf Desktop und
+Handy-Breite.

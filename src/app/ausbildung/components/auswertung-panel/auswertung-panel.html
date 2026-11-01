@@ -137,27 +137,6 @@
 </section>
 
 <section class="bereich">
-  <h3>Nachweise & Unterweisungen</h3>
-  <table class="tabelle">
-    <tbody>
-      @for (zeile of a.nachweise; track zeile.key) {
-        <tr [class.fehlt]="zeile.termine.length === 0">
-          <td class="name">{{ zeile.label }}</td>
-          <td class="anzahl">{{ zeile.termine.length }}×</td>
-          <td class="termine">
-            @for (termin of zeile.termine; track termin.id) {
-              <span class="marke">{{ datum(termin) }}</span>
-            } @empty {
-              <span class="fehlt-text">nicht geplant</span>
-            }
-          </td>
-        </tr>
-      }
-    </tbody>
-  </table>
-</section>
-
-<section class="bereich">
   <h3>Offene Punkte</h3>
   <ul class="liste">
     <li>

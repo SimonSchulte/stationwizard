@@ -1,0 +1,66 @@
+<header class="kopf">
+  <h2>KatS-Ausbildungsplan {{ jahr() }}</h2>
+  <p class="zusammenfassung">
+    {{ plan().kennzahlen.ausbildungen }}
+    {{ plan().kennzahlen.ausbildungen === 1 ? 'KatS-Ausbildung' : 'KatS-Ausbildungen' }} geplant ·
+    @if (plan().kennzahlen.pflichtOffen > 0) {
+      <span class="offen">
+        {{ plan().kennzahlen.pflichtOffen }}
+        {{ plan().kennzahlen.pflichtOffen === 1 ? 'Pflichtthema' : 'Pflichtthemen' }} ohne Termin
+      </span>
+    } @else {
+      <span class="ok">alle Pflichtthemen eingeplant</span>
+    }
+  </p>
+</header>
+
+@for (monat of monate(); track monat.index) {
+  <section class="monat">
+    <h3 class="monat-kopf">{{ monat.name }}</h3>
+
+    @for (eintrag of monat.ausbildungen; track eintrag.termin.id) {
+      <article class="tag" [class.vergangen]="eintrag.termin.datum! < heute()">
+        <div class="datum-block">
+          <b class="datum-nummer">{{ tag(eintrag.termin.datum) }}</b>
+          <span class="datum-tag">{{ wochentagKurz(eintrag.termin.datum) }}</span>
+        </div>
+        <app-termin-karte
+          [termin]="eintrag.termin"
+          [katsThema]="eintrag.thema"
+          [kompakt]="false"
+          (bearbeiten)="bearbeiten.emit(eintrag.termin.id)"
+          (verschieben)="zuBacklog.emit(eintrag.termin)"
+          (datumWaehlen)="datumWaehlen.emit(eintrag.termin)"
+          (loeschen)="loeschen.emit(eintrag.termin.id)"
+        />
+      </article>
+    }
+  </section>
+} @empty {
+  <app-leerzustand
+    icon="fact_check"
+    [titel]="'Für ' + jahr() + ' sind noch keine KatS-Ausbildungen eingetragen.'"
+  />
+}
+
+@if (plan().ohneTermin.length) {
+  <section class="monat">
+    <h3 class="monat-kopf">Themen ohne Termin</h3>
+    <ul class="themen">
+      @for (thema of plan().ohneTermin; track thema.id) {
+        <li class="thema" [class.pflicht]="thema.pflicht">
+          <mat-icon inline aria-hidden="true">{{
+            thema.pflicht ? 'priority_high' : 'radio_button_unchecked'
+          }}</mat-icon>
+          @if (thema.nummer) {
+            <span class="nummer">{{ thema.nummer }}</span>
+          }
+          <span class="titel">{{ thema.titel || 'Ohne Titel' }}</span>
+          @if (thema.pflicht) {
+            <span class="marke">Pflicht</span>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}

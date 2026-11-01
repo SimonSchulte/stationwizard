@@ -165,7 +165,7 @@ describe('Agendaliste', () => {
     );
     const zeile = () => element().querySelector<HTMLButtonElement>('.sammel-zeile')!;
 
-    expect(zeile().textContent).toContain('2 Einträge');
+    expect(zeile().textContent).toContain('2 Termine');
     expect(element().querySelector('app-hiorg-eintrag-karte')).toBeNull();
 
     zeile().click();
