@@ -64,6 +64,7 @@ import {
   baueTagesInhalt,
 } from '../../services/tages-inhalt';
 import { PlanStore } from '../../services/plan-store';
+import { TerminLoeschenDienst } from '../../services/termin-loeschen';
 import { KalenderDatenService } from '../../services/kalender-daten.service';
 import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
@@ -115,6 +116,7 @@ export class Jahresplan {
   private readonly dialog = inject(MatDialog);
   private readonly dialogDienst = inject(DialogDienst);
   private readonly meldungen = inject(MeldungsDienst);
+  private readonly terminLoeschen = inject(TerminLoeschenDienst);
   readonly store = inject(PlanStore);
   readonly kalender = inject(KalenderDatenService);
   readonly feiertage = inject(FeiertagService);
@@ -660,7 +662,7 @@ export class Jahresplan {
   }
 
   loeschen(id: string): void {
-    this.store.loescheTermin(id);
+    this.terminLoeschen.loesche(id);
   }
 
   /**
@@ -791,7 +793,16 @@ export class Jahresplan {
     if (!event.ctrlKey && !event.metaKey) {
       return;
     }
+    // Ein offener Dialog (etwa der Termin-Dialog) gehört sich selbst; Strg+S/Z/Y gälten
+    // sonst für den Plan darunter.
+    if (document.querySelector('.mat-mdc-dialog-container')) {
+      return;
+    }
     const taste = event.key.toLowerCase();
+    // In Textfeldern gehört Strg+Z/Y dem Feld (natives Rückgängig), nicht dem Plan.
+    if ((taste === 'z' || taste === 'y') && istTextEingabe(event.target)) {
+      return;
+    }
     if (taste === 's') {
       event.preventDefault();
       void this.speichern();
@@ -813,6 +824,13 @@ export class Jahresplan {
   private melde(text: string, art: MeldungArt = 'info'): void {
     this.meldungen.zeige(art, text);
   }
+}
+
+function istTextEingabe(ziel: EventTarget | null): boolean {
+  return (
+    ziel instanceof HTMLElement &&
+    (ziel.isContentEditable || ziel.closest('input, textarea, select') !== null)
+  );
 }
 
 function kurz(text: string): string {

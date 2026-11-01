@@ -209,6 +209,6 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton (click)="abbrechen()">Abbrechen</button>
   <button matButton="filled" [disabled]="!kannSpeichern()" (click)="speichern()">Übernehmen</button>
 </mat-dialog-actions>

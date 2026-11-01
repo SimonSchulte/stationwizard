@@ -17,6 +17,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { KATEGORIEN, Termin } from '../../models/plan.model';
 import { PlanStore } from '../../services/plan-store';
+import { TerminLoeschenDienst } from '../../services/termin-loeschen';
 import { DatumDialog, DatumDialogDaten } from '../datum-dialog/datum-dialog';
 import { TerminDialog, TerminDialogDaten } from '../termin-dialog/termin-dialog';
 import { TerminKarte } from '../termin-karte/termin-karte';
@@ -44,6 +45,7 @@ import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 })
 export class BacklogPanel {
   private readonly store = inject(PlanStore);
+  private readonly terminLoeschen = inject(TerminLoeschenDienst);
   private readonly dialog = inject(MatDialog);
 
   /** Der Jahresplan kennt die Lücken; das Panel meldet nur den Wunsch. */
@@ -125,6 +127,6 @@ export class BacklogPanel {
   }
 
   loeschen(id: string): void {
-    this.store.loescheTermin(id);
+    this.terminLoeschen.loesche(id);
   }
 }

@@ -12,6 +12,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { filter } from 'rxjs';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
   isoZuLokalesDatum,
   lokalesDatumZuIso,
@@ -64,6 +66,7 @@ export class TerminDialog {
   private readonly store = inject(PlanStore);
   private readonly dialogRef = inject(MatDialogRef<TerminDialog>);
   private readonly daten = inject<TerminDialogDaten>(MAT_DIALOG_DATA);
+  private readonly dialogDienst = inject(DialogDienst);
 
   readonly kategorien = KATEGORIEN;
   readonly terminTypen = TERMIN_TYPEN;
@@ -79,6 +82,9 @@ export class TerminDialog {
   readonly entwurf = signal<Termin>(
     this.vorhanden ? structuredClone(this.vorhanden) : leererTermin(this.daten.datum ?? null),
   );
+  /** Stand beim Öffnen, um ungesicherte Eingaben zu erkennen. */
+  private readonly ausgangsstand = JSON.stringify(this.entwurf());
+  readonly geaendert = computed(() => JSON.stringify(this.entwurf()) !== this.ausgangsstand);
   readonly istIdee = computed(() => this.entwurf().datum === null);
 
   /** Stabile `Date`-Referenzen für die Picker: nur bei geändertem Wert neu erzeugt. */
@@ -117,6 +123,30 @@ export class TerminDialog {
     const e = this.entwurf();
     return !e.katsThemaId && (e.katsTitel.trim() || e.thema.trim()).length > 0;
   });
+
+  constructor() {
+    // Esc und Klick auf den Hintergrund schließen nicht mehr still, wenn Eingaben offen sind.
+    this.dialogRef.disableClose = true;
+    this.dialogRef.backdropClick().subscribe(() => void this.abbrechen());
+    this.dialogRef
+      .keydownEvents()
+      .pipe(filter((e) => e.key === 'Escape'))
+      .subscribe(() => void this.abbrechen());
+  }
+
+  async abbrechen(): Promise<void> {
+    if (
+      this.geaendert() &&
+      !(await this.dialogDienst.bestaetigen(
+        'Die Eingaben in diesem Formular gehen verloren.',
+        'Änderungen verwerfen?',
+        'Verwerfen',
+      ))
+    ) {
+      return;
+    }
+    this.dialogRef.close(false);
+  }
 
   setze<K extends keyof Termin>(feld: K, wert: Termin[K]): void {
     this.entwurf.update((e) => ({ ...e, [feld]: wert }));

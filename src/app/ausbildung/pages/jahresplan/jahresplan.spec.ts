@@ -102,6 +102,20 @@ describe('Bestätigungen im Ausbildungsplan', () => {
     expect(dialog.hinweis).toHaveBeenCalled();
   });
 
+  it('überlässt Strg+Z in Textfeldern dem Feld statt dem Plan', () => {
+    const rueckgaengig = vi.spyOn(store, 'rueckgaengig');
+    const feld = document.createElement('textarea');
+    document.body.append(feld);
+    const ereignis = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true });
+    Object.defineProperty(ereignis, 'target', { value: feld });
+    ansicht.tastendruck(ereignis);
+    expect(rueckgaengig).not.toHaveBeenCalled();
+    expect(ereignis.defaultPrevented).toBe(false);
+    feld.remove();
+    ansicht.tastendruck(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
+    expect(rueckgaengig).toHaveBeenCalled();
+  });
+
   it('zeigt einen HiOrg-Termin ohne Plangegenstück als Lücke', () => {
     store.setzeDokument({ ...leeresDocument(2026), termine: [] });
     hiorg.eintraege.set([HIORG_EINTRAG]);
