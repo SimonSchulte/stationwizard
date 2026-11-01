@@ -1,27 +1,20 @@
 @if (!eingebettet()) {
-  <mat-toolbar class="listen-kopfleiste">
-    <mat-icon class="kopfleiste-icon">local_shipping</mat-icon>
-    <span class="toolbar-title">Fahrzeuge</span>
-    <span class="spacer"></span>
-    <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+  <app-seitenkopf titel="Fahrzeuge" icon="local_shipping">
+    <button matButton="filled" (click)="neuesFahrzeug()">
       <mat-icon>add</mat-icon>
       Neues Fahrzeug
     </button>
-  </mat-toolbar>
+  </app-seitenkopf>
 }
 
 <div class="list-content" [class.list-content--eingebettet]="eingebettet()">
   <div class="filterzeile">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
-      <mat-label>Suche</mat-label>
-      <input
-        matInput
-        [value]="suche()"
-        (input)="suche.set($any($event.target).value)"
-        placeholder="Bezeichnung, Funkrufname oder Kennzeichen"
-      />
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
+    <app-suchfeld
+      class="suchfeld"
+      [(wert)]="suche"
+      beschriftung="Suchen"
+      platzhalter="Bezeichnung, Funkrufname oder Kennzeichen"
+    />
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="eigentuemer-filter">
       <mat-label>Eigentümer</mat-label>
       <mat-select
@@ -37,26 +30,25 @@
   </div>
 
   @if (laedt()) {
-    <p role="status">Fahrzeuge werden geladen …</p>
+    <app-ladeanzeige text="Fahrzeuge werden geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (!laedt() && !fehler() && gefiltert().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon">local_shipping</mat-icon>
-      <p class="empty-hint">
-        @if (suche() || eigentuemerFilter() !== 'alle') {
-          Kein Fahrzeug passt zu diesem Filter.
-        } @else {
-          Noch keine Fahrzeuge angelegt.
-        }
-      </p>
-      <button mat-raised-button color="primary" (click)="neuesFahrzeug()">
+    <app-leerzustand
+      icon="local_shipping"
+      [titel]="
+        suche() || eigentuemerFilter() !== 'alle'
+          ? 'Kein Fahrzeug passt zu diesem Filter.'
+          : 'Noch keine Fahrzeuge angelegt.'
+      "
+    >
+      <button leerAktion matButton="filled" (click)="neuesFahrzeug()">
         <mat-icon>add</mat-icon> Neues Fahrzeug anlegen
       </button>
-    </div>
+    </app-leerzustand>
   }
 
   <div class="fahrzeug-liste">

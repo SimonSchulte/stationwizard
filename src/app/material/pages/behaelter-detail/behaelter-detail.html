@@ -1,38 +1,30 @@
-<mat-toolbar class="detail-kopfleiste">
-  <a mat-icon-button routerLink="/material" aria-label="Zurück zur Materialverwaltung">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <mat-icon class="kopfleiste-icon" aria-hidden="true">inventory_2</mat-icon>
-  <span class="toolbar-title">
-    @if (istNeu()) {
-      Neuer Behälter
-    } @else {
-      {{ entwurf()?.bezeichnung || 'Behälter' }}
-    }
-  </span>
-  <span class="spacer"></span>
+<app-seitenkopf
+  [titel]="istNeu() ? 'Neuer Behälter' : entwurf()?.bezeichnung || 'Behälter'"
+  icon="inventory_2"
+  zurueck="/material"
+  zurueckText="Zurück zur Materialverwaltung"
+>
   <button
-    mat-raised-button
-    color="primary"
+    matButton="filled"
     [disabled]="!speicherbar() || !hatAenderungen() || speichertGerade()"
     (click)="speichern()"
   >
     <mat-icon>save</mat-icon> Speichern
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="detail-inhalt">
   @if (laedt()) {
-    <p role="status">Behälter wird geladen …</p>
+    <app-ladeanzeige text="Behälter wird geladen …" />
   }
   @if (ladeFehler()) {
-    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ ladeFehler() }}</app-meldung>
   }
   @if (speicherFehler()) {
-    <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+    <app-meldung art="fehler">{{ speicherFehler() }}</app-meldung>
   }
   @if (loeschFehler()) {
-    <p class="error-hint" role="alert">{{ loeschFehler() }}</p>
+    <app-meldung art="fehler">{{ loeschFehler() }}</app-meldung>
   }
 
   @if (entwurf(); as behaelter) {
@@ -97,8 +89,7 @@
       <section class="pruefung" aria-labelledby="pruefung-titel">
         <h2 id="pruefung-titel">Bestand prüfen</h2>
         <a
-          mat-raised-button
-          color="primary"
+          matButton="filled"
           class="check-starten"
           [routerLink]="['/material/behaelter', behaelter.id, 'check']"
         >
@@ -115,17 +106,17 @@
         </p>
 
         @if (qrFehler()) {
-          <p class="error-hint" role="alert">{{ qrFehler() }}</p>
+          <app-meldung art="fehler">{{ qrFehler() }}</app-meldung>
         }
 
         @if (qrDataUrl()) {
           <img class="qr-bild" [src]="qrDataUrl()" alt="QR-Code zur öffentlichen Prüfung" />
           <p class="qr-ziel">{{ qrZiel() }}</p>
-          <button mat-stroked-button [disabled]="qrLaedt()" (click)="qrErneuern()">
+          <button matButton="outlined" [disabled]="qrLaedt()" (click)="qrErneuern()">
             <mat-icon>autorenew</mat-icon> Prüfcode erneuern
           </button>
         } @else {
-          <button mat-stroked-button [disabled]="qrLaedt()" (click)="qrAnzeigen()">
+          <button matButton="outlined" [disabled]="qrLaedt()" (click)="qrAnzeigen()">
             <mat-icon>qr_code_2</mat-icon>
             @if (qrLaedt()) {
               Wird geladen …
@@ -142,7 +133,7 @@
           Möglich, solange für diesen Behälter noch kein Check erfasst wurde – ein durchgeführter
           Check ist ein Nachweis und darf nicht mit dem Behälter verschwinden.
         </p>
-        <button mat-stroked-button (click)="loeschen()">
+        <button matButton="outlined" (click)="loeschen()">
           <mat-icon>delete</mat-icon> Behälter löschen
         </button>
       </section>

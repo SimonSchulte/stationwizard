@@ -5,7 +5,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import {
   Einstellungen,
@@ -17,6 +16,8 @@ import {
   Versandweg,
 } from '../../models/systemkonfiguration.model';
 import { SystemkonfigurationStoreService } from '../../services/systemkonfiguration-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 /**
  * Systemkonfiguration: einziger Ort, an dem Betriebseinstellungen gesetzt
@@ -29,13 +30,15 @@ import { SystemkonfigurationStoreService } from '../../services/systemkonfigurat
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-systemkonfiguration',
   imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatSelectModule,
     MatTabsModule,
-    MatToolbarModule,
   ],
   templateUrl: './systemkonfiguration.html',
   styleUrl: './systemkonfiguration.less',

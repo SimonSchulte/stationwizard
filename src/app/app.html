@@ -2,7 +2,7 @@
 <header class="shell-kopf">
   <button
     type="button"
-    mat-icon-button
+    matIconButton
     class="burger"
     (click)="seitenNav.toggle()"
     [attr.aria-expanded]="seitenNav.opened"
@@ -59,12 +59,12 @@
 @if (worker.zustand() === 'sitzung-abgelaufen') {
   <div class="shell-meldung" role="alert">
     <span>Sitzung abgelaufen. Ungespeicherte Änderungen vor der Anmeldung als Datei sichern.</span>
-    <a href="/">Erneut anmelden</a>
+    <a matButton href="/">Erneut anmelden</a>
   </div>
 } @else if (benutzer.fehler()) {
   <div class="shell-meldung" role="alert">
     <span>{{ benutzer.fehler() }}</span>
-    <button type="button" (click)="benutzer.laden()" [disabled]="benutzer.laedt()">
+    <button matButton (click)="benutzer.laden()" [disabled]="benutzer.laedt()">
       Erneut versuchen
     </button>
   </div>

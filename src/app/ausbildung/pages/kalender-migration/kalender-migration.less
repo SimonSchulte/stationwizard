@@ -1,21 +1,7 @@
-@import '../../../kern/kopfleiste.less';
-
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.migration-kopfleiste {
-  .kopfleiste-basis();
-}
-
-.kopfleiste-icon {
-  color: var(--ci-red);
-}
-
-.spacer {
-  flex: 1;
 }
 
 .migration-inhalt {
@@ -62,26 +48,6 @@
     flex-shrink: 0;
     margin-top: var(--space-2xs);
   }
-}
-
-.befund-ok {
-  background: var(--status-ok-bg);
-  color: var(--status-ok);
-}
-
-.befund-warn {
-  background: var(--status-warn-bg);
-  color: var(--status-warn);
-}
-
-.befund-fehler {
-  background: var(--status-error-bg);
-  color: var(--status-error);
-}
-
-.fehler-hinweis {
-  color: var(--status-error);
-  padding: var(--space-sm) 0;
 }
 
 .dateiname {

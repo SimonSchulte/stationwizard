@@ -23,6 +23,7 @@ import { TagesInhalt } from '../../services/tages-inhalt';
 import { HiorgEintragKarte } from '../hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { AblageAufTag, AblageAufTermin } from '../monatsansicht/monatsansicht';
 import { TerminKarte } from '../termin-karte/termin-karte';
+import { MatChipsModule } from '@angular/material/chips';
 
 /**
  * Ansicht C: chronologische Agendaliste, nach Kalenderwochen gruppiert.
@@ -35,7 +36,14 @@ import { TerminKarte } from '../termin-karte/termin-karte';
 @Component({
   selector: 'app-agendaliste',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDropList, HiorgEintragKarte, MatButtonModule, MatIconModule, TerminKarte],
+  imports: [
+    CdkDropList,
+    HiorgEintragKarte,
+    MatButtonModule,
+    MatChipsModule,
+    MatIconModule,
+    TerminKarte,
+  ],
   templateUrl: './agendaliste.html',
   styleUrl: './agendaliste.less',
 })

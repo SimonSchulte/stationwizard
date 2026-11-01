@@ -13,7 +13,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import { KalenderDatenService } from '../../services/kalender-daten.service';
@@ -22,6 +21,8 @@ import {
   vorhandeneIdeen,
   vorhandeneKatsThemen,
 } from '../../services/jahresuebernahme';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Meldung } from '../../../kern/zustand/zustand';
 
 /**
  * Übernahme von Offenen Ideen und KatS-Ausbildungsplan-Themen aus einem Jahr in
@@ -36,6 +37,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-jahresuebernahme',
   imports: [
+    Meldung,
+    Seitenkopf,
     RouterLink,
     MatButtonModule,
     MatCheckboxModule,
@@ -43,7 +46,6 @@ import {
     MatIconModule,
     MatProgressBarModule,
     MatSelectModule,
-    MatToolbarModule,
   ],
   templateUrl: './jahresuebernahme.html',
   styleUrl: './jahresuebernahme.less',

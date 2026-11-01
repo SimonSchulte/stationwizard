@@ -38,9 +38,9 @@
     }
   </mat-card-content>
   <mat-card-actions align="end">
-    <button mat-button (click)="schliessen.emit()">Schließen</button>
+    <button matButton (click)="schliessen.emit()">Schließen</button>
     <button
-      mat-flat-button
+      matButton="filled"
       (click)="uebernehmen.emit(vorschau().eintraege)"
       [disabled]="arbeitet() || vorschau().eintraege.length === 0"
     >

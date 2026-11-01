@@ -1,16 +1,14 @@
-<mat-toolbar class="check-kopfleiste">
-  <a mat-icon-button routerLink="/material" aria-label="Zurück zur Materialverwaltung">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">
-    @if (auftrag(); as a) {
-      {{ a.behaelter.bezeichnung }} · {{ a.behaelter.fahrzeugBezeichnung }}
-    } @else {
-      Fahrzeugcheck
-    }
-  </span>
-  <span class="spacer"></span>
-  <button mat-icon-button [matMenuTriggerFor]="menue" aria-label="Weitere Aktionen">
+<app-seitenkopf
+  [titel]="
+    auftrag()
+      ? auftrag()!.behaelter.bezeichnung + ' · ' + auftrag()!.behaelter.fahrzeugBezeichnung
+      : 'Fahrzeugcheck'
+  "
+  icon="fact_check"
+  zurueck="/material"
+  zurueckText="Zurück zur Materialverwaltung"
+>
+  <button matIconButton [matMenuTriggerFor]="menue" aria-label="Weitere Aktionen">
     <mat-icon>more_vert</mat-icon>
   </button>
   <mat-menu #menue="matMenu">
@@ -19,7 +17,7 @@
     <button mat-menu-item (click)="allesAufSoll()">Alles auf Soll setzen</button>
     <button mat-menu-item (click)="zuruecksetzen()">Check zurücksetzen</button>
   </mat-menu>
-</mat-toolbar>
+</app-seitenkopf>
 
 @if (fortschritt(); as kennzahlen) {
   <div class="fortschrittsleiste">
@@ -29,13 +27,13 @@
 
 <div class="check-inhalt">
   @if (laedt()) {
-    <p role="status">Prüfauftrag wird geladen …</p>
+    <app-ladeanzeige text="Prüfauftrag wird geladen …" />
   }
   @if (ladeFehler()) {
-    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ ladeFehler() }}</app-meldung>
   }
   @if (einreichFehler()) {
-    <p class="error-hint" role="alert">{{ einreichFehler() }}</p>
+    <app-meldung art="fehler">{{ einreichFehler() }}</app-meldung>
   }
 
   @if (entwurfGefundenAm(); as gesichertAm) {
@@ -46,11 +44,11 @@
         fortgesetzt.
       </span>
       @if (andererEntwurf(); as anderer) {
-        <button mat-button (click)="store.anderenEntwurfVerwenden()">
+        <button matButton (click)="store.anderenEntwurfVerwenden()">
           Stand vom {{ anderer.gespeichertAm | date: 'dd.MM., HH:mm' }} verwenden
         </button>
       }
-      <button mat-button (click)="entwurfVerwerfen()">Verwerfen</button>
+      <button matButton (click)="entwurfVerwerfen()">Verwerfen</button>
     </div>
   }
 
@@ -107,20 +105,21 @@
       }
     </mat-accordion>
 
-    <label class="bemerkung">
-      <span>Bemerkung zum Check (freiwillig)</span>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bemerkung">
+      <mat-label>Bemerkung zum Check (freiwillig)</mat-label>
       <textarea
+        matInput
         rows="2"
         [value]="stand()?.bemerkung ?? ''"
         (input)="store.bemerkungSetzen($any($event.target).value)"
       ></textarea>
-    </label>
+    </mat-form-field>
   }
 </div>
 
 @if (auftrag()) {
   <div class="fussleiste">
-    <button mat-stroked-button [disabled]="entwurfSpeichert()" (click)="zwischenstandSpeichern()">
+    <button matButton="outlined" [disabled]="entwurfSpeichert()" (click)="zwischenstandSpeichern()">
       @if (entwurfSpeichert()) {
         Wird gesichert …
       } @else {
@@ -128,8 +127,7 @@
       }
     </button>
     <button
-      mat-raised-button
-      color="primary"
+      matButton="filled"
       class="abschliessen"
       [disabled]="!einreichbar() || reichtEin()"
       (click)="einreichen()"

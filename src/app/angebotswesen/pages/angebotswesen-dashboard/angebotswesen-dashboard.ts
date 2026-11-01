@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebotswesen-dashboard',
-  imports: [RouterLink, MatIconModule, MatToolbarModule],
+  imports: [Seitenkopf, RouterLink, MatIconModule],
   templateUrl: './angebotswesen-dashboard.html',
   styleUrl: './angebotswesen-dashboard.less',
 })

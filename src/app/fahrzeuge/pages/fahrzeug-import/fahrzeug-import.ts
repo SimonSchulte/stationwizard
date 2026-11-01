@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { BEFUND_LABEL, ImportBefund, berichtCsv, vorlageCsv } from '../../services/fahrzeug-import';
 import { FahrzeugImportStoreService } from '../../services/fahrzeug-import-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 const CSV_MEDIENTYP = 'text/csv;charset=utf-8';
 
@@ -19,7 +20,15 @@ const CSV_MEDIENTYP = 'text/csv;charset=utf-8';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-import',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatToolbarModule],
+  imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressBarModule,
+  ],
   templateUrl: './fahrzeug-import.html',
   styleUrl: './fahrzeug-import.less',
 })

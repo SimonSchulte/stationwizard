@@ -1,0 +1,51 @@
+:host {
+  --meldung-farbe: var(--ci-blue);
+  --meldung-flaeche: var(--surface-secondary);
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 4px solid var(--meldung-farbe);
+  border-radius: var(--radius-sm);
+  background: var(--meldung-flaeche);
+  color: var(--text-primary);
+  font: var(--mat-sys-body-medium);
+}
+
+:host(.art-fehler) {
+  --meldung-farbe: var(--status-error);
+  --meldung-flaeche: var(--status-error-bg);
+}
+
+:host(.art-warnung) {
+  --meldung-farbe: var(--status-warn);
+  --meldung-flaeche: var(--status-warn-bg);
+}
+
+:host(.art-erfolg) {
+  --meldung-farbe: var(--status-ok);
+  --meldung-flaeche: var(--status-ok-bg);
+}
+
+.symbol {
+  flex: 0 0 auto;
+  color: var(--meldung-farbe);
+}
+
+.text {
+  // Unter etwa 16 rem Textbreite rückt die Aktion in eine eigene Zeile statt den Text zu quetschen.
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.aktion {
+  flex: 0 0 auto;
+  margin-left: auto;
+
+  &:empty {
+    display: none;
+  }
+}

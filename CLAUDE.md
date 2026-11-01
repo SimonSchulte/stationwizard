@@ -23,7 +23,8 @@ Prüfungen und offene Abnahmegrenzen.
   `einsatz/components/` (`PositionZeile`, `StaerkeBlock`, `QualifikationsChips`,
   `AnforderungsAuswahl`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
   `StundenImport`), `ausbildung/components/` (`MonatsNavigation`, `HiorgEbenenAuswahl`),
-  `kern/` (`Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
+  `kern/` (`Seitenkopf`, `Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
+  `Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
   Vor einer neuen Komponente nach einer vorhandenen suchen.
 - Worker-Module nach demselben Muster: `<modul>.ts` verteilt nur die festen Pfade,
   `<modul>-gemeinsam.ts` hält Konfiguration, Grenzen und Körperlesen, je Ressource eine
@@ -64,9 +65,26 @@ Prüfungen und offene Abnahmegrenzen.
   ändern); dort lädt `ladePdfBibliothek()` pdfmake samt Schriften genau einmal.
 - Gemeinsame Hinweis-/Bestätigungsdialoge über `kern/dialog/dialog-dienst.ts` und
   `DialogDienst` verwenden; `VerlassenSchutz` für ungesicherte Änderungen erhalten.
-  Gemeinsame Leerzustands- und Ladegestaltung verwenden. Fachliche Labels bleiben
-  deutsch. Umsetzungshinweise gehören in die Dokumentation, sofern sie keine
-  Nutzerentscheidung unterstützen.
+  Gemeinsame Leerzustands- und Ladegestaltung verwenden.
+- Material-Komponenten zuerst, Eigenbau nur, wo Material nichts Passendes hat (etwa die
+  Kalenderzellen, die Checkposition zum Abhaken am Handy, die Inline-Felder des
+  Einsatz-Editors). Material wird über seine CSS-Tokens (`--mat-…`) und die zentralen
+  `--…`-Tokens angepasst, nicht nachgebaut. Feste Bausteine statt eigener Fassungen je Seite:
+  - **Seitenkopf** `kern/seitenkopf/` (`mat-toolbar`): jede Fachseite, Zurück-Pfeil links
+    (`zurueck`, nie ein Textknopf „Zurück zu …“), Symbol, Titel, Aktionen rechts; mobil eine
+    eigene Aktionszeile. Ausnahmen mit eigener Werkzeugleiste: Kalender und Einsatz-Editor.
+  - **Knöpfe**: höchstens eine Hauptaktion `matButton="filled"`, weitere `matButton="outlined"`,
+    Nebenaktionen `matButton`, Symbolknöpfe `matIconButton`; viele Nebenaktionen in ein
+    `more_vert`-Menü. Keine nativen `<button>` mit eigener Gestaltung, keine
+    `mat-raised-button`/`mat-stroked-button`-Altschreibweisen, kein `color="primary"`.
+  - **Zustände** `kern/zustand/`: `app-meldung` (`fehler`/`warnung`/`info`/`erfolg`, Aktion per
+    `meldungAktion`), `app-leerzustand`, `app-ladeanzeige` – keine eigenen `.error-hint`,
+    `.empty-state` oder Spinner-Blöcke.
+  - **Suche** `kern/suchfeld/` (`[(wert)]` an ein Signal); **Filter** als
+    `mat-button-toggle-group` (eine Auswahl aus wenigen Werten) oder `mat-chip-listbox`
+    (Mehrfachauswahl, Kategorien); Eingaben immer in `mat-form-field` mit `appearance="outline"`. Fachliche Labels bleiben
+    deutsch. Umsetzungshinweise gehören in die Dokumentation, sofern sie keine
+    Nutzerentscheidung unterstützen.
 - Ausbildungs-`mobilAnsicht` und die untere Navigation bei kleinen Displays erhalten.
   Das Raster der Monatsansicht (gebaut aus `baueWochenraster()`, eine Zeile je Kalenderwoche
   mit KW-Spalte) kontrolliert horizontal in seinem Rahmen scrollen lassen. PEP bleibt bei

@@ -1,23 +1,7 @@
-@import '../../../kern/kopfleiste.less';
-
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.listen-kopfleiste {
-  .kopfleiste-basis();
-
-  white-space: normal;
-}
-
-.kopfleiste-icon {
-  color: var(--mat-sys-primary);
-}
-
-.spacer {
-  flex: 1;
 }
 
 .inhalt {
@@ -52,17 +36,11 @@
   gap: var(--space-base);
   padding: var(--space-lg) 0;
 }
-
-.leer,
 .hinweis,
 .legende,
 .zaehler,
 .nebenzeile {
   color: var(--text-secondary);
-}
-
-.leer {
-  font-style: italic;
 }
 
 .legende {
@@ -108,7 +86,7 @@ table {
 
 .filterleiste mat-button-toggle-group {
   max-width: 100%;
-  overflow-x: auto;
+  flex-wrap: wrap;
 }
 
 .begruendung-zelle {

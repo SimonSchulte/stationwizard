@@ -1,31 +1,31 @@
-<mat-toolbar class="detail-kopfleiste">
-  <a mat-icon-button routerLink="/fahrzeuge/liste" aria-label="Zurück zur Fahrzeugliste">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">{{ store.entwurf()?.bezeichnung || 'Neues Fahrzeug' }}</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="speichern()" [disabled]="!kannSpeichern()">
+<app-seitenkopf
+  [titel]="store.entwurf()?.bezeichnung || 'Neues Fahrzeug'"
+  zurueck="/fahrzeuge/liste"
+  zurueckText="Zurück zur Fahrzeugliste"
+>
+  <button matButton="filled" (click)="speichern()" [disabled]="!kannSpeichern()">
     <mat-icon>save</mat-icon>
     {{ store.speichertGerade() ? 'Speichert …' : 'Speichern' }}
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="detail-content">
   @if (store.ladeLaeuft()) {
-    <p role="status">Fahrzeug wird geladen …</p>
+    <app-ladeanzeige text="Fahrzeug wird geladen …" />
   }
   @if (store.ladeFehler()) {
-    <p class="error-hint" role="alert">{{ store.ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>
   }
 
   @if (store.speicherKonflikt()) {
-    <div class="konflikt-hinweis" role="alert">
-      <mat-icon>warning</mat-icon>
-      <span>{{ store.speicherFehler() }}</span>
-      <button mat-stroked-button (click)="nachKonfliktNeuLaden()">Aktuellen Stand laden</button>
-    </div>
+    <app-meldung art="warnung">
+      {{ store.speicherFehler() }}
+      <button matButton="outlined" meldungAktion (click)="nachKonfliktNeuLaden()">
+        Aktuellen Stand laden
+      </button>
+    </app-meldung>
   } @else if (store.speicherFehler()) {
-    <p class="error-hint" role="alert">{{ store.speicherFehler() }}</p>
+    <app-meldung art="fehler">{{ store.speicherFehler() }}</app-meldung>
   }
 
   @if (store.entwurf(); as entwurf) {
@@ -132,14 +132,14 @@
         <div class="section-header">
           <div class="wartung-aktionen">
             <button
-              mat-stroked-button
+              matButton="outlined"
               (click)="wartungHinzufuegen('hu')"
               [disabled]="hatOffeneHu()"
               [matTooltip]="hatOffeneHu() ? 'Es gibt bereits eine offene Hauptuntersuchung.' : ''"
             >
               <mat-icon>add</mat-icon> Hauptuntersuchung
             </button>
-            <button mat-stroked-button (click)="wartungHinzufuegen('frei')">
+            <button matButton="outlined" (click)="wartungHinzufuegen('frei')">
               <mat-icon>add</mat-icon> Weiterer Termin
             </button>
           </div>
@@ -204,7 +204,7 @@
                 Erledigt
               </mat-checkbox>
               <button
-                mat-icon-button
+                matIconButton
                 (click)="wartungEntfernen(termin.id)"
                 aria-label="Wartungstermin entfernen"
               >
@@ -223,10 +223,14 @@
 
           <div class="section-header">
             <div class="kilometer-aktionen">
-              <a mat-stroked-button [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
+              <a matButton="outlined" [routerLink]="['/fahrzeuge', entwurf.id, 'km']">
                 <mat-icon>speed</mat-icon> Kilometerstand erfassen
               </a>
-              <button mat-stroked-button (click)="nachtragBeginnen()" [disabled]="nachtragOffen()">
+              <button
+                matButton="outlined"
+                (click)="nachtragBeginnen()"
+                [disabled]="nachtragOffen()"
+              >
                 <mat-icon>history</mat-icon> Jahresanfang nachtragen
               </button>
             </div>
@@ -265,10 +269,8 @@
                 />
               </mat-form-field>
               <div class="nachtrag-aktionen">
-                <button mat-raised-button color="primary" (click)="nachtragSpeichern()">
-                  Speichern
-                </button>
-                <button mat-button (click)="nachtragAbbrechen()">Abbrechen</button>
+                <button matButton="filled" (click)="nachtragSpeichern()">Speichern</button>
+                <button matButton (click)="nachtragAbbrechen()">Abbrechen</button>
               </div>
             </div>
           }
@@ -280,13 +282,13 @@
           }
 
           @if (ablesungStore.laedt()) {
-            <p role="status">Ablesungen werden geladen …</p>
+            <app-ladeanzeige text="Ablesungen werden geladen …" />
           }
           @if (ablesungStore.fehler()) {
-            <p class="error-hint" role="alert">{{ ablesungStore.fehler() }}</p>
+            <app-meldung art="fehler">{{ ablesungStore.fehler() }}</app-meldung>
           }
           @if (ablesungStore.loeschFehler()) {
-            <p class="error-hint" role="alert">{{ ablesungStore.loeschFehler() }}</p>
+            <app-meldung art="fehler">{{ ablesungStore.loeschFehler() }}</app-meldung>
           }
           @if (!ablesungStore.laedt() && ablesungenAbsteigend().length === 0) {
             <p class="empty-hint">Noch keine Kilometerablesung erfasst.</p>
@@ -303,10 +305,10 @@
                   <span class="ablesung-korrektur-hinweis">korrigiert eine frühere Ablesung</span>
                 }
                 @if (korrigiertId() !== ablesung.id) {
-                  <button mat-button (click)="korrekturBeginnen(ablesung)">Korrigieren</button>
+                  <button matButton (click)="korrekturBeginnen(ablesung)">Korrigieren</button>
                 }
                 <button
-                  mat-icon-button
+                  matIconButton
                   (click)="ablesungLoeschen(ablesung)"
                   [disabled]="hatKorrektur(ablesung)"
                   [matTooltip]="
@@ -355,10 +357,10 @@
                     />
                   </mat-form-field>
                   <div class="korrektur-aktionen">
-                    <button mat-raised-button color="primary" (click)="korrekturSpeichern()">
+                    <button matButton="filled" (click)="korrekturSpeichern()">
                       Korrektur speichern
                     </button>
-                    <button mat-button (click)="korrekturAbbrechen()">Abbrechen</button>
+                    <button matButton (click)="korrekturAbbrechen()">Abbrechen</button>
                   </div>
                 </li>
               }
@@ -373,11 +375,11 @@
 
           <div class="section-header">
             <div class="qr-aktionen">
-              <button mat-stroked-button (click)="qrCodesAnzeigen()" [disabled]="qrLaedt()">
+              <button matButton="outlined" (click)="qrCodesAnzeigen()" [disabled]="qrLaedt()">
                 <mat-icon>qr_code_2</mat-icon> QR-Codes anzeigen
               </button>
               <button
-                mat-stroked-button
+                matButton="outlined"
                 (click)="druckbogenHerunterladen()"
                 [disabled]="druckbogenLaedt()"
               >
@@ -387,10 +389,10 @@
             </div>
           </div>
           @if (druckbogenFehler()) {
-            <p class="error-hint" role="alert">{{ druckbogenFehler() }}</p>
+            <app-meldung art="fehler">{{ druckbogenFehler() }}</app-meldung>
           }
           @if (qrErneuernFehler()) {
-            <p class="error-hint" role="alert">{{ qrErneuernFehler() }}</p>
+            <app-meldung art="fehler">{{ qrErneuernFehler() }}</app-meldung>
           }
           @if (qrLaedt()) {
             <mat-progress-spinner mode="indeterminate" diameter="32" />
@@ -400,7 +402,7 @@
               <figure>
                 <img [src]="codes.uebersicht" alt="QR-Code zur Fahrzeugübersicht" width="160" />
                 <figcaption>Übersicht</figcaption>
-                <button mat-stroked-button (click)="qrSvgHerunterladen('uebersicht')">
+                <button matButton="outlined" (click)="qrSvgHerunterladen('uebersicht')">
                   <mat-icon>download</mat-icon> Als SVG herunterladen
                 </button>
               </figure>
@@ -410,7 +412,7 @@
                   Erfassen – mit Anmeldung
                   <span class="qr-hinweis">gilt sofort</span>
                 </figcaption>
-                <button mat-stroked-button (click)="qrSvgHerunterladen('km')">
+                <button matButton="outlined" (click)="qrSvgHerunterladen('km')">
                   <mat-icon>download</mat-icon> Als SVG herunterladen
                 </button>
               </figure>
@@ -425,14 +427,14 @@
                     Melden – ohne Anmeldung
                     <span class="qr-hinweis">wird freigegeben</span>
                   </figcaption>
-                  <button mat-stroked-button (click)="qrSvgHerunterladen('oeffentlich')">
+                  <button matButton="outlined" (click)="qrSvgHerunterladen('oeffentlich')">
                     <mat-icon>download</mat-icon> Als SVG herunterladen
                   </button>
                 } @else {
                   <figcaption>Melden – ohne Anmeldung</figcaption>
                   <p class="qr-hinweis">Für dieses Fahrzeug ist noch kein Code erzeugt.</p>
                 }
-                <button mat-stroked-button (click)="qrErneuern()" [disabled]="qrErneuertGerade()">
+                <button matButton="outlined" (click)="qrErneuern()" [disabled]="qrErneuertGerade()">
                   <mat-icon>autorenew</mat-icon>
                   {{ qrErneuertGerade() ? 'Wird erneuert …' : 'Code erneuern' }}
                 </button>
@@ -451,10 +453,10 @@
           </mat-expansion-panel-header>
 
           @if (aenderungsprotokollStore.laedt()) {
-            <p role="status">Änderungsprotokoll wird geladen …</p>
+            <app-ladeanzeige text="Änderungsprotokoll wird geladen …" />
           }
           @if (aenderungsprotokollStore.fehler()) {
-            <p class="error-hint" role="alert">{{ aenderungsprotokollStore.fehler() }}</p>
+            <app-meldung art="fehler">{{ aenderungsprotokollStore.fehler() }}</app-meldung>
           }
           @if (
             !aenderungsprotokollStore.laedt() && aenderungsprotokollStore.eintraege().length === 0

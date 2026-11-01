@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { KatsThema, Termin } from '../../models/plan.model';
 import { PlanStore } from '../../services/plan-store';
 import { formatiereDatum } from '../../../kern/kalender/datum';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 interface ThemaZeile {
   thema: KatsThema;
@@ -28,6 +29,7 @@ interface ThemaZeile {
   selector: 'app-kats-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Suchfeld,
     FormsModule,
     MatButtonModule,
     MatCheckboxModule,

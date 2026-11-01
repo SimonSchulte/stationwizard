@@ -19,43 +19,11 @@
   gap: var(--space-xs) var(--space-sm);
 }
 
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-compact);
-  min-height: calc(var(--space-unit) * 32);
-  padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-pill);
-  background: var(--surface-primary);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
-
-  &.aktiv {
-    border-color: var(--kat-farbe, var(--ci-blue));
-    background: color-mix(in srgb, var(--kat-farbe, var(--ci-blue)) 14%, var(--surface-primary));
-    color: var(--text-primary);
-    font-weight: 500;
-  }
-}
-
 .kat-punkt {
-  width: var(--space-sm);
-  height: var(--space-sm);
+  width: var(--space-sm) !important;
+  height: var(--space-sm) !important;
   border-radius: var(--radius-sm);
   background: var(--kat-farbe, var(--kat-ereignis));
-}
-
-.filter-trenner {
-  width: var(--space-unit);
-  align-self: stretch;
-  background: var(--border-light);
 }
 
 .liste {
@@ -211,12 +179,6 @@
 @media (max-width: 780px) {
   :host {
     padding-inline: var(--space-md);
-  }
-
-  /* Am Telefon bleibt der Chip ein Tippziel, ohne dass die Filter den halben Schirm füllen. */
-  .filter-chip {
-    min-height: calc(var(--space-unit) * 36);
-    padding-inline: var(--space-base);
   }
 
   .tag {

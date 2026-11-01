@@ -10,9 +10,11 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { BehaelterUebersicht } from '../../models/behaelter.model';
 import { BehaelterStoreService } from '../../services/behaelter-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /**
  * Einstieg der Materialverwaltung: alle Behälter, nach Fahrzeug gruppiert, mit
@@ -22,7 +24,17 @@ import { BehaelterStoreService } from '../../services/behaelter-store.service';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-material-dashboard',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatToolbarModule],
+  imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    DatePipe,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+  ],
   templateUrl: './material-dashboard.html',
   styleUrl: './material-dashboard.less',
 })

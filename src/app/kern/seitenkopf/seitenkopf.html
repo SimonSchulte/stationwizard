@@ -1,0 +1,22 @@
+<mat-toolbar class="seitenkopf">
+  <div class="titelzeile">
+    @if (zurueck(); as ziel) {
+      <a
+        matIconButton
+        [routerLink]="ziel"
+        [attr.aria-label]="zurueckText()"
+        [matTooltip]="zurueckText()"
+      >
+        <mat-icon>arrow_back</mat-icon>
+      </a>
+    }
+    @if (icon(); as symbol) {
+      <mat-icon class="symbol" aria-hidden="true">{{ symbol }}</mat-icon>
+    }
+    <h1 class="titel" [title]="titel()">{{ titel() }}</h1>
+    <ng-content select="[seitenkopfZusatz]" />
+  </div>
+  <div class="aktionen">
+    <ng-content />
+  </div>
+</mat-toolbar>

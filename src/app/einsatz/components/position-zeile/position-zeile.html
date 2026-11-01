@@ -1,6 +1,6 @@
 <div class="position-label-cell">
   <button
-    mat-icon-button
+    matIconButton
     class="postenfuehrer-btn"
     [class.postenfuehrer-btn--active]="position().isPostenfuehrer"
     matTooltip="Postenführer"
@@ -60,7 +60,7 @@
       </div>
     </div>
     <button
-      mat-icon-button
+      matIconButton
       class="unassign-btn"
       matTooltip="Zuteilung aufheben"
       (click)="zuteilungAufheben.emit(); $event.stopPropagation()"

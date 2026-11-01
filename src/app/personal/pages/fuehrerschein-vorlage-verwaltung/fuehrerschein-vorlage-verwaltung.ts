@@ -2,8 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { fehlendeFelder } from '../../services/ehrungsantrag-pdf';
@@ -13,6 +12,8 @@ import {
   type DateiVorlageDienst,
   type DateiVorlageMetadaten,
 } from '../../services/fuehrerschein-vorlage.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 export type VorlagenSeite = 'fuehrerschein' | 'ehrungsantrag';
 
@@ -69,7 +70,15 @@ const ARTEN: Readonly<Record<VorlagenSeite, SeitenArt>> = {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuehrerschein-vorlage-verwaltung',
-  imports: [MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatToolbarModule, RouterLink],
+  imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+  ],
   templateUrl: './fuehrerschein-vorlage-verwaltung.html',
   styleUrl: './fuehrerschein-vorlage-verwaltung.less',
 })

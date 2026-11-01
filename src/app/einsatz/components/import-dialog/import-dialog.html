@@ -32,8 +32,8 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="dialogRef.close()">Abbrechen</button>
-  <button mat-raised-button color="primary" [disabled]="parseCount() === 0" (click)="doImport()">
+  <button matButton (click)="dialogRef.close()">Abbrechen</button>
+  <button matButton="filled" [disabled]="parseCount() === 0" (click)="doImport()">
     Importieren
   </button>
 </mat-dialog-actions>

@@ -1,9 +1,9 @@
-<mat-toolbar class="uebernahme-kopfleiste">
-  <mat-icon class="kopfleiste-icon">event_repeat</mat-icon>
-  <span class="toolbar-title">Ideen und KatS-Plan ins neue Jahr übernehmen</span>
-  <span class="spacer"></span>
-  <a matButton routerLink="/kalender">Zurück zum Kalender</a>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Ideen und KatS-Plan ins neue Jahr übernehmen"
+  icon="event_repeat"
+  zurueck="/kalender"
+  zurueckText="Zurück zum Kalender"
+/>
 
 @if (laedt()) {
   <mat-progress-bar mode="indeterminate" />
@@ -17,23 +17,19 @@
   </p>
 
   @if (fehler()) {
-    <p class="befund befund-fehler" role="alert">
-      <mat-icon inline>error_outline</mat-icon>
-      {{ fehler() }}
-    </p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (zustand() !== 'verbunden' && !laedt()) {
-    <p class="befund befund-warn" role="status">
-      <mat-icon inline>cloud_off</mat-icon>
-      Die Kalender-Datenbank ist nicht verbunden. Öffne den Kalender und lade ihn neu.
-    </p>
+    <app-meldung art="warnung"
+      ><mat-icon inline>cloud_off</mat-icon> Die Kalender-Datenbank ist nicht verbunden. Öffne den
+      Kalender und lade ihn neu.</app-meldung
+    >
   } @else if (zustand() === 'verbunden' && jahre().length < 2) {
-    <p class="befund befund-warn" role="status">
-      <mat-icon inline>info</mat-icon>
-      Für eine Übernahme braucht der Kalender mindestens zwei Jahre. Lege im Kalender über die
-      Jahresauswahl zuerst ein neues Jahr an.
-    </p>
+    <app-meldung art="warnung"
+      >Für eine Übernahme braucht der Kalender mindestens zwei Jahre. Lege im Kalender über die
+      Jahresauswahl zuerst ein neues Jahr an.</app-meldung
+    >
   } @else if (zustand() === 'verbunden') {
     <section class="abschnitt jahre">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -56,10 +52,9 @@
     </section>
 
     @if (gleichesJahr()) {
-      <p class="befund befund-warn" role="status">
-        <mat-icon inline>info</mat-icon>
-        Quelle und Ziel sind dasselbe Jahr – wähle zwei verschiedene Jahre.
-      </p>
+      <app-meldung art="warnung"
+        >Quelle und Ziel sind dasselbe Jahr – wähle zwei verschiedene Jahre.</app-meldung
+      >
     } @else {
       <section class="abschnitt">
         <div class="abschnitt-kopf">

@@ -19,12 +19,12 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, type Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
@@ -69,6 +69,9 @@ import {
 } from './ehrungen-tabelle';
 import { AuszeichnungsGruppe } from '../../components/auszeichnungs-gruppe/auszeichnungs-gruppe';
 import { EhrungenVerlauf, type VerlaufDaten } from './ehrungen-verlauf/ehrungen-verlauf';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /**
  * Ehrungen: Leistungsabzeichen, Jubiläumszeichen und Ehrenzeichen je Person.
@@ -82,6 +85,11 @@ import { EhrungenVerlauf, type VerlaufDaten } from './ehrungen-verlauf/ehrungen-
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ehrungen',
   imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     AuszeichnungsGruppe,
     GruppenFilter,
     MatButtonModule,
@@ -91,13 +99,13 @@ import { EhrungenVerlauf, type VerlaufDaten } from './ehrungen-verlauf/ehrungen-
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatMenuModule,
     MatNativeDateModule,
     MatPaginatorModule,
     MatProgressSpinnerModule,
     MatSelectModule,
     MatSortModule,
     MatTableModule,
-    MatToolbarModule,
     MatTooltipModule,
     RouterLink,
     StundenImport,

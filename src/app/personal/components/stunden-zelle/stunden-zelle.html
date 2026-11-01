@@ -8,25 +8,37 @@
   }}</span>
 </div>
 <div class="stundenquellen">
-  <mat-form-field class="manuellfeld" appearance="outline" subscriptSizing="dynamic">
+  <mat-form-field
+    class="manuellfeld"
+    appearance="outline"
+    floatLabel="always"
+    subscriptSizing="dynamic"
+  >
+    <mat-label>Nachtrag</mat-label>
     <mat-icon matPrefix [matTooltip]="manuellHinweis()" class="manuell-icon">edit</mat-icon>
     <input
       matInput
       inputmode="decimal"
-      placeholder="manuell"
+      placeholder="Stunden"
       [value]="manuellText()"
       (change)="manuellUebernehmen($event)"
       [attr.aria-label]="'Stunden manuell nachtragen, ' + person()"
     />
   </mat-form-field>
   @if (manuell() !== null) {
-    <mat-form-field class="standfeld" appearance="outline" subscriptSizing="dynamic">
+    <mat-form-field
+      class="standfeld"
+      appearance="outline"
+      floatLabel="always"
+      subscriptSizing="dynamic"
+    >
+      <mat-label>Stand</mat-label>
       <input
         matInput
         type="number"
         inputmode="numeric"
         required
-        placeholder="Stand"
+        placeholder="Jahr"
         [min]="jahrMinimum"
         [max]="jahrMaximum"
         [value]="stand() ?? ''"

@@ -12,12 +12,17 @@ import { HiorgVerbinden } from '../../../kern/hiorg/hiorg-verbinden/hiorg-verbin
 import { HiorgPersonalService, type HiorgPerson } from '../../../kern/hiorg/hiorg-personal.service';
 import { ImportService } from '../../services/import.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /** Übernahme von Personen aus der HiOrg-Server-API in den Helferpool der aktiven Planung. */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-hiorg-personal-dialog',
   imports: [
+    Suchfeld,
+    Meldung,
+    Ladeanzeige,
     GruppenFilter,
     HiorgVerbinden,
     MatButtonModule,

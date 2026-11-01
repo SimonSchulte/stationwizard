@@ -4,7 +4,7 @@
       Melde dich einmalig mit deinem eigenen HiOrg-Konto an. Du siehst anschließend genau das
       Personal, das dein HiOrg-Konto sehen darf.
     </p>
-    <button mat-raised-button color="primary" (click)="automatischVerbinden()">
+    <button matButton="filled" (click)="automatischVerbinden()">
       <mat-icon>login</mat-icon> Mit HiOrg-Server verbinden
     </button>
   }
@@ -16,7 +16,7 @@
     <ol class="schritte">
       <li>
         <a
-          mat-stroked-button
+          matButton="outlined"
           [href]="anmeldeAdresse()"
           target="_blank"
           rel="noopener noreferrer"
@@ -43,8 +43,7 @@
           />
         </mat-form-field>
         <button
-          mat-raised-button
-          color="primary"
+          matButton="filled"
           [disabled]="!adresse().trim() || sendet()"
           (click)="abschliessen()"
         >
@@ -53,7 +52,7 @@
       </li>
     </ol>
     @if (fehler()) {
-      <p class="fehler" role="alert">{{ fehler() }}</p>
+      <app-meldung art="fehler">{{ fehler() }}</app-meldung>
     }
   }
 }

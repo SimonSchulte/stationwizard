@@ -9,16 +9,28 @@ import {
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
 import { BenutzerZeile } from '../../components/benutzer-zeile/benutzer-zeile';
 import { Hauptrolle, Sonderrolle } from '../../models/benutzerkonto.model';
 import { BenutzerverwaltungStoreService } from '../../services/benutzerverwaltung-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-benutzer-liste',
-  imports: [BenutzerZeile, MatFormFieldModule, MatIconModule, MatInputModule, MatToolbarModule],
+  imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    BenutzerZeile,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+  ],
   templateUrl: './benutzer-liste.html',
   styleUrl: './benutzer-liste.less',
 })

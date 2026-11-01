@@ -14,9 +14,9 @@
   </mat-form-field>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-button [mat-dialog-close]="null">Abbrechen</button>
+  <button matButton [mat-dialog-close]="null">Abbrechen</button>
   <button
-    mat-flat-button
+    matButton="filled"
     [disabled]="!daten.leerErlaubt && !wert().trim()"
     [mat-dialog-close]="wert().trim()"
   >

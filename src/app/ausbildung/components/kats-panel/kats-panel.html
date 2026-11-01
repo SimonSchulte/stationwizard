@@ -1,8 +1,5 @@
 <div class="werkzeuge">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suche">
-    <mat-label>Themen durchsuchen</mat-label>
-    <input matInput [ngModel]="suche()" (ngModelChange)="suche.set($event)" />
-  </mat-form-field>
+  <app-suchfeld class="suche" [(wert)]="suche" beschriftung="Themen durchsuchen" />
   <button
     matIconButton
     [class.aktiv]="nurOffene()"

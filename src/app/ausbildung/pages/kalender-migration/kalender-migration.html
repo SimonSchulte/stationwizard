@@ -1,47 +1,38 @@
-<mat-toolbar class="migration-kopfleiste">
-  <mat-icon class="kopfleiste-icon">upload_file</mat-icon>
-  <span class="toolbar-title">Kalender aus Excel übernehmen</span>
-  <span class="spacer"></span>
-  <a mat-button routerLink="/verwaltung">Zurück zur Verwaltung</a>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Kalender aus Excel übernehmen"
+  icon="upload_file"
+  zurueck="/verwaltung"
+  zurueckText="Zurück zur Verwaltung"
+/>
 
 <div class="migration-inhalt">
   <section class="abschnitt">
     <h2>1. Datenbank</h2>
     @switch (befund()) {
       @case ('pruefen') {
-        <p role="status">Kalender-Datenbank wird geprüft …</p>
+        <app-ladeanzeige text="Kalender-Datenbank wird geprüft …" />
         <mat-progress-bar mode="indeterminate" />
       }
       @case ('leer') {
-        <p class="befund befund-ok">
-          <mat-icon inline>check_circle</mat-icon>
+        <app-meldung art="erfolg">
           Die Kalender-Datenbank ist verbunden und noch leer – die Übernahme ist möglich.
-        </p>
+        </app-meldung>
       }
       @case ('befuellt') {
-        <p class="befund befund-warn">
-          <mat-icon inline>info</mat-icon>
+        <app-meldung art="info">
           Die Kalender-Datenbank enthält bereits Daten. Die Übernahme ist nur einmal möglich und
           überschreibt nie einen gepflegten Stand.
-        </p>
-        <a matButton="tonal" routerLink="/kalender">
-          <mat-icon>calendar_month</mat-icon>
-          Zum Kalender
-        </a>
+          <a matButton meldungAktion routerLink="/kalender">Zum Kalender</a>
+        </app-meldung>
       }
       @case ('nicht-eingerichtet') {
-        <p class="befund befund-fehler" role="alert">
-          <mat-icon inline>cloud_off</mat-icon>
-          Die Kalender-Datenbank ist am Worker noch nicht eingerichtet (Binding
-          <code>KALENDER_DB</code>, siehe Einrichtung).
-        </p>
+        <app-meldung art="fehler"
+          >Die Kalender-Datenbank ist am Worker noch nicht eingerichtet (Binding
+          <code>KALENDER_DB</code>, siehe Einrichtung).</app-meldung
+        >
       }
       @case ('fehler') {
-        <p class="befund befund-fehler" role="alert">
-          <mat-icon inline>error_outline</mat-icon>
-          Die Kalender-Datenbank ist nicht erreichbar.
-        </p>
+        <app-meldung art="fehler">Die Kalender-Datenbank ist nicht erreichbar.</app-meldung>
         <button matButton (click)="pruefeDatenbank()">
           <mat-icon>refresh</mat-icon>
           Erneut prüfen
@@ -74,13 +65,13 @@
         <p class="dateiname">{{ dateiname() }}</p>
       }
       @if (liestEin()) {
-        <p role="status">Datei wird gelesen …</p>
+        <app-ladeanzeige text="Datei wird gelesen …" />
       }
     </section>
   }
 
   @if (fehler()) {
-    <p class="fehler-hinweis" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (vorschau(); as v) {
@@ -114,11 +105,10 @@
     <section class="abschnitt">
       <h2>4. Übernehmen</h2>
       @if (erledigt()) {
-        <p class="befund befund-ok" role="status">
-          <mat-icon inline>check_circle</mat-icon>
-          Übernommen. Der Kalender liest ab jetzt aus der Datenbank; die Excel-Datei wird nicht mehr
-          gebraucht.
-        </p>
+        <app-meldung art="erfolg"
+          >Übernommen. Der Kalender liest ab jetzt aus der Datenbank; die Excel-Datei wird nicht
+          mehr gebraucht.</app-meldung
+        >
         <a matButton="filled" routerLink="/kalender">
           <mat-icon>calendar_month</mat-icon>
           Zum Kalender

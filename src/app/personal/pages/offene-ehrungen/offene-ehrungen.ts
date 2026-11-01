@@ -15,9 +15,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
 import { GruppenFilter } from '../../../kern/hiorg/gruppen-filter/gruppen-filter';
 import { gruppenSammeln, passtZuGruppen } from '../../../kern/hiorg/gruppen';
 import { gruppenJePersonLaden } from '../../services/hiorg-gruppen';
@@ -51,6 +49,8 @@ import {
   vorgangSchluessel,
   type OvSchluessel,
 } from '../../services/ehrungen.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 type Bearbeitung = 'alle' | 'offen' | 'abgestimmt' | 'beantragt';
 
@@ -92,6 +92,10 @@ function dateinamenTeil(text: string): string {
 @Component({
   selector: 'app-offene-ehrungen',
   imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     GruppenFilter,
     MatButtonModule,
     MatButtonToggleModule,
@@ -102,9 +106,7 @@ function dateinamenTeil(text: string): string {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTableModule,
-    MatToolbarModule,
     MatTooltipModule,
-    RouterLink,
   ],
   templateUrl: './offene-ehrungen.html',
   styleUrl: './offene-ehrungen.less',

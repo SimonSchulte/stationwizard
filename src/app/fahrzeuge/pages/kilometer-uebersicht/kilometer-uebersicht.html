@@ -6,10 +6,10 @@
 </p>
 
 @if (berichtLaedt()) {
-  <p role="status">Bericht wird berechnet …</p>
+  <app-ladeanzeige text="Bericht wird berechnet …" />
 }
 @if (berichtFehler()) {
-  <p class="error-hint" role="alert">{{ berichtFehler() }}</p>
+  <app-meldung art="fehler">{{ berichtFehler() }}</app-meldung>
 }
 
 @if (bericht(); as daten) {
@@ -105,37 +105,38 @@
 }
 
 @if (!empfaengerGesetzt()) {
-  <p class="warn-hint" role="status">
-    <mat-icon aria-hidden="true">warning</mat-icon>
-    Es ist keine Empfängeradresse gespeichert. Unter Systemkonfiguration → Email Versand einrichten.
-  </p>
+  <app-meldung art="warnung"
+    >Es ist keine Empfängeradresse gespeichert. Unter Systemkonfiguration → Email Versand
+    einrichten.</app-meldung
+  >
 } @else if (!gewaehlterWegVerfuegbar()) {
-  <p class="warn-hint" role="status">
-    <mat-icon aria-hidden="true">warning</mat-icon>
-    Der gespeicherte Versandweg ist am Worker nicht eingerichtet.
-  </p>
+  <app-meldung art="warnung"
+    >Der gespeicherte Versandweg ist am Worker nicht eingerichtet.</app-meldung
+  >
 }
 
 @if (sendeFehler()) {
-  <p class="error-hint" role="alert">{{ sendeFehler() }}</p>
+  <app-meldung art="fehler">{{ sendeFehler() }}</app-meldung>
 }
 @if (quittung(); as bestaetigung) {
-  <p class="erfolg-hint" role="status">
-    Gesendet an {{ bestaetigung.gesendetAn }} ({{ bestaetigung.anzahlFahrzeuge }} Fahrzeuge).
-  </p>
+  <app-meldung art="erfolg"
+    >Gesendet an {{ bestaetigung.gesendetAn }} ({{
+      bestaetigung.anzahlFahrzeuge
+    }}
+    Fahrzeuge).</app-meldung
+  >
 }
 
 <div class="aktionen">
   <button
-    mat-raised-button
-    color="primary"
+    matButton="filled"
     type="button"
     [disabled]="!versandMoeglich() || sendet() || berichtLaedt()"
     (click)="senden()"
   >
     {{ sendet() ? 'Wird gesendet …' : 'Bericht jetzt senden' }}
   </button>
-  <button mat-button type="button" [disabled]="berichtLaedt()" (click)="vorschauLaden()">
+  <button matButton type="button" [disabled]="berichtLaedt()" (click)="vorschauLaden()">
     Vorschau aktualisieren
   </button>
 </div>

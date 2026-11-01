@@ -1,11 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
   PREISKATALOG_ARTEN,
@@ -14,6 +12,8 @@ import {
 } from '../../models/preiskatalog.model';
 import { PreiskatalogStoreService } from '../../services/preiskatalog-store.service';
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 const PREISKATALOG_ART_LABEL: Readonly<Record<PreiskatalogArt, string>> = {
   einsatzkraft: 'Einsatzkraft (je Stunde)',
@@ -38,13 +38,14 @@ function neuerEintragEingabe(): {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-preiskatalog',
   imports: [
-    RouterLink,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatToolbarModule,
   ],
   templateUrl: './preiskatalog.html',
   styleUrl: './preiskatalog.less',

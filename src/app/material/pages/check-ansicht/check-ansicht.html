@@ -1,22 +1,21 @@
-<mat-toolbar class="ansicht-kopfleiste">
-  <a mat-icon-button routerLink="/material" aria-label="Zurück zur Materialverwaltung">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">Fahrzeugcheck</span>
-  <span class="spacer"></span>
+<app-seitenkopf
+  titel="Fahrzeugcheck"
+  zurueck="/material"
+  zurueckText="Zurück zur Materialverwaltung"
+>
   @if (check()) {
-    <button mat-raised-button color="primary" (click)="belegeOeffnen()">
+    <button matButton="filled" (click)="belegeOeffnen()">
       <mat-icon>description</mat-icon> Belege
     </button>
   }
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="ansicht-inhalt">
   @if (laedt()) {
-    <p role="status">Check wird geladen …</p>
+    <app-ladeanzeige text="Check wird geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (check(); as c) {
@@ -62,7 +61,7 @@
             Abweichungen ({{ abweichungen().length }})
           }
         </h2>
-        <button mat-stroked-button (click)="alleZeigen.set(!alleZeigen())">
+        <button matButton="outlined" (click)="alleZeigen.set(!alleZeigen())">
           @if (alleZeigen()) {
             Nur Abweichungen
           } @else {

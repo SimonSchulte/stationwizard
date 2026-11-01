@@ -14,15 +14,22 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { Eigentuemer } from '../../models/fahrzeug.model';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-liste',
   imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     KeyValuePipe,
     RouterLink,
     MatButtonModule,
@@ -30,7 +37,6 @@ import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatToolbarModule,
   ],
   templateUrl: './fahrzeug-liste.html',
   styleUrl: './fahrzeug-liste.less',

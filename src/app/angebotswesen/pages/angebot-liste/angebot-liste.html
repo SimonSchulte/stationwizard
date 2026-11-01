@@ -1,20 +1,15 @@
-<mat-toolbar class="liste-kopfleiste">
-  <a mat-icon-button routerLink="/angebotswesen" aria-label="Zurück zum Angebotswesen">
-    <mat-icon>arrow_back</mat-icon>
-  </a>
-  <span class="toolbar-title">Angebote</span>
-  <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="neuesAngebot()">
+<app-seitenkopf titel="Angebote" zurueck="/angebotswesen" zurueckText="Zurück zum Angebotswesen">
+  <button matButton="filled" (click)="neuesAngebot()">
     <mat-icon>add</mat-icon> Neues Angebot
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="liste-content">
   @if (laedt()) {
-    <p role="status">Angebote werden geladen …</p>
+    <app-ladeanzeige text="Angebote werden geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (!laedt() && zeilen().length === 0) {
@@ -34,7 +29,7 @@
             </span>
           </a>
           <button
-            mat-icon-button
+            matIconButton
             [disabled]="loeschtId() === zeile.angebot.id"
             (click)="angebotLoeschen(zeile.angebot)"
             aria-label="Angebot löschen"

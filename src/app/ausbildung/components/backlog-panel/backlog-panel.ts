@@ -20,12 +20,14 @@ import { PlanStore } from '../../services/plan-store';
 import { DatumDialog, DatumDialogDaten } from '../datum-dialog/datum-dialog';
 import { TerminDialog, TerminDialogDaten } from '../termin-dialog/termin-dialog';
 import { TerminKarte } from '../termin-karte/termin-karte';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /** "Offene Ideen" – das Backlog, aus dem Termine in den Jahresplan gezogen werden. */
 @Component({
   selector: 'app-backlog-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Suchfeld,
     CdkDrag,
     CdkDropList,
     FormsModule,

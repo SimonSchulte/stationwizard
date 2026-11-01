@@ -1,7 +1,9 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon">manage_accounts</mat-icon>
-  <span class="toolbar-title">Benutzerverwaltung</span>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Benutzerverwaltung"
+  icon="manage_accounts"
+  zurueck="/verwaltung"
+  zurueckText="Zurück zur Verwaltung"
+/>
 
 <div class="list-content">
   <p class="beschreibung">
@@ -22,33 +24,26 @@
   </p>
 
   @if (laedt()) {
-    <p role="status">Benutzer werden geladen …</p>
+    <app-ladeanzeige text="Benutzer werden geladen …" />
   }
   @if (fehler()) {
-    <p class="error-hint" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
   @if (speicherFehler()) {
-    <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+    <app-meldung art="fehler">{{ speicherFehler() }}</app-meldung>
   }
 
   @if (!laedt() && !fehler() && benutzer().length > 0) {
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="suchfeld">
-      <mat-label>Suche</mat-label>
-      <input
-        matInput
-        [value]="suche()"
-        (input)="suche.set($any($event.target).value)"
-        placeholder="E-Mail-Adresse oder Name"
-      />
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
+    <app-suchfeld
+      class="suchfeld"
+      [(wert)]="suche"
+      beschriftung="Suchen"
+      platzhalter="E-Mail-Adresse oder Name"
+    />
   }
 
   @if (!laedt() && !fehler() && benutzer().length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-state-icon">manage_accounts</mat-icon>
-      <p class="empty-hint">Noch niemand hat sich angemeldet.</p>
-    </div>
+    <app-leerzustand icon="manage_accounts" titel="Noch niemand hat sich angemeldet." />
   }
   @if (!laedt() && !fehler() && benutzer().length > 0 && gefiltert().length === 0) {
     <p class="empty-hint">Kein Treffer für diese Suche.</p>

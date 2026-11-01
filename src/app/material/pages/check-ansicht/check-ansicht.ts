@@ -8,17 +8,18 @@ import {
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { distinctUntilChanged, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { BerichtDialog, BerichtDialogDaten } from '../../components/bericht-dialog/bericht-dialog';
 import { Checkposition } from '../../models/check.model';
 import { HERKUNFT_LABEL } from '../../models/pruefvorlage.model';
 import { CheckStoreService } from '../../services/check-store.service';
 import { artikelVerfallsstatus, heuteBerlin } from '../../services/check-status';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 interface FachAnsicht {
   fachId: string;
@@ -33,7 +34,7 @@ interface FachAnsicht {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-check-ansicht',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatToolbarModule],
+  imports: [Meldung, Ladeanzeige, Seitenkopf, DatePipe, MatButtonModule, MatIconModule],
   templateUrl: './check-ansicht.html',
   styleUrl: './check-ansicht.less',
 })

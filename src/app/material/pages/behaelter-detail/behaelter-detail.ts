@@ -14,13 +14,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { behaelterCheckUrl } from '../../services/behaelter-qr';
 import { ApiPruefcodeStorage } from '../../storage/api-pruefcode-storage';
 import { FahrzeugStoreService } from '../../../fahrzeuge/services/fahrzeug-store.service';
 import { BehaelterStoreService } from '../../services/behaelter-store.service';
 import { PruefvorlageStoreService } from '../../services/pruefvorlage-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 /**
  * Stammdaten eines Behälters: an welchem Fahrzeug er hängt und welcher
@@ -35,13 +36,15 @@ import { PruefvorlageStoreService } from '../../services/pruefvorlage-store.serv
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-behaelter-detail',
   imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatToolbarModule,
   ],
   templateUrl: './behaelter-detail.html',
   styleUrl: './behaelter-detail.less',

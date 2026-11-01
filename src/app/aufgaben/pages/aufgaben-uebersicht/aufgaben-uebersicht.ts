@@ -4,6 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { AufgabenStoreService } from '../../../kern/aufgaben/aufgaben-store.service';
 import type { Aufgabe } from '../../../kern/aufgaben/aufgabenquelle';
+import { MatButtonModule } from '@angular/material/button';
+import { MatListModule } from '@angular/material/list';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
 interface Gruppe {
   kennung: string;
@@ -19,7 +23,17 @@ interface Gruppe {
  */
 @Component({
   selector: 'app-aufgaben-uebersicht',
-  imports: [DatePipe, MatIconModule, RouterLink],
+  imports: [
+    DatePipe,
+    Ladeanzeige,
+    Leerzustand,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    Meldung,
+    RouterLink,
+    Seitenkopf,
+  ],
   templateUrl: './aufgaben-uebersicht.html',
   styleUrl: './aufgaben-uebersicht.less',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -3141,3 +3141,63 @@ warf NG0600 in der Konsole. Das Laden steht jetzt einmal im Konstruktor.
   der Staffel anhaken („Speichern (1)“), Monat blättern, HiOrg-Ebene wählen.
 - Bestehend und nicht Teil dieses Umbaus: Im Ehrungsmanager überlappen bei schmalen
   Jahres-/Standfeldern ohne Wert Beschriftung und Warnsymbol – im alten Stand identisch.
+
+## UI-Prüfung: Konsistenz, Material statt Eigenbau – 2026-11-01
+
+Auftrag: UI auf Konsistenz, Bedienbarkeit und korrekte Darstellung prüfen; einheitliches
+Design, möglichst Material-Komponenten statt eigener Entwicklungen. Ausgangspunkt war ein
+Durchgang über alle 27 Routen auf 1400×900 und 390×844 (Attrappen-Server mit erfundenen
+Daten, außerhalb des Repositorys).
+
+**Befunde vorher:** 14 verschiedene Kopfleisten-Klassen bei 28 Toolbars; Zurück-Navigation auf
+drei Arten (Pfeil links, Textknopf „Zurück zu …“ rechts, Pfeil-Knopf mit Text); zwei Seiten
+ganz ohne Kopf (Offene Aufgaben, Kilometermeldungen freigeben) mit eigenem Aktualisieren-Knopf;
+mindestens vier Optiken für Fehler (roter Text, Kasten mit Rand, `befund`-Absätze,
+Konflikthinweise), drei für Leerzustände und Ladeanzeigen; vier Suchfeld-Varianten (Lupe vorn
+oder hinten, Rahmen oder gefüllt, mit/ohne Löschknopf) und zwei native Suchfelder; eigene
+Filter-„Pillen“ und Filter-Chips; 28 native Knöpfe, drei native Textfelder; fünf
+Schreibweisen für Knöpfe (`mat-raised-button color="primary"`, `mat-flat-button`,
+`matButton="filled"` …); sieben gleichrangige Knöpfe im Ehrungsmanager (mobil fünf Zeilen);
+doppelte Titel (Personal „Übersicht“, Führerscheinliste); mobil abgeschnittene Titel und eine
+abgeschnittene Filterleiste (Offene Ehrungen); überlappende Beschriftung und Warnsymbol in den
+Jahres- und Standfeldern des Ehrungsmanagers.
+
+**Umgesetzt:**
+
+- `kern/seitenkopf/Seitenkopf` (`mat-toolbar`) auf allen Fachseiten außer Kalender und
+  Einsatz-Editor: Zurück-Pfeil links, Symbol, Titel mit Kürzung, Aktionen rechts, mobil eine
+  eigene Aktionszeile.
+- `kern/zustand/`: `Meldung` (vier Arten, `alert`/`status`, Aktion rechts, bricht mobil um),
+  `Leerzustand`, `Ladeanzeige`; überall statt der Eigenbauten, auch für Konflikthinweise
+  („Aktuellen Stand laden“) und ausblendbare Rückmeldungen.
+- `kern/suchfeld/Suchfeld` an elf Stellen.
+- Filter: Eigentümer im Fuhrpark als `mat-button-toggle-group`, Agendaliste als zwei
+  `mat-chip-listbox` (Kategorien mehrfach, Art einfach). Offene Aufgaben als `mat-nav-list`,
+  Kilometermeldungen als `mat-card` mit `mat-card-actions`, Belegwahl im Berichtsdialog als
+  `mat-action-list`, alle Textfelder als `mat-form-field`.
+- Knöpfe einheitlich (`filled`/`outlined`/Text/`matIconButton`, kein `color`); im
+  Ehrungsmanager Hauptaktion Speichern, sichtbar Stundenimport und Offene Ehrungen, Rest im
+  Menü.
+- Jahres-, Stand- und Nachtragsfelder mit dauerhaft oben stehender Beschriftung
+  (`floatLabel="always"`) und Platzhalter, etwas breiter – keine Überlappung mehr.
+- Doppelte Titel entfernt, Filterleiste der Offenen Ehrungen bricht mobil um.
+- Rund 1 350 Zeilen tote Stile aus den Seiten-LESS-Dateien entfernt.
+
+**Bewusst nicht umgestellt:** Kalender-Werkzeugleiste und Einsatz-Editor (dichte eigene
+Werkzeugleisten mit Feldern), Kalenderzellen und Tagesnummern, Jahresüberblick-Zellen, die
+Checkposition (große Tippflächen fürs Handy), die Inline-Felder des Editors, die Master-Liste
+im Fuhrpark, die HTML-Tabellen der Kostenaufstellung (werden als Word-Tabelle kopiert) und
+die kleinen Tabellen im Kilometerbericht und im Stundenverlauf. `matButton="tonal"` bleibt in
+den dichten Kalenderleisten.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build` ohne Warnungen; `npm test`: App 136 Dateien / 1 088 Tests, öffentlich 5 / 29,
+  Worker 30 / 865 – alle bestanden; `npm run format:check` erfolgreich.
+- Sichtprüfung in Headless-Chromium auf 1400×900 und 390×844 über alle 27 Routen vor und nach
+  der Umstellung, ohne Konsolenfehler und ohne horizontalen Überlauf; Vergrößerung der
+  Jahresfelder im Ehrungsmanager. Gegen einen Attrappen-Server, nicht gegen den echten Worker;
+  viele Seiten zeigten dabei ihren Fehlerzustand, weil die Attrappe nur wenige Endpunkte
+  bedient – gerade diese Zustände waren Teil der Prüfung.
+- Nicht geprüft: Dialoge im Einzelnen und Seiten, die nur mit echten Daten Inhalt zeigen
+  (Fahrzeugdetail mit Ablesungen, Behälter-Check, Angebotseditor).

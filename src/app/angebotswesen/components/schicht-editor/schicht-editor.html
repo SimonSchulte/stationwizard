@@ -39,10 +39,10 @@
     <span class="stunden-anzeige fehler">Ungültige Zeitspanne</span>
   }
   <span class="spacer"></span>
-  <button mat-icon-button (click)="schichtDupliziert.emit()" aria-label="Schicht duplizieren">
+  <button matIconButton (click)="schichtDupliziert.emit()" aria-label="Schicht duplizieren">
     <mat-icon>content_copy</mat-icon>
   </button>
-  <button mat-icon-button (click)="schichtEntfernt.emit()" aria-label="Schicht entfernen">
+  <button matIconButton (click)="schichtEntfernt.emit()" aria-label="Schicht entfernen">
     <mat-icon>delete</mat-icon>
   </button>
 </div>
@@ -111,7 +111,7 @@
         <span class="position-pauschal">Pauschal</span>
       }
       <button
-        mat-icon-button
+        matIconButton
         (click)="positionEntfernen(position.id)"
         aria-label="Position entfernen"
       >
@@ -130,7 +130,7 @@
       }
     </mat-select>
   </mat-form-field>
-  <button mat-stroked-button type="button" (click)="manuellePositionHinzufuegen()">
+  <button matButton="outlined" type="button" (click)="manuellePositionHinzufuegen()">
     <mat-icon>add</mat-icon> Manuelle Position
   </button>
 </div>

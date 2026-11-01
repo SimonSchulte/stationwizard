@@ -16,12 +16,18 @@
 <div class="jahresfelder">
   @for (schluessel of stufen(); track schluessel) {
     @if (hat(schluessel)) {
-      <mat-form-field class="jahrfeld" appearance="outline" subscriptSizing="dynamic">
+      <mat-form-field
+        class="jahrfeld"
+        appearance="outline"
+        floatLabel="always"
+        subscriptSizing="dynamic"
+      >
         <mat-label>{{ kurz[schluessel] }}</mat-label>
         <input
           matInput
           type="number"
           inputmode="numeric"
+          placeholder="Jahr"
           [min]="jahrMinimum"
           [max]="jahrMaximum"
           [value]="jahrVon(schluessel) ?? ''"

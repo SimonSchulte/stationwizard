@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { WorkerFehler } from '../../../kern/worker-client';
@@ -11,6 +10,8 @@ import { KalenderDatenService } from '../../services/kalender-daten.service';
 import { PlanStore } from '../../services/plan-store';
 import { ApiKalenderStorage } from '../../storage/api-kalender-storage';
 import { KalenderBereitsBefuelltFehler } from '../../storage/kalender-storage';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 /** Zustand der Kalender-Datenbank, wie ihn die Übernahme vorfindet. */
 export type DatenbankBefund = 'pruefen' | 'leer' | 'befuellt' | 'nicht-eingerichtet' | 'fehler';
@@ -31,7 +32,15 @@ const MIGRATION_GRENZE = 2 * 1024 * 1024;
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-kalender-migration',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatToolbarModule],
+  imports: [
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressBarModule,
+  ],
   templateUrl: './kalender-migration.html',
   styleUrl: './kalender-migration.less',
 })

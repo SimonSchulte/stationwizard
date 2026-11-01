@@ -1,14 +1,16 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon">tune</mat-icon>
-  <span class="toolbar-title">Systemkonfiguration</span>
-</mat-toolbar>
+<app-seitenkopf
+  titel="Systemkonfiguration"
+  icon="tune"
+  zurueck="/verwaltung"
+  zurueckText="Zurück zur Verwaltung"
+/>
 
 <div class="list-content">
   @if (laedt()) {
-    <p role="status">Einstellungen werden geladen …</p>
+    <app-ladeanzeige text="Einstellungen werden geladen …" />
   }
   @if (ladeFehler()) {
-    <p class="error-hint" role="alert">{{ ladeFehler() }}</p>
+    <app-meldung art="fehler">{{ ladeFehler() }}</app-meldung>
   }
 
   <mat-tab-group>
@@ -64,24 +66,22 @@
           </mat-form-field>
 
           @if (!istVerfuegbar(werte.kmBerichtVersandweg)) {
-            <p class="warn-hint" role="status">
-              <mat-icon aria-hidden="true">warning</mat-icon>
-              Dieser Weg ist am Worker nicht eingerichtet. Die Einstellung lässt sich speichern, ein
-              Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.
-            </p>
+            <app-meldung art="warnung"
+              >Dieser Weg ist am Worker nicht eingerichtet. Die Einstellung lässt sich speichern,
+              ein Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.</app-meldung
+            >
           }
 
           @if (speicherFehler()) {
-            <p class="error-hint" role="alert">{{ speicherFehler() }}</p>
+            <app-meldung art="fehler">{{ speicherFehler() }}</app-meldung>
           }
           @if (gespeichert() && !ungespeichert()) {
-            <p class="erfolg-hint" role="status">Einstellungen gespeichert.</p>
+            <app-meldung art="erfolg">Einstellungen gespeichert.</app-meldung>
           }
 
           <div class="aktionen">
             <button
-              mat-raised-button
-              color="primary"
+              matButton="filled"
               type="button"
               [disabled]="!ungespeichert() || speichert()"
               (click)="speichern()"
@@ -89,7 +89,7 @@
               {{ speichert() ? 'Speichern …' : 'Speichern' }}
             </button>
             <button
-              mat-button
+              matButton
               type="button"
               [disabled]="!ungespeichert() || speichert()"
               (click)="verwerfen()"

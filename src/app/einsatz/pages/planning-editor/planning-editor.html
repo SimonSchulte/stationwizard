@@ -84,7 +84,7 @@
     </mat-menu>
     <!-- Top Bar -->
     <mat-toolbar class="editor-toolbar">
-      <button mat-icon-button (click)="goBack()" matTooltip="Zurück zur Übersicht">
+      <button matIconButton (click)="goBack()" matTooltip="Zurück zur Übersicht">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <input
@@ -179,13 +179,13 @@
           }
         </mat-select>
       </div>
-      <button mat-icon-button matTooltip="Rückgängig" [disabled]="!canUndo()" (click)="undo()">
+      <button matIconButton matTooltip="Rückgängig" [disabled]="!canUndo()" (click)="undo()">
         <mat-icon>undo</mat-icon>
       </button>
       <span class="spacer"></span>
       @if (p.hiorg_einsatz_id) {
         <button
-          mat-icon-button
+          matIconButton
           [matTooltip]="
             efsUpdating() ? 'Wird aktualisiert…' : 'Einsatzkräfte aus EFS aktualisieren'
           "
@@ -195,11 +195,11 @@
           <mat-icon>sync</mat-icon>
         </button>
       }
-      <button mat-icon-button (click)="importTemplate()" matTooltip="Vorlage importieren">
+      <button matIconButton (click)="importTemplate()" matTooltip="Vorlage importieren">
         <mat-icon>file_upload</mat-icon>
       </button>
       <button
-        mat-icon-button
+        matIconButton
         matTooltip="In Nextcloud speichern"
         aria-label="In Nextcloud speichern"
         (click)="cloudSpeichern()"
@@ -208,14 +208,14 @@
         <mat-icon>cloud_upload</mat-icon>
       </button>
       <button
-        mat-icon-button
+        matIconButton
         matTooltip="JSON herunterladen"
         aria-label="JSON herunterladen"
         (click)="save()"
       >
         <mat-icon>download</mat-icon>
       </button>
-      <button mat-icon-button matTooltip="PDF exportieren" (click)="exportPdf()">
+      <button matIconButton matTooltip="PDF exportieren" (click)="exportPdf()">
         <mat-icon>picture_as_pdf</mat-icon>
       </button>
     </mat-toolbar>
@@ -224,7 +224,7 @@
     @if (p.hiorg_einsatz_id && efsApi.fehler()) {
       <div class="cloud-status cloud-status--fehler" role="alert">
         <span>{{ efsApi.fehler() }}</span>
-        <button mat-button (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
+        <button matButton (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
           Erneut versuchen
         </button>
       </div>
@@ -242,10 +242,10 @@
           zuerst JSON herunterladen und die Änderungen mit dem neu geladenen Stand
           zusammenführen.</span
         >
-        <button mat-button (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
+        <button matButton (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
           Erneut versuchen
         </button>
-        <button mat-button (click)="save()">JSON herunterladen</button>
+        <button matButton (click)="save()">JSON herunterladen</button>
       </div>
     }
     <div class="editor-subbar">
@@ -275,7 +275,7 @@
           </span>
           @if (p.hiorg_einsatz_id) {
             <button
-              mat-icon-button
+              matIconButton
               [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"
               [disabled]="efsUpdating()"
               (click)="updateFromEfs(p)"
@@ -283,22 +283,18 @@
               <mat-icon>sync</mat-icon>
             </button>
           }
-          <button
-            mat-icon-button
-            matTooltip="Einsatzkräfte importieren"
-            (click)="openImportDialog()"
-          >
+          <button matIconButton matTooltip="Einsatzkräfte importieren" (click)="openImportDialog()">
             <mat-icon>upload_file</mat-icon>
           </button>
           <button
-            mat-icon-button
+            matIconButton
             matTooltip="Personal aus HiOrg-Server übernehmen"
             (click)="openHiorgPersonalDialog()"
           >
             <mat-icon>badge</mat-icon>
           </button>
           <button
-            mat-icon-button
+            matIconButton
             (click)="toggleRoster()"
             [matTooltip]="rosterCollapsed() ? 'Roster einblenden' : 'Roster ausblenden'"
           >
@@ -387,12 +383,7 @@
           @if (filteredRoster().length === 0) {
             @if (p.einsatzkraefte.length === 0) {
               <p class="empty-hint">Noch keine Einsatzkräfte vorhanden.</p>
-              <button
-                mat-stroked-button
-                color="secondary"
-                (click)="openImportDialog()"
-                class="helfer-trenner"
-              >
+              <button matButton="outlined" (click)="openImportDialog()" class="helfer-trenner">
                 <mat-icon>group_add</mat-icon> Roster importieren
               </button>
             } @else {
@@ -493,7 +484,7 @@
                       [kompakt]="true"
                     />
                     <button
-                      mat-icon-button
+                      matIconButton
                       class="posten-action-btn"
                       matTooltip="Leeren"
                       (click)="clearPosten(posten)"
@@ -501,7 +492,7 @@
                       <mat-icon>cleaning_services</mat-icon>
                     </button>
                     <button
-                      mat-icon-button
+                      matIconButton
                       class="posten-action-btn posten-action-btn--danger"
                       matTooltip="Posten löschen"
                       (click)="deletePosten(posten)"
@@ -509,7 +500,7 @@
                       <mat-icon>delete</mat-icon>
                     </button>
                     <button
-                      mat-icon-button
+                      matIconButton
                       class="posten-action-btn"
                       [matTooltip]="panel.expanded ? 'Einklappen' : 'Ausklappen'"
                       (click)="panel.toggle()"
@@ -543,7 +534,7 @@
                     />
                   }
                   <div class="add-position-row">
-                    <button mat-stroked-button color="secondary" (click)="addPosition(posten.id)">
+                    <button matButton="outlined" (click)="addPosition(posten.id)">
                       <mat-icon>add</mat-icon> Neue Position
                     </button>
                   </div>
@@ -552,7 +543,7 @@
             }
           </mat-accordion>
           <div class="add-posten-row">
-            <button mat-stroked-button color="secondary" (click)="addPosten()">
+            <button matButton="outlined" (click)="addPosten()">
               <mat-icon>add</mat-icon> Neuer Posten
             </button>
           </div>
@@ -563,14 +554,14 @@
 } @else {
   <div class="editor-shell no-planung-shell">
     <mat-toolbar class="editor-toolbar">
-      <button mat-icon-button (click)="goBack()" matTooltip="Zurück zur Übersicht">
+      <button matIconButton (click)="goBack()" matTooltip="Zurück zur Übersicht">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <span class="planung-name">Personaleinsatzplanung</span>
     </mat-toolbar>
     <div class="no-planung">
       <p>Keine Planung geöffnet.</p>
-      <button mat-raised-button color="primary" (click)="goBack()">Zur Übersicht</button>
+      <button matButton="filled" (click)="goBack()">Zur Übersicht</button>
     </div>
   </div>
 }

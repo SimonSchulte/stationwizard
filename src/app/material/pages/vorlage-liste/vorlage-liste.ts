@@ -10,10 +10,12 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { PruefvorlageKopf } from '../../models/pruefvorlage.model';
 import { PruefvorlageStoreService } from '../../services/pruefvorlage-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 
 /**
  * Pflege der Prüfvorlagen. Liegt beim Fachmodul, ist aber über den
@@ -22,7 +24,17 @@ import { PruefvorlageStoreService } from '../../services/pruefvorlage-store.serv
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-vorlage-liste',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatToolbarModule],
+  imports: [
+    Suchfeld,
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    DatePipe,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+  ],
   templateUrl: './vorlage-liste.html',
   styleUrl: './vorlage-liste.less',
 })

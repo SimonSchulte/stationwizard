@@ -1,45 +1,48 @@
-<mat-toolbar class="listen-kopfleiste">
-  <mat-icon class="kopfleiste-icon">military_tech</mat-icon>
-  <span class="toolbar-title">Offene Ehrungen</span>
-  <span class="spacer"></span>
-  <button mat-stroked-button routerLink="/personal/ehrungen">
-    <mat-icon>arrow_back</mat-icon> Ehrungsmanager
-  </button>
+<app-seitenkopf
+  titel="Offene Ehrungen"
+  icon="pending_actions"
+  zurueck="/personal/ehrungen"
+  zurueckText="Zurück zum Ehrungsmanager"
+>
   <button
-    mat-stroked-button
+    matButton="outlined"
     (click)="excelHerunterladen()"
     [disabled]="anzahlGesamt() === 0 || arbeitet() || laedt()"
     matTooltip="Excel-Liste der angezeigten offenen Ehrungen (aktuelle Filter) mit Abgestimmt OB und Beantragt (Antrag erstellt)"
   >
     <mat-icon>download</mat-icon> Excel
   </button>
-  <button mat-button (click)="laden()" [disabled]="laedt() || arbeitet()">
+  <button matButton (click)="laden()" [disabled]="laedt() || arbeitet()">
     <mat-icon>refresh</mat-icon> Neu laden
   </button>
-</mat-toolbar>
+</app-seitenkopf>
 
 <div class="inhalt">
   @if (rueckmeldung()) {
-    <p class="rueckmeldung" role="status">
-      <span>{{ rueckmeldung() }}</span>
-      <button mat-icon-button matTooltip="Ausblenden" (click)="rueckmeldung.set('')">
+    <app-meldung art="info">
+      {{ rueckmeldung() }}
+      <button
+        matIconButton
+        meldungAktion
+        matTooltip="Ausblenden"
+        aria-label="Meldung ausblenden"
+        (click)="rueckmeldung.set('')"
+      >
         <mat-icon>close</mat-icon>
       </button>
-    </p>
+    </app-meldung>
   }
   @if (fehler()) {
-    <p class="fehler" role="alert">{{ fehler() }}</p>
+    <app-meldung art="fehler">{{ fehler() }}</app-meldung>
   }
 
   @if (laedt()) {
-    <div class="laden" role="status">
-      <mat-spinner diameter="36" />
-      <span>Offene Ehrungen werden geladen…</span>
-    </div>
+    <app-ladeanzeige text="Offene Ehrungen werden geladen…" />
   } @else if (anzahlGesamt() === 0) {
-    <p class="leer">
-      Keine offenen Ehrungen: Alle zustehenden Auszeichnungen sind als erhalten erfasst.
-    </p>
+    <app-leerzustand
+      kompakt
+      titel="Keine offenen Ehrungen: Alle zustehenden Auszeichnungen sind als erhalten erfasst."
+    />
   } @else {
     <div class="filterleiste">
       <mat-button-toggle-group
@@ -146,7 +149,7 @@
           <th mat-header-cell *matHeaderCellDef>Antrag</th>
           <td mat-cell *matCellDef="let zeile">
             <button
-              mat-stroked-button
+              matButton="outlined"
               type="button"
               [disabled]="!vorgaengeVerfuegbar() || arbeitet() || speichernd().has(zeile.id)"
               (click)="antragHerunterladen(zeile)"
@@ -179,7 +182,7 @@
       </table>
     </div>
     @if (zeilen().length === 0) {
-      <p class="leer">Keine Einträge in dieser Ansicht.</p>
+      <app-leerzustand kompakt titel="Keine Einträge in dieser Ansicht." />
     }
     <p class="legende">
       Die Liste zeigt je Person und Gruppe die nächste vergebbare Stufe aus dem gespeicherten Stand

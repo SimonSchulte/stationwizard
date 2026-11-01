@@ -8,19 +8,22 @@ import {
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { distinctUntilChanged, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { CheckFortschritt } from '../../components/check-fortschritt/check-fortschritt';
 import { CheckPosition } from '../../components/check-position/check-position';
 import { PruefFach } from '../../models/pruefvorlage.model';
 import { CheckStoreService } from '../../services/check-store.service';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 /**
  * Der Fahrzeugcheck im angemeldeten Bereich.
@@ -34,8 +37,12 @@ import { CheckStoreService } from '../../services/check-store.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-behaelter-check',
   imports: [
+    MatInputModule,
+    MatFormFieldModule,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
     DatePipe,
-    RouterLink,
     CheckFortschritt,
     CheckPosition,
     MatButtonModule,
@@ -43,7 +50,6 @@ import { CheckStoreService } from '../../services/check-store.service';
     MatIconModule,
     MatMenuModule,
     MatSlideToggleModule,
-    MatToolbarModule,
   ],
   templateUrl: './behaelter-check.html',
   styleUrl: './behaelter-check.less',
