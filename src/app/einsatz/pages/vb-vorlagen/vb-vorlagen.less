@@ -1,3 +1,119 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .inhalt {
-  padding: var(--space-md);
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.liste {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+  overflow: hidden;
+}
+
+.vorlage.gewaehlt {
+  background: var(--surface-hover);
+}
+
+.ansicht {
+  min-width: 0;
+}
+
+.ansicht-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.ansicht-titel {
+  margin: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.ansicht-aktionen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.anweisungen {
+  margin-bottom: var(--space-md);
+}
+
+.anweisungen-text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
+
+.abschnitt {
+  margin-top: var(--space-lg);
+}
+
+.abschnitt-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-size: 1rem;
+}
+
+.abschnitt-titel {
+  color: var(--text-primary);
+}
+
+.abschnitt-leer {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* Die Tabelle scrollt kontrolliert in ihrem Rahmen, statt die Seite zu verbreitern. */
+.tabelle-rahmen {
+  overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+}
+
+.tabelle {
+  width: 100%;
+  min-width: 640px;
+}
+
+.nr {
+  width: var(--space-2xl);
+  font-weight: 600;
+}
+
+.material {
+  min-width: 240px;
+  padding-block: var(--space-sm);
+}
+
+@media (max-width: 780px) {
+  .inhalt {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .ansicht-kopf {
+    flex-wrap: wrap;
+  }
 }

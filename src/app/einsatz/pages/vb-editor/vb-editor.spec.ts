@@ -255,7 +255,7 @@ describe('VbEditor', () => {
     expect(store.inhalt()?.abschnitte[0].laufzettel[1].lagerort).toBe('Halle 3');
   });
 
-  it('warnt beim Drucken vor zu vollen Laufzetteln und druckt trotzdem', async () => {
+  it('druckt auch mit zu vollen Laufzetteln (die Warnung kommt aus dem Druckdienst)', async () => {
     const voll = testLaufzettel({
       positionen: Array.from({ length: 25 }, () => testPosition({ material: 'Kabel' })),
     });
@@ -265,9 +265,7 @@ describe('VbEditor', () => {
     knopf(element, 'Drucken')!.click();
     await harness.fixture.whenStable();
 
-    expect(meldungen.warnung).toHaveBeenCalledWith(
-      '1 Laufzettel passt nicht auf einen Streifen und bekommt einen Fortsetzungsstreifen.',
-    );
+    expect(meldungen.warnung).not.toHaveBeenCalled();
     expect(druck.drucken).toHaveBeenCalledTimes(1);
     expect(druck.drucken.mock.calls[0][0]).toMatchObject({
       titel: 'Weihnachtsmarkt Ummeln',

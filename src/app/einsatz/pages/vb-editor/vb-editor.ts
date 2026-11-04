@@ -58,7 +58,7 @@ import {
 import { Einsatz } from '../../models/einsatz.model';
 import { VB_GRENZEN, VbAbschnitt, VbLaufzettel } from '../../models/vb.model';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
-import { laufzettelNummern, zuVolleLaufzettel } from '../../services/laufzettel-platz';
+import { laufzettelNummern } from '../../services/laufzettel-platz';
 import { EditorModus, VbEditorStoreService } from '../../services/vb-editor-store.service';
 import { VbDruckDienst } from '../../services/vb-druck';
 import { laufzettelMarken } from '../../services/vb-marken';
@@ -291,14 +291,7 @@ export class VbEditor {
   protected async drucken(): Promise<void> {
     const inhalt = this.store.inhalt();
     if (!inhalt) return;
-    const zuVoll = zuVolleLaufzettel(inhalt).length;
-    if (zuVoll > 0) {
-      this.meldungen.warnung(
-        zuVoll === 1
-          ? '1 Laufzettel passt nicht auf einen Streifen und bekommt einen Fortsetzungsstreifen.'
-          : `${zuVoll} Laufzettel passen nicht auf einen Streifen und bekommen einen Fortsetzungsstreifen.`,
-      );
-    }
+    // Die Warnung vor zu vollen Laufzetteln meldet der VbDruckDienst selbst – für alle Aufrufer.
     const einsatz = this.einsatz();
     this.druckLaeuft.set(true);
     try {

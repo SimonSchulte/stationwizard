@@ -1,5 +1,125 @@
-<app-seitenkopf titel="VB-Vorlagen" icon="checklist" zurueck="/einsatzplanung" />
+<app-seitenkopf titel="VB-Vorlagen" icon="checklist" zurueck="/einsatzplanung">
+  <a matButton="filled" routerLink="/einsatzplanung/vb-vorlagen/neu">
+    <mat-icon>add</mat-icon> Neue Vorlage
+  </a>
+</app-seitenkopf>
 
 <div class="inhalt">
-  <app-leerzustand icon="construction" titel="In Arbeit" />
+  <section class="liste" aria-label="Vorlagen">
+    @if (listeLaedt() && vorlagen().length === 0) {
+      <app-ladeanzeige text="Vorlagen werden geladen …" />
+    } @else if (vorlagen().length === 0) {
+      <app-leerzustand icon="checklist" titel="Noch keine VB-Vorlage" kompakt />
+    } @else {
+      <mat-action-list>
+        @for (kopf of vorlagen(); track kopf.id) {
+          <button
+            mat-list-item
+            class="vorlage"
+            [class.gewaehlt]="kopf.id === gewaehlteId()"
+            [attr.aria-current]="kopf.id === gewaehlteId() ? 'true' : null"
+            (click)="waehlen(kopf.id)"
+          >
+            <span matListItemTitle>{{ kopf.titel }}</span>
+            <span matListItemLine>
+              {{ kopf.laufzettel }} Laufzettel · {{ kopf.positionen }} Positionen · Version
+              {{ kopf.version }}
+            </span>
+          </button>
+        }
+      </mat-action-list>
+    }
+  </section>
+
+  <section class="ansicht" aria-label="Ausgewählte Vorlage" aria-live="polite">
+    @if (ansichtLaedt()) {
+      <app-ladeanzeige text="Vorlage wird geladen …" />
+    } @else if (stand(); as geladen) {
+      <header class="ansicht-kopf">
+        <h2 class="ansicht-titel">{{ geladen.daten.titel }}</h2>
+        <div class="ansicht-aktionen">
+          <a matButton="outlined" [routerLink]="['/einsatzplanung/vb-vorlagen', geladen.daten.id]">
+            <mat-icon>edit</mat-icon> Bearbeiten
+          </a>
+          <button
+            matIconButton
+            [matMenuTriggerFor]="menue"
+            [disabled]="arbeitet()"
+            aria-label="Weitere Aktionen"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menue="matMenu">
+            <button mat-menu-item (click)="drucken()">
+              <mat-icon>print</mat-icon>
+              <span>Drucken</span>
+            </button>
+            <button mat-menu-item (click)="loeschen()">
+              <mat-icon>delete</mat-icon>
+              <span>Löschen</span>
+            </button>
+          </mat-menu>
+        </div>
+      </header>
+
+      @if (geladen.daten.inhalt.anweisungen.trim()) {
+        <mat-expansion-panel class="anweisungen">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Allgemeine Anweisungen</mat-panel-title>
+          </mat-expansion-panel-header>
+          <p class="anweisungen-text">{{ geladen.daten.inhalt.anweisungen }}</p>
+        </mat-expansion-panel>
+      }
+
+      @for (abschnitt of abschnitte(); track abschnitt.id) {
+        <section class="abschnitt">
+          <h3 class="abschnitt-kopf">
+            <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
+            <span class="abschnitt-titel">{{ abschnitt.titel }}</span>
+            @if (abschnitt.fachgruppe; as fachgruppe) {
+              <app-fachgruppe-chip [fachgruppe]="fachgruppe" />
+            }
+          </h3>
+          @if (abschnitt.zeilen.length === 0) {
+            <p class="abschnitt-leer">Dieser Abschnitt enthält noch keinen Laufzettel.</p>
+          } @else {
+            <div class="tabelle-rahmen">
+              <table mat-table [dataSource]="abschnitt.zeilen" class="tabelle">
+                <ng-container matColumnDef="nr">
+                  <th mat-header-cell *matHeaderCellDef>Nr</th>
+                  <td mat-cell *matCellDef="let zeile" class="nr">{{ zeile.nr }}</td>
+                </ng-container>
+                <ng-container matColumnDef="material">
+                  <th mat-header-cell *matHeaderCellDef>Material</th>
+                  <td mat-cell *matCellDef="let zeile" class="material">
+                    {{ zeile.material || '–' }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="lagerort">
+                  <th mat-header-cell *matHeaderCellDef>Lagerort</th>
+                  <td mat-cell *matCellDef="let zeile">{{ zeile.lagerort || '–' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="transportMit">
+                  <th mat-header-cell *matHeaderCellDef>Transport mit</th>
+                  <td mat-cell *matCellDef="let zeile">{{ zeile.transportMit || '–' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="auftraggeber">
+                  <th mat-header-cell *matHeaderCellDef>Rückfragen</th>
+                  <td mat-cell *matCellDef="let zeile">{{ zeile.auftraggeber || '–' }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="spalten"></tr>
+                <tr mat-row *matRowDef="let zeile; columns: spalten"></tr>
+              </table>
+            </div>
+          }
+        </section>
+      } @empty {
+        <app-leerzustand icon="view_agenda" titel="Diese Vorlage enthält noch keine Abschnitte" />
+      }
+    } @else {
+      <app-leerzustand icon="checklist" titel="Vorlage auswählen">
+        Wähle links eine Vorlage, um ihre Laufzettel zu sehen.
+      </app-leerzustand>
+    }
+  </section>
 </div>
