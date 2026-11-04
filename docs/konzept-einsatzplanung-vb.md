@@ -141,13 +141,33 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
 - **Seite 1 – Allgemeine Anweisungen**, A4 quer: Einsatz, Zeitraum, Ort, Freitext in zwei
   Spalten, Fußzeile mit Anzahl der Laufzettel.
 - **Folgeseiten – Laufzettel**, A4 quer, drei Streifen je Seite (je ca. 99 × 210 mm),
-  gestrichelte Schnittlinien. Aufbau nach der Word-Führungshilfe: „Auftrag“ und LfdNr,
-  Überschrift, Positionen mit Kästchen, Lagerort, Fahrzeug/Transport mit, Auftraggeber für
-  Rückfragen, Durchführung von, Durchgeführt (Ja / nicht möglich gewesen), Grund. Oben ein
-  freier **Klemmrand** (ca. 15 mm) für den Bonhalter.
-- Zu viele Positionen für einen Streifen: Fortsetzung auf dem nächsten Streifen mit
-  „LfdNr 4 (Fortsetzung)“, keine Schriftverkleinerung. Der Editor weist an der Karte darauf
-  hin.
+  gestrichelte Schnittlinien. Inhalte nach der Word-Führungshilfe, aber so dicht gesetzt,
+  dass der größte Teil des Streifens den Materialzeilen gehört:
+  - oben ein freier **Klemmrand** (ca. 13 mm) für den Bonhalter mit dem Einsatztitel,
+  - ein Kopf aus „Auftrag“, Überschrift und LfdNr in einer Zeile,
+  - der **Materialbereich mit festem Raster von 23 Zeilen** (je ca. 5 mm, Kästchen, Anzahl,
+    Material); nicht belegte Zeilen bleiben mit Kästchen für Nachträge von Hand,
+  - Lagerort, Transport mit und „Rückfragen an“ als je eine kleine Zeile,
+  - „Durchführung von“, „Durchgeführt ☐ Ja ☐ nicht möglich“ und „Grund“ kompakt am Fuß.
+
+### Platzberechnung und Warnung
+
+Reine Funktion `laufzettelPlatz(laufzettel)` (eigener Test), die **der Druck und der Editor
+gemeinsam** verwenden, damit Warnung und Ausdruck nie auseinanderlaufen:
+
+- Kapazität 23 Materialzeilen. Eine Position belegt `max(1, ⌈Zeichen / 38⌉)` Zeilen (Breite
+  des Materialtexts bei 13 pt auf dem Streifen); der genaue Wert wird beim Umsetzen gegen das
+  echte pdfmake-Ergebnis geeicht.
+- Bricht Lagerort, Transport oder Auftraggeber um, kostet jede Umbruchzeile über die erste
+  Reserve hinaus eine Materialzeile.
+- Ergebnis: belegte Zeilen, Kapazität, Zustand `ok` / `knapp` (ab 21) / `zu-voll`.
+
+Der Editor zeigt die Belegung an jeder Laufzettelkarte („6 / 23“) und als Balken unter der
+Positionentabelle. Bei `zu-voll` erscheint ein Hinweis direkt an der Karte und an der Tabelle
+(„Passt nicht auf einen Laufzettel: 2 Zeilen zu viel“) mit der Aktion „In zwei Laufzettel
+aufteilen“. Speichern bleibt möglich. Beim Drucken meldet der `MeldungsDienst` eine Warnung
+mit der Anzahl betroffener Laufzettel; gedruckt wird dann ein Fortsetzungsstreifen
+„LfdNr 16 (Fortsetzung)“, nie eine kleinere Schrift.
 
 ## 7. Arbeitspakete
 
@@ -159,7 +179,8 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
    Verknüpfung mit bestehender PEP.
 4. **AP-E4 VB-Editor** (Mock 2) samt Kopie aus Vorlage und Anweisungen.
 5. **AP-E5 Vorlagen und Abgleich** (Mock 3), `vbAbgleich()` mit Tests.
-6. **AP-E6 Druck** (Anweisungsblatt, Laufzettelstreifen), Test der Seitenaufteilung.
+6. **AP-E6 Druck** (Anweisungsblatt, Laufzettelstreifen), `laufzettelPlatz()` mit Tests,
+   Platzanzeige und Warnung im Editor (Mock 2b).
 7. **AP-E7 (optional) Excel-Import** weiterer Vorlagen im Format der Quelle,
    `@e965/xlsx` dynamisch.
 
