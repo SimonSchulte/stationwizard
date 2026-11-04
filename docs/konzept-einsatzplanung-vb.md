@@ -1,6 +1,6 @@
 # Konzept: Einsatzplanung mit Vorbereitung (VB)
 
-Status: **Plan, nicht umgesetzt.** Abstimmung über drei Oberflächen-Mocks und eine
+Status: **Umgesetzt** (siehe `docs/arbeitsstand.md`, Abschnitt „Einsatzplanung mit Vorbereitung“). Abstimmung über drei Oberflächen-Mocks und eine
 Laufzettel-Druckvorschau. Grundlage: der Laufzettel „Weihnachtsmarkt Ummeln 2025“ (Excel,
 47 Zeilen) und die „Führungshilfe Aufgaben aus Liste“ (Word, Hochformat, drei Aufträge je
 Seite).

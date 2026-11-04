@@ -3245,3 +3245,44 @@ Auftrag: alle Warnungen, Hinweise und Fehler als Material-Snackbar ausgeben.
   „Erneut versuchen“ (Personal), zwei Fehler nacheinander (Offene Aufgaben), Warnung
   (Ehrungsmanager), Hinweis mit Aktion „Zum Kalender“ (Kalender-Übernahme), keine Snackbar
   ohne Anlass (Kalender), keine verwaiste Snackbar nach Seitenwechsel.
+
+## Einsatzplanung mit Vorbereitung (VB)
+
+Umgesetzt nach `docs/konzept-einsatzplanung-vb.md` (Abschnitt 9 ist der verbindliche
+Datenvertrag zwischen Worker und Frontend).
+
+- Bereich „Einsatz“ heißt durchgängig „Einsatzplanung“: Route `/einsatzplanung`, `/einsatz`
+  und `/einsatz/editor` leiten weiter, Navigation als Zweig mit „Einsätze“ und „VB-Vorlagen“.
+  Code bleibt unter `src/app/einsatz/`. Der Worker leitet nach HiOrg-Verbinden weiter auf
+  `#/einsatz`; das landet über die Weiterleitung richtig.
+- Worker: eigene D1-Datenbank `EINSATZPLANUNG_DB` (Migration `0020_einsatzplanung.sql` mit der
+  Startvorlage „Weihnachtsmarkt Ummeln“, 3 Abschnitte, 17 Laufzettel, 47 Positionen), Endpunkte
+  für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
+  Änderungen nur mit `If-Match`. **Noch nicht eingerichtet:** Der Bindungsblock in
+  `worker/wrangler.toml` ist auskommentiert, bis die Datenbank angelegt und ihre ID
+  eingetragen ist (`docs/einrichtung.md`); bis dahin antworten die Endpunkte mit 503
+  `EINSATZPLANUNG_KONFIGURATION_FEHLT`.
+- Einsatzseite (`/einsatzplanung/einsatz/:id`) mit PEP- und VB-Karte; ein Klick auf eine
+  HiOrg-Veranstaltung legt bei Bedarf den Einsatz an. Einsätze ohne HiOrg lassen sich anlegen.
+  Eine von der Einsatzseite geöffnete PEP wird beim Speichern in Nextcloud mit dem Einsatz
+  verknüpft (`pepId` = UUID der Planung, einmalig geschrieben).
+- VB-Editor (`…/einsatz/:id/vb`, gleiche Seite für Vorlagen unter `/einsatzplanung/vb-vorlagen/:id`):
+  Abschnitte mit Farbe und Fachgruppe, Laufzettel per Ziehen sortierbar, Platzanzeige je
+  Laufzettel (23 Materialzeilen à 38 Zeichen) mit Warnung und „In zwei Laufzettel aufteilen“,
+  Allgemeine Anweisungen, Rückgängig, „Auf Vorlage anwenden…“ mit Auswahl je Änderung.
+- PDF-Druck (pdfmake): Anweisungsblatt A4 quer, danach drei Laufzettel je A4-Querseite mit
+  Klemmrand, Farbband, Fachgruppe, 23-Zeilen-Raster und Fortsetzungsstreifen bei zu vollen
+  Laufzetteln.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build`, `npm test` (Angular 165 Dateien/1317 Tests, öffentliche Seite 29 Tests,
+  Worker 31 Dateien/905 Tests), `npm run format:check` und `npm run deploy:dry-run` grün.
+- Druck in Node mit pdfmake gerendert und als Bild geprüft: Startvorlage plus Laufzettel mit
+  23 Zeilen à 38 Zeichen bleiben je Streifen auf der Seite, Überlauf erzeugt
+  Fortsetzungsstreifen.
+- Headless-Chromium mit Attrappen-API auf 1440×900 und Pixel 7: Einsatzseite, Liste, VB-Editor
+  (inklusive zu vollem Laufzettel, Abschnitts- und Abgleichsdialog) und VB-Vorlagen. Dabei
+  behoben: Das Bearbeitungsfeld scrollte bei weit unten gewählten Laufzetteln aus dem Bild.
+- Nicht geprüft: echte D1-Datenbank (nur Fake), Drag & Drop auf Touch-Geräten, Ausdruck auf
+  echtem Drucker (Farbband und Schnittlinien laufen bis zum Papierrand).

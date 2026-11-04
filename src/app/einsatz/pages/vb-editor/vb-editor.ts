@@ -10,12 +10,14 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   computed,
+  DestroyRef,
   effect,
+  ElementRef,
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -233,10 +235,18 @@ export class VbEditor {
     () => this.store.geaendert() && !this.store.speichertGerade(),
   );
 
+  private readonly bearbeitungsBereich = viewChild<ElementRef<HTMLElement>>('bearbeitungsBereich');
+
   constructor() {
     effect(() => {
       const id = this.id();
       if (id) untracked(() => void this.oeffnen(id));
+    });
+    // Ein neu gewählter Laufzettel beginnt oben, nicht in der Scrollhöhe des vorigen.
+    effect(() => {
+      this.aktiv()?.laufzettel.id;
+      const bereich = this.bearbeitungsBereich()?.nativeElement;
+      if (bereich) bereich.scrollTop = 0;
     });
     inject(DestroyRef).onDestroy(() => this.store.zuruecksetzen());
   }

@@ -51,9 +51,10 @@
 
 .bearbeitung {
   position: sticky;
-  top: calc(var(--space-2xl) + var(--space-xl));
+  // unterhalb des ebenfalls klebenden Seitenkopfs
+  top: calc(var(--space-2xl) + var(--space-md));
   min-width: 0;
-  max-height: calc(100dvh - var(--space-2xl) - var(--space-xl) - var(--space-md));
+  max-height: calc(100dvh - var(--space-2xl) * 3 - var(--space-lg));
   padding: var(--space-md);
   overflow: auto;
   border: 1px solid var(--border-light);
@@ -197,6 +198,16 @@
   .bearbeitung {
     position: static;
     max-height: none;
+    overflow: visible;
+  }
+}
+
+// Material setzt am Reiterinhalt overflow: auto/hidden. Damit klebt die Bearbeitung nicht
+// am oberen Rand des scrollenden Hauptbereichs; deshalb hier sichtbar lassen.
+.reiter {
+  ::ng-deep .mat-mdc-tab-body-wrapper,
+  ::ng-deep .mat-mdc-tab-body.mat-mdc-tab-body-active,
+  ::ng-deep .mat-mdc-tab-body-content {
     overflow: visible;
   }
 }

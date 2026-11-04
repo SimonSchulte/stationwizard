@@ -276,7 +276,7 @@
             </div>
           </section>
 
-          <section class="bearbeitung" aria-label="Laufzettel bearbeiten">
+          <section #bearbeitungsBereich class="bearbeitung" aria-label="Laufzettel bearbeiten">
             @if (aktiv(); as treffer) {
               <app-laufzettel-bearbeitung
                 [laufzettel]="treffer.laufzettel"
