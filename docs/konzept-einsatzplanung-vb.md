@@ -38,10 +38,21 @@ VB-Vorlage ── Abschnitt ── Laufzettel ── Position        (gleiche St
   die Übersicht jede PEP-Datei laden, um ihre Veranstaltung zu finden (die Nextcloud-Liste
   liefert nur UUID/ETag). Ein Einsatz entsteht beim ersten Anlegen von PEP oder VB zu einer
   HiOrg-Veranstaltung oder von Hand ohne HiOrg.
-- **Abschnitt**: `id`, `titel` – fachliche Gruppierung, im Beispiel nach Auftraggeber
-  (GF Betreuung, GF TeSi, GF Verpflegung). Reihenfolge = Druckreihenfolge.
+- **Abschnitt**: `id`, `titel`, `farbe`, optional `fachgruppe` – fachliche Gruppierung, im
+  Beispiel nach Auftraggeber (GF Betreuung, GF TeSi, GF Verpflegung). Reihenfolge =
+  Druckreihenfolge. `farbe` ist ein Schlüssel aus einer festen Palette von acht
+  Abschnittsfarben (`ABSCHNITT_FARBEN`, Tokens `--abschnitt-1` … `--abschnitt-8` in
+  `src/tokens.less`, Druckwerte in `PDF_FARBEN`); kein frei wählbarer Farbwert, damit der
+  Ausdruck lesbar bleibt und keine zweite Palette entsteht. Die `fachgruppe` des Abschnitts
+  ist die Vorgabe für seine Laufzettel und lässt sich auf alle übertragen.
 - **Laufzettel**: `id`, `ueberschrift` (Auftragstext, Vorgabe „Material verlasten“),
-  `lagerort`, `transportMit`, `auftraggeber` (Auftraggeber für Rückfragen), `positionen`.
+  `lagerort`, `transportMit`, `auftraggeber` (Auftraggeber für Rückfragen), optional
+  `fachgruppe`, `positionen`.
+- **Fachgruppe**: die in der App bekannten Gruppen der Gruppenführungsrollen
+  (`sanitaet`, `betreuung`, `verpflegung`, `tesi`, `fuehrung`, siehe `Hauptrolle` in
+  `benutzerverwaltung/models/benutzerkonto.model.ts`), dargestellt mit den vorhandenen
+  Kategorienfarben `--kat-san`, `--kat-btvp`, `--kat-tesi`, `--kat-fuehrung`. Die Liste wird
+  nach `kern/` gezogen statt aus der Benutzerverwaltung importiert.
   Die laufende Nummer wird **nicht gespeichert**, sondern beim Anzeigen und Drucken aus der
   Reihenfolge gebildet – ein Verschieben braucht dann keine Neunummerierung.
 - **Position**: `id`, `anzahl` (Text, darf leer sein: in der Quelle fehlt sie z. B. bei
@@ -144,7 +155,11 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
   gestrichelte Schnittlinien. Inhalte nach der Word-Führungshilfe, aber so dicht gesetzt,
   dass der größte Teil des Streifens den Materialzeilen gehört:
   - oben ein freier **Klemmrand** (ca. 13 mm) für den Bonhalter mit dem Einsatztitel,
-  - ein Kopf aus „Auftrag“, Überschrift und LfdNr in einer Zeile,
+  - ein Kopf aus „Auftrag“, Fachgruppe als beschrifteter Chip in ihrer Farbe, Überschrift
+    und LfdNr,
+  - ein **Farbband** (ca. 2 mm) in der Abschnittsfarbe links über die ganze Länge des
+    Streifens, dazu Farbpunkt und Abschnittsname am Klemmrand – so bleiben Abschnitt und
+    Fachgruppe auch im Schwarz-Weiß-Druck über den Text erkennbar,
   - der **Materialbereich mit festem Raster von 23 Zeilen** (je ca. 5 mm, Kästchen, Anzahl,
     Material); nicht belegte Zeilen bleiben mit Kästchen für Nachträge von Hand,
   - Lagerort, Transport mit und „Rückfragen an“ als je eine kleine Zeile,
@@ -193,3 +208,6 @@ mit der Anzahl betroffener Laufzettel; gedruckt wird dann ein Fortsetzungsstreif
 3. Eigene Datenbank `EINSATZPLANUNG_DB` (Plan) oder Tabellen in einer bestehenden?
 4. Gehören Uhrzeit/Fälligkeit („bis Freitag 18 Uhr“) auf den Laufzettel?
 5. Wer darf Vorlagen ändern? Vorerst „Rechte vorerst alle, Rollen später“.
+6. Betreuung und Verpflegung teilen sich heute die Farbe `--kat-btvp` (im Kalender eine
+   Kategorie „Bt/Vp“). Auf dem Laufzettel unterscheidet sie nur die Beschriftung. Soll
+   Verpflegung eine eigene Farbe bekommen (neues Token `--kat-vp`)?
