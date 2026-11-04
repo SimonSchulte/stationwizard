@@ -65,9 +65,29 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
   });
 
   it('öffnet die Einsatzliste mit dauerhafter HiOrg-Anbindung und Cloud-Dateien', async () => {
-    const ansicht = await RouterTestingHarness.create('/einsatz');
+    const ansicht = await RouterTestingHarness.create('/einsatzplanung');
     expect(ansicht.routeNativeElement?.textContent).toContain('Gespeicherte Einsatzpläne');
     expect(ansicht.routeNativeElement?.textContent).toContain('Veranstaltungen (HiOrg-Server)');
+  });
+
+  it('leitet die frühere Einsatzadresse auf die Einsatzplanung um', async () => {
+    const ansicht = await RouterTestingHarness.create('/einsatz');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung');
+    await ansicht.navigateByUrl('/einsatz/editor');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung/editor');
+  });
+
+  it('kennt die Seiten für Einsatz-Detail und Vorbereitungslisten', async () => {
+    const ansicht = await RouterTestingHarness.create();
+    for (const pfad of [
+      '/einsatzplanung/vb-vorlagen',
+      '/einsatzplanung/vb-vorlagen/x',
+      '/einsatzplanung/einsatz/x',
+      '/einsatzplanung/einsatz/x/vb',
+    ]) {
+      await ansicht.navigateByUrl(pfad);
+      expect(TestBed.inject(Router).url).toBe(pfad);
+    }
   });
 
   it('zeigt im Personalmodul das vom HiOrg-Server gelieferte Personal als Tabelle', async () => {
@@ -84,7 +104,7 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
 
   it('öffnet einen lokalen Einsatzplan im Editor', async () => {
     const planung = TestBed.inject(PlanungStoreService).createPlanung('Erfundener Übungseinsatz');
-    const ansicht = await RouterTestingHarness.create('/einsatz/editor');
+    const ansicht = await RouterTestingHarness.create('/einsatzplanung/editor');
     const eingaben = [...ansicht.routeNativeElement!.querySelectorAll('input')];
     expect(eingaben.some((eingabe) => eingabe.value === planung.name)).toBe(true);
     expect(

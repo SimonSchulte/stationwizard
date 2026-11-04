@@ -403,7 +403,7 @@ export class PlanningEditor {
 
   goBack(): void {
     this.store.closePlanung();
-    this.router.navigate(['/einsatz']);
+    this.router.navigate(['/einsatzplanung']);
   }
 
   updateBeschreibung(value: string): void {

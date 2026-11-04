@@ -14,8 +14,11 @@ export const routes: Routes = [
   },
   // Frühere Adresse der Ausbildungsplanung: Lesezeichen und alte Links bleiben gültig.
   { path: 'ausbildung', redirectTo: 'kalender' },
+  // Frühere Adressen des Bereichs: Lesezeichen und der HiOrg-Rücksprung (#/einsatz) bleiben gültig.
+  { path: 'einsatz', pathMatch: 'full', redirectTo: 'einsatzplanung' },
+  { path: 'einsatz/editor', pathMatch: 'full', redirectTo: 'einsatzplanung/editor' },
   {
-    path: 'einsatz',
+    path: 'einsatzplanung',
     loadChildren: () => import('./einsatz/einsatz.routes').then((m) => m.einsatzRouten),
     title: 'Einsatzplanung · HiorgWache',
   },

@@ -169,7 +169,7 @@ export class PlanningList implements OnInit {
       this.store.importPlanung(ergebnis.planung);
       this.store.openPlanung(ergebnis.planung.id);
       this.cloud.uebernahmeMerken(ergebnis);
-      await this.router.navigate(['/einsatz/editor']);
+      await this.router.navigate(['/einsatzplanung/editor']);
     } catch (fehler) {
       this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
     } finally {
@@ -196,7 +196,7 @@ export class PlanningList implements OnInit {
 
   async openEfsGruppe(gruppe: EfsEinsatzGruppe): Promise<void> {
     const zielId = this.store.openEfsGruppe(gruppe).id;
-    this.router.navigate(['/einsatz/editor']);
+    this.router.navigate(['/einsatzplanung/editor']);
 
     // Load details per Schicht in the background
     try {
@@ -237,7 +237,7 @@ export class PlanningList implements OnInit {
 
   openPlanung(id: string): void {
     this.store.openPlanung(id);
-    this.router.navigate(['/einsatz/editor']);
+    this.router.navigate(['/einsatzplanung/editor']);
   }
 
   async loadFromFile(): Promise<void> {
@@ -251,12 +251,12 @@ export class PlanningList implements OnInit {
     }
     if (this.store.active() !== kontext) return;
     this.store.importPlanung(result.planung);
-    this.router.navigate(['/einsatz/editor']);
+    this.router.navigate(['/einsatzplanung/editor']);
   }
 
   createNew(): void {
     const name = `Neue Planung ${formatDate(new Date(), 'dd.MM.yyyy', 'de-DE')}`;
     this.store.createPlanung(name);
-    this.router.navigate(['/einsatz/editor']);
+    this.router.navigate(['/einsatzplanung/editor']);
   }
 }
