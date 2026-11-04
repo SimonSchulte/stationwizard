@@ -211,3 +211,115 @@ mit der Anzahl betroffener Laufzettel; gedruckt wird dann ein Fortsetzungsstreif
 6. Betreuung und Verpflegung teilen sich heute die Farbe `--kat-btvp` (im Kalender eine
    Kategorie „Bt/Vp“). Auf dem Laufzettel unterscheidet sie nur die Beschriftung. Soll
    Verpflegung eine eigene Farbe bekommen (neues Token `--kat-vp`)?
+
+## 9. Datenvertrag (verbindlich für die Umsetzung)
+
+Worker und Frontend bauen gegen genau diese Formen. Alle Ids sind UUIDs (vom Client erzeugt,
+`crypto.randomUUID()`), Versionen sind ganze Zahlen und reisen als starker ETag `"<n>"`
+(`If-Match` nimmt auch `W/"<n>"`, siehe `worker/src/etag.ts`).
+
+### Werte
+
+- `Fachgruppe = 'sanitaet' | 'betreuung' | 'verpflegung' | 'tesi' | 'fuehrung'`
+- `AbschnittFarbe = 'abschnitt-1' | … | 'abschnitt-8'`; Werte (Token `--abschnitt-n`):
+  1 `#e65100`, 2 `#00838f`, 3 `#ad1457`, 4 `#6a3fa0`, 5 `#f9a825`, 6 `#558b2f`,
+  7 `#1565c0`, 8 `#5d4037`.
+- Fachgruppenfarben: `sanitaet` `--kat-san`, `betreuung` und `verpflegung` `--kat-btvp`,
+  `tesi` `--kat-tesi`, `fuehrung` `--kat-fuehrung`.
+
+### VB-Inhalt (Vorlage und Vorbereitung gleich)
+
+```ts
+interface VbInhalt {
+  anweisungen: string; // ≤ 6000 Zeichen, darf leer sein
+  abschnitte: VbAbschnitt[]; // ≤ 30
+}
+interface VbAbschnitt {
+  id: string;
+  herkunftId: string | null; // Id des Gegenstücks in der Vorlage, in Vorlagen null
+  titel: string; // 1–200
+  farbe: AbschnittFarbe;
+  fachgruppe: Fachgruppe | null;
+  laufzettel: VbLaufzettel[]; // zusammen über alle Abschnitte ≤ 300
+}
+interface VbLaufzettel {
+  id: string;
+  herkunftId: string | null;
+  ueberschrift: string; // 0–200
+  lagerort: string; // 0–200
+  transportMit: string; // 0–200
+  auftraggeber: string; // 0–200
+  fachgruppe: Fachgruppe | null;
+  positionen: VbPosition[]; // ≤ 50
+}
+interface VbPosition {
+  id: string;
+  herkunftId: string | null;
+  anzahl: string; // 0–20, Text, darf leer sein
+  material: string; // 1–200
+}
+```
+
+Ids müssen innerhalb eines Inhalts eindeutig sein. Unbekannte Felder werden abgelehnt.
+
+### Einsatz
+
+```ts
+interface Einsatz {
+  id: string;
+  titel: string; // 1–200
+  beginn: string | null; // 'YYYY-MM-DDTHH:mm' (lokale Berliner Zeit, ohne Zone)
+  ende: string | null; // dito
+  ort: string | null; // ≤ 200
+  hiorgVeranstaltungId: string | null; // /^[A-Za-z0-9_-]{1,64}$/, eindeutig
+  pepId: string | null; // UUID der PEP-Datei in Nextcloud
+}
+```
+
+### Endpunkte
+
+| Pfad                                      | Methode                                           | Körper → Antwort                                                                                                |
+| ----------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `/api/einsatzplanung/einsaetze`           | GET                                               | → `{ einsaetze: Array<Einsatz & { version: number; vb: { laufzettel: number; positionen: number } \| null }> }` |
+| `/api/einsatzplanung/einsaetze`           | POST, `If-None-Match: *`                          | `Einsatz` → 201, `Einsatz`, ETag                                                                                |
+| `/api/einsatzplanung/einsaetze/<UUID>`    | GET                                               | → `Einsatz`, ETag                                                                                               |
+| `/api/einsatzplanung/einsaetze/<UUID>`    | PUT, `If-Match`                                   | `Einsatz` (gleiche `id`) → 200, `Einsatz`, ETag                                                                 |
+| `/api/einsatzplanung/einsaetze/<UUID>/vb` | GET                                               | → `Vorbereitung`, ETag; 404 ohne VB                                                                             |
+| `/api/einsatzplanung/einsaetze/<UUID>/vb` | PUT, `If-None-Match: *` (anlegen) oder `If-Match` | `Vorbereitung` → 201/200, `Vorbereitung`, ETag                                                                  |
+| `/api/einsatzplanung/einsaetze/<UUID>/vb` | DELETE, `If-Match`                                | → 204                                                                                                           |
+| `/api/einsatzplanung/vb-vorlagen`         | GET                                               | → `{ vorlagen: Array<{ id; titel; version; abschnitte; laufzettel; positionen; geaendertAm }> }`                |
+| `/api/einsatzplanung/vb-vorlagen`         | POST, `If-None-Match: *`                          | `VbVorlage` → 201, `VbVorlage`, ETag                                                                            |
+| `/api/einsatzplanung/vb-vorlagen/<UUID>`  | GET                                               | → `VbVorlage`, ETag                                                                                             |
+| `/api/einsatzplanung/vb-vorlagen/<UUID>`  | PUT, `If-Match`                                   | `VbVorlage` → 200, ETag                                                                                         |
+| `/api/einsatzplanung/vb-vorlagen/<UUID>`  | DELETE, `If-Match`                                | → 204                                                                                                           |
+
+```ts
+interface Vorbereitung {
+  vorlageId: string | null;
+  vorlageVersion: number | null;
+  inhalt: VbInhalt;
+}
+interface VbVorlage {
+  id: string;
+  titel: string; // 1–200
+  inhalt: VbInhalt;
+}
+```
+
+`geaendertAm` ist ein ISO-Zeitstempel, gesetzt vom Worker. Fehlercodes mit Präfix
+`EINSATZPLANUNG_`: `…_KONFIGURATION_FEHLT` (503), `…_PFAD_UNGUELTIG` (404),
+`…_NICHT_GEFUNDEN` (404), `…_VB_NICHT_GEFUNDEN` (404), `…_VORLAGE_NICHT_GEFUNDEN` (404),
+`…_VORBEDINGUNG_FEHLT` (428), `…_VORBEDINGUNG_UNGUELTIG` (400), `…_VERSIONSKONFLIKT` (412),
+`…_BEREITS_VORHANDEN` (409, Id oder VB existiert schon), `…_VERANSTALTUNG_VERGEBEN` (409),
+`…_UNGUELTIG` (400, Körper), `…_ZU_GROSS` (413). Körper ≤ 256 KB. Ein gelöschter Einsatz ist
+nicht vorgesehen. Startvorlage „Weihnachtsmarkt Ummeln“ mit festen Ids:
+`docs/vb-startvorlage-weihnachtsmarkt-ummeln.json`, eingespielt per Migration.
+
+### Frontend-Aufteilung
+
+Code bleibt unter `src/app/einsatz/`. Routen: `/einsatzplanung` (bisherige Liste, Titel
+„Einsatzplanung“), `/einsatzplanung/editor` (PEP-Editor), `/einsatzplanung/einsatz/:id`
+(Einsatzseite), `/einsatzplanung/einsatz/:id/vb` (VB-Editor), `/einsatzplanung/vb-vorlagen`
+(Liste und Ansicht), `/einsatzplanung/vb-vorlagen/:id` (Vorlage im selben Editor). `/einsatz`
+und `/einsatz/editor` leiten weiter. Navigation: Zweig „Einsatzplanung“ mit „Einsätze“ und
+„VB-Vorlagen“.
