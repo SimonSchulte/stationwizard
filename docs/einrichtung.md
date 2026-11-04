@@ -67,6 +67,23 @@ Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **W
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
+## Einsatzplanung-Datenbank
+
+Einsätze, Vorbereitungen (VB) und VB-Vorlagen liegen in der D1-Datenbank
+`stationwizard-einsatzplanung` (Binding `EINSATZPLANUNG_DB`, Schema und Startvorlage
+„Weihnachtsmarkt Ummeln“ in `worker/migrations/einsatzplanung/0020_einsatzplanung.sql`).
+Der Binding-Block in `worker/wrangler.toml` ist **auskommentiert**, bis die Datenbank
+existiert; bis dahin antworten die Endpunkte mit 503 `EINSATZPLANUNG_KONFIGURATION_FEHLT`.
+Einrichtung:
+
+1. `npx wrangler d1 create stationwizard-einsatzplanung` (Region wie die übrigen
+   Datenbanken, WEUR) und die ausgegebene `database_id` in `worker/wrangler.toml` eintragen;
+   den Kommentar vor dem Block entfernen.
+2. `npx wrangler d1 migrations apply EINSATZPLANUNG_DB --remote --config worker/wrangler.toml`
+   (oder dieselben Anweisungen über den Cloudflare-D1-Connector, dann
+   `INSERT INTO d1_migrations (name) VALUES ('0020_einsatzplanung.sql')` ergänzen).
+3. Worker deployen. Die Startvorlage erscheint danach unter _Einsatzplanung → VB-Vorlagen_.
+
 ## HiOrg-Server-API (OAuth, optional)
 
 Zweiter HiOrg-Weg neben EFS: die HiOrg-Server-API (`api.hiorg-server.de`) mit

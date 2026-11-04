@@ -64,6 +64,19 @@ database_name = "stationwizard-kalender"
 database_id = "0e8ea56e-b12a-4768-814e-b25f8d99eaef"
 migrations_dir = "migrations/kalender"
 
+# Einsatzplanung mit Vorbereitung (VB, AP-E2). Eigene D1-Datenbank; Schema und
+# Startvorlage in worker/migrations/einsatzplanung/0020_einsatzplanung.sql.
+# NOCH NICHT EINGERICHTET: die echte database_id liegt erst nach
+# `npx wrangler d1 create stationwizard-einsatzplanung` vor (siehe
+# docs/einrichtung.md, Abschnitt Einsatzplanung). Bis dahin bleibt der Block
+# auskommentiert (ein erfundener Wert würde jedes Deployment scheitern lassen) und
+# die Endpunkte antworten 503 EINSATZPLANUNG_KONFIGURATION_FEHLT.
+# [[d1_databases]]
+# binding = "EINSATZPLANUNG_DB"
+# database_name = "stationwizard-einsatzplanung"
+# database_id = "<ID aus wrangler d1 create>"
+# migrations_dir = "migrations/einsatzplanung"
+
 # Workers Logs für Diagnose aktivieren; Traces vorerst deaktiviert.
 [observability]
 enabled = true
