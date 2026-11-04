@@ -8,6 +8,9 @@ import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { erzeugeTestplanung } from '../../services/testing/pep-testdaten';
+import { ApiEinsatzStorage } from '../../storage/api-einsatz-storage';
+import { InMemoryEinsatzStorage } from '../../testing/in-memory-einsatzplanung';
+import { testEinsatz } from '../../testing/vb-testdaten';
 
 function routeMit(abfrage: Record<string, string> = {}) {
   return {
@@ -85,6 +88,7 @@ describe('Rückkehr von der HiOrg-Anmeldung', () => {
         { provide: EfsApiService, useValue: { fehler: signal(''), getVeranstaltungen: vi.fn() } },
         { provide: Router, useValue: { navigate } },
         { provide: PlanungCloudService, useValue: { listeLaden: vi.fn() } },
+        { provide: ApiEinsatzStorage, useValue: new InMemoryEinsatzStorage() },
         routeMit(abfrage),
       ],
     });
@@ -108,5 +112,68 @@ describe('Rückkehr von der HiOrg-Anmeldung', () => {
     expect(liste.hiorgVerbunden()).toBe(false);
     expect(liste.hiorgRueckmeldung()).not.toContain('erfunden');
     expect(liste.hiorgRueckmeldung()).toContain('nicht hergestellt');
+  });
+});
+
+describe('Einsatz aus der Liste öffnen', () => {
+  const gruppe = {
+    veranstaltung_id: '4711',
+    titel: 'Weihnachtsmarkt Ummeln',
+    datum_von: '2026-12-05T09:00:00.000Z',
+    datum_bis: '2026-12-05T19:30:00.000Z',
+    ort: 'Ummeln',
+    schichten: [],
+  };
+
+  function listeMit(speicher: InMemoryEinsatzStorage) {
+    const navigate = vi.fn().mockResolvedValue(true);
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: EfsApiService, useValue: { fehler: signal(''), getVeranstaltungen: vi.fn() } },
+        { provide: Router, useValue: { navigate } },
+        { provide: PlanungCloudService, useValue: { listeLaden: vi.fn() } },
+        { provide: ApiEinsatzStorage, useValue: speicher },
+        routeMit(),
+      ],
+    });
+    return { liste: TestBed.runInInjectionContext(() => new PlanningList()), navigate };
+  }
+
+  it('legt für eine neue Veranstaltung einen Einsatz an und öffnet die Einsatzseite', async () => {
+    const speicher = new InMemoryEinsatzStorage();
+    const { liste, navigate } = listeMit(speicher);
+    await liste.einsatzOeffnen(gruppe);
+
+    const alle = await speicher.ladeEinsaetze();
+    expect(alle).toHaveLength(1);
+    expect(alle[0]).toMatchObject({
+      hiorgVeranstaltungId: '4711',
+      titel: 'Weihnachtsmarkt Ummeln',
+    });
+    expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', alle[0].id]);
+  });
+
+  it('öffnet für eine bekannte Veranstaltung den vorhandenen Einsatz ohne Neuanlage', async () => {
+    const speicher = new InMemoryEinsatzStorage();
+    const vorhanden = testEinsatz({ hiorgVeranstaltungId: '4711' });
+    speicher._vorbelegen(vorhanden);
+    const { liste, navigate } = listeMit(speicher);
+    await liste.einsatzOeffnen(gruppe);
+
+    expect(await speicher.ladeEinsaetze()).toHaveLength(1);
+    expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', vorhanden.id]);
+  });
+
+  it('kennzeichnet PEP und trennt Einsätze ohne HiOrg ab', async () => {
+    const speicher = new InMemoryEinsatzStorage();
+    speicher._vorbelegen(testEinsatz({ hiorgVeranstaltungId: '4711', pepId: crypto.randomUUID() }));
+    const ohne = testEinsatz({ titel: 'Dienst ohne HiOrg' });
+    speicher._vorbelegen(ohne);
+    const { liste } = listeMit(speicher);
+    liste.ngOnInit();
+    await vi.waitFor(() => expect(liste.einsatzListeGeladen()).toBe(true));
+
+    expect(liste.einsatzJeVeranstaltung().get('4711')?.pepId).not.toBeNull();
+    expect(liste.einsaetzeOhneHiorg().map((e) => e.id)).toEqual([ohne.id]);
   });
 });

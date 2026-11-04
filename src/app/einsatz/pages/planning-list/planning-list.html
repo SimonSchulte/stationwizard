@@ -111,48 +111,15 @@
                 }
               </td>
             </ng-container>
-            <ng-container matColumnDef="datum_von">
-              <th mat-header-cell *matHeaderCellDef>Beginn</th>
+            <ng-container matColumnDef="kennzeichen">
+              <th mat-header-cell *matHeaderCellDef>Stand</th>
               <td mat-cell *matCellDef="let g">
-                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_bis">
-              <th mat-header-cell *matHeaderCellDef>Ende</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="ort">
-              <th mat-header-cell *matHeaderCellDef>Ort</th>
-              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-            <tr
-              mat-row
-              *matRowDef="let g; columns: einsatzColumns"
-              class="einsatz-row"
-              (click)="openEfsGruppe(g)"
-            ></tr>
-          </table>
-        </div>
-      }
-
-      @if (pastGruppen().length > 0) {
-        <h3 class="past-header">Vergangene Veranstaltungen</h3>
-        <div
-          class="tabellenbereich"
-          role="region"
-          aria-label="Vergangene Veranstaltungen"
-          tabindex="0"
-        >
-          <table mat-table [dataSource]="pastGruppen()" class="einsatz-table past">
-            <ng-container matColumnDef="titel">
-              <th mat-header-cell *matHeaderCellDef>Titel</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.titel }}
-                @if (g.schichten.length > 1) {
-                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
+                @let einsatz = einsatzJeVeranstaltung().get(g.veranstaltung_id);
+                @if (einsatz?.pepId) {
+                  <span class="kennzeichen">PEP</span>
+                }
+                @if (einsatz?.vb) {
+                  <span class="kennzeichen">VB</span>
                 }
               </td>
             </ng-container>
@@ -177,7 +144,64 @@
               mat-row
               *matRowDef="let g; columns: einsatzColumns"
               class="einsatz-row"
-              (click)="openEfsGruppe(g)"
+              (click)="einsatzOeffnen(g)"
+            ></tr>
+          </table>
+        </div>
+      }
+
+      @if (pastGruppen().length > 0) {
+        <h3 class="past-header">Vergangene Veranstaltungen</h3>
+        <div
+          class="tabellenbereich"
+          role="region"
+          aria-label="Vergangene Veranstaltungen"
+          tabindex="0"
+        >
+          <table mat-table [dataSource]="pastGruppen()" class="einsatz-table past">
+            <ng-container matColumnDef="titel">
+              <th mat-header-cell *matHeaderCellDef>Titel</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.titel }}
+                @if (g.schichten.length > 1) {
+                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="kennzeichen">
+              <th mat-header-cell *matHeaderCellDef>Stand</th>
+              <td mat-cell *matCellDef="let g">
+                @let einsatz = einsatzJeVeranstaltung().get(g.veranstaltung_id);
+                @if (einsatz?.pepId) {
+                  <span class="kennzeichen">PEP</span>
+                }
+                @if (einsatz?.vb) {
+                  <span class="kennzeichen">VB</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="datum_von">
+              <th mat-header-cell *matHeaderCellDef>Beginn</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="datum_bis">
+              <th mat-header-cell *matHeaderCellDef>Ende</th>
+              <td mat-cell *matCellDef="let g">
+                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="ort">
+              <th mat-header-cell *matHeaderCellDef>Ort</th>
+              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
+            <tr
+              mat-row
+              *matRowDef="let g; columns: einsatzColumns"
+              class="einsatz-row"
+              (click)="einsatzOeffnen(g)"
             ></tr>
           </table>
         </div>
@@ -191,6 +215,46 @@
       }
     }
 
+    <mat-divider class="abschnitt-trenner"></mat-divider>
+  </section>
+
+  <section class="einsaetze-ohne-hiorg" aria-labelledby="einsaetze-ohne-hiorg-titel">
+    <div class="section-header">
+      <h2 id="einsaetze-ohne-hiorg-titel">Einsätze ohne HiOrg</h2>
+      <button matButton="outlined" (click)="einsatzAnlegen()">
+        <mat-icon>add</mat-icon> Einsatz anlegen
+      </button>
+    </div>
+    @if (einsatzListeFehler() && !einsatzListeGeladen()) {
+      <app-meldung art="fehler">{{ einsatzListeFehler() }}</app-meldung>
+    }
+    @if (einsatzListeLaedt() && !einsatzListeGeladen()) {
+      <app-ladeanzeige text="Einsätze werden geladen…" />
+    } @else if (einsaetzeOhneHiorg().length === 0) {
+      <p class="empty-hint">
+        Noch keine Einsätze ohne HiOrg-Veranstaltung. Lege einen an, wenn es keine Veranstaltung in
+        HiOrg gibt.
+      </p>
+    }
+    <ul class="cloud-dateien">
+      @for (einsatz of einsaetzeOhneHiorg(); track einsatz.id) {
+        <li>
+          <span>
+            {{ einsatz.titel }}
+            @if (einsatz.pepId) {
+              <span class="kennzeichen">PEP</span>
+            }
+            @if (einsatz.vb) {
+              <span class="kennzeichen">VB</span>
+            }
+            @if (einsatzZeitraumText(einsatz.beginn, einsatz.ende)) {
+              <span class="zeitraum">{{ einsatzZeitraumText(einsatz.beginn, einsatz.ende) }}</span>
+            }
+          </span>
+          <button matButton="outlined" (click)="einsatzOeffnenId(einsatz.id)">Öffnen</button>
+        </li>
+      }
+    </ul>
     <mat-divider class="abschnitt-trenner"></mat-divider>
   </section>
 
