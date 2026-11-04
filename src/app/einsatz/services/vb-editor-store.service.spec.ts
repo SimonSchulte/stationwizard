@@ -436,6 +436,28 @@ describe('VbEditorStoreService', () => {
       expect(store.kannRueckgaengig()).toBe(true); // nur die Eingabe selbst
     });
 
+    it('lädt die Vorlage nach einem Versionskonflikt über abgleichNeuLaden erneut', async () => {
+      await abgleichBereit();
+      store.laufzettelAendern(store.inhalt()!.abschnitte[0].laufzettel[0].id, {
+        lagerort: 'Meins',
+      });
+      const schluessel = new Set(store.abweichungen().map((a) => a.schluessel));
+      const echt = vorlagen.speichereVorlage.bind(vorlagen);
+      vorlagen.speichereVorlage = () =>
+        Promise.reject(new EinsatzplanungKonfliktFehler('Die Vorlage'));
+      expect(await store.aufVorlageAnwenden(schluessel)).toBe(false);
+      expect(store.abweichungen()).toEqual([]);
+      vorlagen.speichereVorlage = echt;
+
+      await store.abgleichNeuLaden();
+
+      expect(store.vorlageKonflikt()).toBe(false);
+      expect(store.speicherFehler()).toBe('');
+      expect(store.speicherZustand()).toBe('ruhig');
+      expect(store.abweichungen()).toHaveLength(1);
+      expect(store.geaendert()).toBe(true);
+    });
+
     it('meldet eine inzwischen gelöschte Vorlage', async () => {
       await abgleichBereit();
       const stand = await vorlagen.ladeVorlage(vorlage.id);

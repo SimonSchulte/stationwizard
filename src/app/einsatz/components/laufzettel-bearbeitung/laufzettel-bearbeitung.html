@@ -1,0 +1,198 @@
+<div class="kopf">
+  <h2 class="titel">
+    Laufzettel <span class="nummer">{{ nummer() }}</span>
+  </h2>
+  <div class="kopf-aktionen">
+    <button
+      matIconButton
+      type="button"
+      aria-label="Laufzettel duplizieren"
+      matTooltip="Laufzettel duplizieren"
+      (click)="dupliziert.emit()"
+    >
+      <mat-icon>content_copy</mat-icon>
+    </button>
+    <button
+      matIconButton
+      type="button"
+      aria-label="Laufzettel löschen"
+      matTooltip="Laufzettel löschen"
+      (click)="geloescht.emit()"
+    >
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+</div>
+
+<div class="felder">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
+    <mat-label>Auftrag (Überschrift)</mat-label>
+    <input
+      matInput
+      [attr.maxlength]="grenzen.text"
+      [value]="laufzettel().ueberschrift"
+      (input)="feld('ueberschrift', $event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Lagerort</mat-label>
+    <input
+      matInput
+      [attr.maxlength]="grenzen.text"
+      [value]="laufzettel().lagerort"
+      (input)="feld('lagerort', $event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Transport mit</mat-label>
+    <input
+      matInput
+      [attr.maxlength]="grenzen.text"
+      [value]="laufzettel().transportMit"
+      (input)="feld('transportMit', $event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Auftraggeber für Rückfragen</mat-label>
+    <input
+      matInput
+      [attr.maxlength]="grenzen.text"
+      [value]="laufzettel().auftraggeber"
+      (input)="feld('auftraggeber', $event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Abschnitt</mat-label>
+    <mat-select [value]="abschnittId()" (selectionChange)="abschnittGewaehlt.emit($event.value)">
+      @for (abschnitt of abschnitte(); track abschnitt.id) {
+        <mat-option [value]="abschnitt.id">{{ abschnitt.titel }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="fachgruppe">
+  <span class="feldname" id="fachgruppe-label">Fachgruppe</span>
+  <mat-chip-listbox
+    aria-labelledby="fachgruppe-label"
+    [value]="laufzettel().fachgruppe ?? 'keine'"
+    (change)="fachgruppeGewaehlt($event.value)"
+  >
+    <mat-chip-option value="keine">keine</mat-chip-option>
+    @for (gruppe of fachgruppen; track gruppe) {
+      <mat-chip-option [value]="gruppe">
+        <span
+          class="gruppenpunkt"
+          matChipAvatar
+          aria-hidden="true"
+          [style.background-color]="'var(' + fachgruppeFarbe[gruppe] + ')'"
+        ></span>
+        {{ fachgruppeBezeichnung[gruppe] }}
+      </mat-chip-option>
+    }
+  </mat-chip-listbox>
+</div>
+
+<div class="positionen-kopf">
+  <h3>Positionen ({{ laufzettel().positionen.length }})</h3>
+</div>
+
+<div class="positionen" cdkDropList (cdkDropListDropped)="positionAbgelegt($event)">
+  @for (position of laufzettel().positionen; track position.id; let i = $index) {
+    <div class="position" cdkDrag cdkDragLockAxis="y">
+      <mat-checkbox
+        class="markierung"
+        [checked]="markiert().has(position.id)"
+        [attr.aria-label]="'Position ' + (i + 1) + ' markieren'"
+        (change)="markierungUmschalten(position.id, $event.checked)"
+      />
+      <mat-icon
+        cdkDragHandle
+        class="griff"
+        aria-label="Position verschieben"
+        matTooltip="Ziehen zum Umsortieren"
+        >drag_indicator</mat-icon
+      >
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="anzahl kompakt">
+        <mat-label>Anzahl</mat-label>
+        <input
+          matInput
+          [attr.maxlength]="grenzen.anzahl"
+          [value]="position.anzahl"
+          (input)="positionFeld(position.id, 'anzahl', $event)"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="material kompakt">
+        <mat-label>Material</mat-label>
+        <input
+          #materialFeld
+          matInput
+          required
+          [attr.maxlength]="grenzen.text"
+          [value]="position.material"
+          (input)="positionFeld(position.id, 'material', $event)"
+        />
+      </mat-form-field>
+      <button
+        matIconButton
+        type="button"
+        aria-label="Position entfernen"
+        matTooltip="Position entfernen"
+        (click)="positionEntfernt.emit(position.id)"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  } @empty {
+    <p class="leer">Noch keine Positionen.</p>
+  }
+</div>
+
+<div class="positionen-aktionen">
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="laufzettel().positionen.length >= grenzen.positionen"
+    (click)="positionHinzufuegen()"
+  >
+    <mat-icon>add</mat-icon>
+    Position hinzufügen
+  </button>
+  <button matButton type="button" [disabled]="markierteIds().length === 0" (click)="teilen()">
+    <mat-icon>call_split</mat-icon>
+    Markierte als eigenen Laufzettel
+  </button>
+  <button
+    matButton
+    type="button"
+    [matMenuTriggerFor]="zusammenfuehrenMenue"
+    [disabled]="andere().length === 0"
+  >
+    <mat-icon>call_merge</mat-icon>
+    Mit Laufzettel zusammenführen…
+  </button>
+  <mat-menu #zusammenfuehrenMenue="matMenu">
+    @for (anderer of andere(); track anderer.id) {
+      <button mat-menu-item type="button" (click)="zusammengefuehrt.emit(anderer.id)">
+        {{ anderer.nummer }} · {{ anderer.text }}
+      </button>
+    }
+  </mat-menu>
+</div>
+
+<app-platz-anzeige class="platz" [platz]="platz()" />
+
+@if (platz().zustand === 'zu-voll') {
+  <div class="hinweis" role="alert">
+    <mat-icon aria-hidden="true">warning</mat-icon>
+    <div class="hinweis-text">
+      <p>
+        Passt nicht auf einen Laufzettel: {{ zuViele() }}
+        {{ zuViele() === 1 ? 'Zeile' : 'Zeilen' }} zu viel. Gedruckt wird ein Fortsetzungsstreifen.
+      </p>
+      <button matButton="outlined" type="button" (click)="aufgeteilt.emit()">
+        In zwei Laufzettel aufteilen
+      </button>
+    </div>
+  </div>
+}

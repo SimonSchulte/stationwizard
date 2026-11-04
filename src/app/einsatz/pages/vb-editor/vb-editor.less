@@ -1,3 +1,202 @@
-.inhalt {
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.untertitel {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seite {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
   padding: var(--space-md);
+}
+
+.mobil-hinweis {
+  display: none;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.vorlagentitel {
+  max-width: calc(var(--space-2xl) * 10);
+}
+
+.laufzettel-reiter {
+  display: grid;
+  grid-template-columns: minmax(0, calc(var(--space-2xl) * 10 + var(--space-md))) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  padding-top: var(--space-md);
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.bearbeitung {
+  position: sticky;
+  top: calc(var(--space-2xl) + var(--space-xl));
+  min-width: 0;
+  max-height: calc(100dvh - var(--space-2xl) - var(--space-xl) - var(--space-md));
+  padding: var(--space-md);
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+}
+
+.abgleich-hinweis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-base);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--radius-card);
+  background: var(--status-warn-bg);
+
+  mat-icon {
+    color: var(--status-warn);
+  }
+
+  span {
+    flex: 1 1 auto;
+  }
+}
+
+.werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+
+  .suche {
+    flex: 1 1 100%;
+  }
+}
+
+.suchhinweis {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.abschnitte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.abschnitt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--surface-primary);
+}
+
+.abschnitt-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.griff {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  cursor: grab;
+}
+
+.abschnitt-titel {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: var(--mat-sys-title-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.abschnitt-anzahl {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.abschnitt-plus {
+  margin-left: auto;
+}
+
+.karten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: var(--space-xl);
+}
+
+.leerer-abschnitt {
+  margin: 0;
+  padding: var(--space-sm) var(--space-base);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-card);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.anweisungen {
+  padding-top: var(--space-md);
+
+  mat-form-field {
+    width: 100%;
+    max-width: calc(var(--space-2xl) * 16);
+  }
+}
+
+.abschnitt.cdk-drag-preview,
+.karte.cdk-drag-preview {
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+  box-shadow: var(--elevation-drag);
+}
+
+.abschnitt.cdk-drag-placeholder,
+.karte.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.abschnitte.cdk-drop-list-dragging .abschnitt:not(.cdk-drag-placeholder),
+.karten.cdk-drop-list-dragging .karte:not(.cdk-drag-placeholder) {
+  transition: transform var(--transition-normal);
+}
+
+@media (max-width: 780px) {
+  .mobil-hinweis {
+    display: block;
+  }
+
+  .laufzettel-reiter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bearbeitung {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
 }

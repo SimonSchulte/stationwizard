@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>Änderungen auf Vorlage anwenden?</h2>
+<mat-dialog-content>
+  <p class="text">
+    Aus der Vorbereitung „{{ daten.vorbereitung }}“ in die Vorlage „{{ daten.vorlageTitel }}“
+    @if (daten.vorlageVersion !== null) {
+      (Version {{ daten.vorlageVersion }})
+    }
+    . Andere Einsätze bleiben unverändert.
+  </p>
+  <ul class="liste">
+    @for (aenderung of daten.aenderungen; track aenderung.schluessel) {
+      <li class="eintrag">
+        <mat-checkbox
+          [checked]="gewaehlt().has(aenderung.schluessel)"
+          (change)="umschalten(aenderung.schluessel, $event.checked)"
+        >
+          <span class="titelzeile">
+            <span class="art" [attr.data-art]="aenderung.art">{{
+              artBezeichnung[aenderung.art]
+            }}</span>
+            <span class="titel">{{ aenderung.titel }}</span>
+          </span>
+          <span class="beschreibung">{{ aenderung.beschreibung }}</span>
+        </mat-checkbox>
+      </li>
+    } @empty {
+      <li class="leer">Keine Abweichungen von der Vorlage.</li>
+    }
+  </ul>
+  <p class="hinweis">
+    Vor dem Übernehmen wird die Vorlage frisch geladen. Wurde sie inzwischen von jemand anderem
+    geändert, bleibt diese Vorbereitung unverändert und der Abgleich muss neu geöffnet werden.
+  </p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton type="button" [mat-dialog-close]="undefined">Abbrechen</button>
+  <button matButton="filled" type="button" [disabled]="anzahl() === 0" (click)="uebernehmen()">
+    {{ anzahl() === 1 ? '1 Änderung' : anzahl() + ' Änderungen' }} übernehmen
+  </button>
+</mat-dialog-actions>

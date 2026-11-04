@@ -437,6 +437,19 @@ export class VbEditorStoreService {
   }
 
   /**
+   * Quittiert einen gescheiterten Abgleich (etwa nach einem Versionskonflikt der Vorlage) und
+   * lädt die Vorlage neu. Die Vorbereitung bleibt unverändert.
+   */
+  abgleichNeuLaden(): Promise<void> {
+    this.abgleichLauf = null;
+    this.vorlageKonflikt.set(false);
+    this.vorlageFehlt.set(false);
+    this.speicherFehler.set('');
+    if (this.speicherZustand() === 'fehler') this.speicherZustand.set('ruhig');
+    return this.abgleichVorlageLaden();
+  }
+
+  /**
    * Schreibt die gewählten Abweichungen auf die Vorlage zurück: lädt die Vorlage frisch,
    * wendet an, speichert sie mit `If-Match` und danach die Vorbereitung. Scheitert das
    * Speichern der Vorlage (etwa 412), bleibt die Vorbereitung vollständig unverändert und
@@ -486,7 +499,10 @@ export class VbEditorStoreService {
           ? 'Die Vorlage wurde zwischenzeitlich geändert. Die Vorbereitung bleibt unverändert; bitte den Abgleich neu öffnen.'
           : fehlermeldung(ursache, 'Die Vorlage konnte nicht gespeichert werden.'),
       );
-      if (konflikt) this.abgleichVorlage.set(null);
+      if (konflikt) {
+        this.abgleichVorlage.set(null);
+        this.abgleichLauf = null;
+      }
       return false;
     }
 
