@@ -3256,7 +3256,7 @@ Datenvertrag zwischen Worker und Frontend).
   Code bleibt unter `src/app/einsatz/`. Der Worker leitet nach HiOrg-Verbinden weiter auf
   `#/einsatz`; das landet über die Weiterleitung richtig.
 - Worker: eigene D1-Datenbank `EINSATZPLANUNG_DB` (Migration `0020_einsatzplanung.sql` mit der
-  Startvorlage „Weihnachtsmarkt Ummeln“, 3 Abschnitte, 17 Laufzettel, 47 Positionen), Endpunkte
+  Startvorlage „Weihnachtsmarkt Ummeln“, gruppiert nach Transportziel und Lagerort: 4 Abschnitte, 14 Laufzettel, 47 Positionen), Endpunkte
   für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
   Änderungen nur mit `If-Match`. **Noch nicht eingerichtet:** Der Bindungsblock in
   `worker/wrangler.toml` ist auskommentiert, bis die Datenbank angelegt und ihre ID

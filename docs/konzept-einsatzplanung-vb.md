@@ -38,8 +38,8 @@ VB-Vorlage ── Abschnitt ── Laufzettel ── Position        (gleiche St
   die Übersicht jede PEP-Datei laden, um ihre Veranstaltung zu finden (die Nextcloud-Liste
   liefert nur UUID/ETag). Ein Einsatz entsteht beim ersten Anlegen von PEP oder VB zu einer
   HiOrg-Veranstaltung oder von Hand ohne HiOrg.
-- **Abschnitt**: `id`, `titel`, `farbe`, optional `fachgruppe` – fachliche Gruppierung, im
-  Beispiel nach Auftraggeber (GF Betreuung, GF TeSi, GF Verpflegung). Reihenfolge =
+- **Abschnitt**: `id`, `titel`, `farbe`, optional `fachgruppe` – Gruppierung nach
+  Transportziel (siehe Gruppierungsregel unten). Reihenfolge =
   Druckreihenfolge. `farbe` ist ein Schlüssel aus einer festen Palette von acht
   Abschnittsfarben (`ABSCHNITT_FARBEN`, Tokens `--abschnitt-1` … `--abschnitt-8` in
   `src/tokens.less`, Druckwerte in `PDF_FARBEN`); kein frei wählbarer Farbwert, damit der
@@ -65,10 +65,23 @@ VB-Vorlage ── Abschnitt ── Laufzettel ── Position        (gleiche St
 
 Die Excel-Datei hat eine Zeile je Material (Spalten LdfNr, Anzahl, erl., Material, Lagerort,
 Transport mit, Ansprechpartner); die Word-Führungshilfe fasst mehrere Materialien zu einem
-Auftrag zusammen. Vorschlag: beim Übernehmen **gleiche Kombinationen aus Lagerort, Transport
-und Ansprechpartner zu einem Laufzettel zusammenfassen**. Aus 47 Zeilen werden so
-17 Laufzettel in 3 Abschnitten (6 Druckseiten). Die Spalte „erl.“ entfällt in der Vorlage,
-sie wird auf dem Ausdruck zum Kästchen je Position.
+Auftrag zusammen.
+
+**Gruppierungsregel (Betreiberentscheidung):** Im Mittelpunkt steht, _was wohin_ gepackt wird,
+nicht der Ansprechpartner. Helfer sollen mit einem Laufzettel weitgehend selbstständig
+arbeiten: an einen Ort gehen, alles einsammeln, an einem Ziel abliefern. Deshalb:
+
+- **Abschnitt = Transportziel** („Transport mit“, etwa Rollwagen, blauer Gitterwagen, grüne
+  Einkaufskisten, Iveco Betreuung). Die Abschnittsfarbe ist damit die Farbe des Ziels.
+- **Laufzettel = ein Lagerort innerhalb des Ziels.** Alle Positionen, die von demselben Ort
+  auf dasselbe Ziel gehen, stehen auf einem Zettel – auch wenn verschiedene Gruppenführungen
+  dafür zuständig sind. „Rückfragen an“ nennt dann beide (`GF Betreuung / GF Verpflegung`),
+  die Fachgruppe bleibt leer, wenn sie nicht eindeutig ist.
+- Auf dem Laufzettel stehen **„Von“** (Lagerort) und **„Auf / In“** (Transport mit) groß
+  oben unter dem Auftrag; „Rückfragen an“ steht klein am Fuß.
+
+Aus den 47 Zeilen der Ummeln-Liste werden so 14 Laufzettel in 4 Abschnitten (5 Druckseiten).
+Die Spalte „erl.“ entfällt in der Vorlage, sie wird auf dem Ausdruck zum Kästchen je Position.
 
 ## 3. Speicherung und Worker
 
