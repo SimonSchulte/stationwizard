@@ -3366,7 +3366,15 @@ Datenvertrag zwischen Worker und Frontend).
   Planungen“, Knopf „Neue Planung“, Nextcloud-Texte; `fast-xml-parser` (nirgends mehr importiert).
   `/einsatzplanung/vb-vorlagen` leitet auf `/verwaltung/einsatz-vorlagen` um. Die Einsatzkarte zeigt
   „n / m besetzt“ aus den Kennzahlen der Einsatzliste.
-- Geprüft: Angular-Tests (179 Dateien, 1494 Tests), `tsc` für App und Spec. Nicht geprüft: Browserlauf
-  des umgebauten Editors auf Desktop und Mobil, echte Datenbank.
-- Offen: Die Zielroute `/verwaltung/einsatz-vorlagen` und die Verknüpfung zu `pep-vorlagen/:id`
-  baut der Verwaltungsteil; `StorageArt` in `kern/storage/datei-storage.ts` kennt noch `'nextcloud'`.
+- Geprüft: `npm run build`, `npm test` (Angular 1494, öffentliche Seite 29 + 29, Worker 852),
+  Formatprüfung, `deploy:dry-run` (keine Nextcloud-Bindings mehr). Headless-Chromium mit
+  nachgebildeter API auf 1440×900: Einsatzkarte mit „1 / 3 besetzt“, PEP-Editor aus der
+  Datenbank geöffnet (Zuordnung und Einsatzleitung über die Ids korrekt aufgelöst, Kopf
+  gesperrt), Admin-Seite mit beiden Reitern, Excel-Upload der echten Packliste 2025 (verschobene
+  Kopfzeile erkannt, 5 Abschnitte, 23 Laufzettel, vier Auffälligkeiten). Nicht geprüft:
+  Speichern gegen die echte Datenbank, PEP-Upload und Editor im Vorlagenmodus im Browser, Handy.
+- Datenbank: `0021_pep.sql` ist am 05.11.2026 eingespielt. `0022` (Spalte `pep_id` entfernen)
+  steht bewusst aus, bis der neue Worker deployt ist, weil die laufende ältere Version die Spalte
+  noch beschreibt.
+- Offen: `StorageArt` in `kern/storage/datei-storage.ts` kennt noch `'nextcloud'`; die
+  Nextcloud-Secrets können in Cloudflare gelöscht werden (Betreibersache).
