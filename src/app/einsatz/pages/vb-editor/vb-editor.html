@@ -172,6 +172,18 @@
                 <mat-icon>add</mat-icon>
                 Abschnitt
               </button>
+              <button
+                matIconButton
+                type="button"
+                [disabled]="sucheAktiv()"
+                [attr.aria-label]="
+                  alleEingeklappt() ? 'Alle Abschnitte aufklappen' : 'Alle Abschnitte einklappen'
+                "
+                [matTooltip]="alleEingeklappt() ? 'Alle aufklappen' : 'Alle einklappen'"
+                (click)="alleUmschalten()"
+              >
+                <mat-icon>{{ alleEingeklappt() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+              </button>
             </div>
 
             @if (sucheAktiv()) {
@@ -205,6 +217,23 @@
                   [cdkDragDisabled]="sucheAktiv()"
                 >
                   <div class="abschnitt-kopf">
+                    <button
+                      matIconButton
+                      type="button"
+                      class="umschalter"
+                      [disabled]="sucheAktiv()"
+                      [attr.aria-expanded]="!istEingeklappt(abschnitt.id)"
+                      [attr.aria-controls]="'abschnitt-karten-' + abschnitt.id"
+                      [attr.aria-label]="
+                        (istEingeklappt(abschnitt.id) ? 'Aufklappen: ' : 'Einklappen: ') +
+                        abschnitt.titel
+                      "
+                      (click)="abschnittUmschalten(abschnitt.id)"
+                    >
+                      <mat-icon>{{
+                        istEingeklappt(abschnitt.id) ? 'chevron_right' : 'expand_more'
+                      }}</mat-icon>
+                    </button>
                     @if (!sucheAktiv()) {
                       <mat-icon
                         cdkDragHandle
@@ -240,37 +269,40 @@
                       <mat-icon>add</mat-icon>
                     </button>
                   </div>
-                  <div
-                    class="karten"
-                    cdkDropList
-                    [cdkDropListData]="abschnitt.id"
-                    [cdkDropListDisabled]="sucheAktiv()"
-                    (cdkDropListDropped)="laufzettelAbgelegt($event)"
-                  >
-                    @for (laufzettel of abschnitt.laufzettel; track laufzettel.id) {
-                      <div
-                        class="karte"
-                        cdkDrag
-                        [cdkDragData]="laufzettel.id"
-                        [cdkDragDisabled]="sucheAktiv()"
-                      >
-                        <app-laufzettel-karte
-                          [laufzettel]="laufzettel"
-                          [nummer]="nummern().get(laufzettel.id) ?? 0"
-                          [farbe]="abschnitt.farbe"
-                          [ausgewaehlt]="aktiv()?.laufzettel?.id === laufzettel.id"
-                          [marke]="marken().get(laufzettel.id) ?? null"
-                          (gewaehlt)="waehlen(laufzettel.id)"
-                        />
-                      </div>
-                    } @empty {
-                      @if (!sucheAktiv()) {
-                        <p class="leerer-abschnitt">
-                          Noch kein Laufzettel – hierher ziehen oder mit „+“ anlegen.
-                        </p>
+                  @if (!istEingeklappt(abschnitt.id)) {
+                    <div
+                      class="karten"
+                      [id]="'abschnitt-karten-' + abschnitt.id"
+                      cdkDropList
+                      [cdkDropListData]="abschnitt.id"
+                      [cdkDropListDisabled]="sucheAktiv()"
+                      (cdkDropListDropped)="laufzettelAbgelegt($event)"
+                    >
+                      @for (laufzettel of abschnitt.laufzettel; track laufzettel.id) {
+                        <div
+                          class="karte"
+                          cdkDrag
+                          [cdkDragData]="laufzettel.id"
+                          [cdkDragDisabled]="sucheAktiv()"
+                        >
+                          <app-laufzettel-karte
+                            [laufzettel]="laufzettel"
+                            [nummer]="nummern().get(laufzettel.id) ?? 0"
+                            [farbe]="abschnitt.farbe"
+                            [ausgewaehlt]="aktiv()?.laufzettel?.id === laufzettel.id"
+                            [marke]="marken().get(laufzettel.id) ?? null"
+                            (gewaehlt)="waehlen(laufzettel.id)"
+                          />
+                        </div>
+                      } @empty {
+                        @if (!sucheAktiv()) {
+                          <p class="leerer-abschnitt">
+                            Noch kein Laufzettel – hierher ziehen oder mit „+“ anlegen.
+                          </p>
+                        }
                       }
-                    }
-                  </div>
+                    </div>
+                  }
                 </div>
               }
             </div>

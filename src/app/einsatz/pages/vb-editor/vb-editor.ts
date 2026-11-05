@@ -181,6 +181,16 @@ export class VbEditor {
 
   protected readonly sucheAktiv = computed(() => this.suche().trim() !== '');
 
+  /**
+   * Eingeklappte Abschnitte, nur für diese Sitzung (nicht gespeichert). Beim Suchen ist alles
+   * aufgeklappt, damit kein Treffer verborgen bleibt.
+   */
+  protected readonly eingeklappt = signal<ReadonlySet<string>>(new Set());
+  protected readonly alleEingeklappt = computed(() => {
+    const abschnitte = this.store.inhalt()?.abschnitte ?? [];
+    return abschnitte.length > 0 && abschnitte.every((a) => this.eingeklappt().has(a.id));
+  });
+
   /** Abschnitte mit den zur Suche passenden Laufzetteln; ohne Suche der unveränderte Inhalt. */
   protected readonly sichtbar = computed<VbAbschnitt[]>(() => {
     const abschnitte = this.store.inhalt()?.abschnitte ?? [];
@@ -486,6 +496,29 @@ export class VbEditor {
     this.gewaehlteId.set(id);
   }
 
+  protected istEingeklappt(abschnittId: string): boolean {
+    return !this.sucheAktiv() && this.eingeklappt().has(abschnittId);
+  }
+
+  protected abschnittUmschalten(abschnittId: string): void {
+    this.eingeklappt.update((alt) => {
+      const neu = new Set(alt);
+      if (neu.has(abschnittId)) neu.delete(abschnittId);
+      else neu.add(abschnittId);
+      return neu;
+    });
+  }
+
+  protected alleUmschalten(): void {
+    const abschnitte = this.store.inhalt()?.abschnitte ?? [];
+    this.eingeklappt.set(this.alleEingeklappt() ? new Set() : new Set(abschnitte.map((a) => a.id)));
+  }
+
+  private aufklappen(abschnittId: string): void {
+    if (!this.eingeklappt().has(abschnittId)) return;
+    this.eingeklappt.update((alt) => new Set([...alt].filter((id) => id !== abschnittId)));
+  }
+
   protected laufzettelHinzufuegen(abschnittId?: string): void {
     const inhalt = this.store.inhalt();
     if (!inhalt) return;
@@ -493,7 +526,10 @@ export class VbEditor {
     ziel ??= this.store.abschnittHinzufuegen();
     if (!ziel) return;
     const id = this.store.laufzettelHinzufuegen(ziel);
-    if (id) this.gewaehlteId.set(id);
+    if (id) {
+      this.aufklappen(ziel);
+      this.gewaehlteId.set(id);
+    }
   }
 
   protected laufzettelAbgelegt(ereignis: CdkDragDrop<string, string, string>): void {

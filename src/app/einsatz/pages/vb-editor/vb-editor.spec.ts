@@ -237,6 +237,69 @@ describe('VbEditor', () => {
     expect(element.textContent).toContain('Keine Treffer');
   });
 
+  describe('Abschnitte ein- und ausklappen', () => {
+    function karten(element: HTMLElement): number {
+      return element.querySelectorAll('app-laufzettel-karte').length;
+    }
+
+    it('klappt einen Abschnitt über seinen Kopf ein und wieder auf', async () => {
+      await vorbereitungSeed();
+      const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);
+      const umschalter = element.querySelector<HTMLButtonElement>('.abschnitt-kopf .umschalter')!;
+      expect(umschalter.getAttribute('aria-expanded')).toBe('true');
+      expect(karten(element)).toBe(2);
+
+      umschalter.click();
+      harness.detectChanges();
+      expect(karten(element)).toBe(0);
+      expect(umschalter.getAttribute('aria-expanded')).toBe('false');
+
+      umschalter.click();
+      harness.detectChanges();
+      expect(karten(element)).toBe(2);
+    });
+
+    it('klappt alle Abschnitte gemeinsam ein und auf', async () => {
+      await vorbereitungSeed();
+      const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);
+      element
+        .querySelector<HTMLButtonElement>('button[aria-label="Alle Abschnitte einklappen"]')!
+        .click();
+      harness.detectChanges();
+      expect(karten(element)).toBe(0);
+
+      element
+        .querySelector<HTMLButtonElement>('button[aria-label="Alle Abschnitte aufklappen"]')!
+        .click();
+      harness.detectChanges();
+      expect(karten(element)).toBe(2);
+    });
+
+    it('zeigt beim Suchen auch Treffer aus eingeklappten Abschnitten', async () => {
+      await vorbereitungSeed();
+      const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);
+      element.querySelector<HTMLButtonElement>('.abschnitt-kopf .umschalter')!.click();
+      harness.detectChanges();
+      expect(karten(element)).toBe(0);
+
+      const suche = element.querySelector<HTMLInputElement>('app-suchfeld input')!;
+      suche.value = 'lager nord';
+      suche.dispatchEvent(new Event('input'));
+      harness.detectChanges();
+      expect(karten(element)).toBe(1);
+    });
+
+    it('klappt einen Abschnitt auf, wenn darin ein Laufzettel angelegt wird', async () => {
+      await vorbereitungSeed();
+      const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);
+      element.querySelector<HTMLButtonElement>('.abschnitt-kopf .umschalter')!.click();
+      harness.detectChanges();
+      element.querySelector<HTMLButtonElement>('.abschnitt-kopf .abschnitt-plus')!.click();
+      harness.detectChanges();
+      expect(karten(element)).toBe(3);
+    });
+  });
+
   it('wählt einen Laufzettel und schreibt Feldänderungen in den Store', async () => {
     await vorbereitungSeed();
     const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);

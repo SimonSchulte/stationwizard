@@ -3294,6 +3294,10 @@ Datenvertrag zwischen Worker und Frontend).
   Abschnitte mit Farbe und Fachgruppe, Laufzettel per Ziehen sortierbar, Platzanzeige je
   Laufzettel (23 Materialzeilen à 38 Zeichen) mit Warnung und „In zwei Laufzettel aufteilen“,
   Allgemeine Anweisungen, Rückgängig, „Auf Vorlage anwenden…“ mit Auswahl je Änderung.
+  Abschnitte lassen sich einzeln (Pfeil im Abschnittskopf) oder alle gemeinsam ein- und
+  aufklappen; der Zustand gilt nur für die Sitzung. Beim Suchen ist alles aufgeklappt, und
+  ein neu angelegter Laufzettel klappt seinen Abschnitt auf. In einen eingeklappten Abschnitt
+  lässt sich nicht hineinziehen.
 - PDF-Druck (pdfmake): Anweisungsblatt A4 quer, danach drei Laufzettel je A4-Querseite mit
   Klemmrand, Farbband, Fachgruppe, 23-Zeilen-Raster und Fortsetzungsstreifen bei zu vollen
   Laufzetteln.
