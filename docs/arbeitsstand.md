@@ -3457,3 +3457,25 @@ Datenvertrag zwischen Worker und Frontend).
   danach: ein Einsatz mit VB, noch keine PEP.
 - Offen: `StorageArt` in `kern/storage/datei-storage.ts` kennt noch `'nextcloud'`; die
   Nextcloud-Secrets können in Cloudflare gelöscht werden (Betreibersache).
+
+### Kalender: Datumsblock in Liste, KatS, Jahr und Monat
+
+Nach dem Vorbild der Einsatzübersicht (`einsatz-karte`) tragen jetzt alle Ansichten dieselbe
+Datumssprache. Gebaut und geprüft (Build, Tests, Prettier, Sichtprüfung mit Playwright gegen die
+Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Gerät):
+
+- **Baustein** `kern/datumsblock/` (rein darstellend) und `ausbildung/services/datum-anzeige.ts`
+  (Abstand zu heute, Zeit nur bei Abweichung, Blockzeile, Monatstexte) mit eigenen Tests.
+- **Liste und KatS:** Block mit Monat, Tag und „Mo · 19:00“, Monatstrenner, Abstandspille für die
+  nächsten 14 Tage (gelb bei einer bald anstehenden Lücke); die Karte wiederholt Datum und Beginn
+  nicht („bis 22:30“, Mehrtägiges als „2 Tage · bis So 08.03.“). Die Kalenderwoche bleibt als kleine
+  Zeile über dem Tag stehen.
+- **Jahr:** Monatsblock mit Belegung „3/5“ (Diensttage ohne Feiertag; die Kennzahl oben zählt
+  Feiertage mit, beide Zahlen sind bewusst nicht dieselbe), große Tageszahl, Rollenstreifen links,
+  Abstand zu heute, abweichende Uhrzeit, laufender Monat umrandet, am Handy ein Streifen je Monat
+  mit zwei Spalten statt seitlichem Scrollen.
+- **Monat:** Tageszahl 16 px fett, „1. APR“ am Monatsersten, heute als blaues Oval mit Pille (am
+  Handy nur das Oval), Karte ohne Symbol und ohne Standardzeit, Lücke gestrichelt mit „+“, KW nur als
+  Nummer, Agenda mit Datumsblock im Kopf und Karte ohne doppeltes Datum.
+- **Offen:** Der Einsatzbereich nutzt seinen eigenen Block weiter; er könnte `app-datumsblock`
+  übernehmen. Die Zählung je Rolle im Kennzahlenblock des Jahres bleibt vorerst bestehen.

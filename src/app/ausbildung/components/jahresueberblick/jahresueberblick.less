@@ -59,23 +59,66 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-compact);
-  min-width: 560px;
+  min-width: 640px;
 }
 
+/* Eine Zeile je Monat: links der Monatsblock, rechts die Diensttage. Jeder zweite Monat ist getönt. */
 .zeile {
   display: grid;
-  grid-template-columns: 44px repeat(5, minmax(96px, 1fr));
-  gap: var(--space-compact);
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-compact);
+  border-radius: var(--radius-chip);
+
+  &.ungerade {
+    background: var(--monat-ungerade-bg);
+  }
+
+  /* Der laufende Monat ist blau umrandet. */
+  &.laufend {
+    outline: 2px solid var(--ci-blue);
+    outline-offset: calc(-1 * var(--space-unit));
+  }
 }
 
-.monat {
-  grid-column: 1;
-  align-self: center;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+.monatsblock {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2xs);
+  min-height: 64px;
+  padding: var(--space-sm) var(--space-xs);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  line-height: 1.1;
+  text-align: center;
+
+  .mon {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .zaehl {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+
+    &.warn {
+      color: var(--luecke-text);
+      font-weight: 600;
+    }
+  }
+}
+
+.zeile.ungerade .monatsblock {
+  background: color-mix(in srgb, var(--surface-primary) 55%, transparent);
+}
+
+.zellen {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
+  gap: var(--space-compact);
 }
 
 .zelle-huelle {
@@ -93,8 +136,8 @@
   --mat-icon-button-state-layer-size: 32px;
 
   position: absolute;
+  top: var(--space-2xs);
   right: var(--space-2xs);
-  bottom: var(--space-2xs);
   width: 32px;
   height: 32px;
   padding: 0;
@@ -107,53 +150,132 @@
 
 .zelle {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: var(--space-2xs) var(--space-sm);
+  align-content: start;
   min-width: 0;
-  min-height: 52px;
-  padding: var(--space-xs) var(--space-compact);
+  min-height: 56px;
+  padding: var(--space-compact) var(--space-sm);
   text-align: left;
   font: inherit;
+  font-size: 0.8125rem;
   color: inherit;
   cursor: pointer;
-  background: color-mix(in srgb, var(--k, var(--kat-ereignis)) 14%, var(--surface-primary));
-  border: 1px solid var(--surface-hover);
-  border-top: 4px solid var(--k, var(--kat-ereignis));
-  border-radius: var(--radius-sm);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-left: 5px solid var(--k, var(--kat-ereignis));
+  border-radius: var(--radius-md);
+
+  .tag {
+    grid-row: span 2;
+    min-width: 1.6em;
+    font-size: 1.375rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .titel {
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .fuss {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+  }
+
+  .zeitabw {
+    color: var(--status-warn);
+    font-weight: 500;
+  }
+
+  .abstand {
+    padding: 0 var(--space-sm);
+    border-radius: var(--radius-pill);
+    background: var(--surface-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+
+    &.dringend {
+      background: var(--status-warn-bg);
+      color: var(--status-warn);
+    }
+  }
+
+  &.vorbei {
+    opacity: 0.7;
+  }
+
+  &.feiertag {
+    border-left-color: var(--text-disabled);
+    background: var(--feiertag-bg);
+    color: var(--feiertag-text);
+  }
 
   &.luecke {
-    background: var(--luecke-bg);
-    border-color: var(--luecke-rand);
-    border-style: dashed;
+    border: 1px dashed var(--luecke-rand);
+    background: transparent;
+
+    .tag,
+    .titel {
+      color: var(--luecke-text);
+    }
+
+    .titel {
+      font-weight: 500;
+    }
   }
 
   &.abweichung {
     outline: 2px solid var(--hiorg-abweichung-rand);
   }
 
-  &.heute {
-    box-shadow: 0 0 0 2px var(--text-primary);
+  /* Heute: die Tageszahl wird zur gefüllten Fläche. */
+  &.heute .tag {
+    padding: 0 var(--space-xs);
+    border-radius: var(--radius-sm);
+    background: var(--ci-blue);
+    color: var(--text-on-dark);
   }
 }
 
-.nummer {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
+@media (max-width: 780px) {
+  .tabelle {
+    min-width: 0;
+  }
 
-.titel {
-  overflow: hidden;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  /* Ein Streifen je Monat: Kopf mit Belegung, darunter die Diensttage zu zweit. */
+  .zeile {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.warnpunkt {
-  position: absolute;
-  top: var(--space-xs);
-  right: var(--space-xs);
-  color: var(--hiorg-abweichung-text);
+  .monatsblock {
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: var(--space-base);
+    min-height: 0;
+    padding: var(--space-compact) var(--space-base);
+    text-align: left;
+  }
+
+  .zellen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .anlegen {
+    --mat-icon-button-touch-target-display: block;
+  }
 }
 
 .hinweis {

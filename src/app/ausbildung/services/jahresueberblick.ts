@@ -1,5 +1,6 @@
 import { monatIndex } from '../../kern/kalender/datum';
 import { Kategorie } from '../models/plan.model';
+import { hatBesondereZeit, zeitBereichText } from './datum-anzeige';
 import { WochenZeile } from './plan-raster';
 
 /** Ein Diensttag des Jahres im Überblick. */
@@ -13,11 +14,18 @@ export interface UeberblickZelle {
   feiertag: string | null;
   /** Der Tag trägt eine abweichende HiOrg-Bezeichnung. */
   abweichung: boolean;
+  /** Uhrzeit, wenn sie vom Dienstabend (19:00 bis 22:30) abweicht, sonst leer. */
+  zeit: string;
 }
 
 export interface UeberblickMonat {
   index: number;
   zellen: UeberblickZelle[];
+  /** Diensttage ohne Feiertag; Grundlage der Belegung „3/5“. */
+  diensttage: number;
+  /** Davon mit Ausbildungsthema. */
+  belegt: number;
+  luecken: number;
 }
 
 export interface UeberblickKennzahlen {
@@ -44,6 +52,9 @@ export function baueJahresueberblick(
   const monate: UeberblickMonat[] = Array.from({ length: 12 }, (_, index) => ({
     index,
     zellen: [],
+    diensttage: 0,
+    belegt: 0,
+    luecken: 0,
   }));
   const nachKategorie = new Map<Kategorie | '', number>();
   let luecken = 0;
@@ -56,7 +67,9 @@ export function baueJahresueberblick(
     }
     const termin = slot.termine.find((t) => t.termin.thema.trim())?.termin ?? null;
     const abweichung = tageMitAbweichung.has(slot.datum);
-    monate[monatIndex(slot.datum)]!.zellen.push({
+    const monatZeile = monate[monatIndex(slot.datum)]!;
+    const zeitTermin = termin ?? slot.termine[0]?.termin ?? null;
+    monatZeile.zellen.push({
       datum: slot.datum,
       nummer: slot.datum.slice(8, 10),
       titel: termin?.thema.trim() || slot.feiertag || '',
@@ -64,7 +77,16 @@ export function baueJahresueberblick(
       luecke: slot.luecke,
       feiertag: slot.feiertag,
       abweichung,
+      zeit: zeitTermin && hatBesondereZeit(zeitTermin) ? zeitBereichText(zeitTermin) : '',
     });
+    if (!slot.feiertag) {
+      monatZeile.diensttage++;
+    }
+    if (slot.luecke) {
+      monatZeile.luecken++;
+    } else if (termin) {
+      monatZeile.belegt++;
+    }
     if (slot.luecke) {
       luecken++;
     } else if (termin) {

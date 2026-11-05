@@ -14,11 +14,18 @@
   color: var(--feiertag-text);
 }
 
-/* Die rote Lücke: ein Diensttag ohne Ausbildung und ohne Feiertag. */
+/* Die Lücke: ein Diensttag ohne Ausbildung und ohne Feiertag, gestrichelt statt rot gefüllt. */
 :host(.luecke) {
-  background: var(--luecke-bg);
+  justify-content: center;
+  min-height: 56px;
+  border: 1px dashed var(--luecke-rand);
   color: var(--luecke-text);
   font-weight: 500;
+
+  .fueller,
+  .symbol {
+    display: none;
+  }
 }
 
 :host(.ausserhalb) {
@@ -67,4 +74,15 @@
       height: 40px;
     }
   }
+}
+
+/* Das „+“ einer Lücke ist immer sichtbar und rund umrandet, auch ohne Hover. */
+:host(.luecke) .anlegen {
+  --mat-icon-button-state-layer-size: 28px;
+
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--luecke-rand);
+  opacity: 1;
+  color: var(--luecke-text);
 }

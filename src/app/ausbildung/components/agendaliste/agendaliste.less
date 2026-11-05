@@ -138,8 +138,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-xs) var(--space-md);
+
+  /* Der Abstand steht neben der Aussage, die Aktion ganz rechts. */
+  button {
+    margin-inline-start: auto;
+  }
 }
 
 .luecke-text {
@@ -164,7 +168,7 @@
   }
 
   .tag {
-    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-columns: var(--einsatz-datum-breite) minmax(0, 1fr);
     gap: var(--space-sm);
   }
 }
@@ -185,9 +189,9 @@
   margin: var(--space-md) 0 var(--space-xs);
   color: var(--text-secondary);
   font-size: 0.8125rem;
-  font-variant-caps: all-small-caps;
   font-weight: 600;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
 
   &::after {
     content: '';

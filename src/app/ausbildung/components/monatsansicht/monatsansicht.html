@@ -11,8 +11,9 @@
       }
 
       <div class="kw-label">
-        <span class="kw-nummer">{{ woche.nummer }}</span>
-        <span class="kw-bereich">{{ formatKurz(woche.start) }}–{{ formatKurz(woche.ende) }}</span>
+        <span class="kw-nummer" [attr.aria-label]="'Kalenderwoche ' + woche.nummer">{{
+          woche.nummer
+        }}</span>
       </div>
 
       @for (slot of woche.tage; track slot.datum) {
@@ -46,13 +47,18 @@
                 type="button"
                 class="tag-nummer"
                 [class.wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
+                [class.erster]="slot.datum.endsWith('-01')"
+                [class.heute]="slot.datum === heute()"
                 [disabled]="!slot.imJahr"
                 [attr.aria-label]="'Agenda für ' + formatiereDatumText(slot.datum) + ' zeigen'"
                 [attr.aria-pressed]="slot.datum === aktuellerTag()?.datum"
                 (click)="$event.stopPropagation(); waehleTag(slot.datum)"
               >
-                {{ slot.datum.slice(8, 10) }}
+                {{ ersterMarke(slot.datum) ?? tagZahl(slot.datum) }}
               </button>
+              @if (slot.datum === heute()) {
+                <span class="heute-pille">heute</span>
+              }
               @if (slot.feiertag) {
                 <mat-icon inline class="feiertag-symbol" [matTooltip]="'Feiertag: ' + slot.feiertag"
                   >flag</mat-icon
@@ -187,15 +193,31 @@
   <!-- Nur die Überschrift wird bei einem Tagwechsel angesagt, nicht die ganze Agenda. -->
   <p class="nur-lesehilfe" aria-live="polite">{{ agendaTitel() }}</p>
   @if (aktuellerTag(); as slot) {
-    <header class="agenda-kopf">
-      <h2>{{ agendaTitel() }}</h2>
-      @if (slot.luecke) {
-        <span class="marke luecke-marke">
-          <mat-icon inline>error_outline</mat-icon>
-          {{ diensttagLabel() }} ohne Ausbildung
-        </span>
-      }
-    </header>
+    @if (agendaBlock(); as b) {
+      <header class="agenda-kopf">
+        <app-datumsblock
+          [monat]="b.monat"
+          [tag]="b.tagZahl"
+          [zeile]="b.zeile"
+          [heute]="b.heute"
+          [luecke]="slot.luecke"
+          [wochenende]="slot.tag === 'Sa' || slot.tag === 'So'"
+          [beschriftung]="b.beschriftung"
+        />
+        <div class="agenda-infos">
+          <h2>{{ b.wochentagLang }}, {{ b.datumText }}</h2>
+          @if (b.abstand; as a) {
+            <span class="abstand" [class.dringend]="a.dringend">{{ a.text }}</span>
+          }
+          @if (slot.luecke) {
+            <span class="marke luecke-marke">
+              <mat-icon inline>error_outline</mat-icon>
+              {{ diensttagLabel() }} ohne Ausbildung
+            </span>
+          }
+        </div>
+      </header>
+    }
 
     @if (slot.feiertag) {
       <p class="feiertag">
@@ -215,6 +237,7 @@
             [katsThema]="katsThema(karte.termin.termin)"
             [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
             [feiertag]="slot.feiertag"
+            [datumsblock]="agendaBlock()?.modus ?? 'aus'"
             [kompakt]="false"
             (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
             (verschieben)="zuBacklog.emit(karte.termin.termin)"

@@ -17,7 +17,14 @@ import {
   formatiereDatum,
   monatIndex,
 } from '../../../kern/kalender/datum';
+import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
 import { HiorgEintrag } from '../../models/hiorg-kalender.model';
+import {
+  abstandZuHeute,
+  blockZeile,
+  monatKurz,
+  monatsErsterMarke,
+} from '../../services/datum-anzeige';
 import { KatsThema, Termin } from '../../models/plan.model';
 import { HiorgAbgleich, HiorgAbweichung } from '../../services/hiorg-abgleich';
 import { PlanSlot, WochenZeile } from '../../services/plan-raster';
@@ -55,6 +62,7 @@ export interface AblageAufTag {
   imports: [
     CdkDrag,
     CdkDropList,
+    Datumsblock,
     HiorgEintragKarte,
     LeererTag,
     MatButtonModule,
@@ -125,6 +133,40 @@ export class Monatsansicht {
   readonly agendaHiorg = computed(() =>
     this.hiorgEbene() === 'aus' ? [] : this.agendaInhalt().alle.filter((k) => k.art === 'hiorg'),
   );
+  /** Datumsblock und Abstand für den Kopf der Tagesagenda. */
+  readonly agendaBlock = computed(() => {
+    const slot = this.aktuellerTag();
+    if (!slot) {
+      return null;
+    }
+    const datum = slot.datum;
+    const termine = slot.termine.map((t) => t.termin);
+    const beginnt = termine.length === 1 && termine[0]!.datum === datum && termine[0]!.beginnZeit;
+    return {
+      monat: monatKurz(datum),
+      tagZahl: this.tagZahl(datum),
+      zeile: blockZeile(datum, termine),
+      modus: beginnt ? ('tag-beginn' as const) : ('tag' as const),
+      heute: datum === this.heute(),
+      abstand: abstandZuHeute(datum, this.heute(), slot.luecke),
+      wochentagLang: new Date(`${datum}T12:00:00`).toLocaleDateString('de-DE', {
+        weekday: 'long',
+      }),
+      datumText: formatiereDatum(datum),
+      beschriftung: `${slot.tag} ${formatiereDatum(datum)}`,
+    };
+  });
+
+  /** Tag im Monat ohne führende Null. */
+  tagZahl(datum: string): string {
+    return String(Number(datum.slice(8, 10)));
+  }
+
+  /** „1. APR“ am Monatsersten, sonst `null`. */
+  ersterMarke(datum: string): string | null {
+    return monatsErsterMarke(datum);
+  }
+
   readonly agendaTitel = computed(() => {
     const slot = this.aktuellerTag();
     return slot ? formatiereDatum(slot.datum) : '';

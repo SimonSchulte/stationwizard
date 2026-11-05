@@ -1,15 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MONATSNAMEN } from '../../../kern/kalender/datum';
+import { abstandZuHeute } from '../../services/datum-anzeige';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import { HiorgAbgleich } from '../../services/hiorg-abgleich';
 import { UeberblickZelle, baueJahresueberblick } from '../../services/jahresueberblick';
 import { WochenZeile } from '../../services/plan-raster';
-
-const MONATSNAMEN = Array.from({ length: 12 }, (_, index) =>
-  new Date(2000, index, 1).toLocaleDateString('de-DE', { month: 'short' }),
-);
 
 /**
  * Ansicht B: Jahresüberblick. Nur die Diensttage des Jahres, zwölf Zeilen; die
@@ -37,9 +35,23 @@ export class Jahresueberblick {
   readonly daten = computed(() =>
     baueJahresueberblick(this.wochen(), this.abgleich().tageMitAbweichung),
   );
-  readonly monate = computed(() =>
-    this.daten().monate.map((monat) => ({ ...monat, name: MONATSNAMEN[monat.index]! })),
-  );
+  readonly monate = computed(() => {
+    const heute = this.heute();
+    return this.daten().monate.map((monat) => ({
+      ...monat,
+      name: MONATSNAMEN[monat.index]!,
+      kurz: MONATSNAMEN[monat.index]!.slice(0, 3).toUpperCase(),
+      /** Jeder zweite Monat (Januar, März, …) ist getönt, wie in Monat und Liste. */
+      ungerade: (monat.index + 1) % 2 === 1,
+      laufend: monat.zellen.some((z) => z.datum.slice(0, 7) === heute.slice(0, 7)),
+      zellen: monat.zellen.map((zelle) => ({
+        ...zelle,
+        tagZahl: String(Number(zelle.nummer)),
+        vorbei: zelle.datum < heute,
+        abstand: abstandZuHeute(zelle.datum, heute, zelle.luecke && !zelle.feiertag),
+      })),
+    }));
+  });
   readonly kategorien = computed(() =>
     [...this.daten().kennzahlen.nachKategorie].map(([kategorie, anzahl]) => ({
       text: kategorie || 'Ohne Kategorie',

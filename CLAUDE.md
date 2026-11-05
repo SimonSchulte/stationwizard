@@ -354,7 +354,13 @@ gruppiert, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ).
 Monatszeilen, Lücken, Abweichungen und Kennzahlen; ein Klick öffnet den Monat). **KatS** (`components/kats-ausbildungsplan/`, `services/kats-ausbildungsplan.ts`:
 alle datierten Termine des Jahres mit KatS-Bezug – verknüpftes Thema, Pflicht oder KatS-Titel –
 nach Monat, dazu die Themen ohne Termin). Monat und Liste tönen jeden zweiten Monat
-(`--monat-ungerade-bg`) und Wochenenden rötlich (`--wochenende-bg`). Die **Nachweisgruppen** der
+(`--monat-ungerade-bg`) und Wochenenden rötlich (`--wochenende-bg`). Alle Ansichten teilen den
+**Datumsblock** (`kern/datumsblock/`: Monat, Tag, Wochentag mit Beginn; Breite
+`--einsatz-datum-breite`, gleiche Anmutung wie die Einsatzkarte) und die Berechnungen in
+`services/datum-anzeige.ts`: Abstand zu heute („heute“, „morgen“, „in n Tagen“, nur 14 Tage im
+Voraus), Uhrzeit nur bei Abweichung vom Dienstabend 19:00–22:30 (`hatBesondereZeit()`, ein Termin
+mit Zeit zeigt sie immer), Monatstrenner und „1. APR“ am Monatsersten. Neben einem Datumsblock
+zeigt `app-termin-karte` kein eigenes Datum (`datumsblock`-Eingabe). Die **Nachweisgruppen** der
 Termine (`NACHWEISE`) bleiben im Datenmodell, im Excel und im Worker erhalten, erscheinen aber in
 keiner Oberfläche mehr; ob sie fachlich sinnvoll sind, ist noch im Backend zu klären. Neue
 Einträge sind standardmäßig vom Typ „Termin“. Startansicht ist

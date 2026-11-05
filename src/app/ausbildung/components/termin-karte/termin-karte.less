@@ -406,3 +406,9 @@ a.hiorg-link-symbol {
   color: var(--status-warn);
   font-weight: 500;
 }
+
+/* Eine abweichende Zeit darf in einer schmalen Rasterzelle umbrechen, statt abgeschnitten zu werden. */
+:host(.kompakt) .zeit {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
