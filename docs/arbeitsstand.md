@@ -3477,5 +3477,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - **Monat:** Tageszahl 16 px fett, „1. APR“ am Monatsersten, heute als blaues Oval mit Pille (am
   Handy nur das Oval), Karte ohne Symbol und ohne Standardzeit, Lücke gestrichelt mit „+“, KW nur als
   Nummer, Agenda mit Datumsblock im Kopf und Karte ohne doppeltes Datum.
-- **Offen:** Der Einsatzbereich nutzt seinen eigenen Block weiter; er könnte `app-datumsblock`
-  übernehmen. Die Zählung je Rolle im Kennzahlenblock des Jahres bleibt vorerst bestehen.
+- **Einsatzkarte:** `einsatz-karte` nutzt jetzt denselben `app-datumsblock` statt eines eigenen Blocks
+  (gleiche Maße, Monat/Tag/Wochentag·Zeit; ohne Beginn ein Block mit „–“). Per Test abgesichert, im
+  Browser nicht gesondert geprüft.
+- **Offen:** Die Zählung je Rolle im Kennzahlenblock des Jahres bleibt vorerst bestehen.

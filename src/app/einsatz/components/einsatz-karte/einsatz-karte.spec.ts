@@ -21,19 +21,19 @@ describe('EinsatzKarte', () => {
   it('zeigt den Datumsblock ohne UTC-Verschiebung, mit Jahr nur außerhalb des laufenden', () => {
     const jahr = new Date().getFullYear();
     setze({ beginn: `${jahr}-12-05T00:30` });
-    const block = wurzel().querySelector('.datum')!;
+    const block = wurzel().querySelector('app-datumsblock')!;
     expect(text(block.querySelector('.monat')!)).toBe('DEZ');
     expect(text(block.querySelector('.tag')!)).toBe('5');
-    expect(text(block.querySelector('.zeit')!)).toMatch(/^[A-Z][a-z] · 00:30$/);
+    expect(text(block.querySelector('.zeile')!)).toMatch(/^[A-Z][a-z] · 00:30$/);
 
     setze({ beginn: `${jahr + 1}-03-10T10:00` });
-    expect(text(wurzel().querySelector('.monat')!)).toBe(`MÄR ${jahr + 1}`);
+    expect(text(wurzel().querySelector('app-datumsblock .monat')!)).toBe(`MÄR ${jahr + 1}`);
   });
 
   it('zeigt ohne Beginn einen gedämpften Strich', () => {
     setze({ beginn: null });
-    expect(wurzel().querySelector('.datum.ohne-datum')).not.toBeNull();
-    expect(text(wurzel().querySelector('.kein-datum')!)).toBe('–');
+    expect(wurzel().querySelector('app-datumsblock.ohne-datum')).not.toBeNull();
+    expect(text(wurzel().querySelector('app-datumsblock.ohne-datum .tag')!)).toBe('–');
   });
 
   it('zeigt Metazeile: Schichten nur über eins, Ort oder Ersatztext, Herkunft', () => {

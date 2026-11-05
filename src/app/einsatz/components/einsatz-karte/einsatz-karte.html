@@ -1,13 +1,9 @@
 <article class="karte">
-  <div class="datum" [class.ohne-datum]="!datum()">
-    @if (datum(); as d) {
-      <span class="monat">{{ d.monat }}</span>
-      <span class="tag">{{ d.tag }}</span>
-      <span class="zeit">{{ d.wochentagZeit }}</span>
-    } @else {
-      <span class="kein-datum" aria-label="Kein Beginn angegeben">–</span>
-    }
-  </div>
+  @if (datum(); as d) {
+    <app-datumsblock [monat]="d.monat" [tag]="d.tag" [zeile]="d.wochentagZeit" />
+  } @else {
+    <app-datumsblock class="ohne-datum" tag="–" beschriftung="Kein Beginn angegeben" />
+  }
 
   <div class="mitte">
     <h3>

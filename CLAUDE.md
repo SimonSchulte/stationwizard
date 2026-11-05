@@ -23,7 +23,7 @@ Prüfungen und offene Abnahmegrenzen.
   `einsatz/components/` (`PositionZeile`, `StaerkeBlock`, `QualifikationsChips`,
   `AnforderungsAuswahl`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
   `StundenImport`), `ausbildung/components/` (`MonatsNavigation`, `HiorgEbenenAuswahl`),
-  `kern/` (`Seitenkopf`, `MeldungsDienst`/`Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
+  `kern/` (`Seitenkopf`, `Datumsblock`, `MeldungsDienst`/`Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
   `Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
   Vor einer neuen Komponente nach einer vorhandenen suchen.
 - Worker-Module nach demselben Muster: `<modul>.ts` verteilt nur die festen Pfade,
@@ -356,7 +356,7 @@ alle datierten Termine des Jahres mit KatS-Bezug – verknüpftes Thema, Pflicht
 nach Monat, dazu die Themen ohne Termin). Monat und Liste tönen jeden zweiten Monat
 (`--monat-ungerade-bg`) und Wochenenden rötlich (`--wochenende-bg`). Alle Ansichten teilen den
 **Datumsblock** (`kern/datumsblock/`: Monat, Tag, Wochentag mit Beginn; Breite
-`--einsatz-datum-breite`, gleiche Anmutung wie die Einsatzkarte) und die Berechnungen in
+`--einsatz-datum-breite`, auch von der Einsatzkarte genutzt) und die Berechnungen in
 `services/datum-anzeige.ts`: Abstand zu heute („heute“, „morgen“, „in n Tagen“, nur 14 Tage im
 Voraus), Uhrzeit nur bei Abweichung vom Dienstabend 19:00–22:30 (`hatBesondereZeit()`, ein Termin
 mit Zeit zeigt sie immer), Monatstrenner und „1. APR“ am Monatsersten. Neben einem Datumsblock

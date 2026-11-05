@@ -18,8 +18,8 @@ import { ChangeDetectionStrategy, Component, booleanAttribute, input } from '@an
   },
 })
 export class Datumsblock {
-  /** Monat kurz in Großbuchstaben, etwa „MÄR“. */
-  readonly monat = input.required<string>();
+  /** Monat kurz in Großbuchstaben, etwa „MÄR“; leer für einen Block ohne Datum. */
+  readonly monat = input('');
   /** Tag im Monat ohne führende Null. */
   readonly tag = input.required<string>();
   /** Untere Zeile, etwa „Di · 19:00“ oder „Sa–So“. */
