@@ -29,7 +29,3 @@ CREATE TABLE pep_vorlagen (
   geaendert_am TEXT NOT NULL,
   geaendert_von TEXT NOT NULL
 );
-
--- Der Verweis auf die Nextcloud-Datei entfällt. Auf `pep_id` liegt kein Index
--- (siehe 0020_einsatzplanung.sql), die Spalte lässt sich daher unmittelbar entfernen.
-ALTER TABLE einsaetze DROP COLUMN pep_id;

@@ -82,12 +82,15 @@ Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespiel
 2. `npx wrangler d1 migrations apply EINSATZPLANUNG_DB --remote --config worker/wrangler.toml`
    (oder dieselben Anweisungen über den Cloudflare-D1-Connector, dann
    `INSERT INTO d1_migrations (name) VALUES ('0020_einsatzplanung.sql')` ergänzen).
-   Danach folgt `worker/migrations/einsatzplanung/0021_pep.sql` (Tabellen `peps` und
-   `pep_vorlagen`, entfernt `einsaetze.pep_id`; ohne Startbestand; Vermerk
-   `0021_pep.sql` in `d1_migrations`). **Für die bestehende Datenbank steht sie noch aus** und
-   muss vor dem Deployen des Workers eingespielt werden. Alte Nextcloud-Einsatzpläne werden
-   nicht übernommen.
-3. Worker deployen. Die Startvorlage erscheint danach unter _Einsatzplanung → VB-Vorlagen_.
+   Danach folgen `0021_pep.sql` (Tabellen `peps` und `pep_vorlagen`, ohne Startbestand) und
+   `0022_einsaetze_pep_id_entfernen.sql` (entfernt die frühere Nextcloud-Verknüpfung
+   `einsaetze.pep_id`). Alte Nextcloud-Einsatzpläne werden nicht übernommen.
+   **Stand der bestehenden Datenbank (05.11.2026):** `0020` und `0021` sind eingespielt und in
+   `d1_migrations` vermerkt. `0022` steht bewusst noch aus: eine bereits laufende ältere
+   Worker-Version beschreibt `pep_id` beim Anlegen eines Einsatzes noch. Erst nach dem Deployen
+   des Workers mit der PEP in der Datenbank einspielen.
+3. Worker deployen, danach `0022` einspielen. Die Startvorlage erscheint unter
+   _Verwaltung → Einsatz-Vorlagen_.
 
 ## HiOrg-Server-API (OAuth, optional)
 
