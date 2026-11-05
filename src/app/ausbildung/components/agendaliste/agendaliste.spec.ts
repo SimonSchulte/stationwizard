@@ -56,6 +56,9 @@ describe('Agendaliste', () => {
 
   const element = () => fixture.nativeElement as HTMLElement;
   const tage = () => [...element().querySelectorAll('article.tag')];
+  const tagMitNr = (n: string) => tage().find((t) => nummerVon(t) === n)!;
+  const nummerVon = (t: Element) =>
+    (t.querySelector('app-datumsblock .tag')?.textContent ?? '').trim().padStart(2, '0');
   // Material-Chips: geklickt und ausgewählt wird die primäre Aktion der Option.
   const chip = (text: string) =>
     [...element().querySelectorAll<HTMLElement>('mat-chip-option')]
@@ -67,7 +70,7 @@ describe('Agendaliste', () => {
   it('gruppiert nach Kalenderwoche und lässt leere Tage weg', () => {
     aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema', kategorie: 'SAN' })]);
 
-    const datums = tage().map((t) => t.querySelector('.datum-nummer')?.textContent?.trim());
+    const datums = tage().map((t) => nummerVon(t));
 
     expect(element().querySelectorAll('.woche-kopf').length).toBeGreaterThan(3);
     expect(datums).toContain('04');
@@ -79,11 +82,7 @@ describe('Agendaliste', () => {
     const angelegt: string[] = [];
     fixture.componentInstance.anlegen.subscribe((d) => angelegt.push(d));
 
-    const luecke = tage().find(
-      (t) =>
-        t.classList.contains('luecke') &&
-        t.querySelector('.datum-nummer')?.textContent?.trim() === '02',
-    )!;
+    const luecke = tage().find((t) => t.classList.contains('luecke') && nummerVon(t) === '02')!;
     luecke.querySelector<HTMLButtonElement>('.luecke-zeile button')!.click();
 
     expect(luecke.textContent).toContain('ohne Ausbildung');
@@ -146,8 +145,7 @@ describe('Agendaliste', () => {
       termin('2026-03-10', { id: 'b', thema: 'Erfundenes Thema' }),
     ]);
 
-    const nachNummer = (n: string) =>
-      tage().find((t) => t.querySelector('.datum-nummer')?.textContent?.trim() === n)!;
+    const nachNummer = (n: string) => tage().find((t) => nummerVon(t) === n)!;
 
     expect(nachNummer('04').classList).toContain('vergangen');
     expect(nachNummer('10').classList).toContain('heute');
@@ -190,8 +188,7 @@ describe('Agendaliste', () => {
     aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema' }), termin('2026-03-02')]);
     const angelegt: string[] = [];
     fixture.componentInstance.anlegen.subscribe((d) => angelegt.push(d));
-    const tagMitNummer = (n: string) =>
-      tage().find((t) => t.querySelector('.datum-nummer')?.textContent?.trim() === n)!;
+    const tagMitNummer = (n: string) => tage().find((t) => nummerVon(t) === n)!;
 
     tagMitNummer('04').querySelector<HTMLButtonElement>('.tag-neu')!.click();
 
@@ -219,8 +216,52 @@ describe('Agendaliste', () => {
     fixture.componentRef.setInput('nurAbweichungen', true);
     fixture.detectChanges();
 
-    expect(tage().map((t) => t.querySelector('.datum-nummer')?.textContent?.trim())).toEqual([
-      '04',
+    expect(tage().map((t) => nummerVon(t))).toEqual(['04']);
+  });
+
+  it('zeigt im Datumsblock Monat, Tag und Wochentag mit Beginn', () => {
+    aufbauen([
+      termin('2026-03-04', { thema: 'Erfundenes Thema', typ: 'termin', beginnZeit: '18:30' }),
     ]);
+
+    const block = tagMitNr('04').querySelector('app-datumsblock')!;
+    expect(block.textContent).toContain('MÄR');
+    expect(block.textContent).toContain('Mi · 18:30');
+  });
+
+  it('setzt einen Monatstrenner vor den ersten Tag des Monats', () => {
+    aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema' })]);
+
+    const trenner = [...element().querySelectorAll('.monat-kopf')].map((t) =>
+      t.textContent?.trim(),
+    );
+    // Die erste Woche beginnt am 23. Februar, der März-Trenner folgt am 2. März.
+    expect(trenner).toEqual(['Februar 2026', 'März 2026']);
+  });
+
+  it('nennt den Abstand zu heute nur für bevorstehende Tage', () => {
+    aufbauen([
+      termin('2026-03-04', { id: 'vorbei', thema: 'Erfundenes Thema' }),
+      termin('2026-03-11', { id: 'morgen', thema: 'Erfundenes Thema' }),
+    ]);
+
+    expect(tagMitNr('11').querySelector('.abstand')?.textContent?.trim()).toBe('morgen');
+    expect(tagMitNr('04').querySelector('.abstand')).toBeNull();
+  });
+
+  it('wiederholt Datum und Beginn nicht in der Karte neben dem Block', () => {
+    aufbauen([
+      termin('2026-03-04', {
+        thema: 'Erfundenes Thema',
+        typ: 'termin',
+        beginnZeit: '18:30',
+        endeZeit: '20:00',
+      }),
+    ]);
+
+    const karte = tagMitNr('04').querySelector('app-termin-karte')!;
+    expect(karte.querySelector('.datum')).toBeNull();
+    expect(karte.textContent).toContain('bis 20:00');
+    expect(karte.textContent).not.toContain('18:30');
   });
 });

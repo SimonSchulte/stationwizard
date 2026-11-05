@@ -384,3 +384,25 @@ a.hiorg-link-symbol {
     display: none;
   }
 }
+
+/* Abstand zu heute: ruhige Pille, gelb bei einer bald anstehenden Lücke. */
+.abstand {
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &.dringend {
+    background: var(--status-warn-bg);
+    color: var(--status-warn);
+  }
+}
+
+/* Abweichende Uhrzeit im Raster in Warnfarbe, damit sie neben dem Titel auffällt. */
+:host(.kompakt) .zeit {
+  color: var(--status-warn);
+  font-weight: 500;
+}

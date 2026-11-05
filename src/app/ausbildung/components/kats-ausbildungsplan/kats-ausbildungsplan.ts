@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { formatiereDatum } from '../../../kern/kalender/datum';
+import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
+import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
+import { abstandZuHeute, blockZeile, monatKurz } from '../../services/datum-anzeige';
 import { Termin } from '../../models/plan.model';
 import { baueKatsAusbildungsplan } from '../../services/kats-ausbildungsplan';
 import { PlanStore } from '../../services/plan-store';
@@ -19,7 +21,7 @@ const MONATSNAMEN = Array.from({ length: 12 }, (_, index) =>
 @Component({
   selector: 'app-kats-ausbildungsplan',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Leerzustand, MatIconModule, TerminKarte],
+  imports: [Datumsblock, Leerzustand, MatIconModule, TerminKarte],
   templateUrl: './kats-ausbildungsplan.html',
   styleUrl: './kats-ausbildungsplan.less',
 })
@@ -41,17 +43,18 @@ export class KatsAusbildungsplan {
     this.plan().monate.map((monat) => ({ ...monat, name: MONATSNAMEN[monat.index]! })),
   );
 
-  tag(datum: string | null): string {
-    return datum ? datum.slice(8, 10) : '';
-  }
-
-  wochentagKurz(datum: string | null): string {
-    return datum
-      ? new Date(`${datum}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'short' })
-      : '';
-  }
-
-  datumText(datum: string | null): string {
-    return datum ? formatiereDatum(datum) : '';
+  /** Alles, was der Datumsblock und die Karte eines Eintrags brauchen. */
+  protected block(termin: Termin) {
+    const datum = termin.datum ?? '';
+    return {
+      monat: monatKurz(datum),
+      tag: String(Number(datum.slice(8, 10))),
+      zeile: blockZeile(datum, [termin]),
+      modus: termin.beginnZeit ? ('tag-beginn' as const) : ('tag' as const),
+      heute: datum === this.heute(),
+      wochenende: wochentag(datum) === 'Sa' || wochentag(datum) === 'So',
+      abstand: abstandZuHeute(datum, this.heute()),
+      beschriftung: `${wochentag(datum)} ${formatiereDatum(datum)}`,
+    };
   }
 }

@@ -1,0 +1,64 @@
+:host {
+  display: flex;
+  flex: 0 0 var(--einsatz-datum-breite);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  box-sizing: border-box;
+  width: var(--einsatz-datum-breite);
+  min-height: var(--einsatz-datum-breite);
+  padding: var(--space-sm) var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.monat {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tag {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.zeile {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+:host(.wochenende) .zeile {
+  color: var(--wochenende-text);
+  font-weight: 600;
+}
+
+/* Heute: gefüllte Fläche, damit der Tag in der Liste sofort auffällt. */
+:host(.heute) {
+  border-color: var(--ci-blue);
+  background: var(--ci-blue);
+
+  .monat,
+  .tag,
+  .zeile {
+    color: var(--text-on-dark);
+  }
+}
+
+/* Lücke: gestrichelter Rand statt Fläche, die Zeile selbst trägt die Warnfarbe. */
+:host(.luecke) {
+  border: 1px dashed var(--luecke-rand);
+  background: transparent;
+
+  .tag {
+    color: var(--luecke-text);
+  }
+}

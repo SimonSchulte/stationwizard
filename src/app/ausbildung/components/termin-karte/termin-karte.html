@@ -1,9 +1,11 @@
 <div class="rolle-streifen" [style.background]="farbe()" aria-hidden="true"></div>
 
 <div class="kopf">
-  <mat-icon inline class="typ-symbol" [matTooltip]="typText()" [attr.aria-label]="typText()">{{
-    typSymbol()
-  }}</mat-icon>
+  @if (!kompakt()) {
+    <mat-icon inline class="typ-symbol" [matTooltip]="typText()" [attr.aria-label]="typText()">{{
+      typSymbol()
+    }}</mat-icon>
+  }
   @if (hiorgEintrag(); as hiorg) {
     <a
       class="hiorg-link-symbol"
@@ -17,7 +19,7 @@
       <mat-icon inline>link</mat-icon>
     </a>
   }
-  @if (!kompakt() && termin().datum) {
+  @if (!kompakt() && termin().datum && datumsblock() === 'aus') {
     <div class="datum">
       <span class="tag">{{ tagText() }}</span>
       <span class="tagdatum">{{ zeitraumText() }}</span>
@@ -38,8 +40,11 @@
   @if (zeitText()) {
     <span class="zeit" [matTooltip]="'Uhrzeit: ' + zeitText()">{{ zeitText() }}</span>
   }
-  @if (tagesFortschritt()) {
-    <span class="fortschritt" [matTooltip]="zeitraumText()">{{ tagesFortschritt() }}</span>
+  @if (mehrtaegigKopf()) {
+    <span class="fortschritt" [matTooltip]="zeitraumText()">{{ mehrtaegigKopf() }}</span>
+  }
+  @if (abstand(); as a) {
+    <span class="abstand" [class.dringend]="a.dringend">{{ a.text }}</span>
   }
   @if (termin().hinweis) {
     @if (kompakt()) {

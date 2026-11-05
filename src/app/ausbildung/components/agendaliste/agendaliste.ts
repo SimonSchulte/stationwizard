@@ -13,11 +13,19 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
 import { formatiereDatum } from '../../../kern/kalender/datum';
+import {
+  Abstand,
+  abstandZuHeute,
+  blockZeile,
+  monatKurz,
+  monatsTitel,
+} from '../../services/datum-anzeige';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import { HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { KATEGORIEN, Kategorie, KatsThema, Termin } from '../../models/plan.model';
-import { AgendaWoche, TypFilter, baueAgenda } from '../../services/agenda';
+import { AgendaTag, AgendaWoche, TypFilter, baueAgenda } from '../../services/agenda';
 import { HiorgAbgleich, HiorgAbweichung } from '../../services/hiorg-abgleich';
 import { WochenZeile } from '../../services/plan-raster';
 import { PlanStore } from '../../services/plan-store';
@@ -26,6 +34,25 @@ import { HiorgEintragKarte } from '../hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { AblageAufTag, AblageAufTermin } from '../monatsansicht/monatsansicht';
 import { TerminKarte } from '../termin-karte/termin-karte';
 import { MatChipsModule } from '@angular/material/chips';
+
+interface AgendaTagAnzeige {
+  readonly tag: AgendaTag;
+  readonly monatsTitel: string | null;
+  readonly monat: string;
+  readonly tagZahl: string;
+  readonly zeile: string;
+  /** Nennt der Datumsblock auch den Beginn, ergänzt die Karte nur das Ende. */
+  readonly modus: 'tag' | 'tag-beginn';
+  readonly abstand: Abstand | null;
+  /** Schlüssel der Karte, die den Abstand als Pille trägt (die erste Terminkarte des Tages). */
+  readonly ersteKarte: string | null;
+  readonly beschriftung: string;
+}
+
+interface AgendaWocheAnzeige {
+  readonly woche: AgendaWoche;
+  readonly tage: readonly AgendaTagAnzeige[];
+}
 
 /**
  * Ansicht C: chronologische Agendaliste, nach Kalenderwochen gruppiert.
@@ -40,6 +67,7 @@ import { MatChipsModule } from '@angular/material/chips';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CdkDropList,
+    Datumsblock,
     HiorgEintragKarte,
     MatButtonModule,
     MatChipsModule,
@@ -59,7 +87,10 @@ export class Agendaliste {
     afterNextRender(() => {
       const heute = this.host.nativeElement.querySelector<HTMLElement>('.tag.heute');
       const woche = heute?.closest<HTMLElement>('.woche');
-      (woche ?? heute)?.scrollIntoView({ block: 'start' });
+      const ziel = woche ?? heute;
+      if (typeof ziel?.scrollIntoView === 'function') {
+        ziel.scrollIntoView({ block: 'start' });
+      }
     });
   }
 
@@ -106,6 +137,40 @@ export class Agendaliste {
       abweichungstage: this.nurAbweichungen() ? this.abgleich().tageMitAbweichung : null,
     }),
   );
+
+  /**
+   * Die Wochen mit allem, was der Datumsblock und die Karten eines Tages brauchen. Ein
+   * Monatstrenner steht vor dem ersten sichtbaren Tag eines neuen Monats, auch mitten in einer
+   * Woche.
+   */
+  readonly zeilen = computed<AgendaWocheAnzeige[]>(() => {
+    const heute = this.heute();
+    let letzterMonat = '';
+    return this.agenda().map((woche) => ({
+      woche,
+      tage: woche.tage.map((tag): AgendaTagAnzeige => {
+        const datum = tag.slot.datum;
+        const termine = tag.slot.termine.map((t) => t.termin);
+        const monat = datum.slice(0, 7);
+        const neuerMonat = monat !== letzterMonat;
+        letzterMonat = monat;
+        const einzigerBeginnt =
+          termine.length === 1 && termine[0]!.datum === datum && termine[0]!.beginnZeit !== '';
+        const ersteKarte = tag.karten.find((k) => k.art === 'termin');
+        return {
+          tag,
+          monatsTitel: neuerMonat ? monatsTitel(datum) : null,
+          monat: monatKurz(datum),
+          tagZahl: String(Number(datum.slice(8, 10))),
+          zeile: blockZeile(datum, termine),
+          modus: einzigerBeginnt ? 'tag-beginn' : 'tag',
+          abstand: abstandZuHeute(datum, heute, tag.luecke),
+          ersteKarte: ersteKarte?.schluessel ?? null,
+          beschriftung: `${tag.slot.tag} ${formatiereDatum(datum)}`,
+        };
+      }),
+    }));
+  });
 
   istAufgeklappt(datum: string): boolean {
     return this.aufgeklappt().has(datum);

@@ -24,16 +24,20 @@
 </div>
 
 <div class="liste">
-  @for (woche of agenda(); track woche.start) {
+  @for (zeile of zeilen(); track zeile.woche.start) {
     <section class="woche">
       <h3 class="woche-kopf">
-        <span>KW {{ woche.nummer }}</span>
+        <span>KW {{ zeile.woche.nummer }}</span>
         <span class="woche-bereich"
-          >{{ formatKurz(woche.start) }}–{{ formatKurz(woche.ende) }}</span
+          >{{ formatKurz(zeile.woche.start) }}–{{ formatKurz(zeile.woche.ende) }}</span
         >
       </h3>
 
-      @for (tag of woche.tage; track tag.slot.datum) {
+      @for (anzeige of zeile.tage; track anzeige.tag.slot.datum) {
+        @let tag = anzeige.tag;
+        @if (anzeige.monatsTitel; as monatsTitel) {
+          <h2 class="monat-kopf">{{ monatsTitel }}</h2>
+        }
         <article
           class="tag"
           cdkDropList
@@ -46,14 +50,15 @@
           [class.heute]="tag.slot.datum === heute()"
           [class.vergangen]="tag.slot.datum < heute()"
         >
-          <div class="datum-block">
-            <b class="datum-nummer">{{ tag.slot.datum.slice(8, 10) }}</b>
-            <span
-              class="datum-tag"
-              [class.wochenende]="tag.slot.tag === 'Sa' || tag.slot.tag === 'So'"
-              >{{ tag.slot.tag }}</span
-            >
-          </div>
+          <app-datumsblock
+            [monat]="anzeige.monat"
+            [tag]="anzeige.tagZahl"
+            [zeile]="anzeige.zeile"
+            [heute]="tag.slot.datum === heute()"
+            [luecke]="tag.luecke"
+            [wochenende]="tag.slot.tag === 'Sa' || tag.slot.tag === 'So'"
+            [beschriftung]="anzeige.beschriftung"
+          />
 
           <div class="tag-inhalt">
             @if (tag.slot.feiertag) {
@@ -69,6 +74,9 @@
                   <mat-icon inline>error_outline</mat-icon>
                   {{ diensttagLabel() }} ohne Ausbildung
                 </span>
+                @if (anzeige.abstand; as a) {
+                  <span class="abstand" [class.dringend]="a.dringend">{{ a.text }}</span>
+                }
                 <button matButton (click)="anlegen.emit(tag.slot.datum)">
                   <mat-icon>add</mat-icon>
                   Termin anlegen
@@ -94,6 +102,8 @@
                       [katsThema]="katsThema(karte.termin.termin)"
                       [hiorgEintrag]="hiorgTreffer(karte.termin.termin.id)"
                       [feiertag]="tag.slot.feiertag"
+                      [datumsblock]="anzeige.modus"
+                      [abstand]="karte.schluessel === anzeige.ersteKarte ? anzeige.abstand : null"
                       [kompakt]="false"
                       (bearbeiten)="bearbeiten.emit(karte.termin.termin.id)"
                       (verschieben)="zuBacklog.emit(karte.termin.termin)"

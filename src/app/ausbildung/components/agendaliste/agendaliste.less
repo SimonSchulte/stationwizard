@@ -56,7 +56,7 @@
 
 .tag {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: var(--einsatz-datum-breite) minmax(0, 1fr);
   gap: var(--space-md);
   padding: var(--space-sm);
   border: 1px solid var(--border-light);
@@ -83,32 +83,6 @@
 
   &.vergangen {
     opacity: 0.6;
-  }
-}
-
-.datum-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  align-self: start;
-  line-height: 1.1;
-}
-
-.datum-nummer {
-  color: var(--text-primary);
-  font-size: 1.375rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.datum-tag {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-
-  &.wochenende {
-    color: var(--wochenende-text);
-    font-weight: 600;
   }
 }
 
@@ -201,4 +175,39 @@
   outline-offset: var(--space-unit);
   background: var(--drop-target-bg);
   border-radius: var(--radius-sm);
+}
+
+/* Monatstrenner: steht vor dem ersten Tag eines Monats, auch mitten in einer Woche. */
+.monat-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0 var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-variant-caps: all-small-caps;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+}
+
+.abstand {
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &.dringend {
+    background: var(--status-warn-bg);
+    color: var(--status-warn);
+  }
 }

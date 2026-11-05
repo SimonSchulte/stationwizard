@@ -19,12 +19,19 @@
     <h3 class="monat-kopf">{{ monat.name }}</h3>
 
     @for (eintrag of monat.ausbildungen; track eintrag.termin.id) {
+      @let b = block(eintrag.termin);
       <article class="tag" [class.vergangen]="eintrag.termin.datum! < heute()">
-        <div class="datum-block">
-          <b class="datum-nummer">{{ tag(eintrag.termin.datum) }}</b>
-          <span class="datum-tag">{{ wochentagKurz(eintrag.termin.datum) }}</span>
-        </div>
+        <app-datumsblock
+          [monat]="b.monat"
+          [tag]="b.tag"
+          [zeile]="b.zeile"
+          [heute]="b.heute"
+          [wochenende]="b.wochenende"
+          [beschriftung]="b.beschriftung"
+        />
         <app-termin-karte
+          [datumsblock]="b.modus"
+          [abstand]="b.abstand"
           [termin]="eintrag.termin"
           [katsThema]="eintrag.thema"
           [kompakt]="false"

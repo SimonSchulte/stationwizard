@@ -13,6 +13,12 @@ import {
   terminTage,
   typName,
 } from '../../models/plan.model';
+import {
+  Abstand,
+  hatBesondereZeit,
+  mehrtaegigText,
+  zeitBereichText,
+} from '../../services/datum-anzeige';
 import { Segment } from '../../services/plan-raster';
 import { hiorgServerLink, type HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
@@ -65,6 +71,14 @@ export class TerminKarte {
    * sind reine Anzeige und schalten das ab.
    */
   readonly bearbeitbar = input(true);
+
+  /**
+   * Steht die Karte neben einem Datumsblock (Liste, KatS), entfallen Datum und Beginn in der
+   * Karte: `tag` = der Block nennt nur den Wochentag, `tag-beginn` = er nennt auch den Beginn.
+   */
+  readonly datumsblock = input<'aus' | 'tag' | 'tag-beginn'>('aus');
+  /** Abstand zu heute als Pille im Kopf („heute“, „in 6 Tagen“). */
+  readonly abstand = input<Abstand | null>(null);
 
   readonly bearbeiten = output<void>();
   /** „Verschieben nach Datum …“: die Tastatur- und Touch-Alternative zum Ziehen. */
@@ -135,11 +149,28 @@ export class TerminKarte {
     if (this.istFortsetzung()) {
       return '';
     }
-    const { beginnZeit, endeZeit } = this.termin();
+    const termin = this.termin();
+    // Im Raster nur, was vom Dienstabend abweicht; der Normalfall ist Rauschen.
+    if (this.kompakt()) {
+      return hatBesondereZeit(termin) ? zeitBereichText(termin) : '';
+    }
+    // Der Datumsblock nennt den Beginn schon: die Karte ergänzt nur das Ende.
+    if (this.datumsblock() === 'tag-beginn') {
+      return termin.endeZeit ? `bis ${termin.endeZeit}` : '';
+    }
+    const { beginnZeit, endeZeit } = termin;
     if (!beginnZeit) {
       return endeZeit ? `bis ${endeZeit}` : '';
     }
     return endeZeit ? `${beginnZeit}–${endeZeit}` : beginnZeit;
+  });
+
+  /** „Tag 2/4“; neben einem Datumsblock am ersten Tag „4 Tage · bis So 08.03.“. */
+  readonly mehrtaegigKopf = computed(() => {
+    if (this.datumsblock() !== 'aus' && !this.istFortsetzung() && this.mehrtaegig()) {
+      return mehrtaegigText(this.termin(), terminTage(this.termin()).length);
+    }
+    return this.tagesFortschritt();
   });
 
   private readonly tagIndex = computed(() => {
