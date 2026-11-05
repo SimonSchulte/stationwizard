@@ -3256,7 +3256,7 @@ Datenvertrag zwischen Worker und Frontend).
   Code bleibt unter `src/app/einsatz/`. Der Worker leitet nach HiOrg-Verbinden weiter auf
   `#/einsatz`; das landet über die Weiterleitung richtig.
 - Worker: eigene D1-Datenbank `EINSATZPLANUNG_DB` (Migration `0020_einsatzplanung.sql` mit der
-  Startvorlage „Weihnachtsmarkt Ummeln“ mit dem Inhalt der Packliste 2025, gruppiert nach Transportziel und Lagerort: 5 Abschnitte, 23 Laufzettel, 64 Positionen), Endpunkte
+  Startvorlage „Weihnachtsmarkt Ummeln“ mit dem Inhalt der Packliste 2025, gruppiert nach Transportziel und Lagerort: 5 Abschnitte, 22 Laufzettel, 64 Positionen), Endpunkte
   für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
   Änderungen nur mit `If-Match`. **Noch nicht eingerichtet:** Der Bindungsblock in
   `worker/wrangler.toml` ist auskommentiert, bis die Datenbank angelegt und ihre ID
@@ -3277,7 +3277,7 @@ Datenvertrag zwischen Worker und Frontend).
 - Nachtrag nach Rückmeldung des Betreibers: Laufzettel sind nach „was wohin“ gegliedert, nicht
   nach Ansprechpartner. Abschnitt = Transportziel, Laufzettel = Lagerort; auf Laufzettel,
   Karte und im Editor stehen „Von“ (Lagerort) und „Auf / In“ (Transport mit) vorn, „Rückfragen
-  an“ klein am Fuß. Startvorlage entsprechend umgebaut und mit der Packliste 2025 gefüllt (5 Abschnitte, 23 Laufzettel). Erneut
+  an“ klein am Fuß. Startvorlage entsprechend umgebaut und mit der Packliste 2025 gefüllt (5 Abschnitte, 22 Laufzettel). Erneut
   geprüft: Build, alle Tests (Angular 1318), Formatprüfung, Probedruck in Node (Fußzeile mit
   mindestens 19 pt Reserve im Grenzfall) und Editor im Headless-Chromium.
 

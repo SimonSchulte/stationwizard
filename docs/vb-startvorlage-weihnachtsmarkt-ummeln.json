@@ -588,7 +588,7 @@
             "id": "5b001a5e-8e1c-4ffd-a26f-b779bef5e190",
             "herkunftId": null,
             "ueberschrift": "Material verlasten",
-            "lagerort": "Küche",
+            "lagerort": "Küchenlager",
             "transportMit": "grüne Einkaufskisten",
             "auftraggeber": "GF Verpflegung",
             "fachgruppe": "verpflegung",
@@ -598,18 +598,7 @@
                 "herkunftId": null,
                 "anzahl": "",
                 "material": "Erbsensuppe, fertige"
-              }
-            ]
-          },
-          {
-            "id": "05f4d8dc-38da-431e-8e18-3fda9712c366",
-            "herkunftId": null,
-            "ueberschrift": "Material verlasten",
-            "lagerort": "Küchenlager",
-            "transportMit": "grüne Einkaufskisten",
-            "auftraggeber": "GF Verpflegung",
-            "fachgruppe": "verpflegung",
-            "positionen": [
+              },
               {
                 "id": "375fd17c-92c0-442b-82e5-084b9651f0a4",
                 "herkunftId": null,

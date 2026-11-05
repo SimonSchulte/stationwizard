@@ -708,12 +708,12 @@ describe('Einsatzplanung: Startvorlage der Migration', () => {
     'utf8',
   );
 
-  it('besteht die eigene Prüfung und hat die Kennzahlen 5/23/64', () => {
+  it('besteht die eigene Prüfung und hat die Kennzahlen 5/22/64', () => {
     const vorlageGeprueft = pruefeVbVorlage(quelle);
     expect(vorlageGeprueft).not.toBeNull();
     expect(zaehleVb(vorlageGeprueft!.inhalt)).toEqual({
       abschnitte: 5,
-      laufzettel: 23,
+      laufzettel: 22,
       positionen: 64,
     });
   });
@@ -725,7 +725,7 @@ describe('Einsatzplanung: Startvorlage der Migration', () => {
     const [, id, titel, jsonText, abschnitte, laufzettel, positionen] = treffer!;
     expect(id).toBe(quelle.id);
     expect(titel).toBe(quelle.titel);
-    expect([abschnitte, laufzettel, positionen]).toEqual(['5', '23', '64']);
+    expect([abschnitte, laufzettel, positionen]).toEqual(['5', '22', '64']);
     expect(JSON.parse(jsonText!.replace(/''/g, "'"))).toEqual(quelle.inhalt);
   });
 
