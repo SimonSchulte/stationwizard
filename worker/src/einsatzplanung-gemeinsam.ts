@@ -90,3 +90,16 @@ export function erwarteteVersion(anfrage: Request): number | Response {
   }
   return version;
 }
+
+// PEP (Konzept Abschnitt 10). Der Körper ist größer als bei der VB: bis zu 500 Einsatzkräfte
+// und 100 Posten mit je bis zu 50 Positionen.
+export const PEP_KOERPER_GRENZE = 512 * 1024;
+export const MAX_PEP_POSTEN = 100;
+export const MAX_PEP_POSITIONEN_JE_POSTEN = 50;
+export const MAX_PEP_EINSATZKRAEFTE = 500;
+export const PEP_BESCHREIBUNG_MAX = 2000;
+export const PEP_ID_MAX = 64;
+export const PEP_TELEFON_MAX = 50;
+export const PEP_NOTIZ_MAX = 500;
+export const PEP_ZUSATZ_MAX = 200;
+export const PEP_ZUSATZ_JE_KRAFT_MAX = 30;

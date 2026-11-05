@@ -13,25 +13,23 @@ Zugangsdaten. Die laufende Betriebsreferenz (Secrets, API-Verträge, Fehlercodes
 | Domain/DNS | Cloudflare-Zone mit aktiver DNS-Verwaltung.                                                                   |
 | Cloudflare | Konto mit Secrets Store (`36762a3b5aa547bea7f547b1d66c30ee`), Zero-Trust-Teamdomain und Application Audience. |
 | Google     | OAuth-Client (Web application) als Cloudflare-Access-Identitätsanbieter.                                      |
-| Nextcloud  | Ein gesonderter, beschreibbarer PEP-Ordner (die frühere Excel-Freigabe entfällt).                             |
 | HiOrg      | Gültiger EFS-API-Token und die HiOrg-Kalenderfeed-URL.                                                        |
 
 API-Tokens und Freigabepasswörter ausschließlich in den jeweiligen Verwaltungsoberflächen
 eintragen; sie gehören weder in GitHub noch in die App oder einen Chat.
 
-## Nextcloud- und HiOrg-Freigaben
+## HiOrg-Freigaben
 
-- **Einsatzpläne:** Ein eigener Ordner (z. B. `stationwizard-einsatzplaene`), mit
-  Lesen/Bearbeiten/Hochladen freigegeben. `NEXTCLOUD_BASE_URL` ist die Basis-URL der Instanz
-  (ohne `/s/TOKEN`, ohne `/public.php/webdav/`); der Token (nur der Teil hinter `/s/`) kommt
-  in `NEXTCLOUD_PEP_SHARE_TOKEN`, ein Freigabepasswort in `NEXTCLOUD_PEP_SHARE_PASSWORD`.
-- **Frühere Ausbildungs-Arbeitsmappe:** entfällt mit dem Kalender in D1 (siehe unten).
-  Nach der Übernahme das Secret `NEXTCLOUD_SHARE_TOKEN` im Secrets Store und gegebenenfalls
-  das klassische Secret `NEXTCLOUD_SHARE_PASSWORD` am Worker löschen; die Link-Freigabe der
-  Excel-Datei in NextCloud aufheben. Der Worker liest beide nicht mehr.
+- **Nextcloud entfällt vollständig.** Die PEP liegt in der Einsatzplanung-Datenbank (siehe
+  unten), die Excel-Arbeitsmappe des Kalenders in D1. Der Worker liest keine `NEXTCLOUD_*`-
+  Werte mehr und kennt keine `/api/nextcloud/*`-Pfade. **Nicht mehr benötigt** und vom
+  Betreiber in Cloudflare zu löschen (Secrets Store beziehungsweise Worker-Secrets):
+  `NEXTCLOUD_BASE_URL`, `NEXTCLOUD_PEP_SHARE_TOKEN`, `NEXTCLOUD_PEP_SHARE_PASSWORD` sowie die
+  früheren `NEXTCLOUD_SHARE_TOKEN`/`NEXTCLOUD_SHARE_PASSWORD`; die Link-Freigaben in Nextcloud
+  aufheben. Die Bindings sind aus `worker/wrangler.toml` entfernt.
 - **HiOrg EFS:** Die vollständige, bestehende EFS-Endpunkt-URL kommt in
   `HIORGSERVER_BASE_URL` (bei `hiorg-server.de` **mit** abschließendem `/`, siehe
-  [Worker-README](../worker/README.md#sechs-verpflichtende-secrets-store-bindings)), der
+  [Worker-README](../worker/README.md#fünf-verpflichtende-secrets-store-bindings)), der
   Token in `HIORGSERVER_EFS_API_TOKEN`.
 - **HiOrg-Kalenderfeed:** In `HIORGSERVER_CALENDER_FEED` gehört die **vollständige
   Freigabe-URL** aus HiOrg (empfohlen, weil HiOrg sie genau so ausgibt); der Worker ruft
@@ -63,13 +61,13 @@ d1_migrations (name) VALUES ('0012_kalender.sql')` ergänzen).
    leeren Kalender.
 5. Danach die Excel-Freigabe und ihre Secrets entfernen (siehe oben).
 
-Alle sechs Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
+Alle fünf Werte werden im Cloudflare **Secrets Store** mit Permission scope **Workers**
 angelegt; Bindingname und Secret-Name sind identisch. Details und das vollständige
 Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
 ## Einsatzplanung-Datenbank
 
-Einsätze, Vorbereitungen (VB) und VB-Vorlagen liegen in der D1-Datenbank
+Einsätze, Vorbereitungen (VB), PEP sowie VB- und PEP-Vorlagen liegen in der D1-Datenbank
 `stationwizard-einsatzplanung` (Binding `EINSATZPLANUNG_DB`, Schema und Startvorlage
 „Weihnachtsmarkt Ummeln“ in `worker/migrations/einsatzplanung/0020_einsatzplanung.sql`).
 **Eingerichtet am 05.11.2026:** Datenbank in WEUR angelegt
@@ -84,6 +82,11 @@ Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespiel
 2. `npx wrangler d1 migrations apply EINSATZPLANUNG_DB --remote --config worker/wrangler.toml`
    (oder dieselben Anweisungen über den Cloudflare-D1-Connector, dann
    `INSERT INTO d1_migrations (name) VALUES ('0020_einsatzplanung.sql')` ergänzen).
+   Danach folgt `worker/migrations/einsatzplanung/0021_pep.sql` (Tabellen `peps` und
+   `pep_vorlagen`, entfernt `einsaetze.pep_id`; ohne Startbestand; Vermerk
+   `0021_pep.sql` in `d1_migrations`). **Für die bestehende Datenbank steht sie noch aus** und
+   muss vor dem Deployen des Workers eingespielt werden. Alte Nextcloud-Einsatzpläne werden
+   nicht übernommen.
 3. Worker deployen. Die Startvorlage erscheint danach unter _Einsatzplanung → VB-Vorlagen_.
 
 ## HiOrg-Server-API (OAuth, optional)
@@ -287,11 +290,11 @@ Nach Infrastruktur- oder Zugangsdatenänderungen prüfen:
 | Erlaubte/fremde Adresse | Freigegebenes Google-Konto kommt durch, ein anderes wird abgelehnt.               |
 | `/api/benutzer`         | Enthält die eigene E-Mail-Adresse.                                                |
 | Kalender                | Excel einmalig übernehmen; Änderung speichern, neu laden – Änderung bleibt.       |
-| Einsatz                 | EFS-Veranstaltung importieren; Planung in Nextcloud speichern und wieder laden.   |
+| Einsatz                 | EFS-Veranstaltung importieren; Planung in der Datenbank speichern, neu laden.     |
 | HiOrg-Kalender          | Termine erscheinen im Jahresplan als gekennzeichnete Fremdquelle.                 |
 | Abmeldung               | `/cdn-cgi/access/logout`; geschützte URL verlangt danach erneut eine Anmeldung.   |
 
-Bei einem Nextcloud-Speicherkonflikt (HTTP 412) bleiben lokale Änderungen erhalten: zuerst
+Bei einem Speicherkonflikt (HTTP 412) bleiben lokale Änderungen erhalten: zuerst
 lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blindes
 Überschreiben.
 
@@ -302,7 +305,6 @@ lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blind
 | Build scheitert beim Installieren    | `SKIP_DEPENDENCY_INSTALL=true` und `npx npm@11 ci` im Build command prüfen.                                                                 |
 | `ACCESS_KONFIGURATION_FEHLT`         | `ACCESS_TEAM_DOMAIN`/`ACCESS_AUD` als Laufzeitvariablen (nicht Build-Variablen) prüfen.                                                     |
 | `ACCESS_TOKEN_UNGUELTIG`             | Richtige Access-Anwendung/Audience kontrollieren; ab-/neu anmelden.                                                                         |
-| Nextcloud-Fehler                     | Freigabe, Token, Passwort und Schreibrechte prüfen, danach das Secrets-Store-Binding am Worker.                                             |
 | `EFS_UMLEITUNG`                      | `HIORGSERVER_BASE_URL` braucht den abschließenden `/` (`https://www.hiorg-server.de/api/efs/`).                                             |
 | `HIORG_KALENDER_KONFIGURATION_FEHLT` | `HIORGSERVER_CALENDER_FEED` fehlt, ist leer, enthält Steuerzeichen/Backslash oder ist eine URL ohne HTTPS beziehungsweise ohne HiOrg-Ziel.  |
 | `?hiorg=nicht-eingerichtet`          | `HIORG_SERVER_CLIENTID`/`HIORG_SERVER_CLIENTSECRET` oder `BENUTZER_DB` fehlen am Worker.                                                    |

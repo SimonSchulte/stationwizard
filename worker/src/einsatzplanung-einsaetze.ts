@@ -13,7 +13,7 @@ import {
 import { type Einsatz, pruefeEinsatz } from './einsatzplanung-pruefung';
 import { starkesEtag } from './etag';
 
-/** Einsätze: Liste mit VB-Kennzahlen, Einzelabruf, Anlage, Änderung mit `If-Match`. */
+/** Einsätze: Liste mit VB- und PEP-Kennzahlen, Einzelabruf, Anlage, Änderung mit `If-Match`. */
 
 interface EinsatzZeile {
   id: string;
@@ -22,13 +22,15 @@ interface EinsatzZeile {
   ende: string | null;
   ort: string | null;
   hiorg_veranstaltung_id: string | null;
-  pep_id: string | null;
   version: number;
 }
 
 interface EinsatzListenZeile extends EinsatzZeile {
   vb_laufzettel: number | null;
   vb_positionen: number | null;
+  pep_posten: number | null;
+  pep_positionen: number | null;
+  pep_besetzt: number | null;
 }
 
 function zuEinsatzJson(zeile: EinsatzZeile): Einsatz {
@@ -39,7 +41,6 @@ function zuEinsatzJson(zeile: EinsatzZeile): Einsatz {
     ende: zeile.ende,
     ort: zeile.ort,
     hiorgVeranstaltungId: zeile.hiorg_veranstaltung_id,
-    pepId: zeile.pep_id,
   };
 }
 
@@ -76,11 +77,14 @@ function uebersetzeIndexfehler(ursache: unknown): Response {
 }
 
 export async function listeEinsaetze(db: D1Database): Promise<Response> {
-  // Ein Aufruf über den ganzen Bestand: Einsatz und VB-Kennzahlen per LEFT JOIN.
+  // Ein Aufruf über den ganzen Bestand: Einsatz sowie VB- und PEP-Kennzahlen per LEFT JOIN.
   const ergebnis = await db
     .prepare(
-      `SELECT e.*, v.laufzettel AS vb_laufzettel, v.positionen AS vb_positionen
-       FROM einsaetze e LEFT JOIN vorbereitungen v ON v.einsatz_id = e.id
+      `SELECT e.*, v.laufzettel AS vb_laufzettel, v.positionen AS vb_positionen,
+              p.posten AS pep_posten, p.positionen AS pep_positionen, p.besetzt AS pep_besetzt
+       FROM einsaetze e
+       LEFT JOIN vorbereitungen v ON v.einsatz_id = e.id
+       LEFT JOIN peps p ON p.einsatz_id = e.id
        ORDER BY e.beginn DESC, e.titel`,
     )
     .all<EinsatzListenZeile>();
@@ -92,6 +96,14 @@ export async function listeEinsaetze(db: D1Database): Promise<Response> {
         zeile.vb_laufzettel === null || zeile.vb_positionen === null
           ? null
           : { laufzettel: zeile.vb_laufzettel, positionen: zeile.vb_positionen },
+      pep:
+        zeile.pep_posten === null || zeile.pep_positionen === null || zeile.pep_besetzt === null
+          ? null
+          : {
+              posten: zeile.pep_posten,
+              positionen: zeile.pep_positionen,
+              besetzt: zeile.pep_besetzt,
+            },
     })),
   });
 }
@@ -124,9 +136,9 @@ export async function legeEinsatzAn(
     await db
       .prepare(
         `INSERT INTO einsaetze
-           (id, titel, beginn, ende, ort, hiorg_veranstaltung_id, pep_id, version,
+           (id, titel, beginn, ende, ort, hiorg_veranstaltung_id, version,
             angelegt_am, geaendert_am, angelegt_von, geaendert_von)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
       )
       .bind(
         eingabe.id,
@@ -135,7 +147,6 @@ export async function legeEinsatzAn(
         eingabe.ende,
         eingabe.ort,
         eingabe.hiorgVeranstaltungId,
-        eingabe.pepId,
         jetzt,
         jetzt,
         identitaet.email,
@@ -170,7 +181,7 @@ export async function aktualisiereEinsatz(
     ergebnis = await db
       .prepare(
         `UPDATE einsaetze
-         SET titel = ?, beginn = ?, ende = ?, ort = ?, hiorg_veranstaltung_id = ?, pep_id = ?,
+         SET titel = ?, beginn = ?, ende = ?, ort = ?, hiorg_veranstaltung_id = ?,
              geaendert_am = ?, geaendert_von = ?, version = version + 1
          WHERE id = ? AND version = ?`,
       )
@@ -180,7 +191,6 @@ export async function aktualisiereEinsatz(
         eingabe.ende,
         eingabe.ort,
         eingabe.hiorgVeranstaltungId,
-        eingabe.pepId,
         new Date().toISOString(),
         identitaet.email,
         id,

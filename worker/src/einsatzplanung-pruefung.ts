@@ -51,7 +51,6 @@ export interface Einsatz {
   ende: string | null;
   ort: string | null;
   hiorgVeranstaltungId: string | null;
-  pepId: string | null;
 }
 export interface Vorbereitung {
   vorlageId: string | null;
@@ -72,19 +71,19 @@ export interface VbKennzahlen {
 const HIORG_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const ZEITPUNKT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
-function hatNurFelder(wert: Record<string, unknown>, erlaubt: readonly string[]): boolean {
+export function hatNurFelder(wert: Record<string, unknown>, erlaubt: readonly string[]): boolean {
   return Object.keys(wert).every((schluessel) => erlaubt.includes(schluessel));
 }
 
-function istUuid(wert: unknown): wert is string {
+export function istUuid(wert: unknown): wert is string {
   return typeof wert === 'string' && UUID_REGEX.test(wert);
 }
 
-function istUuidOderNull(wert: unknown): wert is string | null {
+export function istUuidOderNull(wert: unknown): wert is string | null {
   return wert === null || istUuid(wert);
 }
 
-function istText0bis(wert: unknown, max: number): wert is string {
+export function istText0bis(wert: unknown, max: number): wert is string {
   return istText(wert) && wert.length <= max;
 }
 
@@ -253,15 +252,7 @@ export function zaehleVb(inhalt: VbInhalt): VbKennzahlen {
 export function pruefeEinsatz(wert: unknown): Einsatz | null {
   if (
     !istObjekt(wert) ||
-    !hatNurFelder(wert, [
-      'id',
-      'titel',
-      'beginn',
-      'ende',
-      'ort',
-      'hiorgVeranstaltungId',
-      'pepId',
-    ]) ||
+    !hatNurFelder(wert, ['id', 'titel', 'beginn', 'ende', 'ort', 'hiorgVeranstaltungId']) ||
     !istUuid(wert['id']) ||
     !istNichtleererText(wert['titel']) ||
     wert['titel'].length > TEXT_MAX ||
@@ -271,8 +262,7 @@ export function pruefeEinsatz(wert: unknown): Einsatz | null {
     !(
       wert['hiorgVeranstaltungId'] === null ||
       (istText(wert['hiorgVeranstaltungId']) && HIORG_ID.test(wert['hiorgVeranstaltungId']))
-    ) ||
-    !istUuidOderNull(wert['pepId'])
+    )
   ) {
     return null;
   }
@@ -283,7 +273,6 @@ export function pruefeEinsatz(wert: unknown): Einsatz | null {
     ende: wert['ende'],
     ort: wert['ort'],
     hiorgVeranstaltungId: wert['hiorgVeranstaltungId'],
-    pepId: wert['pepId'],
   };
 }
 

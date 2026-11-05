@@ -53,7 +53,6 @@ import {
   verarbeiteMaterialEinreichungen,
   type MaterialEinreichungenKonfiguration,
 } from './material-einreichungen';
-import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 import {
   istOeffentlicherPfad,
   verarbeiteOeffentlicheErfassung,
@@ -69,7 +68,6 @@ import {
 export interface Env
   extends
     AccessKonfiguration,
-    NextcloudKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
     HiorgApiKonfiguration,
@@ -237,10 +235,6 @@ export default {
 
     if (url.pathname === EHRUNGEN_PFAD || url.pathname.startsWith(`${EHRUNGEN_PFAD}/`)) {
       return verarbeiteEhrungen(anfrage, umgebung, benutzer);
-    }
-
-    if (url.pathname.startsWith('/api/nextcloud/')) {
-      return verarbeiteNextcloud(anfrage, umgebung);
     }
 
     // Vor der Fahrzeugverarbeitung, weil der Bericht kein einzelnes Fahrzeug

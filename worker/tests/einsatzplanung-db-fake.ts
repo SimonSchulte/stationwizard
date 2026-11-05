@@ -12,7 +12,6 @@ interface EinsatzZeile {
   ende: string | null;
   ort: string | null;
   hiorg_veranstaltung_id: string | null;
-  pep_id: string | null;
   version: number;
   angelegt_am: string;
   geaendert_am: string;
@@ -44,10 +43,37 @@ interface VorbereitungZeile {
   geaendert_von: string;
 }
 
+interface PepZeile {
+  einsatz_id: string;
+  schema: number;
+  vorlage_id: string | null;
+  inhalt: string;
+  posten: number;
+  positionen: number;
+  besetzt: number;
+  einsatzkraefte: number;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
+interface PepVorlageZeile {
+  id: string;
+  titel: string;
+  inhalt: string;
+  posten: number;
+  positionen: number;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeEinsatzplanungDb {
   einsaetze = new Map<string, EinsatzZeile>();
   vorlagen = new Map<string, VorlageZeile>();
   vorbereitungen = new Map<string, VorbereitungZeile>();
+  peps = new Map<string, PepZeile>();
+  pepVorlagen = new Map<string, PepVorlageZeile>();
   /** Zählt Lesezugriffe der Einsatzliste: sie muss mit genau einer Abfrage auskommen. */
   listenabfragen = 0;
   /** Simuliert ein Rennen: die Vorabprüfung der Veranstaltung findet nichts. */
@@ -90,31 +116,19 @@ class FakeStatement {
   async run(): Promise<Ergebnis> {
     const w = this.werte;
     if (this.query.startsWith('INSERT INTO einsaetze')) {
-      const [
-        id,
-        titel,
-        beginn,
-        ende,
-        ort,
-        veranstaltung,
-        pep,
-        angelegtAm,
-        geaendertAm,
-        von1,
-        von2,
-      ] = w as [
-        string,
-        string,
-        string | null,
-        string | null,
-        string | null,
-        string | null,
-        string | null,
-        string,
-        string,
-        string,
-        string,
-      ];
+      const [id, titel, beginn, ende, ort, veranstaltung, angelegtAm, geaendertAm, von1, von2] =
+        w as [
+          string,
+          string,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          string,
+          string,
+          string,
+          string,
+        ];
       if (this.db.einsaetze.has(id)) throw new Error('UNIQUE constraint failed: einsaetze.id');
       if (this.db.veranstaltungBelegt(veranstaltung, id)) {
         throw new Error('UNIQUE constraint failed: einsaetze.hiorg_veranstaltung_id');
@@ -126,7 +140,6 @@ class FakeStatement {
         ende,
         ort,
         hiorg_veranstaltung_id: veranstaltung,
-        pep_id: pep,
         version: 1,
         angelegt_am: angelegtAm,
         geaendert_am: geaendertAm,
@@ -136,9 +149,8 @@ class FakeStatement {
       return OK;
     }
     if (this.query.startsWith('UPDATE einsaetze')) {
-      const [titel, beginn, ende, ort, veranstaltung, pep, geaendertAm, von, id, version] = w as [
+      const [titel, beginn, ende, ort, veranstaltung, geaendertAm, von, id, version] = w as [
         string,
-        string | null,
         string | null,
         string | null,
         string | null,
@@ -160,7 +172,6 @@ class FakeStatement {
         ende,
         ort,
         hiorg_veranstaltung_id: veranstaltung,
-        pep_id: pep,
         geaendert_am: geaendertAm,
         geaendert_von: von,
         version: bestehend.version + 1,
@@ -290,6 +301,153 @@ class FakeStatement {
       this.db.vorbereitungen.delete(einsatz_id);
       return OK;
     }
+    if (this.query.startsWith('INSERT INTO peps')) {
+      const [
+        einsatz_id,
+        schema,
+        vorlage_id,
+        inhalt,
+        posten,
+        positionen,
+        besetzt,
+        einsatzkraefte,
+        geaendert_am,
+        geaendert_von,
+      ] = w as [
+        string,
+        number,
+        string | null,
+        string,
+        number,
+        number,
+        number,
+        number,
+        string,
+        string,
+      ];
+      if (this.db.peps.has(einsatz_id))
+        throw new Error('UNIQUE constraint failed: peps.einsatz_id');
+      if (!this.db.einsaetze.has(einsatz_id)) throw new Error('FOREIGN KEY constraint failed');
+      this.db.peps.set(einsatz_id, {
+        einsatz_id,
+        schema,
+        vorlage_id,
+        inhalt,
+        posten,
+        positionen,
+        besetzt,
+        einsatzkraefte,
+        version: 1,
+        geaendert_am,
+        geaendert_von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE peps')) {
+      const [
+        schema,
+        vorlage_id,
+        inhalt,
+        posten,
+        positionen,
+        besetzt,
+        einsatzkraefte,
+        geaendert_am,
+        geaendert_von,
+        einsatz_id,
+        version,
+      ] = w as [
+        number,
+        string | null,
+        string,
+        number,
+        number,
+        number,
+        number,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.peps.get(einsatz_id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.peps.set(einsatz_id, {
+        ...bestehend,
+        schema,
+        vorlage_id,
+        inhalt,
+        posten,
+        positionen,
+        besetzt,
+        einsatzkraefte,
+        geaendert_am,
+        geaendert_von,
+        version: bestehend.version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM peps')) {
+      const [einsatz_id, version] = w as [string, number];
+      const bestehend = this.db.peps.get(einsatz_id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.peps.delete(einsatz_id);
+      return OK;
+    }
+    if (this.query.startsWith('INSERT INTO pep_vorlagen')) {
+      const [id, titel, inhalt, posten, positionen, geaendert_am, geaendert_von] = w as [
+        string,
+        string,
+        string,
+        number,
+        number,
+        string,
+        string,
+      ];
+      if (this.db.pepVorlagen.has(id)) throw new Error('UNIQUE constraint failed: pep_vorlagen.id');
+      this.db.pepVorlagen.set(id, {
+        id,
+        titel,
+        inhalt,
+        posten,
+        positionen,
+        version: 1,
+        geaendert_am,
+        geaendert_von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE pep_vorlagen')) {
+      const [titel, inhalt, posten, positionen, geaendert_am, geaendert_von, id, version] = w as [
+        string,
+        string,
+        number,
+        number,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.pepVorlagen.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.pepVorlagen.set(id, {
+        ...bestehend,
+        titel,
+        inhalt,
+        posten,
+        positionen,
+        geaendert_am,
+        geaendert_von,
+        version: bestehend.version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM pep_vorlagen')) {
+      const [id, version] = w as [string, number];
+      const bestehend = this.db.pepVorlagen.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.pepVorlagen.delete(id);
+      return OK;
+    }
     throw new Error(`FakeEinsatzplanungDb: unbekannte run()-Anweisung: ${this.query}`);
   }
 
@@ -317,6 +475,18 @@ class FakeStatement {
     ) {
       return als(this.db.vorbereitungen.get(w[0] as string));
     }
+    if (this.query.startsWith('SELECT schema, vorlage_id, inhalt, version FROM peps')) {
+      return als(this.db.peps.get(w[0] as string));
+    }
+    if (this.query.startsWith('SELECT einsatz_id FROM peps WHERE einsatz_id = ?')) {
+      return als(this.db.peps.has(w[0] as string) ? { einsatz_id: w[0] } : undefined);
+    }
+    if (this.query.startsWith('SELECT id, titel, inhalt, version FROM pep_vorlagen WHERE id = ?')) {
+      return als(this.db.pepVorlagen.get(w[0] as string));
+    }
+    if (this.query.startsWith('SELECT id FROM pep_vorlagen WHERE id = ?')) {
+      return als(this.db.pepVorlagen.has(w[0] as string) ? { id: w[0] } : undefined);
+    }
     if (this.query.startsWith('SELECT einsatz_id FROM vorbereitungen WHERE einsatz_id = ?')) {
       return als(this.db.vorbereitungen.has(w[0] as string) ? { einsatz_id: w[0] } : undefined);
     }
@@ -339,16 +509,26 @@ class FakeStatement {
         )
         .map((zeile) => {
           const vb = this.db.vorbereitungen.get(zeile.id);
+          const pep = this.db.peps.get(zeile.id);
           return {
             ...zeile,
             vb_laufzettel: vb?.laufzettel ?? null,
             vb_positionen: vb?.positionen ?? null,
+            pep_posten: pep?.posten ?? null,
+            pep_positionen: pep?.positionen ?? null,
+            pep_besetzt: pep?.besetzt ?? null,
           };
         });
       return { success: true, results: zeilen as unknown as T[] };
     }
     if (this.query.startsWith('SELECT id, titel, version, abschnitte, laufzettel, positionen')) {
       const zeilen = [...this.db.vorlagen.values()].sort((a, b) => a.titel.localeCompare(b.titel));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT id, titel, version, posten, positionen, geaendert_am')) {
+      const zeilen = [...this.db.pepVorlagen.values()].sort((a, b) =>
+        a.titel.localeCompare(b.titel),
+      );
       return { success: true, results: zeilen as unknown as T[] };
     }
     throw new Error(`FakeEinsatzplanungDb: unbekannte all()-Anweisung: ${this.query}`);

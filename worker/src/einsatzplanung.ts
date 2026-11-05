@@ -8,6 +8,14 @@ import {
 } from './einsatzplanung-einsaetze';
 import { type EinsatzplanungKonfiguration } from './einsatzplanung-gemeinsam';
 import {
+  aktualisierePepVorlage,
+  legePepVorlageAn,
+  lesePepVorlage,
+  listePepVorlagen,
+  loeschePepVorlage,
+} from './einsatzplanung-pep-vorlagen';
+import { lesePep, loeschePep, schreibePep } from './einsatzplanung-peps';
+import {
   leseVorbereitung,
   loescheVorbereitung,
   schreibeVorbereitung,
@@ -22,12 +30,15 @@ import {
 import { UUID_MUSTER } from './json-lesen';
 
 /**
- * Einsatzplanung (VB): Einsätze, Vorbereitungen und VB-Vorlagen liegen in einer
+ * Einsatzplanung: Einsätze, Vorbereitungen (VB), PEP und beide Vorlagenarten liegen in einer
  * eigenen D1-Datenbank (EINSATZPLANUNG_DB). Rechte vorerst alle, Rollen später.
  */
 const EINSAETZE_LISTE_PFAD = '/api/einsatzplanung/einsaetze';
 const EINSATZ_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})$`, 'i');
 const VB_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})/vb$`, 'i');
+const PEP_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})/pep$`, 'i');
+const PEP_VORLAGEN_LISTE_PFAD = '/api/einsatzplanung/pep-vorlagen';
+const PEP_VORLAGE_PFAD = new RegExp(`^/api/einsatzplanung/pep-vorlagen/(${UUID_MUSTER})$`, 'i');
 const VORLAGEN_LISTE_PFAD = '/api/einsatzplanung/vb-vorlagen';
 const VORLAGE_PFAD = new RegExp(`^/api/einsatzplanung/vb-vorlagen/(${UUID_MUSTER})$`, 'i');
 
@@ -81,6 +92,30 @@ export async function verarbeiteEinsatzplanung(
         return await schreibeVorbereitung(anfrage, db, vbEinsatzId, identitaet);
       }
       if (methode === 'DELETE') return await loescheVorbereitung(anfrage, db, vbEinsatzId);
+      return nichtErlaubt('GET, PUT, DELETE');
+    }
+
+    const pepEinsatzId = PEP_PFAD.exec(url.pathname)?.[1];
+    if (pepEinsatzId) {
+      if (methode === 'GET') return await lesePep(db, pepEinsatzId);
+      if (methode === 'PUT') return await schreibePep(anfrage, db, pepEinsatzId, identitaet);
+      if (methode === 'DELETE') return await loeschePep(anfrage, db, pepEinsatzId);
+      return nichtErlaubt('GET, PUT, DELETE');
+    }
+
+    if (url.pathname === PEP_VORLAGEN_LISTE_PFAD) {
+      if (methode === 'GET') return await listePepVorlagen(db);
+      if (methode === 'POST') return await legePepVorlageAn(anfrage, db, identitaet);
+      return nichtErlaubt('GET, POST');
+    }
+
+    const pepVorlageId = PEP_VORLAGE_PFAD.exec(url.pathname)?.[1];
+    if (pepVorlageId) {
+      if (methode === 'GET') return await lesePepVorlage(db, pepVorlageId);
+      if (methode === 'PUT') {
+        return await aktualisierePepVorlage(anfrage, db, pepVorlageId, identitaet);
+      }
+      if (methode === 'DELETE') return await loeschePepVorlage(anfrage, db, pepVorlageId);
       return nichtErlaubt('GET, PUT, DELETE');
     }
 
