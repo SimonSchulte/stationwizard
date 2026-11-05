@@ -34,8 +34,9 @@ export const MASS = {
   innenRechts: 11,
   kopf: 44,
   materialZeile: 15,
-  info: 42,
-  schreibfeld: 60,
+  ziel: 34,
+  info: 14,
+  schreibfeld: 52,
 } as const;
 
 /** Schriftgrößen in pt. Das Material ist so gewählt, dass 38 Zeichen in eine Zeile passen. */
@@ -44,6 +45,8 @@ export const SCHRIFT = {
   anzahl: 9.5,
   info: 8,
   infoBeschriftung: 6.5,
+  ziel: 10.5,
+  zielBeschriftung: 6.5,
   klein: 6.5,
   ueberschrift: 10.5,
   nummer: 22,
@@ -309,26 +312,54 @@ function materialRaster(streifen: LaufzettelStreifen): Content {
   };
 }
 
-function infoZeilen(streifen: LaufzettelStreifen): Content {
+/** Breite der Beschriftungsspalte im Zielblock in pt. */
+const ZIEL_BESCHRIFTUNG_BREITE = 34;
+/** Höhe einer einzeiligen Zielzeile in pt. */
+const ZIEL_ZEILE = 16;
+
+/** Leere Schreiblinie in einer Tabellenzelle (statt „–“). */
+function schreiblinie(breite: number, y: number): ContentCanvas {
+  return {
+    canvas: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: y,
+        x2: breite,
+        y2: y,
+        lineWidth: 0.6,
+        lineColor: PDF_FARBEN.beschriftung,
+      },
+    ],
+  };
+}
+
+/**
+ * Zielblock direkt unter dem Kopfkasten: „VON“ (Lagerort) und „AUF / IN“ (Transport mit) groß
+ * und fett, damit eine helfende Person auf einen Blick sieht, wo sie das Material holt und
+ * wohin sie es bringt. Fehlende Werte erscheinen als Schreiblinie.
+ */
+function zielBlock(streifen: LaufzettelStreifen): Content {
+  const feldBreite = MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts;
+  const wertBreite = feldBreite - ZIEL_BESCHRIFTUNG_BREITE;
   const zeile = (beschriftung: string, wert: string): Content[] => [
     {
       text: beschriftung,
-      fontSize: SCHRIFT.infoBeschriftung,
-      color: PDF_FARBEN.sekundaer,
-      margin: [0, 2, 0, 0],
+      fontSize: SCHRIFT.zielBeschriftung,
+      bold: true,
+      color: PDF_FARBEN.rot,
+      margin: [0, 5, 0, 0],
     },
-    { text: wert || ' ', fontSize: SCHRIFT.info, margin: [0, 1, 0, 0] },
+    wert.trim()
+      ? { text: wert.trim(), fontSize: SCHRIFT.ziel, bold: true, margin: [0, 1.5, 0, 0] }
+      : schreiblinie(wertBreite, 12),
   ];
-  return kasten(MASS.info, {
+  return {
     margin: [0, 3, 0, 0],
     table: {
-      widths: [52, '*'],
-      heights: () => 13,
-      body: [
-        zeile('Lagerort', streifen.lagerort),
-        zeile('Transport mit', streifen.transportMit),
-        zeile('Rückfragen an', streifen.auftraggeber),
-      ],
+      widths: [ZIEL_BESCHRIFTUNG_BREITE, '*'],
+      heights: () => ZIEL_ZEILE,
+      body: [zeile('VON', streifen.lagerort), zeile('AUF / IN', streifen.transportMit)],
     },
     layout: {
       hLineWidth: (i: number, k: { table: { body: unknown[] } }) =>
@@ -340,6 +371,26 @@ function infoZeilen(streifen: LaufzettelStreifen): Content {
       paddingTop: () => 0,
       paddingBottom: () => 0,
     },
+  };
+}
+
+/** „Rückfragen an“ als einzige kleine Infozeile unter dem Material. */
+function rueckfragen(streifen: LaufzettelStreifen): Content {
+  const feldBreite = MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts;
+  return kasten(MASS.info, {
+    margin: [0, 3, 0, 0],
+    columns: [
+      {
+        width: 52,
+        text: 'Rückfragen an',
+        fontSize: SCHRIFT.infoBeschriftung,
+        color: PDF_FARBEN.sekundaer,
+        margin: [0, 2.5, 0, 0],
+      },
+      streifen.auftraggeber.trim()
+        ? { width: '*', text: streifen.auftraggeber.trim(), fontSize: SCHRIFT.info }
+        : { width: '*', ...schreiblinie(feldBreite - 52, 9) },
+    ],
   });
 }
 
@@ -384,9 +435,9 @@ function schreibfelder(): Content {
     margin: [0, 3, 0, 0],
     stack: [
       { text: 'Durchführung von', fontSize: SCHRIFT.infoBeschriftung, color: PDF_FARBEN.sekundaer },
-      { ...linie(feldBreite), margin: [0, 13, 0, 0] },
+      { ...linie(feldBreite), margin: [0, 11, 0, 0] },
       {
-        margin: [0, 6, 0, 0],
+        margin: [0, 5, 0, 0],
         columns: [
           {
             width: 'auto',
@@ -403,10 +454,10 @@ function schreibfelder(): Content {
         text: 'Grund:',
         fontSize: SCHRIFT.infoBeschriftung,
         color: PDF_FARBEN.sekundaer,
-        margin: [0, 5, 0, 0],
+        margin: [0, 4, 0, 0],
       },
+      { ...linie(feldBreite), margin: [0, 7, 0, 0] },
       { ...linie(feldBreite), margin: [0, 8, 0, 0] },
-      { ...linie(feldBreite), margin: [0, 9, 0, 0] },
     ],
   });
 }
@@ -424,8 +475,9 @@ function streifenInhalt(
     stack: [
       klemmrand(kopfTitel, streifen),
       kopfkasten(streifen),
+      zielBlock(streifen),
       materialRaster(streifen),
-      infoZeilen(streifen),
+      rueckfragen(streifen),
       schreibfelder(),
       {
         text: `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Seite ${seite} von ${seitenGesamt}`,

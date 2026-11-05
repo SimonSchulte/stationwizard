@@ -3274,6 +3274,13 @@ Datenvertrag zwischen Worker und Frontend).
   Klemmrand, Farbband, Fachgruppe, 23-Zeilen-Raster und Fortsetzungsstreifen bei zu vollen
   Laufzetteln.
 
+- Nachtrag nach Rückmeldung des Betreibers: Laufzettel sind nach „was wohin“ gegliedert, nicht
+  nach Ansprechpartner. Abschnitt = Transportziel, Laufzettel = Lagerort; auf Laufzettel,
+  Karte und im Editor stehen „Von“ (Lagerort) und „Auf / In“ (Transport mit) vorn, „Rückfragen
+  an“ klein am Fuß. Startvorlage entsprechend umgebaut (4 Abschnitte, 14 Laufzettel). Erneut
+  geprüft: Build, alle Tests (Angular 1318), Formatprüfung, Probedruck in Node (Fußzeile mit
+  mindestens 19 pt Reserve im Grenzfall) und Editor im Headless-Chromium.
+
 ### Tatsächlich ausgeführte Prüfungen
 
 - `npm run build`, `npm test` (Angular 165 Dateien/1317 Tests, öffentliche Seite 29 Tests,

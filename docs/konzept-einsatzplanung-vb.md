@@ -175,7 +175,9 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
     Fachgruppe auch im Schwarz-Weiß-Druck über den Text erkennbar,
   - der **Materialbereich mit festem Raster von 23 Zeilen** (je ca. 5 mm, Kästchen, Anzahl,
     Material); nicht belegte Zeilen bleiben mit Kästchen für Nachträge von Hand,
-  - Lagerort, Transport mit und „Rückfragen an“ als je eine kleine Zeile,
+  - direkt unter dem Kopf ein Zielblock „VON“ (Lagerort) und „AUF / IN“ (Transport mit), je eine
+    Zeile in 10,5 pt fett, leer als Schreiblinie; darunter am Materialende „Rückfragen an“ als
+    kleine Zeile,
   - „Durchführung von“, „Durchgeführt ☐ Ja ☐ nicht möglich“ und „Grund“ kompakt am Fuß.
 
 ### Platzberechnung und Warnung

@@ -4,7 +4,9 @@ import { VbInhalt, VbLaufzettel } from '../models/vb.model';
 export const LAUFZETTEL_KAPAZITAET = 23;
 /** Zeichen je Materialzeile (Breite bei 13 pt auf dem Streifen; beim Druck zu eichen). */
 export const ZEICHEN_JE_ZEILE = 38;
-/** Zeichen je Info-Zeile (Lagerort, Transport mit, Rückfragen an). */
+/** Zeichen je Zielzeile (VON, AUF / IN; 10,5 pt fett, beim Druck zu eichen). */
+export const ZEICHEN_JE_ZIELZEILE = 34;
+/** Zeichen je Info-Zeile („Rückfragen an“, 8 pt). */
 export const ZEICHEN_JE_INFOZEILE = 44;
 /** Ab dieser Belegung gilt ein Laufzettel als knapp. */
 export const LAUFZETTEL_KNAPP_AB = 21;
@@ -26,9 +28,10 @@ function zeilen(text: string, zeichenJeZeile: number): number {
  * Funktion, damit Warnung und Ausdruck nie auseinanderlaufen.
  *
  * - Eine Position belegt `max(1, ⌈Zeichen / 38⌉)` Zeilen.
- * - Lagerort, Transport und Auftraggeber stehen je in einer Info-Zeile. Jede Umbruchzeile
- *   darüber hinaus zählt; die erste Umbruchzeile (über alle drei Felder) ist Reserve, jede
- *   weitere kostet eine Materialzeile.
+ * - Lagerort („VON“) und Transport („AUF / IN“) stehen im Zielblock mit je
+ *   `ZEICHEN_JE_ZIELZEILE` Zeichen, „Rückfragen an“ in einer kleinen Info-Zeile. Jede
+ *   Umbruchzeile darüber hinaus zählt; die erste Umbruchzeile (über alle drei Felder) ist
+ *   Reserve, jede weitere kostet eine Materialzeile.
  */
 export function laufzettelPlatz(laufzettel: VbLaufzettel): LaufzettelPlatz {
   let belegt = 0;
@@ -36,8 +39,13 @@ export function laufzettelPlatz(laufzettel: VbLaufzettel): LaufzettelPlatz {
     belegt += Math.max(1, zeilen(position.material, ZEICHEN_JE_ZEILE));
   }
   let umbruchzeilen = 0;
-  for (const text of [laufzettel.lagerort, laufzettel.transportMit, laufzettel.auftraggeber]) {
-    umbruchzeilen += Math.max(0, zeilen(text, ZEICHEN_JE_INFOZEILE) - 1);
+  const felder: [string, number][] = [
+    [laufzettel.lagerort, ZEICHEN_JE_ZIELZEILE],
+    [laufzettel.transportMit, ZEICHEN_JE_ZIELZEILE],
+    [laufzettel.auftraggeber, ZEICHEN_JE_INFOZEILE],
+  ];
+  for (const [text, zeichen] of felder) {
+    umbruchzeilen += Math.max(0, zeilen(text, zeichen) - 1);
   }
   belegt += Math.max(0, umbruchzeilen - 1);
 

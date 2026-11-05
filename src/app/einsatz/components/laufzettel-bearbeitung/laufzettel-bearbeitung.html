@@ -25,17 +25,8 @@
 </div>
 
 <div class="felder">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
-    <mat-label>Auftrag (Überschrift)</mat-label>
-    <input
-      matInput
-      [attr.maxlength]="grenzen.text"
-      [value]="laufzettel().ueberschrift"
-      (input)="feld('ueberschrift', $event)"
-    />
-  </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Lagerort</mat-label>
+    <mat-label>Von (Lagerort)</mat-label>
     <input
       matInput
       [attr.maxlength]="grenzen.text"
@@ -44,7 +35,7 @@
     />
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Transport mit</mat-label>
+    <mat-label>Auf / In (Transport)</mat-label>
     <input
       matInput
       [attr.maxlength]="grenzen.text"
@@ -52,13 +43,13 @@
       (input)="feld('transportMit', $event)"
     />
   </mat-form-field>
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Auftraggeber für Rückfragen</mat-label>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
+    <mat-label>Auftrag (Überschrift)</mat-label>
     <input
       matInput
       [attr.maxlength]="grenzen.text"
-      [value]="laufzettel().auftraggeber"
-      (input)="feld('auftraggeber', $event)"
+      [value]="laufzettel().ueberschrift"
+      (input)="feld('ueberschrift', $event)"
     />
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -91,6 +82,18 @@
       </mat-chip-option>
     }
   </mat-chip-listbox>
+</div>
+
+<div class="felder">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Rückfragen an</mat-label>
+    <input
+      matInput
+      [attr.maxlength]="grenzen.text"
+      [value]="laufzettel().auftraggeber"
+      (input)="feld('auftraggeber', $event)"
+    />
+  </mat-form-field>
 </div>
 
 <div class="positionen-kopf">

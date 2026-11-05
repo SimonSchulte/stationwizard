@@ -9,7 +9,7 @@ export type LaufzettelMarke = 'geaendert' | 'neu';
 
 /**
  * Karte eines Laufzettels in der Liste des VB-Editors: Farbstreifen in der Abschnittsfarbe,
- * laufende Nummer, Kurztext der Materialien, „Lagerort → Transport“, Fachgruppe und Belegung
+ * laufende Nummer, als Hauptinformation „Von Lagerort → Auf/In Transport“, darunter der Kurztext der Materialien, Fachgruppe und Belegung
  * („6 / 23“, mit Zustandsfarbe und Symbol). Rein darstellend; ein Klick oder Enter/Leertaste
  * meldet `gewaehlt`.
  */
@@ -40,10 +40,10 @@ export class LaufzettelKarte {
 
   protected readonly ort = computed(() => {
     const { lagerort, transportMit } = this.laufzettel();
-    if (lagerort && transportMit) return `${lagerort} → ${transportMit}`;
-    if (lagerort) return lagerort;
-    if (transportMit) return `→ ${transportMit}`;
-    return 'Kein Lagerort';
+    if (lagerort && transportMit) return `Von ${lagerort} → Auf/In ${transportMit}`;
+    if (lagerort) return `Von ${lagerort}`;
+    if (transportMit) return `Auf/In ${transportMit}`;
+    return 'Kein Ziel angegeben';
   });
 
   protected readonly platzBeschreibung = computed(() => {

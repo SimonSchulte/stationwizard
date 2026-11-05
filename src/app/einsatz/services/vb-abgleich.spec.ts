@@ -93,7 +93,7 @@ describe('vbAbgleich', () => {
     const aenderungen = vbAbgleich(vorlage, vb);
     expect(aenderungen).toHaveLength(1);
     expect(aenderungen[0].art).toBe('geaendert');
-    expect(aenderungen[0].beschreibung).toContain('Lagerort: „Lager A“ → „Lager Z“');
+    expect(aenderungen[0].beschreibung).toContain('Von: „Lager A“ → „Lager Z“');
     expect(aenderungen[0].beschreibung).toContain('Positionen: 1 neu, 1 geändert, 1 gelöscht');
   });
 

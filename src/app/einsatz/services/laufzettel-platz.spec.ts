@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
 import {
   LAUFZETTEL_KAPAZITAET,
+  ZEICHEN_JE_INFOZEILE,
   ZEICHEN_JE_ZEILE,
+  ZEICHEN_JE_ZIELZEILE,
   laufzettelNummern,
   laufzettelPlatz,
   ueberlaufPositionen,
@@ -32,14 +34,36 @@ describe('laufzettelPlatz', () => {
     expect(laufzettelPlatz(mitPositionen(1, '')).belegt).toBe(1);
   });
 
-  it('hält eine Umbruchzeile der Infofelder als Reserve, jede weitere kostet eine Zeile', () => {
+  it('hält eine Umbruchzeile der Zielfelder als Reserve, jede weitere kostet eine Zeile', () => {
     const basis = mitPositionen(3);
-    expect(laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(44) }).belegt).toBe(3);
-    expect(laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(45) }).belegt).toBe(3);
+    const z = ZEICHEN_JE_ZIELZEILE;
+    expect(laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(z) }).belegt).toBe(3);
+    expect(laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(z + 1) }).belegt).toBe(3);
     expect(
-      laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(45), transportMit: 'y'.repeat(45) }).belegt,
+      laufzettelPlatz({
+        ...basis,
+        lagerort: 'y'.repeat(z + 1),
+        transportMit: 'y'.repeat(z + 1),
+      }).belegt,
     ).toBe(4);
-    expect(laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(89) }).belegt).toBe(4);
+    expect(laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(2 * z + 1) }).belegt).toBe(4);
+  });
+
+  it('rechnet „Rückfragen an“ weiter mit der Info-Zeichenzahl', () => {
+    const basis = mitPositionen(3);
+    const i = ZEICHEN_JE_INFOZEILE;
+    // 40 Zeichen sind im Zielblock zwei Zeilen, in der Infozeile nur eine.
+    expect(
+      laufzettelPlatz({ ...basis, lagerort: 'y'.repeat(40), transportMit: 'y'.repeat(40) }).belegt,
+    ).toBe(4);
+    expect(laufzettelPlatz({ ...basis, auftraggeber: 'y'.repeat(i) }).belegt).toBe(3);
+    expect(
+      laufzettelPlatz({
+        ...basis,
+        auftraggeber: 'y'.repeat(i + 1),
+        lagerort: 'y'.repeat(ZEICHEN_JE_ZIELZEILE + 1),
+      }).belegt,
+    ).toBe(4);
   });
 
   it('bestimmt den Zustand an den Grenzen 21 und 23', () => {

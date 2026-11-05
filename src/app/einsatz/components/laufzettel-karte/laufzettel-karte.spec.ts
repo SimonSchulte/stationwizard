@@ -28,7 +28,7 @@ describe('LaufzettelKarte', () => {
     const element = erzeuge(laufzettel).nativeElement as HTMLElement;
     expect(element.querySelector('.nummer')?.textContent).toBe('3');
     expect(element.querySelector('.kurztext')?.textContent).toBe('Stühle, Tische');
-    expect(element.querySelector('.ort')?.textContent).toBe('Lager Nord → Rollwagen');
+    expect(element.querySelector('.ort')?.textContent).toBe('Von Lager Nord → Auf/In Rollwagen');
     expect(element.querySelector('app-fachgruppe-chip')?.textContent).toContain('Betreuung');
     expect(element.querySelector('.platz')?.textContent).toContain('2 / 23');
     expect(element.querySelector('.streifen')).not.toBeNull();
@@ -58,7 +58,7 @@ describe('LaufzettelKarte', () => {
     expect(element.querySelector('.marke')?.textContent).toBe('neu');
     expect(element.querySelector('.karte')?.getAttribute('aria-pressed')).toBe('true');
     expect(element.querySelector('.kurztext')?.textContent).toBe('Keine Positionen');
-    expect(element.querySelector('.ort')?.textContent).toBe('Kein Lagerort');
+    expect(element.querySelector('.ort')?.textContent).toBe('Kein Ziel angegeben');
     expect(element.querySelector('app-fachgruppe-chip')).toBeNull();
   });
 

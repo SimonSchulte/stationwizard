@@ -177,9 +177,9 @@ function laufzettelUnterschiede(
   const teile: string[] = [];
   const felder: [string, string, string][] = [
     ['Überschrift', vorlage.ueberschrift, vb.ueberschrift],
-    ['Lagerort', vorlage.lagerort, vb.lagerort],
-    ['Transport mit', vorlage.transportMit, vb.transportMit],
-    ['Auftraggeber', vorlage.auftraggeber, vb.auftraggeber],
+    ['Von', vorlage.lagerort, vb.lagerort],
+    ['Auf / In', vorlage.transportMit, vb.transportMit],
+    ['Rückfragen an', vorlage.auftraggeber, vb.auftraggeber],
   ];
   for (const [name, alt, neu] of felder) {
     if (alt !== neu) teile.push(`${name}: ${wert(alt)} → ${wert(neu)}`);

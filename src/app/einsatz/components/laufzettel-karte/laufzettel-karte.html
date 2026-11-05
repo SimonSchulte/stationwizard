@@ -13,12 +13,12 @@
   <div class="inhalt">
     <div class="kopf">
       <span class="nummer">{{ nummer() }}</span>
-      <span class="kurztext">{{ kurztext() }}</span>
+      <span class="ort">{{ ort() }}</span>
       @if (marke(); as m) {
         <span class="marke" [class.neu]="m === 'neu'">{{ m === 'neu' ? 'neu' : 'geändert' }}</span>
       }
     </div>
-    <div class="ort">{{ ort() }}</div>
+    <div class="kurztext">{{ kurztext() }}</div>
     <div class="fuss">
       @if (laufzettel().fachgruppe; as gruppe) {
         <app-fachgruppe-chip [fachgruppe]="gruppe" />

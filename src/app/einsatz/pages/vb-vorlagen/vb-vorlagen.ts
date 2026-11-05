@@ -82,7 +82,7 @@ export class VbVorlagen implements OnInit {
 
   readonly vorlagen = this.store.vorlagen;
   readonly listeLaedt = this.store.laedt;
-  readonly spalten = ['nr', 'material', 'lagerort', 'transportMit', 'auftraggeber'];
+  readonly spalten = ['nr', 'lagerort', 'transportMit', 'material', 'auftraggeber'];
 
   readonly gewaehlteId = signal<string | null>(null);
   readonly stand = signal<MitVersion<VbVorlage> | null>(null);
