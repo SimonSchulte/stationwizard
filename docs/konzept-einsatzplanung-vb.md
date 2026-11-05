@@ -80,7 +80,12 @@ arbeiten: an einen Ort gehen, alles einsammeln, an einem Ziel abliefern. Deshalb
 - Auf dem Laufzettel stehen **„Von“** (Lagerort) und **„Auf / In“** (Transport mit) groß
   oben unter dem Auftrag; „Rückfragen an“ steht klein am Fuß.
 
-Aus den 47 Zeilen der Ummeln-Liste werden so 14 Laufzettel in 4 Abschnitten (5 Druckseiten).
+Die Startvorlage „Weihnachtsmarkt Ummeln“ enthält die Packliste 2025 (64 Zeilen); daraus werden
+so 23 Laufzettel in 5 Abschnitten (8 Druckseiten). Übernommen mit den Klärungen des Betreibers:
+„Marketing-Kiste“ liegt im ZF-Büro; „blaue Rollwagen“ heißt jetzt „blaue Rollkiste,
+geschlossen“; Zeilen ohne Lagerort („Rollwagen“, „blaue Rollkiste, geschlossen“) bedeuten, dass
+die beladenen Wagen zum Schluss selbst aufs Fahrzeug kommen – dafür gibt es einen eigenen
+Laufzettel „Zum Schluss: beladene Wagen verladen“ ohne „Von“.
 Die Spalte „erl.“ entfällt in der Vorlage, sie wird auf dem Ausdruck zum Kästchen je Position.
 
 ## 3. Speicherung und Worker

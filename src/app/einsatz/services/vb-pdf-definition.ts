@@ -276,7 +276,7 @@ function anzahlFeld(anzahl: string): Content {
     };
   }
   const angezeigt = `${text}×`;
-  const groesse = Math.max(5.5, Math.min(SCHRIFT.anzahl, 28 / (0.55 * angezeigt.length)));
+  const groesse = Math.max(5.5, Math.min(SCHRIFT.anzahl, 28 / (0.7 * angezeigt.length)));
   return { text: angezeigt, alignment: 'right', bold: true, fontSize: groesse, noWrap: true };
 }
 
