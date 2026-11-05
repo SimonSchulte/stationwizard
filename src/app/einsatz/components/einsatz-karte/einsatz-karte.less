@@ -1,0 +1,230 @@
+:host {
+  display: block;
+}
+
+.karte {
+  display: grid;
+  grid-template-columns: var(--einsatz-datum-breite) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-md) var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-karte-gross);
+}
+
+.datum {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  min-height: var(--einsatz-datum-breite);
+  padding: var(--space-sm) var(--space-xs);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-chip);
+  text-align: center;
+  line-height: 1.1;
+
+  .monat {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+  }
+
+  .tag {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .zeit {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+}
+
+.kein-datum {
+  font-size: 28px;
+  color: var(--text-disabled);
+}
+
+.mitte {
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
+.abstand {
+  display: inline-block;
+  margin-inline-start: var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+  white-space: nowrap;
+
+  &.dringend {
+    background: var(--status-warn-bg);
+    color: var(--status-warn);
+  }
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  margin: var(--space-xs) 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  .eintrag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .gedaempft {
+    color: var(--text-disabled);
+  }
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.kacheln {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+// Kachel = Material-Knopf (outlined) mit eigenem Inhalt; Maße, Rundung und Farben über die
+// --mat-button-outlined-*-Tokens, nur Randart und Statusstreifen direkt.
+.kachel.kachel {
+  position: relative;
+  overflow: hidden;
+  width: var(--einsatz-kachel-breite);
+  height: auto;
+  min-height: 56px;
+  padding-block: var(--space-sm);
+  border-style: dashed;
+  text-align: left;
+  white-space: normal;
+  --mat-button-outlined-container-shape: var(--radius-chip);
+  --mat-button-outlined-outline-color: var(--border-medium);
+  --mat-button-outlined-label-text-color: var(--text-primary);
+  --mat-button-outlined-horizontal-padding: var(--space-md);
+  --mat-button-outlined-disabled-outline-color: var(--border-light);
+
+  &:focus-visible {
+    box-shadow: var(--focus-shadow);
+    outline: 2px solid var(--ci-blue);
+    outline-offset: 2px;
+  }
+
+  &.vorhanden {
+    border-style: solid;
+    padding-inline-start: calc(var(--space-md) + var(--einsatz-kachel-streifen));
+    --mat-button-outlined-outline-color: var(--status-ok);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 0;
+      width: var(--einsatz-kachel-streifen);
+      background: var(--status-ok);
+    }
+
+    .symbol {
+      color: var(--status-ok);
+    }
+  }
+
+  &:not(.vorhanden) .symbol,
+  .anlegen {
+    color: var(--ci-red);
+  }
+}
+
+.inhalt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-base);
+  width: 100%;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.untertitel {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anlegen {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rechts {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 780px) {
+  .karte {
+    grid-template-columns: var(--einsatz-datum-breite) minmax(0, 1fr);
+    padding: var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .kacheln {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  // Am Handy trägt die Kachel nur Symbol, Name und Kurzstand: „Anlegen“ zeigt dort der
+  // gestrichelte Rahmen, die Positionszahl entfällt (sie steht im Editor).
+  .anlegen,
+  .zusatz {
+    display: none;
+  }
+
+  .kachel.kachel {
+    width: 100%;
+    --mat-button-outlined-horizontal-padding: var(--space-base);
+
+    &.vorhanden {
+      padding-inline-start: calc(var(--space-base) + var(--einsatz-kachel-streifen));
+    }
+  }
+}

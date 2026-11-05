@@ -1,0 +1,362 @@
+<app-seitenkopf
+  icon="checklist"
+  [titel]="kopfTitel()"
+  [zurueck]="zurueckZiel()"
+  [zurueckText]="zurueckText"
+>
+  @if (untertitel()) {
+    <span seitenkopfZusatz class="untertitel" [title]="untertitel()">{{ untertitel() }}</span>
+  }
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!store.inhalt() || druckLaeuft()"
+    (click)="drucken()"
+  >
+    <mat-icon>print</mat-icon>
+    Drucken
+  </button>
+  <button matButton="filled" type="button" [disabled]="!kannSpeichern()" (click)="speichern()">
+    <mat-icon>save</mat-icon>
+    {{ store.speichertGerade() ? 'Speichert …' : 'Speichern' }}
+  </button>
+  <button
+    matIconButton
+    type="button"
+    aria-label="Weitere Aktionen"
+    matTooltip="Weitere Aktionen"
+    [disabled]="!store.entwurf()"
+    [matMenuTriggerFor]="menue"
+  >
+    <mat-icon>more_vert</mat-icon>
+  </button>
+  <mat-menu #menue="matMenu">
+    <button
+      mat-menu-item
+      type="button"
+      [disabled]="!store.kannRueckgaengig()"
+      (click)="store.rueckgaengig()"
+    >
+      <mat-icon>undo</mat-icon>
+      <span>Rückgängig</span>
+    </button>
+    <button mat-menu-item type="button" (click)="alsNeueVorlage()">
+      <mat-icon>library_add</mat-icon>
+      <span>Als neue Vorlage speichern…</span>
+    </button>
+    <button mat-menu-item type="button" (click)="kopieHerunterladen()">
+      <mat-icon>download</mat-icon>
+      <span>Kopie herunterladen (JSON)</span>
+    </button>
+    @if (!store.istNeu()) {
+      <button mat-menu-item type="button" (click)="neuLaden()">
+        <mat-icon>refresh</mat-icon>
+        <span>Gespeicherten Stand neu laden…</span>
+      </button>
+    }
+    <mat-divider />
+    <button mat-menu-item type="button" [disabled]="store.istNeu()" (click)="loeschen()">
+      <mat-icon>delete</mat-icon>
+      <span>{{ modus === 'vorlage' ? 'Vorlage löschen…' : 'Vorbereitung löschen…' }}</span>
+    </button>
+  </mat-menu>
+</app-seitenkopf>
+
+@if (store.ladeFehler()) {
+  <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>
+}
+@if (store.vorlageKonflikt()) {
+  <app-meldung art="warnung">
+    {{ store.speicherFehler() }}
+    <button matButton meldungAktion type="button" (click)="store.abgleichNeuLaden()">
+      Vorlage neu laden
+    </button>
+  </app-meldung>
+} @else if (store.konflikt()) {
+  <app-meldung art="fehler">
+    {{ store.speicherFehler() }}
+    <button matButton meldungAktion type="button" (click)="neuLaden()">Neu laden</button>
+  </app-meldung>
+} @else if (store.speicherFehler()) {
+  <app-meldung art="fehler">
+    {{ store.speicherFehler() }}
+    <button matButton meldungAktion type="button" (click)="kopieHerunterladen()">
+      Kopie herunterladen
+    </button>
+  </app-meldung>
+}
+@if (store.hinweis()) {
+  <app-meldung art="warnung">{{ store.hinweis() }}</app-meldung>
+}
+
+<div class="seite">
+  @if (store.ladeLaeuft()) {
+    <app-ladeanzeige
+      [text]="modus === 'vorlage' ? 'Vorlage wird geladen …' : 'Vorbereitung wird geladen …'"
+    />
+  } @else if (store.nichtGefunden()) {
+    <app-leerzustand
+      icon="search_off"
+      [titel]="modus === 'vorlage' ? 'Vorlage nicht gefunden' : 'Keine Vorbereitung vorhanden'"
+    >
+      @if (modus === 'vorlage') {
+        Diese Vorlage gibt es nicht (mehr).
+      } @else {
+        Dieser Einsatz hat noch keine Vorbereitung. Sie lässt sich auf der Einsatzseite anlegen.
+      }
+      <a leerAktion matButton="outlined" [routerLink]="zurueckZiel()">{{ zurueckText }}</a>
+    </app-leerzustand>
+  } @else if (store.ladeFehler() && !store.entwurf()) {
+    <app-leerzustand icon="error_outline" titel="Konnte nicht geladen werden">
+      <button leerAktion matButton="outlined" type="button" (click)="erneutLaden()">
+        Erneut versuchen
+      </button>
+    </app-leerzustand>
+  } @else if (store.entwurf(); as entwurf) {
+    <p class="mobil-hinweis">
+      Die Bearbeitung ist für den Desktop gedacht. Am Handy lassen sich Laufzettel ansehen und
+      drucken; Umsortieren per Ziehen und die Positionentabelle sind dort eingeschränkt bedienbar.
+    </p>
+
+    @if (modus === 'vorlage') {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="vorlagentitel">
+        <mat-label>Titel der Vorlage</mat-label>
+        <input
+          matInput
+          required
+          [attr.maxlength]="grenzen.text"
+          [value]="entwurf.titel"
+          (input)="titelAendern($event)"
+        />
+      </mat-form-field>
+    }
+
+    <mat-tab-group animationDuration="0ms" class="reiter">
+      <mat-tab [label]="'Laufzettel (' + laufzettelAnzahl() + ')'">
+        <div class="laufzettel-reiter">
+          <section class="liste" aria-label="Laufzettel">
+            @if (store.vorlageFehlt()) {
+              <div class="abgleich-hinweis" role="status">
+                <mat-icon aria-hidden="true">link_off</mat-icon>
+                <span>Die Vorlage dieser Kopie gibt es nicht mehr.</span>
+              </div>
+            } @else if (store.abweichungen().length > 0) {
+              <div class="abgleich-hinweis" role="status">
+                <mat-icon aria-hidden="true">compare_arrows</mat-icon>
+                <span>
+                  {{
+                    store.abweichungen().length === 1
+                      ? '1 Abweichung'
+                      : store.abweichungen().length + ' Abweichungen'
+                  }}
+                  von der Vorlage
+                </span>
+                <button matButton type="button" (click)="vorlageAbgleichen()">
+                  Auf Vorlage anwenden…
+                </button>
+              </div>
+            }
+
+            <div class="werkzeuge">
+              <app-suchfeld
+                class="suche"
+                [(wert)]="suche"
+                beschriftung="Suchen"
+                platzhalter="Material, Lagerort, Überschrift"
+              />
+              <button matButton="outlined" type="button" (click)="laufzettelHinzufuegen()">
+                <mat-icon>add</mat-icon>
+                Laufzettel
+              </button>
+              <button matButton="outlined" type="button" (click)="abschnittHinzufuegen()">
+                <mat-icon>add</mat-icon>
+                Abschnitt
+              </button>
+              <button
+                matIconButton
+                type="button"
+                [disabled]="sucheAktiv()"
+                [attr.aria-label]="
+                  alleEingeklappt() ? 'Alle Abschnitte aufklappen' : 'Alle Abschnitte einklappen'
+                "
+                [matTooltip]="alleEingeklappt() ? 'Alle aufklappen' : 'Alle einklappen'"
+                (click)="alleUmschalten()"
+              >
+                <mat-icon>{{ alleEingeklappt() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+              </button>
+            </div>
+
+            @if (sucheAktiv()) {
+              <p class="suchhinweis">Beim Suchen ist das Umsortieren per Ziehen ausgeschaltet.</p>
+            }
+
+            @if (sichtbar().length === 0) {
+              <app-leerzustand
+                kompakt
+                [icon]="sucheAktiv() ? 'search_off' : 'list_alt'"
+                [titel]="sucheAktiv() ? 'Keine Treffer' : 'Noch keine Laufzettel'"
+              >
+                @if (!sucheAktiv()) {
+                  Mit „Laufzettel“ oder „Abschnitt“ geht es los.
+                }
+              </app-leerzustand>
+            }
+
+            <div
+              class="abschnitte"
+              cdkDropList
+              cdkDropListGroup
+              [cdkDropListDisabled]="sucheAktiv()"
+              (cdkDropListDropped)="abschnittAbgelegt($event)"
+            >
+              @for (abschnitt of sichtbar(); track abschnitt.id) {
+                <div
+                  class="abschnitt"
+                  cdkDrag
+                  [cdkDragData]="abschnitt.id"
+                  [cdkDragDisabled]="sucheAktiv()"
+                >
+                  <div class="abschnitt-kopf">
+                    <button
+                      matIconButton
+                      type="button"
+                      class="umschalter"
+                      [disabled]="sucheAktiv()"
+                      [attr.aria-expanded]="!istEingeklappt(abschnitt.id)"
+                      [attr.aria-controls]="'abschnitt-karten-' + abschnitt.id"
+                      [attr.aria-label]="
+                        (istEingeklappt(abschnitt.id) ? 'Aufklappen: ' : 'Einklappen: ') +
+                        abschnitt.titel
+                      "
+                      (click)="abschnittUmschalten(abschnitt.id)"
+                    >
+                      <mat-icon>{{
+                        istEingeklappt(abschnitt.id) ? 'chevron_right' : 'expand_more'
+                      }}</mat-icon>
+                    </button>
+                    @if (!sucheAktiv()) {
+                      <mat-icon
+                        cdkDragHandle
+                        class="griff"
+                        aria-label="Abschnitt verschieben"
+                        matTooltip="Ziehen zum Umsortieren"
+                      >
+                        drag_indicator
+                      </mat-icon>
+                    }
+                    <button
+                      matIconButton
+                      type="button"
+                      [attr.aria-label]="'Abschnitt „' + abschnitt.titel + '“ bearbeiten'"
+                      matTooltip="Abschnitt bearbeiten"
+                      (click)="abschnittBearbeiten(abschnitt)"
+                    >
+                      <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
+                    </button>
+                    <h3 class="abschnitt-titel">{{ abschnitt.titel }}</h3>
+                    <span class="abschnitt-anzahl">{{ abschnitt.laufzettel.length }}</span>
+                    @if (abschnitt.fachgruppe; as gruppe) {
+                      <app-fachgruppe-chip [fachgruppe]="gruppe" />
+                    }
+                    <button
+                      matIconButton
+                      type="button"
+                      class="abschnitt-plus"
+                      aria-label="Laufzettel in diesem Abschnitt hinzufügen"
+                      matTooltip="Laufzettel in diesem Abschnitt hinzufügen"
+                      (click)="laufzettelHinzufuegen(abschnitt.id)"
+                    >
+                      <mat-icon>add</mat-icon>
+                    </button>
+                  </div>
+                  @if (!istEingeklappt(abschnitt.id)) {
+                    <div
+                      class="karten"
+                      [id]="'abschnitt-karten-' + abschnitt.id"
+                      cdkDropList
+                      [cdkDropListData]="abschnitt.id"
+                      [cdkDropListDisabled]="sucheAktiv()"
+                      (cdkDropListDropped)="laufzettelAbgelegt($event)"
+                    >
+                      @for (laufzettel of abschnitt.laufzettel; track laufzettel.id) {
+                        <div
+                          class="karte"
+                          cdkDrag
+                          [cdkDragData]="laufzettel.id"
+                          [cdkDragDisabled]="sucheAktiv()"
+                        >
+                          <app-laufzettel-karte
+                            [laufzettel]="laufzettel"
+                            [nummer]="nummern().get(laufzettel.id) ?? 0"
+                            [farbe]="abschnitt.farbe"
+                            [ausgewaehlt]="aktiv()?.laufzettel?.id === laufzettel.id"
+                            [marke]="marken().get(laufzettel.id) ?? null"
+                            (gewaehlt)="waehlen(laufzettel.id)"
+                          />
+                        </div>
+                      } @empty {
+                        @if (!sucheAktiv()) {
+                          <p class="leerer-abschnitt">
+                            Noch kein Laufzettel – hierher ziehen oder mit „+“ anlegen.
+                          </p>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+
+          <section #bearbeitungsBereich class="bearbeitung" aria-label="Laufzettel bearbeiten">
+            @if (aktiv(); as treffer) {
+              <app-laufzettel-bearbeitung
+                [laufzettel]="treffer.laufzettel"
+                [nummer]="nummern().get(treffer.laufzettel.id) ?? 0"
+                [abschnittId]="treffer.abschnitt.id"
+                [abschnitte]="abschnittAuswahl()"
+                [andere]="zusammenfuehrenZiele()"
+                (felderGeaendert)="felderGeaendert(treffer.laufzettel.id, $event)"
+                (abschnittGewaehlt)="abschnittGewaehlt(treffer.laufzettel.id, $event)"
+                (positionGeaendert)="positionGeaendert($event.id, $event.felder)"
+                (positionHinzugefuegt)="store.positionHinzufuegen(treffer.laufzettel.id)"
+                (positionEntfernt)="store.positionLoeschen($event)"
+                (positionVerschoben)="
+                  store.positionVerschieben(treffer.laufzettel.id, $event.id, $event.neuerIndex)
+                "
+                (geteilt)="laufzettelTeilen(treffer.laufzettel.id, $event)"
+                (zusammengefuehrt)="store.laufzettelZusammenfuehren(treffer.laufzettel.id, $event)"
+                (aufgeteilt)="laufzettelAufteilen(treffer.laufzettel.id)"
+                (dupliziert)="laufzettelDuplizieren(treffer.laufzettel.id)"
+                (geloescht)="laufzettelLoeschen(treffer.laufzettel.id)"
+              />
+            } @else {
+              <app-leerzustand icon="edit_note" titel="Kein Laufzettel gewählt" kompakt>
+                Ein Laufzettel in der Liste öffnet hier seine Bearbeitung.
+              </app-leerzustand>
+            }
+          </section>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Allgemeine Anweisungen">
+        <div class="anweisungen">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Allgemeine Anweisungen</mat-label>
+            <textarea
+              matInput
+              rows="18"
+              [attr.maxlength]="grenzen.anweisungen"
+              [value]="entwurf.inhalt.anweisungen"
+              (input)="anweisungenAendern($event)"
+            ></textarea>
+            <mat-hint>Wird als eigenes Blatt A4 quer gedruckt.</mat-hint>
+            <mat-hint align="end">
+              {{ entwurf.inhalt.anweisungen.length }} / {{ grenzen.anweisungen }}
+            </mat-hint>
+          </mat-form-field>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  }
+</div>

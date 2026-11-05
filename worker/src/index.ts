@@ -1,5 +1,7 @@
 import { pruefeAnmeldung, type AccessKonfiguration } from './anmeldung';
 import { verarbeiteAngebotswesen } from './angebotswesen';
+import { verarbeiteEinsatzplanung } from './einsatzplanung';
+import type { EinsatzplanungKonfiguration } from './einsatzplanung-gemeinsam';
 import type { AngebotswesenKonfiguration } from './angebotswesen-gemeinsam';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import {
@@ -51,7 +53,6 @@ import {
   verarbeiteMaterialEinreichungen,
   type MaterialEinreichungenKonfiguration,
 } from './material-einreichungen';
-import { verarbeiteNextcloud, type NextcloudKonfiguration } from './nextcloud';
 import {
   istOeffentlicherPfad,
   verarbeiteOeffentlicheErfassung,
@@ -67,7 +68,6 @@ import {
 export interface Env
   extends
     AccessKonfiguration,
-    NextcloudKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
     HiorgApiKonfiguration,
@@ -77,6 +77,7 @@ export interface Env
     KmBerichtKonfiguration,
     OeffentlicheErfassungKonfiguration,
     AngebotswesenKonfiguration,
+    EinsatzplanungKonfiguration,
     KalenderKonfiguration,
     MaterialKonfiguration,
     MaterialEinreichungenKonfiguration,
@@ -236,10 +237,6 @@ export default {
       return verarbeiteEhrungen(anfrage, umgebung, benutzer);
     }
 
-    if (url.pathname.startsWith('/api/nextcloud/')) {
-      return verarbeiteNextcloud(anfrage, umgebung);
-    }
-
     // Vor der Fahrzeugverarbeitung, weil der Bericht kein einzelnes Fahrzeug
     // adressiert und deren UUID-Pfade ihn sonst als unbekannt abwiesen.
     if (url.pathname === KM_BERICHT_PFAD || url.pathname === KM_BERICHT_SENDEN_PFAD) {
@@ -271,6 +268,10 @@ export default {
 
     if (url.pathname === '/api/angebotswesen' || url.pathname.startsWith('/api/angebotswesen/')) {
       return verarbeiteAngebotswesen(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === '/api/einsatzplanung' || url.pathname.startsWith('/api/einsatzplanung/')) {
+      return verarbeiteEinsatzplanung(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === KALENDER_PFAD || url.pathname.startsWith(`${KALENDER_PFAD}/`)) {

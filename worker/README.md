@@ -1,6 +1,6 @@
 # stationwizard-Worker
 
-Der Worker liefert die Angular-App, die Nextcloud-Dateianbindung und die drei bekannten
+Der Worker liefert die Angular-App, die drei bekannten
 EFS-Aktionen unter derselben Origin. Vor jeder API und jeder statischen Datei steht die
 serverseitige Access-JWT-Prüfung. Ohne vollständige Access-Konfiguration bleibt der Worker
 geschlossen.
@@ -42,26 +42,24 @@ settings**. Diese beiden Werte sind Konfiguration und keine Upstream-Geheimnisse
 `keep_vars = true` bewahrt Dashboard-Laufzeitvariablen bei Deployments. Der Schlüssel
 steht vor allen TOML-Tabellen und ersetzt keine Secrets oder Secret-Bindings.
 
-### Sechs verpflichtende Secrets-Store-Bindings
+### Fünf verpflichtende Secrets-Store-Bindings
 
 `wrangler.toml` referenziert den Store `36762a3b5aa547bea7f547b1d66c30ee`. Binding und
 Secret heißen jeweils gleich. Die Store-ID darf ins Repository, die Werte nicht.
 
-| Binding                     | Wert                                                                                                                           |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `NEXTCLOUD_BASE_URL`        | HTTPS-Basis der Nextcloud-Installation, gegebenenfalls mit Installationsunterverzeichnis; ohne Freigabelink oder WebDAV-Suffix |
-| `NEXTCLOUD_PEP_SHARE_TOKEN` | Token des gesonderten PEP-**Ordners**, nur der Teil hinter `/s/`                                                               |
-| `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`                             |
-| `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                                      |
-| `HIORGSERVER_CALENDER_FEED` | Vollständige HiOrg-Kalenderfreigabe-URL (führend) oder ersatzweise nur der `lab`-Tokenwert daraus                              |
-| `MAIL_ABSENDER`             | Absenderadresse des Kilometerstandsberichts; muss zu einer im Cloudflare-Konto belegten Domain gehören                         |
-| `MAIL_API_TOKEN`            | API-Token des HTTP-Mailanbieters; nur für den Versandweg `resend` nötig, sonst ein beliebiger Platzhalterwert                  |
+| Binding                     | Wert                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `HIORGSERVER_BASE_URL`      | Vollständige gültige HTTPS-EFS-Endpunkt-URL aus dem bestehenden Zugang, **mit** abschließendem `/`            |
+| `HIORGSERVER_EFS_API_TOKEN` | Unveränderter EFS-API-Schlüssel, ohne Präfix oder zusätzliche Leerzeichen                                     |
+| `HIORGSERVER_CALENDER_FEED` | Vollständige HiOrg-Kalenderfreigabe-URL (führend) oder ersatzweise nur der `lab`-Tokenwert daraus             |
+| `MAIL_ABSENDER`             | Absenderadresse des Kilometerstandsberichts; muss zu einer im Cloudflare-Konto belegten Domain gehören        |
+| `MAIL_API_TOKEN`            | API-Token des HTTP-Mailanbieters; nur für den Versandweg `resend` nötig, sonst ein beliebiger Platzhalterwert |
 
 Die Store-Einträge benötigen den Permission scope **Workers**. Nach dem Deployment im
-Worker unter **Bindings** kontrollieren, ob genau diese sechs Namen auf den richtigen Store
+Worker unter **Bindings** kontrollieren, ob genau diese fünf Namen auf den richtigen Store
 zeigen. Eine vorhandene Build-Variable genügt nicht.
 
-Die Nextcloud-Basis und die EFS-Ziel-URL dürfen keine eingebetteten Zugangsdaten,
+Die EFS-Ziel-URL darf keine eingebetteten Zugangsdaten,
 Query-Parameter oder Fragmente enthalten. Der EFS-Endpunkt wird nicht im Quellcode
 festgelegt; er stammt ausschließlich aus `HIORGSERVER_BASE_URL`.
 
@@ -74,18 +72,11 @@ abschließenden Slash (`https://www.hiorg-server.de/api/efs/`), der ohne Redirec
 antwortet. Bei einer neuen Einrichtung diese Endpunkt-Variante immer zuerst mit
 `curl -Is <URL>` gegenprüfen.
 
-### Optionale Freigabepasswörter
+### Nicht mehr benötigte Nextcloud-Werte
 
-Bei passwortgeschützten Freigaben zusätzlich **klassische Worker-Laufzeit-Secrets** unter
-**Settings → Variables and Secrets → Add → Secret** setzen:
-
-| Name                           | Wert                             |
-| ------------------------------ | -------------------------------- |
-| `NEXTCLOUD_PEP_SHARE_PASSWORD` | Exaktes Passwort des PEP-Ordners |
-
-Ohne Freigabepasswort den jeweiligen Eintrag komplett weglassen; kein `leer`, `optional`
-oder anderer Platzhalter. Diese optionalen Werte erfordern keinen Wert im Repository und
-keinen zusätzlichen Secrets-Store-Block in der vorliegenden Konfiguration.
+Die Nextcloud-Anbindung ist entfallen (die PEP liegt in `EINSATZPLANUNG_DB`). Die Secrets
+`NEXTCLOUD_BASE_URL`, `NEXTCLOUD_PEP_SHARE_TOKEN` und `NEXTCLOUD_PEP_SHARE_PASSWORD` werden nicht
+mehr gelesen; ihr Löschen in Cloudflare ist Sache des Betreibers.
 
 `leseZugangsdatum()` in `src/zugangsdaten.ts` unterstützt klassische Secret-Strings und
 Secrets-Store-Bindings mit asynchronem `get()`. Nicht auflösbare Bindings gelten als
@@ -156,30 +147,28 @@ Hostname-/DNS-/Mail-Einrichtung.
 Alle Endpunkte benötigen die verifizierte Anmeldung – mit Ausnahme der drei Pfade der
 öffentlichen Kilometermeldung, die weiter unten in einem eigenen Abschnitt stehen:
 
-| Endpunkt                                        | Methode          | Anfrage beziehungsweise Antwort                                                              |
-| ----------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| `/api/benutzer`                                 | GET              | Antwort `{ "email": "…" }`                                                                   |
-| `/api/status`                                   | GET              | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme                     |
-| `/api/efs/checkapikey`                          | POST             | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltungen`                   | POST             | Anfrage JSON `{}`                                                                            |
-| `/api/efs/getveranstaltung`                     | POST             | Anfrage JSON `{ "id": "…" }`                                                                 |
-| `/api/kalender` und Unterpfade                  | GET / POST / PUT | Kalender in `KALENDER_DB`, siehe `src/kalender-planung.ts`                                   |
-| `/api/nextcloud/planungen`                      | GET              | Antwort `{ "dateien": [...] }`; Einträge mit UUID `id` und ETag als Zeichenkette oder `null` |
-| `/api/nextcloud/planungen/<UUID>`               | GET / PUT        | Einzelne `<UUID>.pep.json` im konfigurierten Ordner                                          |
-| `/api/hiorg/kalender`                           | GET              | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`                  |
-| `/api/fahrzeuge`                                | GET / POST       | Liste; Neuanlage nur mit `If-None-Match: *`                                                  |
-| `/api/fahrzeuge/<UUID>`                         | GET / PUT        | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                           |
-| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST       | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung             |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE           | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                  |
-| `/api/fahrzeuge/<UUID>/aenderungen`             | GET              | Änderungsprotokoll, neueste zuerst; nur lesend                                               |
-| `/api/benutzerverwaltung`                       | GET              | Liste aller bereits angemeldeten Personen samt Rolle                                         |
-| `/api/benutzerverwaltung/<E-Mail>`              | PUT              | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                  |
-| `/f/<UUID>`, `/f/<UUID>/km`                     | GET              | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route                       |
-| `/api/fahrzeuge/erfassungslinks`                | GET              | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt           |
-| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST       | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig                  |
-| `/api/fahrzeuge/einreichungen`                  | GET              | Offene öffentliche Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert         |
-| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST             | Erzeugt die echte Ablesung; `erfasstVon` ist die freigebende Person                          |
-| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST             | Anfrage `{ "grund": "…" }` (optional, 200 Zeichen); erzeugt keine Ablesung                   |
+| Endpunkt                                        | Methode          | Anfrage beziehungsweise Antwort                                                      |
+| ----------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------ |
+| `/api/benutzer`                                 | GET              | Antwort `{ "email": "…" }`                                                           |
+| `/api/status`                                   | GET              | Antwort `{ "status": "erreichbar" }`; keine Prüfung der Upstream-Systeme             |
+| `/api/efs/checkapikey`                          | POST             | Anfrage JSON `{}`                                                                    |
+| `/api/efs/getveranstaltungen`                   | POST             | Anfrage JSON `{}`                                                                    |
+| `/api/efs/getveranstaltung`                     | POST             | Anfrage JSON `{ "id": "…" }`                                                         |
+| `/api/kalender` und Unterpfade                  | GET / POST / PUT | Kalender in `KALENDER_DB`, siehe `src/kalender-planung.ts`                           |
+| `/api/hiorg/kalender`                           | GET              | Antwort `{ "status": "OK", "eintraege": [...] }`; optional `?monat=JJJJ-MM`          |
+| `/api/fahrzeuge`                                | GET / POST       | Liste; Neuanlage nur mit `If-None-Match: *`                                          |
+| `/api/fahrzeuge/<UUID>`                         | GET / PUT        | Einzelnes Fahrzeug mit `ETag`; Update nur mit passendem `If-Match`                   |
+| `/api/fahrzeuge/<UUID>/ablesungen`              | GET / POST       | Kilometerablesungen; `erfasstVon`/`erfasstAm` setzt der Worker aus der Anmeldung     |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`       | DELETE           | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist          |
+| `/api/fahrzeuge/<UUID>/aenderungen`             | GET              | Änderungsprotokoll, neueste zuerst; nur lesend                                       |
+| `/api/benutzerverwaltung`                       | GET              | Liste aller bereits angemeldeten Personen samt Rolle                                 |
+| `/api/benutzerverwaltung/<E-Mail>`              | PUT              | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung          |
+| `/f/<UUID>`, `/f/<UUID>/km`                     | GET              | Weiterleitung (302) für gedruckte QR-Codes auf die aktuelle Hash-Route               |
+| `/api/fahrzeuge/erfassungslinks`                | GET              | Öffentliche Erfassungstoken, serverseitig auf die eigenen Freigabegruppen begrenzt   |
+| `/api/fahrzeuge/<UUID>/erfassungslink`          | GET / POST       | Token lesen; POST erneuert es und macht gedruckte Aufkleber sofort ungültig          |
+| `/api/fahrzeuge/einreichungen`                  | GET              | Offene öffentliche Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`  | POST             | Erzeugt die echte Ablesung; `erfasstVon` ist die freigebende Person                  |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung` | POST             | Anfrage `{ "grund": "…" }` (optional, 200 Zeichen); erzeugt keine Ablesung           |
 
 ### Fahrzeugmodul (D1)
 
@@ -441,71 +430,6 @@ oder zurückgezogen.
 
 Grenzen: Antwort höchstens 1 MiB, Upstream-Zeitlimit 15 Sekunden, `redirect: 'manual'`.
 
-### Nextcloud
-
-Der PEP-Speicher nutzt die WebDAV-Anbindung über `<NEXTCLOUD_BASE_URL>/public.php/webdav/`
-mit Basic-Authentifizierung aus Freigabetoken und optionalem Passwort; er ist ein eigener
-**Ordner** mit Lesen, Bearbeiten und Hochladen. Die frühere Excel-Dateifreigabe der
-Ausbildungsplanung ist mit dem Kalender in D1 entfallen; `/api/nextcloud/arbeitsmappe`
-antwortet mit 404 `NEXTCLOUD_PFAD_UNGUELTIG`.
-
-Weiterleitungen werden bewusst nicht verfolgt. Der Worker fragt mit `redirect: 'manual'`
-an und beantwortet jede `3xx`-Antwort mit `NEXTCLOUD_UMLEITUNG`; Ziel, Inhalt und Header
-der Weiterleitung werden verworfen. `NEXTCLOUD_NICHT_ERREICHBAR` bedeutet dagegen, dass
-schon die Verbindung selbst scheitert (DNS, TLS, Transport).
-
-Zur Eingrenzung ohne Zugangsdaten reicht ein Blick auf den nackten Endpunkt:
-
-```bash
-curl -Is "<NEXTCLOUD_BASE_URL>/public.php/webdav/"
-```
-
-- `401` mit `WWW-Authenticate: Basic` ist der Sollzustand; dann liegt der Fehler an
-  Freigabetoken, Passwort oder Freigaberechten (`NEXTCLOUD_ZUGANG_ABGELEHNT`).
-- `301`/`302` bedeutet, dass `NEXTCLOUD_BASE_URL` nicht die kanonische Adresse der
-  Installation ist. Häufige Ursachen: `www`-Variante, fehlendes oder überzähliges
-  Installationsunterverzeichnis, HTTP-nach-HTTPS-Umleitung eines vorgelagerten Proxys
-  oder ein von `overwrite.cli.url` abweichender Hostname. Die Zieladresse der
-  Weiterleitung als `NEXTCLOUD_BASE_URL` eintragen — ohne `/public.php/webdav/`.
-- Kein Verbindungsaufbau (DNS-Fehler, TLS-Fehler, Zeitüberschreitung) entspricht
-  `NEXTCLOUD_NICHT_ERREICHBAR`. Auch eine Zugriffsbeschränkung der Nextcloud-Instanz auf
-  bestimmte Quell-IP-Adressen fällt hierunter, weil der Worker aus dem
-  Cloudflare-Netz anfragt.
-- `404`/`405` deutet auf eine Installation ohne den öffentlichen WebDAV-Endpunkt hin; der
-  Endpunkt gilt in neueren Nextcloud-Fassungen als veraltet. Ein Wechsel des Endpunkts
-  wäre eine Vertragsänderung und braucht zuerst den Nachweis an der echten Instanz.
-
-Antwortet der Endpunkt von außen mit `401`, meldet der Worker aber weiterhin
-`NEXTCLOUD_NICHT_ERREICHBAR`, scheitert erst der Subrequest aus dem Cloudflare-Netz. Der
-Worker schreibt in diesem Fall Fehlerklasse und Meldung der Laufzeit ins eigene Log;
-Basisadresse, Hostname, Freigabetoken und Passwort werden vorher durch `<redigiert>`
-ersetzt. Die HTTP-Antwort an den Browser bleibt unverändert der feste Code. Mitlesen
-während eines Ladeversuchs:
-
-```bash
-npx wrangler tail stationwizard --config worker/wrangler.toml
-```
-
-Typische Ursachen dieser Klasse: DNS- oder TLS-Fehler gegenüber der Nextcloud-Adresse,
-eine Zugriffsbeschränkung der Instanz auf bestimmte Quell-IP-Adressen sowie
-Cloudflare-Einschränkungen für Subrequests (Fehler 1024 auf Cloudflare-eigene
-IP-Adressen, Fehler 1042 bei Zielen in derselben Zone wie der Worker).
-
-Die Ordnerliste entsteht serverseitig über `PROPFIND` mit `Depth: 1`. Nur UUID-Dateinamen
-mit Endung `.pep.json` werden übernommen; Inhalte werden erst beim bewussten Einzelabruf
-gelesen. Es gibt keine generischen WebDAV-Pfade und keine DELETE-Route.
-
-PUT verlangt entweder `If-Match` mit starkem ETag oder bei ausdrücklich neuen Dateien
-`If-None-Match: *`. Fehlende Bedingungen ergeben HTTP 428, widersprüchliche oder ungültige
-Bedingungen HTTP 400. Ein von Nextcloud gemeldeter Konflikt bleibt HTTP 412. Die App
-bewahrt lokale Änderungen und bietet den Dateiexport vor dem erneuten Laden an. Fehlende
-starke ETags und unklare Speicherergebnisse dürfen nicht in unbedingte Updates oder
-automatische ungeschützte Schreibwiederholungen münden.
-
-PUT akzeptiert ausschließlich `application/json` für PEP. Erfolgreiche Schreibantworten werden auf
-204 ohne Upstream-Inhalt normalisiert. Ausgewählte Versionsheader werden weitergegeben.
-HTML-Fehler- oder Loginseiten von Nextcloud werden nicht an den Browser durchgereicht.
-
 ### EFS
 
 Nur die drei dokumentierten Pfade werden akzeptiert. Browseranfragen müssen JSON sein;
@@ -608,28 +532,24 @@ Die Rollenprüfung der Erfassungslink- und Freigabeendpunkte kennt zusätzlich
 
 ## Schutzgrenzen und Diagnose
 
-Die Grenzen entsprechen `src/nextcloud.ts`, `src/efs.ts` und `src/anmeldung.ts`:
+Die Grenzen entsprechen `src/efs.ts` und `src/anmeldung.ts`:
 
-| Vorgang                                                               | Grenze       |
-| --------------------------------------------------------------------- | ------------ |
-| XLSX-Datei, Upload und Download                                       | 15 MiB       |
-| PEP-Datei sowie Nextcloud-Ordnerantwort                               | 2 MiB        |
-| EFS-JSON-Anfrage                                                      | 8 KiB        |
-| EFS-JSON-Upload zum Worker                                            | 30 Sekunden  |
-| EFS-JSON-Antwort                                                      | 5 MiB        |
-| Nextcloud-Upload zum Worker                                           | 30 Sekunden  |
-| Anschließender Nextcloud-Upstream-Zugriff einschließlich Antwortlesen | 30 Sekunden  |
-| EFS-Upstream-Anfrage                                                  | 15 Sekunden  |
-| Abruf der öffentlichen Access-Schlüssel                               | 5 Sekunden   |
-| Körper einer öffentlichen Kilometermeldung                            | 2 KiB        |
-| Lesen einer öffentlichen Kilometermeldung                             | 10 Sekunden  |
-| Name in einer öffentlichen Meldung                                    | 2–60 Zeichen |
-| Bemerkung in einer öffentlichen Meldung                               | 200 Zeichen  |
-| Offene Meldungen je Fahrzeug                                          | 5            |
-| Abstand zweier Meldungen je Fahrzeug                                  | 60 Sekunden  |
+| Vorgang                                    | Grenze       |
+| ------------------------------------------ | ------------ |
+| XLSX-Datei, Upload und Download            | 15 MiB       |
+| EFS-JSON-Anfrage                           | 8 KiB        |
+| EFS-JSON-Upload zum Worker                 | 30 Sekunden  |
+| EFS-JSON-Antwort                           | 5 MiB        |
+| EFS-Upstream-Anfrage                       | 15 Sekunden  |
+| Abruf der öffentlichen Access-Schlüssel    | 5 Sekunden   |
+| Körper einer öffentlichen Kilometermeldung | 2 KiB        |
+| Lesen einer öffentlichen Kilometermeldung  | 10 Sekunden  |
+| Name in einer öffentlichen Meldung         | 2–60 Zeichen |
+| Bemerkung in einer öffentlichen Meldung    | 200 Zeichen  |
+| Offene Meldungen je Fahrzeug               | 5            |
+| Abstand zweier Meldungen je Fahrzeug       | 60 Sekunden  |
 
-Die Nextcloud-Zeitlimits gelten für getrennte Phasen, nicht als gemeinsames
-30-Sekunden-Gesamtbudget. Der Browser-Client besitzt zusätzlich sein eigenes
+Der Browser-Client besitzt zusätzlich sein eigenes
 Anfragezeitlimit. Ein Browserabbruch belegt keinen fehlgeschlagenen Upstream-Schreibvorgang.
 
 JSON-/Datei-APIs und Fehler tragen `Cache-Control: no-store`. Schreibanfragen mit fremder
@@ -644,19 +564,6 @@ im JSON sowie in `X-Stationwizard-Diagnose`:
 | `ACCESS_TOKEN_ABGELAUFEN`             | 401  | Neu anmelden                                                      |
 | `ACCESS_PRUEFUNG_NICHT_ERREICHBAR`    | 503  | Öffentliche Schlüssel derzeit nicht prüfbar                       |
 | `ANFRAGE_URSPRUNG_UNGUELTIG`          | 403  | Fremder Ursprung bei einer Schreibanfrage                         |
-| `NEXTCLOUD_KONFIGURATION_FEHLT`       | 503  | Basis, Token oder Binding prüfen                                  |
-| `NEXTCLOUD_ZUGANG_ABGELEHNT`          | 502  | Nextcloud lehnt Token, Passwort oder Freigaberechte ab            |
-| `NEXTCLOUD_VORBEDINGUNG_FEHLT`        | 428  | Geladene Dateiversion oder ausdrückliche Neuanlage fehlt          |
-| `NEXTCLOUD_VORBEDINGUNG_UNGUELTIG`    | 400  | ETag beziehungsweise Schreibbedingung ungültig                    |
-| `NEXTCLOUD_DATEI_GEAENDERT`           | 412  | Lokale Kopie sichern, neu laden und zusammenführen                |
-| `NEXTCLOUD_DATEI_NICHT_GEFUNDEN`      | 404  | Gewählte Datei/Freigabe prüfen                                    |
-| `NEXTCLOUD_DATEI_ZU_GROSS`            | 413  | Upload überschreitet die Dateigrenze                              |
-| `NEXTCLOUD_ANTWORT_ZU_GROSS`          | 502  | Nextcloud-Antwort überschreitet die Grenze                        |
-| `NEXTCLOUD_UPLOAD_ZEITLIMIT`          | 408  | Upload zum Worker zu langsam                                      |
-| `NEXTCLOUD_ZEITLIMIT`                 | 504  | Nextcloud-Upstream zu langsam                                     |
-| `NEXTCLOUD_NICHT_ERREICHBAR`          | 502  | DNS, TLS oder Verbindung zur Basisadresse prüfen                  |
-| `NEXTCLOUD_UMLEITUNG`                 | 502  | Basisadresse antwortet mit 3xx; kanonische URL eintragen          |
-| `NEXTCLOUD_ANTWORT_UNGUELTIG`         | 502  | Unerwarteter Status oder ungültiger Dateiinhalt                   |
 | `EFS_KONFIGURATION_FEHLT`             | 503  | EFS-Ziel, Token und Laufzeit-Bindings prüfen                      |
 | `EFS_ANFRAGE_UNGUELTIG`               | 400  | Anfragefelder, JSON oder Veranstaltungs-ID ungültig               |
 | `EFS_INHALTSTYP_UNGUELTIG`            | 415  | Browseranfrage muss JSON sein                                     |

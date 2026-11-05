@@ -97,7 +97,6 @@ describe('Access vor sämtlichen Assets und APIs außer der öffentlichen Kilome
     '/kalender',
     '/api/kalender',
     '/api/kalender/migration',
-    '/api/nextcloud/arbeitsmappe',
     '/api/nextcloud/planungen',
     '/api/efs/getveranstaltungen',
     '/api/hiorg/kalender',
@@ -313,13 +312,12 @@ describe('API-Routing und schreibende Anfragen', () => {
     '/api/unbekannt',
     '/api/efs/unbekannt',
     '/api/hiorg/unbekannt',
-    '/api/nextcloud/datei',
+    '/api/nextcloud/planungen',
+    '/api/nextcloud/planungen/01234567-89ab-4cde-8fab-0123456789ab',
   ])('liefert für %s JSON 404 statt der SPA', async (pfad) => {
     const antwort = await anfragen(pfad, await tokenFuer());
     expect(antwort.status).toBe(404);
-    expect(await antwort.json()).toMatchObject({
-      code: pfad.startsWith('/api/nextcloud/') ? 'NEXTCLOUD_PFAD_UNGUELTIG' : 'API_NICHT_GEFUNDEN',
-    });
+    expect(await antwort.json()).toMatchObject({ code: 'API_NICHT_GEFUNDEN' });
     expect(umgebung.ASSETS.fetch).not.toHaveBeenCalled();
   });
 

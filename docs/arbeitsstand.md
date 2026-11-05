@@ -3245,3 +3245,147 @@ Auftrag: alle Warnungen, Hinweise und Fehler als Material-Snackbar ausgeben.
   „Erneut versuchen“ (Personal), zwei Fehler nacheinander (Offene Aufgaben), Warnung
   (Ehrungsmanager), Hinweis mit Aktion „Zum Kalender“ (Kalender-Übernahme), keine Snackbar
   ohne Anlass (Kalender), keine verwaiste Snackbar nach Seitenwechsel.
+
+## Einsatzplanung mit Vorbereitung (VB)
+
+Umgesetzt nach `docs/konzept-einsatzplanung-vb.md` (Abschnitt 9 ist der verbindliche
+Datenvertrag zwischen Worker und Frontend).
+
+- Bereich „Einsatz“ heißt durchgängig „Einsatzplanung“: Route `/einsatzplanung`, `/einsatz`
+  und `/einsatz/editor` leiten weiter, Navigation als Zweig mit „Einsätze“ (die VB-Vorlagen liegen in der Verwaltung, s. u.).
+  Code bleibt unter `src/app/einsatz/`. Der Worker leitet nach HiOrg-Verbinden weiter auf
+  `#/einsatz`; das landet über die Weiterleitung richtig.
+- Verwaltung „Einsatz-Vorlagen“ (`/verwaltung/einsatz-vorlagen`, Seite
+  `einsatz/pages/einsatz-vorlagen/`, Kachel auf der Verwaltungs-Startseite) löst die frühere
+  Seite „VB-Vorlagen“ ab (Seite und Navigationseintrag entfernt, Bausteine als
+  `VbVorlageAnsicht` übernommen). Reiter **PEP** und **VB** (`PepVorlagenReiter`,
+  `VbVorlagenReiter`, je lazy beim Öffnen): Liste links, Ansicht rechts (ungepuffert beim
+  Auswählen), „Hochladen“, „Neue Vorlage“, „Bearbeiten“, Menü mit „Umbenennen“ (If-Match),
+  „Löschen“ und bei VB „Drucken“. **Upload PEP:** `.pep.json`/`.json` über `lesePepDatei`
+  (Versionswarnung) und `planungZuPepVorlageInhalt`, Vorschau mit editierbarem Titel und
+  Hinweis, dass Einsatzkräfte, Zuordnungen und Einsatzleitung entfallen. **Upload VB:** erstes
+  Blatt einer Excel-Packliste (`services/vb-excel-import.ts`, `@e965/xlsx` dynamisch): Spalten
+  über Kopfnamen (Anzahl, Material, Lagerort, Transport mit, Ansprechpartner; `LdfNr`/`erl.`
+  ignoriert), Abschnitt je „Transport mit“, Laufzettel je Lagerort, Zeilen ohne Lagerort als
+  letzter Laufzettel „Zum Schluss: beladene Wagen verladen“; Auffälligkeiten
+  (Platzhalter „???“, fehlendes Material, zu volle Laufzettel, unbekannte Spalten) stehen in der
+  Vorschau, Speichern nur ohne `vbInhaltProbleme`. Eine um eine Spalte rechts versetzte
+  Datenlage unter der Kopfzeile wird am Inhalt erkannt (Materialspalte muss gefüllt sein) und
+  gemeldet; nach links versetzte Daten werden nicht erkannt. Das Spaltenverhalten ist nur mit
+  erfundenen Tabellen geprüft, **nicht** mit der echten Packliste. Geprüft: Vitest (ganze
+  Suite 1467 Tests grün); keine Sichtprüfung im Browser (Desktop/Mobil) ausgeführt.
+- Worker: eigene D1-Datenbank `EINSATZPLANUNG_DB` (Migration `0020_einsatzplanung.sql` mit der
+  Startvorlage „Weihnachtsmarkt Ummeln“ mit dem Inhalt der Packliste 2025, gruppiert nach Transportziel und Lagerort: 5 Abschnitte, 22 Laufzettel, 64 Positionen), Endpunkte
+  für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
+  Änderungen nur mit `If-Match`. Datenbank am 05.11.2026 angelegt und Migration `0020`
+  eingespielt (siehe `docs/einrichtung.md`); wirksam wird sie mit dem nächsten Deployment.
+- Einsatzübersicht statt Einsatzseite (Wunsch des Betreibers: direkt in VB und PEP springen
+  bzw. sie anlegen, keine Zwischen-UI): Die frühere Seite `/einsatzplanung/einsatz/:id` ist
+  entfernt und leitet auf `/einsatzplanung` weiter. In jeder Veranstaltungszeile (anstehend,
+  vergangen) und jeder Zeile „Einsätze ohne HiOrg“ stehen „PEP öffnen/anlegen“ und „VB
+  öffnen/anlegen“ (`EinsatzAktionenDienst`, `EinsatzKnoepfe`); der Zeilenklick ist entfernt.
+  Ohne Einsatz wird er beim ersten Klick still angelegt; „VB anlegen“ öffnet den Vorlage-Wahl-
+  Dialog (neu: „Leer beginnen“). Der Zurück-Pfeil der VB führt zur Übersicht. „Einsatz anlegen“
+  bleibt in der Liste. Eine über die Übersicht geöffnete PEP wird beim Speichern in Nextcloud
+  mit dem Einsatz verknüpft (`pepId` = UUID der Planung, einmalig geschrieben). Entfallen ist
+  der „Drucken“-Knopf der alten Karte (Druck bleibt im VB-Editor). Am Handy (bis 780 px)
+  entfallen in der Veranstaltungstabelle die Spalten Ende und Ort, die Mindestbreite der
+  Tabelle wird aufgehoben, und die Knöpfe stehen als „PEP“/„VB“ untereinander, damit sie ohne
+  seitliches Scrollen sichtbar sind. Geprüft in Headless-Chromium mit nachgebildeter API auf
+  1440×900 und Pixel 7 (Knöpfe je Stand, Vorlage-Wahl-Dialog mit „Leer beginnen“); der Sprung
+  in den PEP-Editor und das Anlegen der VB bis in den Editor sind nur durch Tests belegt.
+- Einsatzübersicht überarbeitet (vom Betreiber abgenommen, ohne Kennzahlenleiste): Seitenkopf mit
+  Aktualisieren, Hauptaktion „Einsatz anlegen“ und `more_vert`-Menü („Datei öffnen“,
+  „Einsatz-Vorlagen“); Werkzeugzeile mit `app-suchfeld`, Umschalter „Anstehend | Vergangen (n)“
+  (ersetzt das Expansion-Panel) und Chips „PEP fehlt“/„VB fehlt“/„ohne HiOrg“; Karten nach Monat
+  gruppiert („Ohne Datum“ zuletzt); Abstandshinweis an anstehenden Karten, gelb bei höchstens
+  14 Tagen und fehlendem PEP oder fehlender VB. Reine Funktionen `filtereEinsaetze()`,
+  `gruppiereNachMonat()`, `mitAbstand()` (`einsatz-liste.ts`) und `abstandInTagen()`,
+  `istDringend()` (`einsatz-anzeige.ts`) mit Tests; Filterzustand nur in der Sitzung. Geprüft:
+  ganze Vitest-Suite (1517 Tests grün), `tsc` für App und Spec, Headless-Chromium mit
+  nachgebildeter API auf 1440×900 und Pixel 7 (Kopfaktionen samt Menü, Monatsgruppen,
+  Abstandshinweis grau/gelb, Filter „PEP fehlt“, Werkzeugzeile am Handy umgebrochen).
+- Einsatzübersicht als Karten (Variante B „Karten mit Datumsblock“, vom Betreiber gewählt):
+  ein gemeinsamer Abschnitt „Anstehende Einsätze“ mit HiOrg-Veranstaltungen und Einsätzen ohne
+  HiOrg nach Beginn (ohne Beginn zuletzt), „Vergangene Einsätze (n)“ als zugeklapptes
+  `mat-expansion-panel`; „Einsatz ohne HiOrg“ in der Kopfzeile. Neue Komponente
+  `components/einsatz-karte/` ersetzt `EinsatzKnoepfe` und die beiden Tabellen; Zusammenführung
+  und Sortierung in `services/einsatz-liste.ts`, Datumsblock über `lokalerBeginn()`/`datumsblock()`
+  in `einsatz-anzeige.ts` (kein UTC-Versatz). Die Kacheln „PEP“/„VB“ sind `matButton="outlined"`
+  mit eigenem Inhalt (Material-Tokens `--mat-button-outlined-*`, Randart und Statusstreifen
+  direkt), neue Tokens `--radius-karte-gross`, `--einsatz-datum-breite`, `--einsatz-kachel-breite`,
+  `--einsatz-kachel-streifen`. Am Handy stehen Datumsblock und Titel in einer Zeile, die Kacheln
+  darunter je halbe Breite; dort entfallen „Anlegen“ (der gestrichelte Rahmen zeigt es) und die
+  Positionszahl, Untertitel brechen nicht um. Geprüft: Angular-Tests, `tsc` für App und Spec,
+  Headless-Chromium mit nachgebildeter API auf 1440×900 und Pixel 7 (gestrichelter Rand und
+  Statusstreifen am Material-Knopf greifen). Vergangene Einsätze im Panel nicht im Browser
+  gesehen, nur durch Tests belegt.
+- VB-Editor (`…/einsatz/:id/vb`, gleiche Seite für Vorlagen unter `/einsatzplanung/vb-vorlagen/:id`):
+  Abschnitte mit Farbe und Fachgruppe, Laufzettel per Ziehen sortierbar, Platzanzeige je
+  Laufzettel (23 Materialzeilen à 38 Zeichen) mit Warnung und „In zwei Laufzettel aufteilen“,
+  Allgemeine Anweisungen, Rückgängig, „Auf Vorlage anwenden…“ mit Auswahl je Änderung.
+  Abschnitte lassen sich einzeln (Pfeil im Abschnittskopf) oder alle gemeinsam ein- und
+  aufklappen; der Zustand gilt nur für die Sitzung. Beim Suchen ist alles aufgeklappt, und
+  ein neu angelegter Laufzettel klappt seinen Abschnitt auf. In einen eingeklappten Abschnitt
+  lässt sich nicht hineinziehen.
+- PDF-Druck (pdfmake): Anweisungsblatt A4 quer, danach drei Laufzettel je A4-Querseite mit
+  Klemmrand, Farbband, Fachgruppe, 23-Zeilen-Raster und Fortsetzungsstreifen bei zu vollen
+  Laufzetteln.
+
+- Nachtrag nach Rückmeldung des Betreibers: Laufzettel sind nach „was wohin“ gegliedert, nicht
+  nach Ansprechpartner. Abschnitt = Transportziel, Laufzettel = Lagerort; auf Laufzettel,
+  Karte und im Editor stehen „Von“ (Lagerort) und „Auf / In“ (Transport mit) vorn, „Rückfragen
+  an“ klein am Fuß. Startvorlage entsprechend umgebaut und mit der Packliste 2025 gefüllt (5 Abschnitte, 22 Laufzettel). Erneut
+  geprüft: Build, alle Tests (Angular 1318), Formatprüfung, Probedruck in Node (Fußzeile mit
+  mindestens 19 pt Reserve im Grenzfall) und Editor im Headless-Chromium.
+
+### Tatsächlich ausgeführte Prüfungen
+
+- `npm run build`, `npm test` (Angular 165 Dateien/1317 Tests, öffentliche Seite 29 Tests,
+  Worker 31 Dateien/905 Tests), `npm run format:check` und `npm run deploy:dry-run` grün.
+- Druck in Node mit pdfmake gerendert und als Bild geprüft: Startvorlage plus Laufzettel mit
+  23 Zeilen à 38 Zeichen bleiben je Streifen auf der Seite, Überlauf erzeugt
+  Fortsetzungsstreifen.
+- Headless-Chromium mit Attrappen-API auf 1440×900 und Pixel 7: Einsatzseite, Liste, VB-Editor
+  (inklusive zu vollem Laufzettel, Abschnitts- und Abgleichsdialog) und VB-Vorlagen. Dabei
+  behoben: Das Bearbeitungsfeld scrollte bei weit unten gewählten Laufzetteln aus dem Bild.
+- Nicht geprüft: echte D1-Datenbank (nur Fake), Drag & Drop auf Touch-Geräten, Ausdruck auf
+  echtem Drucker (Farbband und Schnittlinien laufen bis zum Papierrand).
+
+### PEP-Editor in der Datenbank (Frontend)
+
+- `PepEditorOeffnenDienst` ist umgesetzt: `oeffnen(einsatz)` lädt die PEP und legt sie mit
+  `pepInhaltZuPlanung()` in den `PlanungStoreService`; `anlegen(einsatz, gruppe)` fragt über den
+  verallgemeinerten Dialog „Vorlage wählen“ (`VorlageWahlDialog`, Dialogdaten `{ art: 'pep' | 'vb' }`,
+  Hilfsfunktion `vorlageWaehlen()`) nach Vorlage oder leerem Anfang, baut bei HiOrg eine Basis aus
+  EFS (`PlanungOeffnenDienst.planungAusEfsBauen()`, öffnet nichts) und ruft
+  `PepStoreService.ausVorlageAnlegen()`. „Veranstaltung nicht im EFS-Abruf“ warnt und legt ohne
+  Basis an; ein Fehler des EFS-Abrufs bricht ab, ohne etwas anzulegen.
+- Entscheidungen: Planungs-Id im Editor = Einsatz-Id (stabil, eine PEP je Einsatz). Titel und
+  Zeitraum kommen aus dem Einsatz (`YYYY-MM-DDTHH:mm` lokal wird als lokale Zeit zu einem ISO-Zeitpunkt,
+  wie ihn der Editor führt, ohne UTC-Verschiebung der Uhrzeit) und sind im Einsatzmodus gesperrt, weil
+  die PEP sie nicht speichert. Der Speicherort steht im `PepEditorKontext`.
+- Speichern (`PepEditorSpeichernDienst`): PEP des Einsatzes mit `If-Match`; Datei ohne Einsatz →
+  Dialog „Einem Einsatz zuordnen“ (nur Einsätze ohne PEP), Anlegen mit `If-None-Match`, danach neu
+  aus der Datenbank geöffnet; Menü „Als Vorlage speichern“; Modus Vorlage (`pep-vorlagen/:id`,
+  `pep-vorlagen/neu`) ohne Helferpool, Zeitraum und Einsatzleitung. Bei 412 bleibt der lokale Stand;
+  „Neu laden“ lädt den gespeicherten Stand erst nach Bestätigung und lädt den lokalen vorher als JSON
+  herunter. `PlanungStoreService.hatUngesichertes` vergleicht mit dem zuletzt gespeicherten Stand
+  (Datenbank, Vorlage oder Datei); der Router-Schutz `planungVerlassenGuard` und `VerlassenSchutz`
+  nutzen es.
+- Entfernt: `PlanungCloudService`, `cloudOeffnen`, Abschnitte „Gespeicherte Einsatzpläne“ und „Lokale
+  Planungen“, Knopf „Neue Planung“, Nextcloud-Texte; `fast-xml-parser` (nirgends mehr importiert).
+  `/einsatzplanung/vb-vorlagen` leitet auf `/verwaltung/einsatz-vorlagen` um. Die Einsatzkarte zeigt
+  „n / m besetzt“ aus den Kennzahlen der Einsatzliste.
+- Geprüft: `npm run build`, `npm test` (Angular 1494, öffentliche Seite 29 + 29, Worker 852),
+  Formatprüfung, `deploy:dry-run` (keine Nextcloud-Bindings mehr). Headless-Chromium mit
+  nachgebildeter API auf 1440×900: Einsatzkarte mit „1 / 3 besetzt“, PEP-Editor aus der
+  Datenbank geöffnet (Zuordnung und Einsatzleitung über die Ids korrekt aufgelöst, Kopf
+  gesperrt), Admin-Seite mit beiden Reitern, Excel-Upload der echten Packliste 2025 (verschobene
+  Kopfzeile erkannt, 5 Abschnitte, 23 Laufzettel, vier Auffälligkeiten). Nicht geprüft:
+  Speichern gegen die echte Datenbank, PEP-Upload und Editor im Vorlagenmodus im Browser, Handy.
+- Datenbank: `0021_pep.sql` und – nach dem Deployment (Worker vom 05.11.2026, 13:15 UTC, ohne
+  `pep_id`-Zugriff geprüft) – `0022_einsaetze_pep_id_entfernen.sql` sind eingespielt. Bestand
+  danach: ein Einsatz mit VB, noch keine PEP.
+- Offen: `StorageArt` in `kern/storage/datei-storage.ts` kennt noch `'nextcloud'`; die
+  Nextcloud-Secrets können in Cloudflare gelöscht werden (Betreibersache).

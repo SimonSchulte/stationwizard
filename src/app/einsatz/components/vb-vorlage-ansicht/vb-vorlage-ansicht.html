@@ -1,0 +1,54 @@
+@if (inhalt().anweisungen.trim()) {
+  <mat-expansion-panel class="anweisungen">
+    <mat-expansion-panel-header>
+      <mat-panel-title>Allgemeine Anweisungen</mat-panel-title>
+    </mat-expansion-panel-header>
+    <p class="anweisungen-text">{{ inhalt().anweisungen }}</p>
+  </mat-expansion-panel>
+}
+
+@for (abschnitt of abschnitte(); track abschnitt.id) {
+  <section class="abschnitt">
+    <h3 class="abschnitt-kopf">
+      <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
+      <span class="abschnitt-titel">{{ abschnitt.titel }}</span>
+      @if (abschnitt.fachgruppe; as fachgruppe) {
+        <app-fachgruppe-chip [fachgruppe]="fachgruppe" />
+      }
+    </h3>
+    @if (abschnitt.zeilen.length === 0) {
+      <p class="abschnitt-leer">Dieser Abschnitt enthält noch keinen Laufzettel.</p>
+    } @else {
+      <div class="tabelle-rahmen">
+        <table mat-table [dataSource]="abschnitt.zeilen" class="tabelle">
+          <ng-container matColumnDef="nr">
+            <th mat-header-cell *matHeaderCellDef>Nr</th>
+            <td mat-cell *matCellDef="let zeile" class="nr">{{ zeile.nr }}</td>
+          </ng-container>
+          <ng-container matColumnDef="material">
+            <th mat-header-cell *matHeaderCellDef>Material</th>
+            <td mat-cell *matCellDef="let zeile" class="material">
+              {{ zeile.material || '–' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="lagerort">
+            <th mat-header-cell *matHeaderCellDef>Von</th>
+            <td mat-cell *matCellDef="let zeile">{{ zeile.lagerort || '–' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="transportMit">
+            <th mat-header-cell *matHeaderCellDef>Auf / In</th>
+            <td mat-cell *matCellDef="let zeile">{{ zeile.transportMit || '–' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="auftraggeber">
+            <th mat-header-cell *matHeaderCellDef>Rückfragen</th>
+            <td mat-cell *matCellDef="let zeile">{{ zeile.auftraggeber || '–' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="spalten"></tr>
+          <tr mat-row *matRowDef="let zeile; columns: spalten"></tr>
+        </table>
+      </div>
+    }
+  </section>
+} @empty {
+  <app-leerzustand icon="view_agenda" titel="Diese Vorlage enthält noch keine Abschnitte" />
+}

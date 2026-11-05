@@ -1,8 +1,6 @@
 /**
  * Größenbegrenztes Lesen roher Binärinhalte, gemeinsam für alle Module mit
- * Dateiuploads (`nextcloud.ts` für die Excel-Arbeitsmappe,
- * `fuehrerschein-vorlage.ts` für die Word-Vorlage). Ursprünglich nur in
- * `nextcloud.ts`; hierher gezogen, statt ihn ein zweites Mal zu schreiben.
+ * Dateiuploads (`datei-vorlage.ts` und `fuehrerschein-vorlage.ts` für die Vorlagen).
  */
 
 export class Groessenfehler extends Error {}

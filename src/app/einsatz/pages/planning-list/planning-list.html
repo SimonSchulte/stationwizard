@@ -1,4 +1,4 @@
-<app-seitenkopf titel="Personaleinsatzplanung" icon="assignment">
+<app-seitenkopf titel="Einsatzplanung" icon="event_note">
   <app-verbindungsstatus
     class="verbindungsstatus"
     [verbunden]="efsApi.erreichbar()"
@@ -8,14 +8,29 @@
       (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
     "
   />
-  <button matButton="outlined" (click)="loadFromFile()" class="toolbar-btn">
-    <mat-icon>folder_open</mat-icon>
-    Datei öffnen
+  <button
+    matIconButton
+    matTooltip="Aktualisieren"
+    aria-label="Einsätze aktualisieren"
+    (click)="aktualisieren()"
+    [disabled]="efsLoading()"
+  >
+    <mat-icon>refresh</mat-icon>
   </button>
-  <button matButton="filled" (click)="createNew()" class="toolbar-btn">
-    <mat-icon>add</mat-icon>
-    Neue Planung
+  <button matButton="filled" (click)="einsatzAnlegen()">
+    <mat-icon>add</mat-icon> Einsatz anlegen
   </button>
+  <button matIconButton [matMenuTriggerFor]="weitere" aria-label="Weitere Aktionen">
+    <mat-icon>more_vert</mat-icon>
+  </button>
+  <mat-menu #weitere="matMenu">
+    <button mat-menu-item (click)="loadFromFile()">
+      <mat-icon>folder_open</mat-icon> Datei öffnen
+    </button>
+    <a mat-menu-item routerLink="/verwaltung/einsatz-vorlagen">
+      <mat-icon>library_books</mat-icon> Einsatz-Vorlagen
+    </a>
+  </mat-menu>
 </app-seitenkopf>
 
 <div class="list-content">
@@ -30,208 +45,98 @@
       }
     </app-meldung>
   }
-  <section class="cloud-planungen" aria-labelledby="cloud-planungen-titel">
-    <div class="section-header">
-      <h2 id="cloud-planungen-titel">Gespeicherte Einsatzpläne</h2>
-      <button matButton="outlined" (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
-        <mat-icon>refresh</mat-icon> Aktualisieren
-      </button>
-    </div>
-    @if (cloud.listeLaedt()) {
-      <app-ladeanzeige text="Gespeicherte Einsatzpläne werden geladen…" />
-    }
-    @if (cloud.listenFehler()) {
-      <app-meldung art="fehler">{{ cloud.listenFehler() }}</app-meldung>
-      <button matButton (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
-        Erneut versuchen
-      </button>
-    } @else if (!cloud.listeLaedt() && cloud.dateien().length === 0) {
-      <p class="empty-hint">
-        Noch keine Einsatzpläne gespeichert. Öffne eine Planung und wähle „In Nextcloud speichern“.
-      </p>
-    }
-    @if (cloudFehler()) {
-      <app-meldung art="fehler"
-        >{{ cloudFehler() }} Deine lokalen Planungen bleiben erhalten.</app-meldung
+  <section class="einsaetze" aria-label="Einsätze">
+    <div class="werkzeuge">
+      <app-suchfeld
+        class="suche"
+        [(wert)]="suche"
+        beschriftung="Einsätze suchen"
+        platzhalter="Titel oder Ort"
+      />
+      <mat-button-toggle-group
+        class="ansicht"
+        aria-label="Zeitraum"
+        hideSingleSelectionIndicator
+        [value]="ansicht()"
+        (change)="ansicht.set($event.value)"
       >
-    }
-    <ul class="cloud-dateien">
-      @for (datei of cloud.dateien(); track datei.id) {
-        <li>
-          <span>{{ cloud.namen()[datei.id] || datei.id }}</span>
-          <button
-            matButton="outlined"
-            (click)="cloudPlanungLaden(datei.id)"
-            [disabled]="cloudLadeId() !== null"
-          >
-            {{ cloudLadeId() === datei.id ? 'Wird geladen…' : 'Laden' }}
-          </button>
-        </li>
-      }
-    </ul>
-  </section>
-
-  <section aria-label="HiOrg-Veranstaltungen">
-    <div class="section-header">
-      <h2>Veranstaltungen (HiOrg-Server)</h2>
-      <button
-        matIconButton
-        matTooltip="Aktualisieren"
-        (click)="loadEfsEinsaetze()"
-        [disabled]="efsLoading()"
-      >
-        <mat-icon>refresh</mat-icon>
-      </button>
+        <mat-button-toggle value="anstehend">Anstehend</mat-button-toggle>
+        <mat-button-toggle value="vergangen">
+          Vergangen ({{ einsatzListe().vergangen.length }})
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+      <mat-chip-listbox class="filter" multiple aria-label="Einsätze filtern">
+        <mat-chip-option [selected]="pepFehlt()" (selectionChange)="pepFehlt.set($event.selected)">
+          PEP fehlt
+        </mat-chip-option>
+        <mat-chip-option [selected]="vbFehlt()" (selectionChange)="vbFehlt.set($event.selected)">
+          VB fehlt
+        </mat-chip-option>
+        <mat-chip-option
+          [selected]="ohneHiorg()"
+          (selectionChange)="ohneHiorg.set($event.selected)"
+        >
+          ohne HiOrg
+        </mat-chip-option>
+      </mat-chip-listbox>
     </div>
 
-    @if (efsLoading()) {
-      <div class="loading-container">
-        <mat-spinner diameter="36"></mat-spinner>
-        <span>Veranstaltungen werden geladen…</span>
-      </div>
-    } @else if (efsError()) {
+    @if (einsatzListeFehler() && !einsatzListeGeladen()) {
+      <app-meldung art="fehler">{{ einsatzListeFehler() }}</app-meldung>
+    }
+    @if (efsError()) {
       <app-meldung art="fehler">{{ efsError() }}</app-meldung>
       <button matButton (click)="loadEfsEinsaetze()">Erneut versuchen</button>
+    }
+    @if (efsLoading() || (einsatzListeLaedt() && !einsatzListeGeladen())) {
+      <app-ladeanzeige text="Einsätze werden geladen…" />
+    } @else if (monatsGruppen().length > 0) {
+      @for (gruppe of monatsGruppen(); track gruppe.schluessel) {
+        <section class="monat" [attr.aria-labelledby]="'monat-' + gruppe.schluessel">
+          <h2 class="monat-titel" [id]="'monat-' + gruppe.schluessel">{{ gruppe.titel }}</h2>
+          <ul class="karten">
+            @for (zeile of gruppe.eintraege; track zeile.schluessel) {
+              <li>
+                <app-einsatz-karte
+                  [titel]="zeile.titel"
+                  [beginn]="zeile.beginn"
+                  [schichten]="zeile.schichten"
+                  [ort]="zeile.ort"
+                  [herkunft]="zeile.herkunft"
+                  [pepVorhanden]="zeile.pepVorhanden"
+                  [pepKennzahlen]="zeile.pep"
+                  [vbKennzahlen]="zeile.vb"
+                  [abstandTage]="zeile.abstandTage"
+                  [dringend]="zeile.dringend"
+                  [gesperrt]="aktionen.laufend() !== null"
+                  (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
+                  (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"
+                />
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    } @else if (gesamtAnzahl() === 0) {
+      @if (!efsError()) {
+        <app-leerzustand
+          icon="event_busy"
+          titel="Keine Einsätze gefunden. HiOrg-Veranstaltungen müssen für den EFS-Abruf freigegeben sein, oder lege einen Einsatz an."
+        />
+      }
+    } @else if (filterAktiv()) {
+      <app-leerzustand icon="search_off" titel="Keine Einsätze passen zu Suche und Filter.">
+        <button leerAktion matButton="outlined" (click)="filterZuruecksetzen()">
+          Filter zurücksetzen
+        </button>
+      </app-leerzustand>
     } @else {
-      @if (upcomingGruppen().length > 0) {
-        <h3>Anstehende Veranstaltungen</h3>
-        <div
-          class="tabellenbereich"
-          role="region"
-          aria-label="Anstehende Veranstaltungen"
-          tabindex="0"
-        >
-          <table mat-table [dataSource]="upcomingGruppen()" class="einsatz-table">
-            <ng-container matColumnDef="titel">
-              <th mat-header-cell *matHeaderCellDef>Titel</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.titel }}
-                @if (g.schichten.length > 1) {
-                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
-                }
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_von">
-              <th mat-header-cell *matHeaderCellDef>Beginn</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_bis">
-              <th mat-header-cell *matHeaderCellDef>Ende</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="ort">
-              <th mat-header-cell *matHeaderCellDef>Ort</th>
-              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-            <tr
-              mat-row
-              *matRowDef="let g; columns: einsatzColumns"
-              class="einsatz-row"
-              (click)="openEfsGruppe(g)"
-            ></tr>
-          </table>
-        </div>
-      }
-
-      @if (pastGruppen().length > 0) {
-        <h3 class="past-header">Vergangene Veranstaltungen</h3>
-        <div
-          class="tabellenbereich"
-          role="region"
-          aria-label="Vergangene Veranstaltungen"
-          tabindex="0"
-        >
-          <table mat-table [dataSource]="pastGruppen()" class="einsatz-table past">
-            <ng-container matColumnDef="titel">
-              <th mat-header-cell *matHeaderCellDef>Titel</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.titel }}
-                @if (g.schichten.length > 1) {
-                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
-                }
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_von">
-              <th mat-header-cell *matHeaderCellDef>Beginn</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_bis">
-              <th mat-header-cell *matHeaderCellDef>Ende</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="ort">
-              <th mat-header-cell *matHeaderCellDef>Ort</th>
-              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-            <tr
-              mat-row
-              *matRowDef="let g; columns: einsatzColumns"
-              class="einsatz-row"
-              (click)="openEfsGruppe(g)"
-            ></tr>
-          </table>
-        </div>
-      }
-
-      @if (upcomingGruppen().length === 0 && pastGruppen().length === 0) {
-        <p class="empty-hint">
-          Keine Veranstaltungen gefunden. Die Veranstaltungen müssen in HiOrg-Server für den
-          EFS-Abruf freigegeben sein.
-        </p>
-      }
+      <app-leerzustand
+        icon="event_available"
+        [titel]="
+          ansicht() === 'anstehend' ? 'Keine anstehenden Einsätze.' : 'Keine vergangenen Einsätze.'
+        "
+      />
     }
-
-    <mat-divider class="abschnitt-trenner"></mat-divider>
   </section>
-
-  <h2>Lokale Planungen</h2>
-
-  @if (planungen().length === 0) {
-    <app-leerzustand icon="groups" titel="Noch keine Planungen vorhanden.">
-      <button leerAktion matButton="filled" (click)="createNew()">
-        <mat-icon>add</mat-icon> Neue Planung erstellen
-      </button>
-    </app-leerzustand>
-  }
-
-  <div class="card-grid">
-    @for (planung of planungen(); track planung.id) {
-      <mat-card class="planung-card" (click)="openPlanung(planung.id)">
-        <mat-card-header>
-          <mat-card-title>{{ planung.name }}</mat-card-title>
-          <mat-card-subtitle>
-            {{ planung.start | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }} –
-            {{ planung.end | date: 'HH:mm' : '' : 'de-DE' }} Uhr
-          </mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <p>
-            {{ planung.posten.length }} Posten · {{ planung.einsatzkraefte.length }} Einsatzkräfte
-          </p>
-          @if (planung.hiorg_einsatz_id) {
-            <p class="efs-link-hint">
-              <mat-icon class="efs-icon">cloud</mat-icon>
-              EFS-Einsatz #{{ planung.hiorg_einsatz_id }}
-            </p>
-          }
-        </mat-card-content>
-        <mat-card-actions>
-          <button matButton="outlined" (click)="openPlanung(planung.id); $event.stopPropagation()">
-            <mat-icon>open_in_new</mat-icon>
-            Öffnen
-          </button>
-        </mat-card-actions>
-      </mat-card>
-    }
-  </div>
 </div>

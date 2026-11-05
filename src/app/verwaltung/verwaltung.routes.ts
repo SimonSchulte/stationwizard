@@ -66,4 +66,11 @@ export const verwaltungRouten: Routes = [
         (modul) => modul.FuehrerscheinVorlageVerwaltung,
       ),
   },
+  {
+    path: 'einsatz-vorlagen',
+    loadComponent: () =>
+      import('../einsatz/pages/einsatz-vorlagen/einsatz-vorlagen').then(
+        (modul) => modul.EinsatzVorlagen,
+      ),
+  },
 ];

@@ -61,6 +61,14 @@ describe('Verwaltungs-Startseite', () => {
     );
   });
 
+  it('verweist auf die Einsatz-Vorlagen', async () => {
+    const { fixture } = erzeugeSeite(false);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const verweis = element.querySelector('a.aufgabe[href="/verwaltung/einsatz-vorlagen"]');
+    expect(verweis?.textContent).toContain('Einsatz-Vorlagen');
+  });
+
   it('blendet die QR-Übersichtsbögen ohne Freigaberecht aus', async () => {
     const { fixture } = erzeugeSeite(false);
     await fixture.whenStable();

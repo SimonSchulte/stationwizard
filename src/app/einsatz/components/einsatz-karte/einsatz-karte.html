@@ -1,0 +1,95 @@
+<article class="karte">
+  <div class="datum" [class.ohne-datum]="!datum()">
+    @if (datum(); as d) {
+      <span class="monat">{{ d.monat }}</span>
+      <span class="tag">{{ d.tag }}</span>
+      <span class="zeit">{{ d.wochentagZeit }}</span>
+    } @else {
+      <span class="kein-datum" aria-label="Kein Beginn angegeben">–</span>
+    }
+  </div>
+
+  <div class="mitte">
+    <h3>
+      {{ titel() }}
+      @if (abstand()) {
+        <span class="abstand" [class.dringend]="dringend()">{{ abstand() }}</span>
+      }
+    </h3>
+    <p class="meta">
+      @if ((schichten() ?? 0) > 1) {
+        <span class="eintrag"
+          ><mat-icon aria-hidden="true">schedule</mat-icon>{{ schichten() }} Schichten</span
+        >
+      }
+      <span class="eintrag" [class.gedaempft]="!ort()"
+        ><mat-icon aria-hidden="true">place</mat-icon>{{ ort() || 'Ort nicht angegeben' }}</span
+      >
+      <span class="eintrag">
+        <mat-icon aria-hidden="true">{{ herkunft() === 'hiorg' ? 'link' : 'edit_note' }}</mat-icon>
+        {{ herkunft() === 'hiorg' ? 'HiOrg' : 'selbst angelegt' }}
+      </span>
+    </p>
+  </div>
+
+  <div class="kacheln">
+    <button
+      matButton="outlined"
+      type="button"
+      class="kachel"
+      [class.vorhanden]="pepDa()"
+      [disabled]="gesperrt()"
+      [attr.aria-label]="(pepDa() ? 'PEP öffnen: ' : 'PEP anlegen: ') + titel()"
+      (click)="pep.emit()"
+    >
+      <span class="inhalt">
+        <mat-icon class="symbol" aria-hidden="true">assignment_ind</mat-icon>
+        <span class="text">
+          <span class="name">PEP</span>
+          <span class="untertitel">
+            @if (pepKennzahlen(); as k) {
+              {{ k.besetzt }} / {{ k.positionen }}<span class="zusatz"> besetzt</span>
+            } @else if (pepDa()) {
+              verknüpft
+            } @else {
+              nicht angelegt
+            }
+          </span>
+        </span>
+        @if (pepDa()) {
+          <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
+        } @else {
+          <span class="anlegen">Anlegen</span>
+        }
+      </span>
+    </button>
+    <button
+      matButton="outlined"
+      type="button"
+      class="kachel"
+      [class.vorhanden]="!!vbKennzahlen()"
+      [disabled]="gesperrt()"
+      [attr.aria-label]="(vbKennzahlen() ? 'VB öffnen: ' : 'VB anlegen: ') + titel()"
+      (click)="vb.emit()"
+    >
+      <span class="inhalt">
+        <mat-icon class="symbol" aria-hidden="true">checklist</mat-icon>
+        <span class="text">
+          <span class="name">VB</span>
+          <span class="untertitel">
+            @if (vbKennzahlen(); as k) {
+              {{ k.laufzettel }} Laufzettel<span class="zusatz"> · {{ k.positionen }} Pos.</span>
+            } @else {
+              nicht angelegt
+            }
+          </span>
+        </span>
+        @if (vbKennzahlen()) {
+          <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
+        } @else {
+          <span class="anlegen">Anlegen</span>
+        }
+      </span>
+    </button>
+  </div>
+</article>

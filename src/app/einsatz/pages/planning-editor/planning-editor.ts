@@ -3,11 +3,13 @@ import {
   Component,
   computed,
   inject,
+  OnDestroy,
   signal,
   ViewChild,
 } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { erzeugeTaktischesZeichen } from 'taktische-zeichen-core';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
@@ -35,7 +37,10 @@ import { MatTimepickerModule } from '@angular/material/timepicker';
 import { lokalesDatumZuZeit, zeitZuLokalesDatum } from '../../../kern/kalender/datum';
 import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
 import { PlanungStoreService } from '../../services/planung-store.service';
-import { PlanungCloudService } from '../../services/planung-cloud.service';
+import { PepEditorKontext } from '../../services/pep-editor-kontext';
+import { PepEditorSpeichernDienst, SpeicherErgebnis } from '../../services/pep-editor-speichern';
+import { EinsatzZuordnenDialog } from '../../components/einsatz-zuordnen-dialog/einsatz-zuordnen-dialog';
+import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
@@ -55,7 +60,7 @@ import {
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
-import { Meldung } from '../../../kern/zustand/zustand';
+import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -86,23 +91,27 @@ import { Meldung } from '../../../kern/zustand/zustand';
   templateUrl: './planning-editor.html',
   styleUrl: './planning-editor.less',
 })
-export class PlanningEditor {
+export class PlanningEditor implements OnDestroy {
   private readonly store = inject(PlanungStoreService);
   private readonly router = inject(Router);
   private readonly saveLoad = inject(SaveLoadService);
-  private readonly cloud = inject(PlanungCloudService);
-  readonly cloudSpeichert = signal(false);
-  private readonly gespeicherterCloudStand = signal<{ id: string; inhalt: string } | null>(null);
-  readonly cloudStatus = computed(() => {
-    const gespeichert = this.gespeicherterCloudStand();
-    const aktuell = this.store.active();
-    if (!aktuell || aktuell.id !== gespeichert?.id) return '';
-    return gespeichert.inhalt === JSON.stringify(aktuell) &&
-      !this.cloud.hatLokaleAenderungen(aktuell)
-      ? 'Die Einsatzplanung wurde in Nextcloud gespeichert.'
-      : 'Der Stand wurde gespeichert. Weitere lokale Änderungen sind noch ungespeichert.';
+  private readonly route = inject(ActivatedRoute);
+  private readonly kontext = inject(PepEditorKontext);
+  private readonly speichernDienst = inject(PepEditorSpeichernDienst);
+  private readonly meldungen = inject(MeldungsDienst);
+
+  /** Modus aus den Routendaten: `vorlage` bearbeitet eine PEP-Vorlage (ohne Einsatzkräfte). */
+  readonly istVorlage = this.route.snapshot.data['modus'] === 'vorlage';
+  /** Der Einsatz, zu dem die geöffnete PEP gehört; `null` bei Datei oder Vorlage. */
+  readonly einsatzZiel = computed(() => {
+    const ziel = this.kontext.ziel();
+    return ziel?.art === 'einsatz' ? ziel.einsatz : null;
   });
-  readonly cloudFehler = signal('');
+  readonly speichert = signal(false);
+  readonly speicherFehler = signal('');
+  /** Der letzte Speicherversuch scheiterte an einem neueren Stand in der Datenbank (412). */
+  readonly konflikt = signal(false);
+  readonly hatUngesichertes = this.store.hatUngesichertes;
   private readonly dialog = inject(MatDialog);
   private readonly dialogDienst = inject(DialogDienst);
   private readonly abgleich = inject(MatchService);
@@ -116,6 +125,7 @@ export class PlanningEditor {
   );
 
   constructor() {
+    if (this.istVorlage) void this.vorlageStarten();
     // Einmal beim Öffnen laden, nicht aus dem Template: dort schriebe das Laden während des
     // Renderns in ein Signal (NG0600).
     this.fahrzeugeQuelle.sicherstellenGeladen();
@@ -127,6 +137,8 @@ export class PlanningEditor {
   readonly isEfsLocked = computed(
     () => this.efsApi.erreichbar() && !!this.store.active()?.hiorg_einsatz_id,
   );
+  /** Titel und Zeitraum gehören dem Einsatz (bzw. HiOrg) und sind im Editor nicht änderbar. */
+  readonly kopfGesperrt = computed(() => this.einsatzZiel() !== null || this.isEfsLocked());
 
   toggleAssignedList(): void {
     this.assignedListCollapsed.update((v) => !v);
@@ -344,22 +356,121 @@ export class PlanningEditor {
     await this.pdfExport.exportieren(p);
   }
 
-  async cloudSpeichern(): Promise<void> {
+  /**
+   * Speichert in die Datenbank: PEP des Einsatzes bzw. Vorlage; eine Datei ohne Einsatz wird
+   * zuerst einem Einsatz zugeordnet. Der lokale Stand bleibt bei jedem Fehler erhalten.
+   */
+  async speichern(): Promise<void> {
     const planung = this.planung();
-    if (!planung || this.cloudSpeichert()) return;
-    this.cloudSpeichert.set(true);
-    this.gespeicherterCloudStand.set(null);
-    this.cloudFehler.set('');
-    try {
-      await this.cloud.speichern(planung);
-      const aktuell = this.planung();
-      if (aktuell?.id !== planung.id) return;
-      this.gespeicherterCloudStand.set({ id: planung.id, inhalt: JSON.stringify(planung) });
-    } catch (fehler) {
-      if (this.planung()?.id === planung.id) this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
-    } finally {
-      this.cloudSpeichert.set(false);
+    if (!planung || this.speichert()) return;
+    this.speicherFehler.set('');
+    this.konflikt.set(false);
+    if (this.kontext.ziel() === null) {
+      await this.zuordnen(planung);
+      return;
     }
+    this.speichert.set(true);
+    try {
+      const ergebnis = await this.speichernDienst.speichern(planung);
+      if (!this.ergebnisAuswerten(ergebnis, 'Gespeichert.')) return;
+      if (this.istVorlage && this.route.snapshot.paramMap.get('id') === 'neu') {
+        await this.router.navigate(['/einsatzplanung/pep-vorlagen', planung.id], {
+          replaceUrl: true,
+        });
+      }
+    } finally {
+      this.speichert.set(false);
+    }
+  }
+
+  /** Dialog „Einem Einsatz zuordnen“ für eine Planung ohne Einsatz, dann Anlegen als PEP. */
+  private async zuordnen(planung: Planung): Promise<void> {
+    const einsatz = await firstValueFrom(
+      this.dialog
+        .open<EinsatzZuordnenDialog, void, EinsatzListenEintrag>(EinsatzZuordnenDialog, {
+          width: '560px',
+          maxWidth: '94vw',
+        })
+        .afterClosed(),
+      { defaultValue: undefined },
+    );
+    if (!einsatz) return;
+    this.speichert.set(true);
+    try {
+      const ergebnis = await this.speichernDienst.zuordnen(planung, einsatz);
+      this.ergebnisAuswerten(ergebnis, `Als PEP des Einsatzes „${einsatz.titel}“ gespeichert.`);
+    } finally {
+      this.speichert.set(false);
+    }
+  }
+
+  /** Nach einem Konflikt: den gespeicherten Stand laden, nachdem der lokale gesichert wurde. */
+  async neuLaden(): Promise<void> {
+    if (this.speichert()) return;
+    const planung = this.planung();
+    if (
+      !(await this.dialogDienst.bestaetigen(
+        'Der gespeicherte Stand wird geladen und ersetzt deine Änderungen in diesem Editor. Sie werden vorher als JSON-Datei heruntergeladen, damit du sie zusammenführen kannst.',
+        'Gespeicherten Stand laden',
+        'Herunterladen und neu laden',
+      ))
+    )
+      return;
+    if (planung) this.saveLoad.save(planung);
+    this.speichert.set(true);
+    try {
+      const ergebnis = await this.speichernDienst.neuLaden();
+      this.ergebnisAuswerten(ergebnis, 'Der gespeicherte Stand wurde geladen.');
+    } finally {
+      this.speichert.set(false);
+    }
+  }
+
+  /** Legt den aktuellen Plan (Posten, Positionen, Beschreibung) als neue PEP-Vorlage ab. */
+  async alsVorlageSpeichern(): Promise<void> {
+    const planung = this.planung();
+    if (!planung) return;
+    const titel = await this.dialogDienst.eingabe(
+      'Posten und Positionen werden als Vorlage gespeichert, Einsatzkräfte und Zuteilungen nicht.',
+      'Als Vorlage speichern',
+      'Titel der Vorlage',
+      { wert: planung.name, bestaetigenLabel: 'Speichern', maxLaenge: 200 },
+    );
+    if (titel === null) return;
+    const ergebnis = await this.speichernDienst.alsVorlageSpeichern(titel, planung);
+    if (ergebnis.id === null) {
+      this.meldungen.fehler(ergebnis.fehler || 'Die Vorlage konnte nicht gespeichert werden.');
+      return;
+    }
+    this.meldungen.erfolg(
+      `Vorlage „${titel.trim()}“ gespeichert. Du findest sie in der Verwaltung unter „Einsatz-Vorlagen“.`,
+    );
+  }
+
+  private ergebnisAuswerten(ergebnis: SpeicherErgebnis, erfolg: string): boolean {
+    if (ergebnis.ok) {
+      this.speicherFehler.set('');
+      this.konflikt.set(false);
+      this.meldungen.erfolg(erfolg);
+      return true;
+    }
+    this.konflikt.set(ergebnis.konflikt);
+    this.speicherFehler.set(ergebnis.fehler || 'Das Speichern ist fehlgeschlagen.');
+    return false;
+  }
+
+  private async vorlageStarten(): Promise<void> {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id === null || id === 'neu') {
+      this.speichernDienst.neueVorlage();
+      return;
+    }
+    const ergebnis = await this.speichernDienst.vorlageOeffnen(id);
+    if (!ergebnis.ok) this.speicherFehler.set(ergebnis.fehler);
+  }
+
+  ngOnDestroy(): void {
+    this.speichernDienst.verlassen();
   }
 
   save(): void {
@@ -401,9 +512,11 @@ export class PlanningEditor {
     }
   }
 
+  /** Zurück zur Einsatzübersicht bzw. zur Vorlagenverwaltung; der Schutz fragt bei Ungespeichertem. */
   goBack(): void {
-    this.store.closePlanung();
-    this.router.navigate(['/einsatz']);
+    void this.router.navigate([
+      this.istVorlage ? '/verwaltung/einsatz-vorlagen' : '/einsatzplanung',
+    ]);
   }
 
   updateBeschreibung(value: string): void {

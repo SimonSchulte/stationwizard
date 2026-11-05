@@ -1,0 +1,79 @@
+/* Gemeinsames Gerüst der Reiter „PEP“ und „VB“: Aktionszeile, Liste links, Ansicht rechts. */
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-lg) 0;
+  max-width: var(--content-width);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.datei-eingabe {
+  display: none;
+}
+
+.inhalt {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  padding: var(--space-lg);
+  max-width: var(--content-width);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.liste {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+  overflow: hidden;
+}
+
+.vorlage.gewaehlt {
+  background: var(--surface-hover);
+}
+
+.ansicht {
+  min-width: 0;
+}
+
+.ansicht-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.ansicht-titel {
+  margin: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.ansicht-aktionen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+@media (max-width: 780px) {
+  .aktionen {
+    padding: var(--space-md) var(--space-md) 0;
+  }
+
+  .inhalt {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .ansicht-kopf {
+    flex-wrap: wrap;
+  }
+}

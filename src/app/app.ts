@@ -36,6 +36,15 @@ export interface NavKnoten {
   aufgabenMarke?: boolean;
 }
 
+const EINSATZPLANUNG_KNOTEN: NavKnoten = {
+  bezeichnung: 'Einsatzplanung',
+  icon: 'groups',
+  ebene: 0,
+  kinder: [
+    { bezeichnung: 'Einsätze', icon: 'event', link: '/einsatzplanung', exakt: true, ebene: 1 },
+  ],
+};
+
 const PERSONAL_KNOTEN: NavKnoten = {
   bezeichnung: 'Personal',
   icon: 'badge',
@@ -61,7 +70,7 @@ const PERSONAL_KNOTEN: NavKnoten = {
 
 const NAVIGATION: NavKnoten[] = [
   { bezeichnung: 'Kalender', icon: 'calendar_month', link: '/kalender', ebene: 0 },
-  { bezeichnung: 'Einsatz', icon: 'groups', link: '/einsatz', ebene: 0 },
+  EINSATZPLANUNG_KNOTEN,
   PERSONAL_KNOTEN,
   { bezeichnung: 'Fahrzeuge', icon: 'local_shipping', link: '/fahrzeuge', ebene: 0 },
   { bezeichnung: 'Materialverwaltung', icon: 'inventory_2', link: '/material', ebene: 0 },
@@ -116,9 +125,11 @@ export class App {
   );
 
   constructor() {
-    // Wer auf einer Unterseite von Personal ist, sieht die Geschwister sofort aufgeklappt.
+    // Wer auf einer Unterseite von Personal oder Einsatzplanung ist, sieht die Geschwister sofort aufgeklappt.
     effect(() => {
-      if (this.pfad().startsWith('/personal')) this.baum()?.expand(PERSONAL_KNOTEN);
+      const pfad = this.pfad();
+      if (pfad.startsWith('/personal')) this.baum()?.expand(PERSONAL_KNOTEN);
+      if (pfad.startsWith('/einsatzplanung')) this.baum()?.expand(EINSATZPLANUNG_KNOTEN);
     });
     void this.benutzer.laden();
     // Eigenes catch: ein Fehler beim Zählen offener Aufgaben darf die Shell nie

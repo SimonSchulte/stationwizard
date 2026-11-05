@@ -15,8 +15,7 @@
  * aktuelle Version mitsenden." – in workerd/Miniflare und in jedem Test mit
  * fest notiertem `"3"` unsichtbar, weil dort kein Cloudflare-Edge dazwischen
  * liegt, in Produktion dagegen ausnahmslos. Dass schwache ETags real vorkommen,
- * war im Projekt bereits bekannt: `nextcloud.ts` lässt sie beim Durchreichen
- * einer fremden Dateiversion ausdrücklich zu.
+ * war im Projekt bereits bekannt (frühere Nextcloud-Anbindung).
  *
  * Die Sperre wird dadurch nicht schwächer: verglichen wird weiterhin die exakte
  * Versionsnummer (`WHERE id = ? AND version = ?`), ein veralteter Stand ergibt
