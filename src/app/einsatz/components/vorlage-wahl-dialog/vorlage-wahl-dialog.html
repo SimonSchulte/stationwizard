@@ -40,6 +40,7 @@
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton="outlined" (click)="leerBeginnen()">Leer beginnen</button>
   <button matButton="filled" [disabled]="gewaehlt() === null" (click)="bestaetigen()">
     Kopie anlegen
   </button>

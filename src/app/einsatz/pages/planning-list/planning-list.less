@@ -45,15 +45,6 @@
   overflow-x: auto;
 }
 
-.einsatz-row {
-  cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
-}
-
 .past-header {
   margin-top: var(--space-lg);
   color: var(--text-secondary);
@@ -126,6 +117,7 @@
   li {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: var(--space-md);
     padding: var(--space-sm);
@@ -151,17 +143,6 @@
   }
 }
 
-.kennzeichen {
-  display: inline-block;
-  margin-inline-end: var(--space-xs);
-  padding: var(--space-2xs) var(--space-sm);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-chip);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
 .zeitraum {
   display: block;
   font-size: 12px;
@@ -170,4 +151,22 @@
 
 .einsaetze-ohne-hiorg {
   margin-block-end: var(--space-md);
+}
+
+// Am Handy sind PEP und VB die Hauptaktionen: Ende und Ort weichen und die Mindestbreite
+// entfällt, damit die Knöpfe ohne seitliches Scrollen sichtbar bleiben. Beginn bleibt zur
+// Unterscheidung stehen.
+@media (max-width: 780px) {
+  .einsatz-table {
+    min-width: 0;
+  }
+
+  .mat-column-aktionen {
+    padding-inline: var(--space-xs) 0;
+  }
+
+  .mat-column-datum_bis,
+  .mat-column-ort {
+    display: none;
+  }
 }

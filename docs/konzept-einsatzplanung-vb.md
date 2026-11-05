@@ -130,10 +130,15 @@ zeigt beide Stände (Abschnitt „Konflikte“ in `CLAUDE.md`).
 `/einsatz/editor` leiten weiter. Der Code bleibt unter `src/app/einsatz/` (Präzedenz:
 Kalender unter `ausbildung/`); neue Dateien unter `einsatz/vb/` bzw. `einsatz/components/`.
 
-- **Mock 1 – Einsatz** (`/einsatzplanung/einsatz/<UUID>`): Seitenkopf mit Zurück-Pfeil,
-  Kopfdaten aus HiOrg, zwei Karten **PEP** und **Vorbereitung**. Ohne VB: Leerzustand mit
-  „Aus Vorlage anlegen“ (Hauptaktion) und „Leer beginnen“. Dialog zur Vorlagenwahl mit
-  Suche, Kennzahlen und Version.
+- **Mock 1 – Einsatzübersicht** (`/einsatzplanung`, keine eigene Einsatzseite mehr): jede
+  HiOrg-Veranstaltung (anstehend und vergangen) und jeder Einsatz ohne HiOrg hat in seiner
+  Zeile zwei Knöpfe, **PEP** und **VB**: „öffnen“ (Text) bzw. „anlegen“ (`outlined`). Der
+  Zeilenklick öffnet nichts. Für eine Veranstaltung ohne Einsatz wird der Einsatz beim ersten
+  Klick still angelegt. PEP: vorhanden → aus Nextcloud öffnen, sonst aus der Veranstaltung
+  (EFS) bzw. leer anlegen. VB: vorhanden → Editor; sonst öffnet der Vorlage-Wahl-Dialog (Suche,
+  Kennzahlen, Version; „Kopie anlegen“ oder „Leer beginnen“) – die eine nötige Auswahl, keine
+  Seite –, danach Anlegen und Editor. Abbrechen legt keine VB an. Das Drucken der VB gibt es
+  nur noch im VB-Editor.
 - **Mock 2 – VB-Editor** (`/einsatzplanung/einsatz/<UUID>/vb`): Reiter _Laufzettel_ und
   _Allgemeine Anweisungen_. Links Abschnitte mit Laufzettelkarten (Ziehen per CDK
   Drag & Drop zwischen Abschnitten), rechts die Bearbeitung des gewählten Laufzettels
@@ -210,7 +215,7 @@ mit der Anzahl betroffener Laufzettel; gedruckt wird dann ein Fortsetzungsstreif
    Titel und Texte; Tests der Routen.
 2. **AP-E2 Worker**: `EINSATZPLANUNG_DB`, Migration mit Startvorlage, Endpunkte aus
    Abschnitt 3, Prüfung des Inhalts, Worker-Tests; `CLAUDE.md`-API-Tabelle, Einrichtung.
-3. **AP-E3 Einsätze**: Einsatz-Store, Einsatzseite (Mock 1), Anlage aus HiOrg-Veranstaltung,
+3. **AP-E3 Einsätze**: Einsatz-Store, Einsatzübersicht (Mock 1; ursprünglich als Einsatzseite, später ersetzt), Anlage aus HiOrg-Veranstaltung,
    Verknüpfung mit bestehender PEP.
 4. **AP-E4 VB-Editor** (Mock 2) samt Kopie aus Vorlage und Anweisungen.
 5. **AP-E5 Vorlagen und Abgleich** (Mock 3), `vbAbgleich()` mit Tests.
@@ -338,8 +343,10 @@ nicht vorgesehen. Startvorlage „Weihnachtsmarkt Ummeln“ mit festen Ids:
 ### Frontend-Aufteilung
 
 Code bleibt unter `src/app/einsatz/`. Routen: `/einsatzplanung` (bisherige Liste, Titel
-„Einsatzplanung“), `/einsatzplanung/editor` (PEP-Editor), `/einsatzplanung/einsatz/:id`
-(Einsatzseite), `/einsatzplanung/einsatz/:id/vb` (VB-Editor), `/einsatzplanung/vb-vorlagen`
+„Einsatzplanung“), `/einsatzplanung/editor` (PEP-Editor), `/einsatzplanung/einsatz/:id/vb` (VB-Editor; die frühere
+Einsatzseite `/einsatzplanung/einsatz/:id` leitet auf die Übersicht weiter), `/einsatzplanung/vb-vorlagen`
 (Liste und Ansicht), `/einsatzplanung/vb-vorlagen/:id` (Vorlage im selben Editor). `/einsatz`
 und `/einsatz/editor` leiten weiter. Navigation: Zweig „Einsatzplanung“ mit „Einsätze“ und
-„VB-Vorlagen“.
+„VB-Vorlagen“. Die Aktionen der Übersicht liegen im `EinsatzAktionenDienst`
+(`services/einsatz-aktionen.ts`: `pepOeffnenOderAnlegen`, `vbOeffnenOderAnlegen`; eine laufende
+Aktion sperrt alle Knöpfe), die zwei Knöpfe je Zeile in `components/einsatz-knoepfe/`.

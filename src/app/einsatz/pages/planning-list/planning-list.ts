@@ -23,12 +23,14 @@ import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { PlanungOeffnenDienst } from '../../services/planung-oeffnen';
 import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
+import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
 import { einsatzZeitraumText } from '../../services/einsatz-anzeige';
 import {
   EinsatzAnlegenDaten,
   EinsatzAnlegenDialog,
 } from '../../components/einsatz-anlegen-dialog/einsatz-anlegen-dialog';
+import { EinsatzKnoepfe } from '../../components/einsatz-knoepfe/einsatz-knoepfe';
 import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
@@ -40,6 +42,7 @@ import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-list',
   imports: [
+    EinsatzKnoepfe,
     Leerzustand,
     Meldung,
     Ladeanzeige,
@@ -66,6 +69,7 @@ export class PlanningList implements OnInit {
   readonly efsApi = inject(EfsApiService);
   private readonly planungOeffnen = inject(PlanungOeffnenDienst);
   private readonly einsatzStore = inject(EinsatzStoreService);
+  protected readonly aktionen = inject(EinsatzAktionenDienst);
   private readonly dialog = inject(MatDialog);
   private readonly meldungen = inject(MeldungsDienst);
 
@@ -74,7 +78,6 @@ export class PlanningList implements OnInit {
   readonly cloudLadeId = signal<string | null>(null);
   readonly cloudFehler = signal('');
 
-  readonly einsatzOeffnetId = signal<string | null>(null);
   readonly einsatzZeitraumText = einsatzZeitraumText;
 
   /** Einsätze je HiOrg-Veranstaltung, für die Kennzeichen „PEP“/„VB“ in der Tabelle. */
@@ -119,7 +122,7 @@ export class PlanningList implements OnInit {
       .sort((a, b) => new Date(b.datum_von).getTime() - new Date(a.datum_von).getTime()),
   );
 
-  readonly einsatzColumns = ['titel', 'kennzeichen', 'datum_von', 'datum_bis', 'ort'];
+  readonly einsatzColumns = ['titel', 'datum_von', 'datum_bis', 'ort', 'aktionen'];
 
   /** Rückmeldung nach der HiOrg-Anmeldung (`/hiorg/rueckruf` leitet mit `?hiorg=` hierher). */
   readonly hiorgRueckmeldung = signal('');
@@ -179,28 +182,6 @@ export class PlanningList implements OnInit {
     await this.planungOeffnen.efsGruppeOeffnen(gruppe);
   }
 
-  /** Öffnet die Einsatzseite zur Veranstaltung; der Einsatz wird bei Bedarf angelegt. */
-  async einsatzOeffnen(gruppe: EfsEinsatzGruppe): Promise<void> {
-    if (this.einsatzOeffnetId()) return;
-    this.einsatzOeffnetId.set(gruppe.veranstaltung_id);
-    try {
-      const einsatz = await this.einsatzStore.einsatzFuerVeranstaltungSicherstellen(gruppe);
-      if (!einsatz) {
-        this.meldungen.fehler(
-          this.einsatzStore.fehler() || 'Der Einsatz konnte nicht geöffnet werden.',
-        );
-        return;
-      }
-      await this.router.navigate(['/einsatzplanung/einsatz', einsatz.id]);
-    } finally {
-      this.einsatzOeffnetId.set(null);
-    }
-  }
-
-  einsatzOeffnenId(id: string): void {
-    void this.router.navigate(['/einsatzplanung/einsatz', id]);
-  }
-
   /** Legt über einen kleinen Dialog einen Einsatz ohne HiOrg-Veranstaltung an. */
   async einsatzAnlegen(): Promise<void> {
     const daten = await firstValueFrom(
@@ -220,7 +201,7 @@ export class PlanningList implements OnInit {
       );
       return;
     }
-    await this.router.navigate(['/einsatzplanung/einsatz', einsatz.id]);
+    this.meldungen.erfolg('Einsatz angelegt. PEP und VB legst du in der Zeile an.');
   }
 
   openPlanung(id: string): void {

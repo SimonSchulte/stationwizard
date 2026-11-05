@@ -1,0 +1,21 @@
+<div class="knoepfe">
+  <button
+    [matButton]="hatPep() ? '' : 'outlined'"
+    [disabled]="gesperrt()"
+    [attr.aria-label]="(hatPep() ? 'PEP öffnen: ' : 'PEP anlegen: ') + titel()"
+    (click)="$event.stopPropagation(); pepKlick.emit()"
+  >
+    <mat-icon>assignment_ind</mat-icon>
+    PEP<span class="verb">&nbsp;{{ hatPep() ? 'öffnen' : 'anlegen' }}</span>
+  </button>
+  <button
+    [matButton]="hatVb() ? '' : 'outlined'"
+    [disabled]="gesperrt()"
+    [matTooltip]="vbTooltip()"
+    [attr.aria-label]="(hatVb() ? 'VB öffnen: ' : 'VB anlegen: ') + titel()"
+    (click)="$event.stopPropagation(); vbKlick.emit()"
+  >
+    <mat-icon>checklist</mat-icon>
+    VB<span class="verb">&nbsp;{{ hatVb() ? 'öffnen' : 'anlegen' }}</span>
+  </button>
+</div>

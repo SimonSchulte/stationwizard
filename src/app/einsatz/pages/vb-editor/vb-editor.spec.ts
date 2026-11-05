@@ -76,7 +76,7 @@ describe('VbEditor', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
-          { path: 'einsatzplanung/einsatz/:id', children: [] },
+          { path: 'einsatzplanung', pathMatch: 'full', children: [] },
           { path: 'einsatzplanung/vb-vorlagen', children: [] },
           {
             path: 'einsatzplanung/einsatz/:id/vb',
@@ -137,8 +137,8 @@ describe('VbEditor', () => {
     expect(element.textContent).toContain('Laufzettel (2)');
     expect(element.querySelectorAll('app-laufzettel-karte').length).toBe(2);
     expect(element.querySelector('app-laufzettel-bearbeitung')).not.toBeNull();
-    const zurueck = element.querySelector('a[aria-label="Zurück zum Einsatz"]');
-    expect(zurueck?.getAttribute('href')).toBe(`/einsatzplanung/einsatz/${einsatz.id}`);
+    const zurueck = element.querySelector('a[aria-label="Zurück zur Einsatzübersicht"]');
+    expect(zurueck?.getAttribute('href')).toBe('/einsatzplanung');
     expect(element.querySelector('.vorlagentitel')).toBeNull();
   });
 

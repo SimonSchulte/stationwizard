@@ -60,6 +60,16 @@ describe('VorlageWahlDialog', () => {
     fixture.detectChanges();
     expect(kopie.disabled).toBe(false);
     kopie.click();
-    expect(close).toHaveBeenCalledWith(markt.id);
+    expect(close).toHaveBeenCalledWith({ art: 'vorlage', vorlageId: markt.id });
+  });
+
+  it('schließt mit „Leer beginnen“ ohne Vorlagenwahl', async () => {
+    const fixture = await oeffnen();
+    const leer = [...wurzel(fixture).querySelectorAll<HTMLButtonElement>('button')].find((k) =>
+      k.textContent?.includes('Leer beginnen'),
+    )!;
+    expect(leer.disabled).toBe(false);
+    leer.click();
+    expect(close).toHaveBeenCalledWith({ art: 'leer' });
   });
 });

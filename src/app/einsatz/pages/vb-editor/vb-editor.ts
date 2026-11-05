@@ -139,12 +139,10 @@ export class VbEditor {
   protected readonly druckLaeuft = signal(false);
 
   protected readonly zurueckZiel = computed(() =>
-    this.modus === 'vorlage'
-      ? '/einsatzplanung/vb-vorlagen'
-      : `/einsatzplanung/einsatz/${this.id() ?? ''}`,
+    this.modus === 'vorlage' ? '/einsatzplanung/vb-vorlagen' : '/einsatzplanung',
   );
   protected readonly zurueckText =
-    this.modus === 'vorlage' ? 'Zurück zu den VB-Vorlagen' : 'Zurück zum Einsatz';
+    this.modus === 'vorlage' ? 'Zurück zu den VB-Vorlagen' : 'Zurück zur Einsatzübersicht';
 
   protected readonly kopfTitel = computed(() =>
     this.modus === 'vorlage' ? this.store.titel().trim() || 'Neue Vorlage' : 'Vorbereitung',

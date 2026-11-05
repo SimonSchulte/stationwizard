@@ -6,7 +6,10 @@ import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 import { VbVorlagenStoreService } from '../../services/vb-vorlagen-store.service';
 
-/** Wählt die VB-Vorlage, die für einen Einsatz kopiert wird; schließt mit der Vorlagen-Id. */
+/** Ergebnis des Dialogs: eine Vorlage kopieren oder leer beginnen; Abbrechen schließt ohne Wert. */
+export type VorlageWahlErgebnis = { art: 'vorlage'; vorlageId: string } | { art: 'leer' };
+
+/** Wählt die VB-Vorlage, die für einen Einsatz kopiert wird, oder den leeren Anfang. */
 @Component({
   selector: 'app-vorlage-wahl-dialog',
   imports: [
@@ -23,7 +26,7 @@ import { VbVorlagenStoreService } from '../../services/vb-vorlagen-store.service
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VorlageWahlDialog {
-  private readonly dialogRef = inject(MatDialogRef<VorlageWahlDialog, string>);
+  private readonly dialogRef = inject(MatDialogRef<VorlageWahlDialog, VorlageWahlErgebnis>);
   protected readonly store = inject(VbVorlagenStoreService);
 
   readonly suche = signal('');
@@ -42,6 +45,10 @@ export class VorlageWahlDialog {
 
   bestaetigen(): void {
     const id = this.gewaehlt();
-    if (id !== null) this.dialogRef.close(id);
+    if (id !== null) this.dialogRef.close({ art: 'vorlage', vorlageId: id });
+  }
+
+  leerBeginnen(): void {
+    this.dialogRef.close({ art: 'leer' });
   }
 }

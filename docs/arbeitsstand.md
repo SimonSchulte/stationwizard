@@ -3260,10 +3260,21 @@ Datenvertrag zwischen Worker und Frontend).
   für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
   Änderungen nur mit `If-Match`. Datenbank am 05.11.2026 angelegt und Migration `0020`
   eingespielt (siehe `docs/einrichtung.md`); wirksam wird sie mit dem nächsten Deployment.
-- Einsatzseite (`/einsatzplanung/einsatz/:id`) mit PEP- und VB-Karte; ein Klick auf eine
-  HiOrg-Veranstaltung legt bei Bedarf den Einsatz an. Einsätze ohne HiOrg lassen sich anlegen.
-  Eine von der Einsatzseite geöffnete PEP wird beim Speichern in Nextcloud mit dem Einsatz
-  verknüpft (`pepId` = UUID der Planung, einmalig geschrieben).
+- Einsatzübersicht statt Einsatzseite (Wunsch des Betreibers: direkt in VB und PEP springen
+  bzw. sie anlegen, keine Zwischen-UI): Die frühere Seite `/einsatzplanung/einsatz/:id` ist
+  entfernt und leitet auf `/einsatzplanung` weiter. In jeder Veranstaltungszeile (anstehend,
+  vergangen) und jeder Zeile „Einsätze ohne HiOrg“ stehen „PEP öffnen/anlegen“ und „VB
+  öffnen/anlegen“ (`EinsatzAktionenDienst`, `EinsatzKnoepfe`); der Zeilenklick ist entfernt.
+  Ohne Einsatz wird er beim ersten Klick still angelegt; „VB anlegen“ öffnet den Vorlage-Wahl-
+  Dialog (neu: „Leer beginnen“). Der Zurück-Pfeil der VB führt zur Übersicht. „Einsatz anlegen“
+  bleibt in der Liste. Eine über die Übersicht geöffnete PEP wird beim Speichern in Nextcloud
+  mit dem Einsatz verknüpft (`pepId` = UUID der Planung, einmalig geschrieben). Entfallen ist
+  der „Drucken“-Knopf der alten Karte (Druck bleibt im VB-Editor). Am Handy (bis 780 px)
+  entfallen in der Veranstaltungstabelle die Spalten Ende und Ort, die Mindestbreite der
+  Tabelle wird aufgehoben, und die Knöpfe stehen als „PEP“/„VB“ untereinander, damit sie ohne
+  seitliches Scrollen sichtbar sind. Geprüft in Headless-Chromium mit nachgebildeter API auf
+  1440×900 und Pixel 7 (Knöpfe je Stand, Vorlage-Wahl-Dialog mit „Leer beginnen“); der Sprung
+  in den PEP-Editor und das Anlegen der VB bis in den Editor sind nur durch Tests belegt.
 - VB-Editor (`…/einsatz/:id/vb`, gleiche Seite für Vorlagen unter `/einsatzplanung/vb-vorlagen/:id`):
   Abschnitte mit Farbe und Fachgruppe, Laufzettel per Ziehen sortierbar, Platzanzeige je
   Laufzettel (23 Materialzeilen à 38 Zeichen) mit Warnung und „In zwei Laufzettel aufteilen“,

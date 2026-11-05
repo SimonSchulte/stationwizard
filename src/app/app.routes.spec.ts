@@ -77,12 +77,17 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
     expect(TestBed.inject(Router).url).toBe('/einsatzplanung/editor');
   });
 
-  it('kennt die Seiten für Einsatz-Detail und Vorbereitungslisten', async () => {
+  it('leitet die frühere Einsatzseite auf die Übersicht um', async () => {
+    const ansicht = await RouterTestingHarness.create();
+    await ansicht.navigateByUrl('/einsatzplanung/einsatz/x');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung');
+  });
+
+  it('kennt die Seiten für Vorbereitungen und Vorlagen', async () => {
     const ansicht = await RouterTestingHarness.create();
     for (const pfad of [
       '/einsatzplanung/vb-vorlagen',
       '/einsatzplanung/vb-vorlagen/x',
-      '/einsatzplanung/einsatz/x',
       '/einsatzplanung/einsatz/x/vb',
     ]) {
       await ansicht.navigateByUrl(pfad);

@@ -23,9 +23,10 @@ export const einsatzRouten: Routes = [
     loadComponent: () => import('./pages/vb-editor/vb-editor').then((modul) => modul.VbEditor),
   },
   {
+    // Alte Lesezeichen der früheren Einsatzseite: die Übersicht hat jetzt PEP und VB direkt.
     path: 'einsatz/:id',
-    loadComponent: () =>
-      import('./pages/einsatz-detail/einsatz-detail').then((modul) => modul.EinsatzDetail),
+    pathMatch: 'full',
+    redirectTo: '',
   },
   {
     path: 'einsatz/:id/vb',
