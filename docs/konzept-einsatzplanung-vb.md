@@ -350,3 +350,133 @@ und `/einsatz/editor` leiten weiter. Navigation: Zweig „Einsatzplanung“ mit 
 „VB-Vorlagen“. Die Aktionen der Übersicht liegen im `EinsatzAktionenDienst`
 (`services/einsatz-aktionen.ts`: `pepOeffnenOderAnlegen`, `vbOeffnenOderAnlegen`; eine laufende
 Aktion sperrt alle Knöpfe), die Karte je Einsatz in `components/einsatz-karte/` (Datumsblock, Titel mit Metazeile, Kacheln „PEP“/„VB“ als `matButton="outlined"` mit eigenem Inhalt; Zustand vorhanden: durchgezogener Rand mit grünem Streifen, sonst gestrichelt mit „Anlegen“). Die Übersicht führt HiOrg-Veranstaltungen und Einsätze ohne HiOrg in **einer** nach Beginn sortierten Liste „Anstehende Einsätze“ (Zusammenführung in `services/einsatz-liste.ts`, ohne Beginn zuletzt); Vergangenes steht in einem zugeklappten `mat-expansion-panel`. „Einsatz ohne HiOrg“ steht in der Kopfzeile des Abschnitts.
+
+## 10. PEP in der Datenbank und Einsatz-Vorlagen (verbindlich)
+
+Betreiberentscheidung: Die PEP liegt nicht mehr in Nextcloud, sondern wie die VB in
+`EINSATZPLANUNG_DB`, eine PEP je Einsatz. Es gibt **keine Übernahme** alter Nextcloud-Dateien;
+die Nextcloud-Anbindung (`worker/src/nextcloud.ts`, `/api/nextcloud/planungen`,
+`NEXTCLOUD_PEP_SHARE_TOKEN`/`_PASSWORD`, `planung-cloud.service.ts`, Abschnitt „Gespeicherte
+Einsatzpläne“) entfällt vollständig. Lokaler Rettungsweg bleiben „JSON herunterladen“ und
+„Datei öffnen“ im bisherigen Dateiformat (`pep-datei.ts`, unverändert).
+
+### Für die Datenbank optimiertes PEP-Format
+
+Gegenüber der Datei (`version`, `meta`, `planung`) gilt in der Datenbank:
+
+- **Keine Dateihülle.** Schemaversion ist die Spalte `schema` (Start `1`), Änderungszeit und
+  -person stehen in Spalten; die „taktische Zeit“ der Datei ist nur Exportangabe und entfällt.
+- **Keine Doppelung mit dem Einsatz.** Titel, Zeitraum und HiOrg-Bezug stehen in `einsaetze`;
+  die PEP enthält sie nicht. Für Datei-Export und Editor setzt der Client sie aus dem Einsatz
+  zusammen.
+- **Verweise statt Kopien.** Zuordnungen und Einsatzleitung tragen nur die
+  `einsatzkraftId`; der Name steht einmal in `einsatzkraefte`.
+- **Kennzahlen als Spalten** (vom Worker gesetzt): `posten`, `positionen`, `besetzt`,
+  `einsatzkraefte`. Die Einsatzliste liefert sie mit, die PEP-Kachel braucht keinen Abruf.
+- **Deutsche Feldnamen** im Vertrag; der Editor behält sein englisches Modell (`Planung`), die
+  Umsetzung steht an genau einer Stelle (`services/pep-abbildung.ts`).
+
+```ts
+interface PepInhalt {
+  beschreibung: string; // ≤ 2000, darf leer sein
+  posten: PepPosten[]; // ≤ 100
+  einsatzkraefte: PepEinsatzkraft[]; // ≤ 500
+  einsatzleiterId: string | null; // Id aus einsatzkraefte
+}
+interface PepPosten {
+  id: string;
+  bezeichnung: string; // 1–200
+  fahrzeug: { funkruf: string; seriennummer: string | null; hiorgId: string | null } | null;
+  telefonnummer: string | null; // ≤ 50
+  hiorgSchichtId: string | null; // ≤ 64
+  positionen: PepPosition[]; // ≤ 50 je Posten
+}
+interface PepPosition {
+  id: string;
+  bezeichnung: string; // 0–200
+  anforderungen: {
+    taktisch: Taktisch | null;
+    medizinisch: Medizinisch | null;
+    zusatz: string | null;
+  };
+  postenfuehrer: boolean;
+  einsatzkraftId: string | null; // Id aus einsatzkraefte oder null
+}
+interface PepEinsatzkraft {
+  id: string; // innerhalb der PEP eindeutig (bisherige Ids bleiben gültig)
+  name: string; // „Nachname Vorname“, 1–200
+  taktisch: Taktisch[];
+  medizinisch: Medizinisch[];
+  zusatz: string[]; // je ≤ 100, ≤ 30 Einträge
+  notiz: string | null; // ≤ 500
+  hiorgOrgId: string | null;
+  telefonnummer: string | null;
+}
+interface PepVorlageInhalt {
+  beschreibung: string;
+  posten: PepPosten[]; // wie oben, aber jede Position mit einsatzkraftId = null,
+  // fahrzeug/hiorgSchichtId/telefonnummer erlaubt (Vorgabe), keine Einsatzkräfte
+}
+```
+
+`Taktisch`/`Medizinisch` sind die Werte aus `TAKTISCH_ORDER`/`MEDIZINISCH_ORDER`
+(`planung.model.ts`), im Worker gespiegelt und gemeinsam zu ändern. Ids sind Zeichenketten
+≤ 64 (keine UUID-Pflicht, weil importierte Planungen eigene Ids tragen), eindeutig je Art.
+Jede `einsatzkraftId`/`einsatzleiterId` muss auf eine vorhandene Einsatzkraft zeigen.
+
+### Einsatz
+
+`Einsatz.pepId` entfällt. Die Einsatzliste liefert je Einsatz zusätzlich
+`pep: { posten: number; positionen: number; besetzt: number } | null`.
+
+### Endpunkte
+
+| Pfad                                       | Methode                                      | Körper → Antwort                                                                 |
+| ------------------------------------------ | -------------------------------------------- | -------------------------------------------------------------------------------- |
+| `/api/einsatzplanung/einsaetze/<UUID>/pep` | GET                                          | → `Pep`, ETag; 404 `EINSATZPLANUNG_PEP_NICHT_GEFUNDEN`                           |
+| `/api/einsatzplanung/einsaetze/<UUID>/pep` | PUT, `If-None-Match: *` oder `If-Match`      | `Pep` → 201/200, ETag                                                            |
+| `/api/einsatzplanung/einsaetze/<UUID>/pep` | DELETE, `If-Match`                           | → 204                                                                            |
+| `/api/einsatzplanung/pep-vorlagen`         | GET                                          | → `{ vorlagen: Array<{ id; titel; version; posten; positionen; geaendertAm }> }` |
+| `/api/einsatzplanung/pep-vorlagen`         | POST, `If-None-Match: *`                     | `PepVorlage` → 201, ETag                                                         |
+| `/api/einsatzplanung/pep-vorlagen/<UUID>`  | GET / PUT (`If-Match`) / DELETE (`If-Match`) | `PepVorlage`                                                                     |
+
+```ts
+interface Pep {
+  schema: 1;
+  vorlageId: string | null; // nur Nachverfolgung
+  inhalt: PepInhalt;
+}
+interface PepVorlage {
+  id: string; // UUID
+  titel: string; // 1–200
+  inhalt: PepVorlageInhalt;
+}
+```
+
+Tabellen (Migration `0021_pep.sql`): `peps` (einsatz_id PK → einsaetze, schema, vorlage_id,
+inhalt, posten, positionen, besetzt, einsatzkraefte, version, geaendert_am, geaendert_von) und
+`pep_vorlagen` (id, titel, inhalt, posten, positionen, version, geaendert_am, geaendert_von);
+`einsaetze.pep_id` wird entfernt (`ALTER TABLE … DROP COLUMN`).
+
+### Anwenden einer PEP-Vorlage
+
+„PEP anlegen“ fragt wie bei der VB nach Vorlage oder „Leer beginnen“. Die Posten werden mit
+neuen Ids kopiert; bei einer HiOrg-Veranstaltung kommen die Einsatzkräfte wie bisher aus EFS,
+die Posten aus der Vorlage (ohne Vorlage: wie bisher aus den EFS-Schichten).
+
+### Admin-Seite „Einsatz-Vorlagen“
+
+Verwaltungsbereich `/verwaltung/einsatz-vorlagen`, Reiter **PEP** und **VB**: Liste, Ansicht,
+Umbenennen, Löschen, „Bearbeiten“ (öffnet `/einsatzplanung/pep-vorlagen/:id` bzw.
+`/einsatzplanung/vb-vorlagen/:id`). Hochladen:
+
+- **PEP-Vorlage** aus einer `.pep.json` (bisheriges Dateiformat über `lesePepDatei()`);
+  Einsatzkräfte, Zuordnungen und Einsatzleitung werden verworfen, die Seite sagt das.
+- **VB-Vorlage** aus Excel im Format der Packliste (Spalten Anzahl, Material, Lagerort,
+  Transport mit, Ansprechpartner; Kopfzeile wird über die Spaltennamen erkannt, nicht über die
+  Position). Gruppierung nach der Regel aus Abschnitt 2 (Abschnitt = Transport mit, Laufzettel
+  = Lagerort). Vorschau mit Abschnitten, Laufzetteln und Auffälligkeiten (leerer Lagerort,
+  unklare Werte wie „???“, Platz je Laufzettel) vor dem Speichern.
+
+„Als Vorlage speichern“ gibt es in beiden Editoren. Der Menüpunkt „VB-Vorlagen“ unter
+Einsatzplanung entfällt; `/einsatzplanung/vb-vorlagen` leitet auf die Admin-Seite.
