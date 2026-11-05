@@ -9,17 +9,13 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { DatePipe, formatDate } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PlanungStoreService } from '../../services/planung-store.service';
-import { PlanungCloudService } from '../../services/planung-cloud.service';
-import { PlanungOeffnenDienst } from '../../services/planung-oeffnen';
+import { PepEditorKontext } from '../../services/pep-editor-kontext';
 import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
@@ -32,7 +28,7 @@ import {
 import { EinsatzKarte } from '../../components/einsatz-karte/einsatz-karte';
 import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
-import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
+import { EfsEinsatz } from '../../models/planung.model';
 import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
@@ -47,10 +43,7 @@ import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern
     Ladeanzeige,
     Seitenkopf,
     Verbindungsstatus,
-    DatePipe,
     MatButtonModule,
-    MatCardModule,
-    MatDividerModule,
     MatExpansionModule,
     MatIconModule,
     MatTooltipModule,
@@ -65,16 +58,11 @@ export class PlanningList implements OnInit {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly saveLoad = inject(SaveLoadService);
   readonly efsApi = inject(EfsApiService);
-  private readonly planungOeffnen = inject(PlanungOeffnenDienst);
+  private readonly kontext = inject(PepEditorKontext);
   private readonly einsatzStore = inject(EinsatzStoreService);
   protected readonly aktionen = inject(EinsatzAktionenDienst);
   private readonly dialog = inject(MatDialog);
   private readonly meldungen = inject(MeldungsDienst);
-
-  readonly planungen = this.store.planungen;
-  readonly cloud = inject(PlanungCloudService);
-  readonly cloudLadeId = signal<string | null>(null);
-  readonly cloudFehler = signal('');
 
   readonly einsatzListeLaedt = this.einsatzStore.laedt;
   readonly einsatzListeFehler = this.einsatzStore.fehler;
@@ -110,7 +98,6 @@ export class PlanningList implements OnInit {
         replaceUrl: true,
       });
     }
-    void this.cloud.listeLaden();
     void this.einsatzStore.laden();
     void this.loadEfsEinsaetze();
   }
@@ -118,18 +105,6 @@ export class PlanningList implements OnInit {
   /** Lädt HiOrg-Veranstaltungen und die gespeicherten Einsätze neu. */
   async aktualisieren(): Promise<void> {
     await Promise.all([this.einsatzStore.laden(), this.loadEfsEinsaetze()]);
-  }
-
-  async cloudPlanungLaden(id: string): Promise<void> {
-    if (this.cloudLadeId()) return;
-    this.cloudLadeId.set(id);
-    this.cloudFehler.set('');
-    try {
-      const ergebnis = await this.planungOeffnen.cloudOeffnen(id);
-      if (ergebnis.fehler) this.cloudFehler.set(ergebnis.fehler);
-    } finally {
-      this.cloudLadeId.set(null);
-    }
   }
 
   async loadEfsEinsaetze(): Promise<void> {
@@ -147,11 +122,6 @@ export class PlanningList implements OnInit {
     } finally {
       this.efsLoading.set(false);
     }
-  }
-
-  /** Öffnet die Planung zur Veranstaltung direkt im Editor (ohne Einsatzseite). */
-  async openEfsGruppe(gruppe: EfsEinsatzGruppe): Promise<void> {
-    await this.planungOeffnen.efsGruppeOeffnen(gruppe);
   }
 
   /** Legt über einen kleinen Dialog einen Einsatz ohne HiOrg-Veranstaltung an. */
@@ -176,11 +146,6 @@ export class PlanningList implements OnInit {
     this.meldungen.erfolg('Einsatz angelegt. PEP und VB legst du in der Zeile an.');
   }
 
-  openPlanung(id: string): void {
-    this.store.openPlanung(id);
-    this.router.navigate(['/einsatzplanung/editor']);
-  }
-
   async loadFromFile(): Promise<void> {
     const kontext = this.store.active();
     const result = await this.saveLoad.load();
@@ -191,13 +156,9 @@ export class PlanningList implements OnInit {
       );
     }
     if (this.store.active() !== kontext) return;
-    this.store.importPlanung(result.planung);
-    this.router.navigate(['/einsatzplanung/editor']);
-  }
-
-  createNew(): void {
-    const name = `Neue Planung ${formatDate(new Date(), 'dd.MM.yyyy', 'de-DE')}`;
-    this.store.createPlanung(name);
-    this.router.navigate(['/einsatzplanung/editor']);
+    // Eine Datei gehört zu keinem Einsatz; „Speichern“ im Editor ordnet sie einem zu.
+    this.kontext.loeschen();
+    this.store.oeffneGespeichert(result.planung);
+    void this.router.navigate(['/einsatzplanung/editor']);
   }
 }

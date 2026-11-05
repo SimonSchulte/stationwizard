@@ -1,7 +1,17 @@
-:host {
+/* Gemeinsames Gerüst der Reiter „PEP“ und „VB“: Aktionszeile, Liste links, Ansicht rechts. */
+.aktionen {
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-lg) 0;
+  max-width: var(--content-width);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.datei-eingabe {
+  display: none;
 }
 
 .inhalt {
@@ -52,61 +62,11 @@
   flex-shrink: 0;
 }
 
-.anweisungen {
-  margin-bottom: var(--space-md);
-}
-
-.anweisungen-text {
-  margin: 0;
-  white-space: pre-wrap;
-  color: var(--text-primary);
-}
-
-.abschnitt {
-  margin-top: var(--space-lg);
-}
-
-.abschnitt-kopf {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0 0 var(--space-sm);
-  font-size: 1rem;
-}
-
-.abschnitt-titel {
-  color: var(--text-primary);
-}
-
-.abschnitt-leer {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
-/* Die Tabelle scrollt kontrolliert in ihrem Rahmen, statt die Seite zu verbreitern. */
-.tabelle-rahmen {
-  overflow-x: auto;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-  background: var(--surface-primary);
-}
-
-.tabelle {
-  width: 100%;
-  min-width: 640px;
-}
-
-.nr {
-  width: var(--space-2xl);
-  font-weight: 600;
-}
-
-.material {
-  min-width: 240px;
-  padding-block: var(--space-sm);
-}
-
 @media (max-width: 780px) {
+  .aktionen {
+    padding: var(--space-md) var(--space-md) 0;
+  }
+
   .inhalt {
     grid-template-columns: minmax(0, 1fr);
     padding: var(--space-md);

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { VbKennzahlen } from '../../models/einsatz.model';
+import { PepKennzahlen } from '../../models/pep.model';
 import { datumsblock } from '../../services/einsatz-anzeige';
 
 /**
@@ -24,10 +25,13 @@ export class EinsatzKarte {
   readonly ort = input<string | null>(null);
   readonly herkunft = input<'hiorg' | 'eigen'>('eigen');
   readonly pepVorhanden = input(false);
+  /** Kennzahlen der PEP; zeigt „n / m besetzt“. Gesetzt heißt: die PEP ist vorhanden. */
+  readonly pepKennzahlen = input<PepKennzahlen | null>(null);
   readonly vbKennzahlen = input<VbKennzahlen | null>(null);
   readonly gesperrt = input(false);
   readonly pep = output<void>();
   readonly vb = output<void>();
 
+  protected readonly pepDa = computed(() => this.pepVorhanden() || this.pepKennzahlen() !== null);
   protected readonly datum = computed(() => datumsblock(this.beginn(), new Date().getFullYear()));
 }

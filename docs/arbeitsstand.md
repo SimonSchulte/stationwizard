@@ -3252,9 +3252,28 @@ Umgesetzt nach `docs/konzept-einsatzplanung-vb.md` (Abschnitt 9 ist der verbindl
 Datenvertrag zwischen Worker und Frontend).
 
 - Bereich „Einsatz“ heißt durchgängig „Einsatzplanung“: Route `/einsatzplanung`, `/einsatz`
-  und `/einsatz/editor` leiten weiter, Navigation als Zweig mit „Einsätze“ und „VB-Vorlagen“.
+  und `/einsatz/editor` leiten weiter, Navigation als Zweig mit „Einsätze“ (die VB-Vorlagen liegen in der Verwaltung, s. u.).
   Code bleibt unter `src/app/einsatz/`. Der Worker leitet nach HiOrg-Verbinden weiter auf
   `#/einsatz`; das landet über die Weiterleitung richtig.
+- Verwaltung „Einsatz-Vorlagen“ (`/verwaltung/einsatz-vorlagen`, Seite
+  `einsatz/pages/einsatz-vorlagen/`, Kachel auf der Verwaltungs-Startseite) löst die frühere
+  Seite „VB-Vorlagen“ ab (Seite und Navigationseintrag entfernt, Bausteine als
+  `VbVorlageAnsicht` übernommen). Reiter **PEP** und **VB** (`PepVorlagenReiter`,
+  `VbVorlagenReiter`, je lazy beim Öffnen): Liste links, Ansicht rechts (ungepuffert beim
+  Auswählen), „Hochladen“, „Neue Vorlage“, „Bearbeiten“, Menü mit „Umbenennen“ (If-Match),
+  „Löschen“ und bei VB „Drucken“. **Upload PEP:** `.pep.json`/`.json` über `lesePepDatei`
+  (Versionswarnung) und `planungZuPepVorlageInhalt`, Vorschau mit editierbarem Titel und
+  Hinweis, dass Einsatzkräfte, Zuordnungen und Einsatzleitung entfallen. **Upload VB:** erstes
+  Blatt einer Excel-Packliste (`services/vb-excel-import.ts`, `@e965/xlsx` dynamisch): Spalten
+  über Kopfnamen (Anzahl, Material, Lagerort, Transport mit, Ansprechpartner; `LdfNr`/`erl.`
+  ignoriert), Abschnitt je „Transport mit“, Laufzettel je Lagerort, Zeilen ohne Lagerort als
+  letzter Laufzettel „Zum Schluss: beladene Wagen verladen“; Auffälligkeiten
+  (Platzhalter „???“, fehlendes Material, zu volle Laufzettel, unbekannte Spalten) stehen in der
+  Vorschau, Speichern nur ohne `vbInhaltProbleme`. Eine um eine Spalte rechts versetzte
+  Datenlage unter der Kopfzeile wird am Inhalt erkannt (Materialspalte muss gefüllt sein) und
+  gemeldet; nach links versetzte Daten werden nicht erkannt. Das Spaltenverhalten ist nur mit
+  erfundenen Tabellen geprüft, **nicht** mit der echten Packliste. Geprüft: Vitest (ganze
+  Suite 1467 Tests grün); keine Sichtprüfung im Browser (Desktop/Mobil) ausgeführt.
 - Worker: eigene D1-Datenbank `EINSATZPLANUNG_DB` (Migration `0020_einsatzplanung.sql` mit der
   Startvorlage „Weihnachtsmarkt Ummeln“ mit dem Inhalt der Packliste 2025, gruppiert nach Transportziel und Lagerort: 5 Abschnitte, 22 Laufzettel, 64 Positionen), Endpunkte
   für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
@@ -3321,3 +3340,33 @@ Datenvertrag zwischen Worker und Frontend).
   behoben: Das Bearbeitungsfeld scrollte bei weit unten gewählten Laufzetteln aus dem Bild.
 - Nicht geprüft: echte D1-Datenbank (nur Fake), Drag & Drop auf Touch-Geräten, Ausdruck auf
   echtem Drucker (Farbband und Schnittlinien laufen bis zum Papierrand).
+
+### PEP-Editor in der Datenbank (Frontend)
+
+- `PepEditorOeffnenDienst` ist umgesetzt: `oeffnen(einsatz)` lädt die PEP und legt sie mit
+  `pepInhaltZuPlanung()` in den `PlanungStoreService`; `anlegen(einsatz, gruppe)` fragt über den
+  verallgemeinerten Dialog „Vorlage wählen“ (`VorlageWahlDialog`, Dialogdaten `{ art: 'pep' | 'vb' }`,
+  Hilfsfunktion `vorlageWaehlen()`) nach Vorlage oder leerem Anfang, baut bei HiOrg eine Basis aus
+  EFS (`PlanungOeffnenDienst.planungAusEfsBauen()`, öffnet nichts) und ruft
+  `PepStoreService.ausVorlageAnlegen()`. „Veranstaltung nicht im EFS-Abruf“ warnt und legt ohne
+  Basis an; ein Fehler des EFS-Abrufs bricht ab, ohne etwas anzulegen.
+- Entscheidungen: Planungs-Id im Editor = Einsatz-Id (stabil, eine PEP je Einsatz). Titel und
+  Zeitraum kommen aus dem Einsatz (`YYYY-MM-DDTHH:mm` lokal wird als lokale Zeit zu einem ISO-Zeitpunkt,
+  wie ihn der Editor führt, ohne UTC-Verschiebung der Uhrzeit) und sind im Einsatzmodus gesperrt, weil
+  die PEP sie nicht speichert. Der Speicherort steht im `PepEditorKontext`.
+- Speichern (`PepEditorSpeichernDienst`): PEP des Einsatzes mit `If-Match`; Datei ohne Einsatz →
+  Dialog „Einem Einsatz zuordnen“ (nur Einsätze ohne PEP), Anlegen mit `If-None-Match`, danach neu
+  aus der Datenbank geöffnet; Menü „Als Vorlage speichern“; Modus Vorlage (`pep-vorlagen/:id`,
+  `pep-vorlagen/neu`) ohne Helferpool, Zeitraum und Einsatzleitung. Bei 412 bleibt der lokale Stand;
+  „Neu laden“ lädt den gespeicherten Stand erst nach Bestätigung und lädt den lokalen vorher als JSON
+  herunter. `PlanungStoreService.hatUngesichertes` vergleicht mit dem zuletzt gespeicherten Stand
+  (Datenbank, Vorlage oder Datei); der Router-Schutz `planungVerlassenGuard` und `VerlassenSchutz`
+  nutzen es.
+- Entfernt: `PlanungCloudService`, `cloudOeffnen`, Abschnitte „Gespeicherte Einsatzpläne“ und „Lokale
+  Planungen“, Knopf „Neue Planung“, Nextcloud-Texte; `fast-xml-parser` (nirgends mehr importiert).
+  `/einsatzplanung/vb-vorlagen` leitet auf `/verwaltung/einsatz-vorlagen` um. Die Einsatzkarte zeigt
+  „n / m besetzt“ aus den Kennzahlen der Einsatzliste.
+- Geprüft: Angular-Tests (179 Dateien, 1494 Tests), `tsc` für App und Spec. Nicht geprüft: Browserlauf
+  des umgebauten Editors auf Desktop und Mobil, echte Datenbank.
+- Offen: Die Zielroute `/verwaltung/einsatz-vorlagen` und die Verknüpfung zu `pep-vorlagen/:id`
+  baut der Verwaltungsteil; `StorageArt` in `kern/storage/datei-storage.ts` kennt noch `'nextcloud'`.

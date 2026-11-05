@@ -42,12 +42,6 @@ const EINSATZPLANUNG_KNOTEN: NavKnoten = {
   ebene: 0,
   kinder: [
     { bezeichnung: 'Einsätze', icon: 'event', link: '/einsatzplanung', exakt: true, ebene: 1 },
-    {
-      bezeichnung: 'VB-Vorlagen',
-      icon: 'checklist',
-      link: '/einsatzplanung/vb-vorlagen',
-      ebene: 1,
-    },
   ],
 };
 

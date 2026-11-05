@@ -1,12 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
-import { firstValueFrom } from 'rxjs';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
-import {
-  VorlageWahlDialog,
-  VorlageWahlErgebnis,
-} from '../components/vorlage-wahl-dialog/vorlage-wahl-dialog';
+import { vorlageWaehlen } from '../components/vorlage-wahl-dialog/vorlage-wahl-dialog';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
 import { EfsEinsatzGruppe } from '../models/planung.model';
 import { EinsatzStoreService } from './einsatz-store.service';
@@ -76,15 +72,7 @@ export class EinsatzAktionenDienst {
       const eintrag = this.einsatzStore.einsaetze().find((e) => e.id === einsatz.id);
       const vorhanden = eintrag ? eintrag.vb : 'vb' in ziel ? ziel.vb : null;
       if (!vorhanden) {
-        const wahl = await firstValueFrom(
-          this.dialog
-            .open<VorlageWahlDialog, void, VorlageWahlErgebnis>(VorlageWahlDialog, {
-              width: '560px',
-              maxWidth: '94vw',
-            })
-            .afterClosed(),
-          { defaultValue: undefined },
-        );
+        const wahl = await vorlageWaehlen(this.dialog, 'vb');
         if (!wahl) return;
         const angelegt =
           wahl.art === 'vorlage'

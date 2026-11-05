@@ -91,99 +91,106 @@
         class="planung-name-input"
         [value]="p.name"
         (blur)="updateName($any($event.target).value)"
-        aria-label="Planungsname"
-        [readOnly]="isEfsLocked()"
-        [class.toolbar-field--locked]="isEfsLocked()"
+        [attr.aria-label]="istVorlage ? 'Titel der Vorlage' : 'Planungsname'"
+        [readOnly]="kopfGesperrt()"
+        [class.toolbar-field--locked]="kopfGesperrt()"
+        [matTooltip]="
+          kopfGesperrt() ? 'Titel und Zeitraum gehören zum Einsatz und sind dort änderbar.' : ''
+        "
       />
-      <div class="zeitraum-feld">
-        <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
-          <input
-            matInput
-            [matDatepicker]="startPicker"
-            [value]="getDateFromIso(p.start)"
-            (dateChange)="updateStartDate($event)"
-            aria-label="Startdatum"
-            placeholder="TT.MM.JJJJ"
-            [disabled]="isEfsLocked()"
-          />
-          <mat-datepicker-toggle
-            matSuffix
-            [for]="startPicker"
-            [disabled]="isEfsLocked()"
-          ></mat-datepicker-toggle>
-          <mat-datepicker #startPicker></mat-datepicker>
-        </mat-form-field>
-        <mat-form-field class="time-field" appearance="outline" subscriptSizing="dynamic">
-          <input
-            matInput
-            [matTimepicker]="startZeitPicker"
-            [value]="startZeitWert()"
-            (valueChange)="updateStartTime($event)"
-            aria-label="Startzeit"
-            [disabled]="isEfsLocked()"
-          />
-          <mat-timepicker-toggle
-            matSuffix
-            [for]="startZeitPicker"
-            [disabled]="isEfsLocked()"
-          ></mat-timepicker-toggle>
-          <mat-timepicker #startZeitPicker interval="15m"></mat-timepicker>
-        </mat-form-field>
-      </div>
-      <span class="date-sep">–</span>
-      <div class="zeitraum-feld">
-        <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
-          <input
-            matInput
-            [matDatepicker]="endPicker"
-            [value]="getDateFromIso(p.end)"
-            (dateChange)="updateEndDate($event)"
-            aria-label="Enddatum"
-            placeholder="TT.MM.JJJJ"
-            [disabled]="isEfsLocked()"
-          />
-          <mat-datepicker-toggle
-            matSuffix
-            [for]="endPicker"
-            [disabled]="isEfsLocked()"
-          ></mat-datepicker-toggle>
-          <mat-datepicker #endPicker></mat-datepicker>
-        </mat-form-field>
-        <mat-form-field class="time-field" appearance="outline" subscriptSizing="dynamic">
-          <input
-            matInput
-            [matTimepicker]="endZeitPicker"
-            [value]="endZeitWert()"
-            (valueChange)="updateEndTime($event)"
-            aria-label="Endzeit"
-            [disabled]="isEfsLocked()"
-          />
-          <mat-timepicker-toggle
-            matSuffix
-            [for]="endZeitPicker"
-            [disabled]="isEfsLocked()"
-          ></mat-timepicker-toggle>
-          <mat-timepicker #endZeitPicker interval="15m"></mat-timepicker>
-        </mat-form-field>
-      </div>
-      <div class="einsatzleiter-field">
-        <span class="einsatzleiter-label">EinsatzleiterIn</span>
-        <mat-select
-          class="einsatzleiter-select"
-          [value]="p.einsatzleiter?.id ?? null"
-          (selectionChange)="setEinsatzleiter($event.value)"
-        >
-          <mat-option [value]="null">– Keine –</mat-option>
-          @for (ek of p.einsatzkraefte; track ek.id) {
-            <mat-option [value]="ek.id">{{ ek.name }}</mat-option>
-          }
-        </mat-select>
-      </div>
+      @if (!istVorlage) {
+        <div class="zeitraum-feld">
+          <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+            <input
+              matInput
+              [matDatepicker]="startPicker"
+              [value]="getDateFromIso(p.start)"
+              (dateChange)="updateStartDate($event)"
+              aria-label="Startdatum"
+              placeholder="TT.MM.JJJJ"
+              [disabled]="kopfGesperrt()"
+            />
+            <mat-datepicker-toggle
+              matSuffix
+              [for]="startPicker"
+              [disabled]="kopfGesperrt()"
+            ></mat-datepicker-toggle>
+            <mat-datepicker #startPicker></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field class="time-field" appearance="outline" subscriptSizing="dynamic">
+            <input
+              matInput
+              [matTimepicker]="startZeitPicker"
+              [value]="startZeitWert()"
+              (valueChange)="updateStartTime($event)"
+              aria-label="Startzeit"
+              [disabled]="kopfGesperrt()"
+            />
+            <mat-timepicker-toggle
+              matSuffix
+              [for]="startZeitPicker"
+              [disabled]="kopfGesperrt()"
+            ></mat-timepicker-toggle>
+            <mat-timepicker #startZeitPicker interval="15m"></mat-timepicker>
+          </mat-form-field>
+        </div>
+        <span class="date-sep">–</span>
+        <div class="zeitraum-feld">
+          <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+            <input
+              matInput
+              [matDatepicker]="endPicker"
+              [value]="getDateFromIso(p.end)"
+              (dateChange)="updateEndDate($event)"
+              aria-label="Enddatum"
+              placeholder="TT.MM.JJJJ"
+              [disabled]="kopfGesperrt()"
+            />
+            <mat-datepicker-toggle
+              matSuffix
+              [for]="endPicker"
+              [disabled]="kopfGesperrt()"
+            ></mat-datepicker-toggle>
+            <mat-datepicker #endPicker></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field class="time-field" appearance="outline" subscriptSizing="dynamic">
+            <input
+              matInput
+              [matTimepicker]="endZeitPicker"
+              [value]="endZeitWert()"
+              (valueChange)="updateEndTime($event)"
+              aria-label="Endzeit"
+              [disabled]="kopfGesperrt()"
+            />
+            <mat-timepicker-toggle
+              matSuffix
+              [for]="endZeitPicker"
+              [disabled]="kopfGesperrt()"
+            ></mat-timepicker-toggle>
+            <mat-timepicker #endZeitPicker interval="15m"></mat-timepicker>
+          </mat-form-field>
+        </div>
+      }
+      @if (!istVorlage) {
+        <div class="einsatzleiter-field">
+          <span class="einsatzleiter-label">EinsatzleiterIn</span>
+          <mat-select
+            class="einsatzleiter-select"
+            [value]="p.einsatzleiter?.id ?? null"
+            (selectionChange)="setEinsatzleiter($event.value)"
+          >
+            <mat-option [value]="null">– Keine –</mat-option>
+            @for (ek of p.einsatzkraefte; track ek.id) {
+              <mat-option [value]="ek.id">{{ ek.name }}</mat-option>
+            }
+          </mat-select>
+        </div>
+      }
       <button matIconButton matTooltip="Rückgängig" [disabled]="!canUndo()" (click)="undo()">
         <mat-icon>undo</mat-icon>
       </button>
       <span class="spacer"></span>
-      @if (p.hiorg_einsatz_id) {
+      @if (!istVorlage && p.hiorg_einsatz_id) {
         <button
           matIconButton
           [matTooltip]="
@@ -200,15 +207,6 @@
       </button>
       <button
         matIconButton
-        matTooltip="In Nextcloud speichern"
-        aria-label="In Nextcloud speichern"
-        (click)="cloudSpeichern()"
-        [disabled]="cloudSpeichert()"
-      >
-        <mat-icon>cloud_upload</mat-icon>
-      </button>
-      <button
-        matIconButton
         matTooltip="JSON herunterladen"
         aria-label="JSON herunterladen"
         (click)="save()"
@@ -217,6 +215,36 @@
       </button>
       <button matIconButton matTooltip="PDF exportieren" (click)="exportPdf()">
         <mat-icon>picture_as_pdf</mat-icon>
+      </button>
+      @if (!istVorlage) {
+        <button
+          matIconButton
+          [matMenuTriggerFor]="weitereAktionen"
+          matTooltip="Weitere Aktionen"
+          aria-label="Weitere Aktionen"
+        >
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #weitereAktionen="matMenu">
+          <button mat-menu-item (click)="alsVorlageSpeichern()">
+            <mat-icon>bookmark_add</mat-icon>
+            <span>Als Vorlage speichern</span>
+          </button>
+        </mat-menu>
+      }
+      <button
+        matButton="filled"
+        class="speichern-knopf"
+        [disabled]="speichert()"
+        [matTooltip]="
+          hatUngesichertes()
+            ? 'Änderungen in der Datenbank speichern'
+            : 'Keine ungespeicherten Änderungen'
+        "
+        (click)="speichern()"
+      >
+        <mat-icon>save</mat-icon>
+        <span class="speichern-text">{{ speichert() ? 'Speichert …' : 'Speichern' }}</span>
       </button>
     </mat-toolbar>
 
@@ -229,19 +257,20 @@
         </button>
       </app-meldung>
     }
-    @if (cloudSpeichert()) {
-      <app-meldung art="info">Einsatzplanung wird in Nextcloud gespeichert…</app-meldung>
-    }
-    @if (cloudStatus()) {
-      <app-meldung art="erfolg">{{ cloudStatus() }}</app-meldung>
-    }
-    @if (cloudFehler()) {
-      <app-meldung art="fehler">
-        {{ cloudFehler() }} Deine lokalen Änderungen bleiben erhalten. Bei einem Versionskonflikt
-        zuerst über „JSON herunterladen“ in der Werkzeugleiste sichern und die Änderungen mit dem
-        neu geladenen Stand zusammenführen.
-        <button matButton meldungAktion (click)="cloudSpeichern()" [disabled]="cloudSpeichert()">
-          Erneut versuchen
+    @if (speicherFehler()) {
+      <app-meldung art="fehler" (geschlossen)="speicherFehler.set(''); konflikt.set(false)">
+        {{ speicherFehler() }} Deine Änderungen bleiben in diesem Editor erhalten.
+        @if (konflikt()) {
+          „Neu laden“ lädt den gespeicherten Stand, nachdem dein Stand als JSON heruntergeladen
+          wurde.
+        }
+        <button
+          matButton
+          meldungAktion
+          (click)="konflikt() ? neuLaden() : speichern()"
+          [disabled]="speichert()"
+        >
+          {{ konflikt() ? 'Neu laden' : 'Erneut versuchen' }}
         </button>
       </app-meldung>
     }
@@ -256,163 +285,176 @@
       />
     </div>
 
+    @if (istVorlage) {
+      <p class="vorlagen-hinweis" role="note">
+        Vorlage: Posten und Positionen ohne Einsatzkräfte. Helferpool und Einsatzleitung gibt es
+        erst in der PEP eines Einsatzes.
+      </p>
+    }
+
     <!-- Helferpool und Postenbereich -->
     <div class="editor-body" cdkDropListGroup>
       <!-- LEFT: Roster -->
-      <aside class="pane pane-roster" [class.pane-roster--collapsed]="rosterCollapsed()">
-        <div class="pane-header">
-          <mat-icon>groups</mat-icon>
-          <span class="roster-header-text">
-            Einsatzkräfte
-            @if (rosterProgress(); as prog) {
-              <span class="roster-progress-count"
-                >{{ prog.assigned }}/{{ prog.total }} zugewiesen</span
+      @if (!istVorlage) {
+        <aside class="pane pane-roster" [class.pane-roster--collapsed]="rosterCollapsed()">
+          <div class="pane-header">
+            <mat-icon>groups</mat-icon>
+            <span class="roster-header-text">
+              Einsatzkräfte
+              @if (rosterProgress(); as prog) {
+                <span class="roster-progress-count"
+                  >{{ prog.assigned }}/{{ prog.total }} zugewiesen</span
+                >
+              }
+            </span>
+            @if (p.hiorg_einsatz_id) {
+              <button
+                matIconButton
+                [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"
+                [disabled]="efsUpdating()"
+                (click)="updateFromEfs(p)"
               >
+                <mat-icon>sync</mat-icon>
+              </button>
             }
-          </span>
-          @if (p.hiorg_einsatz_id) {
             <button
               matIconButton
-              [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"
-              [disabled]="efsUpdating()"
-              (click)="updateFromEfs(p)"
+              matTooltip="Einsatzkräfte importieren"
+              (click)="openImportDialog()"
             >
-              <mat-icon>sync</mat-icon>
+              <mat-icon>upload_file</mat-icon>
             </button>
-          }
-          <button matIconButton matTooltip="Einsatzkräfte importieren" (click)="openImportDialog()">
-            <mat-icon>upload_file</mat-icon>
-          </button>
-          <button
-            matIconButton
-            matTooltip="Personal aus HiOrg-Server übernehmen"
-            (click)="openHiorgPersonalDialog()"
-          >
-            <mat-icon>badge</mat-icon>
-          </button>
-          <button
-            matIconButton
-            (click)="toggleRoster()"
-            [matTooltip]="rosterCollapsed() ? 'Roster einblenden' : 'Roster ausblenden'"
-          >
-            <mat-icon>{{ rosterCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
-          </button>
-        </div>
-        @if (rosterProgress(); as prog) {
-          <div
-            class="roster-progress-bar-wrap"
-            [matTooltip]="prog.assigned + ' von ' + prog.soll + ' Positionen besetzt'"
-          >
-            <div
-              class="roster-progress-bar-fill"
-              [style.width.%]="prog.soll > 0 ? (prog.assigned / prog.soll) * 100 : 0"
-              [class.roster-progress-bar-fill--complete]="prog.assigned >= prog.soll"
-            ></div>
-          </div>
-        }
-        <div
-          class="roster-list"
-          cdkDropList
-          cdkDropListSortingDisabled
-          (cdkDropListDropped)="onDropToRoster($event)"
-        >
-          <div class="roster-search-bar">
-            <mat-icon class="roster-suchsymbol" aria-hidden="true">search</mat-icon>
-            <input
-              class="roster-search-input"
-              placeholder="Suchen…"
-              [value]="rosterSearch()"
-              (input)="rosterSearch.set($any($event.target).value)"
-              aria-label="Einsatzkräfte suchen"
-            />
-          </div>
-          @if (
-            rosterAvailableTags().taktisch.length > 0 ||
-            rosterAvailableTags().medizinisch.length > 0
-          ) {
-            <div class="roster-tag-filters">
-              @for (tag of rosterAvailableTags().taktisch; track tag) {
-                <button
-                  class="filter-chip"
-                  [class.filter-chip--active]="rosterTagFilter() === tag"
-                  [style.background]="rosterTagFilter() === tag ? taktischColor(tag).bg : ''"
-                  [style.color]="rosterTagFilter() === tag ? taktischColor(tag).fg : ''"
-                  [matTooltip]="TAKTISCH_LABEL[tag]"
-                  (click)="toggleRosterTagFilter(tag)"
-                >
-                  {{ tag }}
-                </button>
-              }
-              @for (tag of rosterAvailableTags().medizinisch; track tag) {
-                <button
-                  class="filter-chip"
-                  [class.filter-chip--active]="rosterTagFilter() === tag"
-                  [style.background]="rosterTagFilter() === tag ? medizinischColor(tag).bg : ''"
-                  [style.color]="rosterTagFilter() === tag ? medizinischColor(tag).fg : ''"
-                  [matTooltip]="MEDIZINISCH_LABEL[tag]"
-                  (click)="toggleRosterTagFilter(tag)"
-                >
-                  {{ tag }}
-                </button>
-              }
-            </div>
-          }
-          @for (person of filteredRoster(); track person.id) {
-            <div
-              class="einsatzkraft-card available"
-              cdkDrag
-              [cdkDragData]="{
-                einsatzkraftId: person.id,
-                fromPostenId: null,
-                fromPositionId: null,
-              }"
-              (cdkDragStarted)="onDragStarted($event)"
-              (cdkDragEnded)="onDragEnded()"
-              (contextmenu)="onContextMenu($event, person)"
+            <button
+              matIconButton
+              matTooltip="Personal aus HiOrg-Server übernehmen"
+              (click)="openHiorgPersonalDialog()"
             >
-              <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
-              <div class="ek-body">
-                <span class="ek-name">{{ person.name }}</span>
-                <app-qualifikations-chips class="ek-chips" [tags]="person.tags" />
-              </div>
+              <mat-icon>badge</mat-icon>
+            </button>
+            <button
+              matIconButton
+              (click)="toggleRoster()"
+              [matTooltip]="rosterCollapsed() ? 'Roster einblenden' : 'Roster ausblenden'"
+            >
+              <mat-icon>{{ rosterCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+            </button>
+          </div>
+          @if (rosterProgress(); as prog) {
+            <div
+              class="roster-progress-bar-wrap"
+              [matTooltip]="prog.assigned + ' von ' + prog.soll + ' Positionen besetzt'"
+            >
+              <div
+                class="roster-progress-bar-fill"
+                [style.width.%]="prog.soll > 0 ? (prog.assigned / prog.soll) * 100 : 0"
+                [class.roster-progress-bar-fill--complete]="prog.assigned >= prog.soll"
+              ></div>
             </div>
           }
-          @if (filteredRoster().length === 0) {
-            @if (p.einsatzkraefte.length === 0) {
-              <p class="empty-hint">Noch keine Einsatzkräfte vorhanden.</p>
-              <button matButton="outlined" (click)="openImportDialog()" class="helfer-trenner">
-                <mat-icon>group_add</mat-icon> Roster importieren
-              </button>
-            } @else {
-              <p class="empty-hint">Alle Einsatzkräfte sind eingeteilt.</p>
+          <div
+            class="roster-list"
+            cdkDropList
+            cdkDropListSortingDisabled
+            (cdkDropListDropped)="onDropToRoster($event)"
+          >
+            <div class="roster-search-bar">
+              <mat-icon class="roster-suchsymbol" aria-hidden="true">search</mat-icon>
+              <input
+                class="roster-search-input"
+                placeholder="Suchen…"
+                [value]="rosterSearch()"
+                (input)="rosterSearch.set($any($event.target).value)"
+                aria-label="Einsatzkräfte suchen"
+              />
+            </div>
+            @if (
+              rosterAvailableTags().taktisch.length > 0 ||
+              rosterAvailableTags().medizinisch.length > 0
+            ) {
+              <div class="roster-tag-filters">
+                @for (tag of rosterAvailableTags().taktisch; track tag) {
+                  <button
+                    class="filter-chip"
+                    [class.filter-chip--active]="rosterTagFilter() === tag"
+                    [style.background]="rosterTagFilter() === tag ? taktischColor(tag).bg : ''"
+                    [style.color]="rosterTagFilter() === tag ? taktischColor(tag).fg : ''"
+                    [matTooltip]="TAKTISCH_LABEL[tag]"
+                    (click)="toggleRosterTagFilter(tag)"
+                  >
+                    {{ tag }}
+                  </button>
+                }
+                @for (tag of rosterAvailableTags().medizinisch; track tag) {
+                  <button
+                    class="filter-chip"
+                    [class.filter-chip--active]="rosterTagFilter() === tag"
+                    [style.background]="rosterTagFilter() === tag ? medizinischColor(tag).bg : ''"
+                    [style.color]="rosterTagFilter() === tag ? medizinischColor(tag).fg : ''"
+                    [matTooltip]="MEDIZINISCH_LABEL[tag]"
+                    (click)="toggleRosterTagFilter(tag)"
+                  >
+                    {{ tag }}
+                  </button>
+                }
+              </div>
             }
-          }
-
-          <mat-divider class="bereich-trenner"></mat-divider>
-          <div class="pane-subheader pane-subheader--toggle" (click)="toggleAssignedList()">
-            <span>Zugewiesene Einsatzkräfte</span>
-            <mat-icon class="subheader-toggle-icon">{{
-              assignedListCollapsed() ? 'expand_more' : 'expand_less'
-            }}</mat-icon>
-          </div>
-          @if (!assignedListCollapsed()) {
-            @for (person of p.einsatzkraefte; track person.id) {
-              <div class="einsatzkraft-card">
+            @for (person of filteredRoster(); track person.id) {
+              <div
+                class="einsatzkraft-card available"
+                cdkDrag
+                [cdkDragData]="{
+                  einsatzkraftId: person.id,
+                  fromPostenId: null,
+                  fromPositionId: null,
+                }"
+                (cdkDragStarted)="onDragStarted($event)"
+                (cdkDragEnded)="onDragEnded()"
+                (contextmenu)="onContextMenu($event, person)"
+              >
                 <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
                 <div class="ek-body">
                   <span class="ek-name">{{ person.name }}</span>
-                  <app-qualifikations-chips
-                    class="ek-chips"
-                    [tags]="person.tags"
-                    [beschreibung]="false"
-                    [zusatz]="false"
-                  />
+                  <app-qualifikations-chips class="ek-chips" [tags]="person.tags" />
                 </div>
               </div>
             }
-          }
-        </div>
-      </aside>
+            @if (filteredRoster().length === 0) {
+              @if (p.einsatzkraefte.length === 0) {
+                <p class="empty-hint">Noch keine Einsatzkräfte vorhanden.</p>
+                <button matButton="outlined" (click)="openImportDialog()" class="helfer-trenner">
+                  <mat-icon>group_add</mat-icon> Roster importieren
+                </button>
+              } @else {
+                <p class="empty-hint">Alle Einsatzkräfte sind eingeteilt.</p>
+              }
+            }
+
+            <mat-divider class="bereich-trenner"></mat-divider>
+            <div class="pane-subheader pane-subheader--toggle" (click)="toggleAssignedList()">
+              <span>Zugewiesene Einsatzkräfte</span>
+              <mat-icon class="subheader-toggle-icon">{{
+                assignedListCollapsed() ? 'expand_more' : 'expand_less'
+              }}</mat-icon>
+            </div>
+            @if (!assignedListCollapsed()) {
+              @for (person of p.einsatzkraefte; track person.id) {
+                <div class="einsatzkraft-card">
+                  <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
+                  <div class="ek-body">
+                    <span class="ek-name">{{ person.name }}</span>
+                    <app-qualifikations-chips
+                      class="ek-chips"
+                      [tags]="person.tags"
+                      [beschreibung]="false"
+                      [zusatz]="false"
+                    />
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        </aside>
+      }
 
       <!-- CENTER: Posten/Position Tree -->
       <main class="pane pane-tree">

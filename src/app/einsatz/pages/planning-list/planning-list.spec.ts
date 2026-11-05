@@ -7,7 +7,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanningList } from './planning-list';
 import { EfsApiService, EfsDetailResult } from '../../services/efs-api.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
-import { PlanungCloudService } from '../../services/planung-cloud.service';
+import { PepEditorKontext } from '../../services/pep-editor-kontext';
+import { SaveLoadService } from '../../services/save-load.service';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { erzeugeTestplanung } from '../../services/testing/pep-testdaten';
 import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
@@ -30,64 +31,54 @@ function routeMit(abfrage: Record<string, string> = {}) {
   };
 }
 
-describe('EFS-Details beim Planwechsel', () => {
-  it('schreibt verzögert geladene Details nicht in einen inzwischen geöffneten anderen Plan', async () => {
-    let antworten!: (detail: EfsDetailResult) => void;
-    const antwort = new Promise<EfsDetailResult>((resolve) => {
-      antworten = resolve;
-    });
-    const api = { getVeranstaltungDetail: vi.fn(() => antwort), fehler: signal('') };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: EfsApiService, useValue: api },
-        { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
-        { provide: PlanungCloudService, useValue: { hatLokaleAenderungen: () => false } },
-        routeMit(),
-      ],
-    });
-    const store = TestBed.inject(PlanungStoreService);
-    const liste = TestBed.runInInjectionContext(() => new PlanningList());
-    const laden = liste.openEfsGruppe({
-      veranstaltung_id: 'test-veranstaltung',
-      titel: 'Testübung',
-      datum_von: '',
-      datum_bis: '',
-      schichten: [{ id: 'test-schicht', titel: 'Testschicht', datum_von: '', datum_bis: '' }],
-    });
-    const andererPlan = store.createPlanung('Anderer lokaler Plan');
-    antworten({
-      einsatzkraefte: [{ hiorg_org_id: 'test-person', vorname: 'Nord', nachname: 'Testperson' }],
-      einsatzmittel: [],
-    });
-    await laden;
-    expect(store.active()).toEqual(andererPlan);
-    expect(store.active()?.einsatzkraefte).toEqual([]);
-    expect(store.active()?.posten).toEqual([]);
-  });
-
-  it('lädt bei abgebrochener Ersetzungsbestätigung keine Cloud-Datei', async () => {
-    const cloud = {
-      laden: vi.fn(),
-      hatLokaleAenderungen: () => true,
-      fehlermeldung: (fehler: Error) => fehler.message,
-    };
+describe('Datei öffnen', () => {
+  it('öffnet die Datei ohne Einsatzbezug im Editor und verwirft einen alten Speicherort', async () => {
+    const navigate = vi.fn().mockResolvedValue(true);
+    const planung = erzeugeTestplanung();
     TestBed.configureTestingModule({
       providers: [
         { provide: EfsApiService, useValue: { fehler: signal('') } },
-        { provide: Router, useValue: { navigate: vi.fn() } },
-        { provide: PlanungCloudService, useValue: cloud },
-        { provide: DialogDienst, useValue: { bestaetigen: vi.fn().mockResolvedValue(false) } },
+        { provide: Router, useValue: { navigate } },
+        {
+          provide: SaveLoadService,
+          useValue: { load: vi.fn().mockResolvedValue({ planung, versionWarning: false }) },
+        },
         routeMit(),
       ],
     });
     const store = TestBed.inject(PlanungStoreService);
-    const planung = erzeugeTestplanung();
-    store.importPlanung(planung);
+    const kontext = TestBed.inject(PepEditorKontext);
+    kontext.setzen({ art: 'vorlage', vorlageId: crypto.randomUUID(), version: null });
     const liste = TestBed.runInInjectionContext(() => new PlanningList());
-    await liste.cloudPlanungLaden(planung.id);
-    expect(cloud.laden).not.toHaveBeenCalled();
+
+    await liste.loadFromFile();
+
+    expect(kontext.ziel()).toBeNull();
     expect(store.active()).toEqual(planung);
-    expect(liste.cloudLadeId()).toBeNull();
+    // Unverändert gegenüber der Datei: keine Rückfrage beim Verlassen.
+    expect(store.hatUngesichertes()).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/editor']);
+  });
+
+  it('warnt vor einer Versionswarnung der Datei, öffnet sie aber trotzdem', async () => {
+    const hinweis = vi.fn().mockResolvedValue(undefined);
+    const planung = erzeugeTestplanung();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: EfsApiService, useValue: { fehler: signal('') } },
+        { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
+        { provide: DialogDienst, useValue: { hinweis } },
+        {
+          provide: SaveLoadService,
+          useValue: { load: vi.fn().mockResolvedValue({ planung, versionWarning: true }) },
+        },
+        routeMit(),
+      ],
+    });
+    const liste = TestBed.runInInjectionContext(() => new PlanningList());
+    await liste.loadFromFile();
+    expect(hinweis).toHaveBeenCalled();
+    expect(TestBed.inject(PlanungStoreService).active()).toEqual(planung);
   });
 });
 
@@ -98,7 +89,6 @@ describe('Rückkehr von der HiOrg-Anmeldung', () => {
       providers: [
         { provide: EfsApiService, useValue: { fehler: signal(''), getVeranstaltungen: vi.fn() } },
         { provide: Router, useValue: { navigate } },
-        { provide: PlanungCloudService, useValue: { listeLaden: vi.fn() } },
         { provide: ApiEinsatzStorage, useValue: new InMemoryEinsatzStorage() },
         routeMit(abfrage),
       ],
@@ -172,16 +162,6 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
           },
         },
         { provide: Router, useValue: { navigate } },
-        {
-          provide: PlanungCloudService,
-          useValue: {
-            listeLaden: vi.fn(),
-            listeLaedt: signal(false),
-            listenFehler: signal(''),
-            dateien: signal([]),
-            namen: signal({}),
-          },
-        },
         { provide: ApiEinsatzStorage, useValue: speicher },
         {
           provide: MatDialog,
@@ -317,6 +297,27 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     const alle = [...wurzel.querySelectorAll<HTMLButtonElement>('app-einsatz-karte button.kachel')];
     expect(alle.length).toBeGreaterThan(0);
     expect(alle.every((k) => k.disabled)).toBe(true);
+  });
+
+  it('zeigt an der PEP-Kachel „n / m besetzt“ und ohne PEP „nicht angelegt“', async () => {
+    const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
+    speicher._vorbelegen(einsatz);
+    peps._vorbelegen(einsatz.id, testPep());
+    const fixture = await oeffnen();
+    const pep = karte(fixture, 'Weihnachtsmarkt').querySelectorAll('button.kachel')[0];
+    expect(pep.textContent?.replace(/\s+/g, ' ')).toContain('1 / 2 besetzt');
+    const ohne = karte(fixture, 'Stadtlauf').querySelectorAll('button.kachel')[0];
+    expect(ohne.textContent).toContain('nicht angelegt');
+  });
+
+  it('hat keine Nextcloud-, Lokale-Planungen- und Neue-Planung-Elemente mehr', async () => {
+    const fixture = await oeffnen();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).not.toContain('Nextcloud');
+    expect(text).not.toContain('Gespeicherte Einsatzpläne');
+    expect(text).not.toContain('Lokale Planungen');
+    expect(text).not.toContain('Neue Planung');
+    expect(text).toContain('Datei öffnen');
   });
 
   it('zeigt am VB die Kennzahlen im Untertitel', async () => {

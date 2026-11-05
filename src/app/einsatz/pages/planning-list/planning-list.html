@@ -12,10 +12,6 @@
     <mat-icon>folder_open</mat-icon>
     Datei öffnen
   </button>
-  <button matButton="filled" (click)="createNew()" class="toolbar-btn">
-    <mat-icon>add</mat-icon>
-    Neue Planung
-  </button>
 </app-seitenkopf>
 
 <div class="list-content">
@@ -30,47 +26,6 @@
       }
     </app-meldung>
   }
-  <section class="cloud-planungen" aria-labelledby="cloud-planungen-titel">
-    <div class="section-header">
-      <h2 id="cloud-planungen-titel">Gespeicherte Einsatzpläne</h2>
-      <button matButton="outlined" (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
-        <mat-icon>refresh</mat-icon> Aktualisieren
-      </button>
-    </div>
-    @if (cloud.listeLaedt()) {
-      <app-ladeanzeige text="Gespeicherte Einsatzpläne werden geladen…" />
-    }
-    @if (cloud.listenFehler()) {
-      <app-meldung art="fehler">{{ cloud.listenFehler() }}</app-meldung>
-      <button matButton (click)="cloud.listeLaden()" [disabled]="cloud.listeLaedt()">
-        Erneut versuchen
-      </button>
-    } @else if (!cloud.listeLaedt() && cloud.dateien().length === 0) {
-      <p class="empty-hint">
-        Noch keine Einsatzpläne gespeichert. Öffne eine Planung und wähle „In Nextcloud speichern“.
-      </p>
-    }
-    @if (cloudFehler()) {
-      <app-meldung art="fehler"
-        >{{ cloudFehler() }} Deine lokalen Planungen bleiben erhalten.</app-meldung
-      >
-    }
-    <ul class="cloud-dateien">
-      @for (datei of cloud.dateien(); track datei.id) {
-        <li>
-          <span>{{ cloud.namen()[datei.id] || datei.id }}</span>
-          <button
-            matButton="outlined"
-            (click)="cloudPlanungLaden(datei.id)"
-            [disabled]="cloudLadeId() !== null"
-          >
-            {{ cloudLadeId() === datei.id ? 'Wird geladen…' : 'Laden' }}
-          </button>
-        </li>
-      }
-    </ul>
-  </section>
-
   <section class="einsaetze" aria-labelledby="einsaetze-titel">
     <div class="section-header">
       <h2 id="einsaetze-titel">Anstehende Einsätze</h2>
@@ -110,6 +65,7 @@
                 [ort]="zeile.ort"
                 [herkunft]="zeile.herkunft"
                 [pepVorhanden]="zeile.pepVorhanden"
+                [pepKennzahlen]="zeile.pep"
                 [vbKennzahlen]="zeile.vb"
                 [gesperrt]="aktionen.laufend() !== null"
                 (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
@@ -144,6 +100,7 @@
                   [ort]="zeile.ort"
                   [herkunft]="zeile.herkunft"
                   [pepVorhanden]="zeile.pepVorhanden"
+                  [pepKennzahlen]="zeile.pep"
                   [vbKennzahlen]="zeile.vb"
                   [gesperrt]="aktionen.laufend() !== null"
                   (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
@@ -155,47 +112,5 @@
         </mat-expansion-panel>
       }
     }
-    <mat-divider class="abschnitt-trenner"></mat-divider>
   </section>
-
-  <h2>Lokale Planungen</h2>
-
-  @if (planungen().length === 0) {
-    <app-leerzustand icon="groups" titel="Noch keine Planungen vorhanden.">
-      <button leerAktion matButton="filled" (click)="createNew()">
-        <mat-icon>add</mat-icon> Neue Planung erstellen
-      </button>
-    </app-leerzustand>
-  }
-
-  <div class="card-grid">
-    @for (planung of planungen(); track planung.id) {
-      <mat-card class="planung-card" (click)="openPlanung(planung.id)">
-        <mat-card-header>
-          <mat-card-title>{{ planung.name }}</mat-card-title>
-          <mat-card-subtitle>
-            {{ planung.start | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }} –
-            {{ planung.end | date: 'HH:mm' : '' : 'de-DE' }} Uhr
-          </mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <p>
-            {{ planung.posten.length }} Posten · {{ planung.einsatzkraefte.length }} Einsatzkräfte
-          </p>
-          @if (planung.hiorg_einsatz_id) {
-            <p class="efs-link-hint">
-              <mat-icon class="efs-icon">cloud</mat-icon>
-              EFS-Einsatz #{{ planung.hiorg_einsatz_id }}
-            </p>
-          }
-        </mat-card-content>
-        <mat-card-actions>
-          <button matButton="outlined" (click)="openPlanung(planung.id); $event.stopPropagation()">
-            <mat-icon>open_in_new</mat-icon>
-            Öffnen
-          </button>
-        </mat-card-actions>
-      </mat-card>
-    }
-  </div>
 </div>

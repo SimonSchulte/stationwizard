@@ -1,0 +1,27 @@
+<h2 mat-dialog-title>PEP-Vorlage aus Datei anlegen</h2>
+<mat-dialog-content>
+  <mat-form-field appearance="outline" class="titel">
+    <mat-label>Titel der Vorlage</mat-label>
+    <input
+      matInput
+      cdkFocusInitial
+      [attr.maxlength]="maxTitel"
+      [value]="titel()"
+      (input)="titel.set($any($event.target).value)"
+      (keydown.enter)="kannSpeichern() && dialogRef.close(titel().trim())"
+    />
+  </mat-form-field>
+  <p class="kennzahlen">
+    {{ daten.posten }} Posten · {{ daten.positionen }} Positionen werden übernommen.
+  </p>
+  <p class="hinweis">
+    Einsatzkräfte ({{ daten.einsatzkraefte }}), Zuordnungen und Einsatzleitung werden nicht
+    übernommen.
+  </p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton [mat-dialog-close]="null">Abbrechen</button>
+  <button matButton="filled" [disabled]="!kannSpeichern()" [mat-dialog-close]="titel().trim()">
+    Als Vorlage speichern
+  </button>
+</mat-dialog-actions>

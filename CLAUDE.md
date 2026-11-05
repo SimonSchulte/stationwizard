@@ -116,6 +116,14 @@ Prüfungen und offene Abnahmegrenzen.
   Datei-Export und -Import („JSON herunterladen“, „Datei öffnen“):
   `einsatz/services/pep-datei.ts` für Lesen/Serialisieren nutzen. Versionswarnungen
   erhalten; keine stillen, verlustreichen Konvertierungen.
+- Der PEP-Editor (`einsatz/pages/planning-editor/`) arbeitet an einer `Planung` im
+  `PlanungStoreService`; wohin „Speichern“ schreibt, hält `PepEditorKontext`: PEP eines
+  Einsatzes (`PepStoreService`, `If-Match`, Planungs-Id = Einsatz-Id, Titel und Zeitraum
+  gehören dem Einsatz), PEP-Vorlage (Route `pep-vorlagen/:id|neu`, `data.modus = 'vorlage'`,
+  ohne Helferpool) oder keins (über „Datei öffnen“ geladen; „Speichern“ fragt dann nach dem
+  Einsatz). Ein 412 bewahrt den lokalen Stand; „Neu laden“ sichert ihn zuerst als JSON.
+  Ein offener, ungespeicherter Plan lebt nur im Editor (`planungVerlassenGuard`,
+  `VerlassenSchutz`).
 - Die frühere Nextcloud-Ablage der Einsatzpläne (`<UUID>.pep.json`, `/api/nextcloud/*`,
   `NEXTCLOUD_*`) ist entfallen und wird nicht wieder eingeführt; alte Dateien wurden nicht
   übernommen.

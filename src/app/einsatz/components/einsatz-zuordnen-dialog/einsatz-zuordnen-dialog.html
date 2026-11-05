@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>Einem Einsatz zuordnen</h2>
+<mat-dialog-content class="inhalt">
+  <app-suchfeld [(wert)]="suche" beschriftung="Einsatz suchen" />
+
+  @if (store.fehler()) {
+    <app-meldung art="fehler">{{ store.fehler() }}</app-meldung>
+  }
+
+  @if (store.laedt() && zeilen().length === 0) {
+    <app-ladeanzeige text="Einsätze werden geladen …" />
+  } @else if (zeilen().length === 0) {
+    <app-leerzustand icon="event_busy" titel="Kein Einsatz ohne PEP" [kompakt]="true">
+      Lege in der Einsatzübersicht einen Einsatz an. Jeder Einsatz hat höchstens eine PEP.
+    </app-leerzustand>
+  } @else if (sichtbar().length === 0) {
+    <app-leerzustand icon="search_off" titel="Kein Einsatz gefunden" [kompakt]="true" />
+  } @else {
+    <mat-radio-group
+      class="liste"
+      aria-label="Einsatz"
+      [value]="gewaehlt()"
+      (change)="gewaehlt.set($event.value)"
+    >
+      @for (zeile of sichtbar(); track zeile.einsatz.id) {
+        <mat-radio-button class="eintrag" [value]="zeile.einsatz.id">
+          <span class="titel">{{ zeile.einsatz.titel }}</span>
+          <span class="zusatz">{{ zeile.zusatz }}</span>
+        </mat-radio-button>
+      }
+    </mat-radio-group>
+  }
+
+  <p class="hinweis">
+    Die Planung wird als PEP dieses Einsatzes gespeichert. Titel und Zeitraum übernimmt der Editor
+    danach vom Einsatz.
+  </p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton="filled" [disabled]="gewaehlt() === null" (click)="bestaetigen()">
+    Zuordnen und speichern
+  </button>
+</mat-dialog-actions>

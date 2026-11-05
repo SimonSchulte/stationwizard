@@ -22,39 +22,6 @@
   }
 }
 
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--planung-card-width)), 1fr));
-  gap: var(--space-md);
-  margin-top: var(--space-md);
-}
-
-.planung-card {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-
-  &:hover {
-    box-shadow: var(--elevation-2);
-  }
-}
-
-.efs-link-hint {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: var(--space-xs) 0 0;
-}
-
-.efs-icon {
-  font-size: 14px;
-  height: 14px;
-  width: 14px;
-}
-
 .empty-hint {
   color: var(--text-secondary);
   font-style: italic;
@@ -62,34 +29,6 @@
 
 .abschnitt-trenner {
   margin: var(--space-xl) 0;
-}
-
-.cloud-planungen {
-  margin-block-end: var(--space-xl);
-}
-
-.cloud-dateien {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: var(--space-sm);
-
-  li {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: var(--space-md);
-    padding: var(--space-sm);
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  span {
-    overflow-wrap: anywhere;
-  }
-  button {
-    flex-shrink: 0;
-  }
 }
 
 @media (max-width: 780px) {

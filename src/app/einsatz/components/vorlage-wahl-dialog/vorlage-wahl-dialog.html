@@ -6,11 +6,11 @@
     <app-meldung art="fehler">{{ store.fehler() }}</app-meldung>
   }
 
-  @if (store.laedt() && store.vorlagen().length === 0) {
+  @if (store.laedt() && zeilen().length === 0) {
     <app-ladeanzeige text="Vorlagen werden geladen …" />
-  } @else if (store.vorlagen().length === 0) {
+  } @else if (zeilen().length === 0) {
     <app-leerzustand icon="content_copy" titel="Noch keine Vorlagen" [kompakt]="true">
-      Lege zuerst unter „VB-Vorlagen“ eine Vorlage an oder beginne leer.
+      Lege zuerst in der Verwaltung unter „Einsatz-Vorlagen“ eine Vorlage an oder beginne leer.
     </app-leerzustand>
   } @else if (sichtbar().length === 0) {
     <app-leerzustand icon="search_off" titel="Keine Vorlage gefunden" [kompakt]="true" />
@@ -25,18 +25,24 @@
         <mat-radio-button class="eintrag" [value]="vorlage.id">
           <span class="titel">{{ vorlage.titel }}</span>
           <span class="kennzahlen">
-            {{ vorlage.abschnitte }} Abschnitte · {{ vorlage.laufzettel }} Laufzettel ·
-            {{ vorlage.positionen }} Positionen · Version {{ vorlage.version }}
+            {{ vorlage.kennzahlen }}
           </span>
         </mat-radio-button>
       }
     </mat-radio-group>
   }
 
-  <p class="hinweis">
-    Die Vorlage wird kopiert: Änderungen an der Vorbereitung dieses Einsatzes verändern die Vorlage
-    nicht. Spätere Änderungen lassen sich gezielt auf die Vorlage übernehmen.
-  </p>
+  @if (art === 'pep') {
+    <p class="hinweis">
+      Die Vorlage wird kopiert: Posten und Positionen werden übernommen, Einsatzkräfte nicht.
+      Änderungen an der PEP dieses Einsatzes verändern die Vorlage nicht.
+    </p>
+  } @else {
+    <p class="hinweis">
+      Die Vorlage wird kopiert: Änderungen an der Vorbereitung dieses Einsatzes verändern die
+      Vorlage nicht. Spätere Änderungen lassen sich gezielt auf die Vorlage übernehmen.
+    </p>
+  }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button matButton mat-dialog-close>Abbrechen</button>

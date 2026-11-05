@@ -1,0 +1,86 @@
+<div class="aktionen">
+  <input
+    #dateiEingabe
+    class="datei-eingabe"
+    type="file"
+    accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    aria-label="Excel-Packliste auswählen"
+    (change)="dateiGewaehlt($event)"
+  />
+  <button matButton="filled" [disabled]="arbeitet()" (click)="dateiWaehlen()">
+    <mat-icon>upload_file</mat-icon> Hochladen
+  </button>
+  <a matButton="outlined" routerLink="/einsatzplanung/vb-vorlagen/neu">
+    <mat-icon>add</mat-icon> Neue Vorlage
+  </a>
+</div>
+
+<div class="inhalt">
+  <section class="liste" aria-label="VB-Vorlagen">
+    @if (listeLaedt() && vorlagen().length === 0) {
+      <app-ladeanzeige text="Vorlagen werden geladen …" />
+    } @else if (vorlagen().length === 0) {
+      <app-leerzustand icon="checklist" titel="Noch keine VB-Vorlage" kompakt />
+    } @else {
+      <mat-action-list>
+        @for (kopf of vorlagen(); track kopf.id) {
+          <button
+            mat-list-item
+            class="vorlage"
+            [class.gewaehlt]="kopf.id === gewaehlteId()"
+            [attr.aria-current]="kopf.id === gewaehlteId() ? 'true' : null"
+            (click)="waehlen(kopf.id)"
+          >
+            <span matListItemTitle>{{ kopf.titel }}</span>
+            <span matListItemLine>
+              {{ kopf.laufzettel }} Laufzettel · {{ kopf.positionen }} Positionen · Version
+              {{ kopf.version }}
+            </span>
+          </button>
+        }
+      </mat-action-list>
+    }
+  </section>
+
+  <section class="ansicht" aria-label="Ausgewählte VB-Vorlage" aria-live="polite">
+    @if (ansichtLaedt()) {
+      <app-ladeanzeige text="Vorlage wird geladen …" />
+    } @else if (stand(); as geladen) {
+      <header class="ansicht-kopf">
+        <h2 class="ansicht-titel">{{ geladen.daten.titel }}</h2>
+        <div class="ansicht-aktionen">
+          <a matButton="outlined" [routerLink]="['/einsatzplanung/vb-vorlagen', geladen.daten.id]">
+            <mat-icon>edit</mat-icon> Bearbeiten
+          </a>
+          <button
+            matIconButton
+            [matMenuTriggerFor]="menue"
+            [disabled]="arbeitet()"
+            aria-label="Weitere Aktionen"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menue="matMenu">
+            <button mat-menu-item (click)="drucken()">
+              <mat-icon>print</mat-icon>
+              <span>Drucken</span>
+            </button>
+            <button mat-menu-item (click)="umbenennen()">
+              <mat-icon>drive_file_rename_outline</mat-icon>
+              <span>Umbenennen</span>
+            </button>
+            <button mat-menu-item (click)="loeschen()">
+              <mat-icon>delete</mat-icon>
+              <span>Löschen</span>
+            </button>
+          </mat-menu>
+        </div>
+      </header>
+      <app-vb-vorlage-ansicht [inhalt]="geladen.daten.inhalt" />
+    } @else {
+      <app-leerzustand icon="checklist" titel="Vorlage auswählen">
+        Wähle links eine Vorlage, um ihre Laufzettel zu sehen.
+      </app-leerzustand>
+    }
+  </section>
+</div>

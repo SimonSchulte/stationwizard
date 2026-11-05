@@ -71,6 +71,16 @@ describe('EinsatzKarte', () => {
     expect(vb.getAttribute('aria-label')).toBe('VB öffnen: Weihnachtsmarkt');
   });
 
+  it('zeigt bei Kennzahlen „n / m besetzt“, am Handy ohne Wort „besetzt“ (zusatz)', () => {
+    setze({ pepKennzahlen: { posten: 2, positionen: 12, besetzt: 7 } });
+    const [pep] = kacheln();
+    expect(pep.classList.contains('vorhanden')).toBe(true);
+    expect(text(pep)).toContain('7 / 12 besetzt');
+    expect(pep.querySelector('.untertitel .zusatz')?.textContent).toContain('besetzt');
+    expect(text(pep)).not.toContain('Anlegen');
+    expect(pep.getAttribute('aria-label')).toBe('PEP öffnen: Weihnachtsmarkt');
+  });
+
   it('meldet Klicks über pep und vb', () => {
     setze({});
     let pep = 0;

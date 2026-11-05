@@ -1,0 +1,40 @@
+<p class="kennzahlen">{{ inhalt().posten.length }} Posten · {{ positionenGesamt() }} Positionen</p>
+
+@if (inhalt().beschreibung.trim()) {
+  <p class="beschreibung">{{ inhalt().beschreibung }}</p>
+}
+
+@for (posten of inhalt().posten; track posten.id) {
+  <section class="posten">
+    <h3 class="posten-kopf">
+      <span class="posten-titel">{{ posten.bezeichnung }}</span>
+      @if (posten.fahrzeug; as fahrzeug) {
+        <span class="fahrzeug">
+          <mat-icon aria-hidden="true">local_shipping</mat-icon>
+          {{ fahrzeug.funkruf || 'Fahrzeug ohne Funkruf' }}
+        </span>
+      }
+    </h3>
+    @if (posten.positionen.length === 0) {
+      <p class="leer">Dieser Posten enthält noch keine Position.</p>
+    } @else {
+      <ul class="positionen">
+        @for (position of posten.positionen; track position.id) {
+          <li class="position">
+            <span class="position-name">
+              @if (position.postenfuehrer) {
+                <mat-icon class="fuehrer" aria-label="Postenführer" fontIcon="star" />
+              }
+              {{ position.bezeichnung || 'Position ohne Bezeichnung' }}
+            </span>
+            @for (text of anforderungen(position); track text) {
+              <span class="anforderung">{{ text }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
+} @empty {
+  <app-leerzustand icon="view_agenda" titel="Diese Vorlage enthält noch keinen Posten" />
+}

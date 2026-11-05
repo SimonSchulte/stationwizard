@@ -32,18 +32,26 @@
       matButton="outlined"
       type="button"
       class="kachel"
-      [class.vorhanden]="pepVorhanden()"
+      [class.vorhanden]="pepDa()"
       [disabled]="gesperrt()"
-      [attr.aria-label]="(pepVorhanden() ? 'PEP öffnen: ' : 'PEP anlegen: ') + titel()"
+      [attr.aria-label]="(pepDa() ? 'PEP öffnen: ' : 'PEP anlegen: ') + titel()"
       (click)="pep.emit()"
     >
       <span class="inhalt">
         <mat-icon class="symbol" aria-hidden="true">assignment_ind</mat-icon>
         <span class="text">
           <span class="name">PEP</span>
-          <span class="untertitel">{{ pepVorhanden() ? 'verknüpft' : 'nicht angelegt' }}</span>
+          <span class="untertitel">
+            @if (pepKennzahlen(); as k) {
+              {{ k.besetzt }} / {{ k.positionen }}<span class="zusatz"> besetzt</span>
+            } @else if (pepDa()) {
+              verknüpft
+            } @else {
+              nicht angelegt
+            }
+          </span>
         </span>
-        @if (pepVorhanden()) {
+        @if (pepDa()) {
           <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
         } @else {
           <span class="anlegen">Anlegen</span>

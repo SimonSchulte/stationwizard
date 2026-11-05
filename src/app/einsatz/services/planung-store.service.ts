@@ -1,10 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { VerlassenSchutz } from '../../kern/verlassen-schutz';
-import { PlanungCloudService } from './planung-cloud.service';
 import {
   Einsatzkraft,
   EfsEinsatz,
-  EfsEinsatzGruppe,
   FahrzeugRef,
   Planung,
   Posten,
@@ -22,14 +20,41 @@ export class PlanungStoreService {
   private readonly _undoStack = signal<Planung[]>([]);
   readonly canUndo = computed(() => this._undoStack().length > 0);
 
+  /** Zuletzt gespeicherter (Datenbank, Vorlage oder Datei) Stand der geöffneten Planung. */
+  private readonly _gespeichert = signal<{ id: string; inhalt: string } | null>(null);
+
   readonly planungen = this._planungen.asReadonly();
   readonly active = this._active.asReadonly();
 
+  /**
+   * `true`, wenn die geöffnete Planung vom zuletzt gespeicherten Stand abweicht oder nie
+   * gespeichert wurde. Ein geschlossener Plan lebt nicht weiter und gilt deshalb nicht.
+   */
+  readonly hatUngesichertes = computed(() => {
+    const aktiv = this._active();
+    if (!aktiv) return false;
+    const gespeichert = this._gespeichert();
+    return gespeichert?.id !== aktiv.id || gespeichert.inhalt !== JSON.stringify(aktiv);
+  });
+
   constructor() {
-    const cloud = inject(PlanungCloudService);
-    inject(VerlassenSchutz).registrieren(() =>
-      this._planungen().some((planung) => cloud.hatLokaleAenderungen(planung)),
-    );
+    inject(VerlassenSchutz).registrieren(() => this.hatUngesichertes());
+  }
+
+  /** Merkt den Stand als gespeichert; `null` verwirft die Markierung (alles gilt als ungesichert). */
+  gespeichertMerken(planung: Planung | null): void {
+    this._gespeichert.set(planung ? { id: planung.id, inhalt: JSON.stringify(planung) } : null);
+  }
+
+  /**
+   * Öffnet einen gespeicherten Stand (Datenbank, Vorlage, Datei) als einzige Planung im
+   * Editor: Rückgängig-Verlauf leer, der Stand gilt als gespeichert.
+   */
+  oeffneGespeichert(planung: Planung): void {
+    this._planungen.set([planung]);
+    this._undoStack.set([]);
+    this._active.set(planung);
+    this.gespeichertMerken(planung);
   }
 
   openPlanung(id: string): void {
@@ -241,67 +266,6 @@ export class PlanungStoreService {
           : active.einsatzleiter,
     });
     return { removedNames: removed.map((e) => e.name), affectedAssignments };
-  }
-
-  /** Creates a new Planung from an EFS event and sets it as active. */
-  openEfsEinsatz(einsatz: EfsEinsatz): Planung {
-    const existing = this._planungen().find((p) => p.hiorg_einsatz_id === einsatz.id);
-    if (existing) {
-      this._active.set(existing);
-      return existing;
-    }
-    const planung: Planung = {
-      id: crypto.randomUUID(),
-      name: einsatz.titel,
-      start: einsatz.datum_von,
-      end: einsatz.datum_bis,
-      posten: [],
-      einsatzkraefte: [],
-      einsatzleiter: null,
-      hiorg_einsatz_id: einsatz.id,
-    };
-    this._planungen.update((list) => [...list, planung]);
-    this._active.set(planung);
-    return planung;
-  }
-
-  /** Creates or reopens a Planung for an EfsEinsatzGruppe and sets it as active. */
-  openEfsGruppe(gruppe: EfsEinsatzGruppe): Planung {
-    const existing = this._planungen().find((p) => p.hiorg_einsatz_id === gruppe.veranstaltung_id);
-    if (existing) {
-      this._active.set(existing);
-      this._undoStack.set([]);
-      return existing;
-    }
-    const planung: Planung = {
-      id: crypto.randomUUID(),
-      name: gruppe.titel,
-      start: gruppe.datum_von,
-      end: gruppe.datum_bis,
-      posten: [],
-      einsatzkraefte: [],
-      einsatzleiter: null,
-      hiorg_einsatz_id: gruppe.veranstaltung_id,
-    };
-    this._planungen.update((list) => [...list, planung]);
-    this._undoStack.set([]);
-    this._active.set(planung);
-    return planung;
-  }
-
-  /** Appends a Posten for a Schicht if not already present. */
-  addEfsSchichtPosten(schichtId: string, label: string, fahrzeug?: FahrzeugRef | null): void {
-    const active = this._active();
-    if (!active) return;
-    if (active.posten.some((p) => p.hiorg_schicht_id === schichtId)) return;
-    const newPosten: Posten = {
-      id: crypto.randomUUID(),
-      label,
-      fahrzeug: fahrzeug ?? null,
-      positions: [],
-      hiorg_schicht_id: schichtId,
-    };
-    this.updateActive({ ...active, posten: [...active.posten, newPosten] });
   }
 
   /**
