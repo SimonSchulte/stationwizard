@@ -10,29 +10,26 @@ import { ApiVbVorlagenStorage } from '../storage/api-vb-vorlagen-storage';
 import { ApiVorbereitungStorage } from '../storage/api-vorbereitung-storage';
 import {
   InMemoryEinsatzStorage,
+  InMemoryPepStorage,
   InMemoryVbVorlagenStorage,
   InMemoryVorbereitungStorage,
 } from '../testing/in-memory-einsatzplanung';
+import { testPep } from '../testing/pep-testdaten';
 import { testEinsatz, testVorbereitung, testVorlage } from '../testing/vb-testdaten';
 import { EinsatzAktionenDienst, einsatzZielSchluessel } from './einsatz-aktionen';
-import { EinsatzPepKontext } from './einsatz-pep-kontext';
 import { EinsatzStoreService } from './einsatz-store.service';
-import { PlanungOeffnenDienst } from './planung-oeffnen';
+import { PepEditorOeffnenDienst } from './pep-editor-oeffnen';
 
 describe('EinsatzAktionenDienst', () => {
   let einsaetze: InMemoryEinsatzStorage;
   let vorbereitungen: InMemoryVorbereitungStorage;
+  let peps: InMemoryPepStorage;
   let vorlagen: InMemoryVbVorlagenStorage;
   let dienst: EinsatzAktionenDienst;
   let navigate: ReturnType<typeof vi.fn>;
   let dialogAntwort: unknown;
   const dialogOeffnen = vi.fn();
-  const planung = {
-    cloudOeffnen: vi.fn(),
-    efsGruppeOeffnen: vi.fn(),
-    leerePlanungOeffnen: vi.fn(),
-    gruppeFuerVeranstaltung: vi.fn(),
-  };
+  const pepEditor = { oeffnen: vi.fn(), anlegen: vi.fn() };
   const gruppe: EfsEinsatzGruppe = {
     veranstaltung_id: '4711',
     titel: 'Weihnachtsmarkt Ummeln',
@@ -44,22 +41,14 @@ describe('EinsatzAktionenDienst', () => {
 
   beforeEach(() => {
     vorbereitungen = new InMemoryVorbereitungStorage();
-    einsaetze = new InMemoryEinsatzStorage(vorbereitungen);
+    peps = new InMemoryPepStorage();
+    einsaetze = new InMemoryEinsatzStorage(vorbereitungen, peps);
     vorlagen = new InMemoryVbVorlagenStorage();
     navigate = vi.fn().mockResolvedValue(true);
     dialogAntwort = undefined;
     dialogOeffnen.mockReset().mockImplementation(() => ({ afterClosed: () => of(dialogAntwort) }));
-    planung.cloudOeffnen.mockReset().mockImplementation(async (_id, beiPlanung) => {
-      beiPlanung?.('planung-1');
-      return { geoeffnet: true, fehler: '' };
-    });
-    planung.efsGruppeOeffnen.mockReset().mockImplementation(async (_g, beiPlanung) => {
-      beiPlanung?.('planung-2');
-    });
-    planung.leerePlanungOeffnen.mockReset().mockImplementation(async (_t, _b, _e, beiPlanung) => {
-      beiPlanung?.('planung-3');
-    });
-    planung.gruppeFuerVeranstaltung.mockReset().mockResolvedValue(null);
+    pepEditor.oeffnen.mockReset().mockResolvedValue(undefined);
+    pepEditor.anlegen.mockReset().mockResolvedValue(undefined);
     TestBed.configureTestingModule({
       providers: [
         { provide: ApiEinsatzStorage, useValue: einsaetze },
@@ -67,7 +56,7 @@ describe('EinsatzAktionenDienst', () => {
         { provide: ApiVbVorlagenStorage, useValue: vorlagen },
         { provide: Router, useValue: { navigate } },
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
-        { provide: PlanungOeffnenDienst, useValue: planung },
+        { provide: PepEditorOeffnenDienst, useValue: pepEditor },
       ],
     });
     dienst = TestBed.inject(EinsatzAktionenDienst);
@@ -80,88 +69,57 @@ describe('EinsatzAktionenDienst', () => {
   }
 
   describe('PEP', () => {
-    it('öffnet einen vorhandenen PEP aus Nextcloud und merkt den Einsatz', async () => {
-      const pepId = crypto.randomUUID();
-      const einsatz = testEinsatz({ pepId });
+    it('öffnet eine vorhandene PEP (Kennzahlen vorhanden), ohne anzulegen', async () => {
+      const einsatz = testEinsatz();
       einsaetze._vorbelegen(einsatz);
-      const merken = vi.spyOn(TestBed.inject(EinsatzPepKontext), 'merken');
+      peps._vorbelegen(einsatz.id, testPep());
 
       await dienst.pepOeffnenOderAnlegen((await liste())[0]);
 
-      expect(planung.cloudOeffnen).toHaveBeenCalledWith(pepId, expect.any(Function));
-      expect(merken).toHaveBeenCalledWith(einsatz.id, 'planung-1', pepId);
-      expect(planung.efsGruppeOeffnen).not.toHaveBeenCalled();
-      expect(planung.leerePlanungOeffnen).not.toHaveBeenCalled();
+      expect(pepEditor.oeffnen).toHaveBeenCalledWith(expect.objectContaining({ id: einsatz.id }));
+      expect(pepEditor.anlegen).not.toHaveBeenCalled();
     });
 
-    it('meldet einen Fehler beim Öffnen über den MeldungsDienst', async () => {
-      einsaetze._vorbelegen(testEinsatz({ pepId: crypto.randomUUID() }));
-      planung.cloudOeffnen.mockResolvedValue({ geoeffnet: false, fehler: 'kaputt' });
-      const fehler = vi.spyOn(TestBed.inject(MeldungsDienst), 'fehler');
-
-      await dienst.pepOeffnenOderAnlegen((await liste())[0]);
-      expect(fehler).toHaveBeenCalledWith('kaputt');
-    });
-
-    it('legt ohne HiOrg eine leere Planung an und merkt den Einsatz ohne Datei', async () => {
-      const einsatz = testEinsatz({ titel: 'Dienst ohne HiOrg' });
-      einsaetze._vorbelegen(einsatz);
-      const merken = vi.spyOn(TestBed.inject(EinsatzPepKontext), 'merken');
-
-      await dienst.pepOeffnenOderAnlegen((await liste())[0]);
-
-      expect(planung.leerePlanungOeffnen).toHaveBeenCalledWith(
-        'Dienst ohne HiOrg',
-        einsatz.beginn,
-        einsatz.ende,
-        expect.any(Function),
-      );
-      expect(merken).toHaveBeenCalledWith(einsatz.id, 'planung-3', null);
-    });
-
-    it('legt mit HiOrg-Veranstaltung über EFS an, wenn der Einsatz schon besteht', async () => {
+    it('legt ohne PEP an und reicht die HiOrg-Veranstaltung nur bei einer Gruppe durch', async () => {
       const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
       einsaetze._vorbelegen(einsatz);
-      planung.gruppeFuerVeranstaltung.mockResolvedValue(gruppe);
-      const merken = vi.spyOn(TestBed.inject(EinsatzPepKontext), 'merken');
+      const eintrag = (await liste())[0];
 
-      await dienst.pepOeffnenOderAnlegen((await liste())[0]);
+      await dienst.pepOeffnenOderAnlegen(eintrag);
+      expect(pepEditor.anlegen).toHaveBeenCalledWith(
+        expect.objectContaining({ id: einsatz.id }),
+        null,
+      );
 
-      expect(planung.gruppeFuerVeranstaltung).toHaveBeenCalledWith('4711');
-      expect(planung.efsGruppeOeffnen).toHaveBeenCalledWith(gruppe, expect.any(Function));
-      expect(merken).toHaveBeenCalledWith(einsatz.id, 'planung-2', null);
-    });
-
-    it('fällt mit Warnung auf eine leere Planung zurück, wenn die Veranstaltung fehlt', async () => {
-      einsaetze._vorbelegen(testEinsatz({ hiorgVeranstaltungId: '4711' }));
-      const warnung = vi.spyOn(TestBed.inject(MeldungsDienst), 'warnung');
-
-      await dienst.pepOeffnenOderAnlegen((await liste())[0]);
-
-      expect(warnung).toHaveBeenCalledWith(expect.stringContaining('nicht gefunden'));
-      expect(planung.leerePlanungOeffnen).toHaveBeenCalledTimes(1);
+      await dienst.pepOeffnenOderAnlegen(gruppe);
+      expect(pepEditor.anlegen).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: einsatz.id }),
+        gruppe,
+      );
+      expect(pepEditor.oeffnen).not.toHaveBeenCalled();
     });
 
     it('legt für eine Veranstaltung ohne Einsatz zuerst still den Einsatz an', async () => {
-      const merken = vi.spyOn(TestBed.inject(EinsatzPepKontext), 'merken');
-
       await dienst.pepOeffnenOderAnlegen(gruppe);
 
       const alle = await einsaetze.ladeEinsaetze();
       expect(alle).toHaveLength(1);
       expect(alle[0]).toMatchObject({ hiorgVeranstaltungId: '4711', titel: gruppe.titel });
-      expect(planung.efsGruppeOeffnen).toHaveBeenCalledWith(gruppe, expect.any(Function));
-      expect(merken).toHaveBeenCalledWith(alle[0].id, 'planung-2', null);
+      expect(pepEditor.anlegen).toHaveBeenCalledWith(
+        expect.objectContaining({ id: alle[0].id }),
+        gruppe,
+      );
     });
 
-    it('öffnet für eine Veranstaltung mit bekanntem PEP den vorhandenen Plan', async () => {
-      const pepId = crypto.randomUUID();
-      einsaetze._vorbelegen(testEinsatz({ hiorgVeranstaltungId: '4711', pepId }));
+    it('meldet einen Fehler des Editor-Dienstes über den MeldungsDienst', async () => {
+      einsaetze._vorbelegen(testEinsatz());
+      pepEditor.anlegen.mockRejectedValue(new Error('kaputt'));
+      const fehler = vi.spyOn(TestBed.inject(MeldungsDienst), 'fehler');
 
-      await dienst.pepOeffnenOderAnlegen(gruppe);
+      await dienst.pepOeffnenOderAnlegen((await liste())[0]);
 
-      expect(await einsaetze.ladeEinsaetze()).toHaveLength(1);
-      expect(planung.cloudOeffnen).toHaveBeenCalledWith(pepId, expect.any(Function));
+      expect(fehler).toHaveBeenCalledWith('kaputt');
+      expect(dienst.laufend()).toBeNull();
     });
 
     it('meldet einen Fehler beim Anlegen des Einsatzes und öffnet nichts', async () => {
@@ -171,7 +129,7 @@ describe('EinsatzAktionenDienst', () => {
       await dienst.pepOeffnenOderAnlegen(gruppe);
 
       expect(fehler).toHaveBeenCalledWith('Server weg');
-      expect(planung.efsGruppeOeffnen).not.toHaveBeenCalled();
+      expect(pepEditor.anlegen).not.toHaveBeenCalled();
     });
   });
 
@@ -261,14 +219,15 @@ describe('EinsatzAktionenDienst', () => {
 
   describe('Sperre', () => {
     it('ignoriert weitere Aktionen, solange eine läuft', async () => {
-      const einsatz = testEinsatz({ pepId: crypto.randomUUID() });
+      const einsatz = testEinsatz();
       einsaetze._vorbelegen(einsatz);
+      peps._vorbelegen(einsatz.id, testPep());
       const eintrag = (await liste())[0];
       let fertig!: () => void;
-      planung.cloudOeffnen.mockImplementation(
+      pepEditor.oeffnen.mockImplementation(
         () =>
-          new Promise((aufloesen) => {
-            fertig = () => aufloesen({ geoeffnet: true, fehler: '' });
+          new Promise<void>((aufloesen) => {
+            fertig = () => aufloesen();
           }),
       );
 
@@ -276,7 +235,7 @@ describe('EinsatzAktionenDienst', () => {
       await vi.waitFor(() => expect(dienst.laufend()).toBe(einsatzZielSchluessel(eintrag)));
       await dienst.pepOeffnenOderAnlegen(eintrag);
       await dienst.vbOeffnenOderAnlegen(eintrag);
-      expect(planung.cloudOeffnen).toHaveBeenCalledTimes(1);
+      expect(pepEditor.oeffnen).toHaveBeenCalledTimes(1);
       expect(dialogOeffnen).not.toHaveBeenCalled();
 
       fertig();

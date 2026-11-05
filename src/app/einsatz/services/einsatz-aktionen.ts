@@ -9,9 +9,8 @@ import {
 } from '../components/vorlage-wahl-dialog/vorlage-wahl-dialog';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
 import { EfsEinsatzGruppe } from '../models/planung.model';
-import { EinsatzPepKontext } from './einsatz-pep-kontext';
 import { EinsatzStoreService } from './einsatz-store.service';
-import { PlanungOeffnenDienst } from './planung-oeffnen';
+import { PepEditorOeffnenDienst } from './pep-editor-oeffnen';
 import { VbEditorStoreService } from './vb-editor-store.service';
 
 /** Ziel einer Aktion: ein vorhandener Einsatz oder eine HiOrg-Veranstaltung (ggf. ohne Einsatz). */
@@ -38,31 +37,31 @@ export class EinsatzAktionenDienst {
   private readonly dialog = inject(MatDialog);
   private readonly meldungen = inject(MeldungsDienst);
   private readonly einsatzStore = inject(EinsatzStoreService);
-  private readonly pepKontext = inject(EinsatzPepKontext);
-  private readonly planungOeffnen = inject(PlanungOeffnenDienst);
+  private readonly pepEditor = inject(PepEditorOeffnenDienst);
   private readonly vbEditor = inject(VbEditorStoreService);
 
   /** Schlüssel (siehe `einsatzZielSchluessel()`) der gerade laufenden Aktion, sonst `null`. */
   readonly laufend = signal<string | null>(null);
 
   /**
-   * Öffnet den PEP des Einsatzes aus Nextcloud; ohne PEP wird er angelegt (aus der
-   * HiOrg-Veranstaltung über EFS, sonst als leere Planung) und beim ersten Speichern in
-   * Nextcloud mit dem Einsatz verknüpft (`EinsatzPepKontext`).
+   * Öffnet die PEP des Einsatzes aus der Datenbank; hat er noch keine, wird sie angelegt
+   * (`PepEditorOeffnenDienst`, bei einer HiOrg-Veranstaltung mit Einsatzkräften aus EFS).
+   * Ob es eine PEP gibt, zeigen die Kennzahlen `pep` der Einsatzliste.
    */
   async pepOeffnenOderAnlegen(ziel: EinsatzZiel): Promise<void> {
     await this.exklusiv(ziel, async () => {
       const einsatz = await this.einsatzSicherstellen(ziel);
       if (!einsatz) return;
-      if (einsatz.pepId) {
-        const pepId = einsatz.pepId;
-        const ergebnis = await this.planungOeffnen.cloudOeffnen(pepId, (planungId) =>
-          this.pepKontext.merken(einsatz.id, planungId, pepId),
+      const eintrag = this.einsatzStore.einsaetze().find((e) => e.id === einsatz.id);
+      const vorhanden = eintrag ? eintrag.pep : 'pep' in ziel ? ziel.pep : null;
+      try {
+        if (vorhanden !== null) await this.pepEditor.oeffnen(einsatz);
+        else await this.pepEditor.anlegen(einsatz, istGruppe(ziel) ? ziel : null);
+      } catch (fehler) {
+        this.meldungen.fehler(
+          fehler instanceof Error ? fehler.message : 'Die PEP konnte nicht geöffnet werden.',
         );
-        if (ergebnis.fehler) this.meldungen.fehler(ergebnis.fehler);
-        return;
       }
-      await this.pepAnlegen(einsatz, istGruppe(ziel) ? ziel : null);
     });
   }
 
@@ -102,34 +101,6 @@ export class EinsatzAktionenDienst {
       }
       await this.router.navigate(['/einsatzplanung/einsatz', einsatz.id, 'vb']);
     });
-  }
-
-  private async pepAnlegen(einsatz: Einsatz, gruppe: EfsEinsatzGruppe | null): Promise<void> {
-    const merken = (planungId: string) => this.pepKontext.merken(einsatz.id, planungId, null);
-    try {
-      if (einsatz.hiorgVeranstaltungId) {
-        const veranstaltung =
-          gruppe ??
-          (await this.planungOeffnen.gruppeFuerVeranstaltung(einsatz.hiorgVeranstaltungId));
-        if (veranstaltung) {
-          await this.planungOeffnen.efsGruppeOeffnen(veranstaltung, merken);
-          return;
-        }
-        this.meldungen.warnung(
-          'Die HiOrg-Veranstaltung wurde im Abruf nicht gefunden. Es wurde eine leere Planung angelegt.',
-        );
-      }
-      await this.planungOeffnen.leerePlanungOeffnen(
-        einsatz.titel,
-        einsatz.beginn,
-        einsatz.ende,
-        merken,
-      );
-    } catch (fehler) {
-      this.meldungen.fehler(
-        fehler instanceof Error ? fehler.message : 'Die Planung konnte nicht angelegt werden.',
-      );
-    }
   }
 
   /** Der Einsatz zum Ziel; bei einer Veranstaltung ohne Einsatz wird er still angelegt. */

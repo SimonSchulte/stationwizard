@@ -11,8 +11,6 @@ import { PlanungCloudService } from '../../services/planung-cloud.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { erzeugeTestplanung } from '../../services/testing/pep-testdaten';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { EinsatzPepKontext } from '../../services/einsatz-pep-kontext';
-import { MeldungsDienst } from '../../../kern/zustand/zustand';
 
 describe('Asynchrone Editor-Aktionen', () => {
   const dialog = { bestaetigen: vi.fn(), hinweis: vi.fn().mockResolvedValue(undefined) };
@@ -106,32 +104,6 @@ describe('Asynchrone Editor-Aktionen', () => {
     cloud.hatLokaleAenderungen.mockReturnValue(true);
     store.updateActive({ ...planung, name: 'Später bearbeitet' });
     expect(editor.cloudStatus()).toContain('noch ungespeichert');
-  });
-
-  it('verknüpft die gespeicherte Planung mit dem Einsatz und warnt, wenn das scheitert', async () => {
-    cloud.speichern.mockResolvedValue(undefined);
-    cloud.hatLokaleAenderungen.mockReturnValue(false);
-    const planung = erzeugeTestplanung();
-    store.importPlanung(planung);
-    const kontext = TestBed.inject(EinsatzPepKontext);
-    const verknuepfen = vi.spyOn(kontext, 'nachSpeichern').mockResolvedValue('');
-    const warnung = vi.spyOn(TestBed.inject(MeldungsDienst), 'warnung');
-
-    await editor.cloudSpeichern();
-    expect(verknuepfen).toHaveBeenCalledWith(planung.id);
-    expect(warnung).not.toHaveBeenCalled();
-
-    verknuepfen.mockResolvedValue('Server nicht erreichbar');
-    await editor.cloudSpeichern();
-    expect(warnung).toHaveBeenCalledWith(expect.stringContaining('Server nicht erreichbar'));
-  });
-
-  it('verknüpft nichts, wenn das Speichern in Nextcloud scheitert', async () => {
-    cloud.speichern.mockRejectedValue(new Error('412'));
-    store.importPlanung(erzeugeTestplanung());
-    const verknuepfen = vi.spyOn(TestBed.inject(EinsatzPepKontext), 'nachSpeichern');
-    await editor.cloudSpeichern();
-    expect(verknuepfen).not.toHaveBeenCalled();
   });
 
   it('löscht einen Posten bei abgebrochener Bestätigung nicht', async () => {

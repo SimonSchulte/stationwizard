@@ -70,7 +70,6 @@ export function testEinsatz(ueberschreibung: Partial<Einsatz> = {}): Einsatz {
     ende: '2026-12-05T20:00',
     ort: 'Ummeln',
     hiorgVeranstaltungId: null,
-    pepId: null,
     ...ueberschreibung,
   };
 }

@@ -1,4 +1,5 @@
 import { Einsatz, EinsatzListenEintrag, VbKennzahlen } from '../models/einsatz.model';
+import { Pep, PepKennzahlen, PepVorlage, PepVorlageKopf } from '../models/pep.model';
 import { VbInhalt, VbVorlage, VbVorlageKopf, Vorbereitung } from '../models/vb.model';
 import { EinsatzStorage } from '../storage/einsatz-storage';
 import {
@@ -6,6 +7,9 @@ import {
   EinsatzplanungKonfliktFehler,
 } from '../storage/einsatzplanung-fehler';
 import { MitVersion } from '../storage/mit-version';
+import { PepStorage } from '../storage/pep-storage';
+import { PepVorlagenStorage } from '../storage/pep-vorlagen-storage';
+import { pepKennzahlen } from '../services/pep-abbildung';
 import { VbVorlagenStorage } from '../storage/vb-vorlagen-storage';
 import { VorbereitungStorage } from '../storage/vorbereitung-storage';
 
@@ -86,17 +90,68 @@ export class InMemoryVorbereitungStorage implements VorbereitungStorage {
   }
 }
 
+export class InMemoryPepStorage implements PepStorage {
+  readonly bezeichnung = 'In-Memory (nur für Tests)';
+  private readonly eintraege = new Map<string, Eintrag<Pep>>();
+
+  async ladePep(einsatzId: string): Promise<MitVersion<Pep> | null> {
+    const eintrag = this.eintraege.get(einsatzId);
+    return eintrag
+      ? { daten: structuredClone(eintrag.daten), version: etag(eintrag.version) }
+      : null;
+  }
+
+  async legePepAn(einsatzId: string, pep: Pep): Promise<string> {
+    if (this.eintraege.has(einsatzId)) throw new EinsatzplanungBereitsVorhandenFehler(null);
+    this.eintraege.set(einsatzId, { daten: structuredClone(pep), version: 1 });
+    return etag(1);
+  }
+
+  async speicherePep(einsatzId: string, pep: Pep, version: string): Promise<string> {
+    const eintrag = this.eintraege.get(einsatzId);
+    if (!eintrag || !istAktuell(eintrag, version)) {
+      throw new EinsatzplanungKonfliktFehler('Die PEP');
+    }
+    eintrag.daten = structuredClone(pep);
+    eintrag.version += 1;
+    return etag(eintrag.version);
+  }
+
+  async loeschePep(einsatzId: string, version: string): Promise<void> {
+    if (!istAktuell(this.eintraege.get(einsatzId), version)) {
+      throw new EinsatzplanungKonfliktFehler('Die PEP');
+    }
+    this.eintraege.delete(einsatzId);
+  }
+
+  /** Nur für Tests und `InMemoryEinsatzStorage`. */
+  kennzahlen(einsatzId: string): PepKennzahlen | null {
+    const eintrag = this.eintraege.get(einsatzId);
+    return eintrag ? pepKennzahlen(eintrag.daten.inhalt) : null;
+  }
+
+  /** Nur für Tests: direkt vorbelegen. */
+  _vorbelegen(einsatzId: string, pep: Pep): string {
+    this.eintraege.set(einsatzId, { daten: structuredClone(pep), version: 1 });
+    return etag(1);
+  }
+}
+
 export class InMemoryEinsatzStorage implements EinsatzStorage {
   readonly bezeichnung = 'In-Memory (nur für Tests)';
   private readonly eintraege = new Map<string, Eintrag<Einsatz>>();
 
-  constructor(private readonly vorbereitungen?: InMemoryVorbereitungStorage) {}
+  constructor(
+    private readonly vorbereitungen?: InMemoryVorbereitungStorage,
+    private readonly peps?: InMemoryPepStorage,
+  ) {}
 
   async ladeEinsaetze(): Promise<EinsatzListenEintrag[]> {
     return [...this.eintraege.values()].map((eintrag) => ({
       ...structuredClone(eintrag.daten),
       version: eintrag.version,
       vb: this.vorbereitungen?.kennzahlen(eintrag.daten.id) ?? null,
+      pep: this.peps?.kennzahlen(eintrag.daten.id) ?? null,
     }));
   }
 
@@ -195,6 +250,63 @@ export class InMemoryVbVorlagenStorage implements VbVorlagenStorage {
 
   /** Nur für Tests: direkt vorbelegen; Version 1. */
   _vorbelegen(vorlage: VbVorlage): string {
+    this.eintraege.set(vorlage.id, {
+      daten: structuredClone(vorlage),
+      version: 1,
+      geaendertAm: new Date().toISOString(),
+    });
+    return etag(1);
+  }
+}
+
+export class InMemoryPepVorlagenStorage implements PepVorlagenStorage {
+  readonly bezeichnung = 'In-Memory (nur für Tests)';
+  private readonly eintraege = new Map<string, Eintrag<PepVorlage> & { geaendertAm: string }>();
+
+  async ladeVorlagen(): Promise<PepVorlageKopf[]> {
+    return [...this.eintraege.values()].map((e) => ({
+      id: e.daten.id,
+      titel: e.daten.titel,
+      version: e.version,
+      posten: e.daten.inhalt.posten.length,
+      positionen: e.daten.inhalt.posten.reduce((summe, p) => summe + p.positionen.length, 0),
+      geaendertAm: e.geaendertAm,
+    }));
+  }
+
+  async ladeVorlage(id: string): Promise<MitVersion<PepVorlage> | null> {
+    const eintrag = this.eintraege.get(id);
+    return eintrag
+      ? { daten: structuredClone(eintrag.daten), version: etag(eintrag.version) }
+      : null;
+  }
+
+  async legeVorlageAn(vorlage: PepVorlage): Promise<string> {
+    if (this.eintraege.has(vorlage.id)) throw new EinsatzplanungBereitsVorhandenFehler(null);
+    this._vorbelegen(vorlage);
+    return etag(1);
+  }
+
+  async speichereVorlage(vorlage: PepVorlage, version: string): Promise<string> {
+    const eintrag = this.eintraege.get(vorlage.id);
+    if (!eintrag || !istAktuell(eintrag, version)) {
+      throw new EinsatzplanungKonfliktFehler('Die Vorlage');
+    }
+    eintrag.daten = structuredClone(vorlage);
+    eintrag.version += 1;
+    eintrag.geaendertAm = new Date().toISOString();
+    return etag(eintrag.version);
+  }
+
+  async loescheVorlage(id: string, version: string): Promise<void> {
+    if (!istAktuell(this.eintraege.get(id), version)) {
+      throw new EinsatzplanungKonfliktFehler('Die Vorlage');
+    }
+    this.eintraege.delete(id);
+  }
+
+  /** Nur für Tests: direkt vorbelegen; Version 1. */
+  _vorbelegen(vorlage: PepVorlage): string {
     this.eintraege.set(vorlage.id, {
       daten: structuredClone(vorlage),
       version: 1,

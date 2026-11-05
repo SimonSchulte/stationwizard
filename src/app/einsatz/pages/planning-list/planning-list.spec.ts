@@ -16,9 +16,11 @@ import { of } from 'rxjs';
 import { ApiEinsatzStorage } from '../../storage/api-einsatz-storage';
 import {
   InMemoryEinsatzStorage,
+  InMemoryPepStorage,
   InMemoryVorbereitungStorage,
 } from '../../testing/in-memory-einsatzplanung';
 import { lokaleZeitText } from '../../services/einsatz-anzeige';
+import { testPep } from '../../testing/pep-testdaten';
 import { testEinsatz, testVorbereitung } from '../../testing/vb-testdaten';
 
 function routeMit(abfrage: Record<string, string> = {}) {
@@ -153,6 +155,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
   };
   let speicher: InMemoryEinsatzStorage;
   let vorbereitungen: InMemoryVorbereitungStorage;
+  let peps: InMemoryPepStorage;
   let navigate: ReturnType<typeof vi.fn>;
   let dialogAntwort: unknown;
 
@@ -215,7 +218,8 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
 
   beforeEach(() => {
     vorbereitungen = new InMemoryVorbereitungStorage();
-    speicher = new InMemoryEinsatzStorage(vorbereitungen);
+    peps = new InMemoryPepStorage();
+    speicher = new InMemoryEinsatzStorage(vorbereitungen, peps);
     navigate = vi.fn().mockResolvedValue(true);
     dialogAntwort = undefined;
     aktionen.laufend.set(null);
@@ -224,11 +228,13 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
   });
 
   it('beschriftet die Kacheln je Stand: anlegen ohne Einsatz, öffnen mit PEP und VB', async () => {
-    const mitBeidem = testEinsatz({ hiorgVeranstaltungId: '4711', pepId: crypto.randomUUID() });
+    const mitBeidem = testEinsatz({ hiorgVeranstaltungId: '4711' });
     speicher._vorbelegen(mitBeidem);
+    peps._vorbelegen(mitBeidem.id, testPep());
     vorbereitungen._vorbelegen(mitBeidem.id, testVorbereitung());
-    const nurPep = testEinsatz({ hiorgVeranstaltungId: '4700', pepId: crypto.randomUUID() });
+    const nurPep = testEinsatz({ hiorgVeranstaltungId: '4700' });
     speicher._vorbelegen(nurPep);
+    peps._vorbelegen(nurPep.id, testPep());
     speicher._vorbelegen(testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen }));
     const fixture = await oeffnen();
 

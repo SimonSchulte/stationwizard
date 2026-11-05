@@ -22,8 +22,7 @@ function uhrzeit(iso: string): string {
 /**
  * Öffnet eine Planung im PEP-Editor: aus Nextcloud, aus einer HiOrg-Veranstaltung oder als
  * leere Planung. Gemeinsame Logik der Einsatzliste und des `EinsatzAktionenDienst`. `beiPlanung` wird
- * mit der Planungs-Id aufgerufen, kurz bevor der Editor geöffnet wird (zum Merken des
- * Einsatzes, siehe `EinsatzPepKontext`).
+ * mit der Planungs-Id aufgerufen, kurz bevor der Editor geöffnet wird.
  */
 @Injectable({ providedIn: 'root' })
 export class PlanungOeffnenDienst {

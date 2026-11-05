@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
 import { testEinsatz, testVorbereitung, testVorlage } from '../testing/vb-testdaten';
 import { ApiEinsatzStorage } from './api-einsatz-storage';
+import { ApiPepStorage } from './api-pep-storage';
+import { ApiPepVorlagenStorage } from './api-pep-vorlagen-storage';
+import { testPep, testPepVorlage } from '../testing/pep-testdaten';
 import { ApiVbVorlagenStorage } from './api-vb-vorlagen-storage';
 import { ApiVorbereitungStorage } from './api-vorbereitung-storage';
 import {
@@ -28,7 +31,7 @@ describe('Api-Adapter der Einsatzplanung', () => {
   describe('ApiEinsatzStorage', () => {
     it('filtert die Liste mit der Prüfung und puffert sie bis zum nächsten Schreiben', async () => {
       const storage = TestBed.inject(ApiEinsatzStorage);
-      const eintrag = { ...testEinsatz(), version: 1, vb: null };
+      const eintrag = { ...testEinsatz(), version: 1, vb: null, pep: null };
       worker.json.mockResolvedValue({ einsaetze: [eintrag, { kaputt: true }] });
       expect(await storage.ladeEinsaetze()).toEqual([eintrag]);
       await storage.ladeEinsaetze();
@@ -224,6 +227,117 @@ describe('Api-Adapter der Einsatzplanung', () => {
       await storage.speichereVorlage(testVorlage(), '"1"');
       await storage.ladeVorlagen();
       expect(worker.json).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('ApiPepStorage', () => {
+    it('adressiert …/einsaetze/<id>/pep, prüft die Antwort und verwirft die Einsatzliste', async () => {
+      const einsaetze = TestBed.inject(ApiEinsatzStorage);
+      const storage = TestBed.inject(ApiPepStorage);
+      const einsatzId = crypto.randomUUID();
+      const pep = testPep();
+
+      worker.anfragen.mockResolvedValueOnce(json(pep, '"3"'));
+      expect((await storage.ladePep(einsatzId))?.version).toBe('"3"');
+      expect(worker.anfragen.mock.calls[0][0]).toBe(
+        `/api/einsatzplanung/einsaetze/${einsatzId}/pep`,
+      );
+      worker.anfragen.mockResolvedValueOnce(json({ schema: 2 }));
+      await expect(storage.ladePep(einsatzId)).rejects.toThrow(/ungültiger Form/);
+      worker.anfragen.mockRejectedValueOnce(new WorkerFehler('weg', 404));
+      expect(await storage.ladePep(einsatzId)).toBeNull();
+
+      worker.json.mockResolvedValue({ einsaetze: [] });
+      await einsaetze.ladeEinsaetze();
+      worker.anfragen.mockResolvedValue(
+        new Response(null, { status: 201, headers: { ETag: '"1"' } }),
+      );
+      await storage.legePepAn(einsatzId, pep);
+      let [, optionen] = worker.anfragen.mock.calls.at(-1)!;
+      expect(optionen.method).toBe('PUT');
+      expect(optionen.headers.get('If-None-Match')).toBe('*');
+      expect(JSON.parse(optionen.body)).toEqual(pep);
+      await einsaetze.ladeEinsaetze();
+      expect(worker.json).toHaveBeenCalledTimes(2);
+
+      worker.anfragen.mockResolvedValue(new Response(null, { headers: { ETag: '"2"' } }));
+      await storage.speicherePep(einsatzId, pep, '"1"');
+      [, optionen] = worker.anfragen.mock.calls.at(-1)!;
+      expect(optionen.headers.get('If-Match')).toBe('"1"');
+      await einsaetze.ladeEinsaetze();
+      expect(worker.json).toHaveBeenCalledTimes(3);
+
+      worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
+      await storage.loeschePep(einsatzId, '"2"');
+      [, optionen] = worker.anfragen.mock.calls.at(-1)!;
+      expect(optionen.method).toBe('DELETE');
+      expect(new Headers(optionen.headers).get('If-Match')).toBe('"2"');
+      await einsaetze.ladeEinsaetze();
+      expect(worker.json).toHaveBeenCalledTimes(4);
+    });
+
+    it('übersetzt 412 und 409', async () => {
+      const storage = TestBed.inject(ApiPepStorage);
+      worker.anfragen.mockRejectedValueOnce(new WorkerFehler('alt', 412));
+      await expect(storage.speicherePep('x', testPep(), '"1"')).rejects.toBeInstanceOf(
+        EinsatzplanungKonfliktFehler,
+      );
+      worker.anfragen.mockRejectedValueOnce(new WorkerFehler('da', 409));
+      await expect(storage.legePepAn('x', testPep())).rejects.toBeInstanceOf(
+        EinsatzplanungBereitsVorhandenFehler,
+      );
+    });
+  });
+
+  describe('ApiPepVorlagenStorage', () => {
+    it('filtert und puffert die Liste und schreibt mit den richtigen Vorbedingungen', async () => {
+      const storage = TestBed.inject(ApiPepVorlagenStorage);
+      const vorlage = testPepVorlage();
+      const kopf = {
+        id: vorlage.id,
+        titel: vorlage.titel,
+        version: 1,
+        posten: 1,
+        positionen: 2,
+        geaendertAm: '2026-11-05T10:00:00Z',
+      };
+      worker.json.mockResolvedValue({ vorlagen: [kopf, { kaputt: true }] });
+      expect(await storage.ladeVorlagen()).toEqual([kopf]);
+      await storage.ladeVorlagen();
+      expect(worker.json).toHaveBeenCalledOnce();
+      expect(worker.json.mock.calls[0][0]).toBe('/api/einsatzplanung/pep-vorlagen');
+
+      worker.anfragen.mockResolvedValue(
+        new Response(null, { status: 201, headers: { ETag: '"1"' } }),
+      );
+      await storage.legeVorlageAn(vorlage);
+      let [pfad, optionen] = worker.anfragen.mock.calls[0];
+      expect(pfad).toBe('/api/einsatzplanung/pep-vorlagen');
+      expect(optionen.method).toBe('POST');
+      expect(optionen.headers.get('If-None-Match')).toBe('*');
+      await storage.ladeVorlagen();
+      expect(worker.json).toHaveBeenCalledTimes(2);
+
+      worker.anfragen.mockResolvedValue(new Response(null, { headers: { ETag: '"2"' } }));
+      await storage.speichereVorlage(vorlage, '"1"');
+      [pfad, optionen] = worker.anfragen.mock.calls[1];
+      expect(pfad).toBe(`/api/einsatzplanung/pep-vorlagen/${vorlage.id}`);
+      expect(optionen.method).toBe('PUT');
+      expect(optionen.headers.get('If-Match')).toBe('"1"');
+
+      worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
+      await storage.loescheVorlage(vorlage.id, '"2"');
+      [, optionen] = worker.anfragen.mock.calls[2];
+      expect(optionen.method).toBe('DELETE');
+    });
+
+    it('lädt einzeln mit Prüfung', async () => {
+      const storage = TestBed.inject(ApiPepVorlagenStorage);
+      const vorlage = testPepVorlage();
+      worker.anfragen.mockResolvedValueOnce(json(vorlage, '"4"'));
+      expect((await storage.ladeVorlage(vorlage.id))?.version).toBe('"4"');
+      worker.anfragen.mockResolvedValueOnce(json({ id: 'x' }));
+      await expect(storage.ladeVorlage(vorlage.id)).rejects.toThrow(/ungültiger Form/);
     });
   });
 });

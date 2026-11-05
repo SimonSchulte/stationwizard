@@ -36,7 +36,6 @@ import { lokalesDatumZuZeit, zeitZuLokalesDatum } from '../../../kern/kalender/d
 import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
-import { EinsatzPepKontext } from '../../services/einsatz-pep-kontext';
 import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { ImportService } from '../../services/import.service';
@@ -56,7 +55,7 @@ import {
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
-import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
+import { Meldung } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,8 +91,6 @@ export class PlanningEditor {
   private readonly router = inject(Router);
   private readonly saveLoad = inject(SaveLoadService);
   private readonly cloud = inject(PlanungCloudService);
-  private readonly pepKontext = inject(EinsatzPepKontext);
-  private readonly meldungen = inject(MeldungsDienst);
   readonly cloudSpeichert = signal(false);
   private readonly gespeicherterCloudStand = signal<{ id: string; inhalt: string } | null>(null);
   readonly cloudStatus = computed(() => {
@@ -358,12 +355,6 @@ export class PlanningEditor {
       const aktuell = this.planung();
       if (aktuell?.id !== planung.id) return;
       this.gespeicherterCloudStand.set({ id: planung.id, inhalt: JSON.stringify(planung) });
-      // Gehört die Planung zu einem Einsatz, wird die gespeicherte Datei dort eingetragen.
-      const verknuepfung = await this.pepKontext.nachSpeichern(planung.id);
-      if (verknuepfung)
-        this.meldungen.warnung(
-          `Der Plan ist in Nextcloud gespeichert, aber nicht mit dem Einsatz verknüpft: ${verknuepfung} Beim nächsten Speichern wird es erneut versucht.`,
-        );
     } catch (fehler) {
       if (this.planung()?.id === planung.id) this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
     } finally {

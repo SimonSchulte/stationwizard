@@ -1,5 +1,6 @@
 import { EfsEinsatzGruppe } from '../models/planung.model';
 import { EinsatzListenEintrag, VbKennzahlen } from '../models/einsatz.model';
+import { PepKennzahlen } from '../models/pep.model';
 import { EinsatzZiel, einsatzZielSchluessel } from './einsatz-aktionen';
 import { lokalerBeginn } from './einsatz-anzeige';
 
@@ -15,6 +16,8 @@ export interface EinsatzListenZeile {
   ort: string | null;
   herkunft: 'hiorg' | 'eigen';
   pepVorhanden: boolean;
+  /** Kennzahlen der PEP, `null` ohne PEP. */
+  pep: PepKennzahlen | null;
   vb: VbKennzahlen | null;
 }
 
@@ -60,7 +63,8 @@ export function baueEinsatzListe(
         schichten: gruppe.schichten.length,
         ort: gruppe.ort ?? null,
         herkunft: 'hiorg',
-        pepVorhanden: !!einsatz?.pepId,
+        pepVorhanden: (einsatz?.pep ?? null) !== null,
+        pep: einsatz?.pep ?? null,
         vb: einsatz?.vb ?? null,
       },
       ende: lokalerBeginn(gruppe.datum_bis) ?? beginn,
@@ -77,7 +81,8 @@ export function baueEinsatzListe(
         schichten: null,
         ort: einsatz.ort,
         herkunft: 'eigen',
-        pepVorhanden: !!einsatz.pepId,
+        pepVorhanden: einsatz.pep !== null,
+        pep: einsatz.pep,
         vb: einsatz.vb,
       },
       ende: lokalerBeginn(einsatz.ende) ?? lokalerBeginn(einsatz.beginn),

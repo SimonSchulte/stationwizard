@@ -12,6 +12,7 @@ const eintrag = (teil: Parameters<typeof testEinsatz>[0]) => ({
   ...testEinsatz(teil),
   version: 1,
   vb: null,
+  pep: null,
 });
 
 describe('baueEinsatzListe', () => {
@@ -46,8 +47,9 @@ describe('baueEinsatzListe', () => {
 
   it('verknüpft Veranstaltungen mit ihrem Einsatz (PEP, VB) und ignoriert dessen eigene Zeile', () => {
     const einsatz = {
-      ...eintrag({ hiorgVeranstaltungId: '1', pepId: crypto.randomUUID() }),
+      ...eintrag({ hiorgVeranstaltungId: '1' }),
       vb: { laufzettel: 22, positionen: 64 },
+      pep: { posten: 3, positionen: 9, besetzt: 4 },
     };
     const liste = baueEinsatzListe([gruppe('1', 'Markt', '2026-12-01 10:00:00')], [einsatz], JETZT);
     expect(liste.anstehend).toHaveLength(1);
@@ -55,12 +57,13 @@ describe('baueEinsatzListe', () => {
       schluessel: 'hiorg:1',
       beginn: '2026-12-01T10:00',
       pepVorhanden: true,
+      pep: { posten: 3, positionen: 9, besetzt: 4 },
       vb: { laufzettel: 22, positionen: 64 },
     });
   });
 
   it('zeigt Veranstaltungen ohne Einsatz mit fehlendem PEP und VB', () => {
     const liste = baueEinsatzListe([gruppe('9', 'Neu', '2026-12-01 10:00:00')], [], JETZT);
-    expect(liste.anstehend[0]).toMatchObject({ pepVorhanden: false, vb: null });
+    expect(liste.anstehend[0]).toMatchObject({ pepVorhanden: false, pep: null, vb: null });
   });
 });

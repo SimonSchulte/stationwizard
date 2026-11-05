@@ -1,3 +1,5 @@
+import { PepKennzahlen } from './pep.model';
+
 /** Einsatz als eigene Zeile (Vertrag: `docs/konzept-einsatzplanung-vb.md`, Abschnitt 9). */
 export interface Einsatz {
   id: string;
@@ -10,8 +12,6 @@ export interface Einsatz {
   ort: string | null;
   /** `/^[A-Za-z0-9_-]{1,64}$/`, eindeutig. */
   hiorgVeranstaltungId: string | null;
-  /** UUID der PEP-Datei in Nextcloud. */
-  pepId: string | null;
 }
 
 export interface VbKennzahlen {
@@ -21,6 +21,8 @@ export interface VbKennzahlen {
 
 export type EinsatzListenEintrag = Einsatz & {
   version: number;
+  /** `null`, solange der Einsatz keine PEP hat. */
+  pep: PepKennzahlen | null;
   /** `null`, solange der Einsatz keine Vorbereitung hat. */
   vb: VbKennzahlen | null;
 };

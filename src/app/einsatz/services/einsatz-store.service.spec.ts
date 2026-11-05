@@ -56,7 +56,6 @@ describe('EinsatzStoreService', () => {
       ende: '2026-12-05T20:30',
       ort: 'Ummeln',
       hiorgVeranstaltungId: '4711',
-      pepId: null,
     });
     expect((await storage.ladeEinsatz(einsatz!.id))?.daten).toEqual(einsatz);
     expect(store.einsatzZuVeranstaltung('4711')).not.toBeNull();
@@ -96,22 +95,5 @@ describe('EinsatzStoreService', () => {
     storage.legeEinsatzAn = () => Promise.reject(new Error('nein'));
     expect(await store.einsatzFuerVeranstaltungSicherstellen(gruppe())).toBeNull();
     expect(store.fehler()).toBe('nein');
-  });
-
-  it('verknüpft die PEP mit If-Match und erkennt veraltete Stände', async () => {
-    const einsatz = testEinsatz();
-    storage._vorbelegen(einsatz);
-    const pepId = crypto.randomUUID();
-    expect(await store.pepVerknuepfen(einsatz.id, pepId)).toBe(true);
-    expect((await storage.ladeEinsatz(einsatz.id))?.daten.pepId).toBe(pepId);
-    expect(store.einsaetze()[0].pepId).toBe(pepId);
-
-    // Gleicher Wert: kein Schreibvorgang.
-    const vorher = (await storage.ladeEinsatz(einsatz.id))!.version;
-    expect(await store.pepVerknuepfen(einsatz.id, pepId)).toBe(true);
-    expect((await storage.ladeEinsatz(einsatz.id))!.version).toBe(vorher);
-
-    expect(await store.pepVerknuepfen(crypto.randomUUID(), pepId)).toBe(false);
-    expect(store.fehler()).toContain('nicht gefunden');
   });
 });

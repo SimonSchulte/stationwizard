@@ -2,10 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
 import { EfsEinsatzGruppe } from '../models/planung.model';
 import { ApiEinsatzStorage } from '../storage/api-einsatz-storage';
-import {
-  EinsatzplanungBereitsVorhandenFehler,
-  EinsatzplanungKonfliktFehler,
-} from '../storage/einsatzplanung-fehler';
+import { EinsatzplanungBereitsVorhandenFehler } from '../storage/einsatzplanung-fehler';
 import { EinsatzStorage } from '../storage/einsatz-storage';
 import { MitVersion } from '../storage/mit-version';
 import { hiorgZeitAlsLokal } from './einsatz-zeit';
@@ -22,11 +19,10 @@ function alsEinsatz(eintrag: EinsatzListenEintrag): Einsatz {
     ende: eintrag.ende,
     ort: eintrag.ort,
     hiorgVeranstaltungId: eintrag.hiorgVeranstaltungId,
-    pepId: eintrag.pepId,
   };
 }
 
-/** Einsätze der Einsatzplanung: Liste, Anlage aus einer HiOrg-Veranstaltung, PEP-Verknüpfung. */
+/** Einsätze der Einsatzplanung: Liste, Anlage aus einer HiOrg-Veranstaltung. */
 @Injectable({ providedIn: 'root' })
 export class EinsatzStoreService {
   private readonly storage: EinsatzStorage = inject(ApiEinsatzStorage);
@@ -84,7 +80,6 @@ export class EinsatzStoreService {
         ende: hiorgZeitAlsLokal(gruppe.datum_bis),
         ort: gruppe.ort ? gruppe.ort.slice(0, 200) : null,
         hiorgVeranstaltungId: gruppe.veranstaltung_id,
-        pepId: null,
       };
       try {
         await this.storage.legeEinsatzAn(neu);
@@ -110,14 +105,13 @@ export class EinsatzStoreService {
 
   /** Legt einen Einsatz ohne HiOrg-Bezug an; `null` bei Fehler. */
   async einsatzAnlegen(
-    daten: Omit<Einsatz, 'id' | 'hiorgVeranstaltungId' | 'pepId'>,
+    daten: Omit<Einsatz, 'id' | 'hiorgVeranstaltungId'>,
   ): Promise<Einsatz | null> {
     this.fehler.set('');
     const neu: Einsatz = {
       ...daten,
       id: crypto.randomUUID(),
       hiorgVeranstaltungId: null,
-      pepId: null,
     };
     try {
       await this.storage.legeEinsatzAn(neu);
@@ -126,33 +120,6 @@ export class EinsatzStoreService {
     } catch (ursache) {
       this.fehler.set(fehlermeldung(ursache));
       return null;
-    }
-  }
-
-  /**
-   * Trägt die PEP-Datei am Einsatz ein (`null` löst die Verknüpfung). Lädt dazu den
-   * aktuellen Stand, schreibt mit `If-Match` und meldet einen Konflikt als Fehler.
-   * `true` bei Erfolg.
-   */
-  async pepVerknuepfen(einsatzId: string, pepId: string | null): Promise<boolean> {
-    this.fehler.set('');
-    try {
-      const stand = await this.storage.ladeEinsatz(einsatzId);
-      if (!stand) {
-        this.fehler.set('Der Einsatz wurde nicht gefunden.');
-        return false;
-      }
-      if (stand.daten.pepId === pepId) return true;
-      await this.storage.speichereEinsatz({ ...stand.daten, pepId }, stand.version);
-      await this.laden();
-      return true;
-    } catch (ursache) {
-      this.fehler.set(
-        ursache instanceof EinsatzplanungKonfliktFehler
-          ? 'Der Einsatz wurde zwischenzeitlich geändert. Bitte erneut versuchen.'
-          : fehlermeldung(ursache),
-      );
-      return false;
     }
   }
 }
