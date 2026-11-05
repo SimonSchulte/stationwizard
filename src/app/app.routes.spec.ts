@@ -7,6 +7,7 @@ import localeDe from '@angular/common/locales/de';
 import { LOCALE_ID } from '@angular/core';
 import { routes } from './app.routes';
 import { PlanungStoreService } from './einsatz/services/planung-store.service';
+import { erzeugeTestplanung } from './einsatz/services/testing/pep-testdaten';
 
 describe('Fachbereiche in der gemeinsamen Anwendung', () => {
   beforeEach(() => {
@@ -14,7 +15,6 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (pfad: string) => {
-        if (pfad === '/api/nextcloud/planungen') return Response.json({ dateien: [] });
         if (pfad === '/api/kalender') return Response.json({ jahre: [], ideen: null });
         if (pfad === '/api/hiorg/verbindung')
           return Response.json({ eingerichtet: true, verbunden: true });
@@ -64,10 +64,47 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
     expect(ansicht.routeNativeElement?.textContent).toContain('Kalender');
   });
 
-  it('öffnet die Einsatzliste mit dauerhafter HiOrg-Anbindung und Cloud-Dateien', async () => {
+  it('öffnet die Einsatzliste mit dauerhafter HiOrg-Anbindung, ohne Nextcloud-Abschnitte', async () => {
+    const ansicht = await RouterTestingHarness.create('/einsatzplanung');
+    const text = ansicht.routeNativeElement?.textContent ?? '';
+    expect(text).toContain('Anstehend');
+    expect(text).toContain('Einsatz anlegen');
+    expect(text).not.toContain('Gespeicherte Einsatzpläne');
+    expect(text).not.toContain('Lokale Planungen');
+    expect(text).not.toContain('Nextcloud');
+    expect(text).not.toContain('Neue Planung');
+  });
+
+  it('leitet die frühere Einsatzadresse auf die Einsatzplanung um', async () => {
     const ansicht = await RouterTestingHarness.create('/einsatz');
-    expect(ansicht.routeNativeElement?.textContent).toContain('Gespeicherte Einsatzpläne');
-    expect(ansicht.routeNativeElement?.textContent).toContain('Veranstaltungen (HiOrg-Server)');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung');
+    await ansicht.navigateByUrl('/einsatz/editor');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung/editor');
+  });
+
+  it('leitet die frühere Einsatzseite auf die Übersicht um', async () => {
+    const ansicht = await RouterTestingHarness.create();
+    await ansicht.navigateByUrl('/einsatzplanung/einsatz/x');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung');
+  });
+
+  it('kennt die Seiten für Vorbereitungen und Vorlagen', async () => {
+    const ansicht = await RouterTestingHarness.create();
+    for (const pfad of [
+      '/einsatzplanung/vb-vorlagen/x',
+      '/einsatzplanung/pep-vorlagen/x',
+      '/einsatzplanung/pep-vorlagen/neu',
+      '/einsatzplanung/einsatz/x/vb',
+    ]) {
+      await ansicht.navigateByUrl(pfad);
+      expect(TestBed.inject(Router).url).toBe(pfad);
+    }
+  });
+
+  it('leitet die frühere Vorlagenliste in die Verwaltung um', async () => {
+    const ansicht = await RouterTestingHarness.create();
+    await ansicht.navigateByUrl('/einsatzplanung/vb-vorlagen');
+    expect(TestBed.inject(Router).url).toBe('/verwaltung/einsatz-vorlagen');
   });
 
   it('zeigt im Personalmodul das vom HiOrg-Server gelieferte Personal als Tabelle', async () => {
@@ -82,13 +119,14 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
     expect(text).toContain('1 von 1 Personen');
   });
 
-  it('öffnet einen lokalen Einsatzplan im Editor', async () => {
-    const planung = TestBed.inject(PlanungStoreService).createPlanung('Erfundener Übungseinsatz');
-    const ansicht = await RouterTestingHarness.create('/einsatz/editor');
+  it('öffnet einen geladenen Einsatzplan im Editor mit „Speichern“ statt Nextcloud', async () => {
+    const planung = erzeugeTestplanung();
+    TestBed.inject(PlanungStoreService).oeffneGespeichert(planung);
+    const ansicht = await RouterTestingHarness.create('/einsatzplanung/editor');
     const eingaben = [...ansicht.routeNativeElement!.querySelectorAll('input')];
     expect(eingaben.some((eingabe) => eingabe.value === planung.name)).toBe(true);
-    expect(
-      ansicht.routeNativeElement?.querySelector('button[aria-label="In Nextcloud speichern"]'),
-    ).toBeTruthy();
+    const text = ansicht.routeNativeElement?.textContent ?? '';
+    expect(text).toContain('Speichern');
+    expect(text).not.toContain('Nextcloud');
   });
 });

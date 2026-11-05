@@ -28,6 +28,20 @@ export const PDF_FARBEN = {
   gelb: '#DEE100',
   neutral: '#E8E8E8',
   neutralText: '#424242',
+  /** `--kat-san`, `--kat-btvp`, `--kat-tesi`, `--kat-fuehrung` (Fachgruppen der VB); gemeinsam ändern. */
+  katSan: '#C62828',
+  katBtvp: '#2F8F68',
+  katTesi: '#4A6FB8',
+  katFuehrung: '#B06000',
+  /** `--abschnitt-1` bis `--abschnitt-8` (Abschnittsfarben der VB); gemeinsam ändern. */
+  abschnitt1: '#E65100',
+  abschnitt2: '#00838F',
+  abschnitt3: '#AD1457',
+  abschnitt4: '#6A3FA0',
+  abschnitt5: '#F9A825',
+  abschnitt6: '#558B2F',
+  abschnitt7: '#1565C0',
+  abschnitt8: '#5D4037',
 } as const;
 
 let geladeneBibliothek: ReturnType<typeof importierePdfBibliothek> | null = null;

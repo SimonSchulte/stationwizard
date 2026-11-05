@@ -85,7 +85,7 @@ const EMAIL_MUSTER = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 const RESEND_ENDPUNKT = 'https://api.resend.com/emails';
 
-/** Wie bei Nextcloud/EFS: offene Upstream-Verbindungen nicht unbegrenzt halten. */
+/** Wie bei EFS: offene Upstream-Verbindungen nicht unbegrenzt halten. */
 const VERSAND_ZEITGRENZE_MS = 15_000;
 
 async function absender(umgebung: MailVersandKonfiguration): Promise<string | undefined> {
@@ -216,8 +216,8 @@ class ResendVersand implements MailVersand {
   async sende(nachricht: MailNachricht): Promise<void> {
     // Eigener AbortController statt AbortSignal.timeout(): nur so lässt sich
     // nach dem Abbruch feststellen, ob das Zeitlimit zugeschlagen hat oder die
-    // Verbindung selbst scheiterte – dieselbe Aufteilung wie bei EFS und
-    // Nextcloud (siehe worker/src/efs.ts).
+    // Verbindung selbst scheiterte – dieselbe Aufteilung wie bei EFS
+    // (siehe worker/src/efs.ts).
     const abbruch = new AbortController();
     const zeitlimit = setTimeout(() => abbruch.abort(), VERSAND_ZEITGRENZE_MS);
     try {

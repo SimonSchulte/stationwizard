@@ -1,0 +1,130 @@
+:host {
+  display: block;
+}
+
+.karte {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+
+  &:hover {
+    background: var(--surface-tertiary);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-shadow);
+    border-color: var(--ci-blue);
+  }
+
+  &.ausgewaehlt {
+    border-color: var(--ci-blue);
+    box-shadow: var(--focus-shadow);
+    background: var(--surface-secondary);
+  }
+}
+
+.streifen {
+  flex: 0 0 var(--space-compact);
+  background: var(--streifen);
+}
+
+.inhalt {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-base);
+}
+
+.kopf {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.nummer {
+  flex: 0 0 auto;
+  min-width: var(--space-lg);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ort {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marke {
+  flex: 0 0 auto;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+
+  &.neu {
+    background: var(--status-ok-bg);
+    color: var(--status-ok);
+  }
+}
+
+.kurztext {
+  overflow: hidden;
+  padding-left: calc(var(--space-lg) + var(--space-sm));
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fuss {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-left: calc(var(--space-lg) + var(--space-sm));
+  min-height: var(--space-lg);
+}
+
+.platz {
+  --platz-farbe: var(--status-ok);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto;
+  color: var(--platz-farbe);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+
+  &[data-zustand='knapp'] {
+    --platz-farbe: var(--status-warn);
+  }
+
+  &[data-zustand='zu-voll'] {
+    --platz-farbe: var(--status-error);
+  }
+}
+
+.platz-symbol {
+  width: var(--space-md);
+  height: var(--space-md);
+  font-size: var(--space-md);
+}

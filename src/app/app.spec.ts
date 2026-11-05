@@ -41,7 +41,7 @@ describe('Gemeinsame Anwendung', () => {
     const element = ansicht.nativeElement as HTMLElement;
     expect(element.querySelector('.marke')?.textContent).toContain('HiorgWache');
     expect(element.querySelector('nav')?.textContent).toContain('Kalender');
-    expect(element.querySelector('nav')?.textContent).toContain('Einsatz');
+    expect(element.querySelector('nav')?.textContent).toContain('Einsatzplanung');
     expect(element.querySelector('nav')?.textContent).toContain('Fahrzeuge');
     expect(element.querySelector('.benutzer-name')?.textContent).toContain('Uebung');
     expect(element.querySelector('.benutzer-schalter')?.getAttribute('title')).toBe(

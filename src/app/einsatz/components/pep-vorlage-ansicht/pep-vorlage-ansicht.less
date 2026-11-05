@@ -1,0 +1,101 @@
+:host {
+  display: block;
+}
+
+.kennzahlen {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary);
+}
+
+.beschreibung {
+  margin: 0 0 var(--space-md);
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
+
+.posten {
+  margin-top: var(--space-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+  padding: var(--space-md);
+}
+
+.posten-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-sm);
+  font-size: 1rem;
+}
+
+.posten-titel {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.fahrzeug {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: 400;
+  color: var(--text-secondary);
+
+  mat-icon {
+    font-size: 1.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+}
+
+.leer {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.positionen {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.position {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-block: var(--space-xs);
+  border-top: 1px solid var(--border-light);
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+.position-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 160px;
+  color: var(--text-primary);
+}
+
+.fuehrer {
+  font-size: 1.125rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--ci-blue);
+}
+
+.anforderung {
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-hover);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}

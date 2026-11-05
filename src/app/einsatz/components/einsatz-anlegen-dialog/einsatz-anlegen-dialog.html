@@ -1,0 +1,45 @@
+<h2 mat-dialog-title>Einsatz anlegen</h2>
+<mat-dialog-content class="inhalt">
+  <mat-form-field appearance="outline">
+    <mat-label>Titel</mat-label>
+    <input
+      matInput
+      required
+      maxlength="200"
+      [ngModel]="titel()"
+      (ngModelChange)="titel.set($event)"
+    />
+  </mat-form-field>
+  <div class="zeitraum">
+    <mat-form-field appearance="outline">
+      <mat-label>Beginn</mat-label>
+      <input
+        matInput
+        type="datetime-local"
+        [ngModel]="beginn()"
+        (ngModelChange)="beginn.set($event)"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Ende</mat-label>
+      <input
+        matInput
+        type="datetime-local"
+        [ngModel]="ende()"
+        (ngModelChange)="ende.set($event)"
+        [errorStateMatcher]="endeFehler"
+      />
+      @if (endeVorBeginn()) {
+        <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
+      }
+    </mat-form-field>
+  </div>
+  <mat-form-field appearance="outline">
+    <mat-label>Ort</mat-label>
+    <input matInput maxlength="200" [ngModel]="ort()" (ngModelChange)="ort.set($event)" />
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton="filled" [disabled]="!kannAnlegen()" (click)="anlegen()">Anlegen</button>
+</mat-dialog-actions>

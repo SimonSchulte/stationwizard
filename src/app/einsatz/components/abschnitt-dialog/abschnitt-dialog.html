@@ -1,0 +1,91 @@
+<h2 mat-dialog-title>Abschnitt bearbeiten</h2>
+<mat-dialog-content>
+  <div class="inhalt">
+    <div class="felder">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Titel</mat-label>
+        <input
+          matInput
+          required
+          cdkFocusInitial
+          [attr.maxlength]="maxTitel"
+          [value]="titel()"
+          (input)="titel.set($any($event.target).value)"
+          (keydown.enter)="speichern()"
+        />
+      </mat-form-field>
+
+      <fieldset class="gruppe">
+        <legend>Farbe</legend>
+        <div class="farben" role="radiogroup" aria-label="Abschnittsfarbe">
+          @for (f of farben; track f) {
+            <label
+              class="farbe"
+              [class.gewaehlt]="farbe() === f"
+              [style.--farbe]="'var(--' + f + ')'"
+            >
+              <input
+                type="radio"
+                name="abschnittsfarbe"
+                class="radio"
+                [value]="f"
+                [checked]="farbe() === f"
+                [attr.aria-label]="farbBezeichnung[f]"
+                (change)="farbe.set(f)"
+              />
+              @if (farbe() === f) {
+                <mat-icon aria-hidden="true">check</mat-icon>
+              }
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <div class="gruppe">
+        <span class="legende" id="abschnitt-fachgruppe-label"
+          >Fachgruppe (Vorgabe für die Laufzettel)</span
+        >
+        <mat-chip-listbox
+          aria-labelledby="abschnitt-fachgruppe-label"
+          [value]="fachgruppe() ?? 'keine'"
+          (change)="fachgruppeGewaehlt($event.value)"
+        >
+          <mat-chip-option value="keine">keine</mat-chip-option>
+          @for (gruppe of fachgruppen; track gruppe) {
+            <mat-chip-option [value]="gruppe">{{ fachgruppeBezeichnung[gruppe] }}</mat-chip-option>
+          }
+        </mat-chip-listbox>
+      </div>
+
+      @if (daten.laufzettelAnzahl > 0) {
+        <mat-checkbox [checked]="uebertragen()" (change)="uebertragen.set($event.checked)">
+          Auf alle {{ daten.laufzettelAnzahl }} Laufzettel dieses Abschnitts übertragen
+        </mat-checkbox>
+      }
+    </div>
+
+    <div class="vorschau" aria-label="Vorschau des Laufzettelkopfs">
+      <span class="legende">Vorschau</span>
+      <div class="streifen" [style.--farbe]="'var(--' + farbe() + ')'">
+        <span class="band" aria-hidden="true"></span>
+        <div class="kopf">
+          <span class="vorschau-titel">{{ titel() || 'Abschnitt' }}</span>
+          @if (fachgruppe(); as gruppe) {
+            <app-fachgruppe-chip [fachgruppe]="gruppe" />
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button matButton type="button" class="loeschen" (click)="loeschen()">
+    <mat-icon>delete</mat-icon>
+    Abschnitt löschen
+  </button>
+  <span class="platz"></span>
+  <button matButton type="button" mat-dialog-close>Abbrechen</button>
+  <button matButton="filled" type="button" [disabled]="!gueltig()" (click)="speichern()">
+    Übernehmen
+  </button>
+</mat-dialog-actions>

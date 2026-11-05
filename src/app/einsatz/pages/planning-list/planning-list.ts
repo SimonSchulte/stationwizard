@@ -6,43 +6,58 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { DatePipe, formatDate } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTableModule } from '@angular/material/table';
+import { MatDialog } from '@angular/material/dialog';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PlanungStoreService } from '../../services/planung-store.service';
-import { PlanungCloudService } from '../../services/planung-cloud.service';
+import { PepEditorKontext } from '../../services/pep-editor-kontext';
 import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
-import { ImportService } from '../../services/import.service';
+import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
+import { EinsatzStoreService } from '../../services/einsatz-store.service';
+import {
+  baueEinsatzListe,
+  filtereEinsaetze,
+  gruppiereNachMonat,
+  istFilterAktiv,
+  mitAbstand,
+} from '../../services/einsatz-liste';
+import {
+  EinsatzAnlegenDaten,
+  EinsatzAnlegenDialog,
+} from '../../components/einsatz-anlegen-dialog/einsatz-anlegen-dialog';
+import { EinsatzKarte } from '../../components/einsatz-karte/einsatz-karte';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
-import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
+import { EfsEinsatz } from '../../models/planung.model';
 import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
-import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
+import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-list',
   imports: [
+    EinsatzKarte,
     Leerzustand,
     Meldung,
     Ladeanzeige,
     Seitenkopf,
     Verbindungsstatus,
-    DatePipe,
     MatButtonModule,
-    MatCardModule,
-    MatDividerModule,
+    MatButtonToggleModule,
+    MatChipsModule,
     MatIconModule,
-    MatProgressSpinnerModule,
-    MatTableModule,
+    MatMenuModule,
+    RouterLink,
+    Suchfeld,
     MatTooltipModule,
   ],
   templateUrl: './planning-list.html',
@@ -55,12 +70,15 @@ export class PlanningList implements OnInit {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly saveLoad = inject(SaveLoadService);
   readonly efsApi = inject(EfsApiService);
-  private readonly importService = inject(ImportService);
+  private readonly kontext = inject(PepEditorKontext);
+  private readonly einsatzStore = inject(EinsatzStoreService);
+  protected readonly aktionen = inject(EinsatzAktionenDienst);
+  private readonly dialog = inject(MatDialog);
+  private readonly meldungen = inject(MeldungsDienst);
 
-  readonly planungen = this.store.planungen;
-  readonly cloud = inject(PlanungCloudService);
-  readonly cloudLadeId = signal<string | null>(null);
-  readonly cloudFehler = signal('');
+  readonly einsatzListeLaedt = this.einsatzStore.laedt;
+  readonly einsatzListeFehler = this.einsatzStore.fehler;
+  readonly einsatzListeGeladen = this.einsatzStore.geladen;
 
   readonly efsEinsaetze = signal<EfsEinsatz[]>([]);
   readonly efsLoading = signal(false);
@@ -68,23 +86,51 @@ export class PlanningList implements OnInit {
 
   readonly efsGruppen = computed(() => this.efsApi.groupEinsaetze(this.efsEinsaetze()));
 
-  readonly upcomingGruppen = computed(() =>
-    this.efsGruppen().filter((g) => {
-      const d = new Date(g.datum_bis);
-      return isNaN(d.getTime()) || d >= new Date();
+  /** Anstehende und vergangene Einsätze (HiOrg und ohne HiOrg) als eine Liste von Karten. */
+  readonly einsatzListe = computed(() =>
+    baueEinsatzListe(this.efsGruppen(), this.einsatzStore.einsaetze(), new Date()),
+  );
+
+  /** Filter und Ansicht gelten nur für die Sitzung und werden nicht gespeichert. */
+  readonly suche = signal('');
+  readonly ansicht = signal<'anstehend' | 'vergangen'>('anstehend');
+  readonly pepFehlt = signal(false);
+  readonly vbFehlt = signal(false);
+  readonly ohneHiorg = signal(false);
+
+  readonly filterAktiv = computed(() =>
+    istFilterAktiv({
+      suche: this.suche(),
+      pepFehlt: this.pepFehlt(),
+      vbFehlt: this.vbFehlt(),
+      ohneHiorg: this.ohneHiorg(),
     }),
   );
 
-  readonly pastGruppen = computed(() =>
-    this.efsGruppen()
-      .filter((g) => {
-        const d = new Date(g.datum_bis);
-        return !isNaN(d.getTime()) && d < new Date();
-      })
-      .sort((a, b) => new Date(b.datum_von).getTime() - new Date(a.datum_von).getTime()),
+  /** Gefilterte Karten der gewählten Ansicht, nach Monat gruppiert. */
+  readonly monatsGruppen = computed(() => {
+    const anstehend = this.ansicht() === 'anstehend';
+    const liste = this.einsatzListe();
+    const gefiltert = filtereEinsaetze(anstehend ? liste.anstehend : liste.vergangen, {
+      suche: this.suche(),
+      pepFehlt: this.pepFehlt(),
+      vbFehlt: this.vbFehlt(),
+      ohneHiorg: this.ohneHiorg(),
+    });
+    return gruppiereNachMonat(mitAbstand(gefiltert, new Date(), anstehend));
+  });
+
+  readonly gesamtAnzahl = computed(
+    () => this.einsatzListe().anstehend.length + this.einsatzListe().vergangen.length,
   );
 
-  readonly einsatzColumns = ['titel', 'datum_von', 'datum_bis', 'ort'];
+  /** Setzt Suche und Filter zurück; die gewählte Ansicht bleibt. */
+  filterZuruecksetzen(): void {
+    this.suche.set('');
+    this.pepFehlt.set(false);
+    this.vbFehlt.set(false);
+    this.ohneHiorg.set(false);
+  }
 
   /** Rückmeldung nach der HiOrg-Anmeldung (`/hiorg/rueckruf` leitet mit `?hiorg=` hierher). */
   readonly hiorgRueckmeldung = signal('');
@@ -105,76 +151,13 @@ export class PlanningList implements OnInit {
         replaceUrl: true,
       });
     }
-    void this.cloud.listeLaden();
+    void this.einsatzStore.laden();
     void this.loadEfsEinsaetze();
   }
 
-  async cloudPlanungLaden(id: string): Promise<void> {
-    if (this.cloudLadeId()) return;
-    const kontextId = this.store.active()?.id;
-    const lokalerStand = () => {
-      const planung = this.planungen().find((eintrag) => eintrag.id === id);
-      return planung ? JSON.stringify(planung) : null;
-    };
-    const kontextUnveraendert = () => this.store.active()?.id === kontextId;
-    let bestaetigterStand = lokalerStand();
-    this.cloudLadeId.set(id);
-    this.cloudFehler.set('');
-    try {
-      const lokal = this.planungen().find((planung) => planung.id === id);
-      if (lokal && this.cloud.hatLokaleAenderungen(lokal)) {
-        if (
-          !(await this.dialogDienst.bestaetigen(
-            'Diese Planung enthält lokale Änderungen. Den gespeicherten Stand laden und die lokalen Änderungen ersetzen? Zur Sicherung kannst du zuerst im Editor JSON herunterladen.',
-            'Lokale Änderungen ersetzen',
-            'Gespeicherten Stand laden',
-          ))
-        )
-          return;
-        if (!kontextUnveraendert()) return;
-        if (lokalerStand() !== bestaetigterStand)
-          throw new Error(
-            'Die Planung wurde während der Bestätigung geändert. Bitte erneut laden.',
-          );
-      }
-      const ergebnis = await this.cloud.laden(id);
-      if (!kontextUnveraendert()) return;
-      if (lokalerStand() !== bestaetigterStand) {
-        bestaetigterStand = lokalerStand();
-        if (
-          !(await this.dialogDienst.bestaetigen(
-            'Die lokale Planung wurde während des Ladens geändert. Trotzdem durch den gespeicherten Stand ersetzen?',
-            'Geänderte Planung ersetzen',
-            'Ersetzen',
-          ))
-        )
-          return;
-        if (!kontextUnveraendert()) return;
-        if (lokalerStand() !== bestaetigterStand)
-          throw new Error('Die Planung wurde erneut geändert. Bitte erneut laden.');
-      }
-      if (ergebnis.versionWarning) {
-        if (
-          !(await this.dialogDienst.bestaetigen(
-            'Der Einsatzplan wurde mit einer anderen Dateiversion gespeichert. Trotzdem laden?',
-            'Versionswarnung',
-            'Laden',
-          ))
-        )
-          return;
-      }
-      if (!kontextUnveraendert()) return;
-      if (lokalerStand() !== bestaetigterStand)
-        throw new Error('Die Planung wurde inzwischen geändert. Bitte erneut laden.');
-      this.store.importPlanung(ergebnis.planung);
-      this.store.openPlanung(ergebnis.planung.id);
-      this.cloud.uebernahmeMerken(ergebnis);
-      await this.router.navigate(['/einsatz/editor']);
-    } catch (fehler) {
-      this.cloudFehler.set(this.cloud.fehlermeldung(fehler));
-    } finally {
-      this.cloudLadeId.set(null);
-    }
+  /** Lädt HiOrg-Veranstaltungen und die gespeicherten Einsätze neu. */
+  async aktualisieren(): Promise<void> {
+    await Promise.all([this.einsatzStore.laden(), this.loadEfsEinsaetze()]);
   }
 
   async loadEfsEinsaetze(): Promise<void> {
@@ -194,50 +177,26 @@ export class PlanningList implements OnInit {
     }
   }
 
-  async openEfsGruppe(gruppe: EfsEinsatzGruppe): Promise<void> {
-    const zielId = this.store.openEfsGruppe(gruppe).id;
-    this.router.navigate(['/einsatz/editor']);
-
-    // Load details per Schicht in the background
-    try {
-      const results = await Promise.all(
-        gruppe.schichten.map((s) => this.efsApi.getVeranstaltungDetail(s.id)),
+  /** Legt über einen kleinen Dialog einen Einsatz ohne HiOrg-Veranstaltung an. */
+  async einsatzAnlegen(): Promise<void> {
+    const daten = await firstValueFrom(
+      this.dialog
+        .open<EinsatzAnlegenDialog, void, EinsatzAnlegenDaten>(EinsatzAnlegenDialog, {
+          width: '520px',
+          maxWidth: '94vw',
+        })
+        .afterClosed(),
+      { defaultValue: undefined },
+    );
+    if (!daten) return;
+    const einsatz = await this.einsatzStore.einsatzAnlegen(daten);
+    if (!einsatz) {
+      this.meldungen.fehler(
+        this.einsatzStore.fehler() || 'Der Einsatz konnte nicht angelegt werden.',
       );
-      if (this.store.active()?.id !== zielId) return;
-      for (let i = 0; i < gruppe.schichten.length; i++) {
-        const schicht = gruppe.schichten[i];
-        const detail = results[i];
-        if (!detail) continue;
-        const label = detail.zeitraum_bemerk ?? this.formatTimeRange(schicht);
-        const fahrzeug =
-          detail.einsatzmittel.length === 1
-            ? this.efsApi.matchFahrzeug(detail.einsatzmittel[0])
-            : null;
-        this.store.addEfsSchichtPosten(schicht.id, label, fahrzeug);
-        const mapped = detail.einsatzkraefte.map((ek) => this.importService.mapEfsEinsatzkraft(ek));
-        this.store.mergeEfsEinsatzkraefte(mapped);
-      }
-    } catch (fehler) {
-      this.efsApi.fehler.set(
-        fehler instanceof Error
-          ? fehler.message
-          : 'Einsatzdetails konnten nicht geladen werden. Bitte im Editor erneut aktualisieren.',
-      );
+      return;
     }
-  }
-
-  private formatTimeRange(schicht: EfsEinsatz): string {
-    const fmt = (iso: string) => {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    };
-    return `${fmt(schicht.datum_von)}–${fmt(schicht.datum_bis)}`;
-  }
-
-  openPlanung(id: string): void {
-    this.store.openPlanung(id);
-    this.router.navigate(['/einsatz/editor']);
+    this.meldungen.erfolg('Einsatz angelegt. PEP und VB legst du in der Zeile an.');
   }
 
   async loadFromFile(): Promise<void> {
@@ -250,13 +209,9 @@ export class PlanningList implements OnInit {
       );
     }
     if (this.store.active() !== kontext) return;
-    this.store.importPlanung(result.planung);
-    this.router.navigate(['/einsatz/editor']);
-  }
-
-  createNew(): void {
-    const name = `Neue Planung ${formatDate(new Date(), 'dd.MM.yyyy', 'de-DE')}`;
-    this.store.createPlanung(name);
-    this.router.navigate(['/einsatz/editor']);
+    // Eine Datei gehört zu keinem Einsatz; „Speichern“ im Editor ordnet sie einem zu.
+    this.kontext.loeschen();
+    this.store.oeffneGespeichert(result.planung);
+    void this.router.navigate(['/einsatzplanung/editor']);
   }
 }

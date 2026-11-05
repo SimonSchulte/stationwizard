@@ -1,0 +1,14 @@
+<app-seitenkopf titel="Einsatz-Vorlagen" icon="library_books" zurueck="/verwaltung" />
+
+<mat-tab-group class="reiter" mat-stretch-tabs="false" animationDuration="0ms">
+  <mat-tab label="PEP">
+    <ng-template matTabContent>
+      <app-pep-vorlagen-reiter />
+    </ng-template>
+  </mat-tab>
+  <mat-tab label="VB">
+    <ng-template matTabContent>
+      <app-vb-vorlagen-reiter />
+    </ng-template>
+  </mat-tab>
+</mat-tab-group>
