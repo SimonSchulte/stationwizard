@@ -3258,10 +3258,8 @@ Datenvertrag zwischen Worker und Frontend).
 - Worker: eigene D1-Datenbank `EINSATZPLANUNG_DB` (Migration `0020_einsatzplanung.sql` mit der
   Startvorlage „Weihnachtsmarkt Ummeln“ mit dem Inhalt der Packliste 2025, gruppiert nach Transportziel und Lagerort: 5 Abschnitte, 22 Laufzettel, 64 Positionen), Endpunkte
   für Einsätze, Vorbereitung je Einsatz und VB-Vorlagen, Anlage nur mit `If-None-Match: *`,
-  Änderungen nur mit `If-Match`. **Noch nicht eingerichtet:** Der Bindungsblock in
-  `worker/wrangler.toml` ist auskommentiert, bis die Datenbank angelegt und ihre ID
-  eingetragen ist (`docs/einrichtung.md`); bis dahin antworten die Endpunkte mit 503
-  `EINSATZPLANUNG_KONFIGURATION_FEHLT`.
+  Änderungen nur mit `If-Match`. Datenbank am 05.11.2026 angelegt und Migration `0020`
+  eingespielt (siehe `docs/einrichtung.md`); wirksam wird sie mit dem nächsten Deployment.
 - Einsatzseite (`/einsatzplanung/einsatz/:id`) mit PEP- und VB-Karte; ein Klick auf eine
   HiOrg-Veranstaltung legt bei Bedarf den Einsatz an. Einsätze ohne HiOrg lassen sich anlegen.
   Eine von der Einsatzseite geöffnete PEP wird beim Speichern in Nextcloud mit dem Einsatz

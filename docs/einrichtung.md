@@ -72,9 +72,11 @@ Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 Einsätze, Vorbereitungen (VB) und VB-Vorlagen liegen in der D1-Datenbank
 `stationwizard-einsatzplanung` (Binding `EINSATZPLANUNG_DB`, Schema und Startvorlage
 „Weihnachtsmarkt Ummeln“ in `worker/migrations/einsatzplanung/0020_einsatzplanung.sql`).
-Der Binding-Block in `worker/wrangler.toml` ist **auskommentiert**, bis die Datenbank
-existiert; bis dahin antworten die Endpunkte mit 503 `EINSATZPLANUNG_KONFIGURATION_FEHLT`.
-Einrichtung:
+**Eingerichtet am 05.11.2026:** Datenbank in WEUR angelegt
+(`database_id` `c70551e7-5c6e-40ef-b453-822f7e194b89`, in `worker/wrangler.toml` eingetragen),
+Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespielt und in
+`d1_migrations` vermerkt. Fehlt das Binding, antworten die Endpunkte mit 503
+`EINSATZPLANUNG_KONFIGURATION_FEHLT`. Einrichtung (für eine neue Umgebung):
 
 1. `npx wrangler d1 create stationwizard-einsatzplanung` (Region wie die übrigen
    Datenbanken, WEUR) und die ausgegebene `database_id` in `worker/wrangler.toml` eintragen;
