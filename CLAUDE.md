@@ -485,8 +485,8 @@ dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 Zu jedem Einsatz gehört außerdem höchstens eine **PEP** (Personaleinsatzplanung), und es gibt
 **PEP-Vorlagen** – beides in derselben Datenbank, Migration
 `worker/migrations/einsatzplanung/0021_pep.sql` (Tabellen `peps` und `pep_vorlagen`;
-`Einsatz.pepId` ist entfallen, die Spalte `einsaetze.pep_id` entfernt
-`0022_einsaetze_pep_id_entfernen.sql` erst nach dem Deployment, siehe `docs/einrichtung.md`). Gleiches Muster wie VB und
+`Einsatz.pepId` ist entfallen, die Spalte `einsaetze.pep_id` hat
+`0022_einsaetze_pep_id_entfernen.sql` entfernt). Gleiches Muster wie VB und
 VB-Vorlagen: eine Zeile je PEP beziehungsweise Vorlage, Inhalt als vom Worker streng geprüftes
 JSON (`pruefePep()`/`pruefePepVorlage()` in `einsatzplanung-pep-pruefung.ts`: unbekannte Felder
 abgelehnt, Ids je Art eindeutig, jede `einsatzkraftId`/`einsatzleiterId` zeigt auf eine vorhandene

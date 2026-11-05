@@ -3373,8 +3373,8 @@ Datenvertrag zwischen Worker und Frontend).
   gesperrt), Admin-Seite mit beiden Reitern, Excel-Upload der echten Packliste 2025 (verschobene
   Kopfzeile erkannt, 5 Abschnitte, 23 Laufzettel, vier Auffälligkeiten). Nicht geprüft:
   Speichern gegen die echte Datenbank, PEP-Upload und Editor im Vorlagenmodus im Browser, Handy.
-- Datenbank: `0021_pep.sql` ist am 05.11.2026 eingespielt. `0022` (Spalte `pep_id` entfernen)
-  steht bewusst aus, bis der neue Worker deployt ist, weil die laufende ältere Version die Spalte
-  noch beschreibt.
+- Datenbank: `0021_pep.sql` und – nach dem Deployment (Worker vom 05.11.2026, 13:15 UTC, ohne
+  `pep_id`-Zugriff geprüft) – `0022_einsaetze_pep_id_entfernen.sql` sind eingespielt. Bestand
+  danach: ein Einsatz mit VB, noch keine PEP.
 - Offen: `StorageArt` in `kern/storage/datei-storage.ts` kennt noch `'nextcloud'`; die
   Nextcloud-Secrets können in Cloudflare gelöscht werden (Betreibersache).

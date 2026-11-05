@@ -85,10 +85,9 @@ Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespiel
    Danach folgen `0021_pep.sql` (Tabellen `peps` und `pep_vorlagen`, ohne Startbestand) und
    `0022_einsaetze_pep_id_entfernen.sql` (entfernt die frühere Nextcloud-Verknüpfung
    `einsaetze.pep_id`). Alte Nextcloud-Einsatzpläne werden nicht übernommen.
-   **Stand der bestehenden Datenbank (05.11.2026):** `0020` und `0021` sind eingespielt und in
-   `d1_migrations` vermerkt. `0022` steht bewusst noch aus: eine bereits laufende ältere
-   Worker-Version beschreibt `pep_id` beim Anlegen eines Einsatzes noch. Erst nach dem Deployen
-   des Workers mit der PEP in der Datenbank einspielen.
+   **Stand der bestehenden Datenbank:** `0020`, `0021` und `0022` sind eingespielt und in
+   `d1_migrations` vermerkt (`0022` am 05.11.2026 nach dem Deployment des Workers mit der PEP in
+   der Datenbank).
 3. Worker deployen, danach `0022` einspielen. Die Startvorlage erscheint unter
    _Verwaltung → Einsatz-Vorlagen_.
 
