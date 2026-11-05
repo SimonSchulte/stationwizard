@@ -18,6 +18,7 @@ import {
   InMemoryEinsatzStorage,
   InMemoryVorbereitungStorage,
 } from '../../testing/in-memory-einsatzplanung';
+import { lokaleZeitText } from '../../services/einsatz-anzeige';
 import { testEinsatz, testVorbereitung } from '../../testing/vb-testdaten';
 
 function routeMit(abfrage: Record<string, string> = {}) {
@@ -141,6 +142,10 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     gruppe('4712', 'Stadtlauf', kuenftig),
     gruppe('4700', 'Altes Fest', frueher),
   ];
+  const tag = (offset: number) => lokaleZeitText(new Date(Date.now() + offset * 24 * 3600 * 1000));
+  const gestern = tag(-1);
+  const morgen = tag(1);
+  const uebermorgen = tag(30);
   const aktionen = {
     laufend: signal<string | null>(null),
     pepOeffnenOderAnlegen: vi.fn().mockResolvedValue(undefined),
@@ -191,21 +196,21 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     return fixture;
   }
 
-  function zeile(fixture: { nativeElement: HTMLElement }, titel: string): HTMLElement {
-    const treffer = [...fixture.nativeElement.querySelectorAll<HTMLElement>('tr, li')].find((z) =>
-      z.textContent?.includes(titel),
-    );
-    if (!treffer) throw new Error(`Keine Zeile „${titel}“`);
+  function karte(fixture: { nativeElement: HTMLElement }, titel: string): HTMLElement {
+    const treffer = [
+      ...fixture.nativeElement.querySelectorAll<HTMLElement>('app-einsatz-karte'),
+    ].find((z) => z.querySelector('h3')?.textContent?.includes(titel));
+    if (!treffer) throw new Error(`Keine Karte „${titel}“`);
     return treffer;
   }
 
-  function knoepfe(z: HTMLElement): string[] {
-    return [...z.querySelectorAll('app-einsatz-knoepfe button')].map((k) =>
-      (k.textContent ?? '')
-        .replace(/assignment_ind|checklist/, '')
-        .replace(/\s+/g, ' ')
-        .trim(),
-    );
+  function titelListe(wurzel: ParentNode): string[] {
+    return [...wurzel.querySelectorAll('app-einsatz-karte h3')].map((h) => h.textContent!.trim());
+  }
+
+  /** Beschriftungen der Kacheln einer Karte (aria-label). */
+  function kacheln(z: HTMLElement): string[] {
+    return [...z.querySelectorAll('button.kachel')].map((k) => k.getAttribute('aria-label')!);
   }
 
   beforeEach(() => {
@@ -218,66 +223,106 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     aktionen.vbOeffnenOderAnlegen.mockClear();
   });
 
-  it('beschriftet die Knöpfe je Stand: anlegen ohne Einsatz, öffnen mit PEP und VB', async () => {
+  it('beschriftet die Kacheln je Stand: anlegen ohne Einsatz, öffnen mit PEP und VB', async () => {
     const mitBeidem = testEinsatz({ hiorgVeranstaltungId: '4711', pepId: crypto.randomUUID() });
     speicher._vorbelegen(mitBeidem);
     vorbereitungen._vorbelegen(mitBeidem.id, testVorbereitung());
     const nurPep = testEinsatz({ hiorgVeranstaltungId: '4700', pepId: crypto.randomUUID() });
     speicher._vorbelegen(nurPep);
-    speicher._vorbelegen(testEinsatz({ titel: 'Dienst ohne HiOrg' }));
+    speicher._vorbelegen(testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen }));
     const fixture = await oeffnen();
 
-    expect(knoepfe(zeile(fixture, 'Weihnachtsmarkt'))).toEqual(['PEP öffnen', 'VB öffnen']);
-    expect(knoepfe(zeile(fixture, 'Stadtlauf'))).toEqual(['PEP anlegen', 'VB anlegen']);
-    expect(knoepfe(zeile(fixture, 'Altes Fest'))).toEqual(['PEP öffnen', 'VB anlegen']);
-    expect(knoepfe(zeile(fixture, 'Dienst ohne HiOrg'))).toEqual(['PEP anlegen', 'VB anlegen']);
+    expect(kacheln(karte(fixture, 'Weihnachtsmarkt'))).toEqual([
+      'PEP öffnen: Weihnachtsmarkt',
+      'VB öffnen: Weihnachtsmarkt',
+    ]);
+    expect(kacheln(karte(fixture, 'Stadtlauf'))).toEqual([
+      'PEP anlegen: Stadtlauf',
+      'VB anlegen: Stadtlauf',
+    ]);
+    expect(kacheln(karte(fixture, 'Altes Fest'))).toEqual([
+      'PEP öffnen: Altes Fest',
+      'VB anlegen: Altes Fest',
+    ]);
+    expect(kacheln(karte(fixture, 'Dienst ohne HiOrg'))).toEqual([
+      'PEP anlegen: Dienst ohne HiOrg',
+      'VB anlegen: Dienst ohne HiOrg',
+    ]);
+  });
+
+  it('führt HiOrg und eigene Einsätze in einer nach Beginn sortierten Liste', async () => {
+    speicher._vorbelegen(
+      testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: uebermorgen, ende: uebermorgen }),
+    );
+    speicher._vorbelegen(testEinsatz({ titel: 'Ohne Datum', beginn: null, ende: null }));
+    const fixture = await oeffnen();
+    const wurzel: HTMLElement = fixture.nativeElement;
+    const anstehend = wurzel.querySelector('ul.karten')!;
+    expect(titelListe(anstehend)).toEqual([
+      'Weihnachtsmarkt',
+      'Stadtlauf',
+      'Dienst ohne HiOrg',
+      'Ohne Datum',
+    ]);
+    expect(wurzel.querySelector('h2#einsaetze-titel')?.textContent).toContain(
+      'Anstehende Einsätze',
+    );
+  });
+
+  it('legt Vergangenes in ein zugeklapptes Panel mit Anzahl im Titel', async () => {
+    speicher._vorbelegen(testEinsatz({ titel: 'Alter Dienst', beginn: gestern, ende: gestern }));
+    const fixture = await oeffnen();
+    const wurzel: HTMLElement = fixture.nativeElement;
+    const panel = wurzel.querySelector('mat-expansion-panel')!;
+    expect(panel.textContent).toContain('Vergangene Einsätze (2)');
+    expect(panel.classList.contains('mat-expanded')).toBe(false);
+    expect(titelListe(panel).sort()).toEqual(['Alter Dienst', 'Altes Fest']);
+    expect(titelListe(wurzel.querySelector('ul.karten')!)).not.toContain('Altes Fest');
   });
 
   it('übergibt Veranstaltung bzw. Einsatz an den Aktionsdienst', async () => {
-    const ohne = testEinsatz({ titel: 'Dienst ohne HiOrg' });
+    const ohne = testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen });
     speicher._vorbelegen(ohne);
     const fixture = await oeffnen();
 
-    const markt = zeile(fixture, 'Weihnachtsmarkt').querySelectorAll('button');
+    const markt = karte(fixture, 'Weihnachtsmarkt').querySelectorAll<HTMLButtonElement>('button');
     markt[0].click();
     markt[1].click();
     expect(aktionen.pepOeffnenOderAnlegen).toHaveBeenCalledWith(gruppen[0]);
     expect(aktionen.vbOeffnenOderAnlegen).toHaveBeenCalledWith(gruppen[0]);
 
-    zeile(fixture, 'Dienst ohne HiOrg').querySelectorAll('button')[1].click();
+    karte(fixture, 'Dienst ohne HiOrg').querySelectorAll<HTMLButtonElement>('button')[1].click();
     expect(aktionen.vbOeffnenOderAnlegen).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: ohne.id }),
     );
   });
 
-  it('springt beim Zeilenklick nicht mehr auf eine Einsatzseite', async () => {
+  it('springt beim Klick auf die Karte nicht auf eine Einsatzseite', async () => {
     const fixture = await oeffnen();
-    zeile(fixture, 'Weihnachtsmarkt').click();
-    zeile(fixture, 'Weihnachtsmarkt').querySelector('button')!.click();
+    karte(fixture, 'Weihnachtsmarkt').click();
     expect(navigate).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.querySelector('tr.einsatz-row')).toBeNull();
   });
 
-  it('sperrt alle Knöpfe, solange eine Aktion läuft', async () => {
+  it('sperrt alle Kacheln, solange eine Aktion läuft', async () => {
     const fixture = await oeffnen();
     aktionen.laufend.set('hiorg:4711');
     fixture.detectChanges();
     const wurzel: HTMLElement = fixture.nativeElement;
-    const alle = [...wurzel.querySelectorAll<HTMLButtonElement>('app-einsatz-knoepfe button')];
+    const alle = [...wurzel.querySelectorAll<HTMLButtonElement>('app-einsatz-karte button.kachel')];
     expect(alle.length).toBeGreaterThan(0);
     expect(alle.every((k) => k.disabled)).toBe(true);
   });
 
-  it('zeigt am VB-Knopf die Kennzahlen als Tooltip-Text', async () => {
+  it('zeigt am VB die Kennzahlen im Untertitel', async () => {
     const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
     speicher._vorbelegen(einsatz);
     vorbereitungen._vorbelegen(einsatz.id, testVorbereitung());
     const fixture = await oeffnen();
-    const vb = zeile(fixture, 'Weihnachtsmarkt').querySelectorAll('button')[1];
-    expect(vb.getAttribute('aria-label')).toBe('VB öffnen: Weihnachtsmarkt');
+    const vb = karte(fixture, 'Weihnachtsmarkt').querySelectorAll('button.kachel')[1];
+    expect(vb.textContent).toMatch(/\d+ Laufzettel · \d+ Pos\./);
   });
 
-  it('legt „Einsatz anlegen“ an und bleibt in der Liste', async () => {
+  it('legt „Einsatz ohne HiOrg“ an und bleibt in der Liste', async () => {
     dialogAntwort = { titel: 'Neuer Dienst', beginn: null, ende: null, ort: null };
     const fixture = await oeffnen();
     await fixture.componentInstance.einsatzAnlegen();
@@ -285,6 +330,9 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
 
     expect((await speicher.ladeEinsaetze()).map((e) => e.titel)).toEqual(['Neuer Dienst']);
     expect(navigate).not.toHaveBeenCalled();
-    expect(knoepfe(zeile(fixture, 'Neuer Dienst'))).toEqual(['PEP anlegen', 'VB anlegen']);
+    expect(kacheln(karte(fixture, 'Neuer Dienst'))).toEqual([
+      'PEP anlegen: Neuer Dienst',
+      'VB anlegen: Neuer Dienst',
+    ]);
   });
 });

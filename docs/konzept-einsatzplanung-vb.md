@@ -349,4 +349,4 @@ Einsatzseite `/einsatzplanung/einsatz/:id` leitet auf die Übersicht weiter), `/
 und `/einsatz/editor` leiten weiter. Navigation: Zweig „Einsatzplanung“ mit „Einsätze“ und
 „VB-Vorlagen“. Die Aktionen der Übersicht liegen im `EinsatzAktionenDienst`
 (`services/einsatz-aktionen.ts`: `pepOeffnenOderAnlegen`, `vbOeffnenOderAnlegen`; eine laufende
-Aktion sperrt alle Knöpfe), die zwei Knöpfe je Zeile in `components/einsatz-knoepfe/`.
+Aktion sperrt alle Knöpfe), die Karte je Einsatz in `components/einsatz-karte/` (Datumsblock, Titel mit Metazeile, Kacheln „PEP“/„VB“ als `matButton="outlined"` mit eigenem Inhalt; Zustand vorhanden: durchgezogener Rand mit grünem Streifen, sonst gestrichelt mit „Anlegen“). Die Übersicht führt HiOrg-Veranstaltungen und Einsätze ohne HiOrg in **einer** nach Beginn sortierten Liste „Anstehende Einsätze“ (Zusammenführung in `services/einsatz-liste.ts`, ohne Beginn zuletzt); Vergangenes steht in einem zugeklappten `mat-expansion-panel`. „Einsatz ohne HiOrg“ steht in der Kopfzeile des Abschnitts.

@@ -15,8 +15,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTableModule } from '@angular/material/table';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PlanungCloudService } from '../../services/planung-cloud.service';
@@ -25,12 +24,12 @@ import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
-import { einsatzZeitraumText } from '../../services/einsatz-anzeige';
+import { baueEinsatzListe } from '../../services/einsatz-liste';
 import {
   EinsatzAnlegenDaten,
   EinsatzAnlegenDialog,
 } from '../../components/einsatz-anlegen-dialog/einsatz-anlegen-dialog';
-import { EinsatzKnoepfe } from '../../components/einsatz-knoepfe/einsatz-knoepfe';
+import { EinsatzKarte } from '../../components/einsatz-karte/einsatz-karte';
 import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { EfsEinsatz, EfsEinsatzGruppe } from '../../models/planung.model';
@@ -42,7 +41,7 @@ import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-list',
   imports: [
-    EinsatzKnoepfe,
+    EinsatzKarte,
     Leerzustand,
     Meldung,
     Ladeanzeige,
@@ -52,9 +51,8 @@ import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern
     MatButtonModule,
     MatCardModule,
     MatDividerModule,
+    MatExpansionModule,
     MatIconModule,
-    MatProgressSpinnerModule,
-    MatTableModule,
     MatTooltipModule,
   ],
   templateUrl: './planning-list.html',
@@ -78,24 +76,6 @@ export class PlanningList implements OnInit {
   readonly cloudLadeId = signal<string | null>(null);
   readonly cloudFehler = signal('');
 
-  readonly einsatzZeitraumText = einsatzZeitraumText;
-
-  /** Einsätze je HiOrg-Veranstaltung, für die Kennzeichen „PEP“/„VB“ in der Tabelle. */
-  readonly einsatzJeVeranstaltung = computed(() => {
-    const karte = new Map<string, EinsatzListenEintrag>();
-    for (const einsatz of this.einsatzStore.einsaetze()) {
-      if (einsatz.hiorgVeranstaltungId) karte.set(einsatz.hiorgVeranstaltungId, einsatz);
-    }
-    return karte;
-  });
-
-  /** Einsätze ohne HiOrg-Veranstaltung, jüngster Beginn zuerst; ohne Beginn ganz unten. */
-  readonly einsaetzeOhneHiorg = computed(() =>
-    this.einsatzStore
-      .einsaetze()
-      .filter((einsatz) => !einsatz.hiorgVeranstaltungId)
-      .sort((a, b) => (b.beginn ?? '').localeCompare(a.beginn ?? '')),
-  );
   readonly einsatzListeLaedt = this.einsatzStore.laedt;
   readonly einsatzListeFehler = this.einsatzStore.fehler;
   readonly einsatzListeGeladen = this.einsatzStore.geladen;
@@ -106,23 +86,10 @@ export class PlanningList implements OnInit {
 
   readonly efsGruppen = computed(() => this.efsApi.groupEinsaetze(this.efsEinsaetze()));
 
-  readonly upcomingGruppen = computed(() =>
-    this.efsGruppen().filter((g) => {
-      const d = new Date(g.datum_bis);
-      return isNaN(d.getTime()) || d >= new Date();
-    }),
+  /** Anstehende und vergangene Einsätze (HiOrg und ohne HiOrg) als eine Liste von Karten. */
+  readonly einsatzListe = computed(() =>
+    baueEinsatzListe(this.efsGruppen(), this.einsatzStore.einsaetze(), new Date()),
   );
-
-  readonly pastGruppen = computed(() =>
-    this.efsGruppen()
-      .filter((g) => {
-        const d = new Date(g.datum_bis);
-        return !isNaN(d.getTime()) && d < new Date();
-      })
-      .sort((a, b) => new Date(b.datum_von).getTime() - new Date(a.datum_von).getTime()),
-  );
-
-  readonly einsatzColumns = ['titel', 'datum_von', 'datum_bis', 'ort', 'aktionen'];
 
   /** Rückmeldung nach der HiOrg-Anmeldung (`/hiorg/rueckruf` leitet mit `?hiorg=` hierher). */
   readonly hiorgRueckmeldung = signal('');
@@ -146,6 +113,11 @@ export class PlanningList implements OnInit {
     void this.cloud.listeLaden();
     void this.einsatzStore.laden();
     void this.loadEfsEinsaetze();
+  }
+
+  /** Lädt HiOrg-Veranstaltungen und die gespeicherten Einsätze neu. */
+  async aktualisieren(): Promise<void> {
+    await Promise.all([this.einsatzStore.laden(), this.loadEfsEinsaetze()]);
   }
 
   async cloudPlanungLaden(id: string): Promise<void> {

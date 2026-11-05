@@ -71,180 +71,90 @@
     </ul>
   </section>
 
-  <section aria-label="HiOrg-Veranstaltungen">
+  <section class="einsaetze" aria-labelledby="einsaetze-titel">
     <div class="section-header">
-      <h2>Veranstaltungen (HiOrg-Server)</h2>
+      <h2 id="einsaetze-titel">Anstehende Einsätze</h2>
+      <span class="abstand"></span>
+      <button matButton="outlined" (click)="einsatzAnlegen()">
+        <mat-icon>add</mat-icon> Einsatz ohne HiOrg
+      </button>
       <button
         matIconButton
         matTooltip="Aktualisieren"
-        (click)="loadEfsEinsaetze()"
+        aria-label="Einsätze aktualisieren"
+        (click)="aktualisieren()"
         [disabled]="efsLoading()"
       >
         <mat-icon>refresh</mat-icon>
       </button>
     </div>
 
-    @if (efsLoading()) {
-      <div class="loading-container">
-        <mat-spinner diameter="36"></mat-spinner>
-        <span>Veranstaltungen werden geladen…</span>
-      </div>
-    } @else if (efsError()) {
-      <app-meldung art="fehler">{{ efsError() }}</app-meldung>
-      <button matButton (click)="loadEfsEinsaetze()">Erneut versuchen</button>
-    } @else {
-      @if (upcomingGruppen().length > 0) {
-        <h3>Anstehende Veranstaltungen</h3>
-        <div
-          class="tabellenbereich"
-          role="region"
-          aria-label="Anstehende Veranstaltungen"
-          tabindex="0"
-        >
-          <table mat-table [dataSource]="upcomingGruppen()" class="einsatz-table">
-            <ng-container matColumnDef="titel">
-              <th mat-header-cell *matHeaderCellDef>Titel</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.titel }}
-                @if (g.schichten.length > 1) {
-                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
-                }
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="aktionen">
-              <th mat-header-cell *matHeaderCellDef>PEP und VB</th>
-              <td mat-cell *matCellDef="let g">
-                <app-einsatz-knoepfe
-                  [stand]="einsatzJeVeranstaltung().get(g.veranstaltung_id) ?? null"
-                  [titel]="g.titel"
-                  [gesperrt]="aktionen.laufend() !== null"
-                  (pepKlick)="aktionen.pepOeffnenOderAnlegen(g)"
-                  (vbKlick)="aktionen.vbOeffnenOderAnlegen(g)"
-                />
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_von">
-              <th mat-header-cell *matHeaderCellDef>Beginn</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_bis">
-              <th mat-header-cell *matHeaderCellDef>Ende</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="ort">
-              <th mat-header-cell *matHeaderCellDef>Ort</th>
-              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-            <tr mat-row *matRowDef="let g; columns: einsatzColumns"></tr>
-          </table>
-        </div>
-      }
-
-      @if (pastGruppen().length > 0) {
-        <h3 class="past-header">Vergangene Veranstaltungen</h3>
-        <div
-          class="tabellenbereich"
-          role="region"
-          aria-label="Vergangene Veranstaltungen"
-          tabindex="0"
-        >
-          <table mat-table [dataSource]="pastGruppen()" class="einsatz-table past">
-            <ng-container matColumnDef="titel">
-              <th mat-header-cell *matHeaderCellDef>Titel</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.titel }}
-                @if (g.schichten.length > 1) {
-                  <span class="schichten-badge">{{ g.schichten.length }} Schichten</span>
-                }
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="aktionen">
-              <th mat-header-cell *matHeaderCellDef>PEP und VB</th>
-              <td mat-cell *matCellDef="let g">
-                <app-einsatz-knoepfe
-                  [stand]="einsatzJeVeranstaltung().get(g.veranstaltung_id) ?? null"
-                  [titel]="g.titel"
-                  [gesperrt]="aktionen.laufend() !== null"
-                  (pepKlick)="aktionen.pepOeffnenOderAnlegen(g)"
-                  (vbKlick)="aktionen.vbOeffnenOderAnlegen(g)"
-                />
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_von">
-              <th mat-header-cell *matHeaderCellDef>Beginn</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_von | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="datum_bis">
-              <th mat-header-cell *matHeaderCellDef>Ende</th>
-              <td mat-cell *matCellDef="let g">
-                {{ g.datum_bis | date: 'dd.MM.yyyy HH:mm' : '' : 'de-DE' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="ort">
-              <th mat-header-cell *matHeaderCellDef>Ort</th>
-              <td mat-cell *matCellDef="let g">{{ g.ort ?? '–' }}</td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="einsatzColumns"></tr>
-            <tr mat-row *matRowDef="let g; columns: einsatzColumns"></tr>
-          </table>
-        </div>
-      }
-
-      @if (upcomingGruppen().length === 0 && pastGruppen().length === 0) {
-        <p class="empty-hint">
-          Keine Veranstaltungen gefunden. Die Veranstaltungen müssen in HiOrg-Server für den
-          EFS-Abruf freigegeben sein.
-        </p>
-      }
-    }
-
-    <mat-divider class="abschnitt-trenner"></mat-divider>
-  </section>
-
-  <section class="einsaetze-ohne-hiorg" aria-labelledby="einsaetze-ohne-hiorg-titel">
-    <div class="section-header">
-      <h2 id="einsaetze-ohne-hiorg-titel">Einsätze ohne HiOrg</h2>
-      <button matButton="outlined" (click)="einsatzAnlegen()">
-        <mat-icon>add</mat-icon> Einsatz anlegen
-      </button>
-    </div>
     @if (einsatzListeFehler() && !einsatzListeGeladen()) {
       <app-meldung art="fehler">{{ einsatzListeFehler() }}</app-meldung>
     }
-    @if (einsatzListeLaedt() && !einsatzListeGeladen()) {
-      <app-ladeanzeige text="Einsätze werden geladen…" />
-    } @else if (einsaetzeOhneHiorg().length === 0) {
-      <p class="empty-hint">
-        Noch keine Einsätze ohne HiOrg-Veranstaltung. Lege einen an, wenn es keine Veranstaltung in
-        HiOrg gibt.
-      </p>
+    @if (efsError()) {
+      <app-meldung art="fehler">{{ efsError() }}</app-meldung>
+      <button matButton (click)="loadEfsEinsaetze()">Erneut versuchen</button>
     }
-    <ul class="cloud-dateien">
-      @for (einsatz of einsaetzeOhneHiorg(); track einsatz.id) {
-        <li>
-          <span>
-            {{ einsatz.titel }}
-            @if (einsatzZeitraumText(einsatz.beginn, einsatz.ende)) {
-              <span class="zeitraum">{{ einsatzZeitraumText(einsatz.beginn, einsatz.ende) }}</span>
-            }
-          </span>
-          <app-einsatz-knoepfe
-            [stand]="einsatz"
-            [titel]="einsatz.titel"
-            [gesperrt]="aktionen.laufend() !== null"
-            (pepKlick)="aktionen.pepOeffnenOderAnlegen(einsatz)"
-            (vbKlick)="aktionen.vbOeffnenOderAnlegen(einsatz)"
-          />
-        </li>
+    @if (efsLoading() || (einsatzListeLaedt() && !einsatzListeGeladen())) {
+      <app-ladeanzeige text="Einsätze werden geladen…" />
+    } @else {
+      @if (einsatzListe().anstehend.length > 0) {
+        <ul class="karten">
+          @for (zeile of einsatzListe().anstehend; track zeile.schluessel) {
+            <li>
+              <app-einsatz-karte
+                [titel]="zeile.titel"
+                [beginn]="zeile.beginn"
+                [schichten]="zeile.schichten"
+                [ort]="zeile.ort"
+                [herkunft]="zeile.herkunft"
+                [pepVorhanden]="zeile.pepVorhanden"
+                [vbKennzahlen]="zeile.vb"
+                [gesperrt]="aktionen.laufend() !== null"
+                (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
+                (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"
+              />
+            </li>
+          }
+        </ul>
+      } @else if (einsatzListe().vergangen.length === 0 && !efsError()) {
+        <app-leerzustand
+          icon="event_busy"
+          titel="Keine Einsätze gefunden. HiOrg-Veranstaltungen müssen für den EFS-Abruf freigegeben sein, oder lege einen Einsatz ohne HiOrg an."
+        />
+      } @else if (!efsError()) {
+        <p class="empty-hint">Keine anstehenden Einsätze.</p>
       }
-    </ul>
+
+      @if (einsatzListe().vergangen.length > 0) {
+        <mat-expansion-panel class="vergangen">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              Vergangene Einsätze ({{ einsatzListe().vergangen.length }})
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+          <ul class="karten">
+            @for (zeile of einsatzListe().vergangen; track zeile.schluessel) {
+              <li>
+                <app-einsatz-karte
+                  [titel]="zeile.titel"
+                  [beginn]="zeile.beginn"
+                  [schichten]="zeile.schichten"
+                  [ort]="zeile.ort"
+                  [herkunft]="zeile.herkunft"
+                  [pepVorhanden]="zeile.pepVorhanden"
+                  [vbKennzahlen]="zeile.vb"
+                  [gesperrt]="aktionen.laufend() !== null"
+                  (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
+                  (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"
+                />
+              </li>
+            }
+          </ul>
+        </mat-expansion-panel>
+      }
+    }
     <mat-divider class="abschnitt-trenner"></mat-divider>
   </section>
 

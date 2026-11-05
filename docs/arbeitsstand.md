@@ -3275,6 +3275,21 @@ Datenvertrag zwischen Worker und Frontend).
   seitliches Scrollen sichtbar sind. Geprüft in Headless-Chromium mit nachgebildeter API auf
   1440×900 und Pixel 7 (Knöpfe je Stand, Vorlage-Wahl-Dialog mit „Leer beginnen“); der Sprung
   in den PEP-Editor und das Anlegen der VB bis in den Editor sind nur durch Tests belegt.
+- Einsatzübersicht als Karten (Variante B „Karten mit Datumsblock“, vom Betreiber gewählt):
+  ein gemeinsamer Abschnitt „Anstehende Einsätze“ mit HiOrg-Veranstaltungen und Einsätzen ohne
+  HiOrg nach Beginn (ohne Beginn zuletzt), „Vergangene Einsätze (n)“ als zugeklapptes
+  `mat-expansion-panel`; „Einsatz ohne HiOrg“ in der Kopfzeile. Neue Komponente
+  `components/einsatz-karte/` ersetzt `EinsatzKnoepfe` und die beiden Tabellen; Zusammenführung
+  und Sortierung in `services/einsatz-liste.ts`, Datumsblock über `lokalerBeginn()`/`datumsblock()`
+  in `einsatz-anzeige.ts` (kein UTC-Versatz). Die Kacheln „PEP“/„VB“ sind `matButton="outlined"`
+  mit eigenem Inhalt (Material-Tokens `--mat-button-outlined-*`, Randart und Statusstreifen
+  direkt), neue Tokens `--radius-karte-gross`, `--einsatz-datum-breite`, `--einsatz-kachel-breite`,
+  `--einsatz-kachel-streifen`. Am Handy stehen Datumsblock und Titel in einer Zeile, die Kacheln
+  darunter je halbe Breite; dort entfallen „Anlegen“ (der gestrichelte Rahmen zeigt es) und die
+  Positionszahl, Untertitel brechen nicht um. Geprüft: Angular-Tests, `tsc` für App und Spec,
+  Headless-Chromium mit nachgebildeter API auf 1440×900 und Pixel 7 (gestrichelter Rand und
+  Statusstreifen am Material-Knopf greifen). Vergangene Einsätze im Panel nicht im Browser
+  gesehen, nur durch Tests belegt.
 - VB-Editor (`…/einsatz/:id/vb`, gleiche Seite für Vorlagen unter `/einsatzplanung/vb-vorlagen/:id`):
   Abschnitte mit Farbe und Fachgruppe, Laufzettel per Ziehen sortierbar, Platzanzeige je
   Laufzettel (23 Materialzeilen à 38 Zeichen) mit Warnung und „In zwei Laufzettel aufteilen“,

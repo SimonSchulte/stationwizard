@@ -67,7 +67,7 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
   it('öffnet die Einsatzliste mit dauerhafter HiOrg-Anbindung und Cloud-Dateien', async () => {
     const ansicht = await RouterTestingHarness.create('/einsatzplanung');
     expect(ansicht.routeNativeElement?.textContent).toContain('Gespeicherte Einsatzpläne');
-    expect(ansicht.routeNativeElement?.textContent).toContain('Veranstaltungen (HiOrg-Server)');
+    expect(ansicht.routeNativeElement?.textContent).toContain('Anstehende Einsätze');
   });
 
   it('leitet die frühere Einsatzadresse auf die Einsatzplanung um', async () => {
