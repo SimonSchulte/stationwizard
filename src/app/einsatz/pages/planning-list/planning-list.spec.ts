@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
@@ -129,7 +129,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     ort: 'Ummeln',
     schichten: [],
   });
-  const gruppen = [
+  const gruppen: ReturnType<typeof gruppe>[] = [
     gruppe('4711', 'Weihnachtsmarkt', kuenftig),
     gruppe('4712', 'Stadtlauf', kuenftig),
     gruppe('4700', 'Altes Fest', frueher),
@@ -188,7 +188,14 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
   }
 
   function titelListe(wurzel: ParentNode): string[] {
-    return [...wurzel.querySelectorAll('app-einsatz-karte h3')].map((h) => h.textContent!.trim());
+    // Nur der Titel, ohne den Abstandshinweis in derselben Überschrift.
+    return [...wurzel.querySelectorAll('app-einsatz-karte h3')].map((h) =>
+      [...h.childNodes]
+        .filter((n) => n.nodeType === Node.TEXT_NODE)
+        .map((n) => n.textContent)
+        .join('')
+        .trim(),
+    );
   }
 
   /** Beschriftungen der Kacheln einer Karte (aria-label). */
@@ -217,6 +224,12 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     peps._vorbelegen(nurPep.id, testPep());
     speicher._vorbelegen(testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen }));
     const fixture = await oeffnen();
+    await vergangenWaehlen(fixture);
+    expect(kacheln(karte(fixture, 'Altes Fest'))).toEqual([
+      'PEP öffnen: Altes Fest',
+      'VB anlegen: Altes Fest',
+    ]);
+    await anstehendWaehlen(fixture);
 
     expect(kacheln(karte(fixture, 'Weihnachtsmarkt'))).toEqual([
       'PEP öffnen: Weihnachtsmarkt',
@@ -226,15 +239,54 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
       'PEP anlegen: Stadtlauf',
       'VB anlegen: Stadtlauf',
     ]);
-    expect(kacheln(karte(fixture, 'Altes Fest'))).toEqual([
-      'PEP öffnen: Altes Fest',
-      'VB anlegen: Altes Fest',
-    ]);
     expect(kacheln(karte(fixture, 'Dienst ohne HiOrg'))).toEqual([
       'PEP anlegen: Dienst ohne HiOrg',
       'VB anlegen: Dienst ohne HiOrg',
     ]);
   });
+
+  function monatsUeberschriften(wurzel: ParentNode): string[] {
+    return [...wurzel.querySelectorAll('h2.monat-titel')].map((h) => h.textContent!.trim());
+  }
+
+  async function eingabe(fixture: ComponentFixture<PlanningList>, text: string) {
+    const feld = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'app-suchfeld input',
+    )!;
+    feld.value = text;
+    feld.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  function chip(fixture: ComponentFixture<PlanningList>, text: string): HTMLElement {
+    const treffer = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('mat-chip-option'),
+    ].find((c) => c.textContent?.includes(text));
+    if (!treffer) throw new Error(`Kein Chip „${text}“`);
+    return treffer;
+  }
+
+  async function chipKlicken(fixture: ComponentFixture<PlanningList>, text: string) {
+    chip(fixture, text).querySelector<HTMLElement>('button')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  async function ansichtWaehlen(fixture: ComponentFixture<PlanningList>, index: number) {
+    const knoepfe = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'mat-button-toggle button',
+    );
+    knoepfe[index].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  const anstehendWaehlen = (fixture: ComponentFixture<PlanningList>) => ansichtWaehlen(fixture, 0);
+  const vergangenWaehlen = (fixture: ComponentFixture<PlanningList>) => ansichtWaehlen(fixture, 1);
 
   it('führt HiOrg und eigene Einsätze in einer nach Beginn sortierten Liste', async () => {
     speicher._vorbelegen(
@@ -243,27 +295,136 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     speicher._vorbelegen(testEinsatz({ titel: 'Ohne Datum', beginn: null, ende: null }));
     const fixture = await oeffnen();
     const wurzel: HTMLElement = fixture.nativeElement;
-    const anstehend = wurzel.querySelector('ul.karten')!;
-    expect(titelListe(anstehend)).toEqual([
+    expect(titelListe(wurzel)).toEqual([
       'Weihnachtsmarkt',
       'Stadtlauf',
       'Dienst ohne HiOrg',
       'Ohne Datum',
     ]);
-    expect(wurzel.querySelector('h2#einsaetze-titel')?.textContent).toContain(
-      'Anstehende Einsätze',
-    );
+    // Letzte Gruppe ohne Beginn.
+    expect(monatsUeberschriften(wurzel).at(-1)).toBe('Ohne Datum');
+    expect(wurzel.querySelector('h2#einsaetze-titel')).toBeNull();
   });
 
-  it('legt Vergangenes in ein zugeklapptes Panel mit Anzahl im Titel', async () => {
+  it('gruppiert nach Monat mit deutscher Überschrift', async () => {
+    const fixture = await oeffnen();
+    const erwartet = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(
+      new Date(kuenftig),
+    );
+    expect(monatsUeberschriften(fixture.nativeElement)).toContain(erwartet);
+  });
+
+  it('zeigt Vergangenes über den Umschalter mit Anzahl, neueste zuerst', async () => {
     speicher._vorbelegen(testEinsatz({ titel: 'Alter Dienst', beginn: gestern, ende: gestern }));
     const fixture = await oeffnen();
     const wurzel: HTMLElement = fixture.nativeElement;
-    const panel = wurzel.querySelector('mat-expansion-panel')!;
-    expect(panel.textContent).toContain('Vergangene Einsätze (2)');
-    expect(panel.classList.contains('mat-expanded')).toBe(false);
-    expect(titelListe(panel).sort()).toEqual(['Alter Dienst', 'Altes Fest']);
-    expect(titelListe(wurzel.querySelector('ul.karten')!)).not.toContain('Altes Fest');
+    expect(wurzel.querySelector('mat-expansion-panel')).toBeNull();
+    expect(wurzel.querySelector('mat-button-toggle-group')?.textContent).toContain('Vergangen (2)');
+    expect(titelListe(wurzel)).not.toContain('Altes Fest');
+
+    await vergangenWaehlen(fixture);
+    expect(titelListe(wurzel)).toEqual(['Alter Dienst', 'Altes Fest']);
+    // Vergangenes trägt keinen Abstandshinweis.
+    expect(wurzel.querySelector('.abstand')).toBeNull();
+  });
+
+  it('filtert nach Titel und Ort, Groß-/Kleinschreibung egal', async () => {
+    speicher._vorbelegen(
+      testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen, ort: 'Halle' }),
+    );
+    const fixture = await oeffnen();
+    await eingabe(fixture, 'STADT');
+    expect(titelListe(fixture.nativeElement)).toEqual(['Stadtlauf']);
+    await eingabe(fixture, 'halle');
+    expect(titelListe(fixture.nativeElement)).toEqual(['Dienst ohne HiOrg']);
+  });
+
+  it('verknüpft die Chips „PEP fehlt“, „VB fehlt“ und „ohne HiOrg“ mit UND', async () => {
+    const markt = testEinsatz({ hiorgVeranstaltungId: '4711' });
+    speicher._vorbelegen(markt);
+    peps._vorbelegen(markt.id, testPep());
+    speicher._vorbelegen(testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen }));
+    const fixture = await oeffnen();
+    const wurzel: HTMLElement = fixture.nativeElement;
+
+    await chipKlicken(fixture, 'PEP fehlt');
+    expect(titelListe(wurzel).sort()).toEqual(['Dienst ohne HiOrg', 'Stadtlauf']);
+    await chipKlicken(fixture, 'ohne HiOrg');
+    expect(titelListe(wurzel)).toEqual(['Dienst ohne HiOrg']);
+    await chipKlicken(fixture, 'PEP fehlt');
+    await chipKlicken(fixture, 'ohne HiOrg');
+    await chipKlicken(fixture, 'VB fehlt');
+    expect(titelListe(wurzel)).toHaveLength(3);
+  });
+
+  it('zeigt ohne Treffer einen Leerzustand und setzt Suche und Filter zurück', async () => {
+    const fixture = await oeffnen();
+    await eingabe(fixture, 'gibt es nicht');
+    const wurzel: HTMLElement = fixture.nativeElement;
+    expect(wurzel.querySelector('app-leerzustand')?.textContent).toContain(
+      'Keine Einsätze passen zu Suche und Filter',
+    );
+    wurzel.querySelector<HTMLButtonElement>('app-leerzustand button')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.suche()).toBe('');
+    expect(titelListe(wurzel)).toContain('Weihnachtsmarkt');
+  });
+
+  it('zeigt ohne jeden Einsatz den Leerzustand ohne Filterknopf', async () => {
+    gruppen.length = 0;
+    try {
+      const fixture = await oeffnen();
+      const wurzel: HTMLElement = fixture.nativeElement;
+      expect(wurzel.querySelector('app-leerzustand')?.textContent).toContain(
+        'Keine Einsätze gefunden',
+      );
+      expect(wurzel.querySelector('app-leerzustand button')).toBeNull();
+    } finally {
+      gruppen.push(
+        gruppe('4711', 'Weihnachtsmarkt', kuenftig),
+        gruppe('4712', 'Stadtlauf', kuenftig),
+        gruppe('4700', 'Altes Fest', frueher),
+      );
+    }
+  });
+
+  it('hat im Kopf Hauptaktion „Einsatz anlegen“ und im Menü Datei öffnen und Einsatz-Vorlagen', async () => {
+    const fixture = await oeffnen();
+    const wurzel: HTMLElement = fixture.nativeElement;
+    const kopf = wurzel.querySelector('app-seitenkopf')!;
+    const haupt = kopf.querySelector<HTMLButtonElement>('button[matButton="filled"]');
+    expect(haupt?.textContent).toContain('Einsatz anlegen');
+    expect(kopf.textContent).not.toContain('Einsatz ohne HiOrg');
+    expect(kopf.textContent).not.toContain('Datei öffnen');
+
+    kopf.querySelector<HTMLButtonElement>('button[aria-label="Weitere Aktionen"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const menue = document.querySelector('.mat-mdc-menu-panel')!;
+    expect(menue.textContent).toContain('Datei öffnen');
+    expect(menue.textContent).toContain('Einsatz-Vorlagen');
+    expect(menue.querySelectorAll('[mat-menu-item], .mat-mdc-menu-item')).toHaveLength(2);
+  });
+
+  it('zeigt den Abstandshinweis, gelb nur bei ≤ 14 Tagen und fehlendem PEP oder VB', async () => {
+    const fixture = await oeffnen();
+    const wurzel: HTMLElement = fixture.nativeElement;
+    const hinweis = (titel: string) => karte(fixture, titel).querySelector('.abstand');
+    expect(hinweis('Weihnachtsmarkt')?.textContent?.trim()).toBe('in 7 Tagen');
+    expect(hinweis('Weihnachtsmarkt')?.classList.contains('dringend')).toBe(true);
+    expect(wurzel.querySelectorAll('.abstand.dringend').length).toBe(2);
+  });
+
+  it('hält einen weit entfernten Einsatz neutral', async () => {
+    speicher._vorbelegen(
+      testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: uebermorgen, ende: uebermorgen }),
+    );
+    const fixture = await oeffnen();
+    const hinweis = karte(fixture, 'Dienst ohne HiOrg').querySelector('.abstand')!;
+    expect(hinweis.textContent?.trim()).toBe('in 30 Tagen');
+    expect(hinweis.classList.contains('dringend')).toBe(false);
   });
 
   it('übergibt Veranstaltung bzw. Einsatz an den Aktionsdienst', async () => {
@@ -317,7 +478,6 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(text).not.toContain('Gespeicherte Einsatzpläne');
     expect(text).not.toContain('Lokale Planungen');
     expect(text).not.toContain('Neue Planung');
-    expect(text).toContain('Datei öffnen');
   });
 
   it('zeigt am VB die Kennzahlen im Untertitel', async () => {
@@ -329,7 +489,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(vb.textContent).toMatch(/\d+ Laufzettel · \d+ Pos\./);
   });
 
-  it('legt „Einsatz ohne HiOrg“ an und bleibt in der Liste', async () => {
+  it('legt über „Einsatz anlegen“ einen Einsatz an und bleibt in der Liste', async () => {
     dialogAntwort = { titel: 'Neuer Dienst', beginn: null, ende: null, ort: null };
     const fixture = await oeffnen();
     await fixture.componentInstance.einsatzAnlegen();

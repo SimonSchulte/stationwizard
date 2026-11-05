@@ -1,4 +1,4 @@
-<app-seitenkopf titel="Einsatzplanung" icon="assignment">
+<app-seitenkopf titel="Einsatzplanung" icon="event_note">
   <app-verbindungsstatus
     class="verbindungsstatus"
     [verbunden]="efsApi.erreichbar()"
@@ -8,10 +8,29 @@
       (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
     "
   />
-  <button matButton="outlined" (click)="loadFromFile()" class="toolbar-btn">
-    <mat-icon>folder_open</mat-icon>
-    Datei öffnen
+  <button
+    matIconButton
+    matTooltip="Aktualisieren"
+    aria-label="Einsätze aktualisieren"
+    (click)="aktualisieren()"
+    [disabled]="efsLoading()"
+  >
+    <mat-icon>refresh</mat-icon>
   </button>
+  <button matButton="filled" (click)="einsatzAnlegen()">
+    <mat-icon>add</mat-icon> Einsatz anlegen
+  </button>
+  <button matIconButton [matMenuTriggerFor]="weitere" aria-label="Weitere Aktionen">
+    <mat-icon>more_vert</mat-icon>
+  </button>
+  <mat-menu #weitere="matMenu">
+    <button mat-menu-item (click)="loadFromFile()">
+      <mat-icon>folder_open</mat-icon> Datei öffnen
+    </button>
+    <a mat-menu-item routerLink="/verwaltung/einsatz-vorlagen">
+      <mat-icon>library_books</mat-icon> Einsatz-Vorlagen
+    </a>
+  </mat-menu>
 </app-seitenkopf>
 
 <div class="list-content">
@@ -26,22 +45,40 @@
       }
     </app-meldung>
   }
-  <section class="einsaetze" aria-labelledby="einsaetze-titel">
-    <div class="section-header">
-      <h2 id="einsaetze-titel">Anstehende Einsätze</h2>
-      <span class="abstand"></span>
-      <button matButton="outlined" (click)="einsatzAnlegen()">
-        <mat-icon>add</mat-icon> Einsatz ohne HiOrg
-      </button>
-      <button
-        matIconButton
-        matTooltip="Aktualisieren"
-        aria-label="Einsätze aktualisieren"
-        (click)="aktualisieren()"
-        [disabled]="efsLoading()"
+  <section class="einsaetze" aria-label="Einsätze">
+    <div class="werkzeuge">
+      <app-suchfeld
+        class="suche"
+        [(wert)]="suche"
+        beschriftung="Einsätze suchen"
+        platzhalter="Titel oder Ort"
+      />
+      <mat-button-toggle-group
+        class="ansicht"
+        aria-label="Zeitraum"
+        hideSingleSelectionIndicator
+        [value]="ansicht()"
+        (change)="ansicht.set($event.value)"
       >
-        <mat-icon>refresh</mat-icon>
-      </button>
+        <mat-button-toggle value="anstehend">Anstehend</mat-button-toggle>
+        <mat-button-toggle value="vergangen">
+          Vergangen ({{ einsatzListe().vergangen.length }})
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+      <mat-chip-listbox class="filter" multiple aria-label="Einsätze filtern">
+        <mat-chip-option [selected]="pepFehlt()" (selectionChange)="pepFehlt.set($event.selected)">
+          PEP fehlt
+        </mat-chip-option>
+        <mat-chip-option [selected]="vbFehlt()" (selectionChange)="vbFehlt.set($event.selected)">
+          VB fehlt
+        </mat-chip-option>
+        <mat-chip-option
+          [selected]="ohneHiorg()"
+          (selectionChange)="ohneHiorg.set($event.selected)"
+        >
+          ohne HiOrg
+        </mat-chip-option>
+      </mat-chip-listbox>
     </div>
 
     @if (einsatzListeFehler() && !einsatzListeGeladen()) {
@@ -53,45 +90,12 @@
     }
     @if (efsLoading() || (einsatzListeLaedt() && !einsatzListeGeladen())) {
       <app-ladeanzeige text="Einsätze werden geladen…" />
-    } @else {
-      @if (einsatzListe().anstehend.length > 0) {
-        <ul class="karten">
-          @for (zeile of einsatzListe().anstehend; track zeile.schluessel) {
-            <li>
-              <app-einsatz-karte
-                [titel]="zeile.titel"
-                [beginn]="zeile.beginn"
-                [schichten]="zeile.schichten"
-                [ort]="zeile.ort"
-                [herkunft]="zeile.herkunft"
-                [pepVorhanden]="zeile.pepVorhanden"
-                [pepKennzahlen]="zeile.pep"
-                [vbKennzahlen]="zeile.vb"
-                [gesperrt]="aktionen.laufend() !== null"
-                (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
-                (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"
-              />
-            </li>
-          }
-        </ul>
-      } @else if (einsatzListe().vergangen.length === 0 && !efsError()) {
-        <app-leerzustand
-          icon="event_busy"
-          titel="Keine Einsätze gefunden. HiOrg-Veranstaltungen müssen für den EFS-Abruf freigegeben sein, oder lege einen Einsatz ohne HiOrg an."
-        />
-      } @else if (!efsError()) {
-        <p class="empty-hint">Keine anstehenden Einsätze.</p>
-      }
-
-      @if (einsatzListe().vergangen.length > 0) {
-        <mat-expansion-panel class="vergangen">
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              Vergangene Einsätze ({{ einsatzListe().vergangen.length }})
-            </mat-panel-title>
-          </mat-expansion-panel-header>
+    } @else if (monatsGruppen().length > 0) {
+      @for (gruppe of monatsGruppen(); track gruppe.schluessel) {
+        <section class="monat" [attr.aria-labelledby]="'monat-' + gruppe.schluessel">
+          <h2 class="monat-titel" [id]="'monat-' + gruppe.schluessel">{{ gruppe.titel }}</h2>
           <ul class="karten">
-            @for (zeile of einsatzListe().vergangen; track zeile.schluessel) {
+            @for (zeile of gruppe.eintraege; track zeile.schluessel) {
               <li>
                 <app-einsatz-karte
                   [titel]="zeile.titel"
@@ -102,6 +106,8 @@
                   [pepVorhanden]="zeile.pepVorhanden"
                   [pepKennzahlen]="zeile.pep"
                   [vbKennzahlen]="zeile.vb"
+                  [abstandTage]="zeile.abstandTage"
+                  [dringend]="zeile.dringend"
                   [gesperrt]="aktionen.laufend() !== null"
                   (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
                   (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"
@@ -109,8 +115,28 @@
               </li>
             }
           </ul>
-        </mat-expansion-panel>
+        </section>
       }
+    } @else if (gesamtAnzahl() === 0) {
+      @if (!efsError()) {
+        <app-leerzustand
+          icon="event_busy"
+          titel="Keine Einsätze gefunden. HiOrg-Veranstaltungen müssen für den EFS-Abruf freigegeben sein, oder lege einen Einsatz an."
+        />
+      }
+    } @else if (filterAktiv()) {
+      <app-leerzustand icon="search_off" titel="Keine Einsätze passen zu Suche und Filter.">
+        <button leerAktion matButton="outlined" (click)="filterZuruecksetzen()">
+          Filter zurücksetzen
+        </button>
+      </app-leerzustand>
+    } @else {
+      <app-leerzustand
+        icon="event_available"
+        [titel]="
+          ansicht() === 'anstehend' ? 'Keine anstehenden Einsätze.' : 'Keine vergangenen Einsätze.'
+        "
+      />
     }
   </section>
 </div>

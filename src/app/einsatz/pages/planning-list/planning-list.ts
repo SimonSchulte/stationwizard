@@ -6,13 +6,15 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
-import { MatExpansionModule } from '@angular/material/expansion';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PepEditorKontext } from '../../services/pep-editor-kontext';
@@ -20,16 +22,22 @@ import { SaveLoadService } from '../../services/save-load.service';
 import { EfsApiService } from '../../services/efs-api.service';
 import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
-import { baueEinsatzListe } from '../../services/einsatz-liste';
+import {
+  baueEinsatzListe,
+  filtereEinsaetze,
+  gruppiereNachMonat,
+  istFilterAktiv,
+  mitAbstand,
+} from '../../services/einsatz-liste';
 import {
   EinsatzAnlegenDaten,
   EinsatzAnlegenDialog,
 } from '../../components/einsatz-anlegen-dialog/einsatz-anlegen-dialog';
 import { EinsatzKarte } from '../../components/einsatz-karte/einsatz-karte';
-import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { EfsEinsatz } from '../../models/planung.model';
 import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
@@ -44,8 +52,12 @@ import { Ladeanzeige, Leerzustand, Meldung, MeldungsDienst } from '../../../kern
     Seitenkopf,
     Verbindungsstatus,
     MatButtonModule,
-    MatExpansionModule,
+    MatButtonToggleModule,
+    MatChipsModule,
     MatIconModule,
+    MatMenuModule,
+    RouterLink,
+    Suchfeld,
     MatTooltipModule,
   ],
   templateUrl: './planning-list.html',
@@ -78,6 +90,47 @@ export class PlanningList implements OnInit {
   readonly einsatzListe = computed(() =>
     baueEinsatzListe(this.efsGruppen(), this.einsatzStore.einsaetze(), new Date()),
   );
+
+  /** Filter und Ansicht gelten nur für die Sitzung und werden nicht gespeichert. */
+  readonly suche = signal('');
+  readonly ansicht = signal<'anstehend' | 'vergangen'>('anstehend');
+  readonly pepFehlt = signal(false);
+  readonly vbFehlt = signal(false);
+  readonly ohneHiorg = signal(false);
+
+  readonly filterAktiv = computed(() =>
+    istFilterAktiv({
+      suche: this.suche(),
+      pepFehlt: this.pepFehlt(),
+      vbFehlt: this.vbFehlt(),
+      ohneHiorg: this.ohneHiorg(),
+    }),
+  );
+
+  /** Gefilterte Karten der gewählten Ansicht, nach Monat gruppiert. */
+  readonly monatsGruppen = computed(() => {
+    const anstehend = this.ansicht() === 'anstehend';
+    const liste = this.einsatzListe();
+    const gefiltert = filtereEinsaetze(anstehend ? liste.anstehend : liste.vergangen, {
+      suche: this.suche(),
+      pepFehlt: this.pepFehlt(),
+      vbFehlt: this.vbFehlt(),
+      ohneHiorg: this.ohneHiorg(),
+    });
+    return gruppiereNachMonat(mitAbstand(gefiltert, new Date(), anstehend));
+  });
+
+  readonly gesamtAnzahl = computed(
+    () => this.einsatzListe().anstehend.length + this.einsatzListe().vergangen.length,
+  );
+
+  /** Setzt Suche und Filter zurück; die gewählte Ansicht bleibt. */
+  filterZuruecksetzen(): void {
+    this.suche.set('');
+    this.pepFehlt.set(false);
+    this.vbFehlt.set(false);
+    this.ohneHiorg.set(false);
+  }
 
   /** Rückmeldung nach der HiOrg-Anmeldung (`/hiorg/rueckruf` leitet mit `?hiorg=` hierher). */
   readonly hiorgRueckmeldung = signal('');

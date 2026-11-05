@@ -67,12 +67,12 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
   it('öffnet die Einsatzliste mit dauerhafter HiOrg-Anbindung, ohne Nextcloud-Abschnitte', async () => {
     const ansicht = await RouterTestingHarness.create('/einsatzplanung');
     const text = ansicht.routeNativeElement?.textContent ?? '';
-    expect(text).toContain('Anstehende Einsätze');
+    expect(text).toContain('Anstehend');
+    expect(text).toContain('Einsatz anlegen');
     expect(text).not.toContain('Gespeicherte Einsatzpläne');
     expect(text).not.toContain('Lokale Planungen');
     expect(text).not.toContain('Nextcloud');
     expect(text).not.toContain('Neue Planung');
-    expect(text).toContain('Datei öffnen');
   });
 
   it('leitet die frühere Einsatzadresse auf die Einsatzplanung um', async () => {

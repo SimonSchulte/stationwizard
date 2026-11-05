@@ -63,6 +63,24 @@
   }
 }
 
+.abstand {
+  display: inline-block;
+  margin-inline-start: var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+  white-space: nowrap;
+
+  &.dringend {
+    background: var(--status-warn-bg);
+    color: var(--status-warn);
+  }
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;

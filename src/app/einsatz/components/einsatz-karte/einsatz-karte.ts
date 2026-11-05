@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { VbKennzahlen } from '../../models/einsatz.model';
 import { PepKennzahlen } from '../../models/pep.model';
-import { datumsblock } from '../../services/einsatz-anzeige';
+import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
 
 /**
  * Eine Karte der Einsatzübersicht: Datumsblock, Titel mit Metazeile und zwei Kacheln
@@ -28,10 +28,15 @@ export class EinsatzKarte {
   /** Kennzahlen der PEP; zeigt „n / m besetzt“. Gesetzt heißt: die PEP ist vorhanden. */
   readonly pepKennzahlen = input<PepKennzahlen | null>(null);
   readonly vbKennzahlen = input<VbKennzahlen | null>(null);
+  /** Tage bis zum Beginn (heute = 0); `null` ohne Hinweis (vergangen oder ohne Datum). */
+  readonly abstandTage = input<number | null>(null);
+  /** Hebt den Abstandshinweis gelb hervor (bald und PEP oder VB fehlt). */
+  readonly dringend = input(false);
   readonly gesperrt = input(false);
   readonly pep = output<void>();
   readonly vb = output<void>();
 
   protected readonly pepDa = computed(() => this.pepVorhanden() || this.pepKennzahlen() !== null);
+  protected readonly abstand = computed(() => abstandText(this.abstandTage()));
   protected readonly datum = computed(() => datumsblock(this.beginn(), new Date().getFullYear()));
 }

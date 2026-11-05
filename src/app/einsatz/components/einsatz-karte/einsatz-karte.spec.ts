@@ -98,4 +98,21 @@ describe('EinsatzKarte', () => {
     setze({ gesperrt: true });
     expect(kacheln().every((k) => k.disabled)).toBe(true);
   });
+
+  it('zeigt den Abstandshinweis neutral oder gelb und ohne Wert gar nicht', () => {
+    setze({ abstandTage: 0 });
+    const hinweis = () => wurzel().querySelector('.abstand');
+    expect(text(hinweis()!)).toBe('heute');
+    expect(hinweis()!.classList.contains('dringend')).toBe(false);
+
+    setze({ abstandTage: 1, dringend: true });
+    expect(text(hinweis()!)).toBe('morgen');
+    expect(hinweis()!.classList.contains('dringend')).toBe(true);
+
+    setze({ abstandTage: 9 });
+    expect(text(hinweis()!)).toBe('in 9 Tagen');
+
+    setze({ abstandTage: null });
+    expect(hinweis()).toBeNull();
+  });
 });

@@ -1,4 +1,11 @@
-import { MONATSNAMEN, jahrVon, monatIndex, wochentag } from '../../kern/kalender/datum';
+import {
+  MONATSNAMEN,
+  epochSekundenZuIsoDatum,
+  jahrVon,
+  monatIndex,
+  tageZwischen,
+  wochentag,
+} from '../../kern/kalender/datum';
 
 const LOKAL = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})$/;
 
@@ -82,4 +89,32 @@ export function datumsblock(beginn: string | null, aktuellesJahr: number): Datum
     tag: String(Number(lokal.slice(8, 10))),
     wochentagZeit: `${wochentag(lokal.slice(0, 10))} · ${lokal.slice(11, 16)}`,
   };
+}
+
+/**
+ * Tage vom Berliner Kalendertag von `jetzt` bis zum Beginn (heute = 0, morgen = 1). Beide Seiten
+ * sind Kalendertage, die Uhrzeit zählt nicht und keine Zeitzone verschiebt das Ergebnis. `null`
+ * ohne lesbaren Beginn; negativ, wenn der Beginn vor heute liegt.
+ */
+export function abstandInTagen(beginn: string | null, jetzt: Date): number | null {
+  const lokal = lokalerBeginn(beginn);
+  const heute = epochSekundenZuIsoDatum(jetzt.getTime() / 1000);
+  if (!lokal || !heute) return null;
+  return tageZwischen(heute, lokal.slice(0, 10));
+}
+
+/** Text des Abstandshinweises: „heute“, „morgen“, „in n Tagen“; leer, wenn der Beginn vorbei ist. */
+export function abstandText(tage: number | null): string {
+  if (tage === null || tage < 0) return '';
+  if (tage === 0) return 'heute';
+  if (tage === 1) return 'morgen';
+  return `in ${tage} Tagen`;
+}
+
+/** Tage bis zum Beginn, ab denen ein fehlender PEP oder eine fehlende VB hervorgehoben wird. */
+export const DRINGEND_TAGE = 14;
+
+/** Gelb hervorgehoben: Beginn heute bis in 14 Tagen und PEP oder VB fehlt. */
+export function istDringend(tage: number | null, pepFehlt: boolean, vbFehlt: boolean): boolean {
+  return tage !== null && tage >= 0 && tage <= DRINGEND_TAGE && (pepFehlt || vbFehlt);
 }

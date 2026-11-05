@@ -3294,6 +3294,17 @@ Datenvertrag zwischen Worker und Frontend).
   seitliches Scrollen sichtbar sind. Geprüft in Headless-Chromium mit nachgebildeter API auf
   1440×900 und Pixel 7 (Knöpfe je Stand, Vorlage-Wahl-Dialog mit „Leer beginnen“); der Sprung
   in den PEP-Editor und das Anlegen der VB bis in den Editor sind nur durch Tests belegt.
+- Einsatzübersicht überarbeitet (vom Betreiber abgenommen, ohne Kennzahlenleiste): Seitenkopf mit
+  Aktualisieren, Hauptaktion „Einsatz anlegen“ und `more_vert`-Menü („Datei öffnen“,
+  „Einsatz-Vorlagen“); Werkzeugzeile mit `app-suchfeld`, Umschalter „Anstehend | Vergangen (n)“
+  (ersetzt das Expansion-Panel) und Chips „PEP fehlt“/„VB fehlt“/„ohne HiOrg“; Karten nach Monat
+  gruppiert („Ohne Datum“ zuletzt); Abstandshinweis an anstehenden Karten, gelb bei höchstens
+  14 Tagen und fehlendem PEP oder fehlender VB. Reine Funktionen `filtereEinsaetze()`,
+  `gruppiereNachMonat()`, `mitAbstand()` (`einsatz-liste.ts`) und `abstandInTagen()`,
+  `istDringend()` (`einsatz-anzeige.ts`) mit Tests; Filterzustand nur in der Sitzung. Geprüft:
+  ganze Vitest-Suite (1517 Tests grün), `tsc` für App und Spec, Headless-Chromium mit
+  nachgebildeter API auf 1440×900 und Pixel 7 (Kopfaktionen samt Menü, Monatsgruppen,
+  Abstandshinweis grau/gelb, Filter „PEP fehlt“, Werkzeugzeile am Handy umgebrochen).
 - Einsatzübersicht als Karten (Variante B „Karten mit Datumsblock“, vom Betreiber gewählt):
   ein gemeinsamer Abschnitt „Anstehende Einsätze“ mit HiOrg-Veranstaltungen und Einsätzen ohne
   HiOrg nach Beginn (ohne Beginn zuletzt), „Vergangene Einsätze (n)“ als zugeklapptes

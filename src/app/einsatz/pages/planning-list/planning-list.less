@@ -11,24 +11,37 @@
   width: 100%;
 }
 
-.section-header {
+.werkzeuge {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-sm);
-
-  h2 {
-    margin: 0;
-  }
+  gap: var(--space-sm) var(--space-md);
 }
 
-.empty-hint {
+.suche {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+
+.monat {
+  margin-top: var(--space-lg);
+}
+
+.monat-titel {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
   color: var(--text-secondary);
-  font-style: italic;
 }
 
-.abschnitt-trenner {
-  margin: var(--space-xl) 0;
+.karten {
+  display: grid;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 @media (max-width: 780px) {
@@ -40,24 +53,15 @@
     flex-basis: 100%;
     margin-inline: 0;
   }
-}
 
-.section-header .abstand {
-  flex: 1;
-}
+  .suche {
+    flex-basis: 100%;
+    max-width: none;
+  }
 
-.karten {
-  display: grid;
-  gap: var(--space-sm);
-  margin: var(--space-md) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.vergangen {
-  margin-top: var(--space-md);
-
-  .karten {
-    margin-top: 0;
+  // Chips scrollen horizontal, statt die Zeile zu sprengen.
+  .filter {
+    max-width: 100%;
+    overflow-x: auto;
   }
 }
