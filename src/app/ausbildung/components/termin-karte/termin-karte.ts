@@ -1,18 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { KATEGORIE_FARBEN } from '../../data/kategorien';
 import {
   KatsThema,
-  NACHWEISE,
   Termin,
   istMehrtaegigerTermin,
   terminArt,
   terminTage,
   typName,
 } from '../../models/plan.model';
+import {
+  Abstand,
+  hatBesondereZeit,
+  mehrtaegigText,
+  zeitBereichText,
+} from '../../services/datum-anzeige';
 import { Segment } from '../../services/plan-raster';
 import { hiorgServerLink, type HiorgEintrag } from '../../models/hiorg-kalender.model';
 import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
@@ -21,7 +27,7 @@ import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 @Component({
   selector: 'app-termin-karte',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [MatButtonModule, MatDividerModule, MatIconModule, MatMenuModule, MatTooltipModule],
   templateUrl: './termin-karte.html',
   styleUrl: './termin-karte.less',
   host: {
@@ -32,6 +38,10 @@ import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
     '[class.frei]': 'istFrei()',
     '[class.luecke]': 'luecke()',
     '[class.kompakt]': 'kompakt()',
+    '[class.bearbeitbar]': 'bearbeitbar()',
+    '[attr.tabindex]': 'bearbeitbar() ? 0 : null',
+    '(click)': 'aktivieren($event)',
+    '(keydown.enter)': 'aktivieren($event)',
   },
 })
 export class TerminKarte {
@@ -56,10 +66,45 @@ export class TerminKarte {
   /** Bietet im Menü einer Idee „Auf nächste Lücke legen“ an – nur das Ideen-Panel setzt das. */
   readonly lueckeAnbieten = input(false);
 
+  /**
+   * Ein Klick oder Enter auf die Karte öffnet den Termin. Nur Randtage des Nachbarjahres
+   * sind reine Anzeige und schalten das ab.
+   */
+  readonly bearbeitbar = input(true);
+
+  /**
+   * Steht die Karte neben einem Datumsblock (Liste, KatS), entfallen Datum und Beginn in der
+   * Karte: `tag` = der Block nennt nur den Wochentag, `tag-beginn` = er nennt auch den Beginn.
+   */
+  readonly datumsblock = input<'aus' | 'tag' | 'tag-beginn'>('aus');
+  /** Abstand zu heute als Pille im Kopf („heute“, „in 6 Tagen“). */
+  readonly abstand = input<Abstand | null>(null);
+
   readonly bearbeiten = output<void>();
+  /** „Verschieben nach Datum …“: die Tastatur- und Touch-Alternative zum Ziehen. */
+  readonly datumWaehlen = output<void>();
   readonly loeschen = output<void>();
   readonly verschieben = output<void>();
   readonly naechsteLuecke = output<void>();
+
+  /** Kurzer Name für Beschriftungen, damit gleiche Menüknöpfe unterscheidbar bleiben. */
+  readonly titelKurz = computed(() => {
+    const t = this.termin();
+    const text = (t.thema || t.hinweis).replace(/\s+/g, ' ').trim();
+    return text.length > 40 ? `${text.slice(0, 38)}…` : text || 'Eintrag';
+  });
+
+  /** Klick und Enter auf die Karte, nicht auf ihre eigenen Knöpfe, Links und Menüs. */
+  aktivieren(ereignis: Event): void {
+    if (!this.bearbeitbar()) {
+      return;
+    }
+    const ziel = ereignis.target;
+    if (ziel instanceof Element && ziel.closest('button, a, [role="menuitem"]')) {
+      return;
+    }
+    this.bearbeiten.emit();
+  }
 
   /** Direktlink auf die Detailseite im HiOrg-Server, falls dieser Termin verknüpft ist. */
   readonly hiorgLink = computed(() => {
@@ -104,11 +149,28 @@ export class TerminKarte {
     if (this.istFortsetzung()) {
       return '';
     }
-    const { beginnZeit, endeZeit } = this.termin();
+    const termin = this.termin();
+    // Im Raster nur, was vom Dienstabend abweicht; der Normalfall ist Rauschen.
+    if (this.kompakt()) {
+      return hatBesondereZeit(termin) ? zeitBereichText(termin) : '';
+    }
+    // Der Datumsblock nennt den Beginn schon: die Karte ergänzt nur das Ende.
+    if (this.datumsblock() === 'tag-beginn') {
+      return termin.endeZeit ? `bis ${termin.endeZeit}` : '';
+    }
+    const { beginnZeit, endeZeit } = termin;
     if (!beginnZeit) {
       return endeZeit ? `bis ${endeZeit}` : '';
     }
     return endeZeit ? `${beginnZeit}–${endeZeit}` : beginnZeit;
+  });
+
+  /** „Tag 2/4“; neben einem Datumsblock am ersten Tag „4 Tage · bis So 08.03.“. */
+  readonly mehrtaegigKopf = computed(() => {
+    if (this.datumsblock() !== 'aus' && !this.istFortsetzung() && this.mehrtaegig()) {
+      return mehrtaegigText(this.termin(), terminTage(this.termin()).length);
+    }
+    return this.tagesFortschritt();
   });
 
   private readonly tagIndex = computed(() => {
@@ -126,9 +188,6 @@ export class TerminKarte {
     const datum = this.termin().datum;
     return datum ? wochentag(datum) : '';
   });
-  readonly nachweisKuerzel = computed(() =>
-    NACHWEISE.filter((n) => this.termin().nachweise.includes(n.key)).map((n) => n.kurz),
-  );
   readonly katsAnzeige = computed(() => {
     const thema = this.katsThema();
     if (thema) {

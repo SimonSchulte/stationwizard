@@ -5,14 +5,23 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import {
+  MAT_DIALOG_DATA,
+  MatDialog,
+  MatDialogModule,
+  MatDialogRef,
+} from '@angular/material/dialog';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { filter } from 'rxjs';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import {
+  formatiereDatum,
   isoZuLokalesDatum,
   lokalesDatumZuIso,
   lokalesDatumZuZeit,
@@ -20,8 +29,6 @@ import {
 } from '../../../kern/kalender/datum';
 import {
   KATEGORIEN,
-  NACHWEISE,
-  NachweisKey,
   TERMIN_TYPEN,
   Termin,
   TerminTyp,
@@ -37,6 +44,23 @@ export interface TerminDialogDaten {
   datum?: string | null;
 }
 
+/**
+ * Öffnet den Termin-Dialog: auf schmalen Displays als Vollbild, sonst als 760 px breites
+ * Fenster. Die Seiten rufen nur diese Funktion, damit beide Wege gleich aussehen.
+ */
+export function oeffneTerminDialog(dialog: MatDialog, daten: TerminDialogDaten): void {
+  const schmal =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 600px)').matches;
+  dialog.open(TerminDialog, {
+    data: daten,
+    ...(schmal
+      ? { width: '100vw', maxWidth: '100vw', height: '100dvh', maxHeight: '100dvh' }
+      : { width: '760px', maxWidth: '94vw' }),
+  });
+}
+
 /** Bearbeitet einen Termin oder eine Idee – dasselbe Formular für beide. */
 @Component({
   selector: 'app-termin-dialog',
@@ -48,6 +72,7 @@ export interface TerminDialogDaten {
     MatCheckboxModule,
     MatDatepickerModule,
     MatDialogModule,
+    MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -64,11 +89,11 @@ export class TerminDialog {
   private readonly store = inject(PlanStore);
   private readonly dialogRef = inject(MatDialogRef<TerminDialog>);
   private readonly daten = inject<TerminDialogDaten>(MAT_DIALOG_DATA);
+  private readonly dialogDienst = inject(DialogDienst);
 
   readonly kategorien = KATEGORIEN;
   readonly terminTypen = TERMIN_TYPEN;
   readonly typName = typName;
-  readonly nachweise = NACHWEISE;
   readonly katsThemen = this.store.katsThemen;
 
   private readonly vorhanden = this.daten.terminId
@@ -77,8 +102,28 @@ export class TerminDialog {
 
   readonly istNeu = this.vorhanden === undefined;
   readonly entwurf = signal<Termin>(
-    this.vorhanden ? structuredClone(this.vorhanden) : leererTermin(this.daten.datum ?? null),
+    this.vorhanden
+      ? structuredClone(this.vorhanden)
+      : // Was neu eingetragen wird, ist standardmäßig ein „Termin“; ein „Dienst“ wird bewusst gewählt.
+        { ...leererTermin(this.daten.datum ?? null), typ: 'termin' },
   );
+  /** Stand beim Öffnen, um ungesicherte Eingaben zu erkennen. */
+  private readonly ausgangsstand = JSON.stringify(this.entwurf());
+  readonly geaendert = computed(() => JSON.stringify(this.entwurf()) !== this.ausgangsstand);
+  /** Bereiche stehen offen, sobald dort schon etwas erfasst ist; sonst genügt ihre Zusammenfassung. */
+  readonly weitereOffen = [
+    this.entwurf().hinweis,
+    this.entwurf().material,
+    this.entwurf().anforderungen,
+    this.entwurf().notizen,
+    this.entwurf().hgmInhalt,
+    this.entwurf().hgmTitel,
+  ].some((text) => text.trim() !== '');
+  readonly katsOffen =
+    this.entwurf().katsThemaId !== null ||
+    this.entwurf().katsPflicht ||
+    this.entwurf().katsTitel.trim() !== '';
+  readonly mehrtaegigOffen = this.entwurf().datumBis !== null;
   readonly istIdee = computed(() => this.entwurf().datum === null);
 
   /** Stabile `Date`-Referenzen für die Picker: nur bei geändertem Wert neu erzeugt. */
@@ -111,6 +156,22 @@ export class TerminDialog {
       e.datumBis === null && e.beginnZeit !== '' && e.endeZeit !== '' && e.endeZeit < e.beginnZeit
     );
   });
+  /** Eine Zeile für den eingeklappten Bereich „Mehrtägig“. */
+  readonly mehrtaegigText = computed(() => {
+    const bis = this.entwurf().datumBis;
+    return bis ? `bis ${formatiereDatum(bis)}` : 'eintägig';
+  });
+
+  /** Eine Zeile für den eingeklappten Bereich „KatS-Ausbildungsplan“. */
+  readonly katsText = computed(() => {
+    const e = this.entwurf();
+    const thema = this.katsThemen().find((t) => t.id === e.katsThemaId);
+    const bezug = thema
+      ? `${thema.nummer ? thema.nummer + ' · ' : ''}${thema.titel}`
+      : e.katsTitel.trim().replace(/\s+/g, ' ');
+    const text = [bezug, e.katsPflicht ? 'Pflicht' : ''].filter((teil) => teil).join(' · ');
+    return text || 'kein Bezug';
+  });
   readonly kannSpeichern = computed(() => !this.endeVorBeginn());
 
   readonly kannAlsKatsThema = computed(() => {
@@ -118,19 +179,32 @@ export class TerminDialog {
     return !e.katsThemaId && (e.katsTitel.trim() || e.thema.trim()).length > 0;
   });
 
+  constructor() {
+    // Esc und Klick auf den Hintergrund schließen nicht mehr still, wenn Eingaben offen sind.
+    this.dialogRef.disableClose = true;
+    this.dialogRef.backdropClick().subscribe(() => void this.abbrechen());
+    this.dialogRef
+      .keydownEvents()
+      .pipe(filter((e) => e.key === 'Escape'))
+      .subscribe(() => void this.abbrechen());
+  }
+
+  async abbrechen(): Promise<void> {
+    if (
+      this.geaendert() &&
+      !(await this.dialogDienst.bestaetigen(
+        'Die Eingaben in diesem Formular gehen verloren.',
+        'Änderungen verwerfen?',
+        'Verwerfen',
+      ))
+    ) {
+      return;
+    }
+    this.dialogRef.close(false);
+  }
+
   setze<K extends keyof Termin>(feld: K, wert: Termin[K]): void {
     this.entwurf.update((e) => ({ ...e, [feld]: wert }));
-  }
-
-  hatNachweis(key: NachweisKey): boolean {
-    return this.entwurf().nachweise.includes(key);
-  }
-
-  schalteNachweis(key: NachweisKey, aktiv: boolean): void {
-    this.entwurf.update((e) => ({
-      ...e,
-      nachweise: aktiv ? [...e.nachweise, key] : e.nachweise.filter((n) => n !== key),
-    }));
   }
 
   waehleKatsThema(id: string | null): void {

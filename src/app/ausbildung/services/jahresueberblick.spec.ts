@@ -50,4 +50,29 @@ describe('baueJahresueberblick', () => {
     expect(kennzahlen.nachKategorie.get('SAN')).toBe(1);
     expect(kennzahlen.diensttage).toBe(kennzahlen.belegt + kennzahlen.luecken + 1);
   });
+
+  it('zählt je Monat die Diensttage ohne Feiertag, belegte und Lücken', () => {
+    const maerz = baueJahresueberblick(wochen, new Set()).monate[2]!;
+
+    // 2., 9., 16. (Feiertag), 23., 30. März
+    expect(maerz.diensttage).toBe(4);
+    expect(maerz.belegt).toBe(1);
+    expect(maerz.luecken).toBe(3);
+  });
+
+  it('zeigt die Uhrzeit nur, wenn sie vom Dienstabend abweicht', () => {
+    const mit = baueWochenraster(
+      2026,
+      [
+        termin('2026-03-02', { typ: 'dienst', thema: 'A', beginnZeit: '19:00', endeZeit: '22:30' }),
+        termin('2026-03-09', { typ: 'dienst', thema: 'B', beginnZeit: '18:00', endeZeit: '20:00' }),
+        termin('2026-03-23', { typ: 'termin', thema: 'C', beginnZeit: '19:00', endeZeit: '22:30' }),
+      ],
+      new Map(),
+      'Mo',
+    );
+    const zellen = baueJahresueberblick(mit, new Set()).monate[2]!.zellen;
+
+    expect(zellen.map((z) => z.zeit)).toEqual(['', '18:00–20:00', '', '19:00–22:30', '']);
+  });
 });

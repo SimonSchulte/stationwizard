@@ -1,5 +1,4 @@
 @import '../../../kern/kopfleiste.less';
-@import '../../../kern/marke.less';
 
 :host {
   display: flex;
@@ -80,45 +79,34 @@
   background: var(--surface-primary);
 }
 
-.diensttags-marke {
-  .marke-knopf();
+.filter-marken {
+  flex: 0 0 auto;
+}
 
-  &.hat-luecken {
-    border-color: var(--luecke-rand);
-    background: var(--luecke-bg);
-    color: var(--luecke-text);
-    font-weight: 500;
-  }
+/* Lücken-Filter: rötlich, solange es Lücken gibt; gewählt wird er kräftiger. */
+.diensttags-marke.hat-luecken {
+  --mat-chip-elevated-container-color: var(--luecke-bg);
+  --mat-chip-elevated-selected-container-color: var(--luecke-rand);
+  --mat-chip-label-text-color: var(--luecke-text);
+  --mat-chip-selected-label-text-color: var(--text-on-dark);
+  --mat-chip-with-avatar-avatar-size: 18px;
+}
 
-  &.aktiv {
-    outline: 2px solid var(--luecke-rand);
-    outline-offset: var(--space-unit);
-  }
+.abweichungs-marke {
+  --mat-chip-elevated-container-color: var(--hiorg-abweichung-bg);
+  --mat-chip-elevated-selected-container-color: var(--hiorg-abweichung-rand);
+  --mat-chip-label-text-color: var(--hiorg-abweichung-text);
+  --mat-chip-selected-label-text-color: var(--text-on-dark);
 }
 
 .plan-suche {
-  display: flex;
-  align-items: center;
-  gap: var(--space-compact);
-  padding: calc(var(--space-unit) * 5) calc(var(--space-unit) * 10);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-chip);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
+  // Gleiche Höhe wie die übrigen Bedienelemente der Plan-Kopfzeile.
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
+  --mat-form-field-container-text-size: 0.875rem;
 
-  input {
-    width: 170px;
-    border: 0;
-    background: var(--surface-transparent);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 0.8125rem;
-    outline: none;
-  }
-
-  &:focus-within {
-    border-color: var(--mat-sys-primary);
-  }
+  width: 14rem;
+  flex: 0 1 14rem;
 }
 
 /* Ansichtsschalter der Plan-Kopfzeile, gleiche Anmutung wie die Diensttags-Marke. */
@@ -132,42 +120,6 @@
 
   mat-icon {
     margin-inline-end: var(--space-xs);
-  }
-}
-
-.abweichungs-marke {
-  .marke-knopf();
-  border-color: var(--hiorg-abweichung-rand);
-  background: var(--hiorg-abweichung-bg);
-  color: var(--hiorg-abweichung-text);
-  font-weight: 500;
-
-  &.aktiv {
-    background: var(--hiorg-abweichung-rand);
-    color: var(--text-on-dark);
-  }
-}
-
-// ------------------------------------------------------------------ Seitenleiste
-
-.seitenleiste {
-  position: relative;
-  display: flex;
-  flex: 0 0 clamp(340px, 32vw, 480px);
-  flex-direction: column;
-  min-height: 0;
-  border-left: 1px solid var(--border-light);
-  background: var(--surface-primary);
-  transition: flex-basis 160ms ease;
-
-  /* Eingeklappt bleibt nur ein schmaler Rand mit dem Ausklapp-Knopf übrig – gibt dem
-     Wochenraster bei schmalerer Fensterbreite Platz, ohne die Ideensammlung zu verlieren. */
-  &.eingeklappt {
-    flex-basis: 40px;
-
-    .reiter {
-      display: none;
-    }
   }
 }
 
@@ -214,7 +166,7 @@
   border-radius: var(--radius-chip);
   background: var(--surface-hover);
   color: var(--text-secondary);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .menue-kopf {
@@ -224,6 +176,20 @@
   font-size: 0.75rem;
   line-height: 1.4;
   max-width: 240px;
+}
+
+.menue-gruppe {
+  padding: var(--space-sm) var(--space-md) var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Rückgängig/Wiederholen: in der Leiste nur auf breiten, sonst im Menü. */
+.nur-schmal {
+  display: none;
 }
 
 .menue-fuss {
@@ -255,7 +221,7 @@
     background: none;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
 
     &.aktiv {
       color: var(--mat-sys-primary);
@@ -271,7 +237,7 @@
   border-radius: var(--radius-chip);
   background: var(--ci-red);
   color: var(--surface-primary);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -286,7 +252,7 @@
     display: none;
   }
 
-  .marke-text {
+  .marke {
     display: none;
   }
 
@@ -298,18 +264,22 @@
     display: none;
   }
 
+  .nur-breit {
+    display: none;
+  }
+
+  .nur-schmal {
+    display: flex;
+  }
+
   .plan-kopf {
     flex-wrap: wrap;
     row-gap: var(--space-xs);
   }
 
   .plan-suche {
-    flex: 1 1 auto;
-
-    input {
-      width: auto;
-      min-width: 0;
-    }
+    flex: 1 1 100%;
+    width: auto;
   }
 
   .seitenleiste {

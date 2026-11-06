@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { VbKennzahlen } from '../../models/einsatz.model';
 import { PepKennzahlen } from '../../models/pep.model';
+import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
 import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
 
 /**
@@ -12,7 +13,7 @@ import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
  */
 @Component({
   selector: 'app-einsatz-karte',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Datumsblock, MatButtonModule, MatIconModule],
   templateUrl: './einsatz-karte.html',
   styleUrl: './einsatz-karte.less',
   changeDetection: ChangeDetectionStrategy.OnPush,

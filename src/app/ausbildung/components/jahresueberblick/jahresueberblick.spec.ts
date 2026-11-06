@@ -52,4 +52,32 @@ describe('Jahresueberblick', () => {
 
     expect(gewaehlt).toEqual(['2026-03-02']);
   });
+
+  it('zeigt je Monat die Belegung der Diensttage', () => {
+    const maerz = element().querySelectorAll('.zeile')[2]!;
+
+    expect(maerz.querySelector('.mon')?.textContent?.trim()).toBe('MÄR');
+    expect(maerz.querySelector('.zaehl')?.textContent?.trim()).toBe('1/5');
+    expect(maerz.querySelector('.zaehl')?.classList).toContain('warn');
+  });
+
+  it('nennt den Abstand zu heute für bevorstehende Tage und umrandet den laufenden Monat', () => {
+    const maerz = element().querySelectorAll('.zeile')[2]!;
+    const pillen = [...maerz.querySelectorAll('.abstand')].map((p) => p.textContent?.trim());
+
+    // Heute ist Mittwoch, der 4. März: der 9. liegt in 5 Tagen, der 16. in 12, der 23. in 19.
+    expect(pillen).toEqual(['in 5 Tagen', 'in 12 Tagen']);
+    expect(maerz.classList).toContain('laufend');
+    expect(element().querySelectorAll('.zeile.laufend')).toHaveLength(1);
+  });
+
+  it('bietet das Anlegen nur an einer Lücke an und meldet deren Datum', () => {
+    const angelegt: string[] = [];
+    fixture.componentInstance.anlegen.subscribe((d) => angelegt.push(d));
+    const knoepfe = element().querySelectorAll<HTMLButtonElement>('.anlegen');
+
+    expect(knoepfe.length).toBe(element().querySelectorAll('.zelle.luecke').length);
+    knoepfe[0]!.click();
+    expect(angelegt).toEqual(['2026-01-05']);
+  });
 });

@@ -66,7 +66,7 @@ describe('Monatsansicht', () => {
   const agendaTitel = () => element().querySelector('.agenda h2')?.textContent?.trim();
   const zahlKnopf = (tag: string) =>
     [...element().querySelectorAll<HTMLButtonElement>('.tag-nummer')].find(
-      (b) => b.textContent?.trim() === tag && !b.disabled,
+      (b) => b.textContent?.trim() === String(Number(tag)) && !b.disabled,
     );
 
   beforeEach(() => TestBed.configureTestingModule({}));
@@ -247,5 +247,31 @@ describe('Monatsansicht', () => {
     fixture.detectChanges();
 
     expect(element().querySelector('.agenda app-hiorg-eintrag-karte')).toBeNull();
+  });
+
+  it('zeigt den Monatsersten als „1. MÄR“, damit der Wechsel mitten in der Woche auffällt', () => {
+    aufbauen([]);
+
+    const erste = [...element().querySelectorAll('.tag-nummer.erster')].map((b) =>
+      b.textContent?.trim(),
+    );
+    expect(erste).toContain('1. MÄR');
+  });
+
+  it('markiert heute am Tag und nennt „heute“, die Kalenderwoche trägt nur ihre Nummer', () => {
+    aufbauen([]);
+
+    expect(element().querySelectorAll('.tag-nummer.heute')).toHaveLength(1);
+    expect(element().querySelector('.heute-pille')?.textContent?.trim()).toBe('heute');
+    expect(element().querySelector('.kw-bereich')).toBeNull();
+  });
+
+  it('zeigt im Kopf der Agenda Datumsblock, Wochentag und Abstand', () => {
+    aufbauen([termin('2026-03-04', { thema: 'Erfundenes Thema' })]);
+
+    const kopf = element().querySelector('.agenda-kopf')!;
+    expect(kopf.querySelector('app-datumsblock')?.textContent).toContain('MÄR');
+    expect(kopf.querySelector('h2')?.textContent).toContain('Mittwoch');
+    expect(kopf.querySelector('.abstand')?.textContent?.trim()).toBe('heute');
   });
 });

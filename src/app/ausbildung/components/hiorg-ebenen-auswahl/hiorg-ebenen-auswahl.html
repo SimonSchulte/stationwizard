@@ -1,4 +1,5 @@
 <button
+  matButton="outlined"
   class="ebenen-marke"
   [matMenuTriggerFor]="ebenenMenue"
   matTooltip="Wie dicht die HiOrg-Termine im Raster stehen"
@@ -9,7 +10,7 @@
 </button>
 <mat-menu #ebenenMenue="matMenu">
   <div class="menue-kopf" (click)="$event.stopPropagation()">
-    HiOrg-Ebene im Wochenraster. Einträge mit abweichendem Namen bleiben immer einzeln sichtbar.
+    HiOrg-Ebene im Wochenraster. Termine mit abweichendem Namen bleiben immer einzeln sichtbar.
   </div>
   @for (option of optionen; track option.wert) {
     <button mat-menu-item (click)="ebene.set(option.wert)">

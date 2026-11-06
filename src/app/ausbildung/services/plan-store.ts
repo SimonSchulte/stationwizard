@@ -268,7 +268,14 @@ export class PlanStore {
   }
 
   neueIdee(vorlage: Partial<Termin> = {}): string {
-    const idee = { ...leererTermin(null), ...vorlage, id: neueId(), datum: null, datumBis: null };
+    const idee = {
+      ...leererTermin(null),
+      typ: 'termin' as const,
+      ...vorlage,
+      id: neueId(),
+      datum: null,
+      datumBis: null,
+    };
     this.mutiere((d) => ({ ...d, backlog: [idee, ...d.backlog] }));
     return idee.id;
   }

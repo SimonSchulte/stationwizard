@@ -14,6 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -28,6 +29,7 @@ import { AuswertungPanel } from '../../components/auswertung-panel/auswertung-pa
 import { BacklogPanel } from '../../components/backlog-panel/backlog-panel';
 import { DatumDialog, DatumDialogDaten } from '../../components/datum-dialog/datum-dialog';
 import { KatsPanel } from '../../components/kats-panel/kats-panel';
+import { KatsAusbildungsplan } from '../../components/kats-ausbildungsplan/kats-ausbildungsplan';
 import { Agendaliste } from '../../components/agendaliste/agendaliste';
 import {
   AblageAufTag,
@@ -35,7 +37,10 @@ import {
   Monatsansicht,
 } from '../../components/monatsansicht/monatsansicht';
 import { Jahresueberblick } from '../../components/jahresueberblick/jahresueberblick';
-import { TerminDialog, TerminDialogDaten } from '../../components/termin-dialog/termin-dialog';
+import {
+  TerminDialogDaten,
+  oeffneTerminDialog,
+} from '../../components/termin-dialog/termin-dialog';
 import { BUNDESLAENDER, BundeslandCode } from '../../data/bundeslaender';
 import { WOCHENTAG_OPTIONEN, diensttagName } from '../../../kern/kalender/wochentage';
 import { HiorgEintrag, istMehrtaegig } from '../../models/hiorg-kalender.model';
@@ -64,6 +69,8 @@ import {
   baueTagesInhalt,
 } from '../../services/tages-inhalt';
 import { PlanStore } from '../../services/plan-store';
+import { RueckgaengigDienst } from '../../services/rueckgaengig-dienst';
+import { TerminLoeschenDienst } from '../../services/termin-loeschen';
 import { KalenderDatenService } from '../../services/kalender-daten.service';
 import { KalenderKonfliktFehler } from '../../storage/kalender-storage';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
@@ -76,6 +83,7 @@ import {
   jahrVon,
   monatIndex,
 } from '../../../kern/kalender/datum';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
 
 /** Hauptansicht: Wochenraster links, Ideen/Auswertung/KatS-A-Plan rechts. */
@@ -83,6 +91,7 @@ import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
   selector: 'app-jahresplan',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Suchfeld,
     StatusChip,
     HiorgEbenenAuswahl,
     MonatsNavigation,
@@ -93,6 +102,7 @@ import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
     KatsPanel,
     MatButtonModule,
     MatButtonToggleModule,
+    MatChipsModule,
     MatDividerModule,
     MatIconModule,
     MatMenuModule,
@@ -102,6 +112,7 @@ import { MeldungsDienst, type MeldungArt } from '../../../kern/zustand/zustand';
     MatTooltipModule,
     Monatsansicht,
     Jahresueberblick,
+    KatsAusbildungsplan,
     RouterLink,
   ],
   templateUrl: './jahresplan.html',
@@ -115,6 +126,8 @@ export class Jahresplan {
   private readonly dialog = inject(MatDialog);
   private readonly dialogDienst = inject(DialogDienst);
   private readonly meldungen = inject(MeldungsDienst);
+  private readonly terminLoeschen = inject(TerminLoeschenDienst);
+  private readonly rueckgaengig = inject(RueckgaengigDienst);
   readonly store = inject(PlanStore);
   readonly kalender = inject(KalenderDatenService);
   readonly feiertage = inject(FeiertagService);
@@ -127,6 +140,9 @@ export class Jahresplan {
 
   readonly bundeslaender = BUNDESLAENDER;
   readonly wochentagOptionen = WOCHENTAG_OPTIONEN;
+  readonly bundeslandName = computed(
+    () => BUNDESLAENDER.find((l) => l.code === this.feiertage.bundesland())?.name ?? '',
+  );
   readonly wochentageIso = WOCHENTAGE_ISO;
   readonly beschaeftigt = this.kalender.beschaeftigt;
 
@@ -151,7 +167,11 @@ export class Jahresplan {
    * (Agendaliste). Auf schmalen Bildschirmen startet die Liste, sonst das Raster.
    * Bewusst nur für diese Sitzung – eine Ansichtseinstellung wird nirgends persistiert.
    */
-  readonly ansicht = signal<'monat' | 'liste' | 'jahr'>(startAnsicht());
+  readonly ansicht = signal<'monat' | 'liste' | 'jahr' | 'kats'>(startAnsicht());
+  /** Monat und Liste teilen Filter, Monatsnavigation und Suche; Jahr und KatS zeigen immer alles. */
+  readonly istTerminAnsicht = computed(
+    () => this.ansicht() === 'monat' || this.ansicht() === 'liste',
+  );
   /** Filter der Agendaliste; leer bedeutet alle Kategorien. Nur für diese Sitzung. */
   readonly agendaKategorien = signal<ReadonlySet<Kategorie>>(new Set());
   readonly agendaTyp = signal<TypFilter>('alle');
@@ -536,7 +556,7 @@ export class Jahresplan {
       return;
     }
     this.store.aktualisiereTermin(abweichung.terminId, { thema: abweichung.hiorg.name });
-    this.melde('Thema aus HiOrg übernommen – rückgängig mit Strg+Z.');
+    this.rueckgaengig.melde('Thema aus HiOrg übernommen.');
   }
 
   /** Werkzeug (c): Aus einem HiOrg-Termin ohne Gegenstück einen Plantermin machen. */
@@ -573,7 +593,11 @@ export class Jahresplan {
     this.diensttagService.setze(wochentag);
     const ergaenzt = this.store.ergaenzeFehlendeDiensttage(wochentag);
     if (ergaenzt) {
-      this.melde(`${ergaenzt} fehlende(r) ${diensttagName(wochentag)} als Zeilen ergänzt.`);
+      this.melde(
+        ergaenzt === 1
+          ? `1 fehlender ${diensttagName(wochentag)} als Zeile ergänzt.`
+          : `${ergaenzt} fehlende ${diensttagName(wochentag)}e als Zeilen ergänzt.`,
+      );
     }
   }
 
@@ -610,7 +634,9 @@ export class Jahresplan {
     }
     if (gezogen.datum === null) {
       this.store.ausBacklogAufTermin(gezogen.id, ziel.id);
-      this.melde(`„${kurz(gezogen.thema)}“ auf ${formatiereDatum(ziel.datum!)} eingeplant.`);
+      this.rueckgaengig.melde(
+        `„${kurz(gezogen.thema)}“ auf ${formatiereDatum(ziel.datum!)} eingeplant.`,
+      );
     } else {
       this.store.tauscheDatum(gezogen.id, ziel.id);
     }
@@ -624,10 +650,39 @@ export class Jahresplan {
     } else {
       this.store.verschiebeAufDatum(gezogen.id, datum);
     }
-    this.melde(`„${kurz(gezogen.thema)}“ auf ${formatiereDatum(datum)} gelegt.`);
+    this.rueckgaengig.melde(`„${kurz(gezogen.thema)}“ auf ${formatiereDatum(datum)} gelegt.`);
   }
 
   // ----------------------------------------------------------------- Termine
+
+  /**
+   * „Verschieben nach Datum …“: das Gegenstück zum Ziehen für Tastatur und Touch. Wie beim
+   * Ziehen tauscht ein belegter Zieltag das Datum mit seinem Termin, ein freier wird belegt.
+   */
+  terminVerschiebenNach(termin: Termin): void {
+    this.dialog
+      .open(DatumDialog, {
+        data: { titel: 'Verschieben nach Datum', vorgabe: termin.datum } satisfies DatumDialogDaten,
+      })
+      .afterClosed()
+      .subscribe((datum?: string) => {
+        if (!datum || datum === termin.datum) {
+          return;
+        }
+        const beleger = this.store.termine().find((t) => t.datum === datum && t.id !== termin.id);
+        if (beleger) {
+          this.store.tauscheDatum(termin.id, beleger.id);
+          this.rueckgaengig.melde(
+            `„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben, Termine getauscht.`,
+          );
+        } else {
+          this.store.verschiebeAufDatum(termin.id, datum);
+          this.rueckgaengig.melde(
+            `„${kurz(termin.thema)}“ auf ${formatiereDatum(datum)} verschoben.`,
+          );
+        }
+      });
+  }
 
   neuerTermin(): void {
     this.dialog
@@ -651,16 +706,18 @@ export class Jahresplan {
   }
 
   private oeffneDialog(daten: TerminDialogDaten): void {
-    this.dialog.open(TerminDialog, { data: daten, width: '760px', maxWidth: '94vw' });
+    oeffneTerminDialog(this.dialog, daten);
   }
 
   zuBacklog(termin: Termin): void {
     this.store.zuBacklog(termin.id);
-    this.melde(`„${kurz(termin.thema || termin.hinweis)}“ in die offenen Ideen verschoben.`);
+    this.rueckgaengig.melde(
+      `„${kurz(termin.thema || termin.hinweis)}“ in die offenen Ideen verschoben.`,
+    );
   }
 
   loeschen(id: string): void {
-    this.store.loescheTermin(id);
+    this.terminLoeschen.loesche(id);
   }
 
   /**
@@ -682,7 +739,9 @@ export class Jahresplan {
     } else {
       this.store.ausBacklogAufDatum(idee.id, luecke.datum);
     }
-    this.melde(`„${kurz(idee.thema)}“ auf ${formatiereDatum(luecke.datum)} eingeplant.`);
+    this.rueckgaengig.melde(
+      `„${kurz(idee.thema)}“ auf ${formatiereDatum(luecke.datum)} eingeplant.`,
+    );
   }
 
   /** Auswahl der Monatsansicht: Ablage auf einem anderen Termin. */
@@ -700,6 +759,23 @@ export class Jahresplan {
   /** Wechselt zu einem bereits vorhandenen Jahr des Kalenders. */
   waehleJahr(jahr: number): void {
     this.kalender.waehleJahr(jahr);
+  }
+
+  /**
+   * Aus dem Jahresmenü: fragt vorher nach, weil sich ein angelegtes Jahr in der Oberfläche
+   * nicht wieder entfernen lässt (nur ungespeichert über „Neu laden“).
+   */
+  async neuesJahrAnlegen(): Promise<void> {
+    const jahr = this.naechstesJahr();
+    if (
+      await this.dialogDienst.bestaetigen(
+        `Das Jahr ${jahr} wird mit leeren Listen angelegt. Nach dem Speichern lässt es sich in der Oberfläche nicht mehr entfernen.`,
+        'Neues Jahr anlegen',
+        'Anlegen',
+      )
+    ) {
+      this.neuesJahr(jahr);
+    }
   }
 
   /** Legt ein neues Jahr an und wechselt dorthin; gespeichert wird es mit „Speichern“. */
@@ -791,7 +867,16 @@ export class Jahresplan {
     if (!event.ctrlKey && !event.metaKey) {
       return;
     }
+    // Ein offener Dialog (etwa der Termin-Dialog) gehört sich selbst; Strg+S/Z/Y gälten
+    // sonst für den Plan darunter.
+    if (document.querySelector('.mat-mdc-dialog-container')) {
+      return;
+    }
     const taste = event.key.toLowerCase();
+    // In Textfeldern gehört Strg+Z/Y dem Feld (natives Rückgängig), nicht dem Plan.
+    if ((taste === 'z' || taste === 'y') && istTextEingabe(event.target)) {
+      return;
+    }
     if (taste === 's') {
       event.preventDefault();
       void this.speichern();
@@ -813,6 +898,13 @@ export class Jahresplan {
   private melde(text: string, art: MeldungArt = 'info'): void {
     this.meldungen.zeige(art, text);
   }
+}
+
+function istTextEingabe(ziel: EventTarget | null): boolean {
+  return (
+    ziel instanceof HTMLElement &&
+    (ziel.isContentEditable || ziel.closest('input, textarea, select') !== null)
+  );
 }
 
 function kurz(text: string): string {

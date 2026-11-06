@@ -23,7 +23,7 @@ Prüfungen und offene Abnahmegrenzen.
   `einsatz/components/` (`PositionZeile`, `StaerkeBlock`, `QualifikationsChips`,
   `AnforderungsAuswahl`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
   `StundenImport`), `ausbildung/components/` (`MonatsNavigation`, `HiorgEbenenAuswahl`),
-  `kern/` (`Seitenkopf`, `MeldungsDienst`/`Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
+  `kern/` (`Seitenkopf`, `Datumsblock`, `MeldungsDienst`/`Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
   `Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
   Vor einer neuen Komponente nach einer vorhandenen suchen.
 - Worker-Module nach demselben Muster: `<modul>.ts` verteilt nur die festen Pfade,
@@ -346,12 +346,24 @@ Verwaltungsbereich (`/verwaltung/kalender-migration`, Seite unter
 `excel-lesen.ts` gelesen und in **einer** Anfrage an `POST /api/kalender/migration`
 übergeben, die der Worker in einer `db.batch()` vollständig oder gar nicht schreibt – nur
 solange beide Tabellen leer sind, sonst 409 `KALENDER_BEREITS_BEFUELLT`. Die Kopfleiste
-zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Der Kalender hat drei Ansichten
-(`Jahresplan.ansicht`, Umschalter Monat/Liste/Jahr): **Monat** (`components/monatsansicht/`,
+zeigt „Datenbank“ und „HiOrg“ als Verbindungen. Der Kalender hat vier Ansichten
+(`Jahresplan.ansicht`, Umschalter Monat/Liste/KatS/Jahr): **Monat** (`components/monatsansicht/`,
 Monatsraster auf Basis des Wochenrasters mit Tagesagenda für den gewählten Tag, Drag & Drop
 auf Tage und Karten wie bisher) und **Liste** (`components/agendaliste/`, nach Kalenderwochen
 gruppiert, nur Tage mit Einträgen oder Lücken, Filter nach Kategorie und Typ). **Jahr** (`components/jahresueberblick/`, `services/jahresueberblick.ts`: nur die Diensttage, zwölf
-Monatszeilen, Lücken, Abweichungen und Kennzahlen; ein Klick öffnet den Monat). Startansicht ist
+Monatszeilen, Lücken, Abweichungen und Kennzahlen; ein Klick öffnet den Monat). **KatS** (`components/kats-ausbildungsplan/`, `services/kats-ausbildungsplan.ts`:
+alle datierten Termine des Jahres mit KatS-Bezug – verknüpftes Thema, Pflicht oder KatS-Titel –
+nach Monat, dazu die Themen ohne Termin). Monat und Liste tönen jeden zweiten Monat
+(`--monat-ungerade-bg`) und Wochenenden rötlich (`--wochenende-bg`). Alle Ansichten teilen den
+**Datumsblock** (`kern/datumsblock/`: Monat, Tag, Wochentag mit Beginn; Breite
+`--einsatz-datum-breite`, auch von der Einsatzkarte genutzt) und die Berechnungen in
+`services/datum-anzeige.ts`: Abstand zu heute („heute“, „morgen“, „in n Tagen“, nur 14 Tage im
+Voraus), Uhrzeit nur bei Abweichung vom Dienstabend 19:00–22:30 (`hatBesondereZeit()`, ein Termin
+mit Zeit zeigt sie immer), Monatstrenner und „1. APR“ am Monatsersten. Neben einem Datumsblock
+zeigt `app-termin-karte` kein eigenes Datum (`datumsblock`-Eingabe). Die **Nachweisgruppen** der
+Termine (`NACHWEISE`) bleiben im Datenmodell, im Excel und im Worker erhalten, erscheinen aber in
+keiner Oberfläche mehr; ob sie fachlich sinnvoll sind, ist noch im Backend zu klären. Neue
+Einträge sind standardmäßig vom Typ „Termin“. Startansicht ist
 auf Bildschirmen bis 780 px die Liste, sonst der Monat; Ansicht und Filter gelten nur für die
 Sitzung und werden nicht gespeichert. Beide Ansichten sind rein darstellend und melden jede
 Änderung an den `Jahresplan` (Undo, Bestätigungen, Meldungen bleiben dort). Die Seitenleiste

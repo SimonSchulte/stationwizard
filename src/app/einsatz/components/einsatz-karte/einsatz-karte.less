@@ -13,44 +13,6 @@
   border-radius: var(--radius-karte-gross);
 }
 
-.datum {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2xs);
-  min-height: var(--einsatz-datum-breite);
-  padding: var(--space-sm) var(--space-xs);
-  background: var(--surface-secondary);
-  border-radius: var(--radius-chip);
-  text-align: center;
-  line-height: 1.1;
-
-  .monat {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--text-secondary);
-  }
-
-  .tag {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .zeit {
-    font-size: 12px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-}
-
-.kein-datum {
-  font-size: 28px;
-  color: var(--text-disabled);
-}
-
 .mitte {
   min-width: 0;
 
