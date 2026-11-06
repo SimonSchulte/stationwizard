@@ -4,9 +4,11 @@ import { Router } from '@angular/router';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
 import { vorlageWaehlen } from '../components/vorlage-wahl-dialog/vorlage-wahl-dialog';
 import { Einsatz } from '../models/einsatz.model';
-import { EfsEinsatzGruppe, Planung } from '../models/planung.model';
+import { HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
+import { Planung } from '../models/planung.model';
 import { pepInhaltZuPlanung } from './pep-abbildung';
 import { PepEditorKontext } from './pep-editor-kontext';
+import { HiorgVeranstaltungenQuelle } from './hiorg-veranstaltungen-quelle.service';
 import { PepStoreService } from './pep-store.service';
 import { PlanungOeffnenDienst } from './planung-oeffnen';
 import { PlanungStoreService } from './planung-store.service';
@@ -39,6 +41,7 @@ export class PepEditorOeffnenDienst {
   private readonly planungStore = inject(PlanungStoreService);
   private readonly kontext = inject(PepEditorKontext);
   private readonly planungOeffnen = inject(PlanungOeffnenDienst);
+  private readonly veranstaltungen = inject(HiorgVeranstaltungenQuelle);
 
   /** Lädt die vorhandene PEP des Einsatzes und öffnet sie im Editor; wirft bei Fehlern. */
   async oeffnen(einsatz: Einsatz): Promise<void> {
@@ -61,14 +64,14 @@ export class PepEditorOeffnenDienst {
 
   /**
    * Legt die PEP an und öffnet sie: fragt nach Vorlage oder leerem Anfang; bei einer
-   * HiOrg-Veranstaltung kommen Posten und Einsatzkräfte aus dem EFS-Abruf als Basis. Abbruch
-   * ändert nichts. Fehler (auch beim HiOrg-Abruf) wirft, ohne etwas anzulegen; fehlt die Veranstaltung im EFS-Abruf, warnt
+   * HiOrg-Veranstaltung kommt ein Posten je Schicht aus dem Kalenderfeed als Basis. Abbruch
+   * ändert nichts. Ist der Feed nicht erreichbar oder führt die Veranstaltung nicht mehr, warnt
    * eine Meldung und die PEP entsteht ohne Basis.
    */
-  async anlegen(einsatz: Einsatz, gruppe: EfsEinsatzGruppe | null): Promise<void> {
+  async anlegen(einsatz: Einsatz, veranstaltung: HiorgVeranstaltung | null): Promise<void> {
     const wahl = await vorlageWaehlen(this.dialog, 'pep');
     if (!wahl) return;
-    const basis = await this.basisBauen(einsatz, gruppe);
+    const basis = await this.basisBauen(einsatz, veranstaltung);
     const angelegt = await this.pepStore.ausVorlageAnlegen(
       einsatz.id,
       wahl.art === 'vorlage' ? wahl.vorlageId : null,
@@ -82,18 +85,20 @@ export class PepEditorOeffnenDienst {
 
   private async basisBauen(
     einsatz: Einsatz,
-    gruppeVorgabe: EfsEinsatzGruppe | null,
+    vorgabe: HiorgVeranstaltung | null,
   ): Promise<Planung | null> {
-    if (!gruppeVorgabe && !einsatz.hiorgVeranstaltungId) return null;
-    const gruppe =
-      gruppeVorgabe ??
-      (await this.planungOeffnen.gruppeFuerVeranstaltung(einsatz.hiorgVeranstaltungId ?? ''));
-    if (!gruppe) {
+    if (!vorgabe && !einsatz.hiorgVeranstaltungId) return null;
+    let veranstaltung = vorgabe;
+    if (!veranstaltung) {
+      await this.veranstaltungen.sicherstellenGeladen();
+      veranstaltung = this.veranstaltungen.veranstaltung(einsatz.hiorgVeranstaltungId ?? '');
+    }
+    if (!veranstaltung) {
       this.meldungen.warnung(
-        'Die Veranstaltung ist nicht im EFS-Abruf. Die PEP wird ohne Einsatzkräfte aus HiOrg angelegt.',
+        'Die Veranstaltung steht nicht im HiOrg-Kalenderfeed. Die PEP wird ohne Posten aus HiOrg angelegt.',
       );
       return null;
     }
-    return this.planungOeffnen.planungAusEfsBauen(gruppe);
+    return this.planungOeffnen.planungAusVeranstaltungBauen(veranstaltung);
   }
 }

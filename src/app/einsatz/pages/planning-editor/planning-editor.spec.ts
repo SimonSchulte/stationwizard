@@ -5,7 +5,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanningEditor } from './planning-editor';
-import { EfsApiService, EfsDetailResult } from '../../services/efs-api.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SaveLoadService } from '../../services/save-load.service';
@@ -34,7 +33,6 @@ describe('PlanningEditor', () => {
     hinweis: vi.fn().mockResolvedValue(undefined),
     eingabe: vi.fn(),
   };
-  const api = { getVeranstaltungDetail: vi.fn(), fehler: signal(''), erreichbar: signal(true) };
   const dialogOeffnen = vi.fn();
   const speichernLokal = vi.fn();
   const navigate = vi.fn();
@@ -48,7 +46,6 @@ describe('PlanningEditor', () => {
   function konfigurieren(route: { data?: Record<string, unknown>; id?: string } = {}) {
     TestBed.configureTestingModule({
       providers: [
-        { provide: EfsApiService, useValue: api },
         { provide: PdfExportService, useValue: {} },
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
         { provide: DialogDienst, useValue: dialog },
@@ -396,27 +393,6 @@ describe('PlanningEditor', () => {
     beforeEach(() => {
       konfigurieren();
       editor = editorBauen();
-    });
-
-    it('wendet einen verspäteten EFS-Sync nicht auf einen anderen Plan an', async () => {
-      let antworten!: (detail: EfsDetailResult) => void;
-      api.getVeranstaltungDetail.mockImplementation(
-        () =>
-          new Promise<EfsDetailResult>((resolve) => {
-            antworten = resolve;
-          }),
-      );
-      const planung: Planung = { ...erzeugeTestplanung(), hiorg_einsatz_id: 'test-einsatz' };
-      store.oeffneGespeichert(planung);
-      const synchronisieren = editor.updateFromEfs(planung);
-      const andererPlan = store.createPlanung('Anderer Testplan');
-      antworten({
-        einsatzkraefte: [{ hiorg_org_id: 'test-neu', nachname: 'Testperson', vorname: 'Süd' }],
-        einsatzmittel: [],
-      });
-      await synchronisieren;
-      expect(store.active()).toEqual(andererPlan);
-      expect(editor.efsUpdating()).toBe(false);
     });
 
     it('löscht einen Posten bei abgebrochener Bestätigung nicht', async () => {

@@ -1,11 +1,11 @@
 <app-seitenkopf titel="Einsatzplanung" icon="event_note">
   <app-verbindungsstatus
     class="verbindungsstatus"
-    [verbunden]="efsApi.erreichbar()"
-    [text]="efsApi.erreichbar() ? 'HiOrg-Server verbunden' : 'HiOrg-Server nicht verbunden'"
+    [verbunden]="quelle.erreichbar()"
+    [text]="quelle.erreichbar() ? 'HiOrg-Kalender verbunden' : 'HiOrg-Kalender nicht verbunden'"
     [tooltip]="
-      efsApi.fehler() ||
-      (efsApi.erreichbar() ? 'HiOrg-Server erreichbar' : 'HiOrg-Server nicht verbunden')
+      quelle.fehler() ||
+      (quelle.erreichbar() ? 'HiOrg-Kalenderfeed erreichbar' : 'HiOrg-Kalender nicht verbunden')
     "
   />
   <button
@@ -13,7 +13,7 @@
     matTooltip="Aktualisieren"
     aria-label="Einsätze aktualisieren"
     (click)="aktualisieren()"
-    [disabled]="efsLoading()"
+    [disabled]="quelle.laedt()"
   >
     <mat-icon>refresh</mat-icon>
   </button>
@@ -65,6 +65,17 @@
           Vergangen ({{ einsatzListe().vergangen.length }})
         </mat-button-toggle>
       </mat-button-toggle-group>
+      <mat-button-toggle-group
+        class="art"
+        aria-label="Art"
+        hideSingleSelectionIndicator
+        [value]="art()"
+        (change)="art.set($event.value)"
+      >
+        <mat-button-toggle value="alle">Alle</mat-button-toggle>
+        <mat-button-toggle value="dienst">Dienste</mat-button-toggle>
+        <mat-button-toggle value="termin">Veranstaltungen</mat-button-toggle>
+      </mat-button-toggle-group>
       <mat-chip-listbox class="filter" multiple aria-label="Einsätze filtern">
         <mat-chip-option [selected]="pepFehlt()" (selectionChange)="pepFehlt.set($event.selected)">
           PEP fehlt
@@ -84,11 +95,17 @@
     @if (einsatzListeFehler() && !einsatzListeGeladen()) {
       <app-meldung art="fehler">{{ einsatzListeFehler() }}</app-meldung>
     }
-    @if (efsError()) {
-      <app-meldung art="fehler">{{ efsError() }}</app-meldung>
-      <button matButton (click)="loadEfsEinsaetze()">Erneut versuchen</button>
+    @if (quelle.fehler()) {
+      <app-meldung [art]="quelle.zustand() === 'nicht-konfiguriert' ? 'warnung' : 'fehler'">
+        {{ quelle.fehler() }}
+        @if (quelle.zustand() === 'fehler') {
+          <button matButton meldungAktion (click)="quelle.laden()" [disabled]="quelle.laedt()">
+            Erneut versuchen
+          </button>
+        }
+      </app-meldung>
     }
-    @if (efsLoading() || (einsatzListeLaedt() && !einsatzListeGeladen())) {
+    @if (quelle.laedt() || (einsatzListeLaedt() && !einsatzListeGeladen())) {
       <app-ladeanzeige text="Einsätze werden geladen…" />
     } @else if (monatsGruppen().length > 0) {
       @for (gruppe of monatsGruppen(); track gruppe.schluessel) {
@@ -103,6 +120,7 @@
                   [schichten]="zeile.schichten"
                   [ort]="zeile.ort"
                   [herkunft]="zeile.herkunft"
+                  [art]="zeile.art"
                   [pepVorhanden]="zeile.pepVorhanden"
                   [pepKennzahlen]="zeile.pep"
                   [vbKennzahlen]="zeile.vb"
@@ -118,10 +136,10 @@
         </section>
       }
     } @else if (gesamtAnzahl() === 0) {
-      @if (!efsError()) {
+      @if (!quelle.fehler()) {
         <app-leerzustand
           icon="event_busy"
-          titel="Keine Einsätze gefunden. HiOrg-Veranstaltungen müssen für den EFS-Abruf freigegeben sein, oder lege einen Einsatz an."
+          titel="Keine Einsätze gefunden. Der HiOrg-Kalenderfeed liefert keine Dienste oder Veranstaltungen, oder lege einen Einsatz an."
         />
       }
     } @else if (filterAktiv()) {

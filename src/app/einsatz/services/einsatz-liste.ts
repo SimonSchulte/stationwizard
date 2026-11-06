@@ -1,9 +1,10 @@
-import { EfsEinsatzGruppe } from '../models/planung.model';
+import { HiorgArt, HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
 import { EinsatzListenEintrag, VbKennzahlen } from '../models/einsatz.model';
 import { PepKennzahlen } from '../models/pep.model';
 import { EinsatzZiel, einsatzZielSchluessel } from './einsatz-aktionen';
 import { abstandInTagen, istDringend, lokalerBeginn } from './einsatz-anzeige';
 import { MONATSNAMEN, jahrVon, monatIndex } from '../../kern/kalender/datum';
+import { artAusVeranstaltungsId } from './hiorg-veranstaltungen';
 
 /** Eine Karte der Einsatzübersicht: HiOrg-Veranstaltung oder Einsatz ohne HiOrg. */
 export interface EinsatzListenZeile {
@@ -16,6 +17,8 @@ export interface EinsatzListenZeile {
   schichten: number | null;
   ort: string | null;
   herkunft: 'hiorg' | 'eigen';
+  /** Dienst oder Veranstaltung; `null` ohne HiOrg-Bezug und bei Altbestand ohne Art. */
+  art: HiorgArt | null;
   pepVorhanden: boolean;
   /** Kennzahlen der PEP, `null` ohne PEP. */
   pep: PepKennzahlen | null;
@@ -36,13 +39,16 @@ function nachBeginn(a: EinsatzListenZeile, b: EinsatzListenZeile): number {
 }
 
 /**
- * Führt HiOrg-Veranstaltungen und Einsätze ohne HiOrg zu einer Liste zusammen. Vergangen ist,
- * was ein Ende (HiOrg: `datum_bis`, sonst Beginn) vor `jetzt` hat; ohne lesbares Datum bleibt
- * es anstehend. Anstehend nach Beginn aufsteigend (ohne Beginn zuletzt), vergangen neueste zuerst.
- * Einsätze mit HiOrg-Veranstaltung, die EFS nicht liefert, erscheinen nicht.
+ * Führt HiOrg-Veranstaltungen (Kalenderfeed) und gespeicherte Einsätze zu einer Liste zusammen.
+ * Vergangen ist, was ein Ende vor `jetzt` hat; ohne lesbares Datum bleibt es anstehend.
+ * Anstehend nach Beginn aufsteigend (ohne Beginn zuletzt), vergangen neueste zuerst.
+ *
+ * Ein gespeicherter Einsatz, dessen Veranstaltung der Feed nicht (mehr) liefert – das Fenster
+ * des Feeds ist begrenzt –, erscheint mit seinen gespeicherten Angaben weiter, damit PEP und
+ * VB erreichbar bleiben.
  */
 export function baueEinsatzListe(
-  gruppen: readonly EfsEinsatzGruppe[],
+  veranstaltungen: readonly HiorgVeranstaltung[],
   einsaetze: readonly EinsatzListenEintrag[],
   jetzt: Date,
 ): EinsatzListe {
@@ -51,28 +57,29 @@ export function baueEinsatzListe(
   for (const einsatz of einsaetze) {
     if (einsatz.hiorgVeranstaltungId) jeVeranstaltung.set(einsatz.hiorgVeranstaltungId, einsatz);
   }
+  const imFeed = new Set(veranstaltungen.map((v) => v.veranstaltungId));
   const eintraege: { zeile: EinsatzListenZeile; ende: string | null }[] = [];
-  for (const gruppe of gruppen) {
-    const einsatz = jeVeranstaltung.get(gruppe.veranstaltung_id) ?? null;
-    const beginn = lokalerBeginn(gruppe.datum_von);
+  for (const veranstaltung of veranstaltungen) {
+    const einsatz = jeVeranstaltung.get(veranstaltung.veranstaltungId) ?? null;
     eintraege.push({
       zeile: {
-        schluessel: einsatzZielSchluessel(gruppe),
-        ziel: gruppe,
-        titel: gruppe.titel,
-        beginn,
-        schichten: gruppe.schichten.length,
-        ort: gruppe.ort ?? null,
+        schluessel: einsatzZielSchluessel(veranstaltung),
+        ziel: veranstaltung,
+        titel: veranstaltung.titel,
+        beginn: veranstaltung.beginn,
+        schichten: veranstaltung.schichten.length,
+        ort: einsatz?.ort ?? null,
         herkunft: 'hiorg',
+        art: veranstaltung.art,
         pepVorhanden: (einsatz?.pep ?? null) !== null,
         pep: einsatz?.pep ?? null,
         vb: einsatz?.vb ?? null,
       },
-      ende: lokalerBeginn(gruppe.datum_bis) ?? beginn,
+      ende: veranstaltung.ende,
     });
   }
   for (const einsatz of einsaetze) {
-    if (einsatz.hiorgVeranstaltungId) continue;
+    if (einsatz.hiorgVeranstaltungId && imFeed.has(einsatz.hiorgVeranstaltungId)) continue;
     eintraege.push({
       zeile: {
         schluessel: einsatzZielSchluessel(einsatz),
@@ -81,7 +88,8 @@ export function baueEinsatzListe(
         beginn: lokalerBeginn(einsatz.beginn),
         schichten: null,
         ort: einsatz.ort,
-        herkunft: 'eigen',
+        herkunft: einsatz.hiorgVeranstaltungId ? 'hiorg' : 'eigen',
+        art: artAusVeranstaltungsId(einsatz.hiorgVeranstaltungId),
         pepVorhanden: einsatz.pep !== null,
         pep: einsatz.pep,
         vb: einsatz.vb,
@@ -108,6 +116,8 @@ export interface EinsatzFilter {
   pepFehlt: boolean;
   vbFehlt: boolean;
   ohneHiorg: boolean;
+  /** `alle` oder nur Dienste bzw. nur Veranstaltungen; Einsätze ohne Art fallen dann heraus. */
+  art: 'alle' | HiorgArt;
 }
 
 export const KEIN_FILTER: EinsatzFilter = {
@@ -115,10 +125,17 @@ export const KEIN_FILTER: EinsatzFilter = {
   pepFehlt: false,
   vbFehlt: false,
   ohneHiorg: false,
+  art: 'alle',
 };
 
 export function istFilterAktiv(filter: EinsatzFilter): boolean {
-  return filter.suche.trim() !== '' || filter.pepFehlt || filter.vbFehlt || filter.ohneHiorg;
+  return (
+    filter.suche.trim() !== '' ||
+    filter.pepFehlt ||
+    filter.vbFehlt ||
+    filter.ohneHiorg ||
+    filter.art !== 'alle'
+  );
 }
 
 /** Behält die Zeilen, die alle Bedingungen des Filters erfüllen; die Reihenfolge bleibt. */
@@ -138,6 +155,7 @@ export function filtereEinsaetze(
     if (filter.pepFehlt && zeile.pepVorhanden) return false;
     if (filter.vbFehlt && zeile.vb !== null) return false;
     if (filter.ohneHiorg && zeile.herkunft !== 'eigen') return false;
+    if (filter.art !== 'alle' && zeile.art !== filter.art) return false;
     return true;
   });
 }

@@ -190,18 +190,6 @@
         <mat-icon>undo</mat-icon>
       </button>
       <span class="spacer"></span>
-      @if (!istVorlage && p.hiorg_einsatz_id) {
-        <button
-          matIconButton
-          [matTooltip]="
-            efsUpdating() ? 'Wird aktualisiert…' : 'Einsatzkräfte aus EFS aktualisieren'
-          "
-          [disabled]="efsUpdating()"
-          (click)="updateFromEfs(p)"
-        >
-          <mat-icon>sync</mat-icon>
-        </button>
-      }
       <button matIconButton (click)="importTemplate()" matTooltip="Vorlage importieren">
         <mat-icon>file_upload</mat-icon>
       </button>
@@ -249,14 +237,6 @@
     </mat-toolbar>
 
     <!-- Description Sub-Bar -->
-    @if (p.hiorg_einsatz_id && efsApi.fehler()) {
-      <app-meldung art="fehler">
-        {{ efsApi.fehler() }}
-        <button matButton meldungAktion (click)="updateFromEfs(p)" [disabled]="efsUpdating()">
-          Erneut versuchen
-        </button>
-      </app-meldung>
-    }
     @if (speicherFehler()) {
       <app-meldung art="fehler" (geschlossen)="speicherFehler.set(''); konflikt.set(false)">
         {{ speicherFehler() }} Deine Änderungen bleiben in diesem Editor erhalten.
@@ -307,16 +287,6 @@
                 >
               }
             </span>
-            @if (p.hiorg_einsatz_id) {
-              <button
-                matIconButton
-                [matTooltip]="efsUpdating() ? 'Wird aktualisiert…' : 'Aus EFS aktualisieren'"
-                [disabled]="efsUpdating()"
-                (click)="updateFromEfs(p)"
-              >
-                <mat-icon>sync</mat-icon>
-              </button>
-            }
             <button
               matIconButton
               matTooltip="Einsatzkräfte importieren"

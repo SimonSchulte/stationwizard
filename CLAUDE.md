@@ -473,6 +473,19 @@ unbeobachteter, zeitlich unabhängiger Zweit-Request konnte dabei kurz nach der 
 Rollenvergabe fehlt auch hier – dieselbe Übergangslösung „Rechte vorerst alle,
 Rollen später" wie ursprünglich bei Fahrzeugen/Benutzerverwaltung/Systemkonfiguration.
 
+Die **Einsatzübersicht** (`einsatz/pages/planning-list/`) bezieht Dienste und Veranstaltungen
+aus dem HiOrg-Kalenderfeed (`GET /api/hiorg/kalender`), nicht mehr aus EFS:
+`HiorgVeranstaltungenQuelle` ruft zwei Fenster ab (zwölf Monate voraus, sechs zurück), die reine
+Funktion `gruppiereVeranstaltungen()` (`hiorg-veranstaltungen.ts`) führt gleiche Art und Feed-`id`
+zu einer Veranstaltung mit Schichten zusammen. Der Schlüssel `Einsatz.hiorgVeranstaltungId` ist
+jetzt `dienst-<id>` bzw. `termin-<id>` (die Feed-`id` ist über beide Arten nicht eindeutig);
+Altbestand mit früherer EFS-Id bleibt gültig, hat aber keine Art. Ein gespeicherter Einsatz, den
+der Feed nicht (mehr) liefert, erscheint weiter mit seinen gespeicherten Angaben. Der Umschalter
+Alle/Dienste/Veranstaltungen (`EinsatzFilter.art`) blendet Einsätze ohne Art aus. Der Feed kennt
+keinen Ort, keine Einsatzkräfte und keine Einsatzmittel: eine neue PEP bekommt einen Posten je
+Schicht, Einsatzkräfte kommen über die HiOrg-Server-API oder den Import. `/api/efs/*` und
+`worker/src/efs.ts` bestehen unverändert, die Oberfläche ruft sie nicht mehr auf.
+
 Die Einsatzplanung (`worker/src/einsatzplanung.ts` als Verteiler, `einsatzplanung-gemeinsam.ts`,
 `-pruefung.ts`, `-einsaetze.ts`, `-vorbereitungen.ts`, `-vorlagen.ts`, `-peps.ts`,
 `-pep-vorlagen.ts`, `-pep-pruefung.ts`; Konzept und Datenvertrag in

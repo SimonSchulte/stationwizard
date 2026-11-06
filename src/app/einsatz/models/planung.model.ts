@@ -64,7 +64,7 @@ export interface Einsatzkraft {
     zusatz?: string[];
   };
   meta?: { notes?: string };
-  /** HiOrg-Server org-scoped ID; set when imported from EFS-API */
+  /** HiOrg-Server org-scoped ID (Altbestand aus dem früheren EFS-Import) */
   hiorg_org_id?: string;
   telefonnummer?: string;
 }
@@ -78,7 +78,7 @@ export interface Planung {
   posten: Posten[];
   einsatzkraefte: Einsatzkraft[];
   einsatzleiter: EinsatzkraftRef | null;
-  /** HiOrg-Server Einsatz-ID; set when loaded from EFS-API */
+  /** Veranstaltungs-Id der HiOrg-Veranstaltung (`dienst-<id>`/`termin-<id>`, Altbestand: EFS-Id) */
   hiorg_einsatz_id?: string;
 }
 
@@ -86,39 +86,4 @@ export interface PepFile {
   version: string;
   meta: { exportedAt: string; taktischeZeit?: string; locale: string };
   planung: Planung;
-}
-
-// ── EFS-API domain types ────────────────────────────────────────────────────
-
-export interface EfsEinsatz {
-  id: string;
-  titel: string;
-  datum_von: string;
-  datum_bis: string;
-  ort?: string;
-  veranstaltung_id?: string;
-}
-
-export interface EfsEinsatzGruppe {
-  veranstaltung_id: string;
-  titel: string;
-  datum_von: string;
-  datum_bis: string;
-  ort?: string;
-  schichten: EfsEinsatz[];
-}
-
-export interface EfsEinsatzkraft {
-  hiorg_org_id: string;
-  vorname: string;
-  nachname: string;
-  ausbildungen?: string[];
-  telefonnummer?: string;
-}
-
-export interface EfsEinsatzmittel {
-  id: string;
-  bezeichnung?: string;
-  funkruf?: string;
-  fugcode?: string;
 }

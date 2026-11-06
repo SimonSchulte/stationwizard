@@ -4,21 +4,21 @@ import { MatDialog } from '@angular/material/dialog';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
 import { vorlageWaehlen } from '../components/vorlage-wahl-dialog/vorlage-wahl-dialog';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
-import { EfsEinsatzGruppe } from '../models/planung.model';
+import { HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
 import { EinsatzStoreService } from './einsatz-store.service';
 import { PepEditorOeffnenDienst } from './pep-editor-oeffnen';
 import { VbEditorStoreService } from './vb-editor-store.service';
 
 /** Ziel einer Aktion: ein vorhandener Einsatz oder eine HiOrg-Veranstaltung (ggf. ohne Einsatz). */
-export type EinsatzZiel = Einsatz | EinsatzListenEintrag | EfsEinsatzGruppe;
+export type EinsatzZiel = Einsatz | EinsatzListenEintrag | HiorgVeranstaltung;
 
-function istGruppe(ziel: EinsatzZiel): ziel is EfsEinsatzGruppe {
-  return 'veranstaltung_id' in ziel;
+function istVeranstaltung(ziel: EinsatzZiel): ziel is HiorgVeranstaltung {
+  return 'veranstaltungId' in ziel;
 }
 
 /** Zeilenschlüssel für `laufend`: Einsatz-Id bzw. `hiorg:<Veranstaltungs-Id>`. */
 export function einsatzZielSchluessel(ziel: EinsatzZiel): string {
-  return istGruppe(ziel) ? `hiorg:${ziel.veranstaltung_id}` : ziel.id;
+  return istVeranstaltung(ziel) ? `hiorg:${ziel.veranstaltungId}` : ziel.id;
 }
 
 /**
@@ -41,7 +41,7 @@ export class EinsatzAktionenDienst {
 
   /**
    * Öffnet die PEP des Einsatzes aus der Datenbank; hat er noch keine, wird sie angelegt
-   * (`PepEditorOeffnenDienst`, bei einer HiOrg-Veranstaltung mit Einsatzkräften aus EFS).
+   * (`PepEditorOeffnenDienst`, bei einer HiOrg-Veranstaltung mit einem Posten je Schicht).
    * Ob es eine PEP gibt, zeigen die Kennzahlen `pep` der Einsatzliste.
    */
   async pepOeffnenOderAnlegen(ziel: EinsatzZiel): Promise<void> {
@@ -52,7 +52,7 @@ export class EinsatzAktionenDienst {
       const vorhanden = eintrag ? eintrag.pep : 'pep' in ziel ? ziel.pep : null;
       try {
         if (vorhanden !== null) await this.pepEditor.oeffnen(einsatz);
-        else await this.pepEditor.anlegen(einsatz, istGruppe(ziel) ? ziel : null);
+        else await this.pepEditor.anlegen(einsatz, istVeranstaltung(ziel) ? ziel : null);
       } catch (fehler) {
         this.meldungen.fehler(
           fehler instanceof Error ? fehler.message : 'Die PEP konnte nicht geöffnet werden.',
@@ -93,7 +93,7 @@ export class EinsatzAktionenDienst {
 
   /** Der Einsatz zum Ziel; bei einer Veranstaltung ohne Einsatz wird er still angelegt. */
   private async einsatzSicherstellen(ziel: EinsatzZiel): Promise<Einsatz | null> {
-    if (!istGruppe(ziel)) {
+    if (!istVeranstaltung(ziel)) {
       return this.einsatzStore.einsaetze().find((e) => e.id === ziel.id) ?? ziel;
     }
     const einsatz = await this.einsatzStore.einsatzFuerVeranstaltungSicherstellen(ziel);

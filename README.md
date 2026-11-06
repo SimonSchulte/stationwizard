@@ -16,7 +16,7 @@ Zugangsdaten siehe [Einrichtung](docs/einrichtung.md).
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
 | Startseite         | Einstieg in alle Fachbereiche, gemeinsamer Benutzer- und Verbindungsstatus                                                                                                                                              | `/#/`               |
 | Kalender           | Monatsansicht mit Tagesagenda und Agendaliste, Ideen, Auswertung, KatS-A-Plan, Feiertage, konfigurierbarer Diensttag und HiOrg-Terminabgleich; Daten in D1                                                              | `/#/kalender`       |
-| Einsatzplanung     | Planungsliste, EFS-Veranstaltungsimport und gespeicherte Einsatzpläne                                                                                                                                                   | `/#/einsatz`        |
+| Einsatzplanung     | Einsatzübersicht aus dem HiOrg-Kalenderfeed (Dienste/Veranstaltungen) und gespeicherte Einsatzpläne                                                                                                                     | `/#/einsatz`        |
 | Einsatzplan-Editor | Helferpool, Posten/Positionen, Qualifikationsabgleich, Zuordnung und Exporte                                                                                                                                            | `/#/einsatz/editor` |
 | Fahrzeuge          | Fuhrpark-Dashboard mit Tabs (Übersicht, Liste Fahrzeuge, Liste Wartungen); Fahrzeugdetail mit Stammdaten, Wartungsterminen, Kilometerverlauf (inkl. Korrektur und Löschen), QR-Codes, Druckbogen und Änderungsprotokoll | `/#/fahrzeuge`      |
 | Personal           | HiOrg-Personalübersicht, Führerscheinliste (Word-Vorlage), Ehrungsmanager und Offene Ehrungen mit Antragsformular                                                                                                       | `/#/personal`       |
@@ -133,9 +133,12 @@ EFS-Aufrufe setzt der Worker in `application/x-www-form-urlencoded` mit `apikey`
 EFS-Aktionen und keine Nextcloud-Löschroute. Unbekannte `/api/*`-Pfade liefern eine
 JSON-Fehlerantwort und fallen nicht auf die SPA zurück.
 
-Die Einsatzliste prüft die EFS-Verbindung beim Öffnen automatisch. Verknüpfte Planungen
-bieten Synchronisierung beziehungsweise erneutes Laden an. Ist EFS nicht erreichbar,
-bleibt lokale JSON-Planung möglich. Das bestehende medizinische Mapping wird auch auf
+Die Einsatzübersicht liest Dienste und Veranstaltungen aus dem HiOrg-Kalenderfeed
+(`GET /api/hiorg/kalender`, zwölf Monate voraus und sechs zurück) und lässt sich auf Dienste
+oder Veranstaltungen filtern. Der Feed kennt weder Einsatzkräfte noch Einsatzmittel; die
+Einsatzkräfte einer PEP kommen über „Personal aus HiOrg-Server übernehmen“ oder den Import. Ist
+der Feed nicht erreichbar, bleiben gespeicherte Einsätze und die lokale JSON-Planung möglich.
+Die `/api/efs/*`-Routen bestehen im Worker weiter, die Oberfläche nutzt sie nicht mehr. Das bestehende medizinische Mapping wird auch auf
 `bes_ausbild` angewendet, sodass `Notarzt / Notärztin` wie in der Fachspezifikation als `NA`
 erkannt wird; die Rangfolge der Qualifikationen wurde dabei nicht verändert.
 

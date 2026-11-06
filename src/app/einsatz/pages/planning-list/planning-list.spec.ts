@@ -5,7 +5,9 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanningList } from './planning-list';
-import { EfsApiService, EfsDetailResult } from '../../services/efs-api.service';
+import { HiorgVeranstaltungenQuelle } from '../../services/hiorg-veranstaltungen-quelle.service';
+import { HiorgVeranstaltung } from '../../models/hiorg-veranstaltung.model';
+import { testVeranstaltung } from '../../testing/veranstaltung-testdaten';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PepEditorKontext } from '../../services/pep-editor-kontext';
 import { SaveLoadService } from '../../services/save-load.service';
@@ -24,6 +26,18 @@ import { lokaleZeitText } from '../../services/einsatz-anzeige';
 import { testPep } from '../../testing/pep-testdaten';
 import { testEinsatz, testVorbereitung } from '../../testing/vb-testdaten';
 
+/** Ersatz für die Feed-Quelle mit festen Veranstaltungen. */
+function quelleMit(veranstaltungen: HiorgVeranstaltung[]) {
+  return {
+    veranstaltungen: signal(veranstaltungen),
+    zustand: signal('geladen'),
+    fehler: signal(''),
+    laedt: signal(false),
+    erreichbar: signal(true),
+    laden: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 function routeMit(abfrage: Record<string, string> = {}) {
   return {
     provide: ActivatedRoute,
@@ -37,7 +51,7 @@ describe('Datei öffnen', () => {
     const planung = erzeugeTestplanung();
     TestBed.configureTestingModule({
       providers: [
-        { provide: EfsApiService, useValue: { fehler: signal('') } },
+        { provide: HiorgVeranstaltungenQuelle, useValue: quelleMit([]) },
         { provide: Router, useValue: { navigate } },
         {
           provide: SaveLoadService,
@@ -65,7 +79,7 @@ describe('Datei öffnen', () => {
     const planung = erzeugeTestplanung();
     TestBed.configureTestingModule({
       providers: [
-        { provide: EfsApiService, useValue: { fehler: signal('') } },
+        { provide: HiorgVeranstaltungenQuelle, useValue: quelleMit([]) },
         { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
         { provide: DialogDienst, useValue: { hinweis } },
         {
@@ -87,7 +101,7 @@ describe('Rückkehr von der HiOrg-Anmeldung', () => {
     const navigate = vi.fn().mockResolvedValue(true);
     TestBed.configureTestingModule({
       providers: [
-        { provide: EfsApiService, useValue: { fehler: signal(''), getVeranstaltungen: vi.fn() } },
+        { provide: HiorgVeranstaltungenQuelle, useValue: quelleMit([]) },
         { provide: Router, useValue: { navigate } },
         { provide: ApiEinsatzStorage, useValue: new InMemoryEinsatzStorage() },
         routeMit(abfrage),
@@ -121,16 +135,17 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
 
   const kuenftig = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
   const frueher = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-  const gruppe = (id: string, titel: string, bis: string) => ({
-    veranstaltung_id: id,
-    titel,
-    datum_von: bis,
-    datum_bis: bis,
-    ort: 'Ummeln',
-    schichten: [],
-  });
-  const gruppen: ReturnType<typeof gruppe>[] = [
-    gruppe('4711', 'Weihnachtsmarkt', kuenftig),
+  const gruppe = (id: string, titel: string, bis: string, art: 'dienst' | 'termin' = 'dienst') =>
+    testVeranstaltung({
+      veranstaltungId: id,
+      art,
+      titel,
+      beginn: lokaleZeitText(new Date(bis)),
+      ende: lokaleZeitText(new Date(bis)),
+      schichten: [],
+    });
+  const gruppen = [
+    gruppe('4711', 'Weihnachtsmarkt', kuenftig, 'termin'),
     gruppe('4712', 'Stadtlauf', kuenftig),
     gruppe('4700', 'Altes Fest', frueher),
   ];
@@ -152,15 +167,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
   async function oeffnen() {
     TestBed.configureTestingModule({
       providers: [
-        {
-          provide: EfsApiService,
-          useValue: {
-            fehler: signal(''),
-            erreichbar: signal(true),
-            getVeranstaltungen: vi.fn().mockResolvedValue([]),
-            groupEinsaetze: () => gruppen,
-          },
-        },
+        { provide: HiorgVeranstaltungenQuelle, useValue: quelleMit(gruppen) },
         { provide: Router, useValue: { navigate } },
         { provide: ApiEinsatzStorage, useValue: speicher },
         {
@@ -357,6 +364,20 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(titelListe(wurzel)).toHaveLength(3);
   });
 
+  it('filtert über den Umschalter nach Diensten oder Veranstaltungen', async () => {
+    speicher._vorbelegen(testEinsatz({ titel: 'Dienst ohne HiOrg', beginn: morgen, ende: morgen }));
+    const fixture = await oeffnen();
+    const wurzel: HTMLElement = fixture.nativeElement;
+    // Knöpfe: 0–1 Zeitraum, 2–4 Art (Alle, Dienste, Veranstaltungen).
+    await ansichtWaehlen(fixture, 3);
+    expect(titelListe(wurzel)).toEqual(['Stadtlauf']);
+    await ansichtWaehlen(fixture, 4);
+    expect(titelListe(wurzel)).toEqual(['Weihnachtsmarkt']);
+    expect(wurzel.querySelector('app-einsatz-karte')?.textContent).toContain('Veranstaltung');
+    await ansichtWaehlen(fixture, 2);
+    expect(titelListe(wurzel)).toHaveLength(3);
+  });
+
   it('zeigt ohne Treffer einen Leerzustand und setzt Suche und Filter zurück', async () => {
     const fixture = await oeffnen();
     await eingabe(fixture, 'gibt es nicht');
@@ -383,7 +404,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
       expect(wurzel.querySelector('app-leerzustand button')).toBeNull();
     } finally {
       gruppen.push(
-        gruppe('4711', 'Weihnachtsmarkt', kuenftig),
+        gruppe('4711', 'Weihnachtsmarkt', kuenftig, 'termin'),
         gruppe('4712', 'Stadtlauf', kuenftig),
         gruppe('4700', 'Altes Fest', frueher),
       );

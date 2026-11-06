@@ -1,11 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
-import { EfsEinsatzGruppe } from '../models/planung.model';
+import { HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
 import { ApiEinsatzStorage } from '../storage/api-einsatz-storage';
 import { EinsatzplanungBereitsVorhandenFehler } from '../storage/einsatzplanung-fehler';
 import { EinsatzStorage } from '../storage/einsatz-storage';
 import { MitVersion } from '../storage/mit-version';
-import { hiorgZeitAlsLokal } from './einsatz-zeit';
 
 function fehlermeldung(fehler: unknown): string {
   return fehler instanceof Error ? fehler.message : 'Der Einsatz konnte nicht verarbeitet werden.';
@@ -66,20 +65,22 @@ export class EinsatzStoreService {
    * Liefert den Einsatz zur HiOrg-Veranstaltung und legt ihn bei Bedarf an (Titel, Zeitraum
    * als lokale Berliner Zeit, Ort, Veranstaltungs-Id). Bei einem Fehler `null` und `fehler`.
    */
-  async einsatzFuerVeranstaltungSicherstellen(gruppe: EfsEinsatzGruppe): Promise<Einsatz | null> {
+  async einsatzFuerVeranstaltungSicherstellen(
+    veranstaltung: HiorgVeranstaltung,
+  ): Promise<Einsatz | null> {
     this.fehler.set('');
     try {
       if (!this.geladen()) await this.laden();
-      const vorhanden = this.einsatzZuVeranstaltung(gruppe.veranstaltung_id);
+      const vorhanden = this.einsatzZuVeranstaltung(veranstaltung.veranstaltungId);
       if (vorhanden) return alsEinsatz(vorhanden);
 
       const neu: Einsatz = {
         id: crypto.randomUUID(),
-        titel: gruppe.titel.trim().slice(0, 200) || 'Einsatz',
-        beginn: hiorgZeitAlsLokal(gruppe.datum_von),
-        ende: hiorgZeitAlsLokal(gruppe.datum_bis),
-        ort: gruppe.ort ? gruppe.ort.slice(0, 200) : null,
-        hiorgVeranstaltungId: gruppe.veranstaltung_id,
+        titel: veranstaltung.titel.trim().slice(0, 200) || 'Einsatz',
+        beginn: veranstaltung.beginn,
+        ende: veranstaltung.ende,
+        ort: null,
+        hiorgVeranstaltungId: veranstaltung.veranstaltungId,
       };
       try {
         await this.storage.legeEinsatzAn(neu);
@@ -90,7 +91,7 @@ export class EinsatzStoreService {
           ursache.veranstaltungVergeben
         ) {
           await this.laden();
-          const inzwischen = this.einsatzZuVeranstaltung(gruppe.veranstaltung_id);
+          const inzwischen = this.einsatzZuVeranstaltung(veranstaltung.veranstaltungId);
           if (inzwischen) return alsEinsatz(inzwischen);
         }
         throw ursache;
