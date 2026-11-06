@@ -19,7 +19,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PepEditorKontext } from '../../services/pep-editor-kontext';
 import { SaveLoadService } from '../../services/save-load.service';
-import { EfsApiService } from '../../services/efs-api.service';
+import { HiorgVeranstaltungenQuelle } from '../../services/hiorg-veranstaltungen-quelle.service';
 import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
 import {
@@ -35,7 +35,7 @@ import {
 } from '../../components/einsatz-anlegen-dialog/einsatz-anlegen-dialog';
 import { EinsatzKarte } from '../../components/einsatz-karte/einsatz-karte';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
-import { EfsEinsatz } from '../../models/planung.model';
+import { HiorgArt } from '../../models/hiorg-veranstaltung.model';
 import { Verbindungsstatus } from '../../../kern/verbindungsstatus/verbindungsstatus';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
@@ -69,7 +69,7 @@ export class PlanningList implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly dialogDienst = inject(DialogDienst);
   private readonly saveLoad = inject(SaveLoadService);
-  readonly efsApi = inject(EfsApiService);
+  readonly quelle = inject(HiorgVeranstaltungenQuelle);
   private readonly kontext = inject(PepEditorKontext);
   private readonly einsatzStore = inject(EinsatzStoreService);
   protected readonly aktionen = inject(EinsatzAktionenDienst);
@@ -80,15 +80,9 @@ export class PlanningList implements OnInit {
   readonly einsatzListeFehler = this.einsatzStore.fehler;
   readonly einsatzListeGeladen = this.einsatzStore.geladen;
 
-  readonly efsEinsaetze = signal<EfsEinsatz[]>([]);
-  readonly efsLoading = signal(false);
-  readonly efsError = signal<string | null>(null);
-
-  readonly efsGruppen = computed(() => this.efsApi.groupEinsaetze(this.efsEinsaetze()));
-
   /** Anstehende und vergangene Einsätze (HiOrg und ohne HiOrg) als eine Liste von Karten. */
   readonly einsatzListe = computed(() =>
-    baueEinsatzListe(this.efsGruppen(), this.einsatzStore.einsaetze(), new Date()),
+    baueEinsatzListe(this.quelle.veranstaltungen(), this.einsatzStore.einsaetze(), new Date()),
   );
 
   /** Filter und Ansicht gelten nur für die Sitzung und werden nicht gespeichert. */
@@ -97,6 +91,7 @@ export class PlanningList implements OnInit {
   readonly pepFehlt = signal(false);
   readonly vbFehlt = signal(false);
   readonly ohneHiorg = signal(false);
+  readonly art = signal<'alle' | HiorgArt>('alle');
 
   readonly filterAktiv = computed(() =>
     istFilterAktiv({
@@ -104,6 +99,7 @@ export class PlanningList implements OnInit {
       pepFehlt: this.pepFehlt(),
       vbFehlt: this.vbFehlt(),
       ohneHiorg: this.ohneHiorg(),
+      art: this.art(),
     }),
   );
 
@@ -116,6 +112,7 @@ export class PlanningList implements OnInit {
       pepFehlt: this.pepFehlt(),
       vbFehlt: this.vbFehlt(),
       ohneHiorg: this.ohneHiorg(),
+      art: this.art(),
     });
     return gruppiereNachMonat(mitAbstand(gefiltert, new Date(), anstehend));
   });
@@ -130,6 +127,7 @@ export class PlanningList implements OnInit {
     this.pepFehlt.set(false);
     this.vbFehlt.set(false);
     this.ohneHiorg.set(false);
+    this.art.set('alle');
   }
 
   /** Rückmeldung nach der HiOrg-Anmeldung (`/hiorg/rueckruf` leitet mit `?hiorg=` hierher). */
@@ -152,29 +150,12 @@ export class PlanningList implements OnInit {
       });
     }
     void this.einsatzStore.laden();
-    void this.loadEfsEinsaetze();
+    void this.quelle.laden();
   }
 
   /** Lädt HiOrg-Veranstaltungen und die gespeicherten Einsätze neu. */
   async aktualisieren(): Promise<void> {
-    await Promise.all([this.einsatzStore.laden(), this.loadEfsEinsaetze()]);
-  }
-
-  async loadEfsEinsaetze(): Promise<void> {
-    this.efsLoading.set(true);
-    this.efsError.set(null);
-    try {
-      const einsaetze = await this.efsApi.getVeranstaltungen();
-      this.efsEinsaetze.set(einsaetze);
-    } catch (fehler) {
-      this.efsError.set(
-        fehler instanceof Error
-          ? fehler.message
-          : 'Die Veranstaltungen konnten nicht geladen werden.',
-      );
-    } finally {
-      this.efsLoading.set(false);
-    }
+    await Promise.all([this.einsatzStore.laden(), this.quelle.laden()]);
   }
 
   /** Legt über einen kleinen Dialog einen Einsatz ohne HiOrg-Veranstaltung an. */

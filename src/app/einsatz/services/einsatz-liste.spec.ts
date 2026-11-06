@@ -9,12 +9,26 @@ import {
   mitAbstand,
 } from './einsatz-liste';
 import { testEinsatz } from '../testing/vb-testdaten';
-import { EfsEinsatzGruppe } from '../models/planung.model';
+import { HiorgArt, HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
+import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
 
 const JETZT = new Date('2026-11-05T12:00:00Z');
 
-function gruppe(id: string, titel: string, von: string, bis = von): EfsEinsatzGruppe {
-  return { veranstaltung_id: id, titel, datum_von: von, datum_bis: bis, schichten: [] };
+function gruppe(
+  id: string,
+  titel: string,
+  von: string,
+  bis = von,
+  art: HiorgArt = 'dienst',
+): HiorgVeranstaltung {
+  return testVeranstaltung({
+    veranstaltungId: `${art}-${id}`,
+    art,
+    titel,
+    beginn: von,
+    ende: bis,
+    schichten: [],
+  });
 }
 const eintrag = (teil: Parameters<typeof testEinsatz>[0]) => ({
   ...testEinsatz(teil),
@@ -26,7 +40,7 @@ const eintrag = (teil: Parameters<typeof testEinsatz>[0]) => ({
 describe('baueEinsatzListe', () => {
   it('mischt HiOrg und eigene Einsätze nach Beginn, ohne Beginn zuletzt', () => {
     const liste = baueEinsatzListe(
-      [gruppe('2', 'Später', '2026-12-20 10:00:00'), gruppe('1', 'Früher', '2026-11-20 10:00:00')],
+      [gruppe('2', 'Später', '2026-12-20T10:00'), gruppe('1', 'Früher', '2026-11-20T10:00')],
       [
         eintrag({ titel: 'Ohne Datum', beginn: null, ende: null }),
         eintrag({ titel: 'Dazwischen', beginn: '2026-12-01T09:00', ende: '2026-12-01T17:00' }),
@@ -45,7 +59,7 @@ describe('baueEinsatzListe', () => {
 
   it('legt Vergangenes getrennt ab, neueste zuerst', () => {
     const liste = baueEinsatzListe(
-      [gruppe('1', 'Altes Fest', '2026-09-01 10:00:00', '2026-09-01 18:00:00')],
+      [gruppe('1', 'Altes Fest', '2026-09-01T10:00', '2026-09-01T18:00')],
       [eintrag({ titel: 'Jüngerer', beginn: '2026-10-10T10:00', ende: '2026-10-10T12:00' })],
       JETZT,
     );
@@ -55,14 +69,14 @@ describe('baueEinsatzListe', () => {
 
   it('verknüpft Veranstaltungen mit ihrem Einsatz (PEP, VB) und ignoriert dessen eigene Zeile', () => {
     const einsatz = {
-      ...eintrag({ hiorgVeranstaltungId: '1' }),
+      ...eintrag({ hiorgVeranstaltungId: 'dienst-1' }),
       vb: { laufzettel: 22, positionen: 64 },
       pep: { posten: 3, positionen: 9, besetzt: 4 },
     };
-    const liste = baueEinsatzListe([gruppe('1', 'Markt', '2026-12-01 10:00:00')], [einsatz], JETZT);
+    const liste = baueEinsatzListe([gruppe('1', 'Markt', '2026-12-01T10:00')], [einsatz], JETZT);
     expect(liste.anstehend).toHaveLength(1);
     expect(liste.anstehend[0]).toMatchObject({
-      schluessel: 'hiorg:1',
+      schluessel: 'hiorg:dienst-1',
       beginn: '2026-12-01T10:00',
       pepVorhanden: true,
       pep: { posten: 3, positionen: 9, besetzt: 4 },
@@ -70,8 +84,42 @@ describe('baueEinsatzListe', () => {
     });
   });
 
+  it('zeigt einen gespeicherten HiOrg-Einsatz weiter, wenn der Feed seine Veranstaltung nicht mehr liefert', () => {
+    const alt = {
+      ...eintrag({
+        titel: 'Altes Fest',
+        beginn: '2026-03-01T10:00',
+        ende: '2026-03-01T18:00',
+        hiorgVeranstaltungId: 'termin-77',
+      }),
+      pep: { posten: 1, positionen: 2, besetzt: 2 },
+    };
+    const liste = baueEinsatzListe([], [alt], JETZT);
+    expect(liste.vergangen).toHaveLength(1);
+    expect(liste.vergangen[0]).toMatchObject({
+      titel: 'Altes Fest',
+      herkunft: 'hiorg',
+      art: 'termin',
+      pepVorhanden: true,
+    });
+  });
+
+  it('kennt bei Altbestand ohne Art-Präfix keine Art', () => {
+    const liste = baueEinsatzListe([], [eintrag({ hiorgVeranstaltungId: '4711' })], JETZT);
+    expect(liste.anstehend[0]).toMatchObject({ herkunft: 'hiorg', art: null });
+  });
+
+  it('übernimmt die Art der Veranstaltung', () => {
+    const liste = baueEinsatzListe(
+      [gruppe('1', 'Markt', '2026-12-01T10:00', '2026-12-01T12:00', 'termin')],
+      [],
+      JETZT,
+    );
+    expect(liste.anstehend[0].art).toBe('termin');
+  });
+
   it('zeigt Veranstaltungen ohne Einsatz mit fehlendem PEP und VB', () => {
-    const liste = baueEinsatzListe([gruppe('9', 'Neu', '2026-12-01 10:00:00')], [], JETZT);
+    const liste = baueEinsatzListe([gruppe('9', 'Neu', '2026-12-01T10:00')], [], JETZT);
     expect(liste.anstehend[0]).toMatchObject({ pepVorhanden: false, pep: null, vb: null });
   });
 });
@@ -85,6 +133,7 @@ function zeile(teil: Partial<EinsatzListenZeile>): EinsatzListenZeile {
     schichten: null,
     ort: null,
     herkunft: 'eigen',
+    art: null,
     pepVorhanden: false,
     pep: null,
     vb: null,
@@ -129,6 +178,22 @@ describe('filtereEinsaetze', () => {
     expect(titel(filtereEinsaetze(zeilen, { ...KEIN_FILTER, ohneHiorg: true }))).toEqual([
       'Dienst',
     ]);
+  });
+
+  it('filtert nach Dienst oder Veranstaltung; Einsätze ohne Art fallen dann heraus', () => {
+    const mitArt = [
+      zeile({ titel: 'Sanitätsdienst', art: 'dienst', herkunft: 'hiorg' }),
+      zeile({ titel: 'Sommerfest', art: 'termin', herkunft: 'hiorg' }),
+      zeile({ titel: 'Selbst angelegt' }),
+    ];
+    expect(titel(filtereEinsaetze(mitArt, { ...KEIN_FILTER, art: 'dienst' }))).toEqual([
+      'Sanitätsdienst',
+    ]);
+    expect(titel(filtereEinsaetze(mitArt, { ...KEIN_FILTER, art: 'termin' }))).toEqual([
+      'Sommerfest',
+    ]);
+    expect(filtereEinsaetze(mitArt, KEIN_FILTER)).toHaveLength(3);
+    expect(istFilterAktiv({ ...KEIN_FILTER, art: 'dienst' })).toBe(true);
   });
 
   it('verknüpft Bedingungen mit UND', () => {

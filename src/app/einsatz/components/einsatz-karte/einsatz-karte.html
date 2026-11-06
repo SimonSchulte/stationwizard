@@ -13,6 +13,12 @@
       }
     </h3>
     <p class="meta">
+      @if (art(); as a) {
+        <span class="eintrag"
+          ><mat-icon aria-hidden="true">{{ a === 'dienst' ? 'badge' : 'event' }}</mat-icon
+          >{{ a === 'dienst' ? 'Dienst' : 'Veranstaltung' }}</span
+        >
+      }
       @if ((schichten() ?? 0) > 1) {
         <span class="eintrag"
           ><mat-icon aria-hidden="true">schedule</mat-icon>{{ schichten() }} Schichten</span

@@ -134,8 +134,8 @@ Kalender unter `ausbildung/`); neue Dateien unter `einsatz/vb/` bzw. `einsatz/co
   HiOrg-Veranstaltung (anstehend und vergangen) und jeder Einsatz ohne HiOrg hat in seiner
   Zeile zwei Knöpfe, **PEP** und **VB**: „öffnen“ (Text) bzw. „anlegen“ (`outlined`). Der
   Zeilenklick öffnet nichts. Für eine Veranstaltung ohne Einsatz wird der Einsatz beim ersten
-  Klick still angelegt. PEP: vorhanden → aus Nextcloud öffnen, sonst aus der Veranstaltung
-  (EFS) bzw. leer anlegen. VB: vorhanden → Editor; sonst öffnet der Vorlage-Wahl-Dialog (Suche,
+  Klick still angelegt. PEP: vorhanden → aus der Datenbank öffnen, sonst aus der Veranstaltung
+  (Kalenderfeed: ein Posten je Schicht) bzw. leer anlegen. VB: vorhanden → Editor; sonst öffnet der Vorlage-Wahl-Dialog (Suche,
   Kennzahlen, Version; „Kopie anlegen“ oder „Leer beginnen“) – die eine nötige Auswahl, keine
   Seite –, danach Anlegen und Editor. Abbrechen legt keine VB an. Das Drucken der VB gibt es
   nur noch im VB-Editor.
@@ -461,8 +461,9 @@ inhalt, posten, positionen, besetzt, einsatzkraefte, version, geaendert_am, geae
 ### Anwenden einer PEP-Vorlage
 
 „PEP anlegen“ fragt wie bei der VB nach Vorlage oder „Leer beginnen“. Die Posten werden mit
-neuen Ids kopiert; bei einer HiOrg-Veranstaltung kommen die Einsatzkräfte wie bisher aus EFS,
-die Posten aus der Vorlage (ohne Vorlage: wie bisher aus den EFS-Schichten).
+neuen Ids kopiert; bei einer HiOrg-Veranstaltung kommen die Posten aus der Vorlage (ohne Vorlage: ein Posten je
+Schicht aus dem Kalenderfeed). Der Feed liefert keine Einsatzkräfte; sie kommen im Editor über
+„Personal aus HiOrg-Server übernehmen“ oder den Import.
 
 ### Admin-Seite „Einsatz-Vorlagen“
 

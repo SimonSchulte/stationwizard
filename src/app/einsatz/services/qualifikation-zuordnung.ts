@@ -1,9 +1,8 @@
 /**
  * Übernommenes EFS-Mapping von HiOrg-Qualifikationsbezeichnungen auf die
- * Kürzel aus `MEDIZINISCH_ORDER`/`TAKTISCH_ORDER`. EFS (`efs-api.service.ts`)
- * und die HiOrg-Server-API (`hiorg-personal.service.ts`) liefern dieselben
- * Bezeichnungen aus den Qualifikationslisten der Organisation; beide nutzen
- * deshalb genau diese Tabellen. Nicht erweitern oder umsortieren ohne
+ * Kürzel aus `MEDIZINISCH_ORDER`/`TAKTISCH_ORDER`. Die HiOrg-Server-API
+ * (`hiorg-personal.service.ts`) liefert die Bezeichnungen aus den Qualifikationslisten der
+ * Organisation und nutzt genau diese Tabellen (früher auch der EFS-Import). Nicht erweitern oder umsortieren ohne
  * fachlichen Nachweis (siehe CLAUDE.md, „Dateiformate und Fachverträge").
  */
 export const MEDIZINISCHE_BEZEICHNUNGEN: Readonly<Record<string, string>> = {

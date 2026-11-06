@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
   Einsatzkraft,
-  EfsEinsatzkraft,
   Medizinisch,
   MEDIZINISCH_ORDER,
   Taktisch,
@@ -57,21 +56,9 @@ export class ImportService {
     return result;
   }
 
-  /** Maps an EfsEinsatzkraft to our Einsatzkraft domain model. */
-  mapEfsEinsatzkraft(ek: EfsEinsatzkraft): Einsatzkraft {
-    return {
-      id: crypto.randomUUID(),
-      name: `${ek.nachname} ${ek.vorname}`.trim(),
-      hiorg_org_id: ek.hiorg_org_id,
-      tags: this.tagsAus(ek.ausbildungen ?? []),
-      telefonnummer: ek.telefonnummer,
-    };
-  }
-
   /**
-   * Person aus der HiOrg-Server-API. Die Personen-ID dort ist eine andere
-   * Kennung als die EFS-Einsatzkraft-ID in `hiorg_org_id` und wird deshalb
-   * nicht übernommen; Duplikate erkennt die Übernahme am Namen.
+   * Person aus der HiOrg-Server-API. Die Personen-ID dort wird nicht in
+   * `hiorg_org_id` übernommen; Duplikate erkennt die Übernahme am Namen.
    */
   mapHiorgPerson(person: HiorgPerson): Einsatzkraft {
     const ausbildungen = person.qualifikationen

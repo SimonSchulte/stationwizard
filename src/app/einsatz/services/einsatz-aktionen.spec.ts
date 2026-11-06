@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
-import { EfsEinsatzGruppe } from '../models/planung.model';
 import { ApiEinsatzStorage } from '../storage/api-einsatz-storage';
 import { ApiVbVorlagenStorage } from '../storage/api-vb-vorlagen-storage';
 import { ApiVorbereitungStorage } from '../storage/api-vorbereitung-storage';
@@ -15,6 +14,7 @@ import {
   InMemoryVorbereitungStorage,
 } from '../testing/in-memory-einsatzplanung';
 import { testPep } from '../testing/pep-testdaten';
+import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
 import { testEinsatz, testVorbereitung, testVorlage } from '../testing/vb-testdaten';
 import { EinsatzAktionenDienst, einsatzZielSchluessel } from './einsatz-aktionen';
 import { EinsatzStoreService } from './einsatz-store.service';
@@ -30,14 +30,7 @@ describe('EinsatzAktionenDienst', () => {
   let dialogAntwort: unknown;
   const dialogOeffnen = vi.fn();
   const pepEditor = { oeffnen: vi.fn(), anlegen: vi.fn() };
-  const gruppe: EfsEinsatzGruppe = {
-    veranstaltung_id: '4711',
-    titel: 'Weihnachtsmarkt Ummeln',
-    datum_von: '2026-12-05T09:00:00.000Z',
-    datum_bis: '2026-12-05T19:30:00.000Z',
-    ort: 'Ummeln',
-    schichten: [],
-  };
+  const gruppe = testVeranstaltung();
 
   beforeEach(() => {
     vorbereitungen = new InMemoryVorbereitungStorage();
@@ -81,7 +74,7 @@ describe('EinsatzAktionenDienst', () => {
     });
 
     it('legt ohne PEP an und reicht die HiOrg-Veranstaltung nur bei einer Gruppe durch', async () => {
-      const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
+      const einsatz = testEinsatz({ hiorgVeranstaltungId: 'dienst-4711' });
       einsaetze._vorbelegen(einsatz);
       const eintrag = (await liste())[0];
 
@@ -104,7 +97,7 @@ describe('EinsatzAktionenDienst', () => {
 
       const alle = await einsaetze.ladeEinsaetze();
       expect(alle).toHaveLength(1);
-      expect(alle[0]).toMatchObject({ hiorgVeranstaltungId: '4711', titel: gruppe.titel });
+      expect(alle[0]).toMatchObject({ hiorgVeranstaltungId: 'dienst-4711', titel: gruppe.titel });
       expect(pepEditor.anlegen).toHaveBeenCalledWith(
         expect.objectContaining({ id: alle[0].id }),
         gruppe,
@@ -202,7 +195,7 @@ describe('EinsatzAktionenDienst', () => {
 
       const alle = await einsaetze.ladeEinsaetze();
       expect(alle).toHaveLength(1);
-      expect(alle[0]).toMatchObject({ hiorgVeranstaltungId: '4711' });
+      expect(alle[0]).toMatchObject({ hiorgVeranstaltungId: 'dienst-4711' });
       expect(vorbereitungen.kennzahlen(alle[0].id)).not.toBeNull();
       expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', alle[0].id, 'vb']);
     });
@@ -244,7 +237,7 @@ describe('EinsatzAktionenDienst', () => {
     });
 
     it('unterscheidet Schlüssel für Einsatz und Veranstaltung', () => {
-      expect(einsatzZielSchluessel(gruppe)).toBe('hiorg:4711');
+      expect(einsatzZielSchluessel(gruppe)).toBe('hiorg:dienst-4711');
       const einsatz = testEinsatz();
       expect(einsatzZielSchluessel(einsatz)).toBe(einsatz.id);
     });

@@ -3481,3 +3481,22 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   (gleiche Maße, Monat/Tag/Wochentag·Zeit; ohne Beginn ein Block mit „–“). Per Test abgesichert, im
   Browser nicht gesondert geprüft.
 - **Offen:** Die Zählung je Rolle im Kennzahlenblock des Jahres bleibt vorerst bestehen.
+
+### Einsatzübersicht: Kalenderfeed statt EFS
+
+- Die Einsatzübersicht liest Dienste und Veranstaltungen aus `GET /api/hiorg/kalender` (zwei
+  Abrufe: zwölf Monate voraus, sechs zurück) statt aus den EFS-Aktionen. Neuer Umschalter
+  „Alle / Dienste / Veranstaltungen“; die Karte nennt die Art.
+- Entfallen im Client: `EfsApiService`, „Einsatzkräfte aus EFS aktualisieren“ im PEP-Editor, die
+  Fahrzeugzuordnung aus Einsatzmitteln, `hiorgZeitAlsLokal()`. Bleiben: der Worker-Endpunkt
+  `/api/efs/*` samt `HIORGSERVER_EFS_API_TOKEN` (Stilllegung ist Betreibersache) und das
+  Qualifikations-Mapping.
+- Folgen, die fachlich zu bewerten sind: Der Feed enthält **alle** Dienste des Verbands
+  (auch Dienstabende); der Umschalter ist die Gegenmaßnahme, ersetzt aber keine fachliche
+  Abgrenzung, was ein „Einsatz“ ist. Neue Einsätze tragen `dienst-<id>`/`termin-<id>`; bestehende
+  mit EFS-Id bleiben sichtbar (als gespeicherter Einsatz, ohne Art). Der Feed liefert keinen Ort
+  (neue Einsätze haben `ort = null`) und keine Einsatzkräfte.
+- Geprüft: Typprüfung, 1542 + 29 Angular-Tests (neu: Gruppierung, Quelle, Art-Filter, Rückfall für
+  Einsätze außerhalb des Feeds), Produktionsbuild, Prettier. **Nicht geprüft:** echter Feed (das
+  Zeitfenster von `monate` ist nur aus der Worker-Logik abgeleitet), Sichtprüfung im Browser auf
+  Desktop und Mobil.

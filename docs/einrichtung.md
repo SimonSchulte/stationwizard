@@ -284,17 +284,17 @@ ergänzt. Der Access-Schutz für **All traffic** gilt automatisch auch für die 
 
 Nach Infrastruktur- oder Zugangsdatenänderungen prüfen:
 
-| Prüfung                 | Erwartetes Ergebnis                                                               |
-| ----------------------- | --------------------------------------------------------------------------------- |
-| Ohne Anmeldung          | Privates Fenster → App und `/api/status`: Access verlangt Anmeldung.              |
-| Öffentliche Meldung     | Privates Fenster → `/e/<Token>` lädt ohne Anmeldung; `/` verlangt weiterhin eine. |
-| Freigabe                | Meldung erscheint unter „Offene Aufgaben" und zählt erst nach der Freigabe.       |
-| Erlaubte/fremde Adresse | Freigegebenes Google-Konto kommt durch, ein anderes wird abgelehnt.               |
-| `/api/benutzer`         | Enthält die eigene E-Mail-Adresse.                                                |
-| Kalender                | Excel einmalig übernehmen; Änderung speichern, neu laden – Änderung bleibt.       |
-| Einsatz                 | EFS-Veranstaltung importieren; Planung in der Datenbank speichern, neu laden.     |
-| HiOrg-Kalender          | Termine erscheinen im Jahresplan als gekennzeichnete Fremdquelle.                 |
-| Abmeldung               | `/cdn-cgi/access/logout`; geschützte URL verlangt danach erneut eine Anmeldung.   |
+| Prüfung                 | Erwartetes Ergebnis                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| Ohne Anmeldung          | Privates Fenster → App und `/api/status`: Access verlangt Anmeldung.                               |
+| Öffentliche Meldung     | Privates Fenster → `/e/<Token>` lädt ohne Anmeldung; `/` verlangt weiterhin eine.                  |
+| Freigabe                | Meldung erscheint unter „Offene Aufgaben" und zählt erst nach der Freigabe.                        |
+| Erlaubte/fremde Adresse | Freigegebenes Google-Konto kommt durch, ein anderes wird abgelehnt.                                |
+| `/api/benutzer`         | Enthält die eigene E-Mail-Adresse.                                                                 |
+| Kalender                | Excel einmalig übernehmen; Änderung speichern, neu laden – Änderung bleibt.                        |
+| Einsatz                 | Dienste/Veranstaltungen aus dem Kalenderfeed sehen und filtern; PEP anlegen, speichern, neu laden. |
+| HiOrg-Kalender          | Termine erscheinen im Jahresplan als gekennzeichnete Fremdquelle.                                  |
+| Abmeldung               | `/cdn-cgi/access/logout`; geschützte URL verlangt danach erneut eine Anmeldung.                    |
 
 Bei einem Speicherkonflikt (HTTP 412) bleiben lokale Änderungen erhalten: zuerst
 lokal sichern, dann den aktuellen Stand laden und zusammenführen – kein blindes

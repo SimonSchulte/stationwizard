@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
-import { EfsEinsatzGruppe } from '../models/planung.model';
 import { ApiPepStorage } from '../storage/api-pep-storage';
 import { ApiPepVorlagenStorage } from '../storage/api-pep-vorlagen-storage';
 import {
@@ -12,7 +11,9 @@ import {
   InMemoryPepVorlagenStorage,
 } from '../testing/in-memory-einsatzplanung';
 import { testPep, testPepVorlage } from '../testing/pep-testdaten';
+import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
 import { testEinsatz } from '../testing/vb-testdaten';
+import { HiorgVeranstaltungenQuelle } from './hiorg-veranstaltungen-quelle.service';
 import { PepEditorKontext } from './pep-editor-kontext';
 import { PepEditorOeffnenDienst, einsatzZeitAlsPlanungszeit } from './pep-editor-oeffnen';
 import { PlanungOeffnenDienst } from './planung-oeffnen';
@@ -45,14 +46,9 @@ describe('PepEditorOeffnenDienst', () => {
   let navigate: ReturnType<typeof vi.fn>;
   let dialogAntwort: unknown;
   const dialogOeffnen = vi.fn();
-  const planungOeffnen = { gruppeFuerVeranstaltung: vi.fn(), planungAusEfsBauen: vi.fn() };
-  const gruppe: EfsEinsatzGruppe = {
-    veranstaltung_id: '4711',
-    titel: 'Weihnachtsmarkt Ummeln',
-    datum_von: '2026-12-05T09:00:00.000Z',
-    datum_bis: '2026-12-05T19:30:00.000Z',
-    schichten: [],
-  };
+  const planungOeffnen = { planungAusVeranstaltungBauen: vi.fn() };
+  const quelle = { sicherstellenGeladen: vi.fn(), veranstaltung: vi.fn() };
+  const gruppe = testVeranstaltung();
 
   beforeEach(() => {
     peps = new InMemoryPepStorage();
@@ -60,8 +56,9 @@ describe('PepEditorOeffnenDienst', () => {
     navigate = vi.fn().mockResolvedValue(true);
     dialogAntwort = undefined;
     dialogOeffnen.mockReset().mockImplementation(() => ({ afterClosed: () => of(dialogAntwort) }));
-    planungOeffnen.gruppeFuerVeranstaltung.mockReset();
-    planungOeffnen.planungAusEfsBauen.mockReset();
+    planungOeffnen.planungAusVeranstaltungBauen.mockReset();
+    quelle.sicherstellenGeladen.mockReset().mockResolvedValue(undefined);
+    quelle.veranstaltung.mockReset();
     TestBed.configureTestingModule({
       providers: [
         { provide: ApiPepStorage, useValue: peps },
@@ -69,6 +66,7 @@ describe('PepEditorOeffnenDienst', () => {
         { provide: Router, useValue: { navigate } },
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
         { provide: PlanungOeffnenDienst, useValue: planungOeffnen },
+        { provide: HiorgVeranstaltungenQuelle, useValue: quelle },
       ],
     });
     dienst = TestBed.inject(PepEditorOeffnenDienst);
@@ -140,7 +138,7 @@ describe('PepEditorOeffnenDienst', () => {
       expect(gespeichert.daten.inhalt.einsatzkraefte).toEqual([]);
       expect(store.active()?.id).toBe(einsatz.id);
       expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/editor']);
-      expect(planungOeffnen.planungAusEfsBauen).not.toHaveBeenCalled();
+      expect(planungOeffnen.planungAusVeranstaltungBauen).not.toHaveBeenCalled();
     });
 
     it('legt bei „Leer beginnen“ eine leere PEP an', async () => {
@@ -162,44 +160,45 @@ describe('PepEditorOeffnenDienst', () => {
       await dienst.anlegen(einsatz, gruppe);
 
       expect(await peps.ladePep(einsatz.id)).toBeNull();
-      expect(planungOeffnen.planungAusEfsBauen).not.toHaveBeenCalled();
+      expect(planungOeffnen.planungAusVeranstaltungBauen).not.toHaveBeenCalled();
       expect(navigate).not.toHaveBeenCalled();
       expect(store.active()).toBeNull();
     });
 
-    it('übernimmt bei einer HiOrg-Gruppe Posten und Einsatzkräfte aus EFS als Basis', async () => {
-      const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
+    it('übernimmt bei einer HiOrg-Veranstaltung Posten und Einsatzkräfte aus dem Feed als Basis', async () => {
+      const einsatz = testEinsatz({ hiorgVeranstaltungId: 'dienst-4711' });
       const basis = erzeugeTestplanung();
-      planungOeffnen.planungAusEfsBauen.mockResolvedValue(basis);
+      planungOeffnen.planungAusVeranstaltungBauen.mockReturnValue(basis);
       dialogAntwort = { art: 'leer' };
 
       await dienst.anlegen(einsatz, gruppe);
 
-      expect(planungOeffnen.planungAusEfsBauen).toHaveBeenCalledWith(gruppe);
-      expect(planungOeffnen.gruppeFuerVeranstaltung).not.toHaveBeenCalled();
+      expect(planungOeffnen.planungAusVeranstaltungBauen).toHaveBeenCalledWith(gruppe);
+      expect(quelle.veranstaltung).not.toHaveBeenCalled();
       const inhalt = (await peps.ladePep(einsatz.id))!.daten.inhalt;
       expect(inhalt.einsatzkraefte.map((k) => k.name)).toEqual(['Testperson Nord']);
       expect(inhalt.posten[0].bezeichnung).toBe('Übungsposten');
-      // Kopf bleibt der des Einsatzes, nicht der der EFS-Planung.
+      // Kopf bleibt der des Einsatzes, nicht der der Feed-Planung.
       expect(store.active()?.name).toBe(einsatz.titel);
       expect(store.active()?.id).toBe(einsatz.id);
     });
 
     it('sucht die Veranstaltung selbst, wenn nur der Einsatz bekannt ist', async () => {
-      const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
-      planungOeffnen.gruppeFuerVeranstaltung.mockResolvedValue(gruppe);
-      planungOeffnen.planungAusEfsBauen.mockResolvedValue(erzeugeTestplanung());
+      const einsatz = testEinsatz({ hiorgVeranstaltungId: 'dienst-4711' });
+      quelle.veranstaltung.mockReturnValue(gruppe);
+      planungOeffnen.planungAusVeranstaltungBauen.mockReturnValue(erzeugeTestplanung());
       dialogAntwort = { art: 'leer' };
 
       await dienst.anlegen(einsatz, null);
 
-      expect(planungOeffnen.gruppeFuerVeranstaltung).toHaveBeenCalledWith('4711');
-      expect(planungOeffnen.planungAusEfsBauen).toHaveBeenCalledWith(gruppe);
+      expect(quelle.sicherstellenGeladen).toHaveBeenCalled();
+      expect(quelle.veranstaltung).toHaveBeenCalledWith('dienst-4711');
+      expect(planungOeffnen.planungAusVeranstaltungBauen).toHaveBeenCalledWith(gruppe);
     });
 
-    it('warnt, wenn die Veranstaltung nicht im EFS-Abruf ist, und legt ohne Basis an', async () => {
-      const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
-      planungOeffnen.gruppeFuerVeranstaltung.mockResolvedValue(null);
+    it('warnt, wenn die Veranstaltung nicht im Kalenderfeed steht, und legt ohne Basis an', async () => {
+      const einsatz = testEinsatz({ hiorgVeranstaltungId: 'dienst-4711' });
+      quelle.veranstaltung.mockReturnValue(null);
       const warnung = vi
         .spyOn(TestBed.inject(MeldungsDienst), 'warnung')
         .mockReturnValue({} as never);
@@ -207,27 +206,16 @@ describe('PepEditorOeffnenDienst', () => {
 
       await dienst.anlegen(einsatz, null);
 
-      expect(warnung).toHaveBeenCalledWith(expect.stringContaining('nicht im EFS-Abruf'));
-      expect(planungOeffnen.planungAusEfsBauen).not.toHaveBeenCalled();
+      expect(warnung).toHaveBeenCalledWith(expect.stringContaining('nicht im HiOrg-Kalenderfeed'));
+      expect(planungOeffnen.planungAusVeranstaltungBauen).not.toHaveBeenCalled();
       expect((await peps.ladePep(einsatz.id))?.daten.inhalt.einsatzkraefte).toEqual([]);
       expect(store.active()?.id).toBe(einsatz.id);
     });
 
-    it('legt für einen Einsatz ohne HiOrg nie eine EFS-Abfrage an', async () => {
+    it('lädt für einen Einsatz ohne HiOrg nie den Kalenderfeed', async () => {
       dialogAntwort = { art: 'leer' };
       await dienst.anlegen(testEinsatz({ hiorgVeranstaltungId: null }), null);
-      expect(planungOeffnen.gruppeFuerVeranstaltung).not.toHaveBeenCalled();
-    });
-
-    it('wirft einen Fehler des EFS-Abrufs, ohne etwas anzulegen', async () => {
-      const einsatz = testEinsatz();
-      planungOeffnen.planungAusEfsBauen.mockRejectedValue(new Error('EFS nicht erreichbar'));
-      dialogAntwort = { art: 'leer' };
-
-      await expect(dienst.anlegen(einsatz, gruppe)).rejects.toThrow('EFS nicht erreichbar');
-
-      expect(await peps.ladePep(einsatz.id)).toBeNull();
-      expect(navigate).not.toHaveBeenCalled();
+      expect(quelle.sicherstellenGeladen).not.toHaveBeenCalled();
     });
 
     it('wirft, wenn die gewählte Vorlage fehlt, und öffnet nichts', async () => {

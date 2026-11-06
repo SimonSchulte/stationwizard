@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { HiorgArt } from '../../models/hiorg-veranstaltung.model';
 import { VbKennzahlen } from '../../models/einsatz.model';
 import { PepKennzahlen } from '../../models/pep.model';
 import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
@@ -20,11 +21,13 @@ import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
 })
 export class EinsatzKarte {
   readonly titel = input.required<string>();
-  /** Beginn lokal `YYYY-MM-DDTHH:mm` (oder EFS-Text); `null` ohne Datum. */
+  /** Beginn lokal `YYYY-MM-DDTHH:mm` ; `null` ohne Datum. */
   readonly beginn = input<string | null>(null);
   readonly schichten = input<number | null>(null);
   readonly ort = input<string | null>(null);
   readonly herkunft = input<'hiorg' | 'eigen'>('eigen');
+  /** Dienst oder Veranstaltung; `null` ohne Angabe. */
+  readonly art = input<HiorgArt | null>(null);
   readonly pepVorhanden = input(false);
   /** Kennzahlen der PEP; zeigt „n / m besetzt“. Gesetzt heißt: die PEP ist vorhanden. */
   readonly pepKennzahlen = input<PepKennzahlen | null>(null);

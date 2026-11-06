@@ -42,8 +42,6 @@ import { PepEditorSpeichernDienst, SpeicherErgebnis } from '../../services/pep-e
 import { EinsatzZuordnenDialog } from '../../components/einsatz-zuordnen-dialog/einsatz-zuordnen-dialog';
 import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { SaveLoadService } from '../../services/save-load.service';
-import { EfsApiService } from '../../services/efs-api.service';
-import { ImportService } from '../../services/import.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import {
   Einsatzkraft,
@@ -115,9 +113,7 @@ export class PlanningEditor implements OnDestroy {
   private readonly dialog = inject(MatDialog);
   private readonly dialogDienst = inject(DialogDienst);
   private readonly abgleich = inject(MatchService);
-  readonly efsApi = inject(EfsApiService);
   private readonly fahrzeugeQuelle = inject(FahrzeugeQuelleService);
-  private readonly importService = inject(ImportService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly sanitizer = inject(DomSanitizer);
   readonly postenfuehrerIconUrl: SafeUrl = this.sanitizer.bypassSecurityTrustUrl(
@@ -133,12 +129,8 @@ export class PlanningEditor implements OnDestroy {
 
   readonly planung = this.store.active;
   readonly canUndo = this.store.canUndo;
-  readonly efsUpdating = signal(false);
-  readonly isEfsLocked = computed(
-    () => this.efsApi.erreichbar() && !!this.store.active()?.hiorg_einsatz_id,
-  );
-  /** Titel und Zeitraum gehören dem Einsatz (bzw. HiOrg) und sind im Editor nicht änderbar. */
-  readonly kopfGesperrt = computed(() => this.einsatzZiel() !== null || this.isEfsLocked());
+  /** Titel und Zeitraum gehören dem Einsatz und sind im Editor nicht änderbar. */
+  readonly kopfGesperrt = computed(() => this.einsatzZiel() !== null);
 
   toggleAssignedList(): void {
     this.assignedListCollapsed.update((v) => !v);
@@ -485,31 +477,6 @@ export class PlanningEditor implements OnDestroy {
 
   openHiorgPersonalDialog(): void {
     this.dialog.open(HiorgPersonalDialog, { width: '560px' });
-  }
-
-  async updateFromEfs(p: Planung): Promise<void> {
-    if (!p.hiorg_einsatz_id || this.efsUpdating() || this.planung()?.id !== p.id) return;
-    this.efsUpdating.set(true);
-    try {
-      const schichtIds = p.posten
-        .map((po) => po.hiorg_schicht_id)
-        .filter((id): id is string => !!id);
-      const ids = schichtIds.length > 0 ? schichtIds : [p.hiorg_einsatz_id];
-      const results = await Promise.all(ids.map((id) => this.efsApi.getVeranstaltungDetail(id)));
-      if (this.planung()?.id !== p.id) return;
-      for (const detail of results) {
-        if (!detail) continue;
-        const mapped = detail.einsatzkraefte.map((ek) => this.importService.mapEfsEinsatzkraft(ek));
-        this.store.mergeEfsEinsatzkraefte(mapped);
-      }
-    } catch (fehler) {
-      if (this.planung()?.id === p.id)
-        this.efsApi.fehler.set(
-          fehler instanceof Error ? fehler.message : 'Einsatzkräfte konnten nicht geladen werden.',
-        );
-    } finally {
-      this.efsUpdating.set(false);
-    }
   }
 
   /** Zurück zur Einsatzübersicht bzw. zur Vorlagenverwaltung; der Schutz fragt bei Ungespeichertem. */
