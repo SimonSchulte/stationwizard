@@ -1,9 +1,11 @@
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { AbschnittFarbe, VbInhalt, VbLaufzettel, VbPosition } from '../models/vb.model';
-import { LAUFZETTEL_KAPAZITAET, laufzettelNummern, laufzettelPlatz } from './laufzettel-platz';
-
-/** Streifen je A4-Querseite (drei Laufzettel nebeneinander). */
-export const STREIFEN_JE_SEITE = 3;
+import {
+  LAUFZETTEL_KAPAZITAET,
+  STREIFEN_STANDARD,
+  laufzettelNummern,
+  laufzettelPlatz,
+} from './laufzettel-platz';
 
 /** Ein bedruckter Streifen: ein Laufzettel oder der Fortsetzungsstreifen eines zu vollen. */
 export interface LaufzettelStreifen {
@@ -29,15 +31,18 @@ export interface LaufzettelStreifen {
  * belegt. Der Platzbedarf kommt ausschließlich aus `laufzettelPlatz()`, damit Editorwarnung
  * und Ausdruck übereinstimmen. Jeder Teil enthält mindestens eine Position.
  */
-function teilePositionen(laufzettel: VbLaufzettel): VbPosition[][] {
-  if (laufzettelPlatz(laufzettel).zustand !== 'zu-voll') return [laufzettel.positionen];
-  const infoKosten = laufzettelPlatz({ ...laufzettel, positionen: [] }).belegt;
+function teilePositionen(laufzettel: VbLaufzettel, streifenJeSeite: number): VbPosition[][] {
+  if (laufzettelPlatz(laufzettel, streifenJeSeite).zustand !== 'zu-voll')
+    return [laufzettel.positionen];
+  const infoKosten = laufzettelPlatz({ ...laufzettel, positionen: [] }, streifenJeSeite).belegt;
   const verfuegbar = Math.max(1, LAUFZETTEL_KAPAZITAET - infoKosten);
   const teile: VbPosition[][] = [];
   let aktuell: VbPosition[] = [];
   let belegt = 0;
   for (const position of laufzettel.positionen) {
-    const zeilen = laufzettelPlatz({ ...laufzettel, positionen: [position] }).belegt - infoKosten;
+    const zeilen =
+      laufzettelPlatz({ ...laufzettel, positionen: [position] }, streifenJeSeite).belegt -
+      infoKosten;
     if (aktuell.length > 0 && belegt + zeilen > verfuegbar) {
       teile.push(aktuell);
       aktuell = [];
@@ -54,14 +59,17 @@ function teilePositionen(laufzettel: VbLaufzettel): VbPosition[][] {
  * Je Laufzettel ein Streifen in Druckreihenfolge; ein zu voller Laufzettel erzeugt zusätzlich
  * Fortsetzungsstreifen mit denselben Kopfdaten, nie eine kleinere Schrift.
  */
-export function baueLaufzettelStreifen(inhalt: VbInhalt): LaufzettelStreifen[] {
+export function baueLaufzettelStreifen(
+  inhalt: VbInhalt,
+  streifenJeSeite: number = STREIFEN_STANDARD,
+): LaufzettelStreifen[] {
   const nummern = laufzettelNummern(inhalt);
   const streifen: LaufzettelStreifen[] = [];
   for (const abschnitt of inhalt.abschnitte) {
     for (const laufzettel of abschnitt.laufzettel) {
-      const teile = teilePositionen(laufzettel);
+      const teile = teilePositionen(laufzettel, streifenJeSeite);
       teile.forEach((positionen, index) => {
-        const belegt = laufzettelPlatz({ ...laufzettel, positionen }).belegt;
+        const belegt = laufzettelPlatz({ ...laufzettel, positionen }, streifenJeSeite).belegt;
         streifen.push({
           nr: nummern.get(laufzettel.id) ?? 0,
           istFortsetzung: index > 0,
@@ -81,10 +89,10 @@ export function baueLaufzettelStreifen(inhalt: VbInhalt): LaufzettelStreifen[] {
   return streifen;
 }
 
-/** Verteilt die Streifen auf Seiten zu je `proSeite` (Standard 3); die letzte darf kürzer sein. */
+/** Verteilt die Streifen auf Seiten zu je `proSeite`; die letzte darf kürzer sein. */
 export function seitenAufteilen(
   streifen: readonly LaufzettelStreifen[],
-  proSeite = STREIFEN_JE_SEITE,
+  proSeite: number = STREIFEN_STANDARD,
 ): LaufzettelStreifen[][] {
   const seiten: LaufzettelStreifen[][] = [];
   for (let i = 0; i < streifen.length; i += proSeite) {

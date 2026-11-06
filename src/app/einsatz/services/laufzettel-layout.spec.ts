@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
-import { baueLaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
+import { VbInhalt } from '../models/vb.model';
+import { baueLaufzettelStreifen as baueMit, seitenAufteilen } from './laufzettel-layout';
 import { LAUFZETTEL_KAPAZITAET } from './laufzettel-platz';
+
+// Die bisherigen Fälle gelten für drei Streifen je Seite (38 Zeichen je Zeile).
+const baueLaufzettelStreifen = (inhalt: VbInhalt) => baueMit(inhalt, 3);
 
 const LANG = 'x'.repeat(76); // zwei Zeilen
 
@@ -122,7 +126,31 @@ describe('seitenAufteilen', () => {
     expect(seitenAufteilen([], 3)).toEqual([]);
   });
 
-  it('zählt 17 Laufzettel als sechs Seiten', () => {
-    expect(seitenAufteilen(streifenMit(17))).toHaveLength(6);
+  it('zählt 17 Laufzettel als sechs Seiten bei drei und drei Seiten bei sechs je Seite', () => {
+    expect(seitenAufteilen(streifenMit(17), 3)).toHaveLength(6);
+    expect(seitenAufteilen(streifenMit(17), 6).map((s) => s.length)).toEqual([6, 6, 5]);
+  });
+
+  it('nimmt ohne Angabe die Vorgabe von sechs je Seite', () => {
+    expect(seitenAufteilen(streifenMit(7))).toHaveLength(2);
+  });
+});
+
+describe('baueLaufzettelStreifen je Layout', () => {
+  it('teilt dieselben Positionen auf sechs Streifen früher in Fortsetzungen', () => {
+    const positionen = Array.from({ length: 12 }, (_, i) =>
+      testPosition({ material: `Position ${i} ${'x'.repeat(24)}` }),
+    );
+    const inhalt = testInhalt({
+      abschnitte: [testAbschnitt({ laufzettel: [testLaufzettel({ positionen })] })],
+    });
+    expect(baueMit(inhalt, 3)).toHaveLength(1);
+    const sechs = baueMit(inhalt, 6);
+    expect(sechs.length).toBeGreaterThan(1);
+    expect(sechs.map((s) => s.istFortsetzung)).toEqual(sechs.map((_, i) => i > 0));
+    expect(sechs.flatMap((s) => s.positionen.map((p) => p.id))).toEqual(
+      positionen.map((p) => p.id),
+    );
+    for (const s of sechs) expect(s.belegt).toBeLessThanOrEqual(LAUFZETTEL_KAPAZITAET);
   });
 });

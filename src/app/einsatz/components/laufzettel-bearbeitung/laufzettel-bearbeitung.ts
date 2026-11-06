@@ -5,6 +5,7 @@ import {
   ElementRef,
   afterEveryRender,
   computed,
+  inject,
   input,
   linkedSignal,
   output,
@@ -27,6 +28,7 @@ import {
   istFachgruppe,
 } from '../../../kern/fachgruppen/fachgruppe';
 import { VB_GRENZEN, VbLaufzettel, VbPosition } from '../../models/vb.model';
+import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { laufzettelPlatz } from '../../services/laufzettel-platz';
 import { PlatzAnzeige } from '../platz-anzeige/platz-anzeige';
 
@@ -98,7 +100,10 @@ export class LaufzettelBearbeitung {
   protected readonly fachgruppeBezeichnung = FACHGRUPPE_BEZEICHNUNG;
   protected readonly fachgruppeFarbe = FACHGRUPPE_FARBVARIABLE;
 
-  protected readonly platz = computed(() => laufzettelPlatz(this.laufzettel()));
+  private readonly layout = inject(LaufzettelLayoutWahl);
+  protected readonly platz = computed(() =>
+    laufzettelPlatz(this.laufzettel(), this.layout.streifenJeSeite()),
+  );
   protected readonly zuViele = computed(() =>
     Math.max(0, this.platz().belegt - this.platz().kapazitaet),
   );

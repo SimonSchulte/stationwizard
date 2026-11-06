@@ -20,6 +20,7 @@ import { Ladeanzeige, Leerzustand, MeldungsDienst } from '../../../kern/zustand/
 import { VB_GRENZEN, VbVorlage } from '../../models/vb.model';
 import { VbDruckDienst } from '../../services/vb-druck';
 import { vbInhaltProbleme } from '../../services/vb-pruefung';
+import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { leseVbExcelDatei, titelAusDateiname } from '../../services/vb-excel-import';
 import { VbVorlagenStoreService } from '../../services/vb-vorlagen-store.service';
 import { MitVersion } from '../../storage/mit-version';
@@ -55,6 +56,7 @@ export class VbVorlagenReiter implements OnInit {
   private readonly dialog = inject(DialogDienst);
   private readonly matDialog = inject(MatDialog);
   private readonly druck = inject(VbDruckDienst);
+  private readonly layout = inject(LaufzettelLayoutWahl);
   private readonly meldungen = inject(MeldungsDienst);
   private readonly dateiEingabe = viewChild<ElementRef<HTMLInputElement>>('dateiEingabe');
 
@@ -100,7 +102,11 @@ export class VbVorlagenReiter implements OnInit {
     try {
       let ergebnis;
       try {
-        ergebnis = await leseVbExcelDatei(await datei.arrayBuffer());
+        ergebnis = await leseVbExcelDatei(
+          await datei.arrayBuffer(),
+          undefined,
+          this.layout.streifenJeSeite(),
+        );
       } catch (ursache) {
         this.meldungen.fehler(
           ursache instanceof Error ? ursache.message : 'Die Datei konnte nicht gelesen werden.',

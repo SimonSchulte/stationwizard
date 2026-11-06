@@ -13,8 +13,15 @@ const KOPF: VbDruckKopf = {
 };
 const JETZT = new Date(2026, 10, 4, 12, 30);
 
-function definition(inhalt = testInhalt(), kopf = KOPF): TDocumentDefinitions {
-  return baueVbPdfDefinition(kopf, inhalt, baueLaufzettelStreifen(inhalt), JETZT);
+/** Die bisherigen Fälle gelten für drei Streifen je Seite; andere Zahlen nennen die Tests selbst. */
+function definition(inhalt = testInhalt(), kopf = KOPF, streifenJeSeite = 3): TDocumentDefinitions {
+  return baueVbPdfDefinition(
+    kopf,
+    inhalt,
+    baueLaufzettelStreifen(inhalt, streifenJeSeite),
+    JETZT,
+    streifenJeSeite,
+  );
 }
 
 function abschnitte(def: TDocumentDefinitions): ContentSection[] {
@@ -90,6 +97,21 @@ describe('baueVbPdfDefinition', () => {
     ]);
     // 6 Laufzettel passen genau auf zwei Seiten
     expect(laufzettelSeiten(definition(inhaltMitLaufzetteln(6)))).toHaveLength(2);
+  });
+
+  it('legt bei sechs Streifen je Seite sechs schmale Spalten an und kürzt den Seitenfuß', () => {
+    const inhalt = inhaltMitLaufzetteln(7);
+    const seiten = laufzettelSeiten(definition(inhalt, KOPF, 6));
+    expect(seiten).toHaveLength(2);
+    const spalten = (seiten[0] as { stack: { columns?: { width: number }[] }[] }).stack[1].columns;
+    expect(spalten).toHaveLength(6);
+    for (const spalte of spalten ?? []) expect(spalte.width).toBeCloseTo(841.89 / 6, 1);
+    // die letzte Seite wird mit leeren Spalten auf sechs aufgefüllt
+    const letzte = (seiten[1] as { stack: { columns?: unknown[] }[] }).stack[1].columns;
+    expect(letzte).toHaveLength(6);
+    const texte = alleTexte(seiten);
+    expect(texte).toContain('Nr. 1/7 · S. 1/2');
+    expect(texte).not.toContain('Laufzettel 1 von 7 · Seite 1 von 2');
   });
 
   it('erzeugt ohne Laufzettel keinen Laufzettelabschnitt', () => {

@@ -5,6 +5,7 @@ import { dateiHerunterladen } from '../../kern/storage/datei-storage';
 import { MeldungsDienst } from '../../kern/zustand/meldungs-dienst';
 import { VbInhalt } from '../models/vb.model';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
+import { LaufzettelLayoutWahl } from './laufzettel-layout-wahl';
 import { zuVolleLaufzettel } from './laufzettel-platz';
 import { baueVbPdfDefinition, VbDruckKopf } from './vb-pdf-definition';
 
@@ -18,26 +19,28 @@ export function vbDateiname(titel: string, datum: string): string {
 }
 
 /**
- * Druck der Vorbereitung: optional die Seite „Allgemeine Anweisungen“, danach drei
+ * Druck der Vorbereitung: optional die Seite „Allgemeine Anweisungen“, danach 3 bis 6
  * Laufzettelstreifen je A4-Querseite (siehe `docs/konzept-einsatzplanung-vb.md`, Abschnitt 6).
  * Fehler werden geworfen; der Aufrufer meldet sie.
  */
 @Injectable({ providedIn: 'root' })
 export class VbDruckDienst {
   private readonly meldungen = inject(MeldungsDienst);
+  private readonly layout = inject(LaufzettelLayoutWahl);
 
   async drucken(kopf: VbDruckKopf, inhalt: VbInhalt): Promise<void> {
     const laufzettel = inhalt.abschnitte.reduce((summe, a) => summe + a.laufzettel.length, 0);
     if (laufzettel === 0 && !inhalt.anweisungen.trim()) {
       throw new Error('Die Vorbereitung enthält weder Anweisungen noch Laufzettel.');
     }
-    const streifen = baueLaufzettelStreifen(inhalt);
-    const definition = baueVbPdfDefinition(kopf, inhalt, streifen, new Date());
+    const streifenJeSeite = this.layout.streifenJeSeite();
+    const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite);
+    const definition = baueVbPdfDefinition(kopf, inhalt, streifen, new Date(), streifenJeSeite);
     const pdfMake = await this.ladeBibliothek();
     const daten = await pdfMake.createPdf(definition).getBuffer();
     this.speichern(Uint8Array.from(daten), vbDateiname(kopf.titel, heuteIso()));
 
-    const zuVoll = zuVolleLaufzettel(inhalt).length;
+    const zuVoll = zuVolleLaufzettel(inhalt, streifenJeSeite).length;
     if (zuVoll > 0) {
       this.meldungen.warnung(
         zuVoll === 1

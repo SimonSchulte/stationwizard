@@ -1,6 +1,6 @@
 import { FACHGRUPPEN, FACHGRUPPE_BEZEICHNUNG, Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { VbAbschnitt, VbInhalt, VbLaufzettel } from '../models/vb.model';
-import { laufzettelPlatz } from './laufzettel-platz';
+import { STREIFEN_STANDARD, laufzettelPlatz } from './laufzettel-platz';
 import {
   IdErzeuger,
   LAUFZETTEL_VORGABE_UEBERSCHRIFT,
@@ -236,6 +236,7 @@ export function titelAusDateiname(dateiname: string): string {
 export function leseVbExcelZeilen(
   tabelle: readonly unknown[][],
   neueId?: IdErzeuger,
+  streifenJeSeite: number = STREIFEN_STANDARD,
 ): VbExcelErgebnis {
   const kopf = findeKopf(tabelle);
   if (!kopf) {
@@ -370,7 +371,7 @@ export function leseVbExcelZeilen(
         return position;
       });
       abschnitt.laufzettel.push(laufzettel);
-      const platz = laufzettelPlatz(laufzettel);
+      const platz = laufzettelPlatz(laufzettel, streifenJeSeite);
       if (platz.zustand === 'zu-voll') {
         auffaelligkeiten.push(
           `Der Laufzettel „${laufzettel.lagerort || UEBERSCHRIFT_OHNE_LAGERORT}“ im Abschnitt „` +
@@ -406,6 +407,7 @@ function feldTitel(feld: VbExcelFeld): string {
 export async function leseVbExcelDatei(
   daten: ArrayBuffer,
   neueId?: IdErzeuger,
+  streifenJeSeite: number = STREIFEN_STANDARD,
 ): Promise<VbExcelErgebnis> {
   const XLSX = await import('@e965/xlsx');
   let tabelle: unknown[][];
@@ -422,5 +424,5 @@ export async function leseVbExcelDatei(
   } catch {
     throw new Error('Die Datei konnte nicht als Excel-Arbeitsmappe gelesen werden.');
   }
-  return leseVbExcelZeilen(tabelle, neueId);
+  return leseVbExcelZeilen(tabelle, neueId, streifenJeSeite);
 }

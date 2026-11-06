@@ -174,7 +174,9 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
 
 - **Seite 1 – Allgemeine Anweisungen**, A4 quer: Einsatz, Zeitraum, Ort, Freitext in zwei
   Spalten, Fußzeile mit Anzahl der Laufzettel.
-- **Folgeseiten – Laufzettel**, A4 quer, drei Streifen je Seite (je ca. 99 × 210 mm),
+- **Folgeseiten – Laufzettel**, A4 quer, **3 bis 6 Streifen je Seite** (wählbar im VB-Editor,
+  Vorgabe 6; je ca. 99 / 74 / 59 / 50 × 210 mm; nur Sitzungszustand,
+  `LaufzettelLayoutWahl`), im Folgenden am Beispiel von drei (je ca. 99 × 210 mm),
   gestrichelte Schnittlinien. Inhalte nach der Word-Führungshilfe, aber so dicht gesetzt,
   dass der größte Teil des Streifens den Materialzeilen gehört:
   - oben ein freier **Klemmrand** (ca. 13 mm) für den Bonhalter mit dem Einsatztitel,
@@ -195,9 +197,11 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
 Reine Funktion `laufzettelPlatz(laufzettel)` (eigener Test), die **der Druck und der Editor
 gemeinsam** verwenden, damit Warnung und Ausdruck nie auseinanderlaufen:
 
-- Kapazität 23 Materialzeilen. Eine Position belegt `max(1, ⌈Zeichen / 38⌉)` Zeilen (Breite
-  des Materialtexts bei 13 pt auf dem Streifen); der genaue Wert wird beim Umsetzen gegen das
-  echte pdfmake-Ergebnis geeicht.
+- Kapazität 23 Materialzeilen bei jeder Streifenzahl (die Höhe ändert sich nicht). Eine Position
+  belegt `max(1, ⌈Zeichen / zeichenJeZeile⌉)` Zeilen; `laufzettelMasse(streifenJeSeite)`
+  liefert die Zeichen je Zeile aus der Streifenbreite (Roboto 9 pt gemessen 4,17 pt/Zeichen,
+  25 % Sicherheitsabschlag): 38 bei drei, 25 bei vier, 18 bei fünf und 13 bei sechs Streifen.
+  Die Werte sind aus Schriftmaßen berechnet und beim ersten echten Druck zu eichen.
 - Bricht Lagerort, Transport oder Auftraggeber um, kostet jede Umbruchzeile über die erste
   Reserve hinaus eine Materialzeile.
 - Ergebnis: belegte Zeilen, Kapazität, Zustand `ok` / `knapp` (ab 21) / `zu-voll`.

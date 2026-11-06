@@ -7,6 +7,17 @@
   @if (untertitel()) {
     <span seitenkopfZusatz class="untertitel" [title]="untertitel()">{{ untertitel() }}</span>
   }
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Laufzettel je Druckseite"
+    matTooltip="Laufzettel je A4-Seite: bestimmt Streifenbreite, Zeilenlänge und die Platzanzeige"
+    [value]="layout.streifenJeSeite()"
+    (change)="layout.setze($event.value)"
+  >
+    @for (zahl of streifenWahl; track zahl) {
+      <mat-button-toggle [value]="zahl">{{ zahl }} je Seite</mat-button-toggle>
+    }
+  </mat-button-toggle-group>
   <button
     matButton="outlined"
     type="button"

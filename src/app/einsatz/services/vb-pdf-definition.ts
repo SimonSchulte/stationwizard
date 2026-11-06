@@ -8,7 +8,8 @@ import type {
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
-import { LaufzettelStreifen, STREIFEN_JE_SEITE, seitenAufteilen } from './laufzettel-layout';
+import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
+import { STREIFEN_STANDARD, gueltigeStreifenZahl } from './laufzettel-platz';
 
 export interface VbDruckKopf {
   titel: string;
@@ -19,14 +20,15 @@ export interface VbDruckKopf {
 }
 
 /**
- * Maße in pt (1 mm = 72 / 25,4 pt). A4 quer = 841,89 × 595,28 pt, ein Streifen 280,6 pt
- * (99 mm) breit. Die Höhen entsprechen dem Canvas-Entwurf (Kopf 56 px, Material 23 × 20 px,
+ * Maße in pt (1 mm = 72 / 25,4 pt). A4 quer = 841,89 × 595,28 pt; ein Streifen ist bei drei
+ * je Seite 280,6 pt (99 mm) breit, bei vier bis sechs entsprechend schmaler (`streifenmass()`). Die Höhen entsprechen dem Canvas-Entwurf (Kopf 56 px, Material 23 × 20 px,
  * Infozeilen ~62 px, Handschrift ~90 px auf 794 px Höhe, 1 px = 0,75 pt); der Rest ist
  * Sicherheitsreserve, weil pdfmake bei Überlauf eine neue Seite anlegt.
  */
 export const MASS = {
   seiteBreite: 841.89,
   seiteHoehe: 595.28,
+  /** Breite bei drei Streifen je Seite; andere Zahlen rechnet `streifenmass()`. */
   streifenBreite: 280.6,
   klemmrand: 36.85,
   farbband: 5.67,
@@ -51,6 +53,28 @@ export const SCHRIFT = {
   ueberschrift: 10.5,
   nummer: 22,
 } as const;
+
+/** Breiten eines Streifens bei gewählter Zahl je Seite. */
+export interface Streifenmass {
+  streifenJeSeite: number;
+  /** Breite des Streifens in pt. */
+  breite: number;
+  /** Nutzbare Breite innerhalb der Innenränder. */
+  feld: number;
+  /** Ab fünf Streifen: gestapelte Schreibfelder, schmale Nummer, gekürzte Klemmrand-Texte. */
+  schmal: boolean;
+}
+
+export function streifenmass(streifenJeSeite: number = STREIFEN_STANDARD): Streifenmass {
+  const zahl = gueltigeStreifenZahl(streifenJeSeite);
+  const breite = MASS.seiteBreite / zahl;
+  return {
+    streifenJeSeite: zahl,
+    breite,
+    feld: breite - MASS.innenLinks - MASS.innenRechts,
+    schmal: zahl >= 5,
+  };
+}
 
 const FARBE_ABSCHNITT: Record<AbschnittFarbe, string> = {
   'abschnitt-1': PDF_FARBEN.abschnitt1,
@@ -147,14 +171,18 @@ function kasten(hoehe: number, inhalt: Content): Content {
   };
 }
 
-function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen): Content {
+function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen, m: Streifenmass): Content {
   const farbe = FARBE_ABSCHNITT[streifen.abschnitt.farbe];
+  // 30 und 24 Zeichen passen auf den Streifen mit drei je Seite; schmalere Streifen kürzer.
+  const anteil = m.feld / (MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts);
+  const maxTitel = Math.max(8, Math.round(30 * anteil));
+  const maxAbschnitt = Math.max(6, Math.round(24 * anteil));
   return kasten(MASS.klemmrand, {
     margin: [0, 22, 0, 0],
     columns: [
       {
         width: '55%',
-        text: kuerzen(kopfTitel, 30),
+        text: kuerzen(kopfTitel, maxTitel),
         fontSize: 7.5,
         color: PDF_FARBEN.sekundaer,
       },
@@ -169,7 +197,7 @@ function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen): Content {
           },
           {
             width: 'auto',
-            text: kuerzen(streifen.abschnitt.titel, 24),
+            text: kuerzen(streifen.abschnitt.titel, maxAbschnitt),
             fontSize: 7.5,
             bold: true,
             color: PDF_FARBEN.text,
@@ -180,10 +208,13 @@ function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen): Content {
   });
 }
 
-function kopfkasten(streifen: LaufzettelStreifen): Content {
+function kopfkasten(streifen: LaufzettelStreifen, m: Streifenmass): Content {
+  const nummerBreite = m.schmal ? 40 : 56;
+  const nummerGroesse = m.schmal ? 16 : SCHRIFT.nummer;
   const ueberschrift = streifen.ueberschrift.trim();
   const ueberschriftGroesse =
-    ueberschrift.length <= 40 ? SCHRIFT.ueberschrift : ueberschrift.length <= 80 ? 9 : 8;
+    (ueberschrift.length <= 40 ? SCHRIFT.ueberschrift : ueberschrift.length <= 80 ? 9 : 8) -
+    (m.schmal ? 2 : 0);
   const kennzeichen: Column[] = [
     {
       width: 'auto',
@@ -215,9 +246,10 @@ function kopfkasten(streifen: LaufzettelStreifen): Content {
     });
   }
   const links: Content = {
-    margin: [5, 5, 3, 0],
+    margin: [m.schmal ? 3 : 5, 5, 3, 0],
     stack: [
-      { columns: kennzeichen, columnGap: 0 },
+      // Auf schmalen Streifen stehen „AUFTRAG“ und die Fachgruppe übereinander.
+      m.schmal ? { stack: kennzeichen } : { columns: kennzeichen, columnGap: 0 },
       {
         text: ueberschrift || ' ',
         bold: true,
@@ -231,17 +263,22 @@ function kopfkasten(streifen: LaufzettelStreifen): Content {
     {
       text: [
         { text: 'LfdNr ', fontSize: 7, color: PDF_FARBEN.sekundaer },
-        { text: String(streifen.nr), fontSize: SCHRIFT.nummer, bold: true },
+        { text: String(streifen.nr), fontSize: nummerGroesse, bold: true },
       ],
       color: PDF_FARBEN.dunkelblau,
     },
   ];
   if (streifen.istFortsetzung) {
-    nummer.push({ text: '(Fortsetzung)', fontSize: 6.5, bold: true, color: PDF_FARBEN.rot });
+    nummer.push({
+      text: m.schmal ? '(Forts.)' : '(Fortsetzung)',
+      fontSize: 6.5,
+      bold: true,
+      color: PDF_FARBEN.rot,
+    });
   }
   return {
     table: {
-      widths: ['*', 56],
+      widths: ['*', nummerBreite],
       heights: [MASS.kopf],
       body: [[links, { stack: nummer, alignment: 'center', margin: [0, 5, 0, 0] }]],
     },
@@ -339,8 +376,8 @@ function schreiblinie(breite: number, y: number): ContentCanvas {
  * und fett, damit eine helfende Person auf einen Blick sieht, wo sie das Material holt und
  * wohin sie es bringt. Fehlende Werte erscheinen als Schreiblinie.
  */
-function zielBlock(streifen: LaufzettelStreifen): Content {
-  const feldBreite = MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts;
+function zielBlock(streifen: LaufzettelStreifen, m: Streifenmass): Content {
+  const feldBreite = m.feld;
   const wertBreite = feldBreite - ZIEL_BESCHRIFTUNG_BREITE;
   const zeile = (beschriftung: string, wert: string): Content[] => [
     {
@@ -375,8 +412,8 @@ function zielBlock(streifen: LaufzettelStreifen): Content {
 }
 
 /** „Rückfragen an“ als einzige kleine Infozeile unter dem Material. */
-function rueckfragen(streifen: LaufzettelStreifen): Content {
-  const feldBreite = MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts;
+function rueckfragen(streifen: LaufzettelStreifen, m: Streifenmass): Content {
+  const feldBreite = m.feld;
   return kasten(MASS.info, {
     margin: [0, 3, 0, 0],
     columns: [
@@ -394,7 +431,7 @@ function rueckfragen(streifen: LaufzettelStreifen): Content {
   });
 }
 
-function schreibfelder(): Content {
+function schreibfelder(m: Streifenmass): Content {
   const linie = (breite: number): ContentCanvas => ({
     canvas: [
       {
@@ -408,7 +445,7 @@ function schreibfelder(): Content {
       },
     ],
   });
-  const feldBreite = MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts;
+  const feldBreite = m.feld;
   const ankreuz = (beschriftung: string, abstand = 0): Column => ({
     width: 'auto',
     columns: [
@@ -436,20 +473,32 @@ function schreibfelder(): Content {
     stack: [
       { text: 'Durchführung von', fontSize: SCHRIFT.infoBeschriftung, color: PDF_FARBEN.sekundaer },
       { ...linie(feldBreite), margin: [0, 11, 0, 0] },
-      {
-        margin: [0, 5, 0, 0],
-        columns: [
-          {
-            width: 'auto',
-            text: 'Durchgeführt',
-            fontSize: SCHRIFT.info,
-            bold: true,
-            margin: [0, 0, 8, 0],
+      // Auf schmalen Streifen steht „Durchgeführt“ über den beiden Kästchen statt davor.
+      m.schmal
+        ? {
+            margin: [0, 5, 0, 0],
+            stack: [
+              { text: 'Durchgeführt', fontSize: SCHRIFT.info, bold: true },
+              {
+                margin: [0, 2, 0, 0],
+                columns: [ankreuz('Ja', 8), ankreuz('nicht möglich')],
+              },
+            ],
+          }
+        : {
+            margin: [0, 5, 0, 0],
+            columns: [
+              {
+                width: 'auto',
+                text: 'Durchgeführt',
+                fontSize: SCHRIFT.info,
+                bold: true,
+                margin: [0, 0, 8, 0],
+              },
+              ankreuz('Ja', 8),
+              ankreuz('nicht möglich'),
+            ],
           },
-          ankreuz('Ja', 8),
-          ankreuz('nicht möglich'),
-        ],
-      },
       {
         text: 'Grund:',
         fontSize: SCHRIFT.infoBeschriftung,
@@ -468,19 +517,22 @@ function streifenInhalt(
   laufzettelGesamt: number,
   seite: number,
   seitenGesamt: number,
+  m: Streifenmass,
 ): Column {
   return {
-    width: MASS.streifenBreite,
+    width: m.breite,
     margin: [MASS.innenLinks, 0, MASS.innenRechts, 0],
     stack: [
-      klemmrand(kopfTitel, streifen),
-      kopfkasten(streifen),
-      zielBlock(streifen),
+      klemmrand(kopfTitel, streifen, m),
+      kopfkasten(streifen, m),
+      zielBlock(streifen, m),
       materialRaster(streifen),
-      rueckfragen(streifen),
-      schreibfelder(),
+      rueckfragen(streifen, m),
+      schreibfelder(m),
       {
-        text: `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Seite ${seite} von ${seitenGesamt}`,
+        text: m.schmal
+          ? `Nr. ${streifen.nr}/${laufzettelGesamt} · S. ${seite}/${seitenGesamt}`
+          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Seite ${seite} von ${seitenGesamt}`,
         alignment: 'center',
         fontSize: 6.5,
         color: PDF_FARBEN.sekundaer,
@@ -491,14 +543,14 @@ function streifenInhalt(
 }
 
 /** Grafik einer Laufzettelseite: gestrichelte Schnittlinien und je Streifen das Farbband. */
-function seitenGrafik(streifenAufSeite: readonly LaufzettelStreifen[]): Content {
+function seitenGrafik(streifenAufSeite: readonly LaufzettelStreifen[], m: Streifenmass): Content {
   const vektoren: ContentCanvas['canvas'] = [];
-  for (let i = 1; i < STREIFEN_JE_SEITE; i += 1) {
+  for (let i = 1; i < m.streifenJeSeite; i += 1) {
     vektoren.push({
       type: 'line',
-      x1: MASS.streifenBreite * i,
+      x1: m.breite * i,
       y1: 0,
-      x2: MASS.streifenBreite * i,
+      x2: m.breite * i,
       y2: MASS.seiteHoehe,
       lineWidth: 0.5,
       lineColor: PDF_FARBEN.platzhalter,
@@ -508,7 +560,7 @@ function seitenGrafik(streifenAufSeite: readonly LaufzettelStreifen[]): Content 
   streifenAufSeite.forEach((streifen, i) => {
     vektoren.push({
       type: 'rect',
-      x: MASS.streifenBreite * i,
+      x: m.breite * i,
       y: MASS.klemmrand,
       w: MASS.farbband,
       h: MASS.seiteHoehe - MASS.klemmrand,
@@ -604,15 +656,18 @@ function anweisungsAbschnitt(
 
 /**
  * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
- * danach drei Laufzettelstreifen je Seite. Reine Funktion; Farben nur aus `PDF_FARBEN`.
+ * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6). Reine Funktion; Farben nur aus
+ * `PDF_FARBEN`. Die Streifen müssen mit derselben Zahl gebaut sein (`baueLaufzettelStreifen()`).
  */
 export function baueVbPdfDefinition(
   kopf: VbDruckKopf,
   inhalt: VbInhalt,
   streifen: readonly LaufzettelStreifen[],
   gedrucktAm: Date,
+  streifenJeSeite: number = STREIFEN_STANDARD,
 ): TDocumentDefinitions {
-  const seiten = seitenAufteilen(streifen, STREIFEN_JE_SEITE);
+  const m = streifenmass(streifenJeSeite);
+  const seiten = seitenAufteilen(streifen, m.streifenJeSeite);
   const laufzettelGesamt = streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
   const abschnitte: ContentSection[] = [];
   if (inhalt.anweisungen.trim().length > 0) {
@@ -621,14 +676,14 @@ export function baueVbPdfDefinition(
 
   const laufzettelSeiten: Content[] = seiten.map((seite, index) => {
     const spalten: Column[] = seite.map((s) =>
-      streifenInhalt(kopf.titel, s, laufzettelGesamt, index + 1, seiten.length),
+      streifenInhalt(kopf.titel, s, laufzettelGesamt, index + 1, seiten.length, m),
     );
-    while (spalten.length < STREIFEN_JE_SEITE) {
-      spalten.push({ width: MASS.streifenBreite, text: '' });
+    while (spalten.length < m.streifenJeSeite) {
+      spalten.push({ width: m.breite, text: '' });
     }
     return {
       ...(index > 0 ? { pageBreak: 'before' as const } : {}),
-      stack: [seitenGrafik(seite), { columns: spalten, columnGap: 0 }],
+      stack: [seitenGrafik(seite, m), { columns: spalten, columnGap: 0 }],
     };
   });
   if (laufzettelSeiten.length > 0) {

@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { AbschnittFarbe, VbLaufzettel } from '../../models/vb.model';
+import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { laufzettelPlatz } from '../../services/laufzettel-platz';
 import { FachgruppeChip } from '../fachgruppe-chip/fachgruppe-chip';
 
@@ -29,7 +30,10 @@ export class LaufzettelKarte {
   readonly gewaehlt = output<void>();
 
   protected readonly streifen = computed(() => `var(--${this.farbe()})`);
-  protected readonly platz = computed(() => laufzettelPlatz(this.laufzettel()));
+  private readonly layout = inject(LaufzettelLayoutWahl);
+  protected readonly platz = computed(() =>
+    laufzettelPlatz(this.laufzettel(), this.layout.streifenJeSeite()),
+  );
 
   protected readonly kurztext = computed(() => {
     const materialien = this.laufzettel()
