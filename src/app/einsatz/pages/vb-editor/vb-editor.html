@@ -55,6 +55,10 @@
       <mat-icon>library_add</mat-icon>
       <span>Als neue Vorlage speichern…</span>
     </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="herunterladen()">
+      <mat-icon>picture_as_pdf</mat-icon>
+      <span>Als PDF herunterladen</span>
+    </button>
     <button mat-menu-item type="button" (click)="kopieHerunterladen()">
       <mat-icon>download</mat-icon>
       <span>Kopie herunterladen (JSON)</span>

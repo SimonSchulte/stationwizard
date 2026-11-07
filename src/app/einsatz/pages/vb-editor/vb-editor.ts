@@ -311,14 +311,22 @@ export class VbEditor {
     );
   }
 
-  protected async drucken(): Promise<void> {
+  protected drucken(): Promise<void> {
+    return this.ausgeben('drucken');
+  }
+
+  protected herunterladen(): Promise<void> {
+    return this.ausgeben('herunterladen');
+  }
+
+  private async ausgeben(weg: 'drucken' | 'herunterladen'): Promise<void> {
     const inhalt = this.store.inhalt();
     if (!inhalt) return;
     // Die Warnung vor zu vollen Laufzetteln meldet der VbDruckDienst selbst – für alle Aufrufer.
     const einsatz = this.einsatz();
     this.druckLaeuft.set(true);
     try {
-      await this.druck.drucken(
+      await this.druck[weg](
         {
           titel: this.modus === 'vorlage' ? this.store.titel() : (einsatz?.titel ?? 'Vorbereitung'),
           beginn: einsatz?.beginn ?? null,

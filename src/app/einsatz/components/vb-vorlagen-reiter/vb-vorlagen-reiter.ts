@@ -140,12 +140,20 @@ export class VbVorlagenReiter implements OnInit {
     }
   }
 
-  async drucken(): Promise<void> {
+  drucken(): Promise<void> {
+    return this.ausgeben('drucken');
+  }
+
+  herunterladen(): Promise<void> {
+    return this.ausgeben('herunterladen');
+  }
+
+  private async ausgeben(weg: 'drucken' | 'herunterladen'): Promise<void> {
     const vorlage = this.stand()?.daten;
     if (!vorlage || this.arbeitet()) return;
     this.arbeitet.set(true);
     try {
-      await this.druck.drucken(
+      await this.druck[weg](
         { titel: vorlage.titel, beginn: null, ende: null, ort: null },
         vorlage.inhalt,
       );
