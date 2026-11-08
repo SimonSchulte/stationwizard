@@ -553,6 +553,39 @@ describe('Einsatzplanung: Vorbereitung', () => {
     );
   });
 
+  it('speichert das Verladungsfoto eines Abschnitts und liefert es unverändert zurück', async () => {
+    const db = new FakeEinsatzplanungDb();
+    await legeEinsatzAn(db);
+    const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    const eingabe = vorbereitung({ inhalt: inhalt({ abschnitte: [abschnitt({ foto })] }) });
+    expect((await senden(db, 'PUT', VB, eingabe, NEU)).status).toBeLessThan(300);
+    const gelesen = (await (await senden(db, 'GET', VB)).json()) as {
+      inhalt: { abschnitte: { foto?: string }[] };
+    };
+    expect(gelesen.inhalt.abschnitte[0].foto).toBe(foto);
+  });
+
+  it('speichert einen Hinweis als Position und weist andere Werte ab', async () => {
+    const db = new FakeEinsatzplanungDb();
+    await legeEinsatzAn(db);
+    const mit = (hinweis: unknown) =>
+      vorbereitung({
+        inhalt: inhalt({
+          abschnitte: [
+            abschnitt({
+              laufzettel: [laufzettel({ positionen: [position({ anzahl: '', hinweis })] })],
+            }),
+          ],
+        }),
+      });
+    expect((await senden(db, 'PUT', VB, mit('ja'), NEU)).status).toBe(400);
+    expect((await senden(db, 'PUT', VB, mit(true), NEU)).status).toBeLessThan(300);
+    const gelesen = (await (await senden(db, 'GET', VB)).json()) as {
+      inhalt: { abschnitte: { laufzettel: { positionen: { hinweis?: boolean }[] }[] }[] };
+    };
+    expect(gelesen.inhalt.abschnitte[0].laufzettel[0].positionen[0].hinweis).toBe(true);
+  });
+
   it('weist ungültige Körper ab', async () => {
     const db = new FakeEinsatzplanungDb();
     await legeEinsatzAn(db);
@@ -563,6 +596,14 @@ describe('Einsatzplanung: Vorbereitung', () => {
       vorbereitung({ vorlageVersion: 1.5 }),
       vorbereitung({ inhalt: null }),
       vorbereitung({ inhalt: inhalt({ anweisungen: 'a'.repeat(6001) }) }),
+      vorbereitung({
+        inhalt: inhalt({ abschnitte: [abschnitt({ foto: 'data:image/png;base64,AAAA' })] }),
+      }),
+      vorbereitung({
+        inhalt: inhalt({
+          abschnitte: [abschnitt({ foto: 'data:image/jpeg;base64,' + 'A'.repeat(100_000) })],
+        }),
+      }),
     ]) {
       const antwort = await senden(db, 'PUT', VB, schlecht, NEU);
       expect(antwort.status).toBe(400);

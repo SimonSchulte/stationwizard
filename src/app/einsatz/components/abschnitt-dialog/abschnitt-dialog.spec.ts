@@ -60,6 +60,7 @@ describe('AbschnittDialog', () => {
       farbe: 'abschnitt-4',
       fachgruppe: 'tesi',
       uebertragen: true,
+      foto: null,
     });
   });
 

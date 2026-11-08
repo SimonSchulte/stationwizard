@@ -60,6 +60,47 @@ function inhaltMitLaufzetteln(anzahl: number) {
   });
 }
 
+describe('Hinweis auf dem Laufzettel', () => {
+  it('druckt einen Hinweis ohne Kästchen und Anzahl über zwei Spalten', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({
+          laufzettel: [
+            testLaufzettel({
+              positionen: [
+                testPosition({ material: 'Vorsicht, schwer', anzahl: '', hinweis: true }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+    const json = JSON.stringify(definition(inhalt));
+    expect(json).toContain('"text":"Vorsicht, schwer"');
+    expect(json).toContain('"colSpan":2');
+  });
+});
+
+describe('Verladungsfoto', () => {
+  it('fügt hinter dem Schild eines Abschnitts mit Foto eine Fotoseite ein', () => {
+    const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({ titel: 'Sanitätszelt', foto, laufzettel: [] }),
+        testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
+      ],
+    });
+    const schilder = abschnitte(definition(inhalt)).find((a) =>
+      alleTexte(a).includes('Sanitätszelt'),
+    );
+    const seiten = schilder?.section as { pageBreak?: string; stack?: { image?: string }[] }[];
+    expect(seiten).toHaveLength(3);
+    expect(seiten[1].pageBreak).toBe('before');
+    expect(seiten[1].stack?.some((k) => k.image === foto)).toBe(true);
+    expect(alleTexte(seiten[1])).toContain('VERLADUNG · Sanitätszelt');
+  });
+});
+
 describe('Kennzeichnungsschild', () => {
   it('legt je Abschnitt eine eigene A4-Querseite an', () => {
     const inhalt = testInhalt({

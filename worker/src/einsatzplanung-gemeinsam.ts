@@ -22,7 +22,11 @@ export const ABSCHNITT_FARBEN = new Set([
 
 // Ein VB-Inhalt hat höchstens 300 Laufzettel zu je höchstens 50 Positionen; die
 // Grenze gilt für Vorlagen und Vorbereitungen gleichermaßen (Vertrag: Körper ≤ 256 KB).
-export const VB_KOERPER_GRENZE = 256 * 1024;
+/** Mit Verladungsfotos der Abschnitte (je höchstens `FOTO_MAX` Zeichen); weit unter dem D1-Zeilenlimit. */
+export const VB_KOERPER_GRENZE = 1024 * 1024;
+/** Verladungsfoto eines Abschnitts als JPEG-Data-URL, höchstens so viele Zeichen. */
+export const FOTO_MAX = 100_000;
+export const FOTO_MUSTER = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
 export const EINSATZ_KOERPER_GRENZE = 16 * 1024;
 
 export const MAX_ABSCHNITTE = 30;

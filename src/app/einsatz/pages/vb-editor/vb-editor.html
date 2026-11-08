@@ -148,7 +148,7 @@
 
     <mat-tab-group animationDuration="0ms" class="reiter">
       <mat-tab [label]="'Laufzettel (' + laufzettelAnzahl() + ')'">
-        <div class="laufzettel-reiter">
+        <div class="laufzettel-reiter" cdkDropListGroup>
           <section class="liste" aria-label="Laufzettel">
             @if (store.vorlageFehlt()) {
               <div class="abgleich-hinweis" role="status">
@@ -220,8 +220,8 @@
             <div
               class="abschnitte"
               cdkDropList
-              cdkDropListGroup
               [cdkDropListDisabled]="sucheAktiv()"
+              [cdkDropListEnterPredicate]="nurKennungen"
               (cdkDropListDropped)="abschnittAbgelegt($event)"
             >
               @for (abschnitt of sichtbar(); track abschnitt.id) {
@@ -292,6 +292,7 @@
                       cdkDropList
                       [cdkDropListData]="abschnitt.id"
                       [cdkDropListDisabled]="sucheAktiv()"
+                      [cdkDropListEnterPredicate]="nurKennungen"
                       (cdkDropListDropped)="laufzettelAbgelegt($event)"
                     >
                       @for (laufzettel of abschnitt.laufzettel; track laufzettel.id) {
@@ -300,11 +301,17 @@
                           cdkDrag
                           [cdkDragData]="laufzettel.id"
                           [cdkDragDisabled]="sucheAktiv()"
+                          cdkDropList
+                          cdkDropListSortingDisabled
+                          [cdkDropListData]="laufzettel.id"
+                          [cdkDropListEnterPredicate]="nurPositionen"
+                          (cdkDropListDropped)="positionenAbgelegt($event)"
                         >
                           <app-laufzettel-karte
                             [laufzettel]="laufzettel"
                             [nummer]="nummern().get(laufzettel.id) ?? 0"
                             [farbe]="abschnitt.farbe"
+                            [abschnittTitel]="abschnitt.titel"
                             [ausgewaehlt]="aktiv()?.laufzettel?.id === laufzettel.id"
                             [marke]="marken().get(laufzettel.id) ?? null"
                             (gewaehlt)="waehlen(laufzettel.id)"
@@ -336,6 +343,7 @@
                 (abschnittGewaehlt)="abschnittGewaehlt(treffer.laufzettel.id, $event)"
                 (positionGeaendert)="positionGeaendert($event.id, $event.felder)"
                 (positionHinzugefuegt)="store.positionHinzufuegen(treffer.laufzettel.id)"
+                (hinweisHinzugefuegt)="store.positionHinzufuegen(treffer.laufzettel.id, true)"
                 (positionEntfernt)="store.positionLoeschen($event)"
                 (positionVerschoben)="
                   store.positionVerschieben(treffer.laufzettel.id, $event.id, $event.neuerIndex)

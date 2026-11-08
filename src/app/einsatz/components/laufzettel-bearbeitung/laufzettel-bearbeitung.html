@@ -100,9 +100,14 @@
   <h3>Positionen ({{ laufzettel().positionen.length }})</h3>
 </div>
 
-<div class="positionen" cdkDropList (cdkDropListDropped)="positionAbgelegt($event)">
+<div
+  class="positionen"
+  cdkDropList
+  [cdkDropListEnterPredicate]="nurPositionen"
+  (cdkDropListDropped)="positionAbgelegt($event)"
+>
   @for (position of laufzettel().positionen; track position.id; let i = $index) {
-    <div class="position" cdkDrag cdkDragLockAxis="y">
+    <div class="position" cdkDrag [cdkDragData]="ziehdaten(position.id)">
       <mat-checkbox
         class="markierung"
         [checked]="markiert().has(position.id)"
@@ -116,17 +121,23 @@
         matTooltip="Ziehen zum Umsortieren"
         >drag_indicator</mat-icon
       >
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="anzahl kompakt">
-        <mat-label>Anzahl</mat-label>
-        <input
-          matInput
-          [attr.maxlength]="grenzen.anzahl"
-          [value]="position.anzahl"
-          (input)="positionFeld(position.id, 'anzahl', $event)"
-        />
-      </mat-form-field>
+      @if (position.hinweis) {
+        <mat-icon class="hinweis-symbol" aria-label="Hinweis" matTooltip="Hinweis (ohne Anzahl)">
+          info
+        </mat-icon>
+      } @else {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="anzahl kompakt">
+          <mat-label>Anzahl</mat-label>
+          <input
+            matInput
+            [attr.maxlength]="grenzen.anzahl"
+            [value]="position.anzahl"
+            (input)="positionFeld(position.id, 'anzahl', $event)"
+          />
+        </mat-form-field>
+      }
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="material kompakt">
-        <mat-label>Material</mat-label>
+        <mat-label>{{ position.hinweis ? 'Hinweis' : 'Material' }}</mat-label>
         <input
           #materialFeld
           matInput
@@ -160,6 +171,16 @@
   >
     <mat-icon>add</mat-icon>
     Position hinzufügen
+  </button>
+  <button
+    matButton="outlined"
+    type="button"
+    matTooltip="Hinweis ohne Anzahl; belegt auf dem Laufzettel Platz wie eine Position"
+    [disabled]="laufzettel().positionen.length >= grenzen.positionen"
+    (click)="hinweisHinzufuegen()"
+  >
+    <mat-icon>info</mat-icon>
+    Hinweis hinzufügen
   </button>
   <button matButton type="button" [disabled]="markierteIds().length === 0" (click)="teilen()">
     <mat-icon>call_split</mat-icon>

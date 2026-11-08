@@ -3,6 +3,7 @@ import type {
   Content,
   ContentCanvas,
   ContentSection,
+  TableCell,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
@@ -320,16 +321,32 @@ function anzahlFeld(anzahl: string): Content {
 function materialRaster(streifen: LaufzettelStreifen): Content {
   const zeilenHoehe = MASS.materialZeile;
   const lineHeight = zeilenHoehe / SCHRIFT.material / 1.17;
-  const body: Content[][] = streifen.positionen.map((position) => [
-    kaestchen(PDF_FARBEN.dunkelblau),
-    anzahlFeld(position.anzahl),
-    {
-      text: position.material,
-      fontSize: SCHRIFT.material,
-      lineHeight,
-      margin: [4, 0, 0, 0],
-    },
-  ]);
+  const body: TableCell[][] = streifen.positionen.map((position): TableCell[] =>
+    position.hinweis
+      ? [
+          { text: '!', bold: true, alignment: 'center', fontSize: SCHRIFT.material, lineHeight },
+          {
+            text: position.material,
+            colSpan: 2,
+            italics: true,
+            bold: true,
+            fontSize: SCHRIFT.material,
+            lineHeight,
+            margin: [4, 0, 0, 0],
+          },
+          {},
+        ]
+      : [
+          kaestchen(PDF_FARBEN.dunkelblau),
+          anzahlFeld(position.anzahl),
+          {
+            text: position.material,
+            fontSize: SCHRIFT.material,
+            lineHeight,
+            margin: [4, 0, 0, 0],
+          },
+        ],
+  );
   for (let i = 0; i < streifen.leereZeilen; i += 1) {
     body.push([kaestchen(PDF_FARBEN.hellgrau), { text: '' }, { text: '' }]);
   }
@@ -756,6 +773,45 @@ function kennzeichnungsschild(
 }
 
 /**
+ * Seite „Verladung“ eines Abschnitts mit dessen Foto: Farbbänder wie auf dem Schild, Titel
+ * oben, das Foto einbehalten im Seitenverhältnis (`fit`) darunter. Fester Fließinhalt, damit
+ * die Seite nie umbricht.
+ */
+function verladungsfoto(abschnitt: VbInhalt['abschnitte'][number], foto: string): Content {
+  const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
+  const breite = MASS.seiteBreite - 2 * SCHILD_RAND;
+  const hoehe = MASS.seiteHoehe - 2 * SCHILD_BAND - 120;
+  return {
+    pageBreak: 'before' as const,
+    stack: [
+      {
+        canvas: [
+          { type: 'rect', x: 0, y: 0, w: MASS.seiteBreite, h: SCHILD_BAND, color: farbe },
+          {
+            type: 'rect',
+            x: 0,
+            y: MASS.seiteHoehe - SCHILD_BAND,
+            w: MASS.seiteBreite,
+            h: SCHILD_BAND,
+            color: farbe,
+          },
+        ],
+        absolutePosition: { x: 0, y: 0 },
+      },
+      {
+        text: `VERLADUNG · ${abschnitt.titel.trim()}`,
+        fontSize: 20,
+        bold: true,
+        alignment: 'center',
+        color: PDF_FARBEN.dunkelblau,
+        margin: [SCHILD_RAND, SCHILD_BAND + 20, SCHILD_RAND, 16],
+      },
+      { image: foto, fit: [breite, hoehe], alignment: 'center' },
+    ],
+  };
+}
+
+/**
  * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
  * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt je Abschnitt ein
  * Kennzeichnungsschild (eine A4-Querseite). Reine Funktion; Farben nur aus
@@ -802,9 +858,10 @@ export function baueVbPdfDefinition(
       pageSize: 'A4',
       pageOrientation: 'landscape',
       pageMargins: [0, 0, 0, 0],
-      section: inhalt.abschnitte.map((a, i) =>
+      section: inhalt.abschnitte.flatMap((a, i) => [
         kennzeichnungsschild(kopf, a, i + 1, inhalt.abschnitte.length, i === 0),
-      ),
+        ...(a.foto ? [verladungsfoto(a, a.foto)] : []),
+      ]),
     });
   }
 

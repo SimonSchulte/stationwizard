@@ -253,6 +253,50 @@ describe('VbEditorStoreService', () => {
       expect(store.hinweis()).toContain('50 Positionen');
     });
 
+    it('verschiebt Positionen auf einen anderen Laufzettel, in einem Rückgängig-Schritt', () => {
+      const [erster, zweiter] = store.inhalt()!.abschnitte[0].laufzettel;
+      const ids = erster.positionen.map((p) => p.id);
+      const vorher = zweiter.positionen.length;
+
+      expect(store.positionenAufLaufzettel(zweiter.id, ids)).toBe(ids.length);
+      const [neuErster, neuZweiter] = store.inhalt()!.abschnitte[0].laufzettel;
+      expect(neuErster.positionen).toHaveLength(0);
+      expect(neuZweiter.positionen.slice(vorher).map((p) => p.id)).toEqual(ids);
+
+      store.rueckgaengig();
+      expect(store.laufzettelFinden(erster.id)!.laufzettel.positionen).toHaveLength(ids.length);
+      expect(store.laufzettelFinden(zweiter.id)!.laufzettel.positionen).toHaveLength(vorher);
+    });
+
+    it('verschiebt nichts ins eigene Ziel, bei unbekanntem Ziel oder über 50 Positionen', () => {
+      const [erster, zweiter] = store.inhalt()!.abschnitte[0].laufzettel;
+      const eigene = erster.positionen.map((p) => p.id);
+      expect(store.positionenAufLaufzettel(erster.id, eigene)).toBe(0);
+      expect(store.positionenAufLaufzettel('gibt-es-nicht', eigene)).toBe(0);
+      for (let i = 0; i < 49; i += 1) store.positionHinzufuegen(zweiter.id);
+      expect(store.positionenAufLaufzettel(zweiter.id, eigene)).toBe(0);
+      expect(store.hinweis()).toContain('50 Positionen');
+      expect(store.laufzettelFinden(erster.id)!.laufzettel.positionen).toHaveLength(eigene.length);
+    });
+
+    it('legt einen Hinweis als Position an, der Platz belegt', () => {
+      const lz = store.inhalt()!.abschnitte[0].laufzettel[0];
+      const id = store.positionHinzufuegen(lz.id, true)!;
+      const position = store.laufzettelFinden(lz.id)!.laufzettel.positionen.at(-1)!;
+      expect(position).toMatchObject({ id, anzahl: '', hinweis: true });
+      const normal = store.positionHinzufuegen(lz.id)!;
+      expect(store.laufzettelFinden(lz.id)!.laufzettel.positionen.at(-1)!.id).toBe(normal);
+      expect('hinweis' in store.laufzettelFinden(lz.id)!.laufzettel.positionen.at(-1)!).toBe(false);
+    });
+
+    it('setzt und entfernt das Verladungsfoto eines Abschnitts', () => {
+      const id = store.inhalt()!.abschnitte[0].id;
+      store.abschnittAendern(id, { foto: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' });
+      expect(store.inhalt()!.abschnitte[0].foto).toBe('data:image/jpeg;base64,/9j/4AAQSkZJRg==');
+      store.abschnittAendern(id, { foto: null });
+      expect('foto' in store.inhalt()!.abschnitte[0]).toBe(false);
+    });
+
     it('verwaltet Positionen und begrenzt sie auf 50', () => {
       const lz = store.inhalt()!.abschnitte[0].laufzettel[0];
       const id = store.positionHinzufuegen(lz.id)!;

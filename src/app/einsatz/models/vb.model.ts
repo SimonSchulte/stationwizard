@@ -47,7 +47,12 @@ export const VB_GRENZEN = {
   text: 200,
   anzahl: 20,
   anweisungen: 6000,
+  /** Verladungsfoto eines Abschnitts als JPEG-Data-URL (Zeichen). */
+  foto: 100_000,
 } as const;
+
+/** Format, in dem das Verladungsfoto gespeichert wird (der Worker prüft dasselbe Muster). */
+export const FOTO_MUSTER = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
 
 export interface VbPosition {
   id: string;
@@ -57,6 +62,11 @@ export interface VbPosition {
   anzahl: string;
   /** 1–200 Zeichen. */
   material: string;
+  /**
+   * `true`: Hinweis statt Material – Text ohne Anzahl und ohne Abhakkästchen, der auf dem
+   * Laufzettel wie jede Position Platz belegt. Fehlt bei gewöhnlichen Positionen.
+   */
+  hinweis?: true;
 }
 
 export interface VbLaufzettel {
@@ -78,6 +88,8 @@ export interface VbAbschnitt {
   titel: string;
   farbe: AbschnittFarbe;
   fachgruppe: Fachgruppe | null;
+  /** Foto für die Verladung (JPEG als Data-URL); kommt mit auf den Druck. Fehlt, wenn es keins gibt. */
+  foto?: string;
   laufzettel: VbLaufzettel[];
 }
 

@@ -3,6 +3,8 @@ import {
   ANWEISUNGEN_MAX,
   ANZAHL_MAX,
   FACHGRUPPEN,
+  FOTO_MAX,
+  FOTO_MUSTER,
   MAX_ABSCHNITTE,
   MAX_LAUFZETTEL,
   MAX_POSITIONEN,
@@ -21,6 +23,7 @@ export interface VbPosition {
   herkunftId: string | null;
   anzahl: string;
   material: string;
+  hinweis?: true;
 }
 export interface VbLaufzettel {
   id: string;
@@ -38,6 +41,8 @@ export interface VbAbschnitt {
   titel: string;
   farbe: string;
   fachgruppe: string | null;
+  /** Verladungsfoto (JPEG als Data-URL); fehlt, wenn es keins gibt. */
+  foto?: string;
   laufzettel: VbLaufzettel[];
 }
 export interface VbInhalt {
@@ -114,7 +119,8 @@ export function istZeitpunkt(wert: unknown): wert is string {
 function pruefePosition(wert: unknown, ids: Set<string>): VbPosition | null {
   if (
     !istObjekt(wert) ||
-    !hatNurFelder(wert, ['id', 'herkunftId', 'anzahl', 'material']) ||
+    !hatNurFelder(wert, ['id', 'herkunftId', 'anzahl', 'material', 'hinweis']) ||
+    !(wert['hinweis'] === undefined || wert['hinweis'] === true) ||
     !istUuid(wert['id']) ||
     ids.has(wert['id']) ||
     !istUuidOderNull(wert['herkunftId']) ||
@@ -130,6 +136,7 @@ function pruefePosition(wert: unknown, ids: Set<string>): VbPosition | null {
     herkunftId: wert['herkunftId'],
     anzahl: wert['anzahl'],
     material: wert['material'],
+    ...(wert['hinweis'] === true ? { hinweis: true as const } : {}),
   };
 }
 
@@ -178,6 +185,11 @@ function pruefeLaufzettel(wert: unknown, ids: Set<string>): VbLaufzettel | null 
   };
 }
 
+function istFotoOderFehlt(wert: unknown): boolean {
+  if (wert === undefined || wert === null) return true;
+  return typeof wert === 'string' && wert.length <= FOTO_MAX && FOTO_MUSTER.test(wert);
+}
+
 function pruefeAbschnitt(
   wert: unknown,
   ids: Set<string>,
@@ -185,7 +197,16 @@ function pruefeAbschnitt(
 ): VbAbschnitt | null {
   if (
     !istObjekt(wert) ||
-    !hatNurFelder(wert, ['id', 'herkunftId', 'titel', 'farbe', 'fachgruppe', 'laufzettel']) ||
+    !hatNurFelder(wert, [
+      'id',
+      'herkunftId',
+      'titel',
+      'farbe',
+      'fachgruppe',
+      'foto',
+      'laufzettel',
+    ]) ||
+    !istFotoOderFehlt(wert['foto']) ||
     !istUuid(wert['id']) ||
     ids.has(wert['id']) ||
     !istUuidOderNull(wert['herkunftId']) ||
@@ -213,6 +234,7 @@ function pruefeAbschnitt(
     titel: wert['titel'],
     farbe: wert['farbe'],
     fachgruppe: wert['fachgruppe'],
+    ...(typeof wert['foto'] === 'string' ? { foto: wert['foto'] } : {}),
     laufzettel,
   };
 }

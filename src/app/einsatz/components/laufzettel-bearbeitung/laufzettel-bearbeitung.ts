@@ -42,6 +42,18 @@ export interface AbschnittAuswahl {
   titel: string;
 }
 
+/**
+ * Ziehdaten einer Position. Ist die gezogene Position markiert, wandern alle markierten mit.
+ * Abschnitte und Laufzettel tragen dagegen nur ihre Id als Text.
+ */
+export interface PositionZiehdaten {
+  readonly positionIds: readonly string[];
+}
+
+export function istPositionZiehdaten(wert: unknown): wert is PositionZiehdaten {
+  return typeof wert === 'object' && wert !== null && 'positionIds' in wert;
+}
+
 /** Ein anderer Laufzettel als Ziel von „Mit Laufzettel zusammenführen“. */
 export interface LaufzettelAuswahl {
   id: string;
@@ -87,6 +99,7 @@ export class LaufzettelBearbeitung {
   readonly abschnittGewaehlt = output<string>();
   readonly positionGeaendert = output<{ id: string; felder: PositionFelder }>();
   readonly positionHinzugefuegt = output<void>();
+  readonly hinweisHinzugefuegt = output<void>();
   readonly positionEntfernt = output<string>();
   readonly positionVerschoben = output<{ id: string; neuerIndex: number }>();
   readonly geteilt = output<string[]>();
@@ -157,12 +170,27 @@ export class LaufzettelBearbeitung {
     });
   }
 
+  protected hinweisHinzufuegen(): void {
+    this.fokusAufNeuePosition = true;
+    this.hinweisHinzugefuegt.emit();
+  }
+
   protected positionHinzufuegen(): void {
     this.fokusAufNeuePosition = true;
     this.positionHinzugefuegt.emit();
   }
 
+  protected ziehdaten(positionId: string): PositionZiehdaten {
+    const markiert = this.markierteIds();
+    return { positionIds: markiert.includes(positionId) ? markiert : [positionId] };
+  }
+
+  /** Nur Positionen dürfen in die Liste; Laufzettel und Abschnitte aus der Liste nicht. */
+  protected readonly nurPositionen = (element: CdkDrag): boolean =>
+    istPositionZiehdaten(element.data);
+
   protected positionAbgelegt(ereignis: CdkDragDrop<unknown>): void {
+    if (ereignis.previousContainer !== ereignis.container) return;
     if (ereignis.previousIndex === ereignis.currentIndex) return;
     const position = this.laufzettel().positionen[ereignis.previousIndex];
     if (position)
