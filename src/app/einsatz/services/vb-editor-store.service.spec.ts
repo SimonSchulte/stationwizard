@@ -279,6 +279,14 @@ describe('VbEditorStoreService', () => {
       expect(store.laufzettelFinden(erster.id)!.laufzettel.positionen).toHaveLength(eigene.length);
     });
 
+    it('setzt und entfernt das Verladungsfoto eines Abschnitts', () => {
+      const id = store.inhalt()!.abschnitte[0].id;
+      store.abschnittAendern(id, { foto: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' });
+      expect(store.inhalt()!.abschnitte[0].foto).toBe('data:image/jpeg;base64,/9j/4AAQSkZJRg==');
+      store.abschnittAendern(id, { foto: null });
+      expect('foto' in store.inhalt()!.abschnitte[0]).toBe(false);
+    });
+
     it('verwaltet Positionen und begrenzt sie auf 50', () => {
       const lz = store.inhalt()!.abschnitte[0].laufzettel[0];
       const id = store.positionHinzufuegen(lz.id)!;

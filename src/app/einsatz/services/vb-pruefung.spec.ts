@@ -18,6 +18,22 @@ import {
   vbInhaltProbleme,
 } from './vb-pruefung';
 
+describe('Verladungsfoto im Abschnitt', () => {
+  it('akzeptiert ein JPEG-Foto und weist anderes ab', () => {
+    const gut = testInhalt({
+      abschnitte: [testAbschnitt({ foto: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' })],
+    });
+    expect(istVbInhalt(gut)).toBe(true);
+    for (const foto of [
+      'data:image/png;base64,AAAA',
+      'http://x/y.jpg',
+      'data:image/jpeg;base64,',
+    ]) {
+      expect(istVbInhalt(testInhalt({ abschnitte: [testAbschnitt({ foto })] }))).toBe(false);
+    }
+  });
+});
+
 describe('istVbInhalt', () => {
   it('nimmt gültigen Inhalt an, auch ohne Abschnitte und mit leerer Anzahl', () => {
     expect(istVbInhalt(testInhalt())).toBe(true);

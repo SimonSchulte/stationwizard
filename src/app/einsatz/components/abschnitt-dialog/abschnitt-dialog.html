@@ -57,6 +57,34 @@
         </mat-chip-listbox>
       </div>
 
+      <div class="gruppe">
+        <span class="legende">Foto für die Verladung (kommt mit auf den Druck)</span>
+        @if (foto(); as bild) {
+          <img class="foto" [src]="bild" alt="Verladungsfoto des Abschnitts" />
+        }
+        <div class="foto-aktionen">
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="fotoLaeuft()"
+            (click)="fotoWahl.click()"
+          >
+            <mat-icon>add_a_photo</mat-icon>
+            {{ foto() ? 'Foto ersetzen' : 'Foto hinzufügen' }}
+          </button>
+          @if (foto()) {
+            <button matButton type="button" (click)="foto.set(null)">
+              <mat-icon>delete</mat-icon>
+              Foto entfernen
+            </button>
+          }
+        </div>
+        <input #fotoWahl hidden type="file" accept="image/*" (change)="fotoGewaehlt($event)" />
+        @if (fotoFehler()) {
+          <p class="foto-fehler" role="alert">{{ fotoFehler() }}</p>
+        }
+      </div>
+
       @if (daten.laufzettelAnzahl > 0) {
         <mat-checkbox [checked]="uebertragen()" (change)="uebertragen.set($event.checked)">
           Auf alle {{ daten.laufzettelAnzahl }} Laufzettel dieses Abschnitts übertragen

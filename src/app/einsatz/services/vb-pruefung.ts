@@ -3,6 +3,7 @@ import { istObjekt, istText } from '../../kern/text/pruefung';
 import { EinsatzListenEintrag, Einsatz } from '../models/einsatz.model';
 import {
   ABSCHNITT_FARBEN,
+  FOTO_MUSTER,
   AbschnittFarbe,
   VB_GRENZEN,
   VbAbschnitt,
@@ -92,7 +93,11 @@ export function istVbLaufzettel(wert: unknown): wert is VbLaufzettel {
 export function istVbAbschnitt(wert: unknown): wert is VbAbschnitt {
   return (
     istObjekt(wert) &&
-    nurFelder(wert, ['id', 'herkunftId', 'titel', 'farbe', 'fachgruppe', 'laufzettel']) &&
+    nurFelder(wert, ['id', 'herkunftId', 'titel', 'farbe', 'fachgruppe', 'foto', 'laufzettel']) &&
+    (wert['foto'] === undefined ||
+      (typeof wert['foto'] === 'string' &&
+        wert['foto'].length <= VB_GRENZEN.foto &&
+        FOTO_MUSTER.test(wert['foto']))) &&
     istUuid(wert['id']) &&
     istUuidOderNull(wert['herkunftId']) &&
     istTextBis(wert['titel'], VB_GRENZEN.text, 1) &&

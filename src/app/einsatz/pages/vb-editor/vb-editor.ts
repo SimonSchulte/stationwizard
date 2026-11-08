@@ -468,6 +468,7 @@ export class VbEditor {
         titel: abschnitt.titel,
         farbe: abschnitt.farbe,
         fachgruppe: abschnitt.fachgruppe,
+        foto: abschnitt.foto,
         laufzettelAnzahl:
           this.store.inhalt()?.abschnitte.find((a) => a.id === abschnitt.id)?.laufzettel.length ??
           abschnitt.laufzettel.length,
@@ -483,6 +484,7 @@ export class VbEditor {
       titel: ergebnis.titel,
       farbe: ergebnis.farbe,
       fachgruppe: ergebnis.fachgruppe,
+      foto: ergebnis.foto,
     });
     if (ergebnis.uebertragen) this.store.fachgruppeAufLaufzettelUebertragen(abschnitt.id);
   }

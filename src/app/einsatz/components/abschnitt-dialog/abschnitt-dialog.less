@@ -121,3 +121,23 @@ mat-dialog-actions {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.foto {
+  max-width: 100%;
+  max-height: calc(var(--space-2xl) * 4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  object-fit: contain;
+}
+
+.foto-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.foto-fehler {
+  margin: 0;
+  color: var(--status-error);
+  font-size: var(--font-size-sm);
+}

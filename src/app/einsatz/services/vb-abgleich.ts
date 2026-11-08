@@ -151,6 +151,11 @@ function abschnittUnterschiede(vorlage: VbAbschnitt, vb: VbAbschnitt): string[] 
       `Fachgruppe: ${fachgruppeText(vorlage.fachgruppe)} → ${fachgruppeText(vb.fachgruppe)}`,
     );
   }
+  if ((vorlage.foto ?? null) !== (vb.foto ?? null)) {
+    teile.push(
+      `Verladungsfoto: ${vorlage.foto ? 'vorhanden' : 'keins'} → ${vb.foto ? 'vorhanden' : 'keins'}`,
+    );
+  }
   return teile;
 }
 
@@ -315,6 +320,7 @@ function berechne(vorlage: VbInhalt, vb: VbInhalt): InterneAenderung[] {
             titel: vbAbschnitt.titel,
             farbe: vbAbschnitt.farbe,
             fachgruppe: vbAbschnitt.fachgruppe,
+            ...(vbAbschnitt.foto ? { foto: vbAbschnitt.foto } : {}),
             laufzettel: [],
           };
           for (const lz of vbAbschnitt.laufzettel) {
@@ -353,6 +359,8 @@ function berechne(vorlage: VbInhalt, vb: VbInhalt): InterneAenderung[] {
             ziel.titel = quelle.titel;
             ziel.farbe = quelle.farbe;
             ziel.fachgruppe = quelle.fachgruppe;
+            if (quelle.foto) ziel.foto = quelle.foto;
+            else delete ziel.foto;
           },
         });
       }

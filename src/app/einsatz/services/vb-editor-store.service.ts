@@ -597,13 +597,26 @@ export class VbEditorStoreService {
 
   abschnittAendern(
     id: string,
-    patch: Partial<{ titel: string; farbe: AbschnittFarbe; fachgruppe: VbAbschnitt['fachgruppe'] }>,
+    patch: Partial<{
+      titel: string;
+      farbe: AbschnittFarbe;
+      fachgruppe: VbAbschnitt['fachgruppe'];
+      /** `null` entfernt das Foto. */
+      foto: string | null;
+    }>,
   ): void {
     const schluessel = `abschnitt:${id}:${Object.keys(patch).join(',')}`;
+    const { foto, ...rest } = patch;
     this.aendereInhalt(
       (i) => ({
         ...i,
-        abschnitte: i.abschnitte.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+        abschnitte: i.abschnitte.map((a) => {
+          if (a.id !== id) return a;
+          const neu: VbAbschnitt = { ...a, ...rest };
+          if (foto === null) delete neu.foto;
+          else if (foto !== undefined) neu.foto = foto;
+          return neu;
+        }),
       }),
       schluessel,
     );

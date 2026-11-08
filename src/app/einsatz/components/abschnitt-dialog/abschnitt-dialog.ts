@@ -19,6 +19,7 @@ import {
   AbschnittFarbe,
   VB_GRENZEN,
 } from '../../models/vb.model';
+import { fotoVerkleinern } from '../../services/foto-verkleinern';
 import { FachgruppeChip } from '../fachgruppe-chip/fachgruppe-chip';
 
 export interface AbschnittDialogDaten {
@@ -27,6 +28,8 @@ export interface AbschnittDialogDaten {
   fachgruppe: Fachgruppe | null;
   /** Anzahl der Laufzettel im Abschnitt (für „Auf alle … übertragen“ und das Löschen). */
   laufzettelAnzahl: number;
+  /** Aktuelles Verladungsfoto (JPEG-Data-URL). */
+  foto?: string;
 }
 
 export type AbschnittDialogErgebnis =
@@ -36,6 +39,8 @@ export type AbschnittDialogErgebnis =
       farbe: AbschnittFarbe;
       fachgruppe: Fachgruppe | null;
       uebertragen: boolean;
+      /** `null`: Foto entfernen. */
+      foto: string | null;
     }
   | { aktion: 'loeschen' };
 
@@ -76,11 +81,30 @@ export class AbschnittDialog {
   protected readonly farbe = signal<AbschnittFarbe>(this.daten.farbe);
   protected readonly fachgruppe = signal<Fachgruppe | null>(this.daten.fachgruppe);
   protected readonly uebertragen = signal(false);
+  protected readonly foto = signal<string | null>(this.daten.foto ?? null);
+  protected readonly fotoFehler = signal('');
+  protected readonly fotoLaeuft = signal(false);
 
   protected readonly gueltig = computed(() => this.titel().trim() !== '');
 
   protected fachgruppeGewaehlt(wert: unknown): void {
     this.fachgruppe.set(istFachgruppe(wert) ? wert : null);
+  }
+
+  protected async fotoGewaehlt(ereignis: Event): Promise<void> {
+    const eingabe = ereignis.target as HTMLInputElement;
+    const datei = eingabe.files?.[0];
+    eingabe.value = '';
+    if (!datei) return;
+    this.fotoFehler.set('');
+    this.fotoLaeuft.set(true);
+    try {
+      this.foto.set(await fotoVerkleinern(datei));
+    } catch (fehler) {
+      this.fotoFehler.set(fehler instanceof Error ? fehler.message : 'Das Foto ging nicht.');
+    } finally {
+      this.fotoLaeuft.set(false);
+    }
   }
 
   protected speichern(): void {
@@ -91,6 +115,7 @@ export class AbschnittDialog {
       farbe: this.farbe(),
       fachgruppe: this.fachgruppe(),
       uebertragen: this.uebertragen(),
+      foto: this.foto(),
     });
   }
 
