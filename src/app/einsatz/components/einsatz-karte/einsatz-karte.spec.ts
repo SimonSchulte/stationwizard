@@ -115,4 +115,34 @@ describe('EinsatzKarte', () => {
     setze({ abstandTage: null });
     expect(hinweis()).toBeNull();
   });
+
+  describe('EFS-Abgleich', () => {
+    const efsZeile = () => wurzel().querySelector('.efs');
+
+    it('zeigt ohne Abgleichsergebnis nichts an', () => {
+      setze({ efsArt: null });
+      expect(efsZeile()).toBeNull();
+    });
+
+    it('zeigt einen Treffer und bietet die PEP mit EFS-Personal an', () => {
+      setze({ efsArt: 'treffer' });
+      expect(text(efsZeile()!)).toContain('In EFS gefunden');
+      expect(text(kacheln()[0])).toContain('mit EFS-Personal');
+    });
+
+    it('meldet bei mehreren möglichen Treffern die Prüfung', () => {
+      setze({ efsArt: 'pruefen' });
+      let geprueft = 0;
+      fixture.componentInstance.efsPruefen.subscribe(() => (geprueft += 1));
+      expect(text(efsZeile()!)).toContain('bitte prüfen');
+      efsZeile()!.querySelector('button')!.click();
+      expect(geprueft).toBe(1);
+      expect(text(kacheln()[0])).toContain('nicht angelegt');
+    });
+
+    it('zeigt „Nicht in EFS“ ohne Treffer', () => {
+      setze({ efsArt: 'keiner' });
+      expect(text(efsZeile()!)).toContain('Nicht in EFS');
+    });
+  });
 });

@@ -2,6 +2,17 @@
   <mat-icon aria-hidden="true">groups</mat-icon>
   <span class="titel">Helferpool</span>
   <span class="spacer"></span>
+  @if (efsMoeglich()) {
+    <button
+      matIconButton
+      matTooltip="Personal mit EFS abgleichen"
+      aria-label="Personal mit EFS abgleichen"
+      [disabled]="efsLaedt()"
+      (click)="efsAbgleichen.emit()"
+    >
+      <mat-icon>sync</mat-icon>
+    </button>
+  }
   <button
     matIconButton
     matTooltip="Einsatzkräfte importieren"
@@ -19,6 +30,46 @@
     <mat-icon>badge</mat-icon>
   </button>
 </div>
+
+@if (efsVergleich(); as vergleich) {
+  <section class="efs-abgleich" aria-label="Abgleich mit EFS">
+    <p class="efs-zeile">
+      <span class="efs-chip neu"
+        ><mat-icon aria-hidden="true">add</mat-icon>{{ vergleich.neu.length }} neu</span
+      >
+      <span class="efs-chip weg"
+        ><mat-icon aria-hidden="true">person_off</mat-icon>{{ vergleich.entfallen.length }} nicht
+        mehr in EFS</span
+      >
+      <span class="efs-chip">{{ vergleich.unveraendert }} unverändert</span>
+    </p>
+    @if (vergleich.neu.length > 0) {
+      <p class="efs-namen">
+        Neu: {{ neueNamen().genannt.join(', ')
+        }}{{ neueNamen().weitere > 0 ? ' und ' + neueNamen().weitere + ' weitere' : '' }}
+      </p>
+    }
+    @if (vergleich.entfallen.length > 0) {
+      <p class="efs-namen">
+        Nicht mehr in EFS (bleiben im Pool, bis du sie entfernst):
+        {{ entfalleneNamen().genannt.join(', ')
+        }}{{
+          entfalleneNamen().weitere > 0 ? ' und ' + entfalleneNamen().weitere + ' weitere' : ''
+        }}
+      </p>
+    }
+    <p class="efs-aktionen">
+      @if (vergleich.neu.length > 0) {
+        <button matButton="filled" (click)="efsUebernehmen.emit()">
+          <mat-icon>sync</mat-icon> Änderungen übernehmen
+        </button>
+      }
+      <button matButton (click)="efsSchliessen.emit()">
+        {{ vergleich.neu.length > 0 ? 'Später' : 'Schließen' }}
+      </button>
+    </p>
+  </section>
+}
 
 <mat-button-toggle-group
   class="ansicht"

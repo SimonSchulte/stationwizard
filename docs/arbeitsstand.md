@@ -3560,3 +3560,29 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   der Editor eine Desktop-Darstellung (Hinweis oben, Bereiche scrollen seitlich).
 - Das Ziehen auf einen _anderen_ Posten braucht einen Wechsel in der Schiene oder den
   Klick-Vorschlag; ein Ablegen auf einen Posten in der Schiene gibt es nicht.
+
+## EFS-Abgleich der Einsatzübersicht (Personal aus EFS)
+
+- Hintergrund: Der Kalenderfeed liefert kein Personal (die `personal_*`-Felder bleiben bewusst
+  draußen); EFS liefert es auch für Termine. Die Übersicht gleicht deshalb jede Karte über den Titel
+  mit EFS ab und macht das Ergebnis kenntlich.
+- Regel (`gleicheMitEfsAb()`): Treffer = genau eine EFS-Veranstaltung mit gleichem normalisiertem
+  Titel (Groß-/Kleinschreibung, Umlaute, Satzzeichen egal), an deren Kalendertagen der Beginn liegt.
+  „Bitte prüfen“ = mehrere solche oder nur ähnliche Titel (mindestens die Hälfte gemeinsamer Wörter)
+  am selben Tag. Ein gleicher Titel an anderem Tag zählt nicht (Serien). Der Feed kennt keinen Ort,
+  er geht nicht ein.
+- Oberfläche: Karte mit EFS-Zeile (gefunden / mögliche Treffer / nicht in EFS), Status „EFS
+  verbunden“ in der Kopfleiste, Filter „ohne EFS-Treffer“, `EfsTrefferDialog` mit Kandidaten und
+  Personalvorschau, beim Anlegen der PEP das EFS-Personal im Helferpool (`mitEfsPersonal()`), im
+  Editor „Personal mit EFS abgleichen“ (neu / nicht mehr in EFS / unverändert, übernommen wird nur
+  das Neue, nichts wird entfernt).
+- Abrufe: eine Liste je Sitzung (Aktualisieren holt sie neu), Personal nur beim Anlegen bzw. auf
+  Knopfdruck, ein Aufruf je EFS-Schicht, in der Sitzung gepuffert.
+- **Grenzen:** Die Wahl bei mehrdeutigem Treffer wird nicht gespeichert (kein neues Feld am Einsatz,
+  keine Migration); der Abgleich im Editor findet den EFS-Einsatz über Titel und Beginn des
+  Einsatzes erneut. Eine Personenzuordnung läuft nur über den Namen („Nachname Vorname“), keine
+  Id. Einsatzmittel aus EFS werden nicht übernommen. Die echte EFS-Antwort (Felder, Datumsformat,
+  Titel zu HiOrg-Einträgen) ist **nicht** geprüft; getestet ist mit erfundenen Antworten.
+- Geprüft: Tests (Abgleich, API-Dienst, Quelle, Personalvergleich, Karte, Helferpool, Editor,
+  PEP-Anlage), Build, Sicht im Chromium mit gemockter API auf 1440×900. Nicht geprüft: mobile
+  Ansicht dieser Zeile, echter EFS-Abruf.

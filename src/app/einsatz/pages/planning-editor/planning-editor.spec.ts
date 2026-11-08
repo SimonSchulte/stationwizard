@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { Provider, signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanningEditor } from './planning-editor';
+import { EfsQuelle } from '../../services/efs-quelle.service';
+import type { EfsEinsatzGruppe, EfsEinsatzkraft } from '../../models/efs.model';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SaveLoadService } from '../../services/save-load.service';
@@ -43,9 +45,13 @@ describe('PlanningEditor', () => {
   let kontext: PepEditorKontext;
   let meldungen: MeldungsDienst;
 
-  function konfigurieren(route: { data?: Record<string, unknown>; id?: string } = {}) {
+  function konfigurieren(
+    route: { data?: Record<string, unknown>; id?: string } = {},
+    zusatz: Provider[] = [],
+  ) {
     TestBed.configureTestingModule({
       providers: [
+        ...zusatz,
         { provide: PdfExportService, useValue: {} },
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
         { provide: DialogDienst, useValue: dialog },
@@ -471,6 +477,80 @@ describe('PlanningEditor', () => {
       expect(danach?.assigned?.id).toBe(kandidat.id);
       expect(editor.verfuegbar().map((e) => e.id)).not.toContain(kandidat.id);
       expect(editor.eingeteilt().map((e) => e.id)).toContain(kandidat.id);
+    });
+  });
+
+  describe('Abgleich mit EFS', () => {
+    const gruppe: EfsEinsatzGruppe = {
+      veranstaltung_id: 'v1',
+      titel: 'Synthetischer Übungsplan',
+      datum_von: '2026-09-08T10:00:00',
+      datum_bis: '2026-09-08T12:00:00',
+      schichten: [],
+    };
+    const efsKraft = (nachname: string, vorname = 'Vorname'): EfsEinsatzkraft => ({
+      hiorg_org_id: nachname,
+      vorname,
+      nachname,
+      ausbildungen: ['RS'],
+    });
+    const personalLaden = vi.fn();
+
+    function efsBereitstellen(art: 'treffer' | 'keiner'): void {
+      konfigurieren({}, [
+        {
+          provide: EfsQuelle,
+          useValue: {
+            erreichbar: () => true,
+            laden: vi.fn().mockResolvedValue(undefined),
+            abgleich: () => ({
+              art,
+              treffer: art === 'treffer' ? gruppe : null,
+              kandidaten: [],
+            }),
+            personalLaden,
+          },
+        },
+      ]);
+    }
+
+    it('bietet den Abgleich nur bei einem EFS-Treffer an', () => {
+      efsBereitstellen('keiner');
+      store.oeffneGespeichert(erzeugeTestplanung());
+      expect(editorBauen().efsMoeglich()).toBe(false);
+    });
+
+    it('stellt EFS-Personal gegenüber, ändert nichts und übernimmt erst nach der Bestätigung', async () => {
+      efsBereitstellen('treffer');
+      const planung = erzeugeTestplanung();
+      store.oeffneGespeichert(planung);
+      personalLaden.mockResolvedValue([efsKraft('Testperson', 'Nord'), efsKraft('Neu')]);
+      const editor = editorBauen();
+      expect(editor.efsMoeglich()).toBe(true);
+
+      await editor.efsAbgleichen();
+      expect(personalLaden).toHaveBeenCalledWith(gruppe, true);
+      expect(editor.efsVergleich()?.neu.map((e) => e.name)).toEqual(['Neu Vorname']);
+      expect(editor.efsVergleich()?.entfallen).toEqual([]);
+      expect(store.active()?.einsatzkraefte).toHaveLength(1);
+
+      editor.efsUebernehmen();
+      expect(store.active()?.einsatzkraefte.map((e) => e.name)).toEqual([
+        'Testperson Nord',
+        'Neu Vorname',
+      ]);
+      expect(editor.efsVergleich()).toBeNull();
+    });
+
+    it('meldet einen Fehler von EFS und lässt die PEP unverändert', async () => {
+      efsBereitstellen('treffer');
+      store.oeffneGespeichert(erzeugeTestplanung());
+      personalLaden.mockRejectedValue(new Error('EFS weg'));
+      const editor = editorBauen();
+      await editor.efsAbgleichen();
+      expect(meldungen.fehler).toHaveBeenCalledWith(expect.stringContaining('EFS weg'));
+      expect(editor.efsVergleich()).toBeNull();
+      expect(editor.efsLaedt()).toBe(false);
     });
   });
 

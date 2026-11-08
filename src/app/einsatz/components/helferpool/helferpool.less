@@ -17,6 +17,60 @@
   }
 }
 
+.efs-abgleich {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0 var(--space-md) var(--space-sm);
+  padding: var(--space-base) var(--space-md);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+
+  p {
+    margin: 0;
+  }
+}
+
+.efs-zeile,
+.efs-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.efs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  mat-icon {
+    width: var(--space-base);
+    height: var(--space-base);
+    font-size: var(--space-base);
+  }
+
+  &.neu {
+    background: var(--status-ok-bg);
+  }
+
+  &.weg {
+    background: var(--status-error-bg);
+  }
+}
+
+.efs-namen {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
 .ansicht {
   margin: 0 var(--space-md) var(--space-sm);
   --mat-button-toggle-height: 36px;

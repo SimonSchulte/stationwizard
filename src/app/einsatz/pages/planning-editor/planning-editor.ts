@@ -63,6 +63,10 @@ import {
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
+import { lokalerBeginn } from '../../services/einsatz-anzeige';
+import { EfsQuelle } from '../../services/efs-quelle.service';
+import { vergleichePersonal, type PersonalVergleich } from '../../services/efs-personal';
+import { ImportService } from '../../services/import.service';
 import { Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
 @Component({
@@ -103,6 +107,8 @@ export class PlanningEditor implements OnDestroy {
   private readonly kontext = inject(PepEditorKontext);
   private readonly speichernDienst = inject(PepEditorSpeichernDienst);
   private readonly meldungen = inject(MeldungsDienst);
+  private readonly efs = inject(EfsQuelle);
+  private readonly importService = inject(ImportService);
 
   /** Modus aus den Routendaten: `vorlage` bearbeitet eine PEP-Vorlage (ohne Einsatzkräfte). */
   readonly istVorlage = this.route.snapshot.data['modus'] === 'vorlage';
@@ -131,6 +137,55 @@ export class PlanningEditor implements OnDestroy {
     // Einmal beim Öffnen laden, nicht aus dem Template: dort schriebe das Laden während des
     // Renderns in ein Signal (NG0600).
     this.fahrzeugeQuelle.sicherstellenGeladen();
+    // EFS ist nur Zusatzquelle für den Personalabgleich; ein Ausfall zeigt einfach keinen Knopf.
+    if (!this.istVorlage) void this.efs.laden();
+  }
+
+  /** Passender EFS-Einsatz zur geöffneten PEP (Titel und Beginn des Einsatzes). */
+  private readonly efsTreffer = computed(() => {
+    const p = this.planung();
+    if (this.istVorlage || !p || !this.efs.erreichbar()) return null;
+    return this.efs.abgleich(p.name, lokalerBeginn(p.start)).treffer;
+  });
+  readonly efsMoeglich = computed(() => this.efsTreffer() !== null);
+  readonly efsLaedt = signal(false);
+  readonly efsVergleich = signal<PersonalVergleich | null>(null);
+
+  /** Holt das Personal frisch aus EFS und stellt es dem der PEP gegenüber; ändert noch nichts. */
+  async efsAbgleichen(): Promise<void> {
+    const treffer = this.efsTreffer();
+    const p = this.planung();
+    if (!treffer || !p || this.efsLaedt()) return;
+    this.efsLaedt.set(true);
+    try {
+      const personal = await this.efs.personalLaden(treffer, true);
+      if (this.planung()?.id !== p.id) return;
+      this.efsVergleich.set(
+        vergleichePersonal(
+          this.planung()?.einsatzkraefte ?? [],
+          personal.map((kraft) => this.importService.mapEfsEinsatzkraft(kraft)),
+        ),
+      );
+    } catch (fehler) {
+      this.meldungen.fehler(
+        fehler instanceof Error
+          ? `Der Abgleich mit EFS ist fehlgeschlagen: ${fehler.message}`
+          : 'Der Abgleich mit EFS ist fehlgeschlagen.',
+      );
+    } finally {
+      this.efsLaedt.set(false);
+    }
+  }
+
+  /** Übernimmt die neuen Einsatzkräfte in den Helferpool; vorhandene und Zuteilungen bleiben. */
+  efsUebernehmen(): void {
+    const vergleich = this.efsVergleich();
+    if (!vergleich || vergleich.neu.length === 0) return;
+    this.store.importRoster(vergleich.neu, 'merge');
+    this.meldungen.erfolg(
+      `${vergleich.neu.length} Einsatzkräfte aus EFS übernommen. Speichern nicht vergessen.`,
+    );
+    this.efsVergleich.set(null);
   }
 
   readonly planung = this.store.active;

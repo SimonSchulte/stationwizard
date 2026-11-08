@@ -60,4 +60,40 @@ describe('Helferpool', () => {
     fixture.detectChanges();
     expect(wurzel.textContent).toContain('Keine Treffer');
   });
+
+  it('zeigt das Ergebnis des EFS-Abgleichs und meldet Übernehmen und Schließen', () => {
+    const fixture = erzeuge();
+    fixture.componentRef.setInput('efsMoeglich', true);
+    fixture.componentRef.setInput('efsVergleich', {
+      neu: [noah],
+      entfallen: [tim],
+      unveraendert: 4,
+    });
+    fixture.detectChanges();
+    const wurzel = fixture.nativeElement as HTMLElement;
+    const text = wurzel.querySelector('.efs-abgleich')?.textContent ?? '';
+    expect(text).toContain('1 neu');
+    expect(text).toContain('1 nicht mehr in EFS');
+    expect(text).toContain('4 unverändert');
+    expect(text).toContain('Probst Noah');
+    expect(text).toContain('Probe Tim');
+
+    let uebernommen = 0;
+    let geschlossen = 0;
+    fixture.componentInstance.efsUebernehmen.subscribe(() => (uebernommen += 1));
+    fixture.componentInstance.efsSchliessen.subscribe(() => (geschlossen += 1));
+    const knoepfe = [...wurzel.querySelectorAll<HTMLButtonElement>('.efs-aktionen button')];
+    knoepfe[0].click();
+    knoepfe[1].click();
+    expect([uebernommen, geschlossen]).toEqual([1, 1]);
+  });
+
+  it('bietet den Abgleich nur an, wenn die PEP einem EFS-Einsatz zugeordnet werden kann', () => {
+    const fixture = erzeuge();
+    const wurzel = fixture.nativeElement as HTMLElement;
+    expect(wurzel.querySelector('[aria-label="Personal mit EFS abgleichen"]')).toBeNull();
+    fixture.componentRef.setInput('efsMoeglich', true);
+    fixture.detectChanges();
+    expect(wurzel.querySelector('[aria-label="Personal mit EFS abgleichen"]')).not.toBeNull();
+  });
 });

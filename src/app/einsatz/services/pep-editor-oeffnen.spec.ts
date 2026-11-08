@@ -13,6 +13,7 @@ import {
 import { testPep, testPepVorlage } from '../testing/pep-testdaten';
 import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
 import { testEinsatz } from '../testing/vb-testdaten';
+import { EfsQuelle } from './efs-quelle.service';
 import { HiorgVeranstaltungenQuelle } from './hiorg-veranstaltungen-quelle.service';
 import { PepEditorKontext } from './pep-editor-kontext';
 import { PepEditorOeffnenDienst, einsatzZeitAlsPlanungszeit } from './pep-editor-oeffnen';
@@ -49,6 +50,19 @@ describe('PepEditorOeffnenDienst', () => {
   const planungOeffnen = { planungAusVeranstaltungBauen: vi.fn() };
   const quelle = { sicherstellenGeladen: vi.fn(), veranstaltung: vi.fn() };
   const gruppe = testVeranstaltung();
+  const efs = {
+    erreichbar: vi.fn(),
+    abgleich: vi.fn(),
+    entscheide: vi.fn(),
+    personalLaden: vi.fn(),
+  };
+  const efsGruppe = {
+    veranstaltung_id: 'v1',
+    titel: 'Weihnachtsmarkt',
+    datum_von: '2026-12-05T10:00:00',
+    datum_bis: '2026-12-05T20:00:00',
+    schichten: [],
+  };
 
   beforeEach(() => {
     peps = new InMemoryPepStorage();
@@ -59,6 +73,10 @@ describe('PepEditorOeffnenDienst', () => {
     planungOeffnen.planungAusVeranstaltungBauen.mockReset();
     quelle.sicherstellenGeladen.mockReset().mockResolvedValue(undefined);
     quelle.veranstaltung.mockReset();
+    efs.erreichbar.mockReset().mockReturnValue(false);
+    efs.abgleich.mockReset();
+    efs.entscheide.mockReset();
+    efs.personalLaden.mockReset();
     TestBed.configureTestingModule({
       providers: [
         { provide: ApiPepStorage, useValue: peps },
@@ -67,6 +85,7 @@ describe('PepEditorOeffnenDienst', () => {
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
         { provide: PlanungOeffnenDienst, useValue: planungOeffnen },
         { provide: HiorgVeranstaltungenQuelle, useValue: quelle },
+        { provide: EfsQuelle, useValue: efs },
       ],
     });
     dienst = TestBed.inject(PepEditorOeffnenDienst);
@@ -151,6 +170,77 @@ describe('PepEditorOeffnenDienst', () => {
       expect(gespeichert.daten.vorlageId).toBeNull();
       expect(gespeichert.daten.inhalt.posten).toEqual([]);
       expect(store.active()?.posten).toEqual([]);
+    });
+
+    describe('mit EFS-Personal', () => {
+      const personal = [
+        { hiorg_org_id: '1', vorname: 'Anna', nachname: 'Muster', ausbildungen: ['RS', 'GF'] },
+        { hiorg_org_id: '2', vorname: 'Jonas', nachname: 'Beispiel', ausbildungen: [] },
+      ];
+
+      beforeEach(() => {
+        efs.erreichbar.mockReturnValue(true);
+        dialogAntwort = { art: 'leer' };
+      });
+
+      it('legt die PEP bei einem Treffer mit den Einsatzkräften aus EFS an', async () => {
+        const einsatz = testEinsatz();
+        efs.abgleich.mockReturnValue({ art: 'treffer', treffer: efsGruppe, kandidaten: [] });
+        efs.personalLaden.mockResolvedValue(personal);
+
+        await dienst.anlegen(einsatz, null);
+
+        const kraefte = (await peps.ladePep(einsatz.id))!.daten.inhalt.einsatzkraefte;
+        expect(kraefte.map((k) => k.name)).toEqual(['Muster Anna', 'Beispiel Jonas']);
+        expect(kraefte[0]).toMatchObject({
+          taktisch: ['GF'],
+          medizinisch: ['RS'],
+          hiorgOrgId: '1',
+        });
+        expect(store.active()?.einsatzkraefte).toHaveLength(2);
+      });
+
+      it('legt bei einem Fehler von EFS die PEP ohne Personal an und warnt', async () => {
+        const einsatz = testEinsatz();
+        efs.abgleich.mockReturnValue({ art: 'treffer', treffer: efsGruppe, kandidaten: [] });
+        efs.personalLaden.mockRejectedValue(new Error('EFS weg'));
+        const warnung = vi
+          .spyOn(TestBed.inject(MeldungsDienst), 'warnung')
+          .mockReturnValue({} as never);
+
+        await dienst.anlegen(einsatz, null);
+
+        expect((await peps.ladePep(einsatz.id))!.daten.inhalt.einsatzkraefte).toEqual([]);
+        expect(warnung).toHaveBeenCalledWith(expect.stringContaining('EFS weg'));
+      });
+
+      it('lässt bei mehreren möglichen Treffern wählen und merkt sich die Wahl', async () => {
+        const einsatz = testEinsatz();
+        const kandidat = { gruppe: efsGruppe, titelGleich: false, titelAehnlichkeit: 0.7 };
+        efs.abgleich
+          .mockReturnValueOnce({ art: 'pruefen', treffer: null, kandidaten: [kandidat] })
+          .mockReturnValueOnce({ art: 'treffer', treffer: efsGruppe, kandidaten: [kandidat] });
+        efs.personalLaden.mockResolvedValue(personal);
+        // Erster Dialog: „Leer beginnen“; zweiter Dialog: Wahl des EFS-Einsatzes.
+        dialogOeffnen
+          .mockImplementationOnce(() => ({ afterClosed: () => of({ art: 'leer' }) }))
+          .mockImplementationOnce(() => ({ afterClosed: () => of('v1') }));
+
+        await dienst.anlegen(einsatz, null);
+
+        expect(efs.entscheide).toHaveBeenCalledWith(einsatz.titel, einsatz.beginn, 'v1');
+        expect((await peps.ladePep(einsatz.id))!.daten.inhalt.einsatzkraefte).toHaveLength(2);
+      });
+
+      it('legt ohne EFS-Treffer keine Einsatzkräfte an', async () => {
+        const einsatz = testEinsatz();
+        efs.abgleich.mockReturnValue({ art: 'keiner', treffer: null, kandidaten: [] });
+
+        await dienst.anlegen(einsatz, null);
+
+        expect(efs.personalLaden).not.toHaveBeenCalled();
+        expect((await peps.ladePep(einsatz.id))!.daten.inhalt.einsatzkraefte).toEqual([]);
+      });
     });
 
     it('tut bei Abbruch des Dialogs nichts', async () => {

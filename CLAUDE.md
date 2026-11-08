@@ -486,8 +486,14 @@ Altbestand mit früherer EFS-Id bleibt gültig, hat aber keine Art. Ein gespeich
 der Feed nicht (mehr) liefert, erscheint weiter mit seinen gespeicherten Angaben. Der Umschalter
 Alle/Dienste/Veranstaltungen (`EinsatzFilter.art`) blendet Einsätze ohne Art aus. Der Feed kennt
 keinen Ort, keine Einsatzkräfte und keine Einsatzmittel: eine neue PEP bekommt einen Posten je
-Schicht, Einsatzkräfte kommen über die HiOrg-Server-API oder den Import. `/api/efs/*` und
-`worker/src/efs.ts` bestehen unverändert, die Oberfläche ruft sie nicht mehr auf.
+Schicht, Einsatzkräfte kommen über die HiOrg-Server-API oder den Import. EFS dient seit dem
+Abgleich (`einsatz/services/efs-abgleich.ts`, `efs-quelle.service.ts`, `efs-api.service.ts`) nur noch als
+**Zusatzquelle für Personal**: die Veranstaltungsliste kommt in einem Aufruf (`getveranstaltungen`),
+der Abgleich mit dem Kalenderfeed läuft über den normalisierten Titel und den Kalendertag (Treffer,
+„bitte prüfen“, kein Treffer), Einsatzkräfte (`getveranstaltung`) werden erst beim Anlegen der PEP oder
+auf ausdrücklichen Abgleich im Editor je EFS-Schicht geholt und nur für die Sitzung gepuffert.
+Eine Wahl bei mehrdeutigem Treffer wird nicht gespeichert. Ein EFS-Ausfall blendet die Hinweise aus
+und sperrt nichts.
 
 Die Einsatzplanung (`worker/src/einsatzplanung.ts` als Verteiler, `einsatzplanung-gemeinsam.ts`,
 `-pruefung.ts`, `-einsaetze.ts`, `-vorbereitungen.ts`, `-vorlagen.ts`, `-peps.ts`,

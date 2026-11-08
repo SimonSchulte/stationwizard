@@ -8,6 +8,7 @@ import {
 } from '../models/planung.model';
 import type { HiorgPerson } from '../../kern/hiorg/hiorg-personal.service';
 import { bezeichnungZuKuerzel } from './qualifikation-zuordnung';
+import type { EfsEinsatzkraft } from '../models/efs.model';
 
 @Injectable({ providedIn: 'root' })
 export class ImportService {
@@ -70,6 +71,20 @@ export class ImportService {
       tags: this.tagsAus(ausbildungen),
       ...(person.telefon ? { telefonnummer: person.telefon } : {}),
       ...(person.kuerzel ? { kuerzel: person.kuerzel } : {}),
+    };
+  }
+
+  /**
+   * Einsatzkraft aus EFS. Die HiOrg-Id wird als `hiorg_org_id` mitgeführt (wie im früheren
+   * EFS-Import); Qualifikationen laufen über dasselbe Mapping wie bei der HiOrg-Server-API.
+   */
+  mapEfsEinsatzkraft(kraft: EfsEinsatzkraft): Einsatzkraft {
+    return {
+      id: crypto.randomUUID(),
+      name: `${kraft.nachname} ${kraft.vorname}`.trim(),
+      tags: this.tagsAus(kraft.ausbildungen.map((ausbildung) => bezeichnungZuKuerzel(ausbildung))),
+      ...(kraft.hiorg_org_id ? { hiorg_org_id: kraft.hiorg_org_id } : {}),
+      ...(kraft.telefonnummer ? { telefonnummer: kraft.telefonnummer } : {}),
     };
   }
 

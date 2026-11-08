@@ -8,6 +8,19 @@
       (quelle.erreichbar() ? 'HiOrg-Kalenderfeed erreichbar' : 'HiOrg-Kalender nicht verbunden')
     "
   />
+  @if (efs.zustand() !== 'ungeprueft') {
+    <app-verbindungsstatus
+      class="verbindungsstatus"
+      [verbunden]="efs.erreichbar()"
+      [text]="efs.erreichbar() ? 'EFS verbunden' : 'EFS nicht verbunden'"
+      [tooltip]="
+        efs.fehler() ||
+        (efs.erreichbar()
+          ? 'EFS erreichbar – Veranstaltungen werden über den Titel abgeglichen'
+          : 'EFS nicht verbunden')
+      "
+    />
+  }
   <button
     matIconButton
     matTooltip="Aktualisieren"
@@ -89,6 +102,13 @@
         >
           ohne HiOrg
         </mat-chip-option>
+        <mat-chip-option
+          [selected]="ohneEfs()"
+          [disabled]="!efs.erreichbar()"
+          (selectionChange)="ohneEfs.set($event.selected)"
+        >
+          ohne EFS-Treffer
+        </mat-chip-option>
       </mat-chip-listbox>
     </div>
 
@@ -126,6 +146,8 @@
                   [vbKennzahlen]="zeile.vb"
                   [abstandTage]="zeile.abstandTage"
                   [dringend]="zeile.dringend"
+                  [efsArt]="efsArt(zeile)"
+                  (efsPruefen)="efsPruefen(zeile)"
                   [gesperrt]="aktionen.laufend() !== null"
                   (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
                   (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"

@@ -32,6 +32,32 @@
         {{ herkunft() === 'hiorg' ? 'HiOrg' : 'selbst angelegt' }}
       </span>
     </p>
+    @if (efsArt(); as efs) {
+      <p class="efs">
+        @switch (efs) {
+          @case ('treffer') {
+            <span class="efs-chip treffer"
+              ><mat-icon aria-hidden="true">link</mat-icon>In EFS gefunden · Titel stimmt
+              überein</span
+            >
+          }
+          @case ('pruefen') {
+            <span class="efs-chip pruefen"
+              ><mat-icon aria-hidden="true">help</mat-icon>Mögliche Treffer in EFS – bitte
+              prüfen</span
+            >
+            <button matButton type="button" (click)="efsPruefen.emit()" [disabled]="gesperrt()">
+              Treffer prüfen
+            </button>
+          }
+          @default {
+            <span class="efs-chip keiner"
+              ><mat-icon aria-hidden="true">link_off</mat-icon>Nicht in EFS</span
+            >
+          }
+        }
+      </p>
+    }
   </div>
 
   <div class="kacheln">
@@ -53,6 +79,8 @@
               {{ k.besetzt }} / {{ k.positionen }}<span class="zusatz"> besetzt</span>
             } @else if (pepDa()) {
               verknüpft
+            } @else if (efsArt() === 'treffer') {
+              mit EFS-Personal
             } @else {
               nicht angelegt
             }

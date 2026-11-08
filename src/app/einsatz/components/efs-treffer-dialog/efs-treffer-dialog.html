@@ -1,0 +1,80 @@
+<h2 mat-dialog-title>EFS-Treffer prüfen</h2>
+<mat-dialog-content class="inhalt">
+  <p class="einleitung">
+    Der Titel passt nicht eindeutig. Wähle den Einsatz in EFS, dessen Personal übernommen werden
+    soll.
+  </p>
+  <p class="quelle">
+    <mat-icon aria-hidden="true">event</mat-icon>
+    <span
+      ><strong>{{ daten.titel }}</strong
+      ><span class="zusatz">
+        · HiOrg-Kalender{{ daten.beginn ? ' · ' + datum(daten.beginn) : '' }}</span
+      ></span
+    >
+  </p>
+
+  <mat-radio-group
+    class="liste"
+    aria-label="Einsatz in EFS"
+    [value]="gewaehlt()"
+    (change)="waehlen($event.value)"
+  >
+    @for (kandidat of daten.kandidaten; track kandidat.gruppe.veranstaltung_id) {
+      <mat-radio-button class="eintrag" [value]="kandidat.gruppe.veranstaltung_id">
+        <span class="titel">{{ kandidat.gruppe.titel }}</span>
+        <span class="zusatz"
+          >{{ datum(kandidat.gruppe.datum_von)
+          }}{{ kandidat.gruppe.ort ? ' · ' + kandidat.gruppe.ort : '' }} ·
+          {{ kandidat.gruppe.schichten.length }}
+          {{ kandidat.gruppe.schichten.length === 1 ? 'Schicht' : 'Schichten' }}</span
+        >
+        <span class="kriterien">
+          <span class="kriterium" [class.gut]="kandidat.titelGleich"
+            >Titel
+            {{ kandidat.titelGleich ? 'gleich' : 'ähnlich (' + prozent(kandidat) + ')' }}</span
+          >
+          <span class="kriterium gut">Datum gleich</span>
+        </span>
+      </mat-radio-button>
+    }
+    <mat-radio-button class="eintrag" [value]="KEINER">
+      <span class="titel">Keiner davon</span>
+      <span class="zusatz"
+        >Der Einsatz bleibt ohne EFS-Zuordnung; Personal kommt über den HiOrg-Server oder den
+        Import.</span
+      >
+    </mat-radio-button>
+  </mat-radio-group>
+
+  @if (gewaehlt() !== KEINER) {
+    <h3 class="vorschau-titel">Personal aus dem gewählten EFS-Einsatz</h3>
+    @if (vorschauLaedt()) {
+      <app-ladeanzeige text="Personal wird geladen …" />
+    } @else if (vorschauFehler()) {
+      <app-meldung art="warnung">{{ vorschauFehler() }}</app-meldung>
+    } @else if (vorschau(); as personal) {
+      @if (personal.length === 0) {
+        <p class="zusatz">EFS meldet für diesen Einsatz keine Einsatzkräfte.</p>
+      } @else {
+        <ul class="vorschau">
+          @for (kraft of erste(); track kraft.hiorg_org_id + kraft.nachname + kraft.vorname) {
+            <li>
+              <app-kuerzel-avatar [name]="kraft.nachname + ' ' + kraft.vorname" />
+              {{ kraft.nachname }} {{ kraft.vorname }}
+            </li>
+          }
+          @if (weitere() > 0) {
+            <li class="zusatz">… und {{ weitere() }} weitere</li>
+          }
+        </ul>
+      }
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton mat-dialog-close>Abbrechen</button>
+  <button matButton="filled" (click)="bestaetigen()">
+    {{ gewaehlt() === KEINER ? 'Ohne EFS fortfahren' : 'Zuordnen und Personal laden' }}
+  </button>
+</mat-dialog-actions>

@@ -24,6 +24,7 @@ import {
   Taktisch,
 } from '../../models/planung.model';
 import { MEDIZINISCH_LABEL, TAKTISCH_LABEL } from '../../services/match.service';
+import type { PersonalVergleich } from '../../services/efs-personal';
 import type { PoolHinweis } from '../../services/vorschlaege';
 import { KuerzelAvatar } from '../kuerzel-avatar/kuerzel-avatar';
 import { QualifikationsChips } from '../qualifikations-chips/qualifikations-chips';
@@ -59,10 +60,19 @@ export class Helferpool {
   readonly eingeteilt = input.required<readonly Einsatzkraft[]>();
   readonly hinweise = input<ReadonlyMap<string, PoolHinweis>>(new Map());
 
+  /** Der PEP lässt sich einem EFS-Einsatz zuordnen: zeigt den Knopf „Mit EFS abgleichen“. */
+  readonly efsMoeglich = input(false);
+  readonly efsLaedt = input(false);
+  /** Ergebnis des Abgleichs mit EFS; `null`, solange keiner läuft oder er geschlossen wurde. */
+  readonly efsVergleich = input<PersonalVergleich | null>(null);
+
   readonly ansicht = model<PoolAnsicht>('verfuegbar');
   protected readonly suche = signal('');
   protected readonly filter = signal<string | null>(null);
 
+  readonly efsAbgleichen = output<void>();
+  readonly efsUebernehmen = output<void>();
+  readonly efsSchliessen = output<void>();
   readonly importieren = output<void>();
   readonly hiorgUebernehmen = output<void>();
   readonly kontextmenue = output<{ ereignis: MouseEvent; person: Einsatzkraft }>();
@@ -102,6 +112,17 @@ export class Helferpool {
           (person.tags.medizinisch ?? []).some((t) => t === tag) ||
           (person.tags.zusatz ?? []).includes(tag)),
     );
+  });
+
+  /** Namen der neuen Einsatzkräfte, höchstens fünf, dazu die Zahl der übrigen. */
+  protected readonly neueNamen = computed(() => {
+    const neu = this.efsVergleich()?.neu ?? [];
+    return { genannt: neu.slice(0, 5).map((e) => e.name), weitere: Math.max(0, neu.length - 5) };
+  });
+
+  protected readonly entfalleneNamen = computed(() => {
+    const weg = this.efsVergleich()?.entfallen ?? [];
+    return { genannt: weg.slice(0, 5).map((e) => e.name), weitere: Math.max(0, weg.length - 5) };
   });
 
   protected ansichtWaehlen(wert: PoolAnsicht): void {
