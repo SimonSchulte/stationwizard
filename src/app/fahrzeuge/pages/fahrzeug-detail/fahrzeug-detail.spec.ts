@@ -596,14 +596,14 @@ describe('FahrzeugDetail', () => {
       istNeu: () => false,
     };
     const druckbogenService = {
-      erzeugeUndSpeichere: vi.fn().mockRejectedValue(new Error('PDF fehlgeschlagen')),
+      erzeugeUndDrucke: vi.fn().mockRejectedValue(new Error('PDF fehlgeschlagen')),
     };
     const detail = erzeugeDetail([
       { provide: FahrzeugStoreService, useValue: store },
       { provide: ActivatedRoute, useValue: route(fahrzeug.id) },
       { provide: FahrzeugDruckbogenService, useValue: druckbogenService },
     ]);
-    await detail.druckbogenHerunterladen();
+    await detail.druckbogenDrucken();
     expect(detail.druckbogenFehler()).toBe('PDF fehlgeschlagen');
   });
 });

@@ -42,6 +42,7 @@ import { PepEditorSpeichernDienst, SpeicherErgebnis } from '../../services/pep-e
 import { EinsatzZuordnenDialog } from '../../components/einsatz-zuordnen-dialog/einsatz-zuordnen-dialog';
 import { EinsatzListenEintrag } from '../../models/einsatz.model';
 import { SaveLoadService } from '../../services/save-load.service';
+import { PdfAusgabeWeg } from '../../../kern/pdf/pdf-ausgabe';
 import { PdfExportService } from '../../services/pdf-export.service';
 import {
   Einsatzkraft,
@@ -342,10 +343,10 @@ export class PlanningEditor implements OnDestroy {
     this.store.applyTemplate(result.planung);
   }
 
-  async exportPdf(): Promise<void> {
+  async exportPdf(weg: PdfAusgabeWeg = 'drucken'): Promise<void> {
     const p = this.planung();
     if (!p) return;
-    await this.pdfExport.exportieren(p);
+    await this.pdfExport.exportieren(p, weg);
   }
 
   /**

@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AbschnittFarbe, VB_GRENZEN } from '../../models/vb.model';
+import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { laufzettelPlatz } from '../../services/laufzettel-platz';
 import { VbExcelErgebnis } from '../../services/vb-excel-import';
 import { vbInhaltProbleme } from '../../services/vb-pruefung';
@@ -51,6 +52,8 @@ export class VbVorlageUploadDialog {
   readonly daten = inject<VbVorlageUploadDaten>(MAT_DIALOG_DATA);
   readonly dialogRef = inject<MatDialogRef<VbVorlageUploadDialog, string | null>>(MatDialogRef);
 
+  private readonly streifenJeSeite = inject(LaufzettelLayoutWahl).streifenJeSeite();
+
   readonly maxTitel = VB_GRENZEN.text;
   readonly titel = signal(this.daten.titel.trim().slice(0, VB_GRENZEN.text));
   readonly auffaelligkeiten = this.daten.ergebnis.auffaelligkeiten;
@@ -62,7 +65,7 @@ export class VbVorlageUploadDialog {
       titel: abschnitt.titel,
       farbe: abschnitt.farbe,
       laufzettel: abschnitt.laufzettel.map((laufzettel) => {
-        const platz = laufzettelPlatz(laufzettel);
+        const platz = laufzettelPlatz(laufzettel, this.streifenJeSeite);
         return {
           titel: laufzettel.lagerort || laufzettel.ueberschrift,
           positionen: laufzettel.positionen.length,

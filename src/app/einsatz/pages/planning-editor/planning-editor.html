@@ -201,7 +201,20 @@
       >
         <mat-icon>download</mat-icon>
       </button>
-      <button matIconButton matTooltip="PDF exportieren" (click)="exportPdf()">
+      <button
+        matIconButton
+        matTooltip="Drucken"
+        aria-label="Drucken"
+        (click)="exportPdf('drucken')"
+      >
+        <mat-icon>print</mat-icon>
+      </button>
+      <button
+        matIconButton
+        matTooltip="PDF herunterladen"
+        aria-label="PDF herunterladen"
+        (click)="exportPdf('herunterladen')"
+      >
         <mat-icon>picture_as_pdf</mat-icon>
       </button>
       @if (!istVorlage) {

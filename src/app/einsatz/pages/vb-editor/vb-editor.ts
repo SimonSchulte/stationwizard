@@ -20,6 +20,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -60,7 +61,8 @@ import {
 import { Einsatz } from '../../models/einsatz.model';
 import { VB_GRENZEN, VbAbschnitt, VbLaufzettel } from '../../models/vb.model';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
-import { laufzettelNummern } from '../../services/laufzettel-platz';
+import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
+import { STREIFEN_WAHL, laufzettelNummern } from '../../services/laufzettel-platz';
 import { EditorModus, VbEditorStoreService } from '../../services/vb-editor-store.service';
 import { VbDruckDienst } from '../../services/vb-druck';
 import { laufzettelMarken } from '../../services/vb-marken';
@@ -94,6 +96,7 @@ function dateiname(text: string): string {
     CdkDropList,
     CdkDropListGroup,
     MatButtonModule,
+    MatButtonToggleModule,
     MatDividerModule,
     MatFormFieldModule,
     MatIconModule,
@@ -118,6 +121,8 @@ function dateiname(text: string): string {
 })
 export class VbEditor {
   protected readonly store = inject(VbEditorStoreService);
+  protected readonly layout = inject(LaufzettelLayoutWahl);
+  protected readonly streifenWahl = STREIFEN_WAHL;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
@@ -306,14 +311,22 @@ export class VbEditor {
     );
   }
 
-  protected async drucken(): Promise<void> {
+  protected drucken(): Promise<void> {
+    return this.ausgeben('drucken');
+  }
+
+  protected herunterladen(): Promise<void> {
+    return this.ausgeben('herunterladen');
+  }
+
+  private async ausgeben(weg: 'drucken' | 'herunterladen'): Promise<void> {
     const inhalt = this.store.inhalt();
     if (!inhalt) return;
     // Die Warnung vor zu vollen Laufzetteln meldet der VbDruckDienst selbst – für alle Aufrufer.
     const einsatz = this.einsatz();
     this.druckLaeuft.set(true);
     try {
-      await this.druck.drucken(
+      await this.druck[weg](
         {
           titel: this.modus === 'vorlage' ? this.store.titel() : (einsatz?.titel ?? 'Vorbereitung'),
           beginn: einsatz?.beginn ?? null,

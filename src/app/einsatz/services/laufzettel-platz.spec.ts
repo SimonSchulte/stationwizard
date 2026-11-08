@@ -1,15 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
+import { VbInhalt, VbLaufzettel } from '../models/vb.model';
 import {
   LAUFZETTEL_KAPAZITAET,
-  ZEICHEN_JE_INFOZEILE,
-  ZEICHEN_JE_ZEILE,
-  ZEICHEN_JE_ZIELZEILE,
+  STREIFEN_STANDARD,
+  gueltigeStreifenZahl,
+  laufzettelMasse,
   laufzettelNummern,
-  laufzettelPlatz,
-  ueberlaufPositionen,
-  zuVolleLaufzettel,
+  laufzettelPlatz as platzMit,
+  ueberlaufPositionen as ueberlaufMit,
+  zuVolleLaufzettel as zuVolleMit,
 } from './laufzettel-platz';
+
+// Die bisherigen Fälle gelten für das Layout mit drei Streifen je Seite (38 Zeichen je Zeile).
+const DREI = 3;
+const { zeichenJeZeile: ZEICHEN_JE_ZEILE, zeichenJeZielzeile: ZEICHEN_JE_ZIELZEILE } =
+  laufzettelMasse(DREI);
+const ZEICHEN_JE_INFOZEILE = laufzettelMasse(DREI).zeichenJeInfozeile;
+const laufzettelPlatz = (l: VbLaufzettel) => platzMit(l, DREI);
+const ueberlaufPositionen = (l: VbLaufzettel) => ueberlaufMit(l, DREI);
+const zuVolleLaufzettel = (i: VbInhalt) => zuVolleMit(i, DREI);
 
 function mitPositionen(anzahl: number, material = 'Stuhl') {
   return testLaufzettel({
@@ -119,5 +129,66 @@ describe('ueberlaufPositionen', () => {
       positionen: [testPosition({ material: 'z'.repeat(38 * 24) }), testPosition()],
     });
     expect(ueberlaufPositionen(laufzettel)).toEqual([laufzettel.positionen[1].id]);
+  });
+});
+
+describe('laufzettelMasse', () => {
+  it('behält bei drei Streifen die bisherigen Werte', () => {
+    expect(laufzettelMasse(3)).toEqual({
+      streifenJeSeite: 3,
+      zeichenJeZeile: 38,
+      zeichenJeZielzeile: 34,
+      zeichenJeInfozeile: 44,
+    });
+  });
+
+  it('wird mit schmaleren Streifen monoton enger und erreicht bei sechs etwa 13 Zeichen', () => {
+    const zeichen = [3, 4, 5, 6].map((n) => laufzettelMasse(n).zeichenJeZeile);
+    expect(zeichen).toEqual([...zeichen].sort((a, b) => b - a));
+    expect(new Set(zeichen).size).toBe(4);
+    expect(laufzettelMasse(6).zeichenJeZeile).toBe(13);
+    expect(laufzettelMasse(6).zeichenJeZielzeile).toBeGreaterThan(8);
+  });
+
+  it('begrenzt die Streifenzahl auf 3 bis 6 und fällt bei Unsinn auf die Vorgabe', () => {
+    expect(gueltigeStreifenZahl(2)).toBe(3);
+    expect(gueltigeStreifenZahl(9)).toBe(6);
+    expect(gueltigeStreifenZahl(4.4)).toBe(4);
+    expect(gueltigeStreifenZahl(Number.NaN)).toBe(STREIFEN_STANDARD);
+    expect(STREIFEN_STANDARD).toBe(6);
+  });
+});
+
+describe('laufzettelPlatz je Layout', () => {
+  const lz = (material: string) =>
+    testLaufzettel({
+      positionen: [testPosition({ material })],
+      lagerort: '',
+      transportMit: '',
+      auftraggeber: '',
+    });
+
+  it('belegt denselben Text auf schmalen Streifen mehr Zeilen, das Limit bleibt 23', () => {
+    const text = 'x'.repeat(30);
+    expect(platzMit(lz(text), 3).belegt).toBe(1);
+    expect(platzMit(lz(text), 6).belegt).toBe(3);
+    expect(platzMit(lz(text), 6).kapazitaet).toBe(23);
+  });
+
+  it('meldet auf sechs Streifen früher „zu voll“ als auf dreien', () => {
+    const viele = testLaufzettel({
+      positionen: Array.from({ length: 12 }, () => testPosition({ material: 'x'.repeat(30) })),
+      lagerort: '',
+      transportMit: '',
+      auftraggeber: '',
+    });
+    expect(platzMit(viele, 3).zustand).toBe('ok');
+    expect(platzMit(viele, 6).zustand).toBe('zu-voll');
+    const ueberlauf = ueberlaufMit(viele, 6);
+    expect(ueberlauf.length).toBeGreaterThan(0);
+    expect(ueberlaufMit(viele, 3)).toEqual([]);
+    expect(
+      zuVolleMit(testInhalt({ abschnitte: [testAbschnitt({ laufzettel: [viele] })] }), 6),
+    ).toHaveLength(1);
   });
 });

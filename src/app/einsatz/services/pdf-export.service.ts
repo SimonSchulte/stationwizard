@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import type { Content, ContentText, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { Planung, Posten, Taktisch, Medizinisch, TAKTISCH_ORDER } from '../models/planung.model';
 import { DialogDienst } from '../../kern/dialog/dialog-dienst';
-import { dateiHerunterladen } from '../../kern/storage/datei-storage';
+import { PdfAusgabe, PdfAusgabeWeg } from '../../kern/pdf/pdf-ausgabe';
 import { ladePdfBibliothek, PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import {
   formatiereTaktischeZeit,
@@ -12,17 +12,19 @@ import {
 @Injectable({ providedIn: 'root' })
 export class PdfExportService {
   private readonly dialog = inject(DialogDienst);
+  private readonly ausgabe = inject(PdfAusgabe);
 
-  async exportieren(planung: Planung): Promise<void> {
+  /** Druckt die PEP direkt (Vorgabe) oder lädt sie als PDF herunter. */
+  async exportieren(planung: Planung, weg: PdfAusgabeWeg = 'drucken'): Promise<void> {
     try {
       const zeitpunkt = new Date();
       const daten = await this.erzeugePdf(planung, zeitpunkt);
       const name =
         planung.name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').trim() || 'Einsatzplanung';
-      dateiHerunterladen(
+      await this.ausgabe.ausgeben(
         daten,
         `${name}_${formatiereTaktischeZeit(zeitpunkt)}.pep.pdf`,
-        'application/pdf',
+        weg,
       );
     } catch {
       await this.dialog.hinweis(

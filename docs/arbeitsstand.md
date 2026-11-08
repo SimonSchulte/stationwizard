@@ -3500,3 +3500,29 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Einsätze außerhalb des Feeds), Produktionsbuild, Prettier. **Nicht geprüft:** echter Feed (das
   Zeitfenster von `monate` ist nur aus der Worker-Logik abgeleitet), Sichtprüfung im Browser auf
   Desktop und Mobil.
+
+## Laufzettel: 3 bis 6 Streifen je Seite
+
+- Der VB-Editor wählt über eine Umschaltgruppe 3, 4, 5 oder 6 Streifen je A4-Querseite
+  (Vorgabe 6, nur Sitzungszustand, `LaufzettelLayoutWahl`). Platzanzeige, „zu voll“, „In zwei
+  Laufzettel aufteilen“, Excel-Importhinweise und Druck lesen dieselbe Wahl;
+  `laufzettelMasse()` leitet die Zeichen je Zeile aus der Streifenbreite ab.
+- Das Limit bleibt 23 Zeilen je Zettel; auf schmalen Streifen belegt ein Eintrag mehr Zeilen. Ab
+  fünf Streifen setzt der Druck ein schmales Layout (Fachgruppe unter „AUFTRAG“, kleinere
+  Nummer, gestapelte „Durchgeführt“-Zeile, kurzer Seitenfuß).
+- Geprüft: Build der Tests (Vitest, alle grün) und PDF-Ausgabe über pdfmake in Node für 3 bis 6
+  Streifen (Sicht auf gerenderte Seiten, keine Folgeseite durch Überlauf). **Nicht** geprüft:
+  Ausdruck auf Papier und Passung an die Klemmleiste der Wache; die Zeichenzahlen je Zeile sind
+  nicht am gedruckten Blatt geeicht. Die Wahl wird nicht mit der VB gespeichert.
+
+- Alle PDF-Ausgaben laufen über den zentralen Dienst `kern/pdf/pdf-ausgabe.ts` (`PdfAusgabe`):
+  `drucken()` öffnet direkt den Druckdialog des Browsers (PDF in einem unsichtbaren Rahmen),
+  `herunterladen()` speichert die Datei; verweigert der Browser den Druck, wird heruntergeladen
+  und das gemeldet. Genutzt von VB-Druck (`VbDruckDienst`, Editor und Vorlagenübersicht, dort
+  „Als PDF herunterladen“ im Menü), Einsatzplan (`PdfExportService`, Symbole „Drucken“ und „PDF
+  herunterladen“) und den QR-Bögen der Fahrzeuge (`FahrzeugDruckbogenService`: Druckbogen im
+  Fahrzeug, Übersichtsbögen in der Verwaltung, beide drucken direkt). Nicht betroffen sind
+  Dateien zum Weiterbearbeiten (Ehrungsantrag-PDF, Word-Führerscheinliste, Excel, JSON, CSV).
+  Die Einheitstests mocken den Browserdruck; **nicht** geprüft ist der echte Druckdialog in
+  Chrome, Firefox, Safari und am Handy (Rahmen-Druck von PDF ist dort unterschiedlich
+  zuverlässig).

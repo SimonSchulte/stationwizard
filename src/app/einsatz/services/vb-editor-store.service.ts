@@ -17,6 +17,7 @@ import { versionAlsZahl } from '../storage/einsatzplanung-version';
 import { MitVersion } from '../storage/mit-version';
 import { VbVorlagenStorage } from '../storage/vb-vorlagen-storage';
 import { VorbereitungStorage } from '../storage/vorbereitung-storage';
+import { LaufzettelLayoutWahl } from './laufzettel-layout-wahl';
 import { laufzettelPlatz, ueberlaufPositionen } from './laufzettel-platz';
 import { VbAenderung, vbAbgleich, wendeAenderungenAn } from './vb-abgleich';
 import {
@@ -88,6 +89,7 @@ function gleich(a: unknown, b: unknown): boolean {
  */
 @Injectable({ providedIn: 'root' })
 export class VbEditorStoreService {
+  private readonly layout = inject(LaufzettelLayoutWahl);
   private readonly vorbereitungen: VorbereitungStorage = inject(ApiVorbereitungStorage);
   private readonly vorlagenStorage: VbVorlagenStorage = inject(ApiVbVorlagenStorage);
 
@@ -747,8 +749,10 @@ export class VbEditorStoreService {
    */
   laufzettelAufteilen(id: string): string | null {
     const treffer = this.laufzettelFinden(id);
-    if (!treffer || laufzettelPlatz(treffer.laufzettel).zustand !== 'zu-voll') return null;
-    return this.laufzettelTeilen(id, ueberlaufPositionen(treffer.laufzettel));
+    const streifen = this.layout.streifenJeSeite();
+    if (!treffer || laufzettelPlatz(treffer.laufzettel, streifen).zustand !== 'zu-voll')
+      return null;
+    return this.laufzettelTeilen(id, ueberlaufPositionen(treffer.laufzettel, streifen));
   }
 
   /**

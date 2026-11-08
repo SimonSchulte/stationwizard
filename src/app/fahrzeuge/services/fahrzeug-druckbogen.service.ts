@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import type { Column, Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { ladePdfBibliothek, PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
-import { dateiHerunterladen } from '../../kern/storage/datei-storage';
+import { PdfAusgabe, PdfAusgabeWeg } from '../../kern/pdf/pdf-ausgabe';
 import { Fahrzeugstamm } from '../models/fahrzeug.model';
 import type { ErfassungslinkMitFahrzeug } from '../storage/erfassungslink-storage';
 import { erzeugeQrSvg, fahrzeugQrZiele } from './fahrzeug-qr';
@@ -16,9 +16,13 @@ import { erzeugeQrSvg, fahrzeugQrZiele } from './fahrzeug-qr';
  */
 @Injectable({ providedIn: 'root' })
 export class FahrzeugDruckbogenService {
-  async erzeugeUndSpeichere(
+  private readonly ausgabe = inject(PdfAusgabe);
+
+  /** Druckt den Aufkleberbogen direkt (Vorgabe) oder lädt ihn herunter. */
+  async erzeugeUndDrucke(
     fahrzeug: Fahrzeugstamm,
     erfassungToken: string | null = null,
+    weg: PdfAusgabeWeg = 'drucken',
   ): Promise<void> {
     const ziele = fahrzeugQrZiele(fahrzeug.id, erfassungToken);
     const [uebersichtSvg, kmSvg, oeffentlichSvg] = await Promise.all([
@@ -119,11 +123,7 @@ export class FahrzeugDruckbogenService {
     };
 
     const daten = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());
-    dateiHerunterladen(
-      daten,
-      `${fahrzeug.bezeichnung || 'fahrzeug'}-qr-codes.pdf`,
-      'application/pdf',
-    );
+    await this.ausgabe.ausgeben(daten, `${fahrzeug.bezeichnung || 'fahrzeug'}-qr-codes.pdf`, weg);
   }
 
   /**
@@ -135,9 +135,10 @@ export class FahrzeugDruckbogenService {
    * zusätzliche Kennung (siehe `fahrzeug-qr.ts`), sonst wäre der gedruckte
    * Code kein reiner Weiterleitungsaufkleber mehr.
    */
-  async erzeugeUndSpeichereUebersicht(
+  async erzeugeUndDruckeUebersicht(
     links: readonly ErfassungslinkMitFahrzeug[],
     art: 'intern' | 'oeffentlich',
+    weg: PdfAusgabeWeg = 'drucken',
   ): Promise<void> {
     const sortiert = [...links].sort((a, b) => a.bezeichnung.localeCompare(b.bezeichnung));
     const zielFuer = (link: ErfassungslinkMitFahrzeug) => {
@@ -234,12 +235,12 @@ export class FahrzeugDruckbogenService {
     };
 
     const daten = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());
-    dateiHerunterladen(
+    await this.ausgabe.ausgeben(
       daten,
       art === 'oeffentlich'
         ? 'fahrzeuge-km-qr-uebersicht-oeffentlich.pdf'
         : 'fahrzeuge-km-qr-uebersicht-intern.pdf',
-      'application/pdf',
+      weg,
     );
   }
 }
