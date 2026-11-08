@@ -1,7 +1,9 @@
 /* Aus dem Einsatzplan-Editor übernommen; :host ist die Zeile selbst. */
 :host {
   display: grid;
-  grid-template-columns: 1fr 120px 1.6fr;
+  grid-template-columns:
+    minmax(calc(var(--space-2xl) * 3), 1fr) calc(var(--space-2xl) * 3)
+    minmax(0, 2.4fr);
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) calc(var(--space-unit) * 10);
@@ -68,6 +70,8 @@
 .position-assigned {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  align-content: center;
   gap: var(--space-xs);
   font-size: 0.875rem;
   border-left: 3px solid var(--surface-transparent);
@@ -102,7 +106,31 @@
   }
 }
 
+.vorschlaege {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-left: var(--space-sm);
+}
+
+.vorschlag {
+  --mat-button-outlined-container-height: 32px;
+  --mat-button-outlined-label-text-color: var(--text-primary);
+  --mat-button-outlined-outline-color: var(--drag-match-full-border);
+
+  background: var(--drag-match-full-bg);
+  padding-inline: var(--space-xs) var(--space-base);
+  gap: var(--space-xs);
+
+  &--teilweise {
+    --mat-button-outlined-outline-color: var(--drag-match-partial-border);
+
+    background: var(--drag-match-partial-bg);
+  }
+}
+
 .unassigned-label {
+  white-space: nowrap;
   color: var(--text-disabled);
   font-style: italic;
 }
@@ -112,7 +140,8 @@
   align-items: center;
   gap: var(--space-xs);
   cursor: grab;
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .match-status-icon {

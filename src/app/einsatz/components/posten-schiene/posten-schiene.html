@@ -1,0 +1,32 @@
+<nav aria-label="Posten">
+  <h2 class="titel">Posten ({{ posten().length }})</h2>
+  @for (eintrag of posten(); track eintrag.id; let i = $index) {
+    <button
+      type="button"
+      class="posten"
+      [class.aktiv]="eintrag.id === aktivId()"
+      [attr.aria-current]="eintrag.id === aktivId() ? 'true' : null"
+      [style.--farbe]="farbe(i)"
+      (click)="gewaehlt.emit(eintrag.id)"
+    >
+      <span class="streifen" aria-hidden="true"></span>
+      <span class="text">
+        <span class="name">{{ eintrag.label || 'Ohne Namen' }}</span>
+        <span class="untertitel">{{ untertitel(eintrag) }}</span>
+      </span>
+      <span
+        class="ring"
+        [class.voll]="vollstaendig(eintrag)"
+        [style.--anteil]="anteil(eintrag)"
+        [attr.aria-label]="besetzt(eintrag) + ' von ' + eintrag.positions.length + ' besetzt'"
+      >
+        <span class="zahl">{{ besetzt(eintrag) }}/{{ eintrag.positions.length }}</span>
+      </span>
+    </button>
+  } @empty {
+    <p class="leer">Noch keine Posten.</p>
+  }
+  <button matButton="outlined" class="neu" (click)="neuerPosten.emit()">
+    <mat-icon>add</mat-icon> Neuer Posten
+  </button>
+</nav>

@@ -1,0 +1,116 @@
+:host {
+  display: block;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-base);
+}
+
+.titel {
+  margin: var(--space-xs) var(--space-sm) var(--space-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.posten {
+  display: flex;
+  align-items: center;
+  gap: var(--space-base);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-sm) var(--space-base);
+  border: 1px solid var(--surface-transparent);
+  border-radius: var(--radius-md);
+  background: var(--surface-transparent);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-shadow);
+  }
+
+  &.aktiv {
+    background: var(--drop-target-bg);
+    border-color: var(--drop-target-border);
+  }
+}
+
+.streifen {
+  align-self: stretch;
+  width: var(--space-compact);
+  border-radius: var(--radius-sm);
+  background: var(--farbe);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.untertitel {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ring {
+  --ring-farbe: var(--ci-blue);
+
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--space-xl) + var(--space-sm));
+  height: calc(var(--space-xl) + var(--space-sm));
+  border-radius: 50%;
+  background: conic-gradient(var(--ring-farbe) calc(var(--anteil) * 1%), var(--surface-hover) 0);
+
+  &.voll {
+    --ring-farbe: var(--status-ok);
+  }
+
+  .zahl {
+    display: grid;
+    place-items: center;
+    width: calc(var(--space-xl) - var(--space-xs));
+    height: calc(var(--space-xl) - var(--space-xs));
+    border-radius: 50%;
+    background: var(--surface-primary);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+}
+
+.leer {
+  margin: 0 var(--space-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.neu {
+  margin-top: var(--space-xs);
+}

@@ -65,6 +65,7 @@ function istEinsatzkraft(wert: unknown): wert is Einsatzkraft {
     istTextliste(tags['zusatz']) &&
     optionalerText(wert['hiorg_org_id']) &&
     optionalerText(wert['telefonnummer']) &&
+    optionalerText(wert['kuerzel']) &&
     (wert['meta'] === undefined ||
       (istObjekt(wert['meta']) && optionalerText(wert['meta']['notes'])))
   );

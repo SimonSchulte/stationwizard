@@ -33,6 +33,10 @@ import {
   EinsatzAnlegenDaten,
   EinsatzAnlegenDialog,
 } from '../../components/einsatz-anlegen-dialog/einsatz-anlegen-dialog';
+import { efsTrefferWaehlen } from '../../components/efs-treffer-dialog/efs-treffer-dialog';
+import type { EfsAbgleichArt } from '../../services/efs-abgleich';
+import { EfsQuelle } from '../../services/efs-quelle.service';
+import type { EinsatzListenZeile } from '../../services/einsatz-liste';
 import { EinsatzKarte } from '../../components/einsatz-karte/einsatz-karte';
 import { HIORG_ERGEBNIS_TEXTE } from '../../../kern/hiorg/hiorg-personal.service';
 import { HiorgArt } from '../../models/hiorg-veranstaltung.model';
@@ -70,6 +74,7 @@ export class PlanningList implements OnInit {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly saveLoad = inject(SaveLoadService);
   readonly quelle = inject(HiorgVeranstaltungenQuelle);
+  protected readonly efs = inject(EfsQuelle);
   private readonly kontext = inject(PepEditorKontext);
   private readonly einsatzStore = inject(EinsatzStoreService);
   protected readonly aktionen = inject(EinsatzAktionenDienst);
@@ -91,17 +96,22 @@ export class PlanningList implements OnInit {
   readonly pepFehlt = signal(false);
   readonly vbFehlt = signal(false);
   readonly ohneHiorg = signal(false);
+  /** Nur Einsätze ohne sicheren EFS-Treffer; wirkt nur, solange EFS erreichbar ist. */
+  readonly ohneEfs = signal(false);
   readonly art = signal<'alle' | HiorgArt>('alle');
 
-  readonly filterAktiv = computed(() =>
-    istFilterAktiv({
-      suche: this.suche(),
-      pepFehlt: this.pepFehlt(),
-      vbFehlt: this.vbFehlt(),
-      ohneHiorg: this.ohneHiorg(),
-      art: this.art(),
-    }),
+  readonly filterAktiv = computed(
+    () =>
+      istFilterAktiv({
+        suche: this.suche(),
+        pepFehlt: this.pepFehlt(),
+        vbFehlt: this.vbFehlt(),
+        ohneHiorg: this.ohneHiorg(),
+        art: this.art(),
+      }) || this.ohneEfsAktiv(),
   );
+
+  private readonly ohneEfsAktiv = computed(() => this.ohneEfs() && this.efs.erreichbar());
 
   /** Gefilterte Karten der gewählten Ansicht, nach Monat gruppiert. */
   readonly monatsGruppen = computed(() => {
@@ -113,7 +123,7 @@ export class PlanningList implements OnInit {
       vbFehlt: this.vbFehlt(),
       ohneHiorg: this.ohneHiorg(),
       art: this.art(),
-    });
+    }).filter((zeile) => !this.ohneEfsAktiv() || this.efsArt(zeile) !== 'treffer');
     return gruppiereNachMonat(mitAbstand(gefiltert, new Date(), anstehend));
   });
 
@@ -121,12 +131,31 @@ export class PlanningList implements OnInit {
     () => this.einsatzListe().anstehend.length + this.einsatzListe().vergangen.length,
   );
 
+  /** Ergebnis des EFS-Abgleichs einer Karte; `null`, solange EFS nicht erreichbar ist. */
+  efsArt(zeile: EinsatzListenZeile): EfsAbgleichArt | null {
+    return this.efs.erreichbar() ? this.efs.abgleich(zeile.titel, zeile.beginn).art : null;
+  }
+
+  /** Lässt bei mehreren möglichen Treffern den passenden EFS-Einsatz wählen. */
+  async efsPruefen(zeile: EinsatzListenZeile): Promise<void> {
+    const abgleich = this.efs.abgleich(zeile.titel, zeile.beginn);
+    if (abgleich.kandidaten.length === 0) return;
+    const gewaehlt = await efsTrefferWaehlen(this.dialog, {
+      titel: zeile.titel,
+      beginn: zeile.beginn,
+      kandidaten: abgleich.kandidaten,
+    });
+    if (gewaehlt === undefined) return;
+    this.efs.entscheide(zeile.titel, zeile.beginn, gewaehlt);
+  }
+
   /** Setzt Suche und Filter zurück; die gewählte Ansicht bleibt. */
   filterZuruecksetzen(): void {
     this.suche.set('');
     this.pepFehlt.set(false);
     this.vbFehlt.set(false);
     this.ohneHiorg.set(false);
+    this.ohneEfs.set(false);
     this.art.set('alle');
   }
 
@@ -151,11 +180,12 @@ export class PlanningList implements OnInit {
     }
     void this.einsatzStore.laden();
     void this.quelle.laden();
+    void this.efs.laden();
   }
 
   /** Lädt HiOrg-Veranstaltungen und die gespeicherten Einsätze neu. */
   async aktualisieren(): Promise<void> {
-    await Promise.all([this.einsatzStore.laden(), this.quelle.laden()]);
+    await Promise.all([this.einsatzStore.laden(), this.quelle.laden(), this.efs.laden(true)]);
   }
 
   /** Legt über einen kleinen Dialog einen Einsatz ohne HiOrg-Veranstaltung an. */

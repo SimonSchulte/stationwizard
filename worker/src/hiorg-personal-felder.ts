@@ -26,6 +26,8 @@ export interface HiorgPersonAusgabe {
   mitgliedSeit?: string;
   /** `attributes.anrede` (z. B. „Herr“/„Frau“), nur für die Wahl Damen-/Herrenuhr beim Export. */
   anrede?: string;
+  /** `attributes.kuerzel`: Benutzerkürzel für die Avatare der Einsatzplanung. */
+  kuerzel?: string;
 }
 
 /**
@@ -60,6 +62,22 @@ export function leseAnrede(wert: unknown): string | undefined {
   if (typeof wert !== 'string') return undefined;
   const text = wert.trim();
   return text.length > 0 && text.length <= 40 ? text : undefined;
+}
+
+/**
+ * `attributes.kuerzel` (Feldname vom Betreiber benannt, nicht gegen die offizielle
+ * Feldbeschreibung belegt). Nur ein kurzer Text ohne Steuerzeichen; alles andere gilt als nicht
+ * erfasst, ohne die Antwort zu verwerfen – die Oberfläche fällt dann auf Initialen zurück.
+ */
+export function leseKuerzel(wert: unknown): string | undefined {
+  if (typeof wert !== 'string') return undefined;
+  const text = wert.trim();
+  if (text.length === 0 || text.length > 20) return undefined;
+  for (const zeichen of text) {
+    const code = zeichen.codePointAt(0) ?? 0;
+    if (code < 0x20 || code === 0x7f) return undefined;
+  }
+  return text;
 }
 
 function optionalerText(wert: unknown): string | null | undefined {
@@ -136,6 +154,7 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
 
     const mitgliedSeit = leseMitgliedSeit(attribute['mitglied_seit']);
     const anrede = leseAnrede(attribute['anrede']);
+    const kuerzel = leseKuerzel(attribute['kuerzel']);
 
     personen.push({
       id,
@@ -147,6 +166,7 @@ export function filterePersonal(inhalt: unknown): HiorgPersonAusgabe[] | undefin
       fahrerlaubnis,
       ...(mitgliedSeit ? { mitgliedSeit } : {}),
       ...(anrede ? { anrede } : {}),
+      ...(kuerzel ? { kuerzel } : {}),
     });
   }
   return personen;

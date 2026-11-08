@@ -6,6 +6,7 @@ import { VbKennzahlen } from '../../models/einsatz.model';
 import { PepKennzahlen } from '../../models/pep.model';
 import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
 import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
+import type { EfsAbgleichArt } from '../../services/efs-abgleich';
 
 /**
  * Eine Karte der Einsatzübersicht: Datumsblock, Titel mit Metazeile und zwei Kacheln
@@ -37,6 +38,9 @@ export class EinsatzKarte {
   /** Hebt den Abstandshinweis gelb hervor (bald und PEP oder VB fehlt). */
   readonly dringend = input(false);
   readonly gesperrt = input(false);
+  /** Ergebnis des EFS-Abgleichs; `null`, solange EFS nicht erreichbar ist (dann keine Anzeige). */
+  readonly efsArt = input<EfsAbgleichArt | null>(null);
+  readonly efsPruefen = output<void>();
   readonly pep = output<void>();
   readonly vb = output<void>();
 

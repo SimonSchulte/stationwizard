@@ -103,6 +103,7 @@ function istEinsatzkraft(wert: unknown): wert is PepEinsatzkraft {
       'notiz',
       'hiorgOrgId',
       'telefonnummer',
+      'kuerzel',
     ]) &&
     istId(wert['id']) &&
     istTextBis(wert['name'], PEP_GRENZEN.name, 1) &&
@@ -115,7 +116,8 @@ function istEinsatzkraft(wert: unknown): wert is PepEinsatzkraft {
     wert['zusatz'].every((z) => istTextBis(z, PEP_GRENZEN.zusatzText)) &&
     istTextOderNull(wert['notiz'], PEP_GRENZEN.notiz) &&
     istTextOderNull(wert['hiorgOrgId'], PEP_GRENZEN.id) &&
-    istTextOderNull(wert['telefonnummer'], PEP_GRENZEN.telefonnummer)
+    istTextOderNull(wert['telefonnummer'], PEP_GRENZEN.telefonnummer) &&
+    (wert['kuerzel'] === undefined || istTextOderNull(wert['kuerzel'], PEP_GRENZEN.kuerzel))
   );
 }
 

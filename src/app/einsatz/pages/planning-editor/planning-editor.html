@@ -285,292 +285,154 @@
       </p>
     }
 
-    <!-- Helferpool und Postenbereich -->
+    @if (!istVorlage) {
+      <app-besetzungs-band
+        [datum]="startBlock()"
+        [soll]="planungSoll(p)"
+        [ist]="planungIst(p)"
+        [offen]="offeneAnforderungen()"
+      />
+    }
+
+    <!-- Posten-Schiene, gewählter Posten, Helferpool -->
     <div class="editor-body" cdkDropListGroup>
-      <!-- LEFT: Roster -->
-      @if (!istVorlage) {
-        <aside class="pane pane-roster" [class.pane-roster--collapsed]="rosterCollapsed()">
-          <div class="pane-header">
-            <mat-icon>groups</mat-icon>
-            <span class="roster-header-text">
-              Einsatzkräfte
-              @if (rosterProgress(); as prog) {
-                <span class="roster-progress-count"
-                  >{{ prog.assigned }}/{{ prog.total }} zugewiesen</span
-                >
-              }
-            </span>
-            <button
-              matIconButton
-              matTooltip="Einsatzkräfte importieren"
-              (click)="openImportDialog()"
-            >
-              <mat-icon>upload_file</mat-icon>
-            </button>
-            <button
-              matIconButton
-              matTooltip="Personal aus HiOrg-Server übernehmen"
-              (click)="openHiorgPersonalDialog()"
-            >
-              <mat-icon>badge</mat-icon>
-            </button>
-            <button
-              matIconButton
-              (click)="toggleRoster()"
-              [matTooltip]="rosterCollapsed() ? 'Roster einblenden' : 'Roster ausblenden'"
-            >
-              <mat-icon>{{ rosterCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
-            </button>
-          </div>
-          @if (rosterProgress(); as prog) {
-            <div
-              class="roster-progress-bar-wrap"
-              [matTooltip]="prog.assigned + ' von ' + prog.soll + ' Positionen besetzt'"
-            >
-              <div
-                class="roster-progress-bar-fill"
-                [style.width.%]="prog.soll > 0 ? (prog.assigned / prog.soll) * 100 : 0"
-                [class.roster-progress-bar-fill--complete]="prog.assigned >= prog.soll"
-              ></div>
-            </div>
-          }
-          <div
-            class="roster-list"
-            cdkDropList
-            cdkDropListSortingDisabled
-            (cdkDropListDropped)="onDropToRoster($event)"
-          >
-            <div class="roster-search-bar">
-              <mat-icon class="roster-suchsymbol" aria-hidden="true">search</mat-icon>
+      <aside class="pane pane-posten" aria-label="Posten">
+        <app-posten-schiene
+          [posten]="p.posten"
+          [aktivId]="aktiverPosten()?.id ?? null"
+          (gewaehlt)="postenWaehlen($event)"
+          (neuerPosten)="addPosten()"
+        />
+      </aside>
+
+      <main class="pane pane-detail">
+        @if (aktiverPosten(); as posten) {
+          <div class="detail-kopf">
+            <mat-form-field class="feld-name" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Postenname</mat-label>
               <input
-                class="roster-search-input"
-                placeholder="Suchen…"
-                [value]="rosterSearch()"
-                (input)="rosterSearch.set($any($event.target).value)"
-                aria-label="Einsatzkräfte suchen"
+                matInput
+                [value]="posten.label"
+                (blur)="updatePostenLabel(posten.id, $any($event.target).value)"
               />
-            </div>
-            @if (
-              rosterAvailableTags().taktisch.length > 0 ||
-              rosterAvailableTags().medizinisch.length > 0
-            ) {
-              <div class="roster-tag-filters">
-                @for (tag of rosterAvailableTags().taktisch; track tag) {
-                  <button
-                    class="filter-chip"
-                    [class.filter-chip--active]="rosterTagFilter() === tag"
-                    [style.background]="rosterTagFilter() === tag ? taktischColor(tag).bg : ''"
-                    [style.color]="rosterTagFilter() === tag ? taktischColor(tag).fg : ''"
-                    [matTooltip]="TAKTISCH_LABEL[tag]"
-                    (click)="toggleRosterTagFilter(tag)"
-                  >
-                    {{ tag }}
-                  </button>
-                }
-                @for (tag of rosterAvailableTags().medizinisch; track tag) {
-                  <button
-                    class="filter-chip"
-                    [class.filter-chip--active]="rosterTagFilter() === tag"
-                    [style.background]="rosterTagFilter() === tag ? medizinischColor(tag).bg : ''"
-                    [style.color]="rosterTagFilter() === tag ? medizinischColor(tag).fg : ''"
-                    [matTooltip]="MEDIZINISCH_LABEL[tag]"
-                    (click)="toggleRosterTagFilter(tag)"
-                  >
-                    {{ tag }}
-                  </button>
-                }
-              </div>
-            }
-            @for (person of filteredRoster(); track person.id) {
-              <div
-                class="einsatzkraft-card available"
-                cdkDrag
-                [cdkDragData]="{
-                  einsatzkraftId: person.id,
-                  fromPostenId: null,
-                  fromPositionId: null,
-                }"
-                (cdkDragStarted)="onDragStarted($event)"
-                (cdkDragEnded)="onDragEnded()"
-                (contextmenu)="onContextMenu($event, person)"
+            </mat-form-field>
+            <mat-form-field class="feld-fahrzeug" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Fahrzeug</mat-label>
+              <mat-icon matPrefix>local_shipping</mat-icon>
+              <input
+                matInput
+                [value]="fahrzeugInputValue(posten)"
+                [matAutocomplete]="fahrzeugAuto"
+                (focus)="updateFahrzeugFilter(posten.id, '')"
+                (input)="updateFahrzeugFilter(posten.id, $any($event.target).value)"
+                (blur)="updateFahrzeugFilter(posten.id, null)"
+                placeholder="Fahrzeug …"
+              />
+              <mat-autocomplete
+                #fahrzeugAuto
+                panelWidth="auto"
+                (optionSelected)="onFahrzeugSelected(posten.id, $event.option.value)"
               >
-                <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
-                <div class="ek-body">
-                  <span class="ek-name">{{ person.name }}</span>
-                  <app-qualifikations-chips class="ek-chips" [tags]="person.tags" />
-                </div>
-              </div>
+                @for (f of filteredFahrzeuge(posten.id); track f.seriennummer) {
+                  <mat-option [value]="f">{{ f.funkruf }} ({{ f.seriennummer }})</mat-option>
+                }
+                @if (posten.fahrzeug) {
+                  <mat-option [value]="null">— Kein Fahrzeug —</mat-option>
+                }
+              </mat-autocomplete>
+            </mat-form-field>
+            @if (posten.telefonnummer) {
+              <span class="telefon" matTooltip="Telefonnummer des Postens (aus der Einsatzkraft)">
+                <mat-icon>phone</mat-icon>{{ posten.telefonnummer }}
+              </span>
             }
-            @if (filteredRoster().length === 0) {
-              @if (p.einsatzkraefte.length === 0) {
-                <p class="empty-hint">Noch keine Einsatzkräfte vorhanden.</p>
-                <button matButton="outlined" (click)="openImportDialog()" class="helfer-trenner">
-                  <mat-icon>group_add</mat-icon> Roster importieren
-                </button>
-              } @else {
-                <p class="empty-hint">Alle Einsatzkräfte sind eingeteilt.</p>
-              }
-            }
-
-            <mat-divider class="bereich-trenner"></mat-divider>
-            <div class="pane-subheader pane-subheader--toggle" (click)="toggleAssignedList()">
-              <span>Zugewiesene Einsatzkräfte</span>
-              <mat-icon class="subheader-toggle-icon">{{
-                assignedListCollapsed() ? 'expand_more' : 'expand_less'
-              }}</mat-icon>
-            </div>
-            @if (!assignedListCollapsed()) {
-              @for (person of p.einsatzkraefte; track person.id) {
-                <div class="einsatzkraft-card">
-                  <mat-icon class="drag-handle-icon">drag_indicator</mat-icon>
-                  <div class="ek-body">
-                    <span class="ek-name">{{ person.name }}</span>
-                    <app-qualifikations-chips
-                      class="ek-chips"
-                      [tags]="person.tags"
-                      [beschreibung]="false"
-                      [zusatz]="false"
-                    />
-                  </div>
-                </div>
-              }
-            }
+            <span class="spacer"></span>
+            <button
+              matIconButton
+              matTooltip="Zuteilungen des Postens aufheben"
+              aria-label="Posten leeren"
+              (click)="clearPosten(posten)"
+            >
+              <mat-icon>cleaning_services</mat-icon>
+            </button>
+            <button
+              matIconButton
+              class="loeschen"
+              matTooltip="Posten löschen"
+              aria-label="Posten löschen"
+              (click)="deletePosten(posten)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
           </div>
-        </aside>
-      }
 
-      <!-- CENTER: Posten/Position Tree -->
-      <main class="pane pane-tree">
-        <div class="pane-header">
-          <mat-icon>grid_view</mat-icon>
-          <span>Einsatzplan</span>
-          <span class="spacer"></span>
-          <app-staerke-block
-            [soll]="planungSoll(p)"
-            [ist]="planungIst(p)"
-            beschriftung="Gesamtstärke"
-          />
-        </div>
-        <div class="tree-scroll">
-          <mat-accordion multi class="posten-accordion">
-            @for (posten of p.posten; track posten.id) {
-              <mat-expansion-panel #panel expanded hideToggle>
-                <mat-expansion-panel-header>
-                  <mat-panel-title>
-                    <input
-                      class="posten-label-input"
-                      [value]="posten.label"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                      (blur)="updatePostenLabel(posten.id, $any($event.target).value)"
-                    />
-                    <div class="posten-fahrzeug-inline" (click)="$event.stopPropagation()">
-                      <mat-icon class="fahrzeug-icon">local_shipping</mat-icon>
-                      <input
-                        class="fahrzeug-inline-input"
-                        [value]="fahrzeugInputValue(posten)"
-                        [matAutocomplete]="fahrzeugAuto"
-                        (focus)="updateFahrzeugFilter(posten.id, '')"
-                        (input)="updateFahrzeugFilter(posten.id, $any($event.target).value)"
-                        (blur)="updateFahrzeugFilter(posten.id, null)"
-                        placeholder="Fahrzeug…"
-                      />
-                      <mat-autocomplete
-                        #fahrzeugAuto
-                        panelWidth="auto"
-                        (optionSelected)="onFahrzeugSelected(posten.id, $event.option.value)"
-                      >
-                        @for (f of filteredFahrzeuge(posten.id); track f.seriennummer) {
-                          <mat-option [value]="f"
-                            >{{ f.funkruf }} ({{ f.seriennummer }})</mat-option
-                          >
-                        }
-                        @if (posten.fahrzeug) {
-                          <mat-option [value]="null">— Kein Fahrzeug —</mat-option>
-                        }
-                      </mat-autocomplete>
-                    </div>
-                    @if (posten.telefonnummer) {
-                      <div class="posten-telefon-inline" (click)="$event.stopPropagation()">
-                        <mat-icon class="telefon-icon">phone</mat-icon>
-                        <span>{{ posten.telefonnummer }}</span>
-                      </div>
-                    }
-                  </mat-panel-title>
-                  <mat-panel-description (click)="$event.stopPropagation()">
-                    <app-staerke-block
-                      class="description-spacer"
-                      [soll]="postenSoll(posten)"
-                      [ist]="postenIst(posten)"
-                      [beschriftung]="'Stärke ' + posten.label"
-                      [kompakt]="true"
-                    />
-                    <button
-                      matIconButton
-                      class="posten-action-btn"
-                      matTooltip="Leeren"
-                      (click)="clearPosten(posten)"
-                    >
-                      <mat-icon>cleaning_services</mat-icon>
-                    </button>
-                    <button
-                      matIconButton
-                      class="posten-action-btn posten-action-btn--danger"
-                      matTooltip="Posten löschen"
-                      (click)="deletePosten(posten)"
-                    >
-                      <mat-icon>delete</mat-icon>
-                    </button>
-                    <button
-                      matIconButton
-                      class="posten-action-btn"
-                      [matTooltip]="panel.expanded ? 'Einklappen' : 'Ausklappen'"
-                      (click)="panel.toggle()"
-                    >
-                      <mat-icon>{{ panel.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-                    </button>
-                  </mat-panel-description>
-                </mat-expansion-panel-header>
-
-                <div class="position-list">
-                  @for (position of posten.positions; track position.id) {
-                    <app-position-zeile
-                      [position]="position"
-                      [postenId]="posten.id"
-                      [besetzung]="assignedPerson(position)"
-                      [gezogen]="draggingEinsatzkraft()"
-                      [postenfuehrerSymbol]="postenfuehrerIconUrl"
-                      (kontextmenue)="onPositionContextMenu($event, posten.id, position.id)"
-                      (postenfuehrerUmschalten)="
-                        togglePostenfuehrer(posten.id, position.id, !!position.isPostenfuehrer)
-                      "
-                      (bezeichnungGeaendert)="updatePositionLabel(posten.id, position.id, $event)"
-                      (taktischGeaendert)="updatePositionTaktisch(posten.id, position.id, $event)"
-                      (medizinischGeaendert)="
-                        updatePositionMedizinisch(posten.id, position.id, $event)
-                      "
-                      (abgelegt)="onDropToPosition($event)"
-                      (ziehenGestartet)="onDragStarted($event)"
-                      (ziehenBeendet)="onDragEnded()"
-                      (zuteilungAufheben)="unassignFromPosition(posten.id, position.id)"
-                    />
-                  }
-                  <div class="add-position-row">
-                    <button matButton="outlined" (click)="addPosition(posten.id)">
-                      <mat-icon>add</mat-icon> Neue Position
-                    </button>
-                  </div>
-                </div>
-              </mat-expansion-panel>
+          <div class="position-liste">
+            @for (position of posten.positions; track position.id) {
+              <app-position-zeile
+                [position]="position"
+                [postenId]="posten.id"
+                [besetzung]="assignedPerson(position)"
+                [gezogen]="draggingEinsatzkraft()"
+                [postenfuehrerSymbol]="postenfuehrerIconUrl"
+                [vorschlaege]="vorschlaege().get(position.id) ?? []"
+                (kontextmenue)="onPositionContextMenu($event, posten.id, position.id)"
+                (postenfuehrerUmschalten)="
+                  togglePostenfuehrer(posten.id, position.id, !!position.isPostenfuehrer)
+                "
+                (bezeichnungGeaendert)="updatePositionLabel(posten.id, position.id, $event)"
+                (taktischGeaendert)="updatePositionTaktisch(posten.id, position.id, $event)"
+                (medizinischGeaendert)="updatePositionMedizinisch(posten.id, position.id, $event)"
+                (abgelegt)="onDropToPosition($event)"
+                (ziehenGestartet)="onDragStarted($event)"
+                (ziehenBeendet)="onDragEnded()"
+                (zuteilungAufheben)="unassignFromPosition(posten.id, position.id)"
+                (vorschlagGewaehlt)="vorschlagUebernehmen(posten.id, position.id, $event)"
+              />
+            } @empty {
+              <app-leerzustand
+                icon="event_seat"
+                titel="Dieser Posten hat noch keine Positionen"
+                kompakt
+              />
             }
-          </mat-accordion>
-          <div class="add-posten-row">
-            <button matButton="outlined" (click)="addPosten()">
+            <div class="position-neu">
+              <button matButton="outlined" (click)="addPosition(posten.id)">
+                <mat-icon>add</mat-icon> Neue Position
+              </button>
+            </div>
+          </div>
+        } @else {
+          <app-leerzustand icon="grid_view" titel="Noch keine Posten">
+            Lege den ersten Posten an, um Positionen und Einsatzkräfte zuzuteilen.
+            <button matButton="filled" leerAktion (click)="addPosten()">
               <mat-icon>add</mat-icon> Neuer Posten
             </button>
-          </div>
-        </div>
+          </app-leerzustand>
+        }
       </main>
+
+      @if (!istVorlage) {
+        <aside class="pane pane-roster" aria-label="Helferpool">
+          <app-helferpool
+            [verfuegbar]="verfuegbar()"
+            [eingeteilt]="eingeteilt()"
+            [hinweise]="poolHinweise()"
+            [efsMoeglich]="efsMoeglich()"
+            [efsLaedt]="efsLaedt()"
+            [efsVergleich]="efsVergleich()"
+            (efsAbgleichen)="efsAbgleichen()"
+            (efsUebernehmen)="efsUebernehmen()"
+            (efsSchliessen)="efsVergleich.set(null)"
+            [(ansicht)]="poolAnsicht"
+            (importieren)="openImportDialog()"
+            (hiorgUebernehmen)="openHiorgPersonalDialog()"
+            (kontextmenue)="onPoolKontextmenue($event)"
+            (ziehenGestartet)="onDragStarted($event)"
+            (ziehenBeendet)="onDragEnded()"
+            (abgelegt)="onDropToRoster($event)"
+          />
+        </aside>
+      }
     </div>
   </div>
 } @else {

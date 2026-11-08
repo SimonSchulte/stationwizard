@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { Provider, signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanningEditor } from './planning-editor';
+import { EfsQuelle } from '../../services/efs-quelle.service';
+import type { EfsEinsatzGruppe, EfsEinsatzkraft } from '../../models/efs.model';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SaveLoadService } from '../../services/save-load.service';
@@ -43,9 +45,13 @@ describe('PlanningEditor', () => {
   let kontext: PepEditorKontext;
   let meldungen: MeldungsDienst;
 
-  function konfigurieren(route: { data?: Record<string, unknown>; id?: string } = {}) {
+  function konfigurieren(
+    route: { data?: Record<string, unknown>; id?: string } = {},
+    zusatz: Provider[] = [],
+  ) {
     TestBed.configureTestingModule({
       providers: [
+        ...zusatz,
         { provide: PdfExportService, useValue: {} },
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
         { provide: DialogDienst, useValue: dialog },
@@ -385,6 +391,166 @@ describe('PlanningEditor', () => {
       expect(wurzel.querySelector('button[aria-label="JSON herunterladen"]')).not.toBeNull();
       expect(wurzel.textContent).not.toContain('Nextcloud');
       expect(wurzel.querySelector('input[aria-label="Planungsname"]')).not.toBeNull();
+    });
+  });
+
+  describe('Posten im Fokus', () => {
+    beforeEach(() => konfigurieren());
+
+    /** Zwei Posten; der erste hat eine freie Position und eine verfügbare Einsatzkraft passt. */
+    function planungMitZweiPosten(): Planung {
+      const basis = erzeugeTestplanung();
+      const helfer = { id: 'ek-frei', name: 'Frei Franka', tags: { medizinisch: ['RS' as const] } };
+      return {
+        ...basis,
+        einsatzkraefte: [...basis.einsatzkraefte, helfer],
+        posten: [
+          {
+            ...basis.posten[0],
+            positions: [
+              ...basis.posten[0].positions,
+              {
+                id: 'pos-frei',
+                label: 'Sanitäter',
+                requirements: { taktisch: null, medizinisch: 'RS' as const },
+                assigned: null,
+              },
+            ],
+          },
+          { id: 'posten-zwei', label: 'Streife', fahrzeug: null, positions: [] },
+        ],
+      };
+    }
+
+    async function editorAnzeigen() {
+      store.oeffneGespeichert(planungMitZweiPosten());
+      const fixture = TestBed.createComponent(PlanningEditor);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('zeigt zunächst den ersten Posten und wechselt über die Schiene', async () => {
+      const fixture = await editorAnzeigen();
+      const wurzel: HTMLElement = fixture.nativeElement;
+      const planung = store.active()!;
+      expect(planung.posten.length).toBeGreaterThan(1);
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(planung.posten[0].id);
+      const knoepfe = wurzel.querySelectorAll<HTMLButtonElement>(
+        'app-posten-schiene button.posten',
+      );
+      expect(knoepfe).toHaveLength(planung.posten.length);
+
+      knoepfe[1].click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(planung.posten[1].id);
+      expect(wurzel.querySelectorAll('app-position-zeile')).toHaveLength(
+        planung.posten[1].positions.length,
+      );
+    });
+
+    it('fällt nach dem Löschen des gewählten Postens auf den ersten zurück', async () => {
+      const fixture = await editorAnzeigen();
+      const planung = store.active()!;
+      fixture.componentInstance.postenWaehlen(planung.posten[1].id);
+      store.deletePosten(planung.posten[1].id);
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(planung.posten[0].id);
+    });
+
+    it('wählt einen neu angelegten Posten sofort', async () => {
+      const fixture = await editorAnzeigen();
+      fixture.componentInstance.addPosten();
+      const neu = store.active()!.posten.at(-1)!;
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(neu.id);
+    });
+
+    it('teilt einen Vorschlag per Klick zu', async () => {
+      const fixture = await editorAnzeigen();
+      const editor = fixture.componentInstance;
+      const planung = store.active()!;
+      const posten = planung.posten[0];
+      const frei = posten.positions.find((p) => !p.assigned);
+      const kandidat = editor.verfuegbar()[0];
+      expect(frei && kandidat).toBeTruthy();
+      editor.vorschlagUebernehmen(posten.id, frei!.id, kandidat.id);
+      const danach = store.active()!.posten[0].positions.find((p) => p.id === frei!.id);
+      expect(danach?.assigned?.id).toBe(kandidat.id);
+      expect(editor.verfuegbar().map((e) => e.id)).not.toContain(kandidat.id);
+      expect(editor.eingeteilt().map((e) => e.id)).toContain(kandidat.id);
+    });
+  });
+
+  describe('Abgleich mit EFS', () => {
+    const gruppe: EfsEinsatzGruppe = {
+      veranstaltung_id: 'v1',
+      titel: 'Synthetischer Übungsplan',
+      datum_von: '2026-09-08T10:00:00',
+      datum_bis: '2026-09-08T12:00:00',
+      schichten: [],
+    };
+    const efsKraft = (nachname: string, vorname = 'Vorname'): EfsEinsatzkraft => ({
+      hiorg_org_id: nachname,
+      vorname,
+      nachname,
+      ausbildungen: ['RS'],
+    });
+    const personalLaden = vi.fn();
+
+    function efsBereitstellen(art: 'treffer' | 'keiner'): void {
+      konfigurieren({}, [
+        {
+          provide: EfsQuelle,
+          useValue: {
+            erreichbar: () => true,
+            laden: vi.fn().mockResolvedValue(undefined),
+            abgleich: () => ({
+              art,
+              treffer: art === 'treffer' ? gruppe : null,
+              kandidaten: [],
+            }),
+            personalLaden,
+          },
+        },
+      ]);
+    }
+
+    it('bietet den Abgleich nur bei einem EFS-Treffer an', () => {
+      efsBereitstellen('keiner');
+      store.oeffneGespeichert(erzeugeTestplanung());
+      expect(editorBauen().efsMoeglich()).toBe(false);
+    });
+
+    it('stellt EFS-Personal gegenüber, ändert nichts und übernimmt erst nach der Bestätigung', async () => {
+      efsBereitstellen('treffer');
+      const planung = erzeugeTestplanung();
+      store.oeffneGespeichert(planung);
+      personalLaden.mockResolvedValue([efsKraft('Testperson', 'Nord'), efsKraft('Neu')]);
+      const editor = editorBauen();
+      expect(editor.efsMoeglich()).toBe(true);
+
+      await editor.efsAbgleichen();
+      expect(personalLaden).toHaveBeenCalledWith(gruppe, true);
+      expect(editor.efsVergleich()?.neu.map((e) => e.name)).toEqual(['Neu Vorname']);
+      expect(editor.efsVergleich()?.entfallen).toEqual([]);
+      expect(store.active()?.einsatzkraefte).toHaveLength(1);
+
+      editor.efsUebernehmen();
+      expect(store.active()?.einsatzkraefte.map((e) => e.name)).toEqual([
+        'Testperson Nord',
+        'Neu Vorname',
+      ]);
+      expect(editor.efsVergleich()).toBeNull();
+    });
+
+    it('meldet einen Fehler von EFS und lässt die PEP unverändert', async () => {
+      efsBereitstellen('treffer');
+      store.oeffneGespeichert(erzeugeTestplanung());
+      personalLaden.mockRejectedValue(new Error('EFS weg'));
+      const editor = editorBauen();
+      await editor.efsAbgleichen();
+      expect(meldungen.fehler).toHaveBeenCalledWith(expect.stringContaining('EFS weg'));
+      expect(editor.efsVergleich()).toBeNull();
+      expect(editor.efsLaedt()).toBe(false);
     });
   });
 

@@ -29,6 +29,7 @@ function volllePlanung(): Planung {
     meta: { notes: 'Nur vormittags' },
     hiorg_org_id: 'org-17',
     telefonnummer: '0170 1234567',
+    kuerzel: 'MUA',
   };
   const ben = { id: 'ek-ben', name: 'Beispiel Ben', tags: {} };
   return {
@@ -91,6 +92,7 @@ describe('planungZuPepInhalt / pepInhaltZuPlanung', () => {
       notiz: 'Nur vormittags',
       hiorgOrgId: 'org-17',
       telefonnummer: '0170 1234567',
+      kuerzel: 'MUA',
     });
     expect(inhalt.posten[0]).toMatchObject({
       bezeichnung: 'Station Nord',

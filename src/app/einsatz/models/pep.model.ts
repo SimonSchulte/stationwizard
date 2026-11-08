@@ -49,6 +49,8 @@ export interface PepEinsatzkraft {
   notiz: string | null;
   hiorgOrgId: string | null;
   telefonnummer: string | null;
+  /** Benutzerkürzel aus HiOrg; fehlt bei Altbestand und Personen ohne Kürzel. */
+  kuerzel?: string | null;
 }
 
 export interface PepInhalt {
@@ -111,6 +113,7 @@ export const PEP_GRENZEN = {
   titel: 200,
   name: 200,
   telefonnummer: 50,
+  kuerzel: 20,
   hiorgSchichtId: 64,
   zusatzAnforderung: 200,
   zusatzJeEinsatzkraft: 30,

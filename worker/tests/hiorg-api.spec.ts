@@ -371,6 +371,30 @@ describe('HiOrg-API: Personal', () => {
     expect(personen.map((p) => p.anrede)).toEqual(['Frau', undefined, undefined]);
   });
 
+  it('liefert das Benutzerkürzel nur als kurzen Text ohne Steuerzeichen', async () => {
+    await verbinden();
+    abrufen.mockResolvedValueOnce(
+      Response.json({
+        data: [
+          person({ kuerzel: ' MUA ' }),
+          { ...person({ kuerzel: { x: 1 } }), id: 'zweite' },
+          { ...person({ kuerzel: 'x'.repeat(21) }), id: 'dritte' },
+          { ...person({ kuerzel: 'A\nB' }), id: 'vierte' },
+          { ...person({}), id: 'fuenfte' },
+        ],
+      }),
+    );
+    const antwort = await verarbeiteHiorgApi(personalAnfrage(), umgebung, BENUTZER);
+    const { personen } = JSON.parse(await antwort.text()) as { personen: { kuerzel?: string }[] };
+    expect(personen.map((p) => p.kuerzel)).toEqual([
+      'MUA',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
   it('meldet eine fehlende Fahrerlaubnis als null statt sie zu erfinden', async () => {
     await verbinden();
     abrufen.mockResolvedValueOnce(Response.json({ data: [person({ fahrerlaubnis: null })] }));

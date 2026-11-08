@@ -1264,6 +1264,26 @@ describe('Einsatzplanung: Prüfung der PEP', () => {
     ).toBeNull();
   });
 
+  it('nimmt das Benutzerkürzel einer Einsatzkraft optional an und begrenzt es', () => {
+    const mit = (kuerzel: unknown) =>
+      pruefePepInhalt(
+        pepInhalt({
+          posten: [],
+          einsatzkraefte: [einsatzkraft({ kuerzel })],
+          einsatzleiterId: null,
+        }),
+      );
+    expect(mit('MUA')?.einsatzkraefte[0]?.kuerzel).toBe('MUA');
+    expect(mit(null)?.einsatzkraefte[0]?.kuerzel).toBeUndefined();
+    expect(mit('x'.repeat(21))).toBeNull();
+    expect(mit(5)).toBeNull();
+    // Altbestand ohne das Feld bleibt gültig.
+    const ohne = einsatzkraft();
+    expect(
+      pruefePepInhalt(pepInhalt({ posten: [], einsatzkraefte: [ohne], einsatzleiterId: null })),
+    ).not.toBeNull();
+  });
+
   it('erlaubt in der Vorlage Fahrzeug, Schicht und Telefonnummer, aber keine Zuordnung', () => {
     const vorgabe = pepPosten({ telefonnummer: '0521 1', hiorgSchichtId: 'S-1' });
     expect(pruefePepVorlageInhalt_(vorgabe)).not.toBeNull();
