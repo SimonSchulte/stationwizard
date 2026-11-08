@@ -100,9 +100,14 @@
   <h3>Positionen ({{ laufzettel().positionen.length }})</h3>
 </div>
 
-<div class="positionen" cdkDropList (cdkDropListDropped)="positionAbgelegt($event)">
+<div
+  class="positionen"
+  cdkDropList
+  [cdkDropListEnterPredicate]="nurPositionen"
+  (cdkDropListDropped)="positionAbgelegt($event)"
+>
   @for (position of laufzettel().positionen; track position.id; let i = $index) {
-    <div class="position" cdkDrag cdkDragLockAxis="y">
+    <div class="position" cdkDrag [cdkDragData]="ziehdaten(position.id)">
       <mat-checkbox
         class="markierung"
         [checked]="markiert().has(position.id)"

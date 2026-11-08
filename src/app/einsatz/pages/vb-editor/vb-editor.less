@@ -186,6 +186,22 @@
   transition: transform var(--transition-normal);
 }
 
+// Karten als Ablageziel für Positionen aus der Bearbeitung
+.karte.cdk-drop-list-receiving {
+  border-radius: var(--radius-card);
+  outline: 1px dashed var(--border-medium);
+  outline-offset: calc(var(--space-xs) * -1);
+}
+
+.karte.cdk-drop-list-dragging:not(.cdk-drag-placeholder) {
+  outline: 2px solid var(--ci-blue);
+}
+
+// Der Platzhalter der gezogenen Position soll die Karte nicht aufblähen.
+.karte > .cdk-drag-placeholder {
+  display: none;
+}
+
 @media (max-width: 780px) {
   .mobil-hinweis {
     display: block;

@@ -887,6 +887,45 @@ export class VbEditorStoreService {
     });
   }
 
+  /**
+   * Verschiebt Positionen (mit ihren Ids) aus ihren bisherigen Laufzetteln ans Ende von
+   * `zielId`, in der Reihenfolge, in der sie bisher standen. Eine Änderung, ein Rückgängig.
+   * Gibt die Zahl der verschobenen Positionen zurück; 0 bei unbekanntem Ziel, wenn nichts zu
+   * verschieben ist oder das Ziel dadurch mehr als 50 Positionen hätte.
+   */
+  positionenAufLaufzettel(zielId: string, positionIds: readonly string[]): number {
+    const ziel = this.laufzettelFinden(zielId);
+    if (!ziel) return 0;
+    const auswahl = new Set(positionIds);
+    const bewegt: VbPosition[] = [];
+    for (const abschnitt of this.inhalt()?.abschnitte ?? []) {
+      for (const laufzettel of abschnitt.laufzettel) {
+        if (laufzettel.id === zielId) continue;
+        bewegt.push(...laufzettel.positionen.filter((p) => auswahl.has(p.id)));
+      }
+    }
+    if (bewegt.length === 0) return 0;
+    if (ziel.laufzettel.positionen.length + bewegt.length > VB_GRENZEN.positionen) {
+      this.grenze(`Ein Laufzettel kann höchstens ${VB_GRENZEN.positionen} Positionen haben.`);
+      return 0;
+    }
+    const ids = new Set(bewegt.map((p) => p.id));
+    this.aendereInhalt((i) => ({
+      ...i,
+      abschnitte: i.abschnitte.map((a) => ({
+        ...a,
+        laufzettel: a.laufzettel.map((l) =>
+          l.id === zielId
+            ? { ...l, positionen: [...l.positionen, ...bewegt] }
+            : l.positionen.some((p) => ids.has(p.id))
+              ? { ...l, positionen: l.positionen.filter((p) => !ids.has(p.id)) }
+              : l,
+        ),
+      })),
+    }));
+    return bewegt.length;
+  }
+
   positionLoeschen(positionId: string): void {
     this.aendereInhalt((i) => ({
       ...i,

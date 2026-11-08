@@ -52,6 +52,7 @@ import {
   LaufzettelBearbeitung,
   LaufzettelFelder,
   PositionFelder,
+  istPositionZiehdaten,
 } from '../../components/laufzettel-bearbeitung/laufzettel-bearbeitung';
 import { LaufzettelKarte } from '../../components/laufzettel-karte/laufzettel-karte';
 import {
@@ -562,6 +563,27 @@ export class VbEditor {
       ereignis.item.data,
       ereignis.container.data,
       ereignis.currentIndex,
+    );
+  }
+
+  /** Abschnitte und Laufzettel tragen ihre Id als Text; Positionen gehören nicht in diese Listen. */
+  protected readonly nurKennungen = (element: CdkDrag): boolean => typeof element.data === 'string';
+
+  /** Die Karten nehmen nur Positionen an. */
+  protected readonly nurPositionen = (element: CdkDrag): boolean =>
+    istPositionZiehdaten(element.data);
+
+  /** Position(en) aus der Bearbeitung auf eine Karte gezogen: an den Zielliste anhängen. */
+  protected positionenAbgelegt(ereignis: CdkDragDrop<string, unknown, unknown>): void {
+    const daten: unknown = ereignis.item.data;
+    if (!istPositionZiehdaten(daten)) return;
+    const zielId = ereignis.container.data;
+    const anzahl = this.store.positionenAufLaufzettel(zielId, daten.positionIds);
+    if (anzahl === 0) return;
+    const nummer = this.nummern().get(zielId);
+    this.meldungen.info(
+      `${anzahl === 1 ? '1 Position' : `${anzahl} Positionen`} auf Laufzettel ${nummer ?? ''} verschoben.`,
+      { aktion: 'Rückgängig', beiAktion: () => this.store.rueckgaengig() },
     );
   }
 
