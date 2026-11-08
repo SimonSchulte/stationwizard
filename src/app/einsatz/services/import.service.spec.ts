@@ -34,7 +34,13 @@ describe('ImportService.mapHiorgPerson', () => {
       zusatz: ['Bootsführer'],
     });
     expect(kraft.telefonnummer).toBe('+49000000000');
+    expect(kraft.kuerzel).toBeUndefined();
     // Die HiOrg-Personen-ID ist keine EFS-Einsatzkraft-ID.
     expect(kraft.hiorg_org_id).toBeUndefined();
+  });
+
+  it('übernimmt das Benutzerkürzel, wenn HiOrg eines liefert', () => {
+    const kraft = TestBed.inject(ImportService).mapHiorgPerson(person({ kuerzel: 'BEE' }));
+    expect(kraft.kuerzel).toBe('BEE');
   });
 });

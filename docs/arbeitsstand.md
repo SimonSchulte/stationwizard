@@ -3526,3 +3526,19 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Die Einheitstests mocken den Browserdruck; **nicht** geprüft ist der echte Druckdialog in
   Chrome, Firefox, Safari und am Handy (Rahmen-Druck von PDF ist dort unterschiedlich
   zuverlässig).
+
+## Benutzerkürzel der Einsatzkräfte (Vorbereitung für die Avatare im PEP-Editor)
+
+- Das HiOrg-Personal liefert `attributes.kuerzel` jetzt als `kuerzel` mit durch (`leseKuerzel()`
+  in `hiorg-personal-felder.ts`: höchstens 20 Zeichen, ohne Steuerzeichen; Unbrauchbares gilt als
+  nicht erfasst, ohne die Antwort zu verwerfen). `Einsatzkraft.kuerzel` und
+  `PepEinsatzkraft.kuerzel` sind optional, damit gespeicherte PEPs und Dateien gültig bleiben;
+  der Worker prüft es mit `PEP_KUERZEL_MAX = 20`. Die Übernahme aus HiOrg
+  (`ImportService.mapHiorgPerson()`) setzt es.
+- Der Feldname `kuerzel` stammt vom Betreiber und ist **nicht** gegen die offizielle
+  Feldbeschreibung oder eine echte API-Antwort belegt; Länge und Schreibweise der echten Werte
+  sind unbekannt.
+- **Noch offen:** Die Oberfläche zeigt das Kürzel noch nirgends. Vorgesehen ist der Avatar im
+  Entwurf B (Kürzel, bei fehlendem Kürzel die Namensinitialen). Bereits übernommene
+  Einsatzkräfte erhalten ihr Kürzel erst bei erneuter Übernahme aus HiOrg.
+- Geprüft: Worker-Typprüfung, `npm test` (Angular und Worker, alle grün), Formatprüfung.

@@ -38,6 +38,7 @@ function einsatzkraftZuPep(kraft: Einsatzkraft): PepEinsatzkraft {
     notiz: leerZuNull(kraft.meta?.notes),
     hiorgOrgId: leerZuNull(kraft.hiorg_org_id),
     telefonnummer: leerZuNull(kraft.telefonnummer),
+    ...(kraft.kuerzel ? { kuerzel: kraft.kuerzel } : {}),
   };
 }
 
@@ -50,6 +51,7 @@ function einsatzkraftZuPlanung(kraft: PepEinsatzkraft): Einsatzkraft {
   if (kraft.notiz !== null) ergebnis.meta = { notes: kraft.notiz };
   if (kraft.hiorgOrgId !== null) ergebnis.hiorg_org_id = kraft.hiorgOrgId;
   if (kraft.telefonnummer !== null) ergebnis.telefonnummer = kraft.telefonnummer;
+  if (kraft.kuerzel) ergebnis.kuerzel = kraft.kuerzel;
   return ergebnis;
 }
 

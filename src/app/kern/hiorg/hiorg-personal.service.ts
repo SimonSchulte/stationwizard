@@ -26,6 +26,8 @@ export interface HiorgPerson {
   mitgliedSeit?: string;
   /** HiOrg `anrede`, nur zur Wahl Damen-/Herrenuhr beim Export. */
   anrede?: string;
+  /** HiOrg `kuerzel` (Benutzerkürzel), falls erfasst. */
+  kuerzel?: string;
 }
 
 /**
@@ -139,6 +141,7 @@ export function istHiorgPerson(wert: unknown): wert is HiorgPerson {
     (wert['telefon'] === undefined || istText(wert['telefon'])) &&
     (wert['mitgliedSeit'] === undefined || istText(wert['mitgliedSeit'])) &&
     (wert['anrede'] === undefined || istText(wert['anrede'])) &&
+    (wert['kuerzel'] === undefined || istText(wert['kuerzel'])) &&
     (fahrerlaubnis === undefined || fahrerlaubnis === null || istHiorgFahrerlaubnis(fahrerlaubnis))
   );
 }

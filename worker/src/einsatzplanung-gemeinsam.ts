@@ -100,6 +100,7 @@ export const MAX_PEP_EINSATZKRAEFTE = 500;
 export const PEP_BESCHREIBUNG_MAX = 2000;
 export const PEP_ID_MAX = 64;
 export const PEP_TELEFON_MAX = 50;
+export const PEP_KUERZEL_MAX = 20;
 export const PEP_NOTIZ_MAX = 500;
 export const PEP_ZUSATZ_MAX = 200;
 export const PEP_ZUSATZ_JE_KRAFT_MAX = 30;

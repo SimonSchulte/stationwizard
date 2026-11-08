@@ -69,6 +69,7 @@ export class ImportService {
       name: `${person.nachname} ${person.vorname}`.trim(),
       tags: this.tagsAus(ausbildungen),
       ...(person.telefon ? { telefonnummer: person.telefon } : {}),
+      ...(person.kuerzel ? { kuerzel: person.kuerzel } : {}),
     };
   }
 

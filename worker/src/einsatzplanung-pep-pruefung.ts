@@ -6,6 +6,7 @@ import {
   PEP_BESCHREIBUNG_MAX,
   PEP_ID_MAX,
   PEP_NOTIZ_MAX,
+  PEP_KUERZEL_MAX,
   PEP_TELEFON_MAX,
   PEP_ZUSATZ_MAX,
   PEP_ZUSATZ_JE_KRAFT_MAX,
@@ -69,6 +70,8 @@ export interface PepEinsatzkraft {
   notiz: string | null;
   hiorgOrgId: string | null;
   telefonnummer: string | null;
+  /** Optional, damit gespeicherte Altbestände gültig bleiben. */
+  kuerzel?: string | null;
 }
 export interface PepInhalt {
   beschreibung: string;
@@ -250,6 +253,7 @@ function pruefeEinsatzkraft(wert: unknown, ids: Set<string>): PepEinsatzkraft | 
       'notiz',
       'hiorgOrgId',
       'telefonnummer',
+      'kuerzel',
     ]) ||
     !istKennung(wert['id']) ||
     ids.has(wert['id']) ||
@@ -260,7 +264,8 @@ function pruefeEinsatzkraft(wert: unknown, ids: Set<string>): PepEinsatzkraft | 
     !wert['zusatz'].every((eintrag) => istText0bis(eintrag, 100)) ||
     !istTextOderNull(wert['notiz'], PEP_NOTIZ_MAX) ||
     !istTextOderNull(wert['hiorgOrgId'], PEP_ID_MAX) ||
-    !istTextOderNull(wert['telefonnummer'], PEP_TELEFON_MAX)
+    !istTextOderNull(wert['telefonnummer'], PEP_TELEFON_MAX) ||
+    !(wert['kuerzel'] === undefined || istTextOderNull(wert['kuerzel'], PEP_KUERZEL_MAX))
   ) {
     return null;
   }
@@ -277,6 +282,7 @@ function pruefeEinsatzkraft(wert: unknown, ids: Set<string>): PepEinsatzkraft | 
     notiz: wert['notiz'],
     hiorgOrgId: wert['hiorgOrgId'],
     telefonnummer: wert['telefonnummer'],
+    ...(typeof wert['kuerzel'] === 'string' ? { kuerzel: wert['kuerzel'] } : {}),
   };
 }
 

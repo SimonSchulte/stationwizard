@@ -67,6 +67,8 @@ export interface Einsatzkraft {
   /** HiOrg-Server org-scoped ID (Altbestand aus dem früheren EFS-Import) */
   hiorg_org_id?: string;
   telefonnummer?: string;
+  /** Benutzerkürzel aus HiOrg (`kuerzel`); ohne Angabe zeigt die Oberfläche Initialen. */
+  kuerzel?: string;
 }
 
 export interface Planung {
