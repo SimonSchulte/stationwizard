@@ -654,9 +654,111 @@ function anweisungsAbschnitt(
   };
 }
 
+/** Schriftgröße des Abschnittstitels auf dem Kennzeichnungsschild; lange Titel werden kleiner. */
+export function schildTitelSchrift(titel: string): number {
+  const laenge = titel.trim().length;
+  if (laenge <= 14) return 96;
+  if (laenge <= 28) return 68;
+  if (laenge <= 60) return 44;
+  if (laenge <= 120) return 32;
+  return 24;
+}
+
+const SCHILD_RAND = 48;
+const SCHILD_BAND = 44;
+
+/**
+ * Kennzeichnungsschild eines Abschnitts: eine A4-Querseite, Farbbänder oben und unten in der
+ * Abschnittsfarbe, der Titel groß in der Mitte, darunter die Fachgruppe; Veranstaltung und
+ * Zeitraum stehen unten. Die Seite besteht ausschließlich aus Fließinhalt mit festen Abständen,
+ * damit pdfmake sie nie auf eine zweite Seite umbricht.
+ */
+function kennzeichnungsschild(
+  kopf: VbDruckKopf,
+  abschnitt: VbInhalt['abschnitte'][number],
+  nummer: number,
+  gesamt: number,
+  erste: boolean,
+): Content {
+  const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
+  const titel = abschnitt.titel.trim();
+  const schrift = schildTitelSchrift(titel);
+  const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
+  const ort = kopf.ort?.trim() ?? '';
+  const breite = MASS.seiteBreite - 2 * SCHILD_RAND;
+  const veranstaltung = [kopf.titel, zeitraum, ort].filter((t) => t !== '').join(' · ');
+  return {
+    ...(erste ? {} : { pageBreak: 'before' as const }),
+    stack: [
+      {
+        canvas: [
+          { type: 'rect', x: 0, y: 0, w: MASS.seiteBreite, h: SCHILD_BAND, color: farbe },
+          {
+            type: 'rect',
+            x: 0,
+            y: MASS.seiteHoehe - SCHILD_BAND,
+            w: MASS.seiteBreite,
+            h: SCHILD_BAND,
+            color: farbe,
+          },
+        ],
+        absolutePosition: { x: 0, y: 0 },
+      },
+      {
+        text: `ABSCHNITT ${nummer} VON ${gesamt}`,
+        fontSize: 12,
+        bold: true,
+        characterSpacing: 2,
+        alignment: 'center',
+        color: PDF_FARBEN.sekundaer,
+        margin: [SCHILD_RAND, SCHILD_BAND + 56, SCHILD_RAND, 0],
+      },
+      {
+        text: titel,
+        fontSize: schrift,
+        bold: true,
+        alignment: 'center',
+        lineHeight: 1.05,
+        color: PDF_FARBEN.dunkelblau,
+        margin: [SCHILD_RAND, 40, SCHILD_RAND, 0],
+      },
+      ...(abschnitt.fachgruppe
+        ? [
+            {
+              text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
+              fontSize: 32,
+              bold: true,
+              alignment: 'center' as const,
+              color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
+              margin: [SCHILD_RAND, 28, SCHILD_RAND, 0] as [number, number, number, number],
+            },
+          ]
+        : []),
+      {
+        table: {
+          widths: [breite],
+          body: [
+            [
+              {
+                text: veranstaltung,
+                fontSize: 13,
+                alignment: 'center',
+                color: PDF_FARBEN.sekundaer,
+              },
+            ],
+          ],
+        },
+        layout: keinRand(),
+        absolutePosition: { x: SCHILD_RAND, y: MASS.seiteHoehe - SCHILD_BAND - 38 },
+      },
+    ],
+  };
+}
+
 /**
  * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
- * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6). Reine Funktion; Farben nur aus
+ * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt je Abschnitt ein
+ * Kennzeichnungsschild (eine A4-Querseite). Reine Funktion; Farben nur aus
  * `PDF_FARBEN`. Die Streifen müssen mit derselben Zahl gebaut sein (`baueLaufzettelStreifen()`).
  */
 export function baueVbPdfDefinition(
@@ -692,6 +794,17 @@ export function baueVbPdfDefinition(
       pageOrientation: 'landscape',
       pageMargins: [0, 0, 0, 0],
       section: laufzettelSeiten,
+    });
+  }
+
+  if (inhalt.abschnitte.length > 0) {
+    abschnitte.push({
+      pageSize: 'A4',
+      pageOrientation: 'landscape',
+      pageMargins: [0, 0, 0, 0],
+      section: inhalt.abschnitte.map((a, i) =>
+        kennzeichnungsschild(kopf, a, i + 1, inhalt.abschnitte.length, i === 0),
+      ),
     });
   }
 

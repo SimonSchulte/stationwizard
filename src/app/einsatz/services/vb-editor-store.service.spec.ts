@@ -156,6 +156,17 @@ describe('VbEditorStoreService', () => {
       expect(store.inhalt()!.abschnitte).toHaveLength(2);
     });
 
+    it('verschiebt die Laufzettel eines gelöschten Abschnitts nach „Ohne Abschnitt“', () => {
+      const [erster, zweiter] = store.inhalt()!.abschnitte;
+      const ids = [...erster.laufzettel, ...zweiter.laufzettel].map((l) => l.id);
+      store.abschnittLoeschen(erster.id);
+      store.abschnittLoeschen(zweiter.id);
+      const abschnitte = store.inhalt()!.abschnitte;
+      const sammel = abschnitte.filter((a) => a.titel === 'Ohne Abschnitt');
+      expect(sammel).toHaveLength(1);
+      expect(sammel[0].laufzettel.map((l) => l.id)).toEqual(ids);
+    });
+
     it('überträgt die Fachgruppe des Abschnitts auf alle seine Laufzettel', () => {
       const abschnitt = store.inhalt()!.abschnitte[0];
       store.abschnittAendern(abschnitt.id, { fachgruppe: 'verpflegung' });

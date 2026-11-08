@@ -63,7 +63,11 @@ import { VB_GRENZEN, VbAbschnitt, VbLaufzettel } from '../../models/vb.model';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
 import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { STREIFEN_WAHL, laufzettelNummern } from '../../services/laufzettel-platz';
-import { EditorModus, VbEditorStoreService } from '../../services/vb-editor-store.service';
+import {
+  EditorModus,
+  OHNE_ABSCHNITT_TITEL,
+  VbEditorStoreService,
+} from '../../services/vb-editor-store.service';
 import { VbDruckDienst } from '../../services/vb-druck';
 import { laufzettelMarken } from '../../services/vb-marken';
 
@@ -488,7 +492,9 @@ export class VbEditor {
     if (
       anzahl > 0 &&
       !(await this.dialogDienst.bestaetigen(
-        `Der Abschnitt „${abschnitt.titel}“ wird mit seinen ${anzahl} Laufzetteln gelöscht. Über „Rückgängig“ im Menü lässt sich das zurücknehmen.`,
+        abschnitt.titel === OHNE_ABSCHNITT_TITEL
+          ? `Der Abschnitt „${abschnitt.titel}“ wird mit seinen ${anzahl} Laufzetteln gelöscht. Über „Rückgängig“ im Menü lässt sich das zurücknehmen.`
+          : `Der Abschnitt „${abschnitt.titel}“ wird gelöscht. Seine ${anzahl} Laufzettel wandern in den Abschnitt „${OHNE_ABSCHNITT_TITEL}“. Über „Rückgängig“ im Menü lässt sich das zurücknehmen.`,
         'Abschnitt löschen',
         'Löschen',
       ))
