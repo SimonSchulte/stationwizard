@@ -20,7 +20,8 @@ export function vbDateiname(titel: string, datum: string): string {
 
 /**
  * Druck der Vorbereitung: optional die Seite „Allgemeine Anweisungen“, danach 3 bis 6
- * Laufzettelstreifen je A4-Querseite (siehe `docs/konzept-einsatzplanung-vb.md`, Abschnitt 6).
+ * Laufzettelstreifen je A4-Querseite (siehe `docs/konzept-einsatzplanung-vb.md`, Abschnitt 6),
+ * zuletzt ein Kennzeichnungsschild je Abschnitt (eine A4-Querseite).
  * `drucken()` öffnet direkt den Druckdialog des Browsers, `herunterladen()` speichert das PDF.
  * Fehler werden geworfen; der Aufrufer meldet sie.
  */
@@ -46,8 +47,10 @@ export class VbDruckDienst {
     inhalt: VbInhalt,
   ): Promise<{ daten: Uint8Array<ArrayBuffer>; dateiname: string }> {
     const laufzettel = inhalt.abschnitte.reduce((summe, a) => summe + a.laufzettel.length, 0);
-    if (laufzettel === 0 && !inhalt.anweisungen.trim()) {
-      throw new Error('Die Vorbereitung enthält weder Anweisungen noch Laufzettel.');
+    if (laufzettel === 0 && inhalt.abschnitte.length === 0 && !inhalt.anweisungen.trim()) {
+      throw new Error(
+        'Die Vorbereitung enthält weder Anweisungen noch Abschnitte noch Laufzettel.',
+      );
     }
     const streifenJeSeite = this.layout.streifenJeSeite();
     const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite);

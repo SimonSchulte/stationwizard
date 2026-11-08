@@ -259,6 +259,12 @@
                         drag_indicator
                       </mat-icon>
                     }
+                    <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
+                    <h3 class="abschnitt-titel">{{ abschnitt.titel }}</h3>
+                    <span class="abschnitt-anzahl">{{ abschnitt.laufzettel.length }}</span>
+                    @if (abschnitt.fachgruppe; as gruppe) {
+                      <app-fachgruppe-chip [fachgruppe]="gruppe" />
+                    }
                     <button
                       matIconButton
                       type="button"
@@ -266,13 +272,8 @@
                       matTooltip="Abschnitt bearbeiten"
                       (click)="abschnittBearbeiten(abschnitt)"
                     >
-                      <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
+                      <mat-icon>edit</mat-icon>
                     </button>
-                    <h3 class="abschnitt-titel">{{ abschnitt.titel }}</h3>
-                    <span class="abschnitt-anzahl">{{ abschnitt.laufzettel.length }}</span>
-                    @if (abschnitt.fachgruppe; as gruppe) {
-                      <app-fachgruppe-chip [fachgruppe]="gruppe" />
-                    }
                     <button
                       matIconButton
                       type="button"

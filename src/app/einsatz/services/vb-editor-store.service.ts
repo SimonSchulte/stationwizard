@@ -87,6 +87,9 @@ function gleich(a: unknown, b: unknown): boolean {
  * Meldungen: wie die übrigen Stores des Projekts führt er Fehler als Signale
  * (`ladeFehler`, `speicherFehler`, `hinweis`); Seiten zeigen sie über `<app-meldung>`.
  */
+/** Titel des Sammelabschnitts für Laufzettel eines gelöschten Abschnitts. */
+export const OHNE_ABSCHNITT_TITEL = 'Ohne Abschnitt';
+
 @Injectable({ providedIn: 'root' })
 export class VbEditorStoreService {
   private readonly layout = inject(LaufzettelLayoutWahl);
@@ -619,8 +622,35 @@ export class VbEditorStoreService {
     });
   }
 
+  /**
+   * Löscht einen Abschnitt. Seine Laufzettel gehen nicht verloren, sondern wandern an das Ende
+   * des Abschnitts „Ohne Abschnitt“ (wird bei Bedarf angelegt). Wird dieser Sammelabschnitt
+   * selbst gelöscht, entfallen seine Laufzettel.
+   */
   abschnittLoeschen(id: string): void {
-    this.aendereInhalt((i) => ({ ...i, abschnitte: i.abschnitte.filter((a) => a.id !== id) }));
+    this.aendereInhalt((i) => {
+      const abschnitt = i.abschnitte.find((a) => a.id === id);
+      if (!abschnitt) return i;
+      const uebrige = i.abschnitte.filter((a) => a.id !== id);
+      if (abschnitt.laufzettel.length === 0 || abschnitt.titel === OHNE_ABSCHNITT_TITEL) {
+        return { ...i, abschnitte: uebrige };
+      }
+      const sammel = uebrige.find((a) => a.titel === OHNE_ABSCHNITT_TITEL);
+      if (sammel) {
+        return {
+          ...i,
+          abschnitte: uebrige.map((a) =>
+            a === sammel ? { ...a, laufzettel: [...a.laufzettel, ...abschnitt.laufzettel] } : a,
+          ),
+        };
+      }
+      const neu: VbAbschnitt = {
+        ...neuerAbschnitt(naechsteAbschnittFarbe({ ...i, abschnitte: uebrige })),
+        titel: OHNE_ABSCHNITT_TITEL,
+        laufzettel: abschnitt.laufzettel,
+      };
+      return { ...i, abschnitte: [...uebrige, neu] };
+    });
   }
 
   /** Setzt die Fachgruppe des Abschnitts als Fachgruppe aller seiner Laufzettel. */

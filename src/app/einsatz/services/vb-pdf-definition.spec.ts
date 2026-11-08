@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
-import { baueVbPdfDefinition, formatiereZeitraum, VbDruckKopf } from './vb-pdf-definition';
+import {
+  baueVbPdfDefinition,
+  formatiereZeitraum,
+  schildTitelSchrift,
+  VbDruckKopf,
+} from './vb-pdf-definition';
 
 const KOPF: VbDruckKopf = {
   titel: 'Weihnachtsmarkt Ummeln',
@@ -55,6 +60,29 @@ function inhaltMitLaufzetteln(anzahl: number) {
   });
 }
 
+describe('Kennzeichnungsschild', () => {
+  it('legt je Abschnitt eine eigene A4-Querseite an', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({ titel: 'Sanitätszelt', laufzettel: [] }),
+        testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
+      ],
+    });
+    const def = definition(inhalt);
+    const schilder = abschnitte(def).find((a) => alleTexte(a).includes('Sanitätszelt'));
+    expect(schilder?.pageOrientation).toBe('landscape');
+    const seiten = schilder?.section as { pageBreak?: string }[];
+    expect(seiten).toHaveLength(2);
+    expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
+    expect(alleTexte(schilder)).toContain('ABSCHNITT 2 VON 2');
+  });
+
+  it('verkleinert die Schrift bei langen Titeln', () => {
+    expect(schildTitelSchrift('Kurz')).toBeGreaterThan(schildTitelSchrift('x'.repeat(40)));
+    expect(schildTitelSchrift('x'.repeat(40))).toBeGreaterThan(schildTitelSchrift('x'.repeat(200)));
+  });
+});
+
 describe('baueVbPdfDefinition', () => {
   it('ist ein A4-Querformat-Dokument', () => {
     const def = definition();
@@ -65,7 +93,7 @@ describe('baueVbPdfDefinition', () => {
 
   it('setzt die Seite „Allgemeine Anweisungen“ nur bei vorhandenem Text', () => {
     const mit = definition(testInhalt({ anweisungen: 'Treffpunkt 8 Uhr' }));
-    expect(abschnitte(mit)).toHaveLength(2);
+    expect(abschnitte(mit)).toHaveLength(3); // Anweisungen, Laufzettel, Schilder
     const texte = alleTexte(abschnitte(mit)[0]);
     expect(texte).toContain('Vorbereitung · Allgemeine Anweisungen');
     expect(texte).toContain('Treffpunkt 8 Uhr');
@@ -75,7 +103,7 @@ describe('baueVbPdfDefinition', () => {
     ).toBe(true);
 
     const ohne = definition(testInhalt({ anweisungen: '  \n ' }));
-    expect(abschnitte(ohne)).toHaveLength(1);
+    expect(abschnitte(ohne)).toHaveLength(2); // Laufzettel, Schilder
     expect(alleTexte(abschnitte(ohne)).join('|')).not.toContain('Allgemeine Anweisungen');
   });
 
