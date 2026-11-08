@@ -449,13 +449,13 @@ export class FahrzeugDetail {
     dateiHerunterladen(svg, `${entwurf.bezeichnung || 'fahrzeug'}-qr-${ziel}.svg`, 'image/svg+xml');
   }
 
-  async druckbogenHerunterladen(): Promise<void> {
+  async druckbogenDrucken(): Promise<void> {
     const entwurf = this.store.entwurf();
     if (!entwurf) return;
     this.druckbogenLaedt.set(true);
     this.druckbogenFehler.set('');
     try {
-      await this.druckbogenService.erzeugeUndSpeichere(
+      await this.druckbogenService.erzeugeUndDrucke(
         entwurf,
         this.erfassungToken() ?? (await this.linkStorage.ladeLink(entwurf.id)).token,
       );

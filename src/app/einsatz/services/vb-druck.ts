@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { heuteIso } from '../../kern/kalender/datum';
 import { ladePdfBibliothek } from '../../kern/pdf/pdf-bibliothek';
-import { dateiHerunterladen } from '../../kern/storage/datei-storage';
+import { PdfAusgabe } from '../../kern/pdf/pdf-ausgabe';
 import { MeldungsDienst } from '../../kern/zustand/meldungs-dienst';
 import { VbInhalt } from '../models/vb.model';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
@@ -18,9 +18,6 @@ export function vbDateiname(titel: string, datum: string): string {
   return `VB ${bereinigt || 'Vorbereitung'} ${datum}.pdf`;
 }
 
-/** Wie lange der unsichtbare Druckrahmen höchstens bleibt, falls `afterprint` ausbleibt. */
-const RAHMEN_LEBENSDAUER_MS = 5 * 60_000;
-
 /**
  * Druck der Vorbereitung: optional die Seite „Allgemeine Anweisungen“, danach 3 bis 6
  * Laufzettelstreifen je A4-Querseite (siehe `docs/konzept-einsatzplanung-vb.md`, Abschnitt 6).
@@ -31,23 +28,17 @@ const RAHMEN_LEBENSDAUER_MS = 5 * 60_000;
 export class VbDruckDienst {
   private readonly meldungen = inject(MeldungsDienst);
   private readonly layout = inject(LaufzettelLayoutWahl);
+  private readonly ausgabe = inject(PdfAusgabe);
 
-  /** Öffnet den Druckdialog des Browsers; ohne direkten Druck (z. B. am Handy) wird das PDF geladen. */
+  /** Öffnet direkt den Druckdialog des Browsers (Rückfall: Download, siehe `PdfAusgabe`). */
   async drucken(kopf: VbDruckKopf, inhalt: VbInhalt): Promise<void> {
     const { daten, dateiname } = await this.erzeugen(kopf, inhalt);
-    try {
-      await this.direktdrucken(daten);
-    } catch {
-      this.speichern(daten, dateiname);
-      this.meldungen.info(
-        'Der Browser konnte nicht direkt drucken. Das PDF wurde heruntergeladen.',
-      );
-    }
+    await this.ausgabe.drucken(daten, dateiname);
   }
 
   async herunterladen(kopf: VbDruckKopf, inhalt: VbInhalt): Promise<void> {
     const { daten, dateiname } = await this.erzeugen(kopf, inhalt);
-    this.speichern(daten, dateiname);
+    this.ausgabe.herunterladen(daten, dateiname);
   }
 
   private async erzeugen(
@@ -78,55 +69,5 @@ export class VbDruckDienst {
   /** Naht für Tests: Bibliothek und Schriften werden erst beim Drucken geladen. */
   ladeBibliothek(): ReturnType<typeof ladePdfBibliothek> {
     return ladePdfBibliothek();
-  }
-
-  /** Naht für Tests: der Browser-Download. */
-  speichern(daten: Uint8Array<ArrayBuffer>, dateiname: string): void {
-    dateiHerunterladen(daten, dateiname, 'application/pdf');
-  }
-
-  /**
-   * Naht für Tests: lädt das PDF in einen unsichtbaren Rahmen derselben Seite und öffnet dessen
-   * Druckdialog. Wirft, wenn der Rahmen nicht lädt oder der Browser `print()` verweigert.
-   */
-  direktdrucken(daten: Uint8Array<ArrayBuffer>): Promise<void> {
-    const url = URL.createObjectURL(new Blob([daten], { type: 'application/pdf' }));
-    const rahmen = document.createElement('iframe');
-    rahmen.setAttribute('aria-hidden', 'true');
-    rahmen.tabIndex = -1;
-    rahmen.style.position = 'fixed';
-    rahmen.style.visibility = 'hidden';
-    rahmen.style.right = '0';
-    rahmen.style.bottom = '0';
-    const aufraeumen = () => {
-      rahmen.remove();
-      URL.revokeObjectURL(url);
-    };
-    return new Promise<void>((resolve, reject) => {
-      rahmen.onload = () => {
-        const fenster = rahmen.contentWindow;
-        if (!fenster) {
-          aufraeumen();
-          reject(new Error('Kein Druckfenster'));
-          return;
-        }
-        try {
-          fenster.addEventListener('afterprint', aufraeumen, { once: true });
-          fenster.focus();
-          fenster.print();
-          setTimeout(aufraeumen, RAHMEN_LEBENSDAUER_MS);
-          resolve();
-        } catch (fehler) {
-          aufraeumen();
-          reject(fehler instanceof Error ? fehler : new Error('Druck fehlgeschlagen'));
-        }
-      };
-      rahmen.onerror = () => {
-        aufraeumen();
-        reject(new Error('Das PDF konnte nicht geladen werden.'));
-      };
-      rahmen.src = url;
-      document.body.appendChild(rahmen);
-    });
   }
 }

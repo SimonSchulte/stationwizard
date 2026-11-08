@@ -35,7 +35,7 @@ function erzeugeSeite(
     ladeLinks: vi.fn(async () => optionen.links ?? [testlink()]),
   };
   const druckbogenService = {
-    erzeugeUndSpeichereUebersicht: vi.fn(optionen.druckbogen ?? (async () => {})),
+    erzeugeUndDruckeUebersicht: vi.fn(optionen.druckbogen ?? (async () => {})),
   };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
@@ -88,17 +88,14 @@ describe('Verwaltungs-Startseite', () => {
     await fixture.whenStable();
 
     expect(linkStorage.ladeLinks).toHaveBeenCalledOnce();
-    expect(druckbogenService.erzeugeUndSpeichereUebersicht).toHaveBeenCalledWith(
-      links,
-      'oeffentlich',
-    );
+    expect(druckbogenService.erzeugeUndDruckeUebersicht).toHaveBeenCalledWith(links, 'oeffentlich');
     expect(fixture.componentInstance.qrUebersichtFehler()).toBe('');
   });
 
   it('erstellt über die zweite Kachel den internen Bogen', async () => {
     const { fixture, druckbogenService } = erzeugeSeite(true);
     await fixture.componentInstance.qrUebersichtErstellen('intern');
-    expect(druckbogenService.erzeugeUndSpeichereUebersicht).toHaveBeenCalledWith(
+    expect(druckbogenService.erzeugeUndDruckeUebersicht).toHaveBeenCalledWith(
       [testlink()],
       'intern',
     );
@@ -109,7 +106,7 @@ describe('Verwaltungs-Startseite', () => {
     // eine leere Liste statt einer Abweisung.
     const { fixture, druckbogenService } = erzeugeSeite(true, { links: [] });
     await fixture.componentInstance.qrUebersichtErstellen('oeffentlich');
-    expect(druckbogenService.erzeugeUndSpeichereUebersicht).not.toHaveBeenCalled();
+    expect(druckbogenService.erzeugeUndDruckeUebersicht).not.toHaveBeenCalled();
     expect(fixture.componentInstance.qrUebersichtFehler()).toBe(
       'Es sind keine Fahrzeuge vorhanden, für die du freigeben darfst.',
     );

@@ -3515,9 +3515,14 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Ausdruck auf Papier und Passung an die Klemmleiste der Wache; die Zeichenzahlen je Zeile sind
   nicht am gedruckten Blatt geeicht. Die Wahl wird nicht mit der VB gespeichert.
 
-- „Drucken“ im VB-Editor und in der Vorlagenübersicht öffnet jetzt direkt den Druckdialog des
-  Browsers (PDF in einem unsichtbaren Rahmen, `VbDruckDienst.direktdrucken()`); „Als PDF
-  herunterladen“ steht im Menü. Verweigert der Browser den Druck, wird das PDF geladen und das
-  gemeldet. Die Einheitstests mocken den Browserdruck; **nicht** geprüft ist der echte
-  Druckdialog in Chrome, Firefox, Safari und am Handy (Rahmen-Druck von PDF ist dort
-  unterschiedlich zuverlässig).
+- Alle PDF-Ausgaben laufen über den zentralen Dienst `kern/pdf/pdf-ausgabe.ts` (`PdfAusgabe`):
+  `drucken()` öffnet direkt den Druckdialog des Browsers (PDF in einem unsichtbaren Rahmen),
+  `herunterladen()` speichert die Datei; verweigert der Browser den Druck, wird heruntergeladen
+  und das gemeldet. Genutzt von VB-Druck (`VbDruckDienst`, Editor und Vorlagenübersicht, dort
+  „Als PDF herunterladen“ im Menü), Einsatzplan (`PdfExportService`, Symbole „Drucken“ und „PDF
+  herunterladen“) und den QR-Bögen der Fahrzeuge (`FahrzeugDruckbogenService`: Druckbogen im
+  Fahrzeug, Übersichtsbögen in der Verwaltung, beide drucken direkt). Nicht betroffen sind
+  Dateien zum Weiterbearbeiten (Ehrungsantrag-PDF, Word-Führerscheinliste, Excel, JSON, CSV).
+  Die Einheitstests mocken den Browserdruck; **nicht** geprüft ist der echte Druckdialog in
+  Chrome, Firefox, Safari und am Handy (Rahmen-Druck von PDF ist dort unterschiedlich
+  zuverlässig).

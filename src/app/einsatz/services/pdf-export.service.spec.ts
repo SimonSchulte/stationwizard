@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../kern/dialog/dialog-dienst';
+import { PdfAusgabe } from '../../kern/pdf/pdf-ausgabe';
 import { Planung } from '../models/planung.model';
 import { PdfExportService } from './pdf-export.service';
 
@@ -48,11 +49,16 @@ function testPlanung(): Planung {
 describe('PdfExportService', () => {
   let dienst: PdfExportService;
   const hinweis = vi.fn<DialogDienst['hinweis']>().mockResolvedValue();
+  const ausgeben = vi.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     hinweis.mockClear();
+    ausgeben.mockClear();
     TestBed.configureTestingModule({
-      providers: [{ provide: DialogDienst, useValue: { hinweis } }],
+      providers: [
+        { provide: DialogDienst, useValue: { hinweis } },
+        { provide: PdfAusgabe, useValue: { ausgeben } },
+      ],
     });
     dienst = TestBed.inject(PdfExportService);
   });
@@ -66,6 +72,17 @@ describe('PdfExportService', () => {
     expect(pdf).toContain('/FontFile2');
     expect(pdf).toContain('/Type /Page');
     expect(daten.byteLength).toBeGreaterThan(5_000);
+  });
+
+  it('gibt das PDF standardmäßig zum Drucken und auf Wunsch zum Herunterladen aus', async () => {
+    await dienst.exportieren(testPlanung());
+    expect(ausgeben).toHaveBeenLastCalledWith(
+      expect.any(Uint8Array),
+      expect.stringMatching(/\.pep\.pdf$/),
+      'drucken',
+    );
+    await dienst.exportieren(testPlanung(), 'herunterladen');
+    expect(ausgeben.mock.calls[1][2]).toBe('herunterladen');
   });
 
   it('meldet einen fehlgeschlagenen Export verständlich, ohne Planungsdaten zu protokollieren', async () => {

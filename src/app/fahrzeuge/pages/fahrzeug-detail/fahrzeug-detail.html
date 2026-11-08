@@ -380,11 +380,11 @@
               </button>
               <button
                 matButton="outlined"
-                (click)="druckbogenHerunterladen()"
+                (click)="druckbogenDrucken()"
                 [disabled]="druckbogenLaedt()"
               >
                 <mat-icon>print</mat-icon>
-                {{ druckbogenLaedt() ? 'Erzeugt …' : 'Druckbogen herunterladen' }}
+                {{ druckbogenLaedt() ? 'Erzeugt …' : 'Druckbogen drucken' }}
               </button>
             </div>
           </div>

@@ -45,7 +45,7 @@ export class VerwaltungStartseite {
         );
         return;
       }
-      await this.druckbogenService.erzeugeUndSpeichereUebersicht(links, art);
+      await this.druckbogenService.erzeugeUndDruckeUebersicht(links, art);
     } catch (fehler) {
       this.qrUebersichtFehler.set(
         fehler instanceof Error
