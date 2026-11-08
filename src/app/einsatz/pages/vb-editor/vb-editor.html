@@ -311,6 +311,7 @@
                             [laufzettel]="laufzettel"
                             [nummer]="nummern().get(laufzettel.id) ?? 0"
                             [farbe]="abschnitt.farbe"
+                            [abschnittTitel]="abschnitt.titel"
                             [ausgewaehlt]="aktiv()?.laufzettel?.id === laufzettel.id"
                             [marke]="marken().get(laufzettel.id) ?? null"
                             (gewaehlt)="waehlen(laufzettel.id)"

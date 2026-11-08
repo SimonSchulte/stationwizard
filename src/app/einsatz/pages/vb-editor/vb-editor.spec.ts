@@ -201,6 +201,28 @@ describe('VbEditor', () => {
     expect(meldungen.erfolg).toHaveBeenCalled();
   });
 
+  it('verschiebt einen Laufzettel in den Abschnitt, dessen Titel dem Wert „Auf / In“ entspricht', async () => {
+    await vorbereitungSeed({
+      anweisungen: '',
+      abschnitte: [
+        testAbschnitt({ titel: 'Betreuung', laufzettel: [testLaufzettel()] }),
+        testAbschnitt({ titel: 'Rollwagen', laufzettel: [] }),
+      ],
+    });
+    const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);
+    element.querySelector<HTMLElement>('app-laufzettel-karte')!.click();
+    harness.detectChanges();
+    const feld = [
+      ...element.querySelectorAll<HTMLInputElement>('app-laufzettel-bearbeitung input'),
+    ].find((i) => i.closest('mat-form-field')?.textContent?.includes('Auf / In'))!;
+    feld.value = ' rollwagen ';
+    feld.dispatchEvent(new Event('input'));
+    harness.detectChanges();
+    const abschnitte = TestBed.inject(VbEditorStoreService).inhalt()!.abschnitte;
+    expect(abschnitte[0].laufzettel).toHaveLength(0);
+    expect(abschnitte[1].laufzettel).toHaveLength(1);
+  });
+
   it('übernimmt eine Eingabe im Reiter „Allgemeine Anweisungen“ mit Zeichenzähler', async () => {
     await vorbereitungSeed();
     const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/vb`);

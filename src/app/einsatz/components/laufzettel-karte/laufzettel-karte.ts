@@ -5,6 +5,10 @@ import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { laufzettelPlatz } from '../../services/laufzettel-platz';
 import { FachgruppeChip } from '../fachgruppe-chip/fachgruppe-chip';
 
+function gleich(a: string, b: string): boolean {
+  return a.trim().toLocaleLowerCase('de') === b.trim().toLocaleLowerCase('de');
+}
+
 /** Abweichung der Karte von der Vorlage. */
 export type LaufzettelMarke = 'geaendert' | 'neu';
 
@@ -26,6 +30,8 @@ export class LaufzettelKarte {
   readonly nummer = input.required<number>();
   readonly farbe = input.required<AbschnittFarbe>();
   readonly ausgewaehlt = input(false);
+  /** Titel des Abschnitts; „Auf/In“ steht nur auf der Karte, wenn er davon abweicht. */
+  readonly abschnittTitel = input('');
   readonly marke = input<LaufzettelMarke | null>(null);
   readonly gewaehlt = output<void>();
 
@@ -43,7 +49,10 @@ export class LaufzettelKarte {
   });
 
   protected readonly ort = computed(() => {
-    const { lagerort, transportMit } = this.laufzettel();
+    const { lagerort } = this.laufzettel();
+    const transportMit = gleich(this.laufzettel().transportMit, this.abschnittTitel())
+      ? ''
+      : this.laufzettel().transportMit;
     if (lagerort && transportMit) return `Von ${lagerort} → Auf/In ${transportMit}`;
     if (lagerort) return `Von ${lagerort}`;
     if (transportMit) return `Auf/In ${transportMit}`;

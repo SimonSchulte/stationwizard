@@ -6,7 +6,7 @@ import { LaufzettelMarke, LaufzettelKarte } from './laufzettel-karte';
 
 function erzeuge(
   laufzettel: VbLaufzettel,
-  optionen: { ausgewaehlt?: boolean; marke?: LaufzettelMarke | null } = {},
+  optionen: { ausgewaehlt?: boolean; marke?: LaufzettelMarke | null; abschnittTitel?: string } = {},
 ) {
   const fixture = TestBed.createComponent(LaufzettelKarte);
   fixture.componentRef.setInput('laufzettel', laufzettel);
@@ -14,11 +14,20 @@ function erzeuge(
   fixture.componentRef.setInput('farbe', 'abschnitt-2');
   fixture.componentRef.setInput('ausgewaehlt', optionen.ausgewaehlt ?? false);
   fixture.componentRef.setInput('marke', optionen.marke ?? null);
+  fixture.componentRef.setInput('abschnittTitel', optionen.abschnittTitel ?? '');
   fixture.detectChanges();
   return fixture;
 }
 
 describe('LaufzettelKarte', () => {
+  it('nennt „Auf/In“ nur, wenn er vom Abschnittstitel abweicht', () => {
+    const laufzettel = testLaufzettel({ lagerort: 'Lager Nord', transportMit: 'Rollwagen' });
+    const gleich = erzeuge(laufzettel, { abschnittTitel: ' rollwagen ' }).nativeElement;
+    expect(gleich.querySelector('.ort')?.textContent).toBe('Von Lager Nord');
+    const anders = erzeuge(laufzettel, { abschnittTitel: 'Betreuung' }).nativeElement;
+    expect(anders.querySelector('.ort')?.textContent).toBe('Von Lager Nord → Auf/In Rollwagen');
+  });
+
   it('zeigt Nummer, Materialien, Ort, Fachgruppe und Belegung', () => {
     const laufzettel = testLaufzettel({
       lagerort: 'Lager Nord',

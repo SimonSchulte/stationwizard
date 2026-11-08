@@ -589,6 +589,20 @@ export class VbEditor {
 
   protected felderGeaendert(id: string, felder: LaufzettelFelder): void {
     this.store.laufzettelAendern(id, felder);
+    if (felder.transportMit !== undefined) this.abschnittNachAufIn(id, felder.transportMit);
+  }
+
+  /** „Auf / In“ bestimmt den Abschnitt: gibt es einen Abschnitt mit diesem Titel, wandert der Laufzettel dorthin. */
+  private abschnittNachAufIn(id: string, aufIn: string): void {
+    const gesucht = aufIn.trim().toLocaleLowerCase('de');
+    if (!gesucht) return;
+    const aktuell = this.store.laufzettelFinden(id)?.abschnitt.id;
+    const ziel = this.store
+      .inhalt()
+      ?.abschnitte.find((a) => a.titel.trim().toLocaleLowerCase('de') === gesucht);
+    if (ziel && ziel.id !== aktuell) {
+      this.store.laufzettelVerschieben(id, ziel.id, VB_GRENZEN.laufzettel);
+    }
   }
 
   protected abschnittGewaehlt(id: string, abschnittId: string): void {
