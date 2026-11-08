@@ -1,0 +1,24 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  min-width: calc(var(--space-xl) + var(--space-sm));
+  height: var(--space-xl);
+  padding-inline: var(--space-compact);
+  border-radius: var(--radius-pill);
+  background: var(--herkunft-seg-bg);
+  color: var(--herkunft-seg-text);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+:host(.klein) {
+  min-width: calc(var(--space-lg) + var(--space-sm));
+  height: var(--space-lg);
+  padding-inline: var(--space-xs);
+  font-size: 0.5625rem;
+}

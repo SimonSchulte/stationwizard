@@ -21,7 +21,7 @@ Prüfungen und offene Abnahmegrenzen.
   Komponente mit `input()`/`output()` unter `<modul>/components/` (fachlich) oder `kern/`
   (fachübergreifend), reine Berechnungen eine Funktion mit eigenem Test. Beispiele:
   `einsatz/components/` (`PositionZeile`, `StaerkeBlock`, `QualifikationsChips`,
-  `AnforderungsAuswahl`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
+  `AnforderungsAuswahl`, `PostenSchiene`, `Helferpool`, `BesetzungsBand`, `KuerzelAvatar`), `personal/components/` (`AuszeichnungsGruppe`, `StundenZelle`,
   `StundenImport`), `ausbildung/components/` (`MonatsNavigation`, `HiorgEbenenAuswahl`),
   `kern/` (`Seitenkopf`, `Datumsblock`, `MeldungsDienst`/`Meldung`, `Leerzustand`, `Ladeanzeige`, `Suchfeld`,
   `Verbindungsstatus`, `StatusChip`, LESS-Vorlagen `kopfleiste.less`, `marke.less`).
@@ -135,8 +135,11 @@ Prüfungen und offene Abnahmegrenzen.
 - Vorhandenes EFS-Mapping für `med_qual`, `fuehr_qual`, `bes_ausbild` und `fw_qual`
   übernehmen. Keine neu erfundene Qualifikationshierarchie und keine vermeintliche
   Vervollständigung ohne fachlichen Nachweis.
-- Der übernommene Editor hat Helferpool und Postenbereich. Ein separater Inspektor war im
-  Quellstand nicht vorhanden; ihn nicht als bereits übernommene Funktion dokumentieren.
+- Der PEP-Editor zeigt drei Bereiche (Entwurf „Posten im Fokus“): links die `PostenSchiene`, in
+  der Mitte den gewählten Posten mit seinen Positionen (Vorschläge passender verfügbarer
+  Einsatzkräfte je freier Position per Klick), rechts den `Helferpool`; darüber das
+  `BesetzungsBand`. Die Auswahl des Postens ist reiner Sitzungszustand. Ein separater Inspektor
+  war im Quellstand nicht vorhanden; ihn nicht als bereits übernommene Funktion dokumentieren.
 
 ## Worker und Zugangsschutz
 

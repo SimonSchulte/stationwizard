@@ -13,6 +13,8 @@ import {
   Taktisch,
 } from '../../models/planung.model';
 import { MatchService } from '../../services/match.service';
+import type { Vorschlag } from '../../services/vorschlaege';
+import { KuerzelAvatar } from '../kuerzel-avatar/kuerzel-avatar';
 import { AnforderungsAuswahl } from '../anforderungs-auswahl/anforderungs-auswahl';
 import { QualifikationsChips } from '../qualifikations-chips/qualifikations-chips';
 
@@ -37,6 +39,7 @@ const SYMBOL = {
   imports: [
     AnforderungsAuswahl,
     DragDropModule,
+    KuerzelAvatar,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
@@ -57,6 +60,8 @@ export class PositionZeile {
   /** Gerade gezogene Einsatzkraft; färbt die Ablagefläche nach ihrer Eignung. */
   readonly gezogen = input<Einsatzkraft | null>(null);
   readonly postenfuehrerSymbol = input.required<SafeUrl>();
+  /** Passende verfügbare Einsatzkräfte für eine freie Position, beste zuerst. */
+  readonly vorschlaege = input<readonly Vorschlag[]>([]);
 
   readonly kontextmenue = output<MouseEvent>();
   readonly postenfuehrerUmschalten = output<void>();
@@ -67,6 +72,8 @@ export class PositionZeile {
   readonly ziehenGestartet = output<CdkDragStart<DragData>>();
   readonly ziehenBeendet = output<void>();
   readonly zuteilungAufheben = output<void>();
+  /** Id der Einsatzkraft, die per Klick auf einen Vorschlag zugeteilt werden soll. */
+  readonly vorschlagGewaehlt = output<string>();
 
   protected readonly ablageDaten = computed<DropData>(() => ({
     postenId: this.postenId(),

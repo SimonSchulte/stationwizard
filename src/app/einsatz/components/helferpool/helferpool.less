@@ -1,0 +1,128 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-primary);
+}
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md);
+  font-weight: 500;
+
+  .spacer {
+    flex: 1;
+  }
+}
+
+.ansicht {
+  margin: 0 var(--space-md) var(--space-sm);
+  --mat-button-toggle-height: 36px;
+
+  mat-button-toggle {
+    flex: 1;
+  }
+}
+
+.suche {
+  display: block;
+  padding: 0 var(--space-md);
+}
+
+.filter {
+  padding: 0 var(--space-md) var(--space-sm);
+}
+
+.liste {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: 0;
+  padding: var(--space-xs) var(--space-md) var(--space-md);
+  overflow-y: auto;
+}
+
+.person {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-base) var(--space-sm) var(--space-xs);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+
+  &:not(.eingeteilt) {
+    cursor: grab;
+  }
+
+  &.eingeteilt {
+    padding-left: var(--space-sm);
+    background: var(--surface-tertiary);
+  }
+
+  &:hover .griff {
+    opacity: 1;
+  }
+}
+
+.griff {
+  flex: none;
+  width: var(--space-md);
+  height: var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: var(--space-md);
+  color: var(--text-disabled);
+  opacity: 0.5;
+}
+
+.koerper {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.hinweis {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+
+  mat-icon {
+    width: var(--space-base);
+    height: var(--space-base);
+    font-size: var(--space-base);
+  }
+
+  &.passt {
+    color: var(--status-ok);
+    font-weight: 500;
+  }
+}
+
+.cdk-drag-preview {
+  background: var(--surface-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-drag);
+  padding: var(--space-compact) var(--space-sm);
+  opacity: 0.92;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+  border: 1px dashed var(--border-medium);
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}

@@ -388,6 +388,92 @@ describe('PlanningEditor', () => {
     });
   });
 
+  describe('Posten im Fokus', () => {
+    beforeEach(() => konfigurieren());
+
+    /** Zwei Posten; der erste hat eine freie Position und eine verfügbare Einsatzkraft passt. */
+    function planungMitZweiPosten(): Planung {
+      const basis = erzeugeTestplanung();
+      const helfer = { id: 'ek-frei', name: 'Frei Franka', tags: { medizinisch: ['RS' as const] } };
+      return {
+        ...basis,
+        einsatzkraefte: [...basis.einsatzkraefte, helfer],
+        posten: [
+          {
+            ...basis.posten[0],
+            positions: [
+              ...basis.posten[0].positions,
+              {
+                id: 'pos-frei',
+                label: 'Sanitäter',
+                requirements: { taktisch: null, medizinisch: 'RS' as const },
+                assigned: null,
+              },
+            ],
+          },
+          { id: 'posten-zwei', label: 'Streife', fahrzeug: null, positions: [] },
+        ],
+      };
+    }
+
+    async function editorAnzeigen() {
+      store.oeffneGespeichert(planungMitZweiPosten());
+      const fixture = TestBed.createComponent(PlanningEditor);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('zeigt zunächst den ersten Posten und wechselt über die Schiene', async () => {
+      const fixture = await editorAnzeigen();
+      const wurzel: HTMLElement = fixture.nativeElement;
+      const planung = store.active()!;
+      expect(planung.posten.length).toBeGreaterThan(1);
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(planung.posten[0].id);
+      const knoepfe = wurzel.querySelectorAll<HTMLButtonElement>(
+        'app-posten-schiene button.posten',
+      );
+      expect(knoepfe).toHaveLength(planung.posten.length);
+
+      knoepfe[1].click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(planung.posten[1].id);
+      expect(wurzel.querySelectorAll('app-position-zeile')).toHaveLength(
+        planung.posten[1].positions.length,
+      );
+    });
+
+    it('fällt nach dem Löschen des gewählten Postens auf den ersten zurück', async () => {
+      const fixture = await editorAnzeigen();
+      const planung = store.active()!;
+      fixture.componentInstance.postenWaehlen(planung.posten[1].id);
+      store.deletePosten(planung.posten[1].id);
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(planung.posten[0].id);
+    });
+
+    it('wählt einen neu angelegten Posten sofort', async () => {
+      const fixture = await editorAnzeigen();
+      fixture.componentInstance.addPosten();
+      const neu = store.active()!.posten.at(-1)!;
+      expect(fixture.componentInstance.aktiverPosten()?.id).toBe(neu.id);
+    });
+
+    it('teilt einen Vorschlag per Klick zu', async () => {
+      const fixture = await editorAnzeigen();
+      const editor = fixture.componentInstance;
+      const planung = store.active()!;
+      const posten = planung.posten[0];
+      const frei = posten.positions.find((p) => !p.assigned);
+      const kandidat = editor.verfuegbar()[0];
+      expect(frei && kandidat).toBeTruthy();
+      editor.vorschlagUebernehmen(posten.id, frei!.id, kandidat.id);
+      const danach = store.active()!.posten[0].positions.find((p) => p.id === frei!.id);
+      expect(danach?.assigned?.id).toBe(kandidat.id);
+      expect(editor.verfuegbar().map((e) => e.id)).not.toContain(kandidat.id);
+      expect(editor.eingeteilt().map((e) => e.id)).toContain(kandidat.id);
+    });
+  });
+
   describe('Asynchrone Editor-Aktionen', () => {
     let editor: PlanningEditor;
     beforeEach(() => {

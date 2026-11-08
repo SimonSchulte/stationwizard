@@ -13,18 +13,24 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { erzeugeTaktischesZeichen } from 'taktische-zeichen-core';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { MatchService, MEDIZINISCH_LABEL, TAKTISCH_LABEL } from '../../services/match.service';
-import { planungIst, planungSoll, postenIst, postenSoll } from '../../services/staerke';
+import { MatchService } from '../../services/match.service';
+import { planungIst, planungSoll } from '../../services/staerke';
+import {
+  offeneAnforderungen,
+  poolHinweise,
+  vorschlaegeFuerPosition,
+  type Vorschlag,
+} from '../../services/vorschlaege';
 import type { DragData, DropData } from '../../models/drag-drop.model';
 import { PositionZeile } from '../../components/position-zeile/position-zeile';
 import { QualifikationsChips } from '../../components/qualifikations-chips/qualifikations-chips';
-import { StaerkeBlock } from '../../components/staerke-block/staerke-block';
+import { BesetzungsBand } from '../../components/besetzungs-band/besetzungs-band';
+import { Helferpool, type PoolAnsicht } from '../../components/helferpool/helferpool';
+import { PostenSchiene } from '../../components/posten-schiene/posten-schiene';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
@@ -53,25 +59,22 @@ import {
   Position,
   Taktisch,
   Medizinisch,
-  TAKTISCH_ORDER,
-  MEDIZINISCH_ORDER,
 } from '../../models/planung.model';
 import { FahrzeugeQuelleService } from '../../services/fahrzeuge-quelle.service';
 import { ImportDialog } from '../../components/import-dialog/import-dialog';
 import { HiorgPersonalDialog } from '../../components/hiorg-personal-dialog/hiorg-personal-dialog';
-import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
+import { Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-planning-editor',
   imports: [
+    Leerzustand,
     Meldung,
     MatButtonModule,
     MatDialogModule,
     MatIconModule,
     MatToolbarModule,
-    MatExpansionModule,
-    MatDividerModule,
     MatTooltipModule,
     MatSelectModule,
     MatAutocompleteModule,
@@ -84,7 +87,9 @@ import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
     MatMenuModule,
     PositionZeile,
     QualifikationsChips,
-    StaerkeBlock,
+    BesetzungsBand,
+    Helferpool,
+    PostenSchiene,
   ],
   providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
   templateUrl: './planning-editor.html',
@@ -132,14 +137,6 @@ export class PlanningEditor implements OnDestroy {
   readonly canUndo = this.store.canUndo;
   /** Titel und Zeitraum gehören dem Einsatz und sind im Editor nicht änderbar. */
   readonly kopfGesperrt = computed(() => this.einsatzZiel() !== null);
-
-  toggleAssignedList(): void {
-    this.assignedListCollapsed.update((v) => !v);
-  }
-
-  readonly TAKTISCH_LABEL = TAKTISCH_LABEL;
-
-  readonly MEDIZINISCH_LABEL = MEDIZINISCH_LABEL;
 
   /** null = not focused (show stored vehicle); string = focused/typing */
   readonly fahrzeugFilter = signal<Record<string, string | null>>({});
@@ -223,62 +220,77 @@ export class PlanningEditor implements OnDestroy {
     this.store.moveEinsatzkraftToPosition(ekId, target.postenId, target.positionId);
   }
 
-  readonly rosterCollapsed = signal(false);
-  toggleRoster(): void {
-    this.rosterCollapsed.update((v) => !v);
-  }
-
   freePositions(posten: Posten): Position[] {
     return posten.positions.filter((p) => !p.assigned);
   }
 
   readonly draggingEinsatzkraft = signal<Einsatzkraft | null>(null);
-  readonly assignedListCollapsed = signal(true);
-  readonly rosterProgress = computed(() => {
-    const p = this.planung();
-    if (!p) return null;
-    const total = p.einsatzkraefte.length;
-    const assigned = total - this.unassignedRoster(p).length;
-    const soll = p.posten.reduce((acc, po) => acc + po.positions.length, 0);
-    return { assigned, total, soll };
-  });
-  readonly rosterSearch = signal('');
-  readonly rosterTagFilter = signal<string | null>(null);
-  readonly rosterAvailableTags = computed(() => {
-    const p = this.planung();
-    if (!p) return { taktisch: [] as Taktisch[], medizinisch: [] as Medizinisch[] };
-    const tSet = new Set<Taktisch>();
-    const mSet = new Set<Medizinisch>();
-    for (const ek of p.einsatzkraefte) {
-      (ek.tags.taktisch ?? []).forEach((t) => tSet.add(t));
-      (ek.tags.medizinisch ?? []).forEach((t) => mSet.add(t));
-    }
-    return {
-      taktisch: TAKTISCH_ORDER.filter((t) => tSet.has(t)),
-      medizinisch: MEDIZINISCH_ORDER.filter((t) => mSet.has(t)),
-    };
-  });
 
-  toggleRosterTagFilter(tag: string): void {
-    this.rosterTagFilter.update((c) => (c === tag ? null : tag));
-  }
-
-  readonly filteredRoster = computed(() => {
+  /** Einsatzkräfte ohne Position, in der Reihenfolge der Liste. */
+  readonly verfuegbar = computed(() => {
+    const p = this.planung();
+    return p ? this.unassignedRoster(p) : [];
+  });
+  /** Einsatzkräfte mit mindestens einer Position. */
+  readonly eingeteilt = computed(() => {
     const p = this.planung();
     if (!p) return [];
-    const base = this.unassignedRoster(p);
-    const q = this.rosterSearch().toLowerCase();
-    const tag = this.rosterTagFilter();
-    return base.filter((e) => {
-      const matchesName = !q || e.name.toLowerCase().includes(q);
-      const matchesTag =
-        !tag ||
-        (e.tags.taktisch ?? []).includes(tag as Taktisch) ||
-        (e.tags.medizinisch ?? []).includes(tag as Medizinisch) ||
-        (e.tags.zusatz ?? []).includes(tag);
-      return matchesName && matchesTag;
-    });
+    const frei = new Set(this.verfuegbar().map((e) => e.id));
+    return p.einsatzkraefte.filter((e) => !frei.has(e.id));
   });
+  readonly poolAnsicht = signal<PoolAnsicht>('verfuegbar');
+  readonly poolHinweise = computed(() => {
+    const p = this.planung();
+    return p
+      ? poolHinweise(p, this.verfuegbar(), (position, person) =>
+          this.abgleich.matchLevel(position, person),
+        )
+      : new Map();
+  });
+  readonly offeneAnforderungen = computed(() => {
+    const p = this.planung();
+    return p
+      ? offeneAnforderungen(p, this.verfuegbar(), (position, person) =>
+          this.abgleich.matchLevel(position, person),
+        )
+      : [];
+  });
+
+  /** Der in der Schiene gewählte Posten; fehlt er (gelöscht, noch nichts gewählt), der erste. */
+  private readonly gewaehlterPosten = signal<string | null>(null);
+  readonly aktiverPosten = computed(() => {
+    const posten = this.planung()?.posten ?? [];
+    return posten.find((eintrag) => eintrag.id === this.gewaehlterPosten()) ?? posten.at(0) ?? null;
+  });
+  /** Vorschläge nur für die freien Positionen des gezeigten Postens. */
+  readonly vorschlaege = computed(() => {
+    const posten = this.aktiverPosten();
+    const ergebnis = new Map<string, readonly Vorschlag[]>();
+    if (!posten) return ergebnis;
+    const kandidaten = this.verfuegbar();
+    for (const position of posten.positions) {
+      if (position.assigned) continue;
+      ergebnis.set(
+        position.id,
+        vorschlaegeFuerPosition(position, kandidaten, (pos, person) =>
+          this.abgleich.matchLevel(pos, person),
+        ),
+      );
+    }
+    return ergebnis;
+  });
+
+  postenWaehlen(id: string): void {
+    this.gewaehlterPosten.set(id);
+  }
+
+  vorschlagUebernehmen(postenId: string, positionId: string, einsatzkraftId: string): void {
+    this.store.assignToPosition(postenId, positionId, einsatzkraftId);
+  }
+
+  onPoolKontextmenue(ereignis: { ereignis: MouseEvent; person: Einsatzkraft }): void {
+    this.onContextMenu(ereignis.ereignis, ereignis.person);
+  }
 
   onDragStarted(event: CdkDragStart<DragData>): void {
     const id = event.source.data.einsatzkraftId;
@@ -503,6 +515,8 @@ export class PlanningEditor implements OnDestroy {
 
   addPosten(): void {
     this.store.addPosten();
+    const neu = this.planung()?.posten.at(-1);
+    if (neu) this.gewaehlterPosten.set(neu.id);
   }
 
   async deletePosten(posten: Posten): Promise<void> {
@@ -570,8 +584,6 @@ export class PlanningEditor implements OnDestroy {
     return this.planung()!.einsatzkraefte.find((e) => e.id === position.assigned!.id) ?? null;
   }
 
-  protected readonly postenSoll = postenSoll;
-  protected readonly postenIst = postenIst;
   protected readonly planungSoll = planungSoll;
   protected readonly planungIst = planungIst;
 
@@ -615,6 +627,25 @@ export class PlanningEditor implements OnDestroy {
     () => zeitZuLokalesDatum(this.getTimeFromIso(this.planung()?.end ?? '')),
     { equal: (a, b) => a?.getTime() === b?.getTime() },
   );
+
+  /** Beginn des Einsatzes für den Datumsblock der Kopfleiste. */
+  readonly startBlock = computed(() => {
+    const iso = this.planung()?.start;
+    if (!iso) return null;
+    const datum = new Date(iso);
+    if (Number.isNaN(datum.getTime())) return null;
+    const wochentag = datum.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '');
+    return {
+      monat: datum.toLocaleDateString('de-DE', { month: 'short' }).replace('.', '').toUpperCase(),
+      tag: String(datum.getDate()),
+      zeile: `${wochentag} · ${this.getTimeFromIso(iso)}`,
+      beschriftung: datum.toLocaleDateString('de-DE', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    };
+  });
 
   getDateFromIso(iso: string): Date | null {
     return iso ? new Date(iso) : null;

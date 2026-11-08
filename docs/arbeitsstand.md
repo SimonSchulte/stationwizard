@@ -3538,7 +3538,25 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Der Feldname `kuerzel` stammt vom Betreiber und ist **nicht** gegen die offizielle
   Feldbeschreibung oder eine echte API-Antwort belegt; Länge und Schreibweise der echten Werte
   sind unbekannt.
-- **Noch offen:** Die Oberfläche zeigt das Kürzel noch nirgends. Vorgesehen ist der Avatar im
-  Entwurf B (Kürzel, bei fehlendem Kürzel die Namensinitialen). Bereits übernommene
-  Einsatzkräfte erhalten ihr Kürzel erst bei erneuter Übernahme aus HiOrg.
+- Der Avatar (`KuerzelAvatar`) zeigt das Kürzel, ohne Kürzel die Namensinitialen. Bereits
+  übernommene Einsatzkräfte erhalten ihr Kürzel erst bei erneuter Übernahme aus HiOrg.
 - Geprüft: Worker-Typprüfung, `npm test` (Angular und Worker, alle grün), Formatprüfung.
+
+## PEP-Editor: Umbau nach Entwurf B „Posten im Fokus“
+
+- Aufbau: `PostenSchiene` (links, Farbstreifen aus `--abschnitt-*`, Ring mit Besetzungsstand) |
+  gewählter Posten (Name, Fahrzeug, Positionen) | `Helferpool` (rechts, Verfügbar/Eingeteilt,
+  Suche, Qualifikationsfilter, Hinweis „Passt: …“ bzw. Platz der Eingeteilten) und darüber das
+  `BesetzungsBand` (Datumsblock, Stärke, offene Anforderungen; rot, wenn niemand Verfügbares
+  passt). Freie Positionen zeigen bis zu drei Vorschläge (`vorschlaege.ts`, nutzt
+  `MatchService.matchLevel`, keine neue Qualifikationshierarchie) und teilen per Klick zu.
+  Ziehen aus dem Helferpool auf eine Position, Kontextmenüs und Rückgängig bleiben.
+- Entfallen sind Akkordeon und einklappbarer Helferpool. Der gewählte Posten ist nur
+  Sitzungszustand (Vorgabe: erster Posten, ein neuer Posten wird sofort gewählt).
+- Geprüft: `npm test` und Formatprüfung, Build, Sicht im Chromium (Playwright gegen den Build
+  mit gemockter API und erfundenen Daten) auf 1440×900, 1024×768 und 390×844 ohne horizontalen
+  Seitenüberlauf. **Nicht** geprüft: Ziehen mit der Maus im echten Browser, Bedienung per
+  Tastatur und Screenreader, Betrieb gegen den echten Worker. Auf kleinen Bildschirmen bleibt
+  der Editor eine Desktop-Darstellung (Hinweis oben, Bereiche scrollen seitlich).
+- Das Ziehen auf einen _anderen_ Posten braucht einen Wechsel in der Schiene oder den
+  Klick-Vorschlag; ein Ablegen auf einen Posten in der Schiene gibt es nicht.

@@ -1,0 +1,37 @@
+@if (datum(); as block) {
+  <app-datumsblock
+    [monat]="block.monat"
+    [tag]="block.tag"
+    [zeile]="block.zeile"
+    [beschriftung]="block.beschriftung"
+  />
+}
+<app-staerke-block [soll]="soll()" [ist]="ist()" beschriftung="Gesamtstärke" />
+<div class="fortschritt">
+  <span class="zahl">{{ ist().gesamt }} / {{ soll().gesamt }}</span>
+  <span class="text">Positionen besetzt</span>
+  <div
+    class="balken"
+    role="progressbar"
+    aria-label="Besetzung"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="anteil()"
+  >
+    <div class="fuellung" [class.voll]="anteil() === 100" [style.width.%]="anteil()"></div>
+  </div>
+</div>
+<span class="spacer"></span>
+@for (eintrag of offen(); track eintrag.bezeichnung) {
+  <mat-chip class="offen" [class.luecke]="eintrag.luecke" disabled>
+    <mat-icon matChipAvatar>{{ eintrag.luecke ? 'error' : 'warning' }}</mat-icon>
+    {{ eintrag.anzahl }} × {{ eintrag.bezeichnung }} offen
+  </mat-chip>
+} @empty {
+  @if (soll().gesamt > 0 && ist().gesamt === soll().gesamt) {
+    <mat-chip class="offen komplett" disabled>
+      <mat-icon matChipAvatar>check_circle</mat-icon>
+      Alle Positionen besetzt
+    </mat-chip>
+  }
+}

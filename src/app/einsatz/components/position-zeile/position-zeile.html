@@ -51,7 +51,7 @@
       (cdkDragEnded)="ziehenBeendet.emit()"
       class="assigned-drag-item"
     >
-      <mat-icon class="assign-icon">person</mat-icon>
+      <app-kuerzel-avatar [name]="besetzt.name" [kuerzel]="besetzung()?.kuerzel" />
       <div class="assigned-name-block">
         <span>{{ besetzt.name }}</span>
         @if (besetzung(); as person) {
@@ -70,5 +70,30 @@
   } @else {
     <mat-icon class="assign-icon unassigned">person_add</mat-icon>
     <span class="unassigned-label">Nicht besetzt</span>
+    @if (vorschlaege().length > 0) {
+      <span class="vorschlaege" role="group" aria-label="Passende Einsatzkräfte">
+        @for (vorschlag of vorschlaege(); track vorschlag.einsatzkraft.id) {
+          <button
+            type="button"
+            matButton="outlined"
+            class="vorschlag"
+            [class.vorschlag--teilweise]="vorschlag.eignung === 'partial'"
+            [matTooltip]="
+              vorschlag.eignung === 'full'
+                ? 'Erfüllt alle Anforderungen – zuteilen'
+                : 'Erfüllt nur einen Teil der Anforderungen – zuteilen'
+            "
+            (click)="vorschlagGewaehlt.emit(vorschlag.einsatzkraft.id); $event.stopPropagation()"
+          >
+            <app-kuerzel-avatar
+              [name]="vorschlag.einsatzkraft.name"
+              [kuerzel]="vorschlag.einsatzkraft.kuerzel"
+              klein
+            />
+            {{ vorschlag.einsatzkraft.name }}
+          </button>
+        }
+      </span>
+    }
   }
 </div>

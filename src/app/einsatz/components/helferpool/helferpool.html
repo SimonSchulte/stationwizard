@@ -1,0 +1,108 @@
+<div class="kopf">
+  <mat-icon aria-hidden="true">groups</mat-icon>
+  <span class="titel">Helferpool</span>
+  <span class="spacer"></span>
+  <button
+    matIconButton
+    matTooltip="Einsatzkräfte importieren"
+    aria-label="Einsatzkräfte importieren"
+    (click)="importieren.emit()"
+  >
+    <mat-icon>upload_file</mat-icon>
+  </button>
+  <button
+    matIconButton
+    matTooltip="Personal aus HiOrg-Server übernehmen"
+    aria-label="Personal aus HiOrg-Server übernehmen"
+    (click)="hiorgUebernehmen.emit()"
+  >
+    <mat-icon>badge</mat-icon>
+  </button>
+</div>
+
+<mat-button-toggle-group
+  class="ansicht"
+  hideSingleSelectionIndicator
+  aria-label="Ansicht des Helferpools"
+  [value]="ansicht()"
+  (change)="ansichtWaehlen($event.value)"
+>
+  <mat-button-toggle value="verfuegbar">Verfügbar {{ verfuegbar().length }}</mat-button-toggle>
+  <mat-button-toggle value="eingeteilt">Eingeteilt {{ eingeteilt().length }}</mat-button-toggle>
+</mat-button-toggle-group>
+
+<app-suchfeld class="suche" [(wert)]="suche" beschriftung="Einsatzkräfte suchen" />
+
+@if (filterWerte().length > 0) {
+  <mat-chip-listbox
+    class="filter"
+    aria-label="Nach Qualifikation filtern"
+    [value]="filter()"
+    (change)="filterWaehlen($event.value)"
+  >
+    @for (tag of filterWerte(); track tag) {
+      <mat-chip-option [value]="tag" [matTooltip]="tooltip(tag)">{{ tag }}</mat-chip-option>
+    }
+  </mat-chip-listbox>
+}
+
+<div
+  class="liste"
+  cdkDropList
+  cdkDropListSortingDisabled
+  (cdkDropListDropped)="abgelegt.emit($event)"
+>
+  @for (person of gezeigt(); track person.id) {
+    @let hinweis = hinweise().get(person.id);
+    @if (ansicht() === 'verfuegbar') {
+      <div
+        class="person"
+        cdkDrag
+        [cdkDragData]="ziehDaten(person)"
+        (cdkDragStarted)="ziehenGestartet.emit($event)"
+        (cdkDragEnded)="ziehenBeendet.emit()"
+        (contextmenu)="kontextmenue.emit({ ereignis: $event, person })"
+      >
+        <mat-icon class="griff" aria-hidden="true">drag_indicator</mat-icon>
+        <app-kuerzel-avatar [name]="person.name" [kuerzel]="person.kuerzel" />
+        <div class="koerper">
+          <span class="name">{{ person.name }}</span>
+          <app-qualifikations-chips [tags]="person.tags" [klein]="true" />
+          @if (hinweis?.art === 'passt') {
+            <span class="hinweis passt"
+              ><mat-icon aria-hidden="true">check_circle</mat-icon>{{ hinweis?.text }}</span
+            >
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="person eingeteilt">
+        <app-kuerzel-avatar [name]="person.name" [kuerzel]="person.kuerzel" />
+        <div class="koerper">
+          <span class="name">{{ person.name }}</span>
+          <app-qualifikations-chips [tags]="person.tags" [klein]="true" [beschreibung]="false" />
+          @if (hinweis?.art === 'eingeteilt') {
+            <span class="hinweis"
+              ><mat-icon aria-hidden="true">place</mat-icon>{{ hinweis?.text }}</span
+            >
+          }
+        </div>
+      </div>
+    }
+  } @empty {
+    @if (verfuegbar().length + eingeteilt().length === 0) {
+      <app-leerzustand icon="group_add" titel="Noch keine Einsatzkräfte" kompakt>
+        Importiere eine Liste oder übernimm Personal aus dem HiOrg-Server.
+        <button matButton="outlined" leerAktion (click)="importieren.emit()">
+          <mat-icon>group_add</mat-icon> Einsatzkräfte importieren
+        </button>
+      </app-leerzustand>
+    } @else if (suche() || filter()) {
+      <app-leerzustand icon="search_off" titel="Keine Treffer" kompakt />
+    } @else if (ansicht() === 'verfuegbar') {
+      <app-leerzustand icon="task_alt" titel="Alle Einsatzkräfte sind eingeteilt" kompakt />
+    } @else {
+      <app-leerzustand icon="person_off" titel="Noch niemand eingeteilt" kompakt />
+    }
+  }
+</div>
