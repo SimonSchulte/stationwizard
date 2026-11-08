@@ -565,6 +565,27 @@ describe('Einsatzplanung: Vorbereitung', () => {
     expect(gelesen.inhalt.abschnitte[0].foto).toBe(foto);
   });
 
+  it('speichert einen Hinweis als Position und weist andere Werte ab', async () => {
+    const db = new FakeEinsatzplanungDb();
+    await legeEinsatzAn(db);
+    const mit = (hinweis: unknown) =>
+      vorbereitung({
+        inhalt: inhalt({
+          abschnitte: [
+            abschnitt({
+              laufzettel: [laufzettel({ positionen: [position({ anzahl: '', hinweis })] })],
+            }),
+          ],
+        }),
+      });
+    expect((await senden(db, 'PUT', VB, mit('ja'), NEU)).status).toBe(400);
+    expect((await senden(db, 'PUT', VB, mit(true), NEU)).status).toBeLessThan(300);
+    const gelesen = (await (await senden(db, 'GET', VB)).json()) as {
+      inhalt: { abschnitte: { laufzettel: { positionen: { hinweis?: boolean }[] }[] }[] };
+    };
+    expect(gelesen.inhalt.abschnitte[0].laufzettel[0].positionen[0].hinweis).toBe(true);
+  });
+
   it('weist ungültige Körper ab', async () => {
     const db = new FakeEinsatzplanungDb();
     await legeEinsatzAn(db);

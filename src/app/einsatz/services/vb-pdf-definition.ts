@@ -3,6 +3,7 @@ import type {
   Content,
   ContentCanvas,
   ContentSection,
+  TableCell,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
@@ -320,16 +321,32 @@ function anzahlFeld(anzahl: string): Content {
 function materialRaster(streifen: LaufzettelStreifen): Content {
   const zeilenHoehe = MASS.materialZeile;
   const lineHeight = zeilenHoehe / SCHRIFT.material / 1.17;
-  const body: Content[][] = streifen.positionen.map((position) => [
-    kaestchen(PDF_FARBEN.dunkelblau),
-    anzahlFeld(position.anzahl),
-    {
-      text: position.material,
-      fontSize: SCHRIFT.material,
-      lineHeight,
-      margin: [4, 0, 0, 0],
-    },
-  ]);
+  const body: TableCell[][] = streifen.positionen.map((position): TableCell[] =>
+    position.hinweis
+      ? [
+          { text: '!', bold: true, alignment: 'center', fontSize: SCHRIFT.material, lineHeight },
+          {
+            text: position.material,
+            colSpan: 2,
+            italics: true,
+            bold: true,
+            fontSize: SCHRIFT.material,
+            lineHeight,
+            margin: [4, 0, 0, 0],
+          },
+          {},
+        ]
+      : [
+          kaestchen(PDF_FARBEN.dunkelblau),
+          anzahlFeld(position.anzahl),
+          {
+            text: position.material,
+            fontSize: SCHRIFT.material,
+            lineHeight,
+            margin: [4, 0, 0, 0],
+          },
+        ],
+  );
   for (let i = 0; i < streifen.leereZeilen; i += 1) {
     body.push([kaestchen(PDF_FARBEN.hellgrau), { text: '' }, { text: '' }]);
   }

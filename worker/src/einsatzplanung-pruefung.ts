@@ -23,6 +23,7 @@ export interface VbPosition {
   herkunftId: string | null;
   anzahl: string;
   material: string;
+  hinweis?: true;
 }
 export interface VbLaufzettel {
   id: string;
@@ -118,7 +119,8 @@ export function istZeitpunkt(wert: unknown): wert is string {
 function pruefePosition(wert: unknown, ids: Set<string>): VbPosition | null {
   if (
     !istObjekt(wert) ||
-    !hatNurFelder(wert, ['id', 'herkunftId', 'anzahl', 'material']) ||
+    !hatNurFelder(wert, ['id', 'herkunftId', 'anzahl', 'material', 'hinweis']) ||
+    !(wert['hinweis'] === undefined || wert['hinweis'] === true) ||
     !istUuid(wert['id']) ||
     ids.has(wert['id']) ||
     !istUuidOderNull(wert['herkunftId']) ||
@@ -134,6 +136,7 @@ function pruefePosition(wert: unknown, ids: Set<string>): VbPosition | null {
     herkunftId: wert['herkunftId'],
     anzahl: wert['anzahl'],
     material: wert['material'],
+    ...(wert['hinweis'] === true ? { hinweis: true as const } : {}),
   };
 }
 
@@ -194,7 +197,15 @@ function pruefeAbschnitt(
 ): VbAbschnitt | null {
   if (
     !istObjekt(wert) ||
-    !hatNurFelder(wert, ['id', 'herkunftId', 'titel', 'farbe', 'fachgruppe', 'foto', 'laufzettel']) ||
+    !hatNurFelder(wert, [
+      'id',
+      'herkunftId',
+      'titel',
+      'farbe',
+      'fachgruppe',
+      'foto',
+      'laufzettel',
+    ]) ||
     !istFotoOderFehlt(wert['foto']) ||
     !istUuid(wert['id']) ||
     ids.has(wert['id']) ||

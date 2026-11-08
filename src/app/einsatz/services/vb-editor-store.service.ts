@@ -856,8 +856,12 @@ export class VbEditorStoreService {
 
   // ---------------------------------------------------------------- Positionen
 
-  /** Fügt am Ende des Laufzettels eine leere Position ein; gibt ihre Id zurück, `null` an der Grenze. */
-  positionHinzufuegen(laufzettelId: string): string | null {
+  /**
+   * Fügt am Ende des Laufzettels eine leere Position ein, auf Wunsch einen Hinweis (Text ohne
+   * Anzahl, belegt auf dem Laufzettel wie jede Position Platz); gibt ihre Id zurück, `null` an
+   * der Grenze.
+   */
+  positionHinzufuegen(laufzettelId: string, hinweis = false): string | null {
     const treffer = this.laufzettelFinden(laufzettelId);
     if (!treffer) return null;
     if (treffer.laufzettel.positionen.length >= VB_GRENZEN.positionen) {
@@ -865,7 +869,7 @@ export class VbEditorStoreService {
         `Ein Laufzettel kann höchstens ${VB_GRENZEN.positionen} Positionen haben.`,
       );
     }
-    const position = neuePosition();
+    const position = neuePosition(undefined, hinweis);
     this.aenderePositionen(laufzettelId, (liste) => [...liste, position]);
     return position.id;
   }

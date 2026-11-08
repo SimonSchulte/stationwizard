@@ -441,6 +441,7 @@ function berechne(vorlage: VbInhalt, vb: VbInhalt): InterneAenderung[] {
               herkunftId: null,
               anzahl: position.anzahl,
               material: position.material,
+              ...(position.hinweis ? { hinweis: true as const } : {}),
             };
             position.herkunftId = neu.id;
             return neu;

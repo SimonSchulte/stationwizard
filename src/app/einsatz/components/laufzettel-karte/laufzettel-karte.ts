@@ -43,7 +43,8 @@ export class LaufzettelKarte {
 
   protected readonly kurztext = computed(() => {
     const materialien = this.laufzettel()
-      .positionen.map((p) => p.material.trim())
+      .positionen.filter((p) => !p.hinweis)
+      .map((p) => p.material.trim())
       .filter((m) => m !== '');
     return materialien.length ? materialien.join(', ') : 'Keine Positionen';
   });

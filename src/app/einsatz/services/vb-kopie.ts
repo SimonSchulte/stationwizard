@@ -131,8 +131,14 @@ export function neuerLaufzettel(
 }
 
 /** Neue, leere Position (Material ist Pflicht und muss vor dem Speichern gefüllt werden). */
-export function neuePosition(neueId: IdErzeuger = NEUE_ID): VbPosition {
-  return { id: neueId(), herkunftId: null, anzahl: '', material: '' };
+export function neuePosition(neueId: IdErzeuger = NEUE_ID, hinweis = false): VbPosition {
+  return {
+    id: neueId(),
+    herkunftId: null,
+    anzahl: '',
+    material: '',
+    ...(hinweis ? { hinweis: true as const } : {}),
+  };
 }
 
 /** Kopie mit neuen Ids; ohne Gegenstück in der Vorlage (`herkunftId` überall `null`). */

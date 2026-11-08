@@ -99,6 +99,7 @@ export class LaufzettelBearbeitung {
   readonly abschnittGewaehlt = output<string>();
   readonly positionGeaendert = output<{ id: string; felder: PositionFelder }>();
   readonly positionHinzugefuegt = output<void>();
+  readonly hinweisHinzugefuegt = output<void>();
   readonly positionEntfernt = output<string>();
   readonly positionVerschoben = output<{ id: string; neuerIndex: number }>();
   readonly geteilt = output<string[]>();
@@ -167,6 +168,11 @@ export class LaufzettelBearbeitung {
       else neu.delete(id);
       return neu;
     });
+  }
+
+  protected hinweisHinzufuegen(): void {
+    this.fokusAufNeuePosition = true;
+    this.hinweisHinzugefuegt.emit();
   }
 
   protected positionHinzufuegen(): void {

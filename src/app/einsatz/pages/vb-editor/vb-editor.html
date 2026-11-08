@@ -343,6 +343,7 @@
                 (abschnittGewaehlt)="abschnittGewaehlt(treffer.laufzettel.id, $event)"
                 (positionGeaendert)="positionGeaendert($event.id, $event.felder)"
                 (positionHinzugefuegt)="store.positionHinzufuegen(treffer.laufzettel.id)"
+                (hinweisHinzugefuegt)="store.positionHinzufuegen(treffer.laufzettel.id, true)"
                 (positionEntfernt)="store.positionLoeschen($event)"
                 (positionVerschoben)="
                   store.positionVerschieben(treffer.laufzettel.id, $event.id, $event.neuerIndex)

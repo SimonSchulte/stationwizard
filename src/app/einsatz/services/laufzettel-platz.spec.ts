@@ -30,6 +30,18 @@ function mitPositionen(anzahl: number, material = 'Stuhl') {
   });
 }
 
+describe('Hinweis als Position', () => {
+  it('belegt Platz wie eine Position gleicher Länge', () => {
+    const lang = 'x'.repeat(80);
+    const normal = testLaufzettel({ positionen: [testPosition({ material: lang })] });
+    const hinweis = testLaufzettel({
+      positionen: [testPosition({ material: lang, anzahl: '', hinweis: true })],
+    });
+    expect(laufzettelPlatz(hinweis).belegt).toBe(laufzettelPlatz(normal).belegt);
+    expect(laufzettelPlatz(hinweis).belegt).toBeGreaterThan(1);
+  });
+});
+
 describe('laufzettelPlatz', () => {
   it('zählt je Position mindestens eine Zeile', () => {
     expect(laufzettelPlatz(mitPositionen(6)).belegt).toBe(6);

@@ -56,7 +56,8 @@ export function istGanzzahlAb(wert: unknown, min: number): wert is number {
 export function istVbPosition(wert: unknown): wert is VbPosition {
   return (
     istObjekt(wert) &&
-    nurFelder(wert, ['id', 'herkunftId', 'anzahl', 'material']) &&
+    nurFelder(wert, ['id', 'herkunftId', 'anzahl', 'material', 'hinweis']) &&
+    (wert['hinweis'] === undefined || wert['hinweis'] === true) &&
     istUuid(wert['id']) &&
     istUuidOderNull(wert['herkunftId']) &&
     istTextBis(wert['anzahl'], VB_GRENZEN.anzahl) &&

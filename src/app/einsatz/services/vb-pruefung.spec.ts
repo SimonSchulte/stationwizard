@@ -18,6 +18,22 @@ import {
   vbInhaltProbleme,
 } from './vb-pruefung';
 
+describe('Hinweis als Position', () => {
+  it('akzeptiert hinweis: true, aber keinen anderen Wert', () => {
+    const mit = (hinweis: unknown) =>
+      testInhalt({
+        abschnitte: [
+          testAbschnitt({
+            laufzettel: [testLaufzettel({ positionen: [{ ...testPosition(), hinweis } as never] })],
+          }),
+        ],
+      });
+    expect(istVbInhalt(mit(true))).toBe(true);
+    expect(istVbInhalt(mit(false))).toBe(false);
+    expect(istVbInhalt(mit('ja'))).toBe(false);
+  });
+});
+
 describe('Verladungsfoto im Abschnitt', () => {
   it('akzeptiert ein JPEG-Foto und weist anderes ab', () => {
     const gut = testInhalt({

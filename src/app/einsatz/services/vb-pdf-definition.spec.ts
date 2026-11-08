@@ -60,6 +60,27 @@ function inhaltMitLaufzetteln(anzahl: number) {
   });
 }
 
+describe('Hinweis auf dem Laufzettel', () => {
+  it('druckt einen Hinweis ohne Kästchen und Anzahl über zwei Spalten', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({
+          laufzettel: [
+            testLaufzettel({
+              positionen: [
+                testPosition({ material: 'Vorsicht, schwer', anzahl: '', hinweis: true }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+    const json = JSON.stringify(definition(inhalt));
+    expect(json).toContain('"text":"Vorsicht, schwer"');
+    expect(json).toContain('"colSpan":2');
+  });
+});
+
 describe('Verladungsfoto', () => {
   it('fügt hinter dem Schild eines Abschnitts mit Foto eine Fotoseite ein', () => {
     const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';

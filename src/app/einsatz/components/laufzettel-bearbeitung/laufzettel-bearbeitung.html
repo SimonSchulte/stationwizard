@@ -121,17 +121,23 @@
         matTooltip="Ziehen zum Umsortieren"
         >drag_indicator</mat-icon
       >
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="anzahl kompakt">
-        <mat-label>Anzahl</mat-label>
-        <input
-          matInput
-          [attr.maxlength]="grenzen.anzahl"
-          [value]="position.anzahl"
-          (input)="positionFeld(position.id, 'anzahl', $event)"
-        />
-      </mat-form-field>
+      @if (position.hinweis) {
+        <mat-icon class="hinweis-symbol" aria-label="Hinweis" matTooltip="Hinweis (ohne Anzahl)">
+          info
+        </mat-icon>
+      } @else {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="anzahl kompakt">
+          <mat-label>Anzahl</mat-label>
+          <input
+            matInput
+            [attr.maxlength]="grenzen.anzahl"
+            [value]="position.anzahl"
+            (input)="positionFeld(position.id, 'anzahl', $event)"
+          />
+        </mat-form-field>
+      }
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="material kompakt">
-        <mat-label>Material</mat-label>
+        <mat-label>{{ position.hinweis ? 'Hinweis' : 'Material' }}</mat-label>
         <input
           #materialFeld
           matInput
@@ -165,6 +171,16 @@
   >
     <mat-icon>add</mat-icon>
     Position hinzufügen
+  </button>
+  <button
+    matButton="outlined"
+    type="button"
+    matTooltip="Hinweis ohne Anzahl; belegt auf dem Laufzettel Platz wie eine Position"
+    [disabled]="laufzettel().positionen.length >= grenzen.positionen"
+    (click)="hinweisHinzufuegen()"
+  >
+    <mat-icon>info</mat-icon>
+    Hinweis hinzufügen
   </button>
   <button matButton type="button" [disabled]="markierteIds().length === 0" (click)="teilen()">
     <mat-icon>call_split</mat-icon>

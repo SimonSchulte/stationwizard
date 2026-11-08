@@ -62,6 +62,11 @@ export interface VbPosition {
   anzahl: string;
   /** 1–200 Zeichen. */
   material: string;
+  /**
+   * `true`: Hinweis statt Material – Text ohne Anzahl und ohne Abhakkästchen, der auf dem
+   * Laufzettel wie jede Position Platz belegt. Fehlt bei gewöhnlichen Positionen.
+   */
+  hinweis?: true;
 }
 
 export interface VbLaufzettel {
