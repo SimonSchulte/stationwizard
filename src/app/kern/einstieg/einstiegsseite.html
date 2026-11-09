@@ -1,0 +1,10 @@
+<div class="rahmen">
+  @if (einordnung(); as zeile) {
+    <p class="einordnung">{{ zeile }}</p>
+  }
+  @if (ueberschrift(); as titel) {
+    <h1>{{ titel }}</h1>
+  }
+  <div class="beschreibung"><ng-content select="[beschreibung]" /></div>
+  <ng-content />
+</div>

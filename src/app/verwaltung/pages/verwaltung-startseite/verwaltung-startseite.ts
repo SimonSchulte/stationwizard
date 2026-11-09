@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Einstiegskarte } from '../../../kern/einstieg/einstiegskarte';
+import { Einstiegsraster } from '../../../kern/einstieg/einstiegsraster';
+import { Einstiegsseite } from '../../../kern/einstieg/einstiegsseite';
+import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { FahrzeugDruckbogenService } from '../../../fahrzeuge/services/fahrzeug-druckbogen.service';
 import { ApiErfassungslinkStorage } from '../../../fahrzeuge/storage/api-erfassungslink-storage';
 
 @Component({
   selector: 'app-verwaltung-startseite',
-  imports: [RouterLink, MatIconModule, MatProgressSpinnerModule],
+  imports: [Seitenkopf, Einstiegsseite, Einstiegsraster, Einstiegskarte],
   templateUrl: './verwaltung-startseite.html',
   styleUrl: './verwaltung-startseite.less',
   changeDetection: ChangeDetectionStrategy.OnPush,

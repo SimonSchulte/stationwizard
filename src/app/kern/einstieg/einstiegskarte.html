@@ -1,0 +1,26 @@
+@if (ziel(); as zielAdresse) {
+  <a class="karte" [routerLink]="zielAdresse">
+    <ng-container *ngTemplateOutlet="inhalt" />
+  </a>
+} @else {
+  <button type="button" class="karte" [disabled]="deaktiviert()" (click)="aktiviert.emit()">
+    <ng-container *ngTemplateOutlet="inhalt" />
+  </button>
+}
+
+<ng-template #inhalt>
+  <mat-card appearance="outlined" class="inhalt">
+    <mat-icon aria-hidden="true">{{ icon() }}</mat-icon>
+    <h2>{{ titel() }}</h2>
+    <p class="text"><ng-content /></p>
+    <ng-content select="[einstiegsFehler]" />
+    <span class="aktion">
+      @if (laedt()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+        {{ laedtText() }}
+      } @else {
+        {{ aktion() }} <span aria-hidden="true">→</span>
+      }
+    </span>
+  </mat-card>
+</ng-template>
