@@ -27,10 +27,10 @@
   } @else if (store.speicherFehler()) {
     <app-meldung art="fehler">
       {{ store.speicherFehler() }}
-      @if (store.entwurf()?.bezeichnung?.trim()) {
+      @if (!store.speicherFehlerIstEingabe()) {
         Deine Änderungen bleiben hier erhalten.
       }
-      @if (store.entwurf()?.bezeichnung?.trim()) {
+      @if (!store.speicherFehlerIstEingabe()) {
         <button matButton meldungAktion (click)="speichern()">Erneut versuchen</button>
       }
     </app-meldung>

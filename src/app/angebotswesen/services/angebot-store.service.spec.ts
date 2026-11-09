@@ -64,6 +64,21 @@ describe('AngebotStoreService', () => {
     expect(storage.speichereAngebot).not.toHaveBeenCalled();
   });
 
+  it('lehnt eine Position ohne Bezeichnung mit klarer Meldung ab, ohne den Server zu kontaktieren', async () => {
+    const angebot = erzeugeTestAngebot();
+    const schicht = angebot.schichten[0]!;
+    storage.ladeAngebot.mockResolvedValue({ daten: angebot, version: '"1"' });
+    await service.angebotLaden(angebot.id);
+    service.schichtenAktualisieren([
+      { ...schicht, positionen: [{ ...schicht.positionen[0]!, bezeichnung: ' ' }] },
+    ]);
+
+    expect(await service.speichern()).toBe(false);
+    expect(service.speicherFehler()).toBe('Schicht 1, Position 1: Eine Bezeichnung fehlt.');
+    expect(service.speicherFehlerIstEingabe()).toBe(true);
+    expect(storage.speichereAngebot).not.toHaveBeenCalled();
+  });
+
   it('speichert erfolgreich, lädt neu und aktualisiert die Liste', async () => {
     const angebot = erzeugeTestAngebot({ bezeichnung: 'Stadtfest' });
     storage.speichereAngebot.mockResolvedValue('"1"');

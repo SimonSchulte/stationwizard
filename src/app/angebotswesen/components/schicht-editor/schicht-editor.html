@@ -124,7 +124,11 @@
 <div class="position-hinzufuegen">
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="katalog-auswahl">
     <mat-label>Aus Preiskatalog hinzufügen</mat-label>
-    <mat-select [value]="null" (selectionChange)="katalogPositionHinzufuegen($event.value)">
+    <mat-select
+      #katalogAuswahl
+      [value]="null"
+      (selectionChange)="katalogPositionHinzufuegen($event.value); katalogAuswahl.value = null"
+    >
       @for (eintrag of katalog(); track eintrag.id) {
         <mat-option [value]="eintrag.id">{{ eintrag.bezeichnung }}</mat-option>
       }

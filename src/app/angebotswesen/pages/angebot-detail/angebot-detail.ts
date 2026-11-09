@@ -180,9 +180,10 @@ export class AngebotDetail {
   async tabelleKopieren(): Promise<void> {
     const entwurf = this.store.entwurf();
     if (!entwurf) return;
-    await this.zwischenablage.kopieren(
+    const kopiert = await this.zwischenablage.kopieren(
       angebotAlsHtmlTabelle(entwurf),
       angebotAlsKlartextTabelle(entwurf),
     );
+    if (kopiert) this.meldungen.erfolg('Tabelle kopiert – jetzt in Word einfügen.');
   }
 }

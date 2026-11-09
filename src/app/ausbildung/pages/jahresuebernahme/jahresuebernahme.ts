@@ -133,6 +133,10 @@ export class Jahresuebernahme {
   );
 
   readonly anzahlAusgewaehlt = computed(() => this.ideenAuswahl().size + this.themenAuswahl().size);
+  readonly uebernehmenText = computed(
+    () =>
+      `${anzahl(this.anzahlAusgewaehlt(), 'Eintrag', 'Einträge')} nach ${this.zielJahr()} übernehmen`,
+  );
   readonly kannUebernehmen = computed(
     () =>
       this.zustand() === 'verbunden' &&
@@ -169,12 +173,29 @@ export class Jahresuebernahme {
     this.themenAuswahl.update((auswahl) => umgeschaltet(auswahl, id, an));
   }
 
+  /** „Alle“ wählt, was das Zieljahr noch nicht hat – wie die Vorbelegung, ohne Dubletten. */
   alleIdeen(an: boolean): void {
-    this.ideenAuswahl.set(new Set(an ? this.ideen().map((z) => z.idee.id) : []));
+    this.ideenAuswahl.set(
+      new Set(
+        an
+          ? this.ideen()
+              .filter((z) => !z.vorhanden)
+              .map((z) => z.idee.id)
+          : [],
+      ),
+    );
   }
 
   alleThemen(an: boolean): void {
-    this.themenAuswahl.set(new Set(an ? this.themen().map((z) => z.thema.id) : []));
+    this.themenAuswahl.set(
+      new Set(
+        an
+          ? this.themen()
+              .filter((z) => !z.vorhanden)
+              .map((z) => z.thema.id)
+          : [],
+      ),
+    );
   }
 
   uebernehmen(): void {
@@ -192,7 +213,8 @@ export class Jahresuebernahme {
       return;
     }
     this.meldungen.erfolg(
-      `${ergebnis.ideen.length} Idee(n) und ${ergebnis.katsThemen.length} KatS-Thema/-Themen ` +
+      `${anzahl(ergebnis.ideen.length, 'Idee', 'Ideen')} und ` +
+        `${anzahl(ergebnis.katsThemen.length, 'KatS-Thema', 'KatS-Themen')} ` +
         `nach ${ziel.jahr} übernommen. Zum Sichern im Kalender „Speichern“ wählen.`,
       { dauerMs: 10_000 },
     );
@@ -205,4 +227,9 @@ function umgeschaltet(auswahl: ReadonlySet<string>, id: string, an: boolean): Se
   if (an) neu.add(id);
   else neu.delete(id);
   return neu;
+}
+
+/** „1 Idee“, „2 Ideen“ – die deutsche Mehrzahl statt „Idee(n)“. */
+function anzahl(n: number, einzahl: string, mehrzahl: string): string {
+  return `${n} ${n === 1 ? einzahl : mehrzahl}`;
 }

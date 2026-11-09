@@ -146,7 +146,7 @@
       <div class="aktionen">
         <button matButton="filled" [disabled]="!kannUebernehmen()" (click)="uebernehmen()">
           <mat-icon>playlist_add</mat-icon>
-          {{ anzahlAusgewaehlt() }} Eintrag/Einträge nach {{ zielJahr() }} übernehmen
+          {{ uebernehmenText() }}
         </button>
         <a matButton routerLink="/kalender">Abbrechen</a>
       </div>
