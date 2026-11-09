@@ -14,6 +14,7 @@ import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import {
@@ -136,6 +137,7 @@ interface TerminAnzeige {
     MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
+    MatListModule,
     MatInputModule,
     MatNativeDateModule,
     MatSelectModule,

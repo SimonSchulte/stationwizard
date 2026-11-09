@@ -395,7 +395,7 @@
             <app-meldung art="fehler">{{ qrErneuernFehler() }}</app-meldung>
           }
           @if (qrLaedt()) {
-            <mat-progress-spinner mode="indeterminate" diameter="32" />
+            <app-ladeanzeige text="QR-Codes werden erzeugt …" />
           }
           @if (qrCodes(); as codes) {
             <div class="qr-vorschau">
