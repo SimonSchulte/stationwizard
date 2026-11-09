@@ -3598,7 +3598,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (mit Balken in der
   Abschnittsfarbe, Schrift nach Länge), _Inhalt_ = alle Laufzettel des Abschnitts als „Nr n · Überschrift · Lager“ (bis 12 einspaltig,
   darüber zweispaltig bis 28, Rest als „… und n weitere“), _Beschriftung_ = Fachgruppe neben „Inhalt:“,
-  Fußband links (Platz von „Geräteanhänger NRW 04“) = Abschnittsname fett, darunter klein „Abschnitt n von m“ sowie Veranstaltung und Zeitraum.
+  Fußband links (Platz von „Geräteanhänger NRW 04“) = der **Einsatz** groß und fett, darunter klein der Zeitraum; das Ziel steht oben im Kopfband, „Abschnitt n von m“ entfällt.
   _Gewicht_ bleibt eine
   Zeile zum handschriftlichen Eintragen: die App kennt kein Istgewicht (in der Vorlage ein
   Serienbrieffeld `Gewicht_IST`). Das Verladungsfoto steht rechts, bis 180 × 232 pt.

@@ -733,14 +733,12 @@ export function schildInhaltZeilen(
  * Ein Schild (A5 quer) an der senkrechten Stelle `y0` der Seite: Rahmenbild, Abschnittsfarbe
  * und Titel im Kopfband, links die Auftragsliste (Nr, Überschrift, Lager) rechts ein
  * etwaiges Verladungsfoto, darunter Gewicht zum Eintragen und im Fußband
- * Abschnittsname (Platz von „Geräteanhänger NRW 04“) mit „Abschnitt n von m“ und Veranstaltung. Alles ist absolut positioniert, damit nichts
+ * Einsatz mit Zeitraum (Platz von „Geräteanhänger NRW 04“). Alles ist absolut positioniert, damit nichts
  * umbrechen kann.
  */
 function schild(
   kopf: VbDruckKopf,
   abschnitt: VbInhalt['abschnitte'][number],
-  nummer: number,
-  gesamt: number,
   y0: number,
   nummern: ReadonlyMap<string, number>,
 ): Content[] {
@@ -846,25 +844,24 @@ function schild(
     feld(SCHILD.rand, SCHILD.fussY, SCHILD.fussBreite, null, {
       stack: [
         {
-          // Wie „Geräteanhänger NRW 04“ in der Vorlage: Name groß, fett, bis zu zwei Zeilen.
-          text: kuerze(titel, 52),
+          // Wie „Geräteanhänger NRW 04“ in der Vorlage: groß, fett, bis zu zwei Zeilen. Das Ziel
+          // steht schon im Kopfband; unten steht der Einsatz.
+          text: kuerze(kopf.titel.trim(), 52),
           fontSize: 16,
           bold: true,
           lineHeight: 1,
           color: PDF_FARBEN.dunkelblau,
         },
-        {
-          text: `Abschnitt ${nummer} von ${gesamt}`,
-          fontSize: 8.5,
-          bold: true,
-          margin: [0, 4, 0, 0],
-          color: PDF_FARBEN.sekundaer,
-        },
-        {
-          text: kuerze([kopf.titel, zeitraum].filter((t) => t !== '').join(' · '), 66),
-          fontSize: 7.5,
-          color: PDF_FARBEN.sekundaer,
-        },
+        ...(zeitraum
+          ? [
+              {
+                text: kuerze(zeitraum, 60),
+                fontSize: 8.5,
+                margin: [0, 4, 0, 0] as [number, number, number, number],
+                color: PDF_FARBEN.sekundaer,
+              },
+            ]
+          : []),
       ],
     }),
   );
@@ -885,9 +882,7 @@ function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
       ...(i > 0 ? { pageBreak: 'before' as const } : {}),
       stack: [
         { text: ' ', fontSize: 1 },
-        ...paar.flatMap((a, j) =>
-          schild(kopf, a, i + j + 1, inhalt.abschnitte.length, j * SCHILD.hoehe, nummern),
-        ),
+        ...paar.flatMap((a, j) => schild(kopf, a, j * SCHILD.hoehe, nummern)),
         // Schnittlinie zwischen den beiden A5-Schildern.
         ...(paar.length === 2
           ? [

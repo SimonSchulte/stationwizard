@@ -143,10 +143,19 @@ describe('Abschnittsschild', () => {
     expect(seiten).toHaveLength(2);
     expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
     const ersteSeite = alleTexte(seiten[0]);
-    expect(ersteSeite).toContain('Abschnitt 1 von 3');
-    expect(ersteSeite).toContain('Abschnitt 2 von 3');
-    expect(ersteSeite).not.toContain('Abschnitt 3 von 3');
-    expect(alleTexte(seiten[1])).toContain('Abschnitt 3 von 3');
+    expect(ersteSeite).toContain('Sanitätszelt');
+    expect(ersteSeite).toContain('Verpflegung');
+    expect(ersteSeite).not.toContain('Funk');
+    expect(alleTexte(seiten[1])).toContain('Funk');
+  });
+
+  it('nennt oben das Ziel und unten den Einsatz mit Zeitraum', () => {
+    const schilder = schildAbschnitt(definition(testInhalt({ abschnitte: [zwei[0]] })));
+    const texte = alleTexte(schilder);
+    expect(texte).toContain('Sanitätszelt');
+    expect(texte).toContain('Weihnachtsmarkt Ummeln');
+    expect(texte).toContain('Sa., 05.12.2026, 10:00 – 20:00 Uhr');
+    expect(texte.join('|')).not.toContain('Abschnitt 1 von');
   });
 
   it('legt das zweite Schild genau eine A5-Höhe tiefer', () => {
