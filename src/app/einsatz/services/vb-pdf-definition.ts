@@ -6,7 +6,6 @@ import type {
   TableCell,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
-import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
 import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
@@ -93,22 +92,6 @@ const FARBE_ABSCHNITT: Record<AbschnittFarbe, string> = {
   'abschnitt-6': PDF_FARBEN.abschnitt6,
   'abschnitt-7': PDF_FARBEN.abschnitt7,
   'abschnitt-8': PDF_FARBEN.abschnitt8,
-};
-
-const FARBE_FACHGRUPPE: Record<Fachgruppe, string> = {
-  sanitaet: PDF_FARBEN.katSan,
-  betreuung: PDF_FARBEN.katBtvp,
-  verpflegung: PDF_FARBEN.katBtvp,
-  tesi: PDF_FARBEN.katTesi,
-  fuehrung: PDF_FARBEN.katFuehrung,
-};
-
-const FACHGRUPPE_TEXT: Record<Fachgruppe, string> = {
-  sanitaet: 'Sanität',
-  betreuung: 'Betreuung',
-  verpflegung: 'Verpflegung',
-  tesi: 'TeSi',
-  fuehrung: 'Führung',
 };
 
 const WOCHENTAGE = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'] as const;
@@ -230,50 +213,46 @@ function kopfkasten(streifen: LaufzettelStreifen, m: Streifenmass): Content {
   const ueberschriftGroesse =
     (ueberschrift.length <= 40 ? SCHRIFT.ueberschrift : ueberschrift.length <= 80 ? 9 : 8) -
     (m.schmal ? 2 : 0);
-  const kennzeichen: Column[] = [
-    {
-      width: 'auto',
-      text: 'AUFTRAG',
-      fontSize: SCHRIFT.klein,
-      bold: true,
-      color: PDF_FARBEN.rot,
-      margin: [0, 1.5, 5, 0],
-    },
-  ];
-  if (streifen.fachgruppe) {
-    kennzeichen.push({
-      width: 'auto',
-      table: {
-        body: [
-          [
-            {
-              text: FACHGRUPPE_TEXT[streifen.fachgruppe],
-              fontSize: 7,
-              bold: true,
-              color: PDF_FARBEN.weiss,
-              fillColor: FARBE_FACHGRUPPE[streifen.fachgruppe],
-              margin: [4, 1, 4, 1],
-            },
-          ],
+  const balkenBreite = m.schmal ? 5 : 7;
+  const links: Content = {
+    // Die Abschnittsfarbe als dicker Balken am linken Rand der Überschrift.
+    columns: [
+      {
+        width: balkenBreite,
+        canvas: [
+          {
+            type: 'rect',
+            x: 0.4,
+            y: 0.4,
+            w: balkenBreite - 0.4,
+            h: MASS.kopf - 0.8,
+            color: FARBE_ABSCHNITT[streifen.abschnitt.farbe],
+          },
         ],
       },
-      layout: keinRand(),
-    });
-  }
-  const links: Content = {
-    margin: [m.schmal ? 3 : 5, 5, 3, 0],
-    stack: [
-      // Auf schmalen Streifen stehen „AUFTRAG“ und die Fachgruppe übereinander.
-      m.schmal ? { stack: kennzeichen } : { columns: kennzeichen, columnGap: 0 },
       {
-        text:
-          harterUmbruch(ueberschrift, laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile) || ' ',
-        bold: true,
-        fontSize: ueberschriftGroesse,
-        color: PDF_FARBEN.dunkelblau,
-        margin: [0, 2, 0, 0],
+        width: '*',
+        margin: [m.schmal ? 3 : 5, 5, 3, 0],
+        stack: [
+          {
+            text: 'AUFTRAG',
+            fontSize: SCHRIFT.klein,
+            bold: true,
+            color: PDF_FARBEN.rot,
+          },
+          {
+            text:
+              harterUmbruch(ueberschrift, laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile) ||
+              ' ',
+            bold: true,
+            fontSize: ueberschriftGroesse,
+            color: PDF_FARBEN.dunkelblau,
+            margin: [0, 2, 0, 0],
+          },
+        ],
       },
     ],
+    columnGap: 0,
   };
   const nummer: Content[] = [
     {
@@ -752,7 +731,7 @@ export function schildInhaltZeilen(
 
 /**
  * Ein Schild (A5 quer) an der senkrechten Stelle `y0` der Seite: Rahmenbild, Abschnittsfarbe
- * und Titel im Kopfband, links die Auftragsliste (Nr, Überschrift, Lager) samt Fachgruppe, rechts ein
+ * und Titel im Kopfband, links die Auftragsliste (Nr, Überschrift, Lager) rechts ein
  * etwaiges Verladungsfoto, darunter Gewicht zum Eintragen und im Fußband
  * Abschnittsname (Platz von „Geräteanhänger NRW 04“) mit „Abschnitt n von m“ und Veranstaltung. Alles ist absolut positioniert, damit nichts
  * umbrechen kann.
@@ -837,15 +816,6 @@ function schild(
       absolutePosition: { x: SCHILD.fotoX, y: y0 + SCHILD.inhaltOben },
     });
   }
-  if (abschnitt.fachgruppe) {
-    bloecke.push({
-      text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
-      fontSize: 14,
-      bold: true,
-      color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
-      absolutePosition: { x: SCHILD.rand + 70, y: y0 + SCHILD.inhaltOben - 3 },
-    });
-  }
   bloecke.push(
     {
       text: 'Gewicht:',
@@ -918,6 +888,26 @@ function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
         ...paar.flatMap((a, j) =>
           schild(kopf, a, i + j + 1, inhalt.abschnitte.length, j * SCHILD.hoehe, nummern),
         ),
+        // Schnittlinie zwischen den beiden A5-Schildern.
+        ...(paar.length === 2
+          ? [
+              {
+                canvas: [
+                  {
+                    type: 'line' as const,
+                    x1: 0,
+                    y1: 0,
+                    x2: SCHILD.breite,
+                    y2: 0,
+                    lineWidth: 0.5,
+                    lineColor: PDF_FARBEN.platzhalter,
+                    dash: { length: 4, space: 3 },
+                  },
+                ],
+                absolutePosition: { x: 0, y: SCHILD.hoehe },
+              },
+            ]
+          : []),
       ],
     });
   }

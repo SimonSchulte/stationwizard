@@ -280,7 +280,32 @@ describe('baueVbPdfDefinition', () => {
     expect(texte).toContain('Laufzettel 2 von 2 · Schild 1 von 1 · Seite 1 von 1');
     expect(texte).toContain('Zweiter');
     expect(texte).toContain('AUFTRAG');
-    expect(texte).toContain('Betreuung');
+    expect(texte).not.toContain('Betreuung');
+  });
+
+  it('zeigt die Abschnittsfarbe als Balken in der Überschrift und keine Fachgruppe', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({ farbe: 'abschnitt-5', fachgruppe: 'tesi', laufzettel: [testLaufzettel()] }),
+      ],
+    });
+    const seiten = laufzettelSeiten(definition(inhalt));
+    const json = JSON.stringify(seiten);
+    expect(json).toContain(PDF_FARBEN.abschnitt5);
+    expect(json).not.toContain(PDF_FARBEN.katTesi);
+    expect(alleTexte(seiten)).not.toContain('TeSi');
+    const schild = JSON.stringify(schildAbschnitt(definition(inhalt)));
+    expect(schild).not.toContain('TeSi');
+    expect(schild).not.toContain(PDF_FARBEN.katTesi);
+  });
+
+  it('zieht zwischen zwei Schildern eine Schnittlinie, bei einem einzelnen nicht', () => {
+    const zweiSchilder = testInhalt({ abschnitte: [testAbschnitt(), testAbschnitt()] });
+    const einSchild = testInhalt({ abschnitte: [testAbschnitt()] });
+    const mitLinie = (inhalt: ReturnType<typeof testInhalt>) =>
+      JSON.stringify(schildAbschnitt(definition(inhalt))).includes('"dash"');
+    expect(mitLinie(zweiSchilder)).toBe(true);
+    expect(mitLinie(einSchild)).toBe(false);
   });
 
   it('hat genau einen Haken „Erledigt“ und kein „nicht möglich“', () => {
@@ -341,7 +366,7 @@ describe('baueVbPdfDefinition', () => {
       abschnitte: (['abschnitt-1', 'abschnitt-5', 'abschnitt-8'] as const).map((farbe) =>
         testAbschnitt({
           farbe,
-          laufzettel: [testLaufzettel(), testLaufzettel({ fachgruppe: 'tesi' })],
+          laufzettel: [testLaufzettel(), testLaufzettel()],
         }),
       ),
     });
@@ -352,9 +377,8 @@ describe('baueVbPdfDefinition', () => {
     const verwendet = json.match(/#[0-9a-fA-F]{3,8}/g) ?? [];
     expect(verwendet.length).toBeGreaterThan(0);
     for (const farbe of verwendet) expect(erlaubt.has(farbe.toUpperCase())).toBe(true);
-    // Abschnittsfarben und Fachgruppenfarbe kommen aus der zentralen Quelle
+    // Abschnittsfarben kommen aus der zentralen Quelle
     expect(json).toContain(PDF_FARBEN.abschnitt5);
-    expect(json).toContain(PDF_FARBEN.katTesi);
   });
 });
 

@@ -180,8 +180,9 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
   gestrichelte Schnittlinien. Inhalte nach der Word-Führungshilfe, aber so dicht gesetzt,
   dass der größte Teil des Streifens den Materialzeilen gehört:
   - oben ein freier **Klemmrand** (ca. 13 mm) für den Bonhalter mit dem Einsatztitel,
-  - ein Kopf aus „Auftrag“, Fachgruppe als beschrifteter Chip in ihrer Farbe, Überschrift
-    und LfdNr,
+  - ein Kopf aus „Auftrag“, Überschrift und LfdNr; links davon ein **dicker Balken in der
+    Abschnittsfarbe**. Die Fachgruppe (Sanität, TeSi …) wird im Druck vorerst nicht mehr gezeigt,
+    die Abschnittsfarbe genügt; die Daten und der Editor behalten das Feld,
   - ein **Farbband** (ca. 2 mm) in der Abschnittsfarbe links über die ganze Länge des
     Streifens, dazu Farbpunkt und Abschnittsname am Klemmrand – so bleiben Abschnitt und
     Fachgruppe auch im Schwarz-Weiß-Druck über den Text erkennbar,

@@ -3626,3 +3626,9 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Anzeige bleibt wie erfasst. Nicht geprüft: Papierdruck und der Umschalter im Browser.
 - Plan und Mocks: Artifact „Schild und Laufzettel“. Zurückgestellt: Inhaltsart „Material
   zusammengezählt“ auf dem Schild und ein Vorschlag im Editor, Laufzettel nach Lager aufzuteilen.
+- Nachtrag: Die Fachgruppe (Sanität, Betreuung, TeSi …) ist im **Druck** zurückgebaut, auf Laufzettel
+  und Schild. Es zählt die Abschnittsfarbe: Auf dem Laufzettel steht sie als dicker Balken links der
+  Überschrift (zusätzlich zu Farbband und Punkt am Klemmrand), auf dem Schild als Balken im Kopfband.
+  Das Feld `fachgruppe` in Datenmodell, Worker und Editor bleibt unverändert; ob es dort ebenfalls
+  ausgeblendet wird, ist offen. Zwischen den beiden Schildern eines Blatts verläuft eine gestrichelte
+  Schnittlinie (zwischen den Laufzettelstreifen gab es sie schon).
