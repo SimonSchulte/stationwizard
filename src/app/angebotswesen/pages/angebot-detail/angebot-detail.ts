@@ -22,7 +22,7 @@ import { PreiskatalogStoreService } from '../../services/preiskatalog-store.serv
 import { TabellenZwischenablageService } from '../../services/tabellen-zwischenablage';
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
-import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Ladeanzeige, Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 function neueSchicht(): Schicht {
@@ -53,6 +53,7 @@ export class AngebotDetail {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialogDienst = inject(DialogDienst);
+  private readonly meldungen = inject(MeldungsDienst);
   private readonly zwischenablage = inject(TabellenZwischenablageService);
   readonly store = inject(AngebotStoreService);
   readonly preiskatalogStore = inject(PreiskatalogStoreService);
@@ -155,6 +156,7 @@ export class AngebotDetail {
   async speichern(): Promise<void> {
     const warNeu = this.store.istNeu();
     const erfolg = await this.store.speichern();
+    if (erfolg) this.meldungen.erfolg('Angebot gespeichert.');
     if (erfolg && warNeu) {
       const id = this.store.entwurf()?.id;
       if (id) await this.router.navigate(['/angebotswesen/angebote', id], { replaceUrl: true });
