@@ -61,7 +61,7 @@ Abgeleitet (nie gespeichert):
 
 ## 4. Speicherung
 
-Alles in `EINSATZPLANUNG_DB` (neue Migration `0023_packeinheiten.sql`), Muster wie `vorbereitungen`:
+Alles in `EINSATZPLANUNG_DB` (Migrationen `0023_lager_artikel.sql` für Stufe 1, `0024_kisten.sql` für Stufe 2, eine weitere für Stufe 3), Muster wie `vorbereitungen`:
 dokumentartig, vom Worker streng geprüftes JSON, eigene `version` je Zeile, `If-Match` beim Ändern,
 `If-None-Match: *` beim Anlegen, `angelegt_von`/`geaendert_von` aus der geprüften Anmeldung.
 
@@ -69,9 +69,21 @@ dokumentartig, vom Worker streng geprüftes JSON, eigene `version` je Zeile, `If
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `lager`           | `id`, `name` (eindeutig in Vergleichsform), `reihenfolge`, `version`                                                                       |
 | `artikel`         | `id`, `name` (eindeutig), `einheit`, `lager_id` (Heimatlager), `version`                                                                   |
-| `kisten`          | `id`, `name` (eindeutig), `lager_id` (Heimatlager der Kiste), `inhalt` (JSON), Kennzahl `positionen`, `version`                            |
+| `kisten`          | `id`, `name` (eindeutig), `lager_id` (Heimatlager, leer möglich), `inhalt` (JSON, siehe unten), Kennzahl `positionen`, `version`           |
 | `aufbauten`       | `einsatz_id` (Primärschlüssel, Fremdschlüssel auf `einsaetze`), `inhalt` (JSON), Kennzahlen `einheiten`, `kisten`, `positionen`, `version` |
 | `aufbau_vorlagen` | `id`, `titel`, `inhalt` (JSON), Kennzahlen, `version`                                                                                      |
+
+### Kiste (Stufe 2)
+
+```jsonc
+{ "id": "<uuid>", "name": "Gewürzkiste", "lagerId": "<uuid>" | null,
+  "inhalt": [ { "artikelId": "<uuid>", "menge": 1, "bemerkung": "" } ] }
+```
+
+Der Worker prüft: unbekannte Felder abgelehnt, jede `artikelId` zeigt auf einen vorhandenen Artikel und kommt
+je Kiste einmal vor, `menge` eine Zahl größer 0 mit höchstens drei Nachkommastellen (bis 1 000 000),
+`bemerkung` höchstens 200 Zeichen, höchstens 100 Positionen je Kiste und 300 Kisten. `GET` liefert alle Kisten
+samt Inhalt in einem Aufruf.
 
 Kennzahlspalten setzt nur der Worker. Ein Lager oder Artikel lässt sich nur löschen, solange nichts
 darauf verweist (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`).
@@ -160,7 +172,12 @@ Der vorhandene Druck bleibt Grundlage (`vb-pdf-definition.ts`, `laufzettel-layou
 
 1. **Lager und Artikel:** Tabellen, Endpunkte, Stammdatenseiten, Tests. Der VB-Editor nutzt das Lager
    schon als Auswahl (ersetzt das Freitext-Vorschlagsfeld).
-2. **Kisten:** Stammdaten, Kistenschild, Kistenzettel im Druck.
+2. **Kisten:** Tabelle `kisten` (Migration `0024_kisten.sql`), Endpunkte, Reiter „Kisten“ in der Stammdatenseite
+   (Liste, Editor mit Inhalt aus Artikeln, Speichern ausdrücklich je Kiste), Kistenschild und Kistenzettel als
+   PDF. Ohne Aufbau gibt es weder Ziel noch Einsatz: das Schild trägt unten das **Heimatlager** der Kiste und
+   einen Rahmen in Dunkelblau, der Zettel ein neutrales Farbband. Stufe 3 setzt hier Zielfarbe und Einsatz
+   ein. Löschschutz: ein Artikel in einer Kiste und ein Lager als Heimatlager einer Kiste lassen sich nicht
+   löschen.
 3. **Aufbau:** Tabellen `aufbauten`/`aufbau_vorlagen`, Aufbau-Editor, Ableitung der Zettel, Umstellung des
    Drucks, Abgleich mit Stammdaten. Danach entfallen VB-Endpunkte und -Editor.
 
@@ -173,18 +190,18 @@ Die vorhandenen VB-Daten werden **nicht** migriert. Der Betreiber legt Lager, Ar
 Aufbau neu an. Bis Stufe 3 bleiben VB-Editor und Endpunkte unverändert bestehen. Ein Import aus der
 Excel-Packliste ist nicht geplant.
 
-## 9. Offene Fragen
+## 9. Entscheidungen des Betreibers zu den früher offenen Fragen
 
-Mit dem Vorschlag als **Annahme**, bis der Betreiber anders entscheidet:
+Alle sieben Fragen sind beantwortet, jeweils wie vorgeschlagen:
 
-1. **Artikelkatalog pflegen:** Wer legt Artikel an, und wie viele sind es? Annahme: wenige hundert,
-   Anlage direkt aus dem Aufbau-Editor („Neuer Artikel …“), Pflege in der Verwaltung.
-2. **Mengen:** „80–90 Liter“ wird Menge 85, Einheit Liter, Bemerkung „80–90“. Annahme: Zahl plus Einheit
-   plus Bemerkung genügt.
-3. **Abweichender Kisteninhalt:** gilt nur im jeweiligen Aufbau. Ob er in die Stammdaten zurückfließt,
-   entscheidet eine Aktion „In Stammdaten übernehmen“, nie automatisch.
-4. **Reihenfolge der Lager:** Annahme eine einfache Reihenfolge, keine Gebäude mit Räumen.
-5. **Zettel für Fahrzeuge:** Annahme: Ein Fahrzeug bekommt Schild und kurzen Zettel („Rollwagen 01 … verladen“).
-6. **Fahrzeuge aus dem Fahrzeugmodul:** Verweis oder getrennte Namen? Annahme: Freitext je Aufbau.
-7. **Rollen:** wie bisher „Rechte vorerst alle, Rollen später“. Stammdaten ändern wäre der erste Fall für
-   eine Rolle.
+1. **Artikelkatalog:** wenige hundert Artikel, Anlage direkt beim Planen im Aufbau-Editor („Neuer Artikel …“),
+   Pflege in der Verwaltung (Stufe 1).
+2. **Mengen:** Zahl plus Einheit plus Bemerkung. „80–90 Liter“ wird Menge 85, Einheit Liter, Bemerkung „80–90“.
+3. **Abweichender Kisteninhalt:** gilt nur im jeweiligen Aufbau. In die Stammdaten fließt er nur über die
+   Aktion „In Stammdaten übernehmen“, nie automatisch.
+4. **Reihenfolge der Lager:** eine einfache Reihenfolge, keine Gebäude mit Räumen, nicht je Einsatz.
+5. **Fahrzeug:** bekommt ein Schild und einen kurzen Zettel („Rollwagen 01 … verladen“).
+6. **Fahrzeuge** sind Freitext je Aufbau, kein Verweis auf das Fahrzeugmodul.
+7. **Rechte:** vorerst alle, Rollen später (Stammdaten ändern wäre der erste Fall für eine Rolle).
+
+Weiter offen: nichts Fachliches. Stufe 3 klärt die Bedienung des Aufbau-Editors (Abschnitt 5) im Mock.
