@@ -1,4 +1,11 @@
-import { Artikel, ArtikelEingabe, Lager, LagerEingabe } from '../models/stammdaten.model';
+import {
+  Artikel,
+  ArtikelEingabe,
+  Kiste,
+  KisteEingabe,
+  Lager,
+  LagerEingabe,
+} from '../models/stammdaten.model';
 import { lagerSchluessel } from '../services/lager';
 import {
   StammdatenInNutzungFehler,
@@ -15,6 +22,7 @@ export class InMemoryStammdatenStorage implements StammdatenStorage {
 
   private readonly lager = new Map<string, Lager>();
   private readonly artikel = new Map<string, Artikel>();
+  private readonly kisten = new Map<string, Kiste>();
 
   async ladeLager(): Promise<Lager[]> {
     return [...this.lager.values()]
@@ -54,8 +62,11 @@ export class InMemoryStammdatenStorage implements StammdatenStorage {
     this.schreibzugriffe += 1;
     const bestehend = this.lager.get(id);
     if (!bestehend || bestehend.version !== version) throw new StammdatenKonfliktFehler();
-    if ([...this.artikel.values()].some((a) => a.lagerId === id)) {
-      throw new StammdatenInNutzungFehler();
+    if (
+      [...this.artikel.values()].some((a) => a.lagerId === id) ||
+      [...this.kisten.values()].some((k) => k.lagerId === id)
+    ) {
+      throw new StammdatenInNutzungFehler('lager');
     }
     this.lager.delete(id);
   }
@@ -107,12 +118,56 @@ export class InMemoryStammdatenStorage implements StammdatenStorage {
     this.schreibzugriffe += 1;
     const bestehend = this.artikel.get(id);
     if (!bestehend || bestehend.version !== version) throw new StammdatenKonfliktFehler();
+    if ([...this.kisten.values()].some((k) => k.inhalt.some((p) => p.artikelId === id))) {
+      throw new StammdatenInNutzungFehler('artikel');
+    }
     this.artikel.delete(id);
   }
 
+  async ladeKisten(): Promise<Kiste[]> {
+    return [...this.kisten.values()]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((k) => ({ ...k, inhalt: k.inhalt.map((p) => ({ ...p })) }));
+  }
+
+  async speichereKiste(eingabe: KisteEingabe, version: number | null): Promise<Kiste> {
+    this.schreibzugriffe += 1;
+    const bestehend = this.kisten.get(eingabe.id);
+    if (version === null ? bestehend : !bestehend || bestehend.version !== version) {
+      throw new StammdatenKonfliktFehler();
+    }
+    const name = eingabe.name.trim().replace(/\s+/g, ' ');
+    if (
+      [...this.kisten.values()].some(
+        (k) => k.id !== eingabe.id && lagerSchluessel(k.name) === lagerSchluessel(name),
+      )
+    ) {
+      throw new StammdatenNameVergebenFehler('kiste');
+    }
+    const gespeichert: Kiste = {
+      ...eingabe,
+      name,
+      inhalt: eingabe.inhalt.map((p) => ({ ...p })),
+      version: (bestehend?.version ?? 0) + 1,
+      geaendertAm: new Date().toISOString(),
+      geaendertVon: 'test@example.invalid',
+    };
+    this.kisten.set(gespeichert.id, gespeichert);
+    return { ...gespeichert, inhalt: gespeichert.inhalt.map((p) => ({ ...p })) };
+  }
+
+  async loescheKiste(id: string, version: number): Promise<void> {
+    this.schreibzugriffe += 1;
+    const bestehend = this.kisten.get(id);
+    if (!bestehend || bestehend.version !== version) throw new StammdatenKonfliktFehler();
+    this.kisten.delete(id);
+  }
+
   /** Nur für Tests: Zeilen direkt vorbelegen. */
-  _vorbelegen(lager: Lager[], artikel: Artikel[] = []): void {
+  _vorbelegen(lager: Lager[], artikel: Artikel[] = [], kisten: Kiste[] = []): void {
     for (const l of lager) this.lager.set(l.id, { ...l });
     for (const a of artikel) this.artikel.set(a.id, { ...a });
+    for (const k of kisten)
+      this.kisten.set(k.id, { ...k, inhalt: k.inhalt.map((p) => ({ ...p })) });
   }
 }

@@ -141,7 +141,7 @@ function formatiereDruckzeit(zeitpunkt: Date): string {
 }
 
 /** Oberer Abstand, der den Titel (geschätzte Zeilenzahl) im 54 pt hohen Kopfband zentriert. */
-function titelAbstand(titel: string, breite: number): number {
+export function titelAbstand(titel: string, breite: number): number {
   const schrift = schildTitelSchrift(titel);
   const zeilen = Math.max(1, Math.ceil((titel.length * schrift * 0.56) / breite));
   return Math.max(0, (54 - zeilen * schrift) / 2);
@@ -172,7 +172,7 @@ function kuerzen(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-function keinRand() {
+export function keinRand() {
   return {
     hLineWidth: () => 0,
     vLineWidth: () => 0,
@@ -520,8 +520,8 @@ function streifenInhalt(
       schreibfelder(m),
       {
         text: m.schmal
-          ? `Nr. ${streifen.nr}/${laufzettelGesamt} · Schild ${streifen.schild} · S. ${seite}/${seitenGesamt}`
-          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Schild ${streifen.schild} von ${streifen.schildGesamt} · Seite ${seite} von ${seitenGesamt}`,
+          ? `Nr. ${streifen.nr}/${laufzettelGesamt}${streifen.schild > 0 ? ` · Schild ${streifen.schild}` : ''} · S. ${seite}/${seitenGesamt}`
+          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt}${streifen.schild > 0 ? ` · Schild ${streifen.schild} von ${streifen.schildGesamt}` : ''} · Seite ${seite} von ${seitenGesamt}`,
         alignment: 'center',
         fontSize: 6.5,
         color: PDF_FARBEN.sekundaer,
@@ -681,7 +681,7 @@ export const SCHILD = {
 } as const;
 
 /** Kürzt auf `max` Zeichen mit Auslassungszeichen. */
-function kuerze(text: string, max: number): string {
+export function kuerze(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
 }
 
@@ -872,6 +872,25 @@ function schild(
   return bloecke;
 }
 
+/** Gestrichelte Schnittlinie zwischen den zwei A5-Schildern eines A4-Hochformatblatts. */
+export function schnittlinie(): Content {
+  return {
+    canvas: [
+      {
+        type: 'line' as const,
+        x1: 0,
+        y1: 0,
+        x2: SCHILD.breite,
+        y2: 0,
+        lineWidth: 0.5,
+        lineColor: PDF_FARBEN.platzhalter,
+        dash: { length: 4, space: 3 },
+      },
+    ],
+    absolutePosition: { x: 0, y: SCHILD.hoehe },
+  };
+}
+
 /**
  * Abschnittsschilder: je A4-Hochformatblatt zwei Schilder im A5-Querformat untereinander.
  * Jede Seite beginnt mit einer unsichtbaren Fließzeile, damit pdfmake den Seitenumbruch
@@ -887,30 +906,44 @@ function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
       stack: [
         { text: ' ', fontSize: 1 },
         ...paar.flatMap((a, j) => schild(kopf, a, j * SCHILD.hoehe, nummern)),
-        // Schnittlinie zwischen den beiden A5-Schildern.
-        ...(paar.length === 2
-          ? [
-              {
-                canvas: [
-                  {
-                    type: 'line' as const,
-                    x1: 0,
-                    y1: 0,
-                    x2: SCHILD.breite,
-                    y2: 0,
-                    lineWidth: 0.5,
-                    lineColor: PDF_FARBEN.platzhalter,
-                    dash: { length: 4, space: 3 },
-                  },
-                ],
-                absolutePosition: { x: 0, y: SCHILD.hoehe },
-              },
-            ]
-          : []),
+        ...(paar.length === 2 ? [schnittlinie()] : []),
       ],
     });
   }
   return seiten;
+}
+
+/**
+ * Die Laufzettelseiten (A4 quer, 3 bis 6 Streifen je Seite) als eigener Abschnitt; `null` ohne
+ * Streifen. Auch der Druck der Kistenzettel nutzt ihn (`kisten-pdf-definition.ts`).
+ */
+export function laufzettelAbschnitt(
+  kopfTitel: string,
+  streifen: readonly LaufzettelStreifen[],
+  streifenJeSeite: number = STREIFEN_STANDARD,
+): ContentSection | null {
+  const m = streifenmass(streifenJeSeite);
+  const seiten = seitenAufteilen(streifen, m.streifenJeSeite);
+  if (seiten.length === 0) return null;
+  const laufzettelGesamt = streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
+  const laufzettelSeiten: Content[] = seiten.map((seite, index) => {
+    const spalten: Column[] = seite.map((s) =>
+      streifenInhalt(kopfTitel, s, laufzettelGesamt, index + 1, seiten.length, m),
+    );
+    while (spalten.length < m.streifenJeSeite) {
+      spalten.push({ width: m.breite, text: '' });
+    }
+    return {
+      ...(index > 0 ? { pageBreak: 'before' as const } : {}),
+      stack: [seitenGrafik(seite, m), { columns: spalten, columnGap: 0 }],
+    };
+  });
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'landscape',
+    pageMargins: [0, 0, 0, 0],
+    section: laufzettelSeiten,
+  };
 }
 
 /**
@@ -926,34 +959,12 @@ export function baueVbPdfDefinition(
   gedrucktAm: Date,
   streifenJeSeite: number = STREIFEN_STANDARD,
 ): TDocumentDefinitions {
-  const m = streifenmass(streifenJeSeite);
-  const seiten = seitenAufteilen(streifen, m.streifenJeSeite);
-  const laufzettelGesamt = streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
   const abschnitte: ContentSection[] = [];
   if (inhalt.anweisungen.trim().length > 0) {
     abschnitte.push(anweisungsAbschnitt(kopf, inhalt, gedrucktAm));
   }
-
-  const laufzettelSeiten: Content[] = seiten.map((seite, index) => {
-    const spalten: Column[] = seite.map((s) =>
-      streifenInhalt(kopf.titel, s, laufzettelGesamt, index + 1, seiten.length, m),
-    );
-    while (spalten.length < m.streifenJeSeite) {
-      spalten.push({ width: m.breite, text: '' });
-    }
-    return {
-      ...(index > 0 ? { pageBreak: 'before' as const } : {}),
-      stack: [seitenGrafik(seite, m), { columns: spalten, columnGap: 0 }],
-    };
-  });
-  if (laufzettelSeiten.length > 0) {
-    abschnitte.push({
-      pageSize: 'A4',
-      pageOrientation: 'landscape',
-      pageMargins: [0, 0, 0, 0],
-      section: laufzettelSeiten,
-    });
-  }
+  const laufzettel = laufzettelAbschnitt(kopf.titel, streifen, streifenJeSeite);
+  if (laufzettel) abschnitte.push(laufzettel);
 
   if (inhalt.abschnitte.length > 0) {
     abschnitte.push({

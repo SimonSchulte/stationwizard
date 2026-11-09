@@ -95,6 +95,9 @@ Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespiel
    benutzt wird; ohne die Tabellen antworten die Endpunkte mit 502 `EINSATZPLANUNG_DB_FEHLER`.
    Die Migration ist bis zum Vermerk hier **noch nicht eingespielt**. Reihenfolge: Worker deployen,
    Migration einspielen, `d1_migrations` vermerken.
+5. **Kisten (Stufe 2):** danach `0024_kisten.sql` (Tabelle `kisten`, setzt `0023` voraus). Ohne sie antwortet
+   `GET /api/einsatzplanung/kisten` mit 502 `EINSATZPLANUNG_DB_FEHLER`, und die Stammdatenseite meldet einen
+   Ladefehler, weil sie alle drei Listen gemeinsam lädt. Ebenfalls **noch nicht eingespielt**.
 
 ## HiOrg-Server-API (OAuth, optional)
 

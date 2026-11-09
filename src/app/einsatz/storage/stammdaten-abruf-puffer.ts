@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AbrufPuffer } from '../../kern/abruf-puffer';
-import { Artikel, Lager } from '../models/stammdaten.model';
+import { Artikel, Kiste, Lager } from '../models/stammdaten.model';
 
 /** Wie lange eine gelesene Liste wiederverwendet werden darf. */
 const GUELTIG_MS = 60_000;
@@ -9,10 +9,12 @@ const GUELTIG_MS = 60_000;
 export class StammdatenAbrufPuffer {
   readonly lager = new AbrufPuffer<Lager[]>(GUELTIG_MS);
   readonly artikel = new AbrufPuffer<Artikel[]>(GUELTIG_MS);
+  readonly kisten = new AbrufPuffer<Kiste[]>(GUELTIG_MS);
 
   /** Nach jedem eigenen Schreibzugriff aufzurufen. */
   verwerfen(): void {
     this.lager.verwerfen();
     this.artikel.verwerfen();
+    this.kisten.verwerfen();
   }
 }

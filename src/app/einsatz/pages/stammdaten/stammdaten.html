@@ -19,7 +19,8 @@
   }
 
   <p class="beschreibung">
-    Einmal gepflegt, später in Kisten, Wagen und Zetteln genutzt. Änderungen speichern sofort.
+    Einmal gepflegt, später in Kisten, Wagen und Zetteln genutzt. Lager und Artikel speichern
+    sofort, eine Kiste mit „Speichern“.
   </p>
 
   <mat-tab-group class="reiter" animationDuration="0ms" mat-stretch-tabs="false">
@@ -49,6 +50,39 @@
             (geaendert)="store.artikelAendern($event.artikel, $event.aenderung)"
             (geloescht)="artikelLoeschen($event)"
           />
+        </div>
+      </ng-template>
+    </mat-tab>
+    <mat-tab [label]="'Kisten (' + store.kisten().length + ')'">
+      <ng-template matTabContent>
+        <div class="reiter-inhalt kisten">
+          <app-kiste-liste
+            class="kisten-liste"
+            [kisten]="store.kisten()"
+            [lager]="store.lager()"
+            [gewaehltId]="gewaehlteKisteId()"
+            (gewaehlt)="kisteWaehlen($event)"
+            (angelegt)="kisteAnlegen($event)"
+          />
+          <div class="kisten-editor">
+            @if (gewaehlteKiste(); as kiste) {
+              <app-kiste-editor
+                [kiste]="kiste"
+                [lager]="store.lager()"
+                [artikel]="store.artikel()"
+                [beschaeftigt]="store.beschaeftigtId() === kiste.id"
+                (gespeichert)="kisteSpeichern(kiste, $event)"
+                (geloescht)="kisteLoeschen(kiste)"
+                (schildDrucken)="kisteDrucken('schild', kiste)"
+                (zettelDrucken)="kisteDrucken('zettel', kiste)"
+                (ungespeichert)="kisteUngespeichert.set($event)"
+              />
+            } @else {
+              <app-leerzustand kompakt icon="inventory" titel="Keine Kiste gewählt">
+                Wähle links eine Kiste oder lege eine neue an.
+              </app-leerzustand>
+            }
+          </div>
         </div>
       </ng-template>
     </mat-tab>

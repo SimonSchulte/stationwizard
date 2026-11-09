@@ -175,6 +175,13 @@ export async function loescheLager(
   if ((verwendet?.n ?? 0) > 0) {
     return stammdatenInNutzung('Dieses Lager ist noch Heimatlager von Artikeln.');
   }
+  const kisten = await db
+    .prepare('SELECT COUNT(*) AS n FROM kisten WHERE lager_id = ?')
+    .bind(id)
+    .first<{ n: number }>();
+  if ((kisten?.n ?? 0) > 0) {
+    return stammdatenInNutzung('Dieses Lager ist noch Heimatlager von Kisten.');
+  }
   const ergebnis = await db
     .prepare('DELETE FROM lager WHERE id = ? AND version = ?')
     .bind(id, version)

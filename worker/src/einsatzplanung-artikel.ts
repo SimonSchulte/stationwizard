@@ -17,6 +17,7 @@ import {
   pruefeArtikelEingabe,
   STAMMDATEN_KOERPER_GRENZE,
   stammdatenGrenze,
+  stammdatenInNutzung,
   stammdatenNameVergeben,
 } from './einsatzplanung-stammdaten';
 import { starkesEtag } from './etag';
@@ -198,6 +199,14 @@ export async function loescheArtikel(
 ): Promise<Response> {
   const version = erwarteteVersion(anfrage);
   if (version instanceof Response) return version;
+  // Kennungen sind UUIDs ohne LIKE-Sonderzeichen; der Inhalt steht als kompaktes JSON in `kisten`.
+  const inKisten = await db
+    .prepare('SELECT COUNT(*) AS n FROM kisten WHERE inhalt LIKE ?')
+    .bind(`%"artikelId":"${id}"%`)
+    .first<{ n: number }>();
+  if ((inKisten?.n ?? 0) > 0) {
+    return stammdatenInNutzung('Dieser Artikel ist noch in einer Kiste enthalten.');
+  }
   const ergebnis = await db
     .prepare('DELETE FROM artikel WHERE id = ? AND version = ?')
     .bind(id, version)

@@ -19,3 +19,16 @@
 .reiter-inhalt {
   padding-top: var(--space-lg);
 }
+
+.kisten {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kisten {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

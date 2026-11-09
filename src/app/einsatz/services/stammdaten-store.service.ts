@@ -3,6 +3,8 @@ import {
   Artikel,
   ArtikelEingabe,
   ArtikelEinheit,
+  Kiste,
+  KisteEingabe,
   Lager,
   STAMMDATEN_GRENZEN,
 } from '../models/stammdaten.model';
@@ -20,7 +22,7 @@ function nachReihenfolge(liste: readonly Lager[]): Lager[] {
   return [...liste].sort((a, b) => a.reihenfolge - b.reihenfolge || a.name.localeCompare(b.name));
 }
 
-function nachName(liste: readonly Artikel[]): Artikel[] {
+function nachName<T extends { name: string }>(liste: readonly T[]): T[] {
   return [...liste].sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
@@ -35,6 +37,7 @@ export class StammdatenStoreService {
 
   readonly lager = signal<Lager[]>([]);
   readonly artikel = signal<Artikel[]>([]);
+  readonly kisten = signal<Kiste[]>([]);
   readonly laedt = signal(false);
   readonly ladeFehler = signal('');
 
@@ -55,16 +58,38 @@ export class StammdatenStoreService {
     return zaehlung;
   });
 
+  readonly artikelNachId = computed(() => new Map(this.artikel().map((a) => [a.id, a])));
+
+  /** Zahl der Kisten je Heimatlager (Schlüssel: Lager-Id). */
+  readonly kistenJeLager = computed(() => {
+    const zaehlung = new Map<string, number>();
+    for (const k of this.kisten()) {
+      if (k.lagerId) zaehlung.set(k.lagerId, (zaehlung.get(k.lagerId) ?? 0) + 1);
+    }
+    return zaehlung;
+  });
+
+  /** Zahl der Kisten, in denen ein Artikel steckt (Schlüssel: Artikel-Id). */
+  readonly kistenJeArtikel = computed(() => {
+    const zaehlung = new Map<string, number>();
+    for (const k of this.kisten()) {
+      for (const p of k.inhalt) zaehlung.set(p.artikelId, (zaehlung.get(p.artikelId) ?? 0) + 1);
+    }
+    return zaehlung;
+  });
+
   async laden(): Promise<void> {
     this.laedt.set(true);
     this.ladeFehler.set('');
     try {
-      const [lager, artikel] = await Promise.all([
+      const [lager, artikel, kisten] = await Promise.all([
         this.storage.ladeLager(),
         this.storage.ladeArtikel(),
+        this.storage.ladeKisten(),
       ]);
       this.lager.set(nachReihenfolge(lager));
       this.artikel.set(nachName(artikel));
+      this.kisten.set(nachName(kisten));
     } catch (fehler) {
       this.ladeFehler.set(fehlermeldung(fehler));
     } finally {
@@ -105,8 +130,11 @@ export class StammdatenStoreService {
   }
 
   async lagerLoeschen(lager: Lager): Promise<boolean> {
-    if ((this.artikelJeLager().get(lager.id) ?? 0) > 0) {
-      return this.abgelehnt('Dieses Lager ist noch Heimatlager von Artikeln.');
+    if (
+      (this.artikelJeLager().get(lager.id) ?? 0) > 0 ||
+      (this.kistenJeLager().get(lager.id) ?? 0) > 0
+    ) {
+      return this.abgelehnt('Dieses Lager ist noch Heimatlager von Artikeln oder Kisten.');
     }
     return this.ausfuehren(lager.id, async () => {
       await this.storage.loescheLager(lager.id, lager.version);
@@ -176,10 +204,75 @@ export class StammdatenStoreService {
   }
 
   async artikelLoeschen(artikel: Artikel): Promise<boolean> {
+    if ((this.kistenJeArtikel().get(artikel.id) ?? 0) > 0) {
+      return this.abgelehnt('Dieser Artikel ist noch in einer Kiste enthalten.');
+    }
     return this.ausfuehren(artikel.id, async () => {
       await this.storage.loescheArtikel(artikel.id, artikel.version);
       this.artikel.update((liste) => liste.filter((a) => a.id !== artikel.id));
     });
+  }
+
+  /** Legt eine leere Kiste an und liefert sie zurück (`null` bei Ablehnung oder Fehler). */
+  async kisteAnlegen(name: string): Promise<Kiste | null> {
+    const bereinigt = name.trim().replace(/\s+/g, ' ');
+    if (bereinigt === '') return null;
+    if (this.kisten().length >= STAMMDATEN_GRENZEN.kisten) {
+      this.abgelehnt(`Es sind höchstens ${STAMMDATEN_GRENZEN.kisten} Kisten möglich.`);
+      return null;
+    }
+    if (this.kisteNameVergeben(bereinigt, null)) {
+      this.abgelehnt('Diese Kiste gibt es schon.');
+      return null;
+    }
+    let angelegt: Kiste | null = null;
+    await this.ausfuehren(null, async () => {
+      const neu = await this.storage.speichereKiste(
+        { id: crypto.randomUUID(), name: bereinigt, lagerId: null, inhalt: [] },
+        null,
+      );
+      this.kisten.update((liste) => nachName([...liste, neu]));
+      angelegt = neu;
+    });
+    return angelegt;
+  }
+
+  /** Speichert Name, Heimatlager und Inhalt der Kiste in einem Schreibvorgang. */
+  async kisteSpeichern(
+    kiste: Kiste,
+    aenderung: Pick<KisteEingabe, 'name' | 'lagerId' | 'inhalt'>,
+  ): Promise<Kiste | null> {
+    const name = aenderung.name.trim().replace(/\s+/g, ' ');
+    if (name === '') {
+      this.abgelehnt('Die Kiste braucht einen Namen.');
+      return null;
+    }
+    if (this.kisteNameVergeben(name, kiste.id)) {
+      this.abgelehnt('Diese Kiste gibt es schon.');
+      return null;
+    }
+    let gespeichert: Kiste | null = null;
+    await this.ausfuehren(kiste.id, async () => {
+      const neu = await this.storage.speichereKiste(
+        { id: kiste.id, name, lagerId: aenderung.lagerId, inhalt: aenderung.inhalt },
+        kiste.version,
+      );
+      this.kisten.update((liste) => nachName(liste.map((k) => (k.id === neu.id ? neu : k))));
+      gespeichert = neu;
+    });
+    return gespeichert;
+  }
+
+  async kisteLoeschen(kiste: Kiste): Promise<boolean> {
+    return this.ausfuehren(kiste.id, async () => {
+      await this.storage.loescheKiste(kiste.id, kiste.version);
+      this.kisten.update((liste) => liste.filter((k) => k.id !== kiste.id));
+    });
+  }
+
+  private kisteNameVergeben(name: string, ausser: string | null): boolean {
+    const schluessel = lagerSchluessel(name);
+    return this.kisten().some((k) => k.id !== ausser && lagerSchluessel(k.name) === schluessel);
   }
 
   private lagerNameVergeben(name: string, ausser: string | null): boolean {

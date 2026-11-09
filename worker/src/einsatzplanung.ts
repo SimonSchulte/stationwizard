@@ -13,6 +13,7 @@ import {
   loescheArtikel,
 } from './einsatzplanung-artikel';
 import { type EinsatzplanungKonfiguration } from './einsatzplanung-gemeinsam';
+import { aktualisiereKiste, legeKisteAn, listeKisten, loescheKiste } from './einsatzplanung-kisten';
 import {
   aktualisiereLager,
   legeLagerAn,
@@ -59,6 +60,8 @@ const LAGER_REIHENFOLGE_PFAD = '/api/einsatzplanung/lager/reihenfolge';
 const LAGER_PFAD = new RegExp(`^/api/einsatzplanung/lager/(${UUID_MUSTER})$`, 'i');
 const ARTIKEL_LISTE_PFAD = '/api/einsatzplanung/artikel';
 const ARTIKEL_PFAD = new RegExp(`^/api/einsatzplanung/artikel/(${UUID_MUSTER})$`, 'i');
+const KISTEN_LISTE_PFAD = '/api/einsatzplanung/kisten';
+const KISTE_PFAD = new RegExp(`^/api/einsatzplanung/kisten/(${UUID_MUSTER})$`, 'i');
 
 function nichtErlaubt(erlaubt: string): Response {
   return fehlerAntwort('METHODE_NICHT_ERLAUBT', 'Methode nicht erlaubt.', 405, { Allow: erlaubt });
@@ -179,6 +182,19 @@ export async function verarbeiteEinsatzplanung(
     if (artikelId) {
       if (methode === 'PUT') return await aktualisiereArtikel(anfrage, db, artikelId, identitaet);
       if (methode === 'DELETE') return await loescheArtikel(anfrage, db, artikelId);
+      return nichtErlaubt('PUT, DELETE');
+    }
+
+    if (url.pathname === KISTEN_LISTE_PFAD) {
+      if (methode === 'GET') return await listeKisten(db);
+      if (methode === 'POST') return await legeKisteAn(anfrage, db, identitaet);
+      return nichtErlaubt('GET, POST');
+    }
+
+    const kisteId = KISTE_PFAD.exec(url.pathname)?.[1]?.toLowerCase();
+    if (kisteId) {
+      if (methode === 'PUT') return await aktualisiereKiste(anfrage, db, kisteId, identitaet);
+      if (methode === 'DELETE') return await loescheKiste(anfrage, db, kisteId);
       return nichtErlaubt('PUT, DELETE');
     }
 

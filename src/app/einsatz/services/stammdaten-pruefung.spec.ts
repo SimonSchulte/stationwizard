@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { istArtikel, istArtikelEinheit, istLager } from './stammdaten-pruefung';
+import {
+  istArtikel,
+  istArtikelEinheit,
+  istGueltigeMenge,
+  istKiste,
+  istLager,
+} from './stammdaten-pruefung';
 
 const VERWALTUNG = { version: 1, geaendertAm: '2026-11-09T10:00:00.000Z', geaendertVon: 'a@b.c' };
 
@@ -51,5 +57,41 @@ describe('istArtikelEinheit', () => {
     expect(istArtikelEinheit('Liter')).toBe(true);
     expect(istArtikelEinheit('liter')).toBe(false);
     expect(istArtikelEinheit(3)).toBe(false);
+  });
+});
+
+describe('istKiste', () => {
+  const kiste = {
+    id: 'x',
+    name: 'Gewürzkiste',
+    lagerId: null,
+    inhalt: [{ artikelId: 'a1', menge: 2.5, bemerkung: '' }],
+    ...VERWALTUNG,
+  };
+
+  it('nimmt eine Kiste mit und ohne Inhalt und Heimatlager an', () => {
+    expect(istKiste(kiste)).toBe(true);
+    expect(istKiste({ ...kiste, inhalt: [], lagerId: 'l1' })).toBe(true);
+  });
+
+  it.each([
+    ['Inhalt keine Liste', { ...kiste, inhalt: 'x' }],
+    ['Position ohne Artikel', { ...kiste, inhalt: [{ menge: 1, bemerkung: '' }] }],
+    ['Menge null', { ...kiste, inhalt: [{ artikelId: 'a', menge: 0, bemerkung: '' }] }],
+    ['Menge Text', { ...kiste, inhalt: [{ artikelId: 'a', menge: '1', bemerkung: '' }] }],
+    ['Bemerkung fehlt', { ...kiste, inhalt: [{ artikelId: 'a', menge: 1 }] }],
+    ['ohne Version', { ...kiste, version: undefined }],
+  ])('lehnt ab: %s', (_titel, wert) => {
+    expect(istKiste(wert)).toBe(false);
+  });
+});
+
+describe('istGueltigeMenge', () => {
+  it.each([1, 0.001, 2.5, 0.1, 85, 1_000_000])('nimmt %s an', (menge) => {
+    expect(istGueltigeMenge(menge)).toBe(true);
+  });
+
+  it.each([0, -1, 1.2345, 1_000_001, NaN, Infinity])('lehnt %s ab', (menge) => {
+    expect(istGueltigeMenge(menge)).toBe(false);
   });
 });

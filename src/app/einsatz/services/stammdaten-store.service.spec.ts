@@ -2,7 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiStammdatenStorage } from '../storage/api-stammdaten-storage';
 import { InMemoryStammdatenStorage } from '../testing/in-memory-stammdaten-storage';
-import { erzeugeTestArtikel, erzeugeTestLager } from '../testing/stammdaten-testdaten';
+import {
+  erzeugeTestArtikel,
+  erzeugeTestKiste,
+  erzeugeTestLager,
+} from '../testing/stammdaten-testdaten';
 import { StammdatenStoreService } from './stammdaten-store.service';
 
 describe('StammdatenStoreService', () => {
@@ -95,7 +99,7 @@ describe('StammdatenStoreService', () => {
       await store.artikelAnlegen({ name: 'Besen', einheit: 'Stück', lagerId: voll.id });
       const vorher = storage.schreibzugriffe;
       expect(await store.lagerLoeschen(voll)).toBe(false);
-      expect(store.fehler()).toBe('Dieses Lager ist noch Heimatlager von Artikeln.');
+      expect(store.fehler()).toBe('Dieses Lager ist noch Heimatlager von Artikeln oder Kisten.');
       expect(storage.schreibzugriffe).toBe(vorher);
       expect(await store.lagerLoeschen(leer)).toBe(true);
       expect(store.lager().map((l) => l.name)).toEqual(['Voll']);
@@ -175,6 +179,112 @@ describe('StammdatenStoreService', () => {
       expect(store.konflikt()).toBe(true);
       expect(await store.artikelLoeschen(store.artikel()[0])).toBe(true);
       expect(store.artikel()).toEqual([]);
+    });
+  });
+
+  describe('Kisten', () => {
+    it('lädt die Kisten alphabetisch und zählt sie je Lager und Artikel', async () => {
+      storage._vorbelegen(
+        [erzeugeTestLager({ id: 'l1' })],
+        [erzeugeTestArtikel({ id: 'a1' }), erzeugeTestArtikel({ id: 'a2' })],
+        [
+          erzeugeTestKiste({
+            name: 'Zweite',
+            lagerId: 'l1',
+            inhalt: [{ artikelId: 'a1', menge: 1, bemerkung: '' }],
+          }),
+          erzeugeTestKiste({
+            name: 'Erste',
+            lagerId: 'l1',
+            inhalt: [
+              { artikelId: 'a1', menge: 1, bemerkung: '' },
+              { artikelId: 'a2', menge: 1, bemerkung: '' },
+            ],
+          }),
+        ],
+      );
+      await store.laden();
+      expect(store.kisten().map((k) => k.name)).toEqual(['Erste', 'Zweite']);
+      expect(store.kistenJeLager().get('l1')).toBe(2);
+      expect(store.kistenJeArtikel().get('a1')).toBe(2);
+      expect(store.kistenJeArtikel().get('a2')).toBe(1);
+    });
+
+    it('legt eine leere Kiste an und liefert sie zurück', async () => {
+      const kiste = await store.kisteAnlegen('  Gewürzkiste ');
+      expect(kiste).toMatchObject({ name: 'Gewürzkiste', inhalt: [], lagerId: null, version: 1 });
+      expect(store.kisten()).toHaveLength(1);
+    });
+
+    it('prüft einen doppelten Namen, leeren Namen und die Grenze vorab', async () => {
+      await store.kisteAnlegen('Eins');
+      const vorher = storage.schreibzugriffe;
+      expect(await store.kisteAnlegen(' EINS ')).toBeNull();
+      expect(store.fehler()).toBe('Diese Kiste gibt es schon.');
+      expect(await store.kisteAnlegen('   ')).toBeNull();
+      store.kisten.set(Array.from({ length: 300 }, (_, n) => erzeugeTestKiste({ name: `K${n}` })));
+      expect(await store.kisteAnlegen('Zu viel')).toBeNull();
+      expect(store.fehler()).toContain('höchstens 300');
+      expect(storage.schreibzugriffe).toBe(vorher);
+    });
+
+    it('speichert Name, Heimatlager und Inhalt in einem Schreibvorgang', async () => {
+      const kiste = (await store.kisteAnlegen('Alt'))!;
+      const vorher = storage.schreibzugriffe;
+      const gespeichert = await store.kisteSpeichern(kiste, {
+        name: ' Neu ',
+        lagerId: null,
+        inhalt: [{ artikelId: 'a1', menge: 3, bemerkung: 'voll' }],
+      });
+      expect(gespeichert).toMatchObject({ name: 'Neu', version: 2 });
+      expect(store.kisten()[0].inhalt).toEqual([{ artikelId: 'a1', menge: 3, bemerkung: 'voll' }]);
+      expect(storage.schreibzugriffe).toBe(vorher + 1);
+    });
+
+    it('lehnt leeren und doppelten Namen beim Speichern ab, ohne zu schreiben', async () => {
+      await store.kisteAnlegen('Eins');
+      const zwei = (await store.kisteAnlegen('Zwei'))!;
+      const vorher = storage.schreibzugriffe;
+      expect(await store.kisteSpeichern(zwei, { name: ' ', lagerId: null, inhalt: [] })).toBeNull();
+      expect(
+        await store.kisteSpeichern(zwei, { name: 'eins', lagerId: null, inhalt: [] }),
+      ).toBeNull();
+      expect(store.fehler()).toBe('Diese Kiste gibt es schon.');
+      expect(storage.schreibzugriffe).toBe(vorher);
+    });
+
+    it('meldet einen Versionskonflikt beim Speichern', async () => {
+      const kiste = (await store.kisteAnlegen('Eins'))!;
+      await store.kisteSpeichern(kiste, { name: 'Eins', lagerId: null, inhalt: [] });
+      expect(
+        await store.kisteSpeichern(kiste, { name: 'Zwei', lagerId: null, inhalt: [] }),
+      ).toBeNull();
+      expect(store.konflikt()).toBe(true);
+    });
+
+    it('löscht eine Kiste', async () => {
+      const kiste = (await store.kisteAnlegen('Eins'))!;
+      expect(await store.kisteLoeschen(kiste)).toBe(true);
+      expect(store.kisten()).toEqual([]);
+    });
+
+    it('sperrt das Löschen eines Artikels in einer Kiste und eines Lagers mit Kisten', async () => {
+      await store.lagerAnlegen('Lager');
+      const lager = store.lager()[0];
+      await store.artikelAnlegen({ name: 'Öl', einheit: 'Liter', lagerId: null });
+      const artikel = store.artikel()[0];
+      const kiste = (await store.kisteAnlegen('Kiste'))!;
+      await store.kisteSpeichern(kiste, {
+        name: 'Kiste',
+        lagerId: lager.id,
+        inhalt: [{ artikelId: artikel.id, menge: 1, bemerkung: '' }],
+      });
+      const vorher = storage.schreibzugriffe;
+      expect(await store.artikelLoeschen(artikel)).toBe(false);
+      expect(store.fehler()).toBe('Dieser Artikel ist noch in einer Kiste enthalten.');
+      expect(await store.lagerLoeschen(lager)).toBe(false);
+      expect(store.fehler()).toContain('Heimatlager von Artikeln oder Kisten');
+      expect(storage.schreibzugriffe).toBe(vorher);
     });
   });
 });

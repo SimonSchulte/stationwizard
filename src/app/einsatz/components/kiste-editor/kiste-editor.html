@@ -1,0 +1,170 @@
+<section class="kopf" [attr.aria-label]="'Kiste ' + kiste().name">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="name">
+    <mat-label>Name der Kiste</mat-label>
+    <input
+      matInput
+      autocomplete="off"
+      [attr.maxlength]="maxName"
+      [value]="name()"
+      [disabled]="beschaeftigt()"
+      (input)="nameGeaendert($event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="lager">
+    <mat-label>Heimatlager</mat-label>
+    <mat-select
+      placeholder="Kein Heimatlager"
+      [value]="lagerId()"
+      [disabled]="beschaeftigt()"
+      (selectionChange)="lagerId.set($event.value)"
+    >
+      <mat-option [value]="null">Kein Heimatlager</mat-option>
+      @for (eintrag of lager(); track eintrag.id) {
+        <mat-option [value]="eintrag.id">{{ eintrag.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</section>
+
+<h3 class="inhalt-titel">Inhalt ({{ zeilen().length }})</h3>
+
+@if (zeilen().length === 0) {
+  <p class="leer">Noch kein Material in dieser Kiste.</p>
+} @else {
+  <div class="rahmen">
+    <table class="tabelle">
+      <thead>
+        <tr>
+          <th scope="col">Artikel</th>
+          <th scope="col" class="menge-spalte">Menge</th>
+          <th scope="col">Einheit</th>
+          <th scope="col">Bemerkung</th>
+          <th scope="col"><span class="sr-only">Aktionen</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (eintrag of zeilenAnsicht(); track eintrag.zeile.schluessel) {
+          <tr>
+            <td data-label="Artikel">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-select
+                  placeholder="Artikel wählen"
+                  aria-label="Artikel"
+                  [value]="eintrag.zeile.artikelId"
+                  [disabled]="beschaeftigt()"
+                  (selectionChange)="zeileAendern(eintrag.zeile, { artikelId: $event.value })"
+                >
+                  @for (a of auswahlFuer(eintrag.zeile); track a.id) {
+                    <mat-option [value]="a.id">{{ a.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </td>
+            <td data-label="Menge" class="menge-spalte">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="menge">
+                <input
+                  matInput
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  aria-label="Menge"
+                  [value]="eintrag.zeile.menge ?? ''"
+                  [disabled]="beschaeftigt()"
+                  (input)="mengeGeaendert(eintrag.zeile, $event)"
+                />
+              </mat-form-field>
+            </td>
+            <td data-label="Einheit" class="einheit">{{ eintrag.einheit }}</td>
+            <td data-label="Bemerkung">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <input
+                  matInput
+                  autocomplete="off"
+                  aria-label="Bemerkung"
+                  [attr.maxlength]="maxBemerkung"
+                  [value]="eintrag.zeile.bemerkung"
+                  [disabled]="beschaeftigt()"
+                  (input)="bemerkungGeaendert(eintrag.zeile, $event)"
+                />
+              </mat-form-field>
+            </td>
+            <td class="aktion">
+              <button
+                matIconButton
+                type="button"
+                aria-label="Zeile entfernen"
+                [disabled]="beschaeftigt()"
+                (click)="zeileEntfernen(eintrag.zeile)"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<div class="werkzeuge">
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="beschaeftigt() || zeilen().length >= maxPositionen"
+    (click)="zeileHinzufuegen()"
+  >
+    <mat-icon>add</mat-icon>
+    Artikel hinzufügen
+  </button>
+  @if (artikel().length === 0) {
+    <span class="hinweis">Lege zuerst im Reiter „Artikel“ Artikel an.</span>
+  }
+</div>
+
+@if (schmutzig() && probleme().length > 0) {
+  <ul class="probleme" role="status">
+    @for (problem of probleme(); track problem) {
+      <li>{{ problem }}</li>
+    }
+  </ul>
+}
+
+<div class="fuss">
+  <button matButton="filled" type="button" [disabled]="!kannSpeichern()" (click)="speichern()">
+    <mat-icon>save</mat-icon>
+    {{ beschaeftigt() ? 'Speichert …' : 'Speichern' }}
+  </button>
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!schmutzig() || beschaeftigt()"
+    (click)="verwerfen()"
+  >
+    Änderungen verwerfen
+  </button>
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="schmutzig() || beschaeftigt()"
+    [matMenuTriggerFor]="druckMenue"
+    [attr.title]="schmutzig() ? 'Erst speichern: gedruckt wird der gespeicherte Stand' : null"
+  >
+    <mat-icon>print</mat-icon>
+    Drucken
+  </button>
+  <mat-menu #druckMenue="matMenu">
+    <button mat-menu-item type="button" (click)="schildDrucken.emit()">
+      <mat-icon>label</mat-icon>
+      <span>Kistenschild</span>
+    </button>
+    <button mat-menu-item type="button" (click)="zettelDrucken.emit()">
+      <mat-icon>checklist</mat-icon>
+      <span>Kistenzettel</span>
+    </button>
+  </mat-menu>
+  <span class="platz"></span>
+  <button matButton type="button" [disabled]="beschaeftigt()" (click)="geloescht.emit()">
+    <mat-icon>delete</mat-icon>
+    Kiste löschen
+  </button>
+</div>

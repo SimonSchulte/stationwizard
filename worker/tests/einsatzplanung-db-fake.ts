@@ -89,7 +89,20 @@ interface ArtikelZeile {
   geaendert_von: string;
 }
 
+interface KisteZeile {
+  id: string;
+  name: string;
+  name_vergleich: string;
+  lager_id: string | null;
+  inhalt: string;
+  positionen: number;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeEinsatzplanungDb {
+  kisten = new Map<string, KisteZeile>();
   lager = new Map<string, LagerZeile>();
   artikel = new Map<string, ArtikelZeile>();
   /** Zählt die `db.batch()`-Aufrufe: die Lagerreihenfolge muss mit genau einem auskommen. */
@@ -200,6 +213,77 @@ class FakeStatement {
       const bestehend = this.db.lager.get(id);
       if (!bestehend) return KEIN_TREFFER;
       this.db.lager.set(id, { ...bestehend, reihenfolge, geaendert_am: am, geaendert_von: von });
+      return OK;
+    }
+    if (this.query.startsWith('INSERT INTO kisten')) {
+      const [id, name, vergleich, lagerId, inhalt, positionen, am, von] = w as [
+        string,
+        string,
+        string,
+        string | null,
+        string,
+        number,
+        string,
+        string,
+      ];
+      if (this.db.kisten.has(id)) throw new Error('UNIQUE constraint failed: kisten.id');
+      if ([...this.db.kisten.values()].some((z) => z.name_vergleich === vergleich)) {
+        throw new Error('UNIQUE constraint failed: kisten.name_vergleich');
+      }
+      if (lagerId !== null && !this.db.lager.has(lagerId)) {
+        throw new Error('FOREIGN KEY constraint failed');
+      }
+      this.db.kisten.set(id, {
+        id,
+        name,
+        name_vergleich: vergleich,
+        lager_id: lagerId,
+        inhalt,
+        positionen,
+        version: 1,
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE kisten SET name = ?')) {
+      const [name, vergleich, lagerId, inhalt, positionen, am, von, id, version] = w as [
+        string,
+        string,
+        string | null,
+        string,
+        number,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.kisten.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      if ([...this.db.kisten.values()].some((z) => z.id !== id && z.name_vergleich === vergleich)) {
+        throw new Error('UNIQUE constraint failed: kisten.name_vergleich');
+      }
+      if (lagerId !== null && !this.db.lager.has(lagerId)) {
+        throw new Error('FOREIGN KEY constraint failed');
+      }
+      this.db.kisten.set(id, {
+        ...bestehend,
+        name,
+        name_vergleich: vergleich,
+        lager_id: lagerId,
+        inhalt,
+        positionen,
+        geaendert_am: am,
+        geaendert_von: von,
+        version: bestehend.version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM kisten')) {
+      const [id, version] = w as [string, number];
+      const bestehend = this.db.kisten.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.kisten.delete(id);
       return OK;
     }
     if (this.query.startsWith('DELETE FROM lager')) {
@@ -627,6 +711,21 @@ class FakeStatement {
         hoechste: zeilen.reduce((h, z) => Math.max(h, z.reihenfolge), 0),
       });
     }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM kisten WHERE lager_id = ?')) {
+      return als({ n: [...this.db.kisten.values()].filter((z) => z.lager_id === w[0]).length });
+    }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM kisten WHERE inhalt LIKE ?')) {
+      const muster = (w[0] as string).replace(/^%|%$/g, '');
+      return als({
+        n: [...this.db.kisten.values()].filter((z) => z.inhalt.includes(muster)).length,
+      });
+    }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM kisten')) {
+      return als({ n: this.db.kisten.size });
+    }
+    if (this.query.startsWith('SELECT id FROM kisten WHERE id = ?')) {
+      return als(this.db.kisten.has(w[0] as string) ? { id: w[0] } : undefined);
+    }
     if (this.query.startsWith('SELECT COUNT(*) AS n FROM artikel WHERE lager_id = ?')) {
       const n = [...this.db.artikel.values()].filter((z) => z.lager_id === w[0]).length;
       return als({ n });
@@ -689,6 +788,16 @@ class FakeStatement {
   }
 
   async all<T = Record<string, unknown>>(): Promise<{ success: true; results: T[] }> {
+    if (this.query.startsWith('SELECT id, name, lager_id, inhalt, version')) {
+      const zeilen = [...this.db.kisten.values()].sort((a, b) => a.name.localeCompare(b.name));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT id FROM artikel WHERE id IN (')) {
+      const zeilen = (this.werte as string[])
+        .filter((id) => this.db.artikel.has(id))
+        .map((id) => ({ id }));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
     if (this.query.startsWith('SELECT id, name, reihenfolge, version')) {
       const zeilen = [...this.db.lager.values()].sort(
         (a, b) => a.reihenfolge - b.reihenfolge || a.name.localeCompare(b.name),

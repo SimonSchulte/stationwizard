@@ -299,6 +299,8 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/einsatzplanung/lager/<UUID>`                 | PUT / DELETE       | Update und Löschen nur mit `If-Match`; Löschen gesperrt, solange Artikel es nutzen        |
 | `/api/einsatzplanung/artikel`                      | GET / POST         | Ganzer Artikelkatalog in einem Aufruf; Neuanlage nur mit `If-None-Match: *`               |
 | `/api/einsatzplanung/artikel/<UUID>`               | PUT / DELETE       | Update und Löschen nur mit `If-Match`                                                     |
+| `/api/einsatzplanung/kisten`                       | GET / POST         | Alle Kisten samt Inhalt in einem Aufruf; Neuanlage nur mit `If-None-Match: *`             |
+| `/api/einsatzplanung/kisten/<UUID>`                | PUT / DELETE       | Update und Löschen nur mit `If-Match`                                                     |
 | `/f/<UUID>`, `/f/<UUID>/km`                        | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                    |
 | `/api/fahrzeuge/erfassungslinks`                   | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt                     |
 | `/api/fahrzeuge/<UUID>/erfassungslink`             | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                      |
@@ -559,6 +561,24 @@ puffert sie über `kern/abruf-puffer.ts`. Die Oberfläche (`einsatz/pages/stammd
 `StammdatenStoreService`; die Komponenten `LagerListe` (Ziehen am Griff oder Pfeile) und `ArtikelTabelle`
 (Suche, Filter „Ohne Heimatlager“, 50 je Seite) sind rein darstellend. Rollenvergabe fehlt auch hier –
 dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
+
+**Kisten (Stufe 2)** liegen in derselben Datenbank (`0024_kisten.sql`, Worker `einsatzplanung-kisten.ts`): eine
+Zeile je Kiste mit `name` (eindeutig in der Vergleichsform), Heimatlager (`lager_id`, leer möglich,
+Fremdschlüssel `ON DELETE RESTRICT`) und `inhalt` als vom Worker streng geprüftes JSON
+(`pruefeKisteEingabe()`: unbekannte Felder abgelehnt, `artikelId` je Kiste einmal und vorhanden, `menge` > 0 mit
+höchstens drei Nachkommastellen bis 1 000 000, `bemerkung` ≤ 200 Zeichen, höchstens 100 Positionen und 300
+Kisten). Die Kennzahl `positionen` setzt nur der Worker. Löschschutz: ein **Artikel in einer Kiste** (Suche
+`inhalt LIKE '%"artikelId":"<id>"%'`, deshalb schreibt der Worker den Inhalt immer in dieser Schlüsselfolge und
+ohne Leerraum) und ein **Lager mit Kisten** lassen sich nicht löschen (409
+`EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`). Die Seite hat den Reiter „Kisten“ (`KisteListe`, `KisteEditor`):
+Eine Kiste wird **ausdrücklich mit „Speichern“** gespeichert (ein Schreibvorgang je Kiste, nie je Zeile);
+ungespeicherte Änderungen fragen beim Wechsel der Kiste und beim Verlassen der Seite nach
+(`verlassenGuard`, `Stammdaten.hatUngespeichertes()`). Druck: `kisten-pdf-definition.ts` und `KistenDruckDienst`
+– **Kistenschild** (A5 quer, zwei je A4-Hochformatblatt mit Schnittlinie, Inhaltsliste in einer bis drei Spalten
+mit „… und n weitere“, unten das Heimatlager) und **Kistenzettel** (ein Laufzettelstreifen „<Kiste> packen“ über
+`baueLaufzettelStreifen()`, „Auf / In“ als Schreiblinie, ohne Schild-Nummer im Fuß). Gedruckt wird der gespeicherte
+Stand; ohne Aufbau gibt es weder Ziel noch Einsatz, deshalb dunkelblauer Rahmen und neutrales Farbband (Stufe 3
+setzt Zielfarbe und Einsatz ein).
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte

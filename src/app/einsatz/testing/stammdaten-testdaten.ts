@@ -1,4 +1,4 @@
-import { Artikel, Lager } from '../models/stammdaten.model';
+import { Artikel, Kiste, Lager } from '../models/stammdaten.model';
 
 let zaehler = 0;
 
@@ -26,6 +26,19 @@ export function erzeugeTestArtikel(ueberschreibung: Partial<Artikel> = {}): Arti
     name: 'Gasflasche 5 kg',
     einheit: 'Stück',
     lagerId: null,
+    version: 1,
+    geaendertAm: '2026-11-09T10:00:00.000Z',
+    geaendertVon: 'test@example.invalid',
+    ...ueberschreibung,
+  };
+}
+
+export function erzeugeTestKiste(ueberschreibung: Partial<Kiste> = {}): Kiste {
+  return {
+    id: testKennung(),
+    name: 'Gewürzkiste',
+    lagerId: null,
+    inhalt: [],
     version: 1,
     geaendertAm: '2026-11-09T10:00:00.000Z',
     geaendertVon: 'test@example.invalid',

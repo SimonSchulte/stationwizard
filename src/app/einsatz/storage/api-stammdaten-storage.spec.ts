@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { erzeugeTestArtikel, erzeugeTestLager } from '../testing/stammdaten-testdaten';
+import {
+  erzeugeTestArtikel,
+  erzeugeTestKiste,
+  erzeugeTestLager,
+} from '../testing/stammdaten-testdaten';
 import { ApiStammdatenStorage } from './api-stammdaten-storage';
 import {
   StammdatenInNutzungFehler,
@@ -142,5 +146,69 @@ describe('ApiStammdatenStorage', () => {
     expect(optionen.method).toBe('PUT');
     expect(JSON.parse(optionen.body)).toEqual({ ids: [a.id, b.id] });
     expect(optionen.headers.get('If-Match')).toBeNull();
+  });
+
+  describe('Kisten', () => {
+    it('lädt und prüft die Kisten samt Inhalt', async () => {
+      const kiste = erzeugeTestKiste({
+        inhalt: [{ artikelId: 'a1', menge: 2, bemerkung: 'voll' }],
+      });
+      worker.json.mockResolvedValue({ kisten: [kiste, { inhalt: 'kaputt' }] });
+      expect(await storage.ladeKisten()).toEqual([kiste]);
+      await storage.ladeKisten();
+      expect(worker.json).toHaveBeenCalledOnce();
+      expect(worker.json.mock.calls[0][0]).toBe('/api/einsatzplanung/kisten');
+    });
+
+    it('legt mit If-None-Match: * an, ändert mit If-Match und sendet den ganzen Inhalt', async () => {
+      const kiste = erzeugeTestKiste({ inhalt: [{ artikelId: 'a1', menge: 1, bemerkung: '' }] });
+      worker.json.mockResolvedValue(kiste);
+      const eingabe = {
+        id: kiste.id,
+        name: kiste.name,
+        lagerId: null,
+        inhalt: kiste.inhalt,
+      };
+      await storage.speichereKiste(eingabe, null);
+      const [pfadNeu, neu] = worker.json.mock.calls[0];
+      expect(pfadNeu).toBe('/api/einsatzplanung/kisten');
+      expect(neu.headers.get('If-None-Match')).toBe('*');
+      await storage.speichereKiste(eingabe, 3);
+      const [pfadAlt, alt] = worker.json.mock.calls[1];
+      expect(pfadAlt).toBe(`/api/einsatzplanung/kisten/${kiste.id}`);
+      expect(alt.headers.get('If-Match')).toBe('"3"');
+      expect(JSON.parse(alt.body)).toEqual(eingabe);
+    });
+
+    it('weist eine ungültige Antwort ab und übersetzt Konflikt und Namen', async () => {
+      worker.json.mockResolvedValue({ x: 1 });
+      const eingabe = { id: 'x', name: 'A', lagerId: null, inhalt: [] };
+      await expect(storage.speichereKiste(eingabe, null)).rejects.toBeInstanceOf(WorkerFehler);
+      worker.json.mockRejectedValue(new WorkerFehler('x', 412));
+      await expect(storage.speichereKiste(eingabe, 1)).rejects.toBeInstanceOf(
+        StammdatenKonfliktFehler,
+      );
+      worker.json.mockRejectedValue(new WorkerFehler('x', 409, 'EINSATZPLANUNG_NAME_VERGEBEN'));
+      await expect(storage.speichereKiste(eingabe, null)).rejects.toMatchObject({ art: 'kiste' });
+    });
+
+    it('löscht mit If-Match', async () => {
+      worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
+      await storage.loescheKiste('abc', 2);
+      const [pfad, optionen] = worker.anfragen.mock.calls[0];
+      expect(pfad).toBe('/api/einsatzplanung/kisten/abc');
+      expect(optionen.headers.get('If-Match')).toBe('"2"');
+    });
+  });
+
+  it('nennt beim Löschschutz eines Artikels die Kiste', async () => {
+    worker.anfragen.mockRejectedValue(
+      new WorkerFehler('x', 409, 'EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG'),
+    );
+    await expect(storage.loescheArtikel('x', 1)).rejects.toMatchObject({
+      art: 'artikel',
+      message: 'Dieser Artikel ist noch in einer Kiste enthalten.',
+    });
+    await expect(storage.loescheLager('x', 1)).rejects.toMatchObject({ art: 'lager' });
   });
 });

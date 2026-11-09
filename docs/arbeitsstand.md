@@ -3681,3 +3681,28 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Vorbereitung genutzten Lager vor; die Stammdaten-Lager fließen dort noch nicht ein.
 - Hinweis: `planning-list.spec.ts` hat zwei zeitabhängige Fälle („in 7 Tagen“, „in 30 Tagen“), die
   abends fehlschlagen. Sie fielen auch ohne die Änderungen dieser Stufe durch und sind nicht Teil davon.
+
+## Packeinheiten, Stufe 2: Kisten
+
+- Entscheidungen des Betreibers zu den früher offenen Fragen sind in `docs/konzept-packeinheiten.md`,
+  Abschnitt 9, festgehalten (alle wie vorgeschlagen). Stufe 2 ist umgesetzt wie in Abschnitt 7 beschrieben.
+- Neu: Migration `0024_kisten.sql`, Worker `einsatzplanung-kisten.ts` (Endpunkte in der Tabelle der
+  `CLAUDE.md`), Löschschutz für Artikel in Kisten und Lager mit Kisten, Frontend-Schicht (Modell,
+  Prüfung, Storage-Erweiterung, Store), Reiter „Kisten“ in der Stammdatenseite, Kistenschild und Kistenzettel
+  als PDF (`kisten-pdf-definition.ts`, `KistenDruckDienst`). Aus `vb-pdf-definition.ts` sind
+  `laufzettelAbschnitt()` und `schnittlinie()` herausgelöst und werden von beiden Drucken genutzt.
+- Entscheidungen: Eine Kiste wird mit „Speichern“ in einem Schreibvorgang gesichert (Free-Tier: nie je
+  Zeile). Gedruckt wird der gespeicherte Stand; bei ungespeicherten Änderungen ist „Drucken“ gesperrt.
+  Der Artikel einer Kistenzeile wird aus einer Auswahlliste gewählt (Tippen springt zum Eintrag); bei
+  mehreren hundert Artikeln wäre eine Suche im Auswahlfeld besser, das ist noch nicht gebaut.
+- Geprüft: Worker-Tests (935 insgesamt: Prüfung des Inhalts, Mengen, Verweise, Namen, Konflikte, Grenzen,
+  Löschschutz in beide Richtungen), die Migration gegen echtes SQLite (Eindeutigkeit, Fremdschlüssel,
+  `LIKE`-Suche), Frontend-Tests für Adapter, Store, `KisteListe`, `KisteEditor`, Seite und beide PDF-
+  Definitionen, Build, Sicht im Chromium mit zustandsbehafteter Attrappe (Kiste anlegen, Artikel und Menge
+  erfassen, speichern, Wechsel mit ungespeicherten Änderungen, Druckmenü) und echte PDFs: Kistenschild mit
+  4 und mit 40 Positionen, Kistenzettel mit Fortsetzungsstreifen.
+- **Nicht geprüft:** der echte Worker mit D1 (Migrationen `0023` und `0024` noch nicht eingespielt), ein Papierdruck
+  und der Zuschnitt der Schilder, die Kistenseite am Handy (Tabelle scrollt waagerecht in ihrem Rahmen, sie
+  bleibt eine Desktop-Darstellung).
+- Hinweis: Die zwei zeitabhängigen Tests in `planning-list.spec.ts` schlagen weiter abends fehl (siehe
+  oben), unabhängig von dieser Stufe.

@@ -1,6 +1,6 @@
 # Konzept: Packeinheiten, Lager und abgeleitete Zettel
 
-Status: **Entwurf; Stufe 1 (Lager und Artikel) umgesetzt, Stufen 2 und 3 offen** (siehe `docs/arbeitsstand.md`). Er löst das heutige Modell der VB (Abschnitte mit Laufzetteln,
+Status: **Entwurf; Stufen 1 (Lager und Artikel) und 2 (Kisten) umgesetzt, Stufe 3 offen** (siehe `docs/arbeitsstand.md`). Er löst das heutige Modell der VB (Abschnitte mit Laufzetteln,
 `docs/konzept-einsatzplanung-vb.md`) ab, sobald die Stufen unten gebaut sind. Das bestehende
 Datenmodell wird nicht migriert: der Betreiber legt die Daten neu an (siehe Abschnitt 8).
 Mocks: Artifact „Packeinheiten“, Entscheidungen aus dem Gespräch mit dem Betreiber.

@@ -21,7 +21,15 @@ export const ARTIKEL_EINHEITEN = [
 export type ArtikelEinheit = (typeof ARTIKEL_EINHEITEN)[number];
 
 /** Grenzen laut Vertrag; der Worker prüft dieselben Werte. */
-export const STAMMDATEN_GRENZEN = { lager: 100, artikel: 2000, name: 100 } as const;
+export const STAMMDATEN_GRENZEN = {
+  lager: 100,
+  artikel: 2000,
+  kisten: 300,
+  kistenPositionen: 100,
+  name: 100,
+  bemerkung: 200,
+  mengeMax: 1_000_000,
+} as const;
 
 export interface Lager {
   id: string;
@@ -54,4 +62,30 @@ export interface ArtikelEingabe {
   name: string;
   einheit: ArtikelEinheit;
   lagerId: string | null;
+}
+
+/** Eine Zeile im Inhalt einer Kiste: Artikel mit Menge (Einheit steht am Artikel) und Bemerkung. */
+export interface KistenPosition {
+  artikelId: string;
+  /** Größer 0, höchstens drei Nachkommastellen. */
+  menge: number;
+  bemerkung: string;
+}
+
+/** Kiste: Stammdatum mit Heimatlager und Inhalt; wird später in Aufbauten verwendet. */
+export interface Kiste {
+  id: string;
+  name: string;
+  lagerId: string | null;
+  inhalt: KistenPosition[];
+  version: number;
+  geaendertAm: string;
+  geaendertVon: string;
+}
+
+export interface KisteEingabe {
+  id: string;
+  name: string;
+  lagerId: string | null;
+  inhalt: KistenPosition[];
 }

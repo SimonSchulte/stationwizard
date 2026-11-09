@@ -1,0 +1,41 @@
+<form
+  class="neu"
+  (submit)="$event.preventDefault(); anlegen(neueKiste)"
+  aria-label="Neue Kiste anlegen"
+>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="neu-feld">
+    <mat-label>Neue Kiste</mat-label>
+    <input #neueKiste matInput autocomplete="off" [attr.maxlength]="maxName" />
+  </mat-form-field>
+  <button matButton="filled" type="submit">
+    <mat-icon>add</mat-icon>
+    Anlegen
+  </button>
+</form>
+
+<app-suchfeld class="suche" beschriftung="Kiste suchen" [(wert)]="suche" />
+
+@if (kisten().length === 0) {
+  <app-leerzustand kompakt icon="inventory" titel="Noch keine Kisten">
+    Eine Kiste bündelt Material, das gemeinsam gepackt wird, zum Beispiel die Gewürzkiste.
+  </app-leerzustand>
+} @else if (treffer().length === 0) {
+  <app-leerzustand kompakt icon="search_off" titel="Keine Treffer" />
+} @else {
+  <mat-action-list class="liste">
+    @for (kiste of treffer(); track kiste.id) {
+      <button
+        mat-list-item
+        type="button"
+        [activated]="kiste.id === gewaehltId()"
+        (click)="gewaehlt.emit(kiste.id)"
+      >
+        <span matListItemTitle>{{ kiste.name }}</span>
+        <span matListItemLine>
+          {{ kiste.inhalt.length }} {{ kiste.inhalt.length === 1 ? 'Position' : 'Positionen'
+          }}{{ lagerName(kiste) ? ' · ' + lagerName(kiste) : '' }}
+        </span>
+      </button>
+    }
+  </mat-action-list>
+}
