@@ -23,6 +23,7 @@ import { TabellenZwischenablageService } from '../../services/tabellen-zwischena
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 function neueSchicht(): Schicht {
   return { id: crypto.randomUUID(), datum: heuteIso(), von: '08:00', bis: '20:00', positionen: [] };
@@ -32,6 +33,7 @@ function neueSchicht(): Schicht {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebot-detail',
   imports: [
+    Leerzustand,
     Meldung,
     Ladeanzeige,
     Seitenkopf,

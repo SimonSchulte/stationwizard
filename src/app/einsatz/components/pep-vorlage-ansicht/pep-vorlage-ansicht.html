@@ -16,7 +16,7 @@
       }
     </h3>
     @if (posten.positionen.length === 0) {
-      <p class="leer">Dieser Posten enthält noch keine Position.</p>
+      <app-leerzustand kompakt titel="Dieser Posten enthält noch keine Position." />
     } @else {
       <ul class="positionen">
         @for (position of posten.positionen; track position.id) {

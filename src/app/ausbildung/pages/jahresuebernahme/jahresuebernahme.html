@@ -92,7 +92,10 @@
             }
           </ul>
         } @else {
-          <p class="leer">Das Jahr {{ quellJahr() }} hat keine Offenen Ideen.</p>
+          <app-leerzustand
+            kompakt
+            [titel]="'Das Jahr ' + quellJahr() + ' hat keine Offenen Ideen.'"
+          />
         }
       </section>
 
@@ -127,7 +130,10 @@
             }
           </ul>
         } @else {
-          <p class="leer">Das Jahr {{ quellJahr() }} hat keinen KatS-Ausbildungsplan.</p>
+          <app-leerzustand
+            kompakt
+            [titel]="'Das Jahr ' + quellJahr() + ' hat keinen KatS-Ausbildungsplan.'"
+          />
         }
       </section>
 

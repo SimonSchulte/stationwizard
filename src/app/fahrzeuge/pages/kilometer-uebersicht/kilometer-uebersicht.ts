@@ -20,6 +20,7 @@ import {
   restmonateImJahr,
 } from '../../services/kilometer-soll';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 interface AnzeigeZeile {
   zeile: BerichtZeile;
@@ -35,7 +36,7 @@ interface AnzeigeZeile {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-kilometer-uebersicht',
-  imports: [Meldung, Ladeanzeige, MatButtonModule, MatCheckboxModule, MatIconModule],
+  imports: [Meldung, Leerzustand, Ladeanzeige, MatButtonModule, MatCheckboxModule, MatIconModule],
   templateUrl: './kilometer-uebersicht.html',
   styleUrl: './kilometer-uebersicht.less',
 })

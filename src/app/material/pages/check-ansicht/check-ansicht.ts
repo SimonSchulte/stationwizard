@@ -20,6 +20,7 @@ import { CheckStoreService } from '../../services/check-store.service';
 import { artikelVerfallsstatus, heuteBerlin } from '../../services/check-status';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 interface FachAnsicht {
   fachId: string;
@@ -34,7 +35,15 @@ interface FachAnsicht {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-check-ansicht',
-  imports: [Meldung, Ladeanzeige, Seitenkopf, DatePipe, MatButtonModule, MatIconModule],
+  imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    DatePipe,
+    MatButtonModule,
+    MatIconModule,
+  ],
   templateUrl: './check-ansicht.html',
   styleUrl: './check-ansicht.less',
 })

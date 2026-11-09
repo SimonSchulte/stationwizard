@@ -18,6 +18,7 @@ import { Position, Schicht } from '../../models/angebot.model';
 import { PreiskatalogEintrag } from '../../models/preiskatalog.model';
 import { istGueltigeSchichtzeit } from '../../services/schicht-validierung';
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 function positionAusKatalog(eintrag: PreiskatalogEintrag, schicht: Schicht): Position {
   return {
@@ -52,6 +53,7 @@ function positionManuell(schicht: Schicht): Position {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-schicht-editor',
   imports: [
+    Leerzustand,
     MatButtonModule,
     MatDatepickerModule,
     MatFormFieldModule,

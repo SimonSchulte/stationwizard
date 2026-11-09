@@ -30,9 +30,9 @@
           [(auswahl)]="gruppenAuswahl"
         />
         @if (personen().length === 0) {
-          <p class="leer">Der HiOrg-Server hat kein aktives Personal geliefert.</p>
+          <app-leerzustand kompakt titel="Der HiOrg-Server hat kein aktives Personal geliefert." />
         } @else if (gefiltert().length === 0) {
-          <p class="leer">Keine Person passt zur Suche.</p>
+          <app-leerzustand kompakt titel="Keine Person passt zur Suche." />
         } @else {
           <ul class="personen">
             @for (person of gefiltert(); track person.id) {

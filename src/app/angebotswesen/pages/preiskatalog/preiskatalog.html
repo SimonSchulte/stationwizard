@@ -31,7 +31,7 @@
   }
 
   @if (!store.listeLaedt() && store.eintraege().length === 0) {
-    <p class="empty-hint">Noch keine Einträge im Preiskatalog.</p>
+    <app-leerzustand titel="Noch keine Einträge im Preiskatalog." />
   } @else {
     <div class="tabelle-rahmen">
       <table class="bericht-tabelle">

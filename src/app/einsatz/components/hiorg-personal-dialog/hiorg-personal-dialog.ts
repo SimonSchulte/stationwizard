@@ -14,12 +14,14 @@ import { ImportService } from '../../services/import.service';
 import { PlanungStoreService } from '../../services/planung-store.service';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** Übernahme von Personen aus der HiOrg-Server-API in den Helferpool der aktiven Planung. */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-hiorg-personal-dialog',
   imports: [
+    Leerzustand,
     Suchfeld,
     Meldung,
     Ladeanzeige,

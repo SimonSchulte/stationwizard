@@ -51,6 +51,7 @@ import { ermittleWartungsstatus, WartungsAmpel } from '../../services/wartungsst
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   return {
@@ -67,6 +68,7 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-detail',
   imports: [
+    Leerzustand,
     Meldung,
     Ladeanzeige,
     Seitenkopf,

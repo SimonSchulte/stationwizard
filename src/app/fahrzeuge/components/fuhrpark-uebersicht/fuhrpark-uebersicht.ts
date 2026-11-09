@@ -60,6 +60,7 @@ import {
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** Vereinheitlicht Kilometer- und Wartungsampel auf dieselbe Dreifarbdarstellung. */
 export function ampelKlasse(ampel: KilometerAmpel | WartungsAmpel | null): string {
@@ -125,6 +126,7 @@ interface TerminAnzeige {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuhrpark-uebersicht',
   imports: [
+    Leerzustand,
     MatButtonToggleModule,
     Suchfeld,
     Meldung,

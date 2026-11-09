@@ -49,8 +49,9 @@
       (loeschen)="loeschen(idee.id)"
     />
   } @empty {
-    <p class="leer">
-      Keine offenen Ideen. Termine lassen sich per Drag & Drop aus dem Jahresplan hierher ziehen.
-    </p>
+    <app-leerzustand
+      kompakt
+      titel="Keine offenen Ideen. Termine lassen sich per Drag & Drop aus dem Jahresplan hierher ziehen."
+    />
   }
 </div>

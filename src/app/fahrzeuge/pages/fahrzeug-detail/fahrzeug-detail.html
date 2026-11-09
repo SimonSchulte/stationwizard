@@ -146,7 +146,7 @@
         </div>
 
         @if (entwurf.wartungstermine.length === 0) {
-          <p class="empty-hint">Noch keine Wartungstermine erfasst.</p>
+          <app-leerzustand kompakt titel="Noch keine Wartungstermine erfasst." />
         }
 
         <ul class="wartung-liste">
@@ -291,7 +291,7 @@
             <app-meldung art="fehler">{{ ablesungStore.loeschFehler() }}</app-meldung>
           }
           @if (!ablesungStore.laedt() && ablesungenAbsteigend().length === 0) {
-            <p class="empty-hint">Noch keine Kilometerablesung erfasst.</p>
+            <app-leerzustand kompakt titel="Noch keine Kilometerablesung erfasst." />
           }
 
           <ul class="ablesung-liste">
@@ -461,7 +461,7 @@
           @if (
             !aenderungsprotokollStore.laedt() && aenderungsprotokollStore.eintraege().length === 0
           ) {
-            <p class="empty-hint">Noch keine Änderungen protokolliert.</p>
+            <app-leerzustand kompakt titel="Noch keine Änderungen protokolliert." />
           }
 
           <ul class="protokoll-liste">

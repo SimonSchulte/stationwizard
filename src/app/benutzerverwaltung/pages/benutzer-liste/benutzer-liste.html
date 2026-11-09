@@ -46,7 +46,7 @@
     <app-leerzustand icon="manage_accounts" titel="Noch niemand hat sich angemeldet." />
   }
   @if (!laedt() && !fehler() && benutzer().length > 0 && gefiltert().length === 0) {
-    <p class="empty-hint">Kein Treffer für diese Suche.</p>
+    <app-leerzustand titel="Kein Treffer für diese Suche." />
   }
 
   <div class="benutzer-liste">

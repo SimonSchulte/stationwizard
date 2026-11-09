@@ -77,7 +77,7 @@
         </button>
       </div>
       @if (entwurf.schichten.length === 0) {
-        <p class="empty-hint">Noch keine Schichten erfasst.</p>
+        <app-leerzustand kompakt titel="Noch keine Schichten erfasst." />
       }
       <div class="schicht-liste">
         @for (schicht of entwurf.schichten; track schicht.id) {

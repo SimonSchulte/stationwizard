@@ -14,6 +14,7 @@ import { PreiskatalogStoreService } from '../../services/preiskatalog-store.serv
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 const PREISKATALOG_ART_LABEL: Readonly<Record<PreiskatalogArt, string>> = {
   einsatzkraft: 'Einsatzkraft (je Stunde)',
@@ -38,6 +39,7 @@ function neuerEintragEingabe(): {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-preiskatalog',
   imports: [
+    Leerzustand,
     Meldung,
     Ladeanzeige,
     Seitenkopf,

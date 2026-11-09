@@ -71,7 +71,11 @@
 
           @if (aufgeklappt().has(eintrag.id)) {
             @if (abweichungen(eintrag.id).length === 0) {
-              <p class="empty-hint">Keine Abweichung – der Behälter war vollständig.</p>
+              <app-leerzustand
+                kompakt
+                icon="check_circle"
+                titel="Keine Abweichung – der Behälter war vollständig."
+              />
             } @else {
               <ul class="abweichungen">
                 @for (position of abweichungen(eintrag.id); track position.artikelId) {

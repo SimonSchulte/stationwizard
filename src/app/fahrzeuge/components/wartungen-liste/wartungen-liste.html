@@ -5,13 +5,12 @@
 </div>
 
 @if (eintraege().length === 0) {
-  <p class="empty-hint">
-    @if (erledigteAnzeigen()) {
-      Noch keine Wartungstermine erfasst.
-    } @else {
-      Keine offenen Wartungstermine.
-    }
-  </p>
+  <app-leerzustand
+    kompakt
+    [titel]="
+      erledigteAnzeigen() ? 'Noch keine Wartungstermine erfasst.' : 'Keine offenen Wartungstermine.'
+    "
+  />
 } @else {
   <ul class="wartungen-liste">
     @for (eintrag of eintraege(); track eintrag.status.termin.id) {

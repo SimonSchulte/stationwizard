@@ -10,6 +10,7 @@ import { AngebotStoreService } from '../../services/angebot-store.service';
 import { formatEuro } from '../../services/waehrung';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 interface AngebotZeile {
   angebot: Angebot;
@@ -19,7 +20,16 @@ interface AngebotZeile {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebot-liste',
-  imports: [Meldung, Ladeanzeige, Seitenkopf, DatePipe, RouterLink, MatButtonModule, MatIconModule],
+  imports: [
+    Leerzustand,
+    Meldung,
+    Ladeanzeige,
+    Seitenkopf,
+    DatePipe,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+  ],
   templateUrl: './angebot-liste.html',
   styleUrl: './angebot-liste.less',
 })

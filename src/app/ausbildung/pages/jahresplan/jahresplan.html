@@ -228,10 +228,6 @@
             <span>Leeres Jahr {{ laufendesJahr }} anlegen</span>
           </button>
         } @else {
-          <span class="keine-quelle" [matTooltip]="datenbankStatus().tooltip">
-            <mat-icon inline>cloud_off</mat-icon>
-            {{ datenbankStatus().text }}
-          </span>
           <button matButton (click)="neuLaden()">
             <mat-icon>refresh</mat-icon>
             <span>Erneut laden</span>

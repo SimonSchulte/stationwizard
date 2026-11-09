@@ -1,5 +1,5 @@
 @if (kalkulation().gruppen.length === 0 && kalkulation().materialpauschaleCent === null) {
-  <p class="empty-hint">Noch keine Schichten in diesem Angebot.</p>
+  <app-leerzustand kompakt titel="Noch keine Schichten in diesem Angebot." />
 } @else {
   <div class="tabelle-rahmen">
     <table class="bericht-tabelle">

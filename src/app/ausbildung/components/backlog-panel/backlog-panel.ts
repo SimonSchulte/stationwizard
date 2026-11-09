@@ -22,12 +22,14 @@ import { DatumDialog, DatumDialogDaten } from '../datum-dialog/datum-dialog';
 import { oeffneTerminDialog } from '../termin-dialog/termin-dialog';
 import { TerminKarte } from '../termin-karte/termin-karte';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** "Offene Ideen" – das Backlog, aus dem Termine in den Jahresplan gezogen werden. */
 @Component({
   selector: 'app-backlog-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Leerzustand,
     Suchfeld,
     CdkDrag,
     CdkDropList,

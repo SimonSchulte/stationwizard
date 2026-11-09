@@ -44,7 +44,7 @@
       </button>
     }
     @if (gefiltert().length === 0) {
-      <p class="leer-hinweis">Keine Treffer.</p>
+      <app-leerzustand titel="Keine Treffer." />
     }
   </div>
 
@@ -252,7 +252,7 @@
       <section class="abschnitt">
         <h3 class="abschnitt-titel">Wartungstermine</h3>
         @if (ausgewaehlteTermine().length === 0) {
-          <p class="leer-hinweis">Noch keine Wartungstermine erfasst.</p>
+          <app-leerzustand kompakt titel="Noch keine Wartungstermine erfasst." />
         }
         <ul class="termin-liste">
           @for (eintrag of ausgewaehlteTermine(); track eintrag.status.termin.id) {

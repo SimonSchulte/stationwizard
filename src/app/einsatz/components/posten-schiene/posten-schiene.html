@@ -24,7 +24,7 @@
       </span>
     </button>
   } @empty {
-    <p class="leer">Noch keine Posten.</p>
+    <app-leerzustand kompakt titel="Noch keine Posten." />
   }
   <button matButton="outlined" class="neu" (click)="neuerPosten.emit()">
     <mat-icon>add</mat-icon> Neuer Posten

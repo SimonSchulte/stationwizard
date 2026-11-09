@@ -3,6 +3,7 @@ import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 import { berechneAngebot } from '../../services/angebot-kalkulation';
 import { Angebot } from '../../models/angebot.model';
 import { formatEuro } from '../../services/waehrung';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /**
  * Kostenaufstellung pro Schicht und insgesamt – dieselbe strukturierte
@@ -13,6 +14,7 @@ import { formatEuro } from '../../services/waehrung';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebot-kalkulationstabelle',
+  imports: [Leerzustand],
   templateUrl: './angebot-kalkulationstabelle.html',
   styleUrl: './angebot-kalkulationstabelle.less',
 })

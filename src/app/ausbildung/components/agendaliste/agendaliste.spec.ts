@@ -128,7 +128,7 @@ describe('Agendaliste', () => {
     fixture.detectChanges();
 
     expect(tage()).toHaveLength(0);
-    expect(element().querySelector('.leer')?.textContent).toContain('Keine Einträge');
+    expect(element().querySelector('app-leerzustand')?.textContent).toContain('Keine Einträge');
   });
 
   it('zeigt HiOrg-Einträge am Tag und gibt „Als Termin übernehmen“ nach oben', () => {

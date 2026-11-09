@@ -17,7 +17,7 @@
       }
     </h3>
     @if (abschnitt.zeilen.length === 0) {
-      <p class="abschnitt-leer">Dieser Abschnitt enthält noch keinen Laufzettel.</p>
+      <app-leerzustand kompakt titel="Dieser Abschnitt enthält noch keinen Laufzettel." />
     } @else {
       <div class="tabelle-rahmen">
         <table mat-table [dataSource]="abschnitt.zeilen" class="tabelle">

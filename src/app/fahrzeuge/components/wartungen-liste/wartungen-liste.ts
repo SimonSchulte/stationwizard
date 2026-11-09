@@ -4,6 +4,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { heuteIso } from '../../../kern/kalender/datum';
 import { Fahrzeugstamm } from '../../models/fahrzeug.model';
 import { ermittleWartungsstatus, Wartungsstatus } from '../../services/wartungsstatus';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 interface WartungMitFahrzeug {
   fahrzeug: Fahrzeugstamm;
@@ -24,7 +25,7 @@ function tageBisFaelligText(tage: number): string {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-wartungen-liste',
-  imports: [RouterLink, MatCheckboxModule],
+  imports: [RouterLink, Leerzustand, MatCheckboxModule],
   templateUrl: './wartungen-liste.html',
   styleUrl: './wartungen-liste.less',
 })

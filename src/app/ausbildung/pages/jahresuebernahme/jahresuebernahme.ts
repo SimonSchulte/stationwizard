@@ -22,6 +22,7 @@ import {
 } from '../../services/jahresuebernahme';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /**
  * Übernahme von Offenen Ideen und KatS-Ausbildungsplan-Themen aus einem Jahr in
@@ -36,6 +37,7 @@ import { Meldung, MeldungsDienst } from '../../../kern/zustand/zustand';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-jahresuebernahme',
   imports: [
+    Leerzustand,
     Meldung,
     Seitenkopf,
     RouterLink,
