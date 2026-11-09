@@ -80,7 +80,11 @@
         [value]="beginnWert()"
         (valueChange)="zeitAktualisieren('beginnZeit', $event)"
       />
-      <mat-timepicker-toggle matSuffix [for]="beginnPicker"></mat-timepicker-toggle>
+      <mat-timepicker-toggle
+        aria-label="Uhrzeit wählen"
+        matSuffix
+        [for]="beginnPicker"
+      ></mat-timepicker-toggle>
       <mat-timepicker #beginnPicker interval="15m"></mat-timepicker>
     </mat-form-field>
     <mat-form-field appearance="outline" class="schmal">
@@ -91,7 +95,11 @@
         [value]="endeWert()"
         (valueChange)="zeitAktualisieren('endeZeit', $event)"
       />
-      <mat-timepicker-toggle matSuffix [for]="endePicker"></mat-timepicker-toggle>
+      <mat-timepicker-toggle
+        aria-label="Uhrzeit wählen"
+        matSuffix
+        [for]="endePicker"
+      ></mat-timepicker-toggle>
       <mat-timepicker #endePicker interval="15m"></mat-timepicker>
       @if (zeitVerdreht()) {
         <mat-hint>Endet am Folgetag.</mat-hint>

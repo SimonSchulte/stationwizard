@@ -12,6 +12,7 @@
   matIconButton
   class="anlegen"
   [matTooltip]="'Eintrag für den ' + datumText() + ' anlegen'"
+  [attr.aria-label]="'Eintrag für den ' + datumText() + ' anlegen'"
   (click)="anlegen.emit()"
 >
   <mat-icon>add</mat-icon>

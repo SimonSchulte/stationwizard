@@ -33,7 +33,7 @@
           [disabled]="!beginn()"
           (ngModelChange)="zeitGeaendert('beginn', $event)"
         />
-        <mat-timepicker-toggle matSuffix [for]="beginnZeitPicker" />
+        <mat-timepicker-toggle aria-label="Uhrzeit wählen" matSuffix [for]="beginnZeitPicker" />
         <mat-timepicker #beginnZeitPicker interval="15m" />
       </mat-form-field>
     </div>
@@ -64,7 +64,7 @@
           (ngModelChange)="zeitGeaendert('ende', $event)"
           [errorStateMatcher]="endeFehler"
         />
-        <mat-timepicker-toggle matSuffix [for]="endeZeitPicker" />
+        <mat-timepicker-toggle aria-label="Uhrzeit wählen" matSuffix [for]="endeZeitPicker" />
         <mat-timepicker #endeZeitPicker interval="15m" />
       </mat-form-field>
     </div>

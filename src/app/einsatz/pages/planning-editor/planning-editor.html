@@ -86,7 +86,12 @@
     </mat-menu>
     <!-- Top Bar -->
     <mat-toolbar class="editor-toolbar">
-      <button matIconButton (click)="goBack()" matTooltip="Zurück zur Übersicht">
+      <button
+        matIconButton
+        (click)="goBack()"
+        matTooltip="Zurück zur Übersicht"
+        aria-label="Zurück zur Übersicht"
+      >
         <mat-icon>arrow_back</mat-icon>
       </button>
       <input
@@ -129,6 +134,7 @@
               [disabled]="kopfGesperrt()"
             />
             <mat-timepicker-toggle
+              aria-label="Uhrzeit wählen"
               matSuffix
               [for]="startZeitPicker"
               [disabled]="kopfGesperrt()"
@@ -165,6 +171,7 @@
               [disabled]="kopfGesperrt()"
             />
             <mat-timepicker-toggle
+              aria-label="Uhrzeit wählen"
               matSuffix
               [for]="endZeitPicker"
               [disabled]="kopfGesperrt()"
@@ -188,11 +195,22 @@
           </mat-select>
         </div>
       }
-      <button matIconButton matTooltip="Rückgängig" [disabled]="!canUndo()" (click)="undo()">
+      <button
+        matIconButton
+        matTooltip="Rückgängig"
+        aria-label="Rückgängig"
+        [disabled]="!canUndo()"
+        (click)="undo()"
+      >
         <mat-icon>undo</mat-icon>
       </button>
       <span class="spacer"></span>
-      <button matIconButton (click)="importTemplate()" matTooltip="Vorlage importieren">
+      <button
+        matIconButton
+        (click)="importTemplate()"
+        matTooltip="Vorlage importieren"
+        aria-label="Vorlage importieren"
+      >
         <mat-icon>file_upload</mat-icon>
       </button>
       <button
@@ -440,7 +458,12 @@
 } @else {
   <div class="editor-shell no-planung-shell">
     <mat-toolbar class="editor-toolbar">
-      <button matIconButton (click)="goBack()" matTooltip="Zurück zur Übersicht">
+      <button
+        matIconButton
+        (click)="goBack()"
+        matTooltip="Zurück zur Übersicht"
+        aria-label="Zurück zur Übersicht"
+      >
         <mat-icon>arrow_back</mat-icon>
       </button>
       <span class="planung-name">Personaleinsatzplanung</span>

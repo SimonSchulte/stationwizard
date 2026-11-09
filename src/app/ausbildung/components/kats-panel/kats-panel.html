@@ -4,6 +4,8 @@
     matIconButton
     [class.aktiv]="nurOffene()"
     matTooltip="Nur Themen ohne Termin anzeigen"
+    aria-label="Nur Themen ohne Termin anzeigen"
+    [attr.aria-pressed]="nurOffene()"
     (click)="nurOffene.set(!nurOffene())"
   >
     <mat-icon>rule</mat-icon>

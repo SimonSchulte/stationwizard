@@ -19,7 +19,11 @@
       [value]="vonWert()"
       (valueChange)="vonAktualisieren($event)"
     />
-    <mat-timepicker-toggle matSuffix [for]="vonPicker"></mat-timepicker-toggle>
+    <mat-timepicker-toggle
+      aria-label="Uhrzeit wählen"
+      matSuffix
+      [for]="vonPicker"
+    ></mat-timepicker-toggle>
     <mat-timepicker #vonPicker interval="15m"></mat-timepicker>
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zeit-feld">
@@ -30,7 +34,11 @@
       [value]="bisWert()"
       (valueChange)="bisAktualisieren($event)"
     />
-    <mat-timepicker-toggle matSuffix [for]="bisPicker"></mat-timepicker-toggle>
+    <mat-timepicker-toggle
+      aria-label="Uhrzeit wählen"
+      matSuffix
+      [for]="bisPicker"
+    ></mat-timepicker-toggle>
     <mat-timepicker #bisPicker interval="15m"></mat-timepicker>
   </mat-form-field>
   @if (stundenAnzeige(); as stunden) {
