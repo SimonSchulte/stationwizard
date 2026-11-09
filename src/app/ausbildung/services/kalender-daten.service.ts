@@ -122,6 +122,17 @@ export class KalenderDatenService {
     const zielJahr = jahre.includes(laufend) ? laufend : jahre.at(-1)!;
     this.store.setzeDokument(alsPlanDocument(this.jahre.get(zielJahr)!.blatt));
     const ergaenzt = this.store.ergaenzeFehlendeDiensttage(this.diensttag.wochentag());
+    // Das aufgefüllte Gerüst ist abgeleitet, keine Änderung der Person: Ausgangsstand ist, wie
+    // es jetzt aussieht. Kein roter Punkt, keine Rückfrage beim Verlassen und kein Schreiben,
+    // solange nichts Eigenes geändert wurde; mit der ersten Änderung geht das Gerüst mit.
+    const gefuellt = this.store.dokument();
+    this.store.setzeDokument(gefuellt);
+    const blatt = alsJahresblatt(gefuellt);
+    this.jahre.set(zielJahr, {
+      blatt,
+      version: this.jahre.get(zielJahr)!.version,
+      gespeichert: JSON.stringify(blatt),
+    });
     return {
       meldungen: ergaenzt
         ? [

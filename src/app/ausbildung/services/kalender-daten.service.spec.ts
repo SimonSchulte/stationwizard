@@ -60,10 +60,8 @@ describe('KalenderDatenService', () => {
   async function geladen(kalender: KalenderStand): Promise<void> {
     storage.laden.mockResolvedValue(kalender);
     await dienst.laden();
-    // Das ergänzte Diensttagsgerüst einmal speichern, damit jeder Test von einem
-    // gesicherten Stand ausgeht.
-    storage.speichereJahr.mockResolvedValue('"2"');
-    await dienst.speichern();
+    // Das aufgefüllte Diensttagsgerüst zählt nicht als Änderung: jeder Test geht von einem
+    // gesicherten Stand aus, ohne dass etwas geschrieben wurde.
     vi.clearAllMocks();
   }
 
@@ -97,6 +95,31 @@ describe('KalenderDatenService', () => {
     expect(store.backlog().map((t) => t.id)).toEqual([`idee-${laufend}`]);
   });
 
+  it('füllt fehlende Diensttage beim Laden auf, ohne das Jahr als geändert zu markieren', async () => {
+    // blatt() belegt nur einen Montag: der Rest wird aufgefüllt.
+    storage.laden.mockResolvedValue(stand(2026));
+    const ergebnis = await dienst.laden();
+
+    expect(ergebnis.meldungen.join(' ')).toContain('ergänzt');
+    expect(store.termine().length).toBeGreaterThan(40);
+    expect(store.ungespeichert()).toBe(false);
+    expect(store.kannRueckgaengig()).toBe(false);
+    expect((await dienst.speichern()).geschrieben).toBe(0);
+    expect(storage.speichereJahr).not.toHaveBeenCalled();
+  });
+
+  it('schreibt nach einer eigenen Änderung das ganze Jahr samt aufgefülltem Gerüst', async () => {
+    storage.laden.mockResolvedValue(stand(2026));
+    await dienst.laden();
+    store.aktualisiereTermin('t-2026', { thema: 'Geändert' });
+    storage.speichereJahr.mockResolvedValue('"2"');
+
+    expect((await dienst.speichern()).geschrieben).toBe(1);
+    const [blatt, version] = storage.speichereJahr.mock.calls[0]!;
+    expect(version).toBe('"1"');
+    expect(blatt.termine.length).toBeGreaterThan(40);
+  });
+
   it('schreibt nichts, wenn sich nichts geändert hat', async () => {
     await geladen(stand(2026));
     const ergebnis = await dienst.speichern();
@@ -113,7 +136,7 @@ describe('KalenderDatenService', () => {
 
     expect(ergebnis.geschrieben).toBe(1);
     expect(storage.speichereJahr).toHaveBeenCalledTimes(1);
-    expect(storage.speichereJahr.mock.calls[0]![1]).toBe('"2"');
+    expect(storage.speichereJahr.mock.calls[0]![1]).toBe('"1"');
     expect(store.ungespeichert()).toBe(false);
   });
 
@@ -126,7 +149,7 @@ describe('KalenderDatenService', () => {
 
     expect(storage.speichereJahr).toHaveBeenCalledTimes(1);
     expect(storage.speichereJahr.mock.calls[0]![0].ideen).toHaveLength(2);
-    expect(storage.speichereJahr.mock.calls[0]![1]).toBe('"2"');
+    expect(storage.speichereJahr.mock.calls[0]![1]).toBe('"1"');
   });
 
   it('führt je Jahr eine eigene Ideensammlung', async () => {
