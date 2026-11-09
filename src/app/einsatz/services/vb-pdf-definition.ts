@@ -10,7 +10,8 @@ import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
 import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
-import { STREIFEN_STANDARD, gueltigeStreifenZahl } from './laufzettel-platz';
+import { STREIFEN_STANDARD, gueltigeStreifenZahl, laufzettelMasse } from './laufzettel-platz';
+import { harterUmbruch } from './text-umbruch';
 
 export interface VbDruckKopf {
   titel: string;
@@ -252,7 +253,8 @@ function kopfkasten(streifen: LaufzettelStreifen, m: Streifenmass): Content {
       // Auf schmalen Streifen stehen „AUFTRAG“ und die Fachgruppe übereinander.
       m.schmal ? { stack: kennzeichen } : { columns: kennzeichen, columnGap: 0 },
       {
-        text: ueberschrift || ' ',
+        text:
+          harterUmbruch(ueberschrift, laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile) || ' ',
         bold: true,
         fontSize: ueberschriftGroesse,
         color: PDF_FARBEN.dunkelblau,
@@ -318,7 +320,8 @@ function anzahlFeld(anzahl: string): Content {
   return { text: angezeigt, alignment: 'right', bold: true, fontSize: groesse, noWrap: true };
 }
 
-function materialRaster(streifen: LaufzettelStreifen): Content {
+function materialRaster(streifen: LaufzettelStreifen, m: Streifenmass): Content {
+  const umbruch = laufzettelMasse(m.streifenJeSeite).zeichenJeZeile;
   const zeilenHoehe = MASS.materialZeile;
   const lineHeight = zeilenHoehe / SCHRIFT.material / 1.17;
   const body: TableCell[][] = streifen.positionen.map((position): TableCell[] =>
@@ -326,7 +329,7 @@ function materialRaster(streifen: LaufzettelStreifen): Content {
       ? [
           { text: '!', bold: true, alignment: 'center', fontSize: SCHRIFT.material, lineHeight },
           {
-            text: position.material,
+            text: harterUmbruch(position.material, umbruch),
             colSpan: 2,
             italics: true,
             bold: true,
@@ -340,7 +343,7 @@ function materialRaster(streifen: LaufzettelStreifen): Content {
           kaestchen(PDF_FARBEN.dunkelblau),
           anzahlFeld(position.anzahl),
           {
-            text: position.material,
+            text: harterUmbruch(position.material, umbruch),
             fontSize: SCHRIFT.material,
             lineHeight,
             margin: [4, 0, 0, 0],
@@ -396,6 +399,7 @@ function schreiblinie(breite: number, y: number): ContentCanvas {
 function zielBlock(streifen: LaufzettelStreifen, m: Streifenmass): Content {
   const feldBreite = m.feld;
   const wertBreite = feldBreite - ZIEL_BESCHRIFTUNG_BREITE;
+  const umbruch = laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile;
   const zeile = (beschriftung: string, wert: string): Content[] => [
     {
       text: beschriftung,
@@ -405,7 +409,12 @@ function zielBlock(streifen: LaufzettelStreifen, m: Streifenmass): Content {
       margin: [0, 5, 0, 0],
     },
     wert.trim()
-      ? { text: wert.trim(), fontSize: SCHRIFT.ziel, bold: true, margin: [0, 1.5, 0, 0] }
+      ? {
+          text: harterUmbruch(wert.trim(), umbruch),
+          fontSize: SCHRIFT.ziel,
+          bold: true,
+          margin: [0, 1.5, 0, 0],
+        }
       : schreiblinie(wertBreite, 12),
   ];
   return {
@@ -442,7 +451,14 @@ function rueckfragen(streifen: LaufzettelStreifen, m: Streifenmass): Content {
         margin: [0, 2.5, 0, 0],
       },
       streifen.auftraggeber.trim()
-        ? { width: '*', text: streifen.auftraggeber.trim(), fontSize: SCHRIFT.info }
+        ? {
+            width: '*',
+            text: harterUmbruch(
+              streifen.auftraggeber.trim(),
+              laufzettelMasse(m.streifenJeSeite).zeichenJeInfozeile,
+            ),
+            fontSize: SCHRIFT.info,
+          }
         : { width: '*', ...schreiblinie(feldBreite - 52, 9) },
     ],
   });
@@ -543,7 +559,7 @@ function streifenInhalt(
       klemmrand(kopfTitel, streifen, m),
       kopfkasten(streifen, m),
       zielBlock(streifen, m),
-      materialRaster(streifen),
+      materialRaster(streifen, m),
       rueckfragen(streifen, m),
       schreibfelder(m),
       {
@@ -683,6 +699,10 @@ export function schildTitelSchrift(titel: string): number {
 
 const SCHILD_RAND = 48;
 const SCHILD_BAND = 44;
+/** Schild mit Foto: Breite der Textspalte, Abstand zum Foto und größte Fotohöhe. */
+const SCHILD_TEXTSPALTE = 300;
+const SCHILD_ABSTAND = 24;
+const SCHILD_FOTO_HOEHE = 420;
 
 /**
  * Kennzeichnungsschild eines Abschnitts: eine A4-Querseite, Farbbänder oben und unten in der
@@ -704,6 +724,66 @@ function kennzeichnungsschild(
   const ort = kopf.ort?.trim() ?? '';
   const breite = MASS.seiteBreite - 2 * SCHILD_RAND;
   const veranstaltung = [kopf.titel, zeitraum, ort].filter((t) => t !== '').join(' · ');
+  const mitFoto = Boolean(abschnitt.foto);
+  const ausrichtung: 'left' | 'center' = mitFoto ? 'left' : 'center';
+  const titelSchrift = mitFoto ? Math.max(18, Math.round(schrift * 0.5)) : schrift;
+  const textBloecke: Content[] = [
+    {
+      text: `ABSCHNITT ${nummer} VON ${gesamt}`,
+      fontSize: 12,
+      bold: true,
+      characterSpacing: 2,
+      alignment: ausrichtung,
+      color: PDF_FARBEN.sekundaer,
+      margin: mitFoto ? [0, 0, 0, 0] : [SCHILD_RAND, SCHILD_BAND + 56, SCHILD_RAND, 0],
+    },
+    {
+      text: titel,
+      fontSize: titelSchrift,
+      bold: true,
+      alignment: ausrichtung,
+      lineHeight: 1.05,
+      color: PDF_FARBEN.dunkelblau,
+      margin: mitFoto ? [0, 16, 0, 0] : [SCHILD_RAND, 40, SCHILD_RAND, 0],
+    },
+    ...(abschnitt.fachgruppe
+      ? [
+          {
+            text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
+            fontSize: 32,
+            bold: true,
+            alignment: ausrichtung,
+            color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
+            margin: (mitFoto ? [0, 16, 0, 0] : [SCHILD_RAND, 28, SCHILD_RAND, 0]) as [
+              number,
+              number,
+              number,
+              number,
+            ],
+          },
+        ]
+      : []),
+  ];
+  const fotoSpalten: Content | null = abschnitt.foto
+    ? {
+        // Bezeichnung links, Foto rechts: weiterhin genau ein Blatt je Abschnitt.
+        columns: [
+          { width: SCHILD_TEXTSPALTE, stack: textBloecke },
+          {
+            width: '*' as const,
+            stack: [
+              {
+                image: abschnitt.foto,
+                fit: [breite - SCHILD_TEXTSPALTE - SCHILD_ABSTAND, SCHILD_FOTO_HOEHE],
+                alignment: 'right' as const,
+              },
+            ],
+          },
+        ],
+        columnGap: SCHILD_ABSTAND,
+        margin: [SCHILD_RAND, SCHILD_BAND + 24, SCHILD_RAND, 0],
+      }
+    : null;
   return {
     ...(erste ? {} : { pageBreak: 'before' as const }),
     stack: [
@@ -721,36 +801,7 @@ function kennzeichnungsschild(
         ],
         absolutePosition: { x: 0, y: 0 },
       },
-      {
-        text: `ABSCHNITT ${nummer} VON ${gesamt}`,
-        fontSize: 12,
-        bold: true,
-        characterSpacing: 2,
-        alignment: 'center',
-        color: PDF_FARBEN.sekundaer,
-        margin: [SCHILD_RAND, SCHILD_BAND + 56, SCHILD_RAND, 0],
-      },
-      {
-        text: titel,
-        fontSize: schrift,
-        bold: true,
-        alignment: 'center',
-        lineHeight: 1.05,
-        color: PDF_FARBEN.dunkelblau,
-        margin: [SCHILD_RAND, 40, SCHILD_RAND, 0],
-      },
-      ...(abschnitt.fachgruppe
-        ? [
-            {
-              text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
-              fontSize: 32,
-              bold: true,
-              alignment: 'center' as const,
-              color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
-              margin: [SCHILD_RAND, 28, SCHILD_RAND, 0] as [number, number, number, number],
-            },
-          ]
-        : []),
+      ...(fotoSpalten ? [fotoSpalten] : textBloecke),
       {
         table: {
           widths: [breite],
@@ -768,45 +819,6 @@ function kennzeichnungsschild(
         layout: keinRand(),
         absolutePosition: { x: SCHILD_RAND, y: MASS.seiteHoehe - SCHILD_BAND - 38 },
       },
-    ],
-  };
-}
-
-/**
- * Seite „Verladung“ eines Abschnitts mit dessen Foto: Farbbänder wie auf dem Schild, Titel
- * oben, das Foto einbehalten im Seitenverhältnis (`fit`) darunter. Fester Fließinhalt, damit
- * die Seite nie umbricht.
- */
-function verladungsfoto(abschnitt: VbInhalt['abschnitte'][number], foto: string): Content {
-  const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
-  const breite = MASS.seiteBreite - 2 * SCHILD_RAND;
-  const hoehe = MASS.seiteHoehe - 2 * SCHILD_BAND - 120;
-  return {
-    pageBreak: 'before' as const,
-    stack: [
-      {
-        canvas: [
-          { type: 'rect', x: 0, y: 0, w: MASS.seiteBreite, h: SCHILD_BAND, color: farbe },
-          {
-            type: 'rect',
-            x: 0,
-            y: MASS.seiteHoehe - SCHILD_BAND,
-            w: MASS.seiteBreite,
-            h: SCHILD_BAND,
-            color: farbe,
-          },
-        ],
-        absolutePosition: { x: 0, y: 0 },
-      },
-      {
-        text: `VERLADUNG · ${abschnitt.titel.trim()}`,
-        fontSize: 20,
-        bold: true,
-        alignment: 'center',
-        color: PDF_FARBEN.dunkelblau,
-        margin: [SCHILD_RAND, SCHILD_BAND + 20, SCHILD_RAND, 16],
-      },
-      { image: foto, fit: [breite, hoehe], alignment: 'center' },
     ],
   };
 }
@@ -858,10 +870,9 @@ export function baueVbPdfDefinition(
       pageSize: 'A4',
       pageOrientation: 'landscape',
       pageMargins: [0, 0, 0, 0],
-      section: inhalt.abschnitte.flatMap((a, i) => [
+      section: inhalt.abschnitte.map((a, i) =>
         kennzeichnungsschild(kopf, a, i + 1, inhalt.abschnitte.length, i === 0),
-        ...(a.foto ? [verladungsfoto(a, a.foto)] : []),
-      ]),
+      ),
     });
   }
 

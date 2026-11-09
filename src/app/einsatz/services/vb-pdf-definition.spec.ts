@@ -60,6 +60,29 @@ function inhaltMitLaufzetteln(anzahl: number) {
   });
 }
 
+describe('Harter Zeichenumbruch', () => {
+  it('bricht zu lange Wörter in Material, Lagerort und Rückfragen hart um', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({
+          laufzettel: [
+            testLaufzettel({
+              lagerort: 'Betreuungsanhänger',
+              auftraggeber: 'Verpflegungsgruppenführung',
+              positionen: [testPosition({ material: 'Rechteckpfanneneinsatz' })],
+            }),
+          ],
+        }),
+      ],
+    });
+    const json = JSON.stringify(definition(inhalt, KOPF, 6));
+    for (const wort of ['Rechteckpfanneneinsatz', 'Betreuungsanhänger']) {
+      expect(json).not.toContain(wort);
+      expect(json).toContain([...wort].join('\u200b'));
+    }
+  });
+});
+
 describe('Hinweis auf dem Laufzettel', () => {
   it('druckt einen Hinweis ohne Kästchen und Anzahl über zwei Spalten', () => {
     const inhalt = testInhalt({
@@ -82,7 +105,7 @@ describe('Hinweis auf dem Laufzettel', () => {
 });
 
 describe('Verladungsfoto', () => {
-  it('fügt hinter dem Schild eines Abschnitts mit Foto eine Fotoseite ein', () => {
+  it('steht neben der Bezeichnung auf demselben Blatt, nie auf einer zweiten Seite', () => {
     const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
     const inhalt = testInhalt({
       abschnitte: [
@@ -91,13 +114,16 @@ describe('Verladungsfoto', () => {
       ],
     });
     const schilder = abschnitte(definition(inhalt)).find((a) =>
-      alleTexte(a).includes('Sanitätszelt'),
+      JSON.stringify(a).includes('Sanitätszelt'),
     );
-    const seiten = schilder?.section as { pageBreak?: string; stack?: { image?: string }[] }[];
-    expect(seiten).toHaveLength(3);
-    expect(seiten[1].pageBreak).toBe('before');
-    expect(seiten[1].stack?.some((k) => k.image === foto)).toBe(true);
-    expect(alleTexte(seiten[1])).toContain('VERLADUNG · Sanitätszelt');
+    const seiten = schilder?.section as { pageBreak?: string }[];
+    expect(seiten).toHaveLength(2);
+    expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
+    const erste = JSON.stringify(seiten[0]);
+    expect(erste).toContain('"columns"');
+    expect(erste).toContain(foto);
+    expect(erste).toContain('Sanitätszelt');
+    expect(JSON.stringify(seiten[1])).not.toContain('"columns"');
   });
 });
 
