@@ -3632,3 +3632,8 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Das Feld `fachgruppe` in Datenmodell, Worker und Editor bleibt unverändert; ob es dort ebenfalls
   ausgeblendet wird, ist offen. Zwischen den beiden Schildern eines Blatts verläuft eine gestrichelte
   Schnittlinie (zwischen den Laufzettelstreifen gab es sie schon).
+- Nachtrag Schild: Die Abschnittsfarbe steht dort als **Rahmen ums Verladungsfoto** (5 pt), der Balken
+  im Kopfband entfällt. Ohne Foto bleibt ein leerer Rahmen in derselben Größe des Fotofelds. Der Rahmen
+  liegt eng am Bild: Breite und Höhe liest `jpeg-masse.ts` aus dem JPEG (Start-of-Frame), bei
+  unlesbaren Maßen gilt das ganze Feld. Auf dem Laufzettel bleibt der Balken links der Überschrift,
+  weil er kein Foto hat.

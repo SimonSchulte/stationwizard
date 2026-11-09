@@ -308,6 +308,22 @@ describe('baueVbPdfDefinition', () => {
     expect(schild).not.toContain(PDF_FARBEN.katTesi);
   });
 
+  it('rahmt das Foto in der Abschnittsfarbe, auch leer ohne Foto', () => {
+    const mit = testInhalt({
+      abschnitte: [
+        testAbschnitt({ farbe: 'abschnitt-5', foto: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' }),
+      ],
+    });
+    const ohne = testInhalt({ abschnitte: [testAbschnitt({ farbe: 'abschnitt-5' })] });
+    for (const inhalt of [mit, ohne]) {
+      const json = JSON.stringify(schildAbschnitt(definition(inhalt)));
+      expect(json).toContain(`"lineColor":"${PDF_FARBEN.abschnitt5}"`);
+    }
+    expect(JSON.stringify(schildAbschnitt(definition(ohne)))).not.toContain(
+      '"image":"data:image/jpeg',
+    );
+  });
+
   it('zieht zwischen zwei Schildern eine Schnittlinie, bei einem einzelnen nicht', () => {
     const zweiSchilder = testInhalt({ abschnitte: [testAbschnitt(), testAbschnitt()] });
     const einSchild = testInhalt({ abschnitte: [testAbschnitt()] });

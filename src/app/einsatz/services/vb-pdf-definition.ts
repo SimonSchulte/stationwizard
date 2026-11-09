@@ -9,6 +9,7 @@ import type {
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
 import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
+import { jpegMasse } from './jpeg-masse';
 import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
 import {
   STREIFEN_STANDARD,
@@ -144,6 +145,26 @@ function titelAbstand(titel: string, breite: number): number {
   const schrift = schildTitelSchrift(titel);
   const zeilen = Math.max(1, Math.ceil((titel.length * schrift * 0.56) / breite));
   return Math.max(0, (54 - zeilen * schrift) / 2);
+}
+
+/**
+ * Lage und Größe des Rahmens ums Foto: rechtsbündig im Fotofeld, eng am Bild (Maße aus dem JPEG)
+ * und höchstens so groß wie das Feld. Ohne Foto oder bei unlesbaren Maßen das ganze Feld.
+ */
+function fotoRahmen(foto: string | undefined): { x: number; breite: number; hoehe: number } {
+  const innen = {
+    b: SCHILD.fotoBreite - 2 * SCHILD.rahmen,
+    h: SCHILD.fotoHoehe - 2 * SCHILD.rahmen,
+  };
+  const masse = foto ? jpegMasse(foto) : null;
+  let breite = SCHILD.fotoBreite;
+  let hoehe = SCHILD.fotoHoehe;
+  if (masse) {
+    const faktor = Math.min(innen.b / masse.breite, innen.h / masse.hoehe);
+    breite = Math.round(masse.breite * faktor) + 2 * SCHILD.rahmen;
+    hoehe = Math.round(masse.hoehe * faktor) + 2 * SCHILD.rahmen;
+  }
+  return { x: SCHILD.fotoX + SCHILD.fotoBreite - breite, breite, hoehe };
 }
 
 /** Kürzt auf `max` Zeichen mit Auslassungspunkt (nur für Klemmrand-Texte mit festem Platz). */
@@ -685,6 +706,8 @@ export const SCHILD = {
   fotoX: 393,
   fotoBreite: 180,
   fotoHoehe: 232,
+  /** Dicke des Rahmens ums Foto. */
+  rahmen: 5,
   gewichtY: 300,
   fussY: 347,
   fussBreite: 255,
@@ -772,14 +795,9 @@ function schild(
       height: SCHILD.hoehe,
       absolutePosition: { x: 0, y: y0 },
     },
-    {
-      // Abschnittsfarbe als Balken am linken Rand des Kopfbands.
-      canvas: [{ type: 'rect', x: 0, y: 0, w: 8, h: 54, color: farbe }],
-      absolutePosition: { x: SCHILD.rand - 4, y: y0 + 9 },
-    },
-    feld(SCHILD.rand + 12, 9, textBreite - 12, 54, {
+    feld(SCHILD.rand, 9, textBreite, 54, {
       text: titel,
-      margin: [0, titelAbstand(titel, textBreite - 12), 0, 0],
+      margin: [0, titelAbstand(titel, textBreite), 0, 0],
       fontSize: schildTitelSchrift(titel),
       bold: true,
       lineHeight: 1,
@@ -807,11 +825,30 @@ function schild(
       absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.inhaltOben + 18 },
     },
   ];
+  // Die Abschnittsfarbe als Rahmen ums Verladungsfoto; ohne Foto bleibt der Rahmen leer.
+  const rahmen = fotoRahmen(abschnitt.foto);
+  bloecke.push({
+    canvas: [
+      {
+        type: 'rect',
+        x: SCHILD.rahmen / 2,
+        y: SCHILD.rahmen / 2,
+        w: rahmen.breite - SCHILD.rahmen,
+        h: rahmen.hoehe - SCHILD.rahmen,
+        lineWidth: SCHILD.rahmen,
+        lineColor: farbe,
+      },
+    ],
+    absolutePosition: { x: rahmen.x, y: y0 + SCHILD.inhaltOben },
+  });
   if (abschnitt.foto) {
     bloecke.push({
       image: abschnitt.foto,
-      fit: [SCHILD.fotoBreite, SCHILD.fotoHoehe],
-      absolutePosition: { x: SCHILD.fotoX, y: y0 + SCHILD.inhaltOben },
+      fit: [rahmen.breite - 2 * SCHILD.rahmen, rahmen.hoehe - 2 * SCHILD.rahmen],
+      absolutePosition: {
+        x: rahmen.x + SCHILD.rahmen,
+        y: y0 + SCHILD.inhaltOben + SCHILD.rahmen,
+      },
     });
   }
   bloecke.push(
