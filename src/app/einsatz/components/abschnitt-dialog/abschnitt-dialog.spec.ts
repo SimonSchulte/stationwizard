@@ -41,34 +41,34 @@ describe('AbschnittDialog', () => {
     expect(element.querySelectorAll('.farbe mat-icon').length).toBe(1);
   });
 
-  it('übernimmt Titel, Farbe, Fachgruppe und Übertragen', () => {
-    const { fixture, element, schliessen } = erzeuge();
+  it('übernimmt Titel und Farbe und reicht die Fachgruppe unverändert durch', () => {
+    const { fixture, element, schliessen } = erzeuge({ fachgruppe: 'tesi' });
     const titel = element.querySelector<HTMLInputElement>('input[matInput]')!;
-    titel.value = 'TeSi';
+    titel.value = 'Rollwagen 01';
     titel.dispatchEvent(new Event('input'));
     element.querySelectorAll<HTMLInputElement>('input[type="radio"]')[3].click();
-    (
-      fixture.componentInstance as unknown as { fachgruppeGewaehlt(w: unknown): void }
-    ).fachgruppeGewaehlt('tesi');
-    element.querySelector<HTMLInputElement>('mat-checkbox input')!.click();
     fixture.detectChanges();
-    expect(element.querySelector('.vorschau')?.textContent).toContain('TeSi');
+    expect(element.querySelector('.vorschau')?.textContent).toContain('Rollwagen 01');
     knopf(element, 'Übernehmen').click();
     expect(schliessen).toHaveBeenCalledWith({
       aktion: 'speichern',
-      titel: 'TeSi',
+      titel: 'Rollwagen 01',
       farbe: 'abschnitt-4',
       fachgruppe: 'tesi',
-      uebertragen: true,
       foto: null,
     });
   });
 
-  it('sperrt Übernehmen ohne Titel und blendet „Übertragen“ ohne Laufzettel aus', () => {
-    const { fixture, element } = erzeuge({ titel: '   ', laufzettelAnzahl: 0 });
-    expect(knopf(element, 'Übernehmen').disabled).toBe(true);
+  it('bietet keine Fachgruppe und kein Übertragen an', () => {
+    const { element } = erzeuge({ fachgruppe: 'tesi' });
+    expect(element.querySelector('mat-chip-listbox')).toBeNull();
     expect(element.querySelector('mat-checkbox')).toBeNull();
-    expect(fixture.componentInstance).toBeTruthy();
+    expect(element.querySelector('app-fachgruppe-chip')).toBeNull();
+  });
+
+  it('sperrt Übernehmen ohne Titel', () => {
+    const { element } = erzeuge({ titel: '   ', laufzettelAnzahl: 0 });
+    expect(knopf(element, 'Übernehmen').disabled).toBe(true);
   });
 
   it('meldet das Löschen an die Seite', () => {

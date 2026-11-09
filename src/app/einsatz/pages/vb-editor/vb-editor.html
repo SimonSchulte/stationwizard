@@ -274,9 +274,6 @@
                     <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
                     <h3 class="abschnitt-titel">{{ abschnitt.titel }}</h3>
                     <span class="abschnitt-anzahl">{{ abschnitt.laufzettel.length }}</span>
-                    @if (abschnitt.fachgruppe; as gruppe) {
-                      <app-fachgruppe-chip [fachgruppe]="gruppe" />
-                    }
                     <button
                       matIconButton
                       type="button"
@@ -350,6 +347,7 @@
                 [nummer]="nummern().get(treffer.laufzettel.id) ?? 0"
                 [abschnittId]="treffer.abschnitt.id"
                 [abschnitte]="abschnittAuswahl()"
+                [lagerorte]="lagerorte()"
                 [andere]="zusammenfuehrenZiele()"
                 (felderGeaendert)="felderGeaendert(treffer.laufzettel.id, $event)"
                 (abschnittGewaehlt)="abschnittGewaehlt(treffer.laufzettel.id, $event)"

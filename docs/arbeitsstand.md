@@ -3637,3 +3637,21 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   liegt eng am Bild: Breite und Höhe liest `jpeg-masse.ts` aus dem JPEG (Start-of-Frame), bei
   unlesbaren Maßen gilt das ganze Feld. Auf dem Laufzettel ist das Farbband der einzige
   Farbhinweis.
+
+## VB-Editor: Fachgruppe raus, Lager mit Vorschlägen, „Lager → Ziel“
+
+- **Fachgruppe ausgeblendet** (Karte, Abschnittskopf, Abschnittsdialog samt „Auf alle Laufzettel
+  übertragen“, Bearbeitung, Vorlagenansicht). Die Daten bleiben unverändert: das Feld `fachgruppe` an
+  Abschnitt und Laufzettel, der Worker und `fachgruppeAufLaufzettelUebertragen()` im Store bestehen
+  weiter, der Abschnittsdialog reicht den vorhandenen Wert unverändert durch. Die Methode ist
+  derzeit von der Oberfläche aus nicht erreichbar. Entscheidung offen, ob das Feld ganz entfällt.
+- **Lager mit Vorschlägen:** `Von (Lagerort)` ist ein `mat-autocomplete` über den schon erfassten
+  Lagern (`lagerVorschlaege()` in `einsatz/services/lager.ts`, je Vergleichsform einmal, alphabetisch).
+  Freie Eingabe bleibt möglich. `lagerSchluessel()` ist dieselbe Vergleichsform wie beim Sortieren des
+  Aushangs.
+- **Karte „Lager → Ziel“:** Das Ziel ist „Auf / In“, sonst der Abschnitt (dann grau und kursiv);
+  fehlt das Lager, steht „Kein Lager“ in Warnfarbe. In der Bearbeitung nennt ein Hinweis unter
+  „Auf / In“ den Abschnitt als Ersatz.
+- Geprüft: Tests (Karte, Bearbeitung, Dialog, `lager.ts`), Build, Sicht im Chromium mit gemockter API
+  an einer neuen Vorlage auf 1300 und 400 px Breite (Lager anlegen, Vorschlag wählen, Karte). Nicht
+  geprüft: der Abschnittsdialog im Browser, ein echter Einsatz mit gespeicherten Daten.

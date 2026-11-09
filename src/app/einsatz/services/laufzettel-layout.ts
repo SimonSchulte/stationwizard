@@ -1,4 +1,5 @@
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
+import { lagerSchluessel } from './lager';
 import { AbschnittFarbe, VbInhalt, VbLaufzettel, VbPosition } from '../models/vb.model';
 import {
   LAUFZETTEL_KAPAZITAET,
@@ -102,11 +103,6 @@ export function baueLaufzettelStreifen(
 
 /** Reihenfolge am Aushang: nach Ziel (Abschnitt, wie in der Vorbereitung) oder nach Lager. */
 export type AushangSortierung = 'abschnitt' | 'lager';
-
-/** Vergleichsform des Lagers: ohne Groß-/Kleinschreibung und überzählige Leerzeichen. */
-function lagerSchluessel(lagerort: string): string {
-  return lagerort.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
-}
 
 /**
  * Sortiert nach Lager, dann nach LfdNr; Laufzettel ohne Lager stehen zuletzt, ein Fortsetzungs-

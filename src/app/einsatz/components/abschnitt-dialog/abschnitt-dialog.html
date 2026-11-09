@@ -42,22 +42,6 @@
       </fieldset>
 
       <div class="gruppe">
-        <span class="legende" id="abschnitt-fachgruppe-label"
-          >Fachgruppe (Vorgabe für die Laufzettel)</span
-        >
-        <mat-chip-listbox
-          aria-labelledby="abschnitt-fachgruppe-label"
-          [value]="fachgruppe() ?? 'keine'"
-          (change)="fachgruppeGewaehlt($event.value)"
-        >
-          <mat-chip-option value="keine">keine</mat-chip-option>
-          @for (gruppe of fachgruppen; track gruppe) {
-            <mat-chip-option [value]="gruppe">{{ fachgruppeBezeichnung[gruppe] }}</mat-chip-option>
-          }
-        </mat-chip-listbox>
-      </div>
-
-      <div class="gruppe">
         <span class="legende">Foto für die Verladung (kommt mit auf den Druck)</span>
         @if (foto(); as bild) {
           <img class="foto" [src]="bild" alt="Verladungsfoto des Abschnitts" />
@@ -84,12 +68,6 @@
           <p class="foto-fehler" role="alert">{{ fotoFehler() }}</p>
         }
       </div>
-
-      @if (daten.laufzettelAnzahl > 0) {
-        <mat-checkbox [checked]="uebertragen()" (change)="uebertragen.set($event.checked)">
-          Auf alle {{ daten.laufzettelAnzahl }} Laufzettel dieses Abschnitts übertragen
-        </mat-checkbox>
-      }
     </div>
 
     <div class="vorschau" aria-label="Vorschau des Laufzettelkopfs">
@@ -98,9 +76,6 @@
         <span class="band" aria-hidden="true"></span>
         <div class="kopf">
           <span class="vorschau-titel">{{ titel() || 'Abschnitt' }}</span>
-          @if (fachgruppe(); as gruppe) {
-            <app-fachgruppe-chip [fachgruppe]="gruppe" />
-          }
         </div>
       </div>
     </div>

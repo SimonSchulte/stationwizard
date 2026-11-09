@@ -20,25 +20,42 @@ function erzeuge(
 }
 
 describe('LaufzettelKarte', () => {
-  it('nennt „Auf/In“ nur, wenn er vom Abschnittstitel abweicht', () => {
-    const laufzettel = testLaufzettel({ lagerort: 'Lager Nord', transportMit: 'Rollwagen' });
-    const gleich = erzeuge(laufzettel, { abschnittTitel: ' rollwagen ' }).nativeElement;
-    expect(gleich.querySelector('.ort')?.textContent).toBe('Von Lager Nord');
-    const anders = erzeuge(laufzettel, { abschnittTitel: 'Betreuung' }).nativeElement;
-    expect(anders.querySelector('.ort')?.textContent).toBe('Von Lager Nord → Auf/In Rollwagen');
+  it('zeigt „Lager → Ziel“ und setzt das Ziel grau, solange es nur der Abschnitt ist', () => {
+    const ohneEigenes = testLaufzettel({ lagerort: 'Lager Nord', transportMit: '' });
+    const aus = erzeuge(ohneEigenes, { abschnittTitel: 'Rollwagen 01' }).nativeElement;
+    expect(aus.querySelector('.lager')?.textContent).toBe('Lager Nord');
+    expect(aus.querySelector('.ziel')?.textContent).toBe('Rollwagen 01');
+    expect(aus.querySelector('.ziel')?.classList.contains('abgeleitet')).toBe(true);
+    expect(aus.querySelector('.ort')?.getAttribute('aria-label')).toBe(
+      'Von Lager Nord nach Rollwagen 01',
+    );
+    // ein Eintrag, der gleich dem Abschnitt lautet, gilt ebenfalls als abgeleitet
+    const gleich = erzeuge(
+      testLaufzettel({ lagerort: 'Lager Nord', transportMit: ' rollwagen 01 ' }),
+      { abschnittTitel: 'Rollwagen 01' },
+    ).nativeElement;
+    expect(gleich.querySelector('.ziel')?.classList.contains('abgeleitet')).toBe(true);
+    // ein eigenes Ziel hat Vorrang und steht nicht grau
+    const eigenes = erzeuge(testLaufzettel({ lagerort: 'Lager Nord', transportMit: 'Sackkarre' }), {
+      abschnittTitel: 'Rollwagen 01',
+    }).nativeElement;
+    expect(eigenes.querySelector('.ziel')?.textContent).toBe('Sackkarre');
+    expect(eigenes.querySelector('.ziel')?.classList.contains('abgeleitet')).toBe(false);
   });
 
-  it('zeigt Nummer, Materialien, Ort, Fachgruppe und Belegung', () => {
+  it('zeigt Nummer, Materialien, Weg und Belegung, aber keine Fachgruppe', () => {
     const laufzettel = testLaufzettel({
       lagerort: 'Lager Nord',
       transportMit: 'Rollwagen',
+      fachgruppe: 'betreuung',
       positionen: [testPosition({ material: 'Stühle' }), testPosition({ material: 'Tische' })],
     });
     const element = erzeuge(laufzettel).nativeElement as HTMLElement;
     expect(element.querySelector('.nummer')?.textContent).toBe('3');
     expect(element.querySelector('.kurztext')?.textContent).toBe('Stühle, Tische');
-    expect(element.querySelector('.ort')?.textContent).toBe('Von Lager Nord → Auf/In Rollwagen');
-    expect(element.querySelector('app-fachgruppe-chip')?.textContent).toContain('Betreuung');
+    expect(element.querySelector('.ort')?.textContent).toContain('Lager Nord');
+    expect(element.querySelector('.ort')?.textContent).toContain('Rollwagen');
+    expect(element.querySelector('app-fachgruppe-chip')).toBeNull();
     expect(element.querySelector('.platz')?.textContent).toContain('2 / 23');
     expect(element.querySelector('.streifen')).not.toBeNull();
     expect(element.querySelector<HTMLElement>('.karte')!.style.getPropertyValue('--streifen')).toBe(
@@ -67,8 +84,9 @@ describe('LaufzettelKarte', () => {
     expect(element.querySelector('.marke')?.textContent).toBe('neu');
     expect(element.querySelector('.karte')?.getAttribute('aria-pressed')).toBe('true');
     expect(element.querySelector('.kurztext')?.textContent).toBe('Keine Positionen');
-    expect(element.querySelector('.ort')?.textContent).toBe('Kein Ziel angegeben');
-    expect(element.querySelector('app-fachgruppe-chip')).toBeNull();
+    expect(element.querySelector('.lager')?.textContent).toBe('Kein Lager');
+    expect(element.querySelector('.lager')?.classList.contains('fehlt')).toBe(true);
+    expect(element.querySelector('.ziel')?.textContent).toBe('Kein Ziel');
   });
 
   it('meldet Klick und Tastatur als gewählt', () => {

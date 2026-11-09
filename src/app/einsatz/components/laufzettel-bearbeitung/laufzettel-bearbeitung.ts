@@ -13,21 +13,15 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatChipsModule } from '@angular/material/chips';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import {
-  FACHGRUPPE_BEZEICHNUNG,
-  FACHGRUPPEN,
-  FACHGRUPPE_FARBVARIABLE,
-  Fachgruppe,
-  istFachgruppe,
-} from '../../../kern/fachgruppen/fachgruppe';
 import { VB_GRENZEN, VbLaufzettel, VbPosition } from '../../models/vb.model';
+import { lagerSchluessel } from '../../services/lager';
 import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { laufzettelPlatz } from '../../services/laufzettel-platz';
 import { PlatzAnzeige } from '../platz-anzeige/platz-anzeige';
@@ -63,8 +57,8 @@ export interface LaufzettelAuswahl {
 }
 
 /**
- * Bearbeitung eines Laufzettels (rechte Spalte des VB-Editors): Kopffelder, Abschnitt,
- * Fachgruppe, Positionentabelle mit Ziehgriff und Mehrfachauswahl, Teilen, Zusammenführen,
+ * Bearbeitung eines Laufzettels (rechte Spalte des VB-Editors): Kopffelder (Lager mit
+ * Vorschlägen), Abschnitt, Positionentabelle mit Ziehgriff und Mehrfachauswahl, Teilen, Zusammenführen,
  * Duplizieren, Löschen und die Platzanzeige samt Aufteilen-Hinweis. Rein darstellend: jede
  * Änderung geht als Ausgabe an die Seite, der Store fasst das Tippen zusammen.
  */
@@ -77,7 +71,7 @@ export interface LaufzettelAuswahl {
     CdkDropList,
     MatButtonModule,
     MatCheckboxModule,
-    MatChipsModule,
+    MatAutocompleteModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -96,6 +90,8 @@ export class LaufzettelBearbeitung {
   readonly abschnittId = input.required<string>();
   readonly abschnitte = input.required<readonly AbschnittAuswahl[]>();
   readonly andere = input<readonly LaufzettelAuswahl[]>([]);
+  /** Bereits erfasste Lager (`lagerVorschlaege()`), als Auswahl unter „Von (Lagerort)“. */
+  readonly lagerorte = input<readonly string[]>([]);
 
   readonly felderGeaendert = output<LaufzettelFelder>();
   readonly abschnittGewaehlt = output<string>();
@@ -111,9 +107,20 @@ export class LaufzettelBearbeitung {
   readonly geloescht = output<void>();
 
   protected readonly grenzen = VB_GRENZEN;
-  protected readonly fachgruppen: readonly Fachgruppe[] = FACHGRUPPEN;
-  protected readonly fachgruppeBezeichnung = FACHGRUPPE_BEZEICHNUNG;
-  protected readonly fachgruppeFarbe = FACHGRUPPE_FARBVARIABLE;
+
+  /** Titel des gewählten Abschnitts: das Ziel, solange „Auf / In“ leer ist. */
+  protected readonly abschnittTitel = computed(
+    () => this.abschnitte().find((a) => a.id === this.abschnittId())?.titel ?? '',
+  );
+
+  /** Vorschläge passend zur Eingabe; ein schon genau so geschriebenes Lager erscheint nicht. */
+  protected readonly lagerVorschlaege = computed(() => {
+    const eingabe = lagerSchluessel(this.laufzettel().lagerort);
+    return this.lagerorte().filter((lager) => {
+      const schluessel = lagerSchluessel(lager);
+      return schluessel !== eingabe && schluessel.includes(eingabe);
+    });
+  });
 
   private readonly layout = inject(LaufzettelLayoutWahl);
   protected readonly platz = computed(() =>
@@ -159,8 +166,8 @@ export class LaufzettelBearbeitung {
   }
 
   /** „keine“ und das Abwählen des gewählten Chips bedeuten beide: keine Fachgruppe. */
-  protected fachgruppeGewaehlt(wert: unknown): void {
-    this.felderGeaendert.emit({ fachgruppe: istFachgruppe(wert) ? wert : null });
+  protected lagerGewaehlt(lager: string): void {
+    this.felderGeaendert.emit({ lagerort: lager });
   }
 
   protected markierungUmschalten(id: string, markiert: boolean): void {
