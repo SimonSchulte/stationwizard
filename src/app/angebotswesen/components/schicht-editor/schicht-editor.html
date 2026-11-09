@@ -19,7 +19,11 @@
       [value]="vonWert()"
       (valueChange)="vonAktualisieren($event)"
     />
-    <mat-timepicker-toggle matSuffix [for]="vonPicker"></mat-timepicker-toggle>
+    <mat-timepicker-toggle
+      aria-label="Uhrzeit wählen"
+      matSuffix
+      [for]="vonPicker"
+    ></mat-timepicker-toggle>
     <mat-timepicker #vonPicker interval="15m"></mat-timepicker>
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zeit-feld">
@@ -30,7 +34,11 @@
       [value]="bisWert()"
       (valueChange)="bisAktualisieren($event)"
     />
-    <mat-timepicker-toggle matSuffix [for]="bisPicker"></mat-timepicker-toggle>
+    <mat-timepicker-toggle
+      aria-label="Uhrzeit wählen"
+      matSuffix
+      [for]="bisPicker"
+    ></mat-timepicker-toggle>
     <mat-timepicker #bisPicker interval="15m"></mat-timepicker>
   </mat-form-field>
   @if (stundenAnzeige(); as stunden) {
@@ -48,7 +56,7 @@
 </div>
 
 @if (schicht().positionen.length === 0) {
-  <p class="empty-hint">Noch keine Positionen in dieser Schicht.</p>
+  <app-leerzustand kompakt titel="Noch keine Positionen in dieser Schicht." />
 }
 
 <ul class="position-liste">
@@ -124,7 +132,11 @@
 <div class="position-hinzufuegen">
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="katalog-auswahl">
     <mat-label>Aus Preiskatalog hinzufügen</mat-label>
-    <mat-select [value]="null" (selectionChange)="katalogPositionHinzufuegen($event.value)">
+    <mat-select
+      #katalogAuswahl
+      [value]="null"
+      (selectionChange)="katalogPositionHinzufuegen($event.value); katalogAuswahl.value = null"
+    >
       @for (eintrag of katalog(); track eintrag.id) {
         <mat-option [value]="eintrag.id">{{ eintrag.bezeichnung }}</mat-option>
       }

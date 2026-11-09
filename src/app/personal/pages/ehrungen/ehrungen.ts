@@ -13,7 +13,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -100,7 +100,6 @@ import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
     MatIconModule,
     MatInputModule,
     MatMenuModule,
-    MatNativeDateModule,
     MatPaginatorModule,
     MatProgressSpinnerModule,
     MatSelectModule,
@@ -111,7 +110,7 @@ import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
     StundenImport,
     StundenZelle,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   host: { '[class.vollbild]': 'vollbild()' },
   templateUrl: './ehrungen.html',
   styleUrl: './ehrungen.less',

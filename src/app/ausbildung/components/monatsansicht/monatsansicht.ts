@@ -33,6 +33,7 @@ import { HiorgEbene, LEERER_TAGESINHALT, TagesInhalt } from '../../services/tage
 import { HiorgEintragKarte } from '../hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { LeererTag } from '../leerer-tag/leerer-tag';
 import { TerminKarte } from '../termin-karte/termin-karte';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** Ablage einer Karte auf einer anderen Karte. */
 export interface AblageAufTermin {
@@ -60,6 +61,7 @@ export interface AblageAufTag {
   selector: 'app-monatsansicht',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Leerzustand,
     CdkDrag,
     CdkDropList,
     Datumsblock,

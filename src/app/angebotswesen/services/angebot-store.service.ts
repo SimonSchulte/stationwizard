@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { VerlassenSchutz } from '../../kern/verlassen-schutz';
 import { Angebot, Schicht } from '../models/angebot.model';
 import { ApiAngebotStorage } from '../storage/api-angebot-storage';
+import { angebotProbleme } from './schicht-validierung';
 import {
   AngebotKonfliktFehler,
   AngebotMitVersion,
@@ -53,6 +54,8 @@ export class AngebotStoreService {
   readonly speichertGerade = signal(false);
   readonly speicherFehler = signal('');
   readonly speicherKonflikt = signal(false);
+  /** `true`, wenn die Eingabe selbst nicht speicherbar ist – ein zweiter Versuch hilft dann nicht. */
+  readonly speicherFehlerIstEingabe = signal(false);
 
   /** Id des Angebots, das gerade gelöscht wird, oder `null`. Für das Sperren der Zeile in der Liste. */
   readonly loeschtId = signal<string | null>(null);
@@ -61,6 +64,21 @@ export class AngebotStoreService {
     const entwurf = this.entwurf();
     if (!entwurf) return false;
     return JSON.stringify(entwurf) !== JSON.stringify(this.basislinie());
+  });
+
+  /** Ein neues Angebot, in das noch nichts eingetragen wurde – beim Verlassen geht nichts verloren. */
+  readonly istUnberuehrtNeu = computed(() => {
+    const entwurf = this.entwurf();
+    return (
+      this.istNeu() &&
+      entwurf !== null &&
+      entwurf.bezeichnung === '' &&
+      entwurf.auftraggeber === '' &&
+      entwurf.bemerkung === '' &&
+      entwurf.schichten.length === 0 &&
+      !entwurf.materialpauschaleAktiv &&
+      !entwurf.pauschalpreisAktiv
+    );
   });
 
   constructor() {
@@ -124,12 +142,25 @@ export class AngebotStoreService {
     const entwurf = this.entwurf();
     if (!entwurf) return false;
     if (!entwurf.bezeichnung.trim()) {
+      this.speicherFehlerIstEingabe.set(true);
       this.speicherFehler.set('Eine Bezeichnung ist erforderlich.');
+      return false;
+    }
+    const probleme = angebotProbleme(entwurf);
+    if (probleme.length > 0) {
+      this.speicherKonflikt.set(false);
+      this.speicherFehlerIstEingabe.set(true);
+      this.speicherFehler.set(
+        probleme.length === 1
+          ? probleme[0]!
+          : `${probleme[0]!} (und ${probleme.length - 1} weitere)`,
+      );
       return false;
     }
     this.speichertGerade.set(true);
     this.speicherFehler.set('');
     this.speicherKonflikt.set(false);
+    this.speicherFehlerIstEingabe.set(false);
     try {
       await this.storage.speichereAngebot(entwurf, this.geladen()?.version ?? null);
       const neuerStand = await this.storage.ladeAngebot(entwurf.id);

@@ -55,7 +55,7 @@ describe('Verwaltungs-Startseite', () => {
     const { fixture } = erzeugeSeite(false);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const verweise = Array.from(element.querySelectorAll('a.aufgabe'));
+    const verweise = Array.from(element.querySelectorAll('a.karte'));
     expect(verweise.map((verweis) => verweis.getAttribute('href'))).toContain(
       '/verwaltung/fahrzeuge-import',
     );
@@ -65,7 +65,7 @@ describe('Verwaltungs-Startseite', () => {
     const { fixture } = erzeugeSeite(false);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const verweis = element.querySelector('a.aufgabe[href="/verwaltung/einsatz-vorlagen"]');
+    const verweis = element.querySelector('a.karte[href="/verwaltung/einsatz-vorlagen"]');
     expect(verweis?.textContent).toContain('Einsatz-Vorlagen');
   });
 
@@ -73,7 +73,7 @@ describe('Verwaltungs-Startseite', () => {
     const { fixture } = erzeugeSeite(false);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('button.aufgabe')).toBeNull();
+    expect(element.querySelector('button.karte')).toBeNull();
   });
 
   it('zeigt beide Bogenvarianten und erstellt die öffentliche per Klick', async () => {
@@ -81,7 +81,7 @@ describe('Verwaltungs-Startseite', () => {
     const { fixture, linkStorage, druckbogenService } = erzeugeSeite(true, { links });
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const knoepfe = element.querySelectorAll('button.aufgabe');
+    const knoepfe = element.querySelectorAll('button.karte');
     expect(knoepfe).toHaveLength(2);
 
     (knoepfe[0] as HTMLButtonElement).click();

@@ -595,7 +595,7 @@ describe('Ansichten und Ideen auf Lücken', () => {
     laedt: signal(false),
     lade: vi.fn(),
   };
-  const meldungen = { zeige: vi.fn(), info: vi.fn() };
+  const meldungen = { zeige: vi.fn(), info: vi.fn(), fehler: vi.fn() };
   let store: PlanStore;
 
   function erzeuge(): Jahresplan {
@@ -687,5 +687,30 @@ describe('Ansichten und Ideen auf Lücken', () => {
       'info',
       expect.stringContaining('Keine Lücke mehr'),
     );
+  });
+  it('meldet ein erfolgreiches Speichern als Erfolg', async () => {
+    const ansicht = erzeuge();
+    kalender.speichern.mockResolvedValue({ geschrieben: 1 });
+
+    await ansicht.speichern();
+
+    expect(meldungen.zeige).toHaveBeenCalledWith('erfolg', 'Gespeichert.');
+  });
+
+  it('meldet einen Speicherfehler mit Hinweis und der Aktion „Erneut versuchen“', async () => {
+    const ansicht = erzeuge();
+    kalender.speichern.mockRejectedValueOnce(new Error('Der Server ist nicht erreichbar.'));
+
+    await ansicht.speichern();
+
+    expect(meldungen.fehler).toHaveBeenCalledWith(
+      expect.stringContaining('Deine Änderungen bleiben hier erhalten.'),
+      expect.objectContaining({ aktion: 'Erneut versuchen' }),
+    );
+    // Die Aktion startet das Speichern erneut.
+    kalender.speichern.mockResolvedValue({ geschrieben: 1 });
+    const { beiAktion } = meldungen.fehler.mock.calls[0]![1] as { beiAktion: () => void };
+    beiAktion();
+    await vi.waitFor(() => expect(kalender.speichern).toHaveBeenCalledTimes(2));
   });
 });

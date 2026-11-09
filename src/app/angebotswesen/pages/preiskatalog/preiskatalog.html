@@ -31,7 +31,7 @@
   }
 
   @if (!store.listeLaedt() && store.eintraege().length === 0) {
-    <p class="empty-hint">Noch keine Einträge im Preiskatalog.</p>
+    <app-leerzustand titel="Noch keine Einträge im Preiskatalog." />
   } @else {
     <div class="tabelle-rahmen">
       <table class="bericht-tabelle">
@@ -46,19 +46,21 @@
         <tbody>
           @for (eintrag of store.eintraege(); track eintrag.id) {
             <tr>
-              <td>
+              <td data-label="Bezeichnung">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <input
                     matInput
+                    [attr.aria-label]="'Bezeichnung: ' + eintrag.bezeichnung"
                     [value]="eintrag.bezeichnung"
                     [disabled]="store.speichertId() === eintrag.id"
                     (change)="bezeichnungAktualisieren(eintrag, $any($event.target).value)"
                   />
                 </mat-form-field>
               </td>
-              <td>
+              <td data-label="Art">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-select
+                    [aria-label]="'Art: ' + eintrag.bezeichnung"
                     [value]="eintrag.art"
                     [disabled]="store.speichertId() === eintrag.id"
                     (selectionChange)="artAktualisieren(eintrag, $event.value)"
@@ -69,11 +71,12 @@
                   </mat-select>
                 </mat-form-field>
               </td>
-              <td class="rechts">
+              <td class="rechts" data-label="Einzelpreis">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="preis-feld">
                   <input
                     matInput
                     type="number"
+                    [attr.aria-label]="'Einzelpreis in Euro: ' + eintrag.bezeichnung"
                     min="0"
                     step="0.01"
                     [value]="centZuEuroEingabe(eintrag.einzelpreisCent)"
@@ -83,7 +86,7 @@
                   <span matSuffix>&nbsp;€</span>
                 </mat-form-field>
               </td>
-              <td>
+              <td class="aktion">
                 <button
                   matIconButton
                   [disabled]="store.loeschtId() === eintrag.id"

@@ -44,6 +44,11 @@ export class MeldungSnackbar {
   /** Unterscheidet das bewusste Schließen vom Ablauf der Anzeigedauer. */
   vonPersonGeschlossen = false;
 
+  /** `matSnackBarAction` gestaltet nur; das Auslösen (`onAction`) gehört dem Inhalt der Snackbar. */
+  protected aktionAusloesen(): void {
+    this.ref.dismissWithAction();
+  }
+
   protected schliessen(): void {
     this.vonPersonGeschlossen = true;
     this.ref.dismiss();

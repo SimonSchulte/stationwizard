@@ -38,6 +38,14 @@ describe('AngebotStoreService', () => {
     expect(service.hatUngesicherteAenderungen()).toBe(true);
   });
 
+  it('erkennt ein neues Angebot ohne Eintragungen als unberührt', () => {
+    service.neuesAngebotBeginnen();
+    expect(service.istUnberuehrtNeu()).toBe(true);
+
+    service.entwurfAktualisieren({ bezeichnung: 'Erfunden' });
+    expect(service.istUnberuehrtNeu()).toBe(false);
+  });
+
   it('meldet ein frisch geladenes Angebot als gesichert, eine Änderung als ungesichert', async () => {
     const angebot = erzeugeTestAngebot();
     storage.ladeAngebot.mockResolvedValue({ daten: angebot, version: '"1"' });
@@ -61,6 +69,21 @@ describe('AngebotStoreService', () => {
     const erfolg = await service.speichern();
     expect(erfolg).toBe(false);
     expect(service.speicherFehler()).toContain('erforderlich');
+    expect(storage.speichereAngebot).not.toHaveBeenCalled();
+  });
+
+  it('lehnt eine Position ohne Bezeichnung mit klarer Meldung ab, ohne den Server zu kontaktieren', async () => {
+    const angebot = erzeugeTestAngebot();
+    const schicht = angebot.schichten[0]!;
+    storage.ladeAngebot.mockResolvedValue({ daten: angebot, version: '"1"' });
+    await service.angebotLaden(angebot.id);
+    service.schichtenAktualisieren([
+      { ...schicht, positionen: [{ ...schicht.positionen[0]!, bezeichnung: ' ' }] },
+    ]);
+
+    expect(await service.speichern()).toBe(false);
+    expect(service.speicherFehler()).toBe('Schicht 1, Position 1: Eine Bezeichnung fehlt.');
+    expect(service.speicherFehlerIstEingabe()).toBe(true);
     expect(storage.speichereAngebot).not.toHaveBeenCalled();
   });
 

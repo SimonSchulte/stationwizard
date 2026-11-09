@@ -4,6 +4,8 @@
     class="postenfuehrer-btn"
     [class.postenfuehrer-btn--active]="position().isPostenfuehrer"
     matTooltip="Postenführer"
+    aria-label="Postenführer"
+    [attr.aria-pressed]="!!position().isPostenfuehrer"
     (click)="postenfuehrerUmschalten.emit(); $event.stopPropagation()"
   >
     <img [src]="postenfuehrerSymbol()" class="postenfuehrer-tz-icon" alt="Postenführer" />
@@ -63,6 +65,7 @@
       matIconButton
       class="unassign-btn"
       matTooltip="Zuteilung aufheben"
+      aria-label="Zuteilung aufheben"
       (click)="zuteilungAufheben.emit(); $event.stopPropagation()"
     >
       <mat-icon>close</mat-icon>

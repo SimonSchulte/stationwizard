@@ -1,4 +1,8 @@
 import { Routes } from '@angular/router';
+import { verlassenGuard } from '../kern/verlassen-guard';
+import type { Ehrungen } from './pages/ehrungen/ehrungen';
+
+const ehrungenVerlassen = verlassenGuard<Ehrungen>((seite) => seite.anzahlGeaendert() > 0);
 
 export const personalRouten: Routes = [
   {
@@ -18,6 +22,7 @@ export const personalRouten: Routes = [
   },
   {
     path: 'ehrungen',
+    canDeactivate: [ehrungenVerlassen],
     loadComponent: () => import('./pages/ehrungen/ehrungen').then((modul) => modul.Ehrungen),
   },
   {

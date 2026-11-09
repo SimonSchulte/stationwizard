@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import type { Posten } from '../../models/planung.model';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /**
  * Seitenschiene mit allen Posten des Einsatzes: Farbstreifen, Name, Fahrzeug, Stand der
@@ -9,7 +10,7 @@ import type { Posten } from '../../models/planung.model';
  */
 @Component({
   selector: 'app-posten-schiene',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [Leerzustand, MatButtonModule, MatIconModule],
   templateUrl: './posten-schiene.html',
   styleUrl: './posten-schiene.less',
   changeDetection: ChangeDetectionStrategy.OnPush,

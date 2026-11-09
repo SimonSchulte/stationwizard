@@ -28,13 +28,14 @@
   </p>
 
   @if (angezeigteZeilen().length === 0) {
-    <p class="empty-hint">
-      @if (alleFahrzeugeAnzeigen()) {
-        Es sind keine Fahrzeuge erfasst.
-      } @else {
-        Keine Fahrzeuge mit vorgeschriebener Laufleistung.
-      }
-    </p>
+    <app-leerzustand
+      kompakt
+      [titel]="
+        alleFahrzeugeAnzeigen()
+          ? 'Es sind keine Fahrzeuge erfasst.'
+          : 'Keine Fahrzeuge mit vorgeschriebener Laufleistung.'
+      "
+    />
   } @else {
     <div class="tabelle-rahmen">
       <table class="bericht-tabelle">

@@ -71,7 +71,11 @@
       </div>
 
       @if (faecher().length === 0) {
-        <p class="empty-hint">Keine Abweichung – der Behälter war vollständig.</p>
+        <app-leerzustand
+          kompakt
+          icon="check_circle"
+          titel="Keine Abweichung – der Behälter war vollständig."
+        />
       }
 
       @for (fach of faecher(); track fach.fachId) {

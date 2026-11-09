@@ -13,8 +13,7 @@
   box-sizing: border-box;
 }
 
-.hinweis,
-.leer {
+.hinweis {
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -118,5 +117,22 @@
 @media (max-width: 600px) {
   .uebernahme-inhalt {
     padding: var(--space-md);
+  }
+
+  // Quell- und Zieljahr nebeneinander mit dem Pfeil dazwischen statt untereinander.
+  .jahre {
+    flex-wrap: nowrap;
+    gap: var(--space-sm);
+
+    mat-form-field {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  }
+
+  // Der Aktionsknopf nutzt die ganze Breite, Abbrechen steht darunter.
+  .aktionen {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

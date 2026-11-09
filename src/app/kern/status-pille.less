@@ -1,0 +1,27 @@
+// Gemeinsame Gestalt der Verbindungs- und Datenstände in der Kopfleiste
+// (`app-status-chip` klickbar, `app-verbindungsstatus` reine Anzeige): eine kleine Pille mit
+// Symbol und Text, grün, solange verbunden.
+.status-pille() {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-compact);
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-chip);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.status-pille-verbunden() {
+  border-color: var(--status-ok);
+  background: color-mix(in srgb, var(--status-ok) 10%, var(--surface-primary));
+  color: var(--status-ok);
+
+  mat-icon {
+    color: var(--status-ok);
+  }
+}

@@ -794,19 +794,26 @@ export class Jahresplan {
     }
     try {
       const { geschrieben } = await this.kalender.speichern();
-      this.melde(
-        this.store.ungespeichert()
-          ? 'Übertragener Stand gespeichert; weitere Änderungen sind noch ungespeichert.'
-          : geschrieben
-            ? 'Gespeichert.'
-            : 'Keine Änderungen zu speichern.',
-      );
+      if (this.store.ungespeichert()) {
+        this.melde(
+          'Übertragener Stand gespeichert; weitere Änderungen sind noch ungespeichert.',
+          'erfolg',
+        );
+      } else if (geschrieben) {
+        this.melde('Gespeichert.', 'erfolg');
+      } else {
+        this.melde('Keine Änderungen zu speichern.');
+      }
     } catch (ursache) {
       if (ursache instanceof KalenderKonfliktFehler) {
         await this.konfliktBehandeln(ursache);
         return;
       }
-      this.melde(fehlertext(ursache), 'fehler');
+      // Wie im PEP-Editor: der lokale Stand bleibt erhalten, ein zweiter Versuch ist ein Klick.
+      this.meldungen.fehler(`${fehlertext(ursache)} Deine Änderungen bleiben hier erhalten.`, {
+        aktion: 'Erneut versuchen',
+        beiAktion: () => void this.speichern(),
+      });
     }
   }
 

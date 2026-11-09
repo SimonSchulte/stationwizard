@@ -1,4 +1,15 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { verlassenGuard } from '../kern/verlassen-guard';
+import { BehaelterStoreService } from './services/behaelter-store.service';
+import { PruefvorlageStoreService } from './services/pruefvorlage-store.service';
+
+const behaelterVerlassen = verlassenGuard(() =>
+  inject(BehaelterStoreService).hatUngesicherteAenderungen(),
+);
+const vorlageVerlassen = verlassenGuard(() =>
+  inject(PruefvorlageStoreService).hatUngesicherteAenderungen(),
+);
 
 /**
  * Materialverwaltung. Dieser Stand enthält die Pflege der Prüfvorlagen, die
@@ -19,6 +30,7 @@ export const materialRouten: Routes = [
   },
   {
     path: 'behaelter/neu',
+    canDeactivate: [behaelterVerlassen],
     loadComponent: () =>
       import('./pages/behaelter-detail/behaelter-detail').then((modul) => modul.BehaelterDetail),
   },
@@ -34,6 +46,7 @@ export const materialRouten: Routes = [
   },
   {
     path: 'behaelter/:id',
+    canDeactivate: [behaelterVerlassen],
     loadComponent: () =>
       import('./pages/behaelter-detail/behaelter-detail').then((modul) => modul.BehaelterDetail),
   },
@@ -45,6 +58,7 @@ export const materialRouten: Routes = [
   },
   {
     path: 'vorlagen/:id',
+    canDeactivate: [vorlageVerlassen],
     loadComponent: () =>
       import('./pages/vorlage-editor/vorlage-editor').then((modul) => modul.VorlageEditor),
   },

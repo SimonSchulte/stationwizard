@@ -1,12 +1,19 @@
+@import '../status-pille.less';
+
 :host {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
+  .status-pille();
+  // Gleiche Höhe wie der klickbare `app-status-chip` (Material-Knopf, 32 px).
+  min-height: 32px;
+  padding: 0 var(--space-md);
   margin-inline: var(--space-sm);
-  color: var(--text-secondary);
-  font-size: 0.875rem;
 }
 
 :host(.verbunden) {
-  color: var(--status-ok);
+  .status-pille-verbunden();
+}
+
+mat-icon {
+  width: 1em;
+  height: 1em;
+  font-size: 1.125rem;
 }

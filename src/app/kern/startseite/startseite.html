@@ -1,69 +1,71 @@
-<div class="startseite">
-  <p class="einordnung">PLANUNG FÜR DIE EINHEIT</p>
-  <h1>Ausbildung und Einsatz. An einem Ort.</h1>
-  <p class="beschreibung">
-    Plane das Ausbildungsjahr und besetze die Posten deiner Sanitätsdienste.
-  </p>
-  <div class="bereiche">
-    <a class="bereich" routerLink="/kalender">
-      <mat-icon aria-hidden="true">calendar_month</mat-icon>
-      <h2>Kalender</h2>
-      <p>
-        Dienste und Ausbildung im Wochenraster, offene Ideen, Auswertung und KatS-A-Plan – mit
-        HiOrg-Abgleich.
-      </p>
-      <span class="aktion">Kalender öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/einsatzplanung">
-      <mat-icon aria-hidden="true">groups</mat-icon>
-      <h2>Einsatzplanung</h2>
-      <p>
-        Veranstaltungen, Einsatzkräfte und Posten. Qualifikationen zuordnen und Einsatzpläne
-        exportieren.
-      </p>
-      <span class="aktion">Einsatzplanung öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/personal">
-      <mat-icon aria-hidden="true">badge</mat-icon>
-      <h2>Personal</h2>
-      <p>Aktives Personal mit Gruppen und Qualifikationen direkt aus dem HiOrg-Server.</p>
-      <span class="aktion">Personal öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/fahrzeuge">
-      <mat-icon aria-hidden="true">local_shipping</mat-icon>
-      <h2>Fahrzeuge</h2>
-      <p>Stammdaten, Wartungstermine und Kilometerstände der Einheit im Blick behalten.</p>
-      <span class="aktion">Fahrzeuge öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/material">
-      <mat-icon aria-hidden="true">inventory_2</mat-icon>
-      <h2>Materialverwaltung</h2>
-      <p>
-        Fahrzeugcheck: den Bestand der Rucksäcke und Koffer gegen die Soll-Liste prüfen,
-        nachvollziehbar und mit Bericht.
-      </p>
-      <span class="aktion">Materialverwaltung öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/angebotswesen">
-      <mat-icon aria-hidden="true">request_quote</mat-icon>
-      <h2>Angebotswesen</h2>
-      <p>Preiskatalog pflegen und Kostenangebote für Einsätze kalkulieren.</p>
-      <span class="aktion">Angebotswesen öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/aufgaben">
-      <mat-icon aria-hidden="true">task_alt</mat-icon>
-      <h2>Offene Aufgaben</h2>
-      <p>
-        Kilometermeldungen aus dem öffentlichen QR-Code freigeben. Erst danach zählt der gemeldete
-        Stand.
-      </p>
-      <span class="aktion">Aufgaben öffnen <span aria-hidden="true">→</span></span>
-    </a>
-    <a class="bereich" routerLink="/verwaltung">
-      <mat-icon aria-hidden="true">admin_panel_settings</mat-icon>
-      <h2>Verwaltung</h2>
-      <p>Stammdaten pflegen: Fahrzeugimport aus CSV und Benutzerverwaltung.</p>
-      <span class="aktion">Verwaltung öffnen <span aria-hidden="true">→</span></span>
-    </a>
-  </div>
-</div>
+<app-einstiegsseite
+  einordnung="PLANUNG FÜR DIE EINHEIT"
+  ueberschrift="Ausbildung und Einsatz. An einem Ort."
+>
+  <p beschreibung>Plane das Ausbildungsjahr und besetze die Posten deiner Sanitätsdienste.</p>
+  <app-einstiegsraster>
+    <app-einstiegskarte
+      ziel="/kalender"
+      icon="calendar_month"
+      titel="Kalender"
+      aktion="Kalender öffnen"
+    >
+      Dienste und Ausbildung im Wochenraster, offene Ideen, Auswertung und KatS-A-Plan – mit
+      HiOrg-Abgleich.
+    </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/einsatzplanung"
+      icon="groups"
+      titel="Einsatzplanung"
+      aktion="Einsatzplanung öffnen"
+    >
+      Veranstaltungen, Einsatzkräfte und Posten. Qualifikationen zuordnen und Einsatzpläne
+      exportieren.
+    </app-einstiegskarte>
+    <app-einstiegskarte ziel="/personal" icon="badge" titel="Personal" aktion="Personal öffnen">
+      Aktives Personal mit Gruppen und Qualifikationen direkt aus dem HiOrg-Server.
+    </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/fahrzeuge"
+      icon="local_shipping"
+      titel="Fahrzeuge"
+      aktion="Fahrzeuge öffnen"
+    >
+      Stammdaten, Wartungstermine und Kilometerstände der Einheit im Blick behalten.
+    </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/material"
+      icon="inventory_2"
+      titel="Materialverwaltung"
+      aktion="Materialverwaltung öffnen"
+    >
+      Fahrzeugcheck: den Bestand der Rucksäcke und Koffer gegen die Soll-Liste prüfen,
+      nachvollziehbar und mit Bericht.
+    </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/angebotswesen"
+      icon="request_quote"
+      titel="Angebotswesen"
+      aktion="Angebotswesen öffnen"
+    >
+      Preiskatalog pflegen und Kostenangebote für Einsätze kalkulieren.
+    </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/aufgaben"
+      icon="task_alt"
+      titel="Offene Aufgaben"
+      aktion="Aufgaben öffnen"
+    >
+      Kilometermeldungen aus dem öffentlichen QR-Code freigeben. Erst danach zählt der gemeldete
+      Stand.
+    </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/verwaltung"
+      icon="admin_panel_settings"
+      titel="Verwaltung"
+      aktion="Verwaltung öffnen"
+    >
+      Stammdaten pflegen: Fahrzeugimport aus CSV und Benutzerverwaltung.
+    </app-einstiegskarte>
+  </app-einstiegsraster>
+</app-einstiegsseite>

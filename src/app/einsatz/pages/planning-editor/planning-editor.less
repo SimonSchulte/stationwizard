@@ -8,21 +8,6 @@
   overflow: hidden;
 }
 
-.mobil-hinweis {
-  display: none;
-}
-
-@media (max-width: 1023px) {
-  .mobil-hinweis {
-    display: block;
-    margin: 0;
-    padding: var(--space-sm) var(--space-md);
-    background: var(--warning-bg);
-    color: var(--text-primary);
-    flex-shrink: 0;
-  }
-}
-
 .editor-shell {
   display: flex;
   flex-direction: column;
@@ -88,11 +73,12 @@
 
 /* Compact Material date-field in toolbar */
 .date-field {
-  width: 130px;
+  // Breit genug für „TT.MM.JJJJ“ samt Kalendersymbol; bei 130 px war das Jahr abgeschnitten.
+  width: 145px;
 }
 
 .time-field {
-  width: 120px;
+  width: 105px;
 }
 
 .editor-toolbar {

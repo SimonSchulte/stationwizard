@@ -11,6 +11,10 @@ import { provideRouter, withHashLocation, withNavigationErrorHandler } from '@an
 import { provideAufgabenquelle } from './kern/aufgaben/aufgabenquelle';
 import { FahrzeugAufgabenquelle } from './fahrzeuge/services/fahrzeug-aufgabenquelle';
 import { CheckAufgabenquelle } from './material/services/check-aufgabenquelle';
+import { MatDatepickerIntl } from '@angular/material/datepicker';
+import { MatPaginatorIntl } from '@angular/material/paginator';
+import { DatepickerDeutsch } from './kern/kalender/datepicker-deutsch';
+import { PaginatorDeutsch } from './kern/paginator-deutsch';
 import { routes } from './app.routes';
 import { veraltetenStandBehandeln } from './kern/veralteter-stand';
 
@@ -23,6 +27,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withHashLocation(), withNavigationErrorHandler(veraltetenStandBehandeln)),
     provideHttpClient(),
     { provide: LOCALE_ID, useValue: 'de-DE' },
+    { provide: MatPaginatorIntl, useClass: PaginatorDeutsch },
+    { provide: MatDatepickerIntl, useClass: DatepickerDeutsch },
     // Fachquellen für den Bereich "Offene Aufgaben". Eine weitere Aufgabenart
     // ist eine weitere Zeile hier, kein Umbau.
     provideAufgabenquelle(FahrzeugAufgabenquelle),

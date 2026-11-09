@@ -1,5 +1,5 @@
 @if (kalkulation().gruppen.length === 0 && kalkulation().materialpauschaleCent === null) {
-  <p class="empty-hint">Noch keine Schichten in diesem Angebot.</p>
+  <app-leerzustand kompakt titel="Noch keine Schichten in diesem Angebot." />
 } @else {
   <div class="tabelle-rahmen">
     <table class="bericht-tabelle">
@@ -31,7 +31,9 @@
                 {{ position.art === 'fahrzeug' ? 'Pauschal' : 'Stunde' }}
               </td>
               <td class="rechts">{{ position.anzahl }}</td>
-              <td class="rechts">{{ position.art === 'fahrzeug' ? '/' : position.stunden }}</td>
+              <td class="rechts">
+                {{ position.art === 'fahrzeug' ? '/' : formatStunden(position.stunden ?? 0) }}
+              </td>
               <td class="rechts">{{ formatEuro(position.gesamtCent) }}</td>
             </tr>
           }

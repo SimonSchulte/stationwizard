@@ -86,6 +86,20 @@ describe('Jahresuebernahme', () => {
     expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalledWith('/kalender');
   });
 
+  it('wählt mit „Alle“ nur, was das Zieljahr noch nicht hat, und zählt in der Mehrzahl', () => {
+    const seite = erzeuge();
+    seite.alleIdeen(false);
+    seite.alleIdeen(true);
+
+    const vorhanden = seite
+      .ideen()
+      .filter((z) => z.vorhanden)
+      .map((z) => z.idee.id);
+    expect(vorhanden.length).toBeGreaterThan(0);
+    for (const id of vorhanden) expect(seite.ideenAuswahl().has(id)).toBe(false);
+    expect(seite.uebernehmenText()).toMatch(/^\d+ (Eintrag|Einträge) nach 2027 übernehmen$/);
+  });
+
   it('übernimmt nichts, wenn die Auswahl leer ist oder Quelle und Ziel gleich sind', () => {
     const seite = erzeuge();
     seite.alleIdeen(false);

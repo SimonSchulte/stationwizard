@@ -13,7 +13,7 @@
   }
 
   @if (!laedt() && zeilen().length === 0) {
-    <p class="empty-hint">Noch keine Angebote angelegt.</p>
+    <app-leerzustand titel="Noch keine Angebote angelegt." />
   } @else {
     <ul class="angebot-liste">
       @for (zeile of zeilen(); track zeile.angebot.id) {

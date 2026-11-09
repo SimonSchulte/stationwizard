@@ -7,13 +7,18 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MatSelectionList } from '@angular/material/list';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { VERLASSEN_NACHRICHT } from '../../../kern/verlassen-guard';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import {
@@ -60,6 +65,7 @@ import {
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** Vereinheitlicht Kilometer- und Wartungsampel auf dieselbe Dreifarbdarstellung. */
 export function ampelKlasse(ampel: KilometerAmpel | WartungsAmpel | null): string {
@@ -125,6 +131,7 @@ interface TerminAnzeige {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuhrpark-uebersicht',
   imports: [
+    Leerzustand,
     MatButtonToggleModule,
     Suchfeld,
     Meldung,
@@ -134,17 +141,19 @@ interface TerminAnzeige {
     MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
+    MatListModule,
     MatInputModule,
-    MatNativeDateModule,
     MatSelectModule,
     KilometerBilanz,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './fuhrpark-uebersicht.html',
   styleUrl: './fuhrpark-uebersicht.less',
 })
 export class FuhrparkUebersicht implements OnInit {
   private readonly fahrzeugeStore = inject(FahrzeugStoreService);
+  private readonly dialogDienst = inject(DialogDienst);
+  private readonly fahrzeugListe = viewChild(MatSelectionList);
   private readonly berichtStore = inject(KmBerichtStoreService);
   private readonly konfiguration = inject(SystemkonfigurationStoreService);
   readonly ablesungStore = inject(AblesungStoreService);
@@ -338,7 +347,24 @@ export class FuhrparkUebersicht implements OnInit {
     if (event.value) this.neuerTerminDatum.set(lokalesDatumZuIso(event.value));
   }
 
-  auswaehlen(id: string): void {
+  /** Wechselt das Fahrzeug; ein ungespeicherter Bearbeitungsstand wird nicht stillschweigend verworfen. */
+  async auswaehlen(id: string): Promise<void> {
+    if (id === this.ausgewaehltId()) return;
+    if (this.fahrzeugeStore.hatUngesicherteAenderungen()) {
+      const verwerfen = await this.dialogDienst.bestaetigen(
+        VERLASSEN_NACHRICHT,
+        'Ungespeicherte Änderungen',
+        'Verwerfen und wechseln',
+      );
+      if (!verwerfen) {
+        // Die Auswahlliste hat den Wechsel schon gezeigt: auf das bearbeitete Fahrzeug zurück.
+        const aktuell = this.ausgewaehltId();
+        this.fahrzeugListe()?.options.forEach(
+          (option) => (option.selected = option.value === aktuell),
+        );
+        return;
+      }
+    }
     this.ausgewaehltId.set(id);
   }
 

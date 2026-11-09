@@ -4,7 +4,7 @@
 </div>
 <div matSnackBarActions>
   @if (daten.aktion) {
-    <button matButton matSnackBarAction>{{ daten.aktion }}</button>
+    <button matButton matSnackBarAction (click)="aktionAusloesen()">{{ daten.aktion }}</button>
   }
   <button matIconButton aria-label="Meldung schließen" (click)="schliessen()">
     <mat-icon>close</mat-icon>

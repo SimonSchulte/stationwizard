@@ -1,0 +1,67 @@
+:host {
+  display: flex;
+}
+
+.karte {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: var(--radius-card);
+}
+
+.karte:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.karte:focus-visible {
+  outline: 2px solid var(--ci-blue);
+  outline-offset: 2px;
+}
+
+.inhalt {
+  flex: 1;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  --mat-card-outlined-outline-color: var(--border-light);
+  --mat-card-outlined-container-color: var(--surface-primary);
+}
+
+.karte:hover:not(:disabled) .inhalt {
+  --mat-card-outlined-outline-color: var(--ci-blue);
+  box-shadow: var(--elevation-1);
+}
+
+mat-icon {
+  color: var(--ci-red);
+}
+
+h2 {
+  color: var(--ci-dark-blue);
+  font-size: 1.35rem;
+  margin: var(--space-sm) 0;
+}
+
+.text {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-lg);
+}
+
+.aktion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: auto;
+  font-weight: 500;
+  color: var(--ci-blue);
+}

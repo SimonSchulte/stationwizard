@@ -11,13 +11,12 @@ import { distinctUntilChanged, map } from 'rxjs';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DatePipe } from '@angular/common';
@@ -51,6 +50,7 @@ import { ermittleWartungsstatus, WartungsAmpel } from '../../services/wartungsst
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   return {
@@ -67,6 +67,7 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-detail',
   imports: [
+    Leerzustand,
     Meldung,
     Ladeanzeige,
     Seitenkopf,
@@ -79,13 +80,11 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatNativeDateModule,
-    MatProgressSpinnerModule,
     MatSelectModule,
     MatTooltipModule,
     KilometerBilanz,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './fahrzeug-detail.html',
   styleUrl: './fahrzeug-detail.less',
 })

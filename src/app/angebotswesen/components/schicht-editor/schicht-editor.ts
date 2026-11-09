@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -18,6 +18,7 @@ import { Position, Schicht } from '../../models/angebot.model';
 import { PreiskatalogEintrag } from '../../models/preiskatalog.model';
 import { istGueltigeSchichtzeit } from '../../services/schicht-validierung';
 import { centZuEuroEingabe, euroEingabeZuCent } from '../../services/waehrung';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 function positionAusKatalog(eintrag: PreiskatalogEintrag, schicht: Schicht): Position {
   return {
@@ -52,16 +53,16 @@ function positionManuell(schicht: Schicht): Position {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-schicht-editor',
   imports: [
+    Leerzustand,
     MatButtonModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatNativeDateModule,
     MatSelectModule,
     MatTimepickerModule,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './schicht-editor.html',
   styleUrl: './schicht-editor.less',
 })

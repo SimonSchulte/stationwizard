@@ -4,11 +4,6 @@
   margin: 0 auto;
 }
 
-.empty-hint {
-  color: var(--text-secondary);
-  font-style: italic;
-}
-
 .angebot-liste {
   list-style: none;
   margin: 0;
@@ -22,24 +17,26 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  padding-right: var(--space-xs);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  background: var(--surface-primary);
+
+  &:hover {
+    background: var(--surface-hover);
+  }
 }
 
 .angebot-zeile {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-light);
-  border-radius: var(--space-xs);
-  background: var(--surface-primary);
   color: var(--text-primary);
   text-decoration: none;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
 }
 
 .angebot-bezeichnung {
@@ -59,4 +56,28 @@
 .angebot-geaendert {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
+}
+
+// Auf dem Handy untereinander: Bezeichnung und Auftraggeber je eine Zeile, darunter Summe
+// und Änderungsdatum nebeneinander.
+@media (max-width: 780px) {
+  .liste-content {
+    padding: var(--space-md);
+  }
+
+  .angebot-zeile {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2xs) var(--space-md);
+  }
+
+  .angebot-bezeichnung,
+  .angebot-auftraggeber {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .angebot-geaendert {
+    text-align: right;
+  }
 }

@@ -4,6 +4,8 @@
     matIconButton
     [class.aktiv]="nurOffene()"
     matTooltip="Nur Themen ohne Termin anzeigen"
+    aria-label="Nur Themen ohne Termin anzeigen"
+    [attr.aria-pressed]="nurOffene()"
     (click)="nurOffene.set(!nurOffene())"
   >
     <mat-icon>rule</mat-icon>
@@ -90,7 +92,10 @@
           </div>
         }
         @if (!zeile.geplant.length && !zeile.ideen.length) {
-          <p class="leer">Noch kein Termin und keine Idee verweist auf dieses Thema.</p>
+          <app-leerzustand
+            kompakt
+            titel="Noch kein Termin und keine Idee verweist auf dieses Thema."
+          />
         }
       </div>
 
@@ -106,9 +111,9 @@
       </mat-action-row>
     </mat-expansion-panel>
   } @empty {
-    <p class="leer">
-      Keine Themen. Beim Einlesen einer Mappe wird die Liste aus der Spalte „KatS-A-plan Titel“
-      aufgebaut.
-    </p>
+    <app-leerzustand
+      kompakt
+      titel="Keine Themen. Beim Einlesen einer Mappe wird die Liste aus der Spalte „KatS-A-plan Titel“ aufgebaut."
+    />
   }
 </mat-accordion>

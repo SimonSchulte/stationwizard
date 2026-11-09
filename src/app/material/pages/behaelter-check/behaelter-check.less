@@ -96,3 +96,15 @@
     padding: var(--space-sm);
   }
 }
+
+// Lange Fachnamen brechen auf schmalen Bildschirmen um: Die Kopfzeile wächst mit,
+// statt mit fester Höhe in das nächste Fach zu ragen.
+mat-expansion-panel {
+  --mat-expansion-header-collapsed-state-height: auto;
+  --mat-expansion-header-expanded-state-height: auto;
+}
+
+mat-expansion-panel-header {
+  min-height: 48px;
+  padding-block: var(--space-sm);
+}

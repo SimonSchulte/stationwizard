@@ -31,6 +31,7 @@ import { VB_GRENZEN, VbLaufzettel, VbPosition } from '../../models/vb.model';
 import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { laufzettelPlatz } from '../../services/laufzettel-platz';
 import { PlatzAnzeige } from '../platz-anzeige/platz-anzeige';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 export type LaufzettelFelder = Partial<
   Pick<VbLaufzettel, 'ueberschrift' | 'lagerort' | 'transportMit' | 'auftraggeber' | 'fachgruppe'>
@@ -70,6 +71,7 @@ export interface LaufzettelAuswahl {
 @Component({
   selector: 'app-laufzettel-bearbeitung',
   imports: [
+    Leerzustand,
     CdkDrag,
     CdkDragHandle,
     CdkDropList,

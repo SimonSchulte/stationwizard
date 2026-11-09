@@ -11,6 +11,7 @@ import { KatsThema, Termin } from '../../models/plan.model';
 import { PlanStore } from '../../services/plan-store';
 import { formatiereDatum } from '../../../kern/kalender/datum';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 interface ThemaZeile {
   thema: KatsThema;
@@ -29,6 +30,7 @@ interface ThemaZeile {
   selector: 'app-kats-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Leerzustand,
     Suchfeld,
     FormsModule,
     MatButtonModule,

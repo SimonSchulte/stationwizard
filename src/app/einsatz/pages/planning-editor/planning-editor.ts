@@ -7,7 +7,9 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { firstValueFrom, map } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { erzeugeTaktischesZeichen } from 'taktische-zeichen-core';
@@ -38,7 +40,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule, MatDatepickerInputEvent } from '@angular/material/datepicker';
-import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { lokalesDatumZuZeit, zeitZuLokalesDatum } from '../../../kern/kalender/datum';
 import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
@@ -85,7 +87,6 @@ import { Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zust
     MatFormFieldModule,
     MatInputModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatTimepickerModule,
     DragDropModule,
     MatMenuModule,
@@ -95,7 +96,7 @@ import { Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zust
     Helferpool,
     PostenSchiene,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './planning-editor.html',
   styleUrl: './planning-editor.less',
 })
@@ -107,6 +108,13 @@ export class PlanningEditor implements OnDestroy {
   private readonly kontext = inject(PepEditorKontext);
   private readonly speichernDienst = inject(PepEditorSpeichernDienst);
   private readonly meldungen = inject(MeldungsDienst);
+  /** Schmale Fenster (Tablet hochkant, Handy): der Editor ist auf große Bildschirme ausgelegt. */
+  protected readonly schmal = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 1023px)')
+      .pipe(map((zustand) => zustand.matches)),
+    { initialValue: false },
+  );
   private readonly efs = inject(EfsQuelle);
   private readonly importService = inject(ImportService);
 

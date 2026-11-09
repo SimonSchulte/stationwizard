@@ -31,6 +31,22 @@ afterEach(() => {
 });
 
 describe('MeldungSeite', () => {
+  it('nennt den richtigen Grund, wenn der Stand nicht gilt', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(antwort(FAHRZEUG));
+    const komponente = await erzeuge();
+
+    komponente.standRoh.set('12,5');
+    expect(komponente.standFehler()).toContain('ganze Zahl');
+    komponente.standRoh.set('-5');
+    expect(komponente.standFehler()).toContain('zwischen 0 und');
+    komponente.standRoh.set('99999999');
+    expect(komponente.standFehler()).toContain('zwischen 0 und');
+    komponente.standRoh.set('45678');
+    expect(komponente.standFehler()).toBe('');
+    komponente.standRoh.set('');
+    expect(komponente.standFehler()).toBe('');
+  });
+
   it('lädt das Fahrzeug zum Token im Pfad', async () => {
     const holen = vi.spyOn(globalThis, 'fetch').mockResolvedValue(antwort(FAHRZEUG));
     const komponente = await erzeuge();

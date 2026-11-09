@@ -247,7 +247,7 @@
         }
       }
     } @else {
-      <p class="leer">Kein Eintrag im Kalender an diesem Tag.</p>
+      <app-leerzustand kompakt titel="Kein Eintrag im Kalender an diesem Tag." />
     }
 
     @if (agendaHiorg().length) {
@@ -272,6 +272,6 @@
       Termin an diesem Tag
     </button>
   } @else {
-    <p class="leer">Kein Tag im gewählten Ausschnitt.</p>
+    <app-leerzustand kompakt titel="Kein Tag im gewählten Ausschnitt." />
   }
 </aside>

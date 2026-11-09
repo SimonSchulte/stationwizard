@@ -1,0 +1,41 @@
+:host {
+  display: block;
+}
+
+.rahmen {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg);
+}
+
+.einordnung {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ci-blue);
+}
+
+h1 {
+  max-width: 700px;
+  margin: var(--space-md) 0;
+  color: var(--ci-dark-blue);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+.beschreibung {
+  max-width: 700px;
+  margin-bottom: var(--space-xl);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.beschreibung:empty {
+  display: none;
+}
+
+@media (max-width: 780px) {
+  .rahmen {
+    padding: var(--space-lg) var(--space-md);
+  }
+}

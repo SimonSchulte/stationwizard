@@ -25,7 +25,15 @@
       </button>
     </app-meldung>
   } @else if (store.speicherFehler()) {
-    <app-meldung art="fehler">{{ store.speicherFehler() }}</app-meldung>
+    <app-meldung art="fehler">
+      {{ store.speicherFehler() }}
+      @if (!store.speicherFehlerIstEingabe()) {
+        Deine Änderungen bleiben hier erhalten.
+      }
+      @if (!store.speicherFehlerIstEingabe()) {
+        <button matButton meldungAktion (click)="speichern()">Erneut versuchen</button>
+      }
+    </app-meldung>
   }
 
   @if (store.entwurf(); as entwurf) {
@@ -77,7 +85,7 @@
         </button>
       </div>
       @if (entwurf.schichten.length === 0) {
-        <p class="empty-hint">Noch keine Schichten erfasst.</p>
+        <app-leerzustand kompakt titel="Noch keine Schichten erfasst." />
       }
       <div class="schicht-liste">
         @for (schicht of entwurf.schichten; track schicht.id) {
@@ -138,7 +146,12 @@
       <app-angebot-kalkulationstabelle [angebot]="entwurf" />
 
       <div class="aktionen">
-        <button matButton="outlined" type="button" (click)="tabelleKopieren()">
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="entwurf.schichten.length === 0"
+          (click)="tabelleKopieren()"
+        >
           <mat-icon>content_copy</mat-icon> Als Word-Tabelle kopieren
         </button>
       </div>

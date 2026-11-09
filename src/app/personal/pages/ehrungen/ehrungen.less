@@ -90,6 +90,13 @@
     padding-block: var(--space-xs);
   }
 
+  // Abgleichssymbol und Nachname bleiben beim seitlichen Scrollen stehen, damit eine Zeile
+  // immer einer Person zugeordnet werden kann; die Zellen brauchen dafür einen Untergrund.
+  .mat-mdc-header-cell.mat-mdc-table-sticky,
+  td.mat-mdc-cell.mat-mdc-table-sticky {
+    background: var(--mat-sys-background);
+  }
+
   tr.geaendert td {
     background: var(--warning-bg);
   }

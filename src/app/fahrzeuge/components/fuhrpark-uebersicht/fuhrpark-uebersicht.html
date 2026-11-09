@@ -23,28 +23,34 @@
 
 <div class="split">
   <div class="master">
-    @for (eintrag of gefiltert(); track eintrag.fahrzeug.id) {
-      <button
-        type="button"
-        class="zeile"
-        [class.zeile--ausgewaehlt]="eintrag.fahrzeug.id === ausgewaehltId()"
-        (click)="auswaehlen(eintrag.fahrzeug.id)"
-      >
-        <span class="zeile-name">{{ eintrag.fahrzeug.bezeichnung }}</span>
-        <span class="zeile-sub"
-          >{{ eintrag.fahrzeug.kennzeichen || 'ohne Kennzeichen' }} ·
-          {{ EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer] }}</span
+    <mat-selection-list
+      class="fahrzeug-auswahl"
+      aria-label="Fahrzeuge"
+      [multiple]="false"
+      hideSingleSelectionIndicator
+      (selectionChange)="auswaehlen($event.options[0].value)"
+    >
+      @for (eintrag of gefiltert(); track eintrag.fahrzeug.id) {
+        <mat-list-option
+          [value]="eintrag.fahrzeug.id"
+          [selected]="eintrag.fahrzeug.id === ausgewaehltId()"
         >
-        <span class="zeile-chips">
-          <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.kmAmpel)">Kilometer</span>
-          <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.leitTermin.ampel)">{{
-            eintrag.leitTermin.bezeichnung
-          }}</span>
-        </span>
-      </button>
-    }
+          <span matListItemTitle>{{ eintrag.fahrzeug.bezeichnung }}</span>
+          <span matListItemLine
+            >{{ eintrag.fahrzeug.kennzeichen || 'ohne Kennzeichen' }} ·
+            {{ EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer] }}</span
+          >
+          <span matListItemLine class="zeile-chips">
+            <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.kmAmpel)">Kilometer</span>
+            <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.leitTermin.ampel)">{{
+              eintrag.leitTermin.bezeichnung
+            }}</span>
+          </span>
+        </mat-list-option>
+      }
+    </mat-selection-list>
     @if (gefiltert().length === 0) {
-      <p class="leer-hinweis">Keine Treffer.</p>
+      <app-leerzustand titel="Keine Treffer." />
     }
   </div>
 
@@ -252,7 +258,7 @@
       <section class="abschnitt">
         <h3 class="abschnitt-titel">Wartungstermine</h3>
         @if (ausgewaehlteTermine().length === 0) {
-          <p class="leer-hinweis">Noch keine Wartungstermine erfasst.</p>
+          <app-leerzustand kompakt titel="Noch keine Wartungstermine erfasst." />
         }
         <ul class="termin-liste">
           @for (eintrag of ausgewaehlteTermine(); track eintrag.status.termin.id) {

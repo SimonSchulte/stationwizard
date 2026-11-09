@@ -99,3 +99,34 @@ describe('angebotAlsHtmlTabelle', () => {
     expect(html).toContain('Materialpauschale');
   });
 });
+
+describe('Stunden und Ausrichtung', () => {
+  const MIT_BRUCH = erzeugeTestAngebot({
+    schichten: [
+      erzeugeTestSchicht({
+        positionen: [
+          erzeugeTestPosition({
+            art: 'einsatzkraft',
+            bezeichnung: 'Sanitäter',
+            einzelpreisCent: 1850,
+            anzahl: 3,
+            stunden: 7.5,
+          }),
+        ],
+      }),
+    ],
+  });
+
+  it('schreibt halbe Stunden mit deutschem Dezimalkomma', () => {
+    expect(angebotAlsKlartextTabelle(MIT_BRUCH)).toContain('\t7,5\t');
+    expect(angebotAlsHtmlTabelle(MIT_BRUCH)).toContain('>7,5<');
+  });
+
+  it('stellt Zahlenspalten in der HTML-Tabelle rechtsbündig, Texte linksbündig', () => {
+    const html = angebotAlsHtmlTabelle(MIT_BRUCH);
+    expect(html).toContain('<th style="text-align:right">Gesamt</th>');
+    expect(html).toContain('<th style="text-align:right">Anzahl</th>');
+    expect(html).toContain('<th style="text-align:left">Bezeichnung</th>');
+    expect(html).toContain('<td style="text-align:right">3</td>');
+  });
+});

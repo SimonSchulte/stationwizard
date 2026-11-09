@@ -1,4 +1,11 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { verlassenGuard } from '../kern/verlassen-guard';
+import { FahrzeugStoreService } from './services/fahrzeug-store.service';
+
+const fahrzeugVerlassen = verlassenGuard(() =>
+  inject(FahrzeugStoreService).hatUngesicherteAenderungen(),
+);
 
 export const fahrzeugeRoutes: Routes = [
   {
@@ -16,6 +23,7 @@ export const fahrzeugeRoutes: Routes = [
   },
   {
     path: 'neu',
+    canDeactivate: [fahrzeugVerlassen],
     loadComponent: () =>
       import('./pages/fahrzeug-detail/fahrzeug-detail').then((modul) => modul.FahrzeugDetail),
   },
@@ -26,6 +34,7 @@ export const fahrzeugeRoutes: Routes = [
   },
   {
     path: ':id',
+    canDeactivate: [fahrzeugVerlassen],
     loadComponent: () =>
       import('./pages/fahrzeug-detail/fahrzeug-detail').then((modul) => modul.FahrzeugDetail),
   },

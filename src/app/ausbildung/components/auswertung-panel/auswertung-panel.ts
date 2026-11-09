@@ -10,12 +10,13 @@ import { DiensttagService } from '../../services/diensttag.service';
 import { FeiertagService } from '../../services/feiertage.service';
 import { PlanStore } from '../../services/plan-store';
 import { formatiereDatum } from '../../../kern/kalender/datum';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** Auswertungen über Kategorien, Monate, KatS-Abdeckung und Nachweise. */
 @Component({
   selector: 'app-auswertung-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, PercentPipe, MatIconModule, MatTooltipModule],
+  imports: [Leerzustand, DecimalPipe, PercentPipe, MatIconModule, MatTooltipModule],
   templateUrl: './auswertung-panel.html',
   styleUrl: './auswertung-panel.less',
 })

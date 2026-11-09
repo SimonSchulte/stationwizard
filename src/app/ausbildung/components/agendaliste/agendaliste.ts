@@ -34,6 +34,7 @@ import { HiorgEintragKarte } from '../hiorg-eintrag-karte/hiorg-eintrag-karte';
 import { AblageAufTag, AblageAufTermin } from '../monatsansicht/monatsansicht';
 import { TerminKarte } from '../termin-karte/termin-karte';
 import { MatChipsModule } from '@angular/material/chips';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 interface AgendaTagAnzeige {
   readonly tag: AgendaTag;
@@ -66,6 +67,7 @@ interface AgendaWocheAnzeige {
   selector: 'app-agendaliste',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Leerzustand,
     CdkDropList,
     Datumsblock,
     HiorgEintragKarte,

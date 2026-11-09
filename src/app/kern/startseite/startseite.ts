@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
+import { Einstiegskarte } from '../einstieg/einstiegskarte';
+import { Einstiegsraster } from '../einstieg/einstiegsraster';
+import { Einstiegsseite } from '../einstieg/einstiegsseite';
 
 @Component({
   selector: 'app-startseite',
-  imports: [RouterLink, MatIconModule],
+  imports: [Einstiegsseite, Einstiegsraster, Einstiegskarte],
   templateUrl: './startseite.html',
-  styleUrl: './startseite.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Startseite {}
