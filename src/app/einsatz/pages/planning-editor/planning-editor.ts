@@ -40,7 +40,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule, MatDatepickerInputEvent } from '@angular/material/datepicker';
-import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { lokalesDatumZuZeit, zeitZuLokalesDatum } from '../../../kern/kalender/datum';
 import { DragDropModule, CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
@@ -87,7 +87,6 @@ import { Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zust
     MatFormFieldModule,
     MatInputModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatTimepickerModule,
     DragDropModule,
     MatMenuModule,
@@ -97,7 +96,7 @@ import { Leerzustand, Meldung, MeldungsDienst } from '../../../kern/zustand/zust
     Helferpool,
     PostenSchiene,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './planning-editor.html',
   styleUrl: './planning-editor.less',
 })

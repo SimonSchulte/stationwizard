@@ -11,28 +11,63 @@
     />
   </mat-form-field>
   <div class="zeitraum">
-    <mat-form-field appearance="outline">
-      <mat-label>Beginn</mat-label>
-      <input
-        matInput
-        type="datetime-local"
-        [ngModel]="beginn()"
-        (ngModelChange)="beginn.set($event)"
-      />
-    </mat-form-field>
-    <mat-form-field appearance="outline">
-      <mat-label>Ende</mat-label>
-      <input
-        matInput
-        type="datetime-local"
-        [ngModel]="ende()"
-        (ngModelChange)="ende.set($event)"
-        [errorStateMatcher]="endeFehler"
-      />
-      @if (endeVorBeginn()) {
-        <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
-      }
-    </mat-form-field>
+    <div class="zeitpunkt">
+      <mat-form-field appearance="outline" class="datum-feld">
+        <mat-label>Beginn</mat-label>
+        <input
+          matInput
+          [matDatepicker]="beginnDatumPicker"
+          [ngModel]="beginnDatum()"
+          (ngModelChange)="datumGeaendert('beginn', $event)"
+          placeholder="TT.MM.JJJJ"
+        />
+        <mat-datepicker-toggle matSuffix [for]="beginnDatumPicker" />
+        <mat-datepicker #beginnDatumPicker />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="zeit-feld">
+        <mat-label>Uhrzeit</mat-label>
+        <input
+          matInput
+          [matTimepicker]="beginnZeitPicker"
+          [ngModel]="beginnZeit()"
+          [disabled]="!beginn()"
+          (ngModelChange)="zeitGeaendert('beginn', $event)"
+        />
+        <mat-timepicker-toggle matSuffix [for]="beginnZeitPicker" />
+        <mat-timepicker #beginnZeitPicker interval="15m" />
+      </mat-form-field>
+    </div>
+    <div class="zeitpunkt">
+      <mat-form-field appearance="outline" class="datum-feld">
+        <mat-label>Ende</mat-label>
+        <input
+          matInput
+          [matDatepicker]="endeDatumPicker"
+          [ngModel]="endeDatum()"
+          (ngModelChange)="datumGeaendert('ende', $event)"
+          placeholder="TT.MM.JJJJ"
+          [errorStateMatcher]="endeFehler"
+        />
+        <mat-datepicker-toggle matSuffix [for]="endeDatumPicker" />
+        <mat-datepicker #endeDatumPicker />
+        @if (endeVorBeginn()) {
+          <mat-error>Das Ende liegt vor dem Beginn.</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="zeit-feld">
+        <mat-label>Uhrzeit</mat-label>
+        <input
+          matInput
+          [matTimepicker]="endeZeitPicker"
+          [ngModel]="endeZeit()"
+          [disabled]="!ende()"
+          (ngModelChange)="zeitGeaendert('ende', $event)"
+          [errorStateMatcher]="endeFehler"
+        />
+        <mat-timepicker-toggle matSuffix [for]="endeZeitPicker" />
+        <mat-timepicker #endeZeitPicker interval="15m" />
+      </mat-form-field>
+    </div>
   </div>
   <mat-form-field appearance="outline">
     <mat-label>Ort</mat-label>

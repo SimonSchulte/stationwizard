@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -139,11 +139,10 @@ interface TerminAnzeige {
     MatIconModule,
     MatListModule,
     MatInputModule,
-    MatNativeDateModule,
     MatSelectModule,
     KilometerBilanz,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './fuhrpark-uebersicht.html',
   styleUrl: './fuhrpark-uebersicht.less',
 })

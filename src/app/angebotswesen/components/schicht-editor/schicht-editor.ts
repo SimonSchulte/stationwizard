@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -59,11 +59,10 @@ function positionManuell(schicht: Schicht): Position {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatNativeDateModule,
     MatSelectModule,
     MatTimepickerModule,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './schicht-editor.html',
   styleUrl: './schicht-editor.less',
 })

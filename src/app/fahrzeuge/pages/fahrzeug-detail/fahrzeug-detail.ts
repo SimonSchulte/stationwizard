@@ -11,7 +11,7 @@ import { distinctUntilChanged, map } from 'rxjs';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -80,12 +80,11 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatNativeDateModule,
     MatSelectModule,
     MatTooltipModule,
     KilometerBilanz,
   ],
-  providers: [{ provide: MAT_DATE_LOCALE, useValue: 'de-DE' }],
+  providers: [provideDeutschesDatum()],
   templateUrl: './fahrzeug-detail.html',
   styleUrl: './fahrzeug-detail.less',
 })
