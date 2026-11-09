@@ -711,20 +711,20 @@ export function schildTitelSchrift(titel: string): number {
 /**
  * Maße des Abschnittsschilds in pt. Vorlage ist die Word-Vorlage „Kistenbezeichnung“: A5 quer
  * (210 × 148,5 mm), zwei Schilder untereinander auf einem A4-Hochformatblatt. Die Lage der
- * Felder folgt dem Rahmenbild (`SCHILD_RAHMEN`): Kopfband bis 72 pt, Fußband ab 341 pt, das
- * Kästchen „Material zur Ausgabe an Laien?“ unten rechts.
+ * Felder folgt dem Rahmenbild (`SCHILD_RAHMEN`): Kopfband bis 72 pt, Fußband ab 341 pt, rechts
+ * daneben Platz für das Verladungsfoto.
  */
 export const SCHILD = {
   breite: 595.28,
   hoehe: 420.94,
   rand: 26,
   kopfHoehe: 72,
-  /** Obergrenze des Inhaltsfelds und linke Spalte; rechts davon liegen Foto und Kästchen. */
+  /** Obergrenze des Inhaltsfelds und linke Spalte; rechts davon liegt das Foto. */
   inhaltOben: 84,
   inhaltBreite: 350,
   fotoX: 393,
   fotoBreite: 180,
-  fotoHoehe: 132,
+  fotoHoehe: 232,
   gewichtY: 300,
   fussY: 347,
   fussBreite: 255,

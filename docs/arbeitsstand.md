@@ -3592,8 +3592,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Das Kennzeichnungsschild je VB-Abschnitt folgt jetzt der Word-Vorlage „Kistenbezeichnung“
   (`.dotx`): **A5 quer, zwei Schilder untereinander auf einem A4-Hochformatblatt**
   (`schild()`/`schildSeiten()` in `einsatz/services/vb-pdf-definition.ts`). Das frühere
-  A4-Querschild entfällt. Der Rahmen (Kopfband, Fußband mit Johanniter- und NRW-Logo, Kästchen
-  „Material zur Ausgabe an Laien?“) ist das Bild der Vorlage, verkleinert in
+  A4-Querschild entfällt. Der Rahmen (Kopfband, Fußband mit Johanniter- und NRW-Logo) ist das Bild der Vorlage (`image1.png`; das Kästchen „Material zur Ausgabe an Laien?“ des zweiten Vorlagenbilds ist bewusst weggelassen), verkleinert in
   `einsatz/services/abschnittsschild-rahmen.ts` (Base64, ~43 KB); alle Texte liegen als pdfmake-Text
   darüber.
 - Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (mit Balken in der
@@ -3602,7 +3601,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Fußband links (Platz von „Geräteanhänger NRW 04“) = Abschnittsname fett, darunter klein „Abschnitt n von m“ sowie Veranstaltung und Zeitraum.
   _Gewicht_ bleibt eine
   Zeile zum handschriftlichen Eintragen: die App kennt kein Istgewicht (in der Vorlage ein
-  Serienbrieffeld `Gewicht_IST`). Das Verladungsfoto steht rechts über dem Kästchen.
+  Serienbrieffeld `Gewicht_IST`). Das Verladungsfoto steht rechts, bis 180 × 232 pt.
 - Die Vorlagenschrift „Maven Johanniter“ ist nicht eingebunden; das PDF nutzt Roboto.
 - Geprüft: Tests (Aufteilung, Lage des zweiten Schilds, Inhaltsliste, Titelschrift), Sicht im
   erzeugten PDF (Seite 1 mit zwei Schildern, kurzer und langer Titel, 5/12/40 Laufzettel). Nicht
