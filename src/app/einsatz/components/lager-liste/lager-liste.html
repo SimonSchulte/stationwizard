@@ -1,0 +1,87 @@
+<form
+  class="neu"
+  (submit)="$event.preventDefault(); anlegen(neuesLager)"
+  aria-label="Neues Lager anlegen"
+>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="neu-feld">
+    <mat-label>Neues Lager</mat-label>
+    <input #neuesLager matInput autocomplete="off" [attr.maxlength]="maxName" />
+  </mat-form-field>
+  <button matButton="filled" type="submit">
+    <mat-icon>add</mat-icon>
+    Hinzufügen
+  </button>
+</form>
+
+@if (lager().length === 0) {
+  <app-leerzustand kompakt icon="warehouse" titel="Noch keine Lager">
+    Lege zuerst die Orte an, an denen Material liegt, zum Beispiel Küchenlager oder Kfz-Halle.
+  </app-leerzustand>
+} @else {
+  <p class="hinweis">
+    Die Reihenfolge ist der Laufweg: Zettel sortieren das Material in dieser Folge.
+  </p>
+  <ol class="liste" cdkDropList (cdkDropListDropped)="abgelegt($event)">
+    @for (
+      eintrag of lager();
+      track eintrag.id;
+      let index = $index;
+      let erstes = $first;
+      let letztes = $last
+    ) {
+      <li class="zeile" cdkDrag [cdkDragData]="eintrag.id">
+        <mat-icon
+          cdkDragHandle
+          class="griff"
+          aria-label="Lager verschieben"
+          matTooltip="Ziehen zum Umsortieren"
+        >
+          drag_indicator
+        </mat-icon>
+        <span class="nummer" aria-hidden="true">{{ index + 1 }}</span>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="name">
+          <input
+            #namensfeld
+            matInput
+            autocomplete="off"
+            [attr.aria-label]="'Name des Lagers ' + eintrag.name"
+            [attr.maxlength]="maxName"
+            [value]="eintrag.name"
+            [disabled]="beschaeftigtId() === eintrag.id"
+            (change)="umbenennen(eintrag, namensfeld)"
+          />
+        </mat-form-field>
+        <span class="anzahl">{{ anzahl(eintrag) }} Artikel</span>
+        <button
+          matIconButton
+          type="button"
+          [attr.aria-label]="eintrag.name + ' nach oben'"
+          [disabled]="erstes"
+          (click)="schieben(index, -1)"
+        >
+          <mat-icon>arrow_upward</mat-icon>
+        </button>
+        <button
+          matIconButton
+          type="button"
+          [attr.aria-label]="eintrag.name + ' nach unten'"
+          [disabled]="letztes"
+          (click)="schieben(index, 1)"
+        >
+          <mat-icon>arrow_downward</mat-icon>
+        </button>
+        <span [matTooltip]="loeschHinweis(eintrag)">
+          <button
+            matIconButton
+            type="button"
+            [attr.aria-label]="'Lager ' + eintrag.name + ' löschen'"
+            [disabled]="anzahl(eintrag) > 0 || beschaeftigtId() === eintrag.id"
+            (click)="geloescht.emit(eintrag)"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </span>
+      </li>
+    }
+  </ol>
+}

@@ -294,6 +294,11 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/einsatzplanung/einsaetze/<UUID>/pep`         | GET / PUT / DELETE | PEP; Anlage mit `If-None-Match: *`, sonst `If-Match`; Löschen nur mit `If-Match`          |
 | `/api/einsatzplanung/pep-vorlagen`                 | GET / POST         | PEP-Vorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`           |
 | `/api/einsatzplanung/pep-vorlagen/<UUID>`          | GET / PUT / DELETE | Einzelne Vorlage samt Inhalt; Update und Löschen nur mit `If-Match`                       |
+| `/api/einsatzplanung/lager`                        | GET / POST         | Alle Lager in einem Aufruf (Version je Zeile); Neuanlage nur mit `If-None-Match: *`       |
+| `/api/einsatzplanung/lager/reihenfolge`            | PUT                | Reihenfolge aller Lager in einem Schreibvorgang; ohne Version, 412 bei geänderter Menge   |
+| `/api/einsatzplanung/lager/<UUID>`                 | PUT / DELETE       | Update und Löschen nur mit `If-Match`; Löschen gesperrt, solange Artikel es nutzen        |
+| `/api/einsatzplanung/artikel`                      | GET / POST         | Ganzer Artikelkatalog in einem Aufruf; Neuanlage nur mit `If-None-Match: *`               |
+| `/api/einsatzplanung/artikel/<UUID>`               | PUT / DELETE       | Update und Löschen nur mit `If-Match`                                                     |
 | `/f/<UUID>`, `/f/<UUID>/km`                        | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                    |
 | `/api/fahrzeuge/erfassungslinks`                   | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt                     |
 | `/api/fahrzeuge/<UUID>/erfassungslink`             | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                      |
@@ -534,6 +539,26 @@ Worker; die Einsatzliste liefert `pep` und `vb` je Einsatz per `LEFT JOIN` in ei
 `EINSATZPLANUNG_PEP_VORLAGE_NICHT_GEFUNDEN` (404). Alte Nextcloud-Dateien werden nicht
 übernommen; nach dem Einspielen der Migration kann der Betreiber die Secrets `NEXTCLOUD_*`
 löschen.
+
+**Stammdaten der Packeinheiten, Stufe 1** (Entwurf und Begründung in
+`docs/konzept-packeinheiten.md`): **Lager** (feste Liste, `reihenfolge` = Laufweg) und der
+**Artikelkatalog** (Name, feste Einheit, Heimatlager) liegen in `EINSATZPLANUNG_DB`
+(`worker/migrations/einsatzplanung/0023_lager_artikel.sql`; Worker `einsatzplanung-lager.ts`,
+`einsatzplanung-artikel.ts`, gemeinsam `einsatzplanung-stammdaten.ts`). Je Zeile eine eigene `version`
+(Anlage `If-None-Match: *`, sonst `If-Match`), `angelegt`/`geaendert_von` aus der geprüften Anmeldung.
+Der Name ist je Tabelle eindeutig in einer **Vergleichsform** (ohne Groß-/Kleinschreibung und überzählige
+Leerzeichen, Spalte `name_vergleich`, nur vom Worker gesetzt): 409 `EINSATZPLANUNG_NAME_VERGEBEN`. Die
+Vergleichsform steht im Worker (`namenVergleich()`) und im Frontend (`lagerSchluessel()` in
+`einsatz/services/lager.ts`, auch für Sortierung und Vorschläge im VB-Editor) – gemeinsam ändern. Ein Lager
+mit Artikeln lässt sich nicht löschen (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`, zusätzlich
+Fremdschlüssel `ON DELETE RESTRICT`), Grenzen 100 Lager und 2000 Artikel (409
+`EINSATZPLANUNG_GRENZE_ERREICHT`). Die Einheiten sind eine feste Liste (`ARTIKEL_EINHEITEN`, Worker und
+`stammdaten.model.ts` gemeinsam ändern). Beide Listen kommen in **einem** Aufruf, `ApiStammdatenStorage`
+puffert sie über `kern/abruf-puffer.ts`. Die Oberfläche (`einsatz/pages/stammdaten/`, Route
+`/verwaltung/einsatz-stammdaten`, Karte „Lager und Artikel“ in der Verwaltung) hält den Zustand im
+`StammdatenStoreService`; die Komponenten `LagerListe` (Ziehen am Griff oder Pfeile) und `ArtikelTabelle`
+(Suche, Filter „Ohne Heimatlager“, 50 je Seite) sind rein darstellend. Rollenvergabe fehlt auch hier –
+dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte

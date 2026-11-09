@@ -73,4 +73,9 @@ export const verwaltungRouten: Routes = [
         (modul) => modul.EinsatzVorlagen,
       ),
   },
+  {
+    path: 'einsatz-stammdaten',
+    loadComponent: () =>
+      import('../einsatz/pages/stammdaten/stammdaten').then((modul) => modul.Stammdaten),
+  },
 ];

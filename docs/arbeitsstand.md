@@ -3655,3 +3655,29 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Geprüft: Tests (Karte, Bearbeitung, Dialog, `lager.ts`), Build, Sicht im Chromium mit gemockter API
   an einer neuen Vorlage auf 1300 und 400 px Breite (Lager anlegen, Vorschlag wählen, Karte). Nicht
   geprüft: der Abschnittsdialog im Browser, ein echter Einsatz mit gespeicherten Daten.
+
+## Packeinheiten, Stufe 1: Lager und Artikel
+
+- Umgesetzt wie in `docs/konzept-packeinheiten.md`, Abschnitt 7, Stufe 1: Migration
+  `0023_lager_artikel.sql`, Worker-Module für Lager und Artikel (Endpunkte in der Tabelle der
+  `CLAUDE.md`), Frontend-Schicht (Modell, Prüffunktionen, Storage-Vertrag mit API- und
+  In-Memory-Adapter, Store), Seite `/verwaltung/einsatz-stammdaten` mit den Reitern „Lager“ und
+  „Artikel“ und die Karte in der Verwaltung.
+- Entscheidungen: Lager und Artikel tragen je Zeile eine Version (wie der Preiskatalog). Die
+  Reihenfolge der Lager setzt ein eigener Aufruf ohne Version (`PUT …/lager/reihenfolge`) in **einem**
+  `db.batch()` und schreibt nur geänderte Zeilen; weicht die Menge der Lager ab, antwortet er mit 412.
+  Der Store prüft doppelte Namen, volle Listen und das Löschen eines genutzten Lagers vorab, damit kein
+  Schreibzugriff ohne Aussicht auf Erfolg entsteht; verbindlich bleibt der Worker (und die Indizes).
+- Geprüft: Worker-Tests (Prüfung, Vorbedingungen, Konflikte, Namenskollision, Löschschutz, Grenzen,
+  Reihenfolge mit einem Batch, Großbuchstaben im Pfad; 904 Tests insgesamt), die Migration gegen echtes
+  SQLite (Eindeutigkeit, Fremdschlüssel, Löschsperre), Frontend-Tests für Adapter, Store, beide
+  Komponenten und die Seite, Build, Sicht im Chromium mit zustandsbehafteter API-Attrappe auf 1300
+  und 400 px (anlegen, Pfeil, Heimatlager, Löschsperre, Löschen mit Rückfrage).
+- **Nicht geprüft:** der echte Worker mit D1 (Migration noch nicht eingespielt, siehe
+  `docs/einrichtung.md`), Ziehen mit der Maus (nur die Pfeile im Browser bedient), eine Liste mit
+  Hunderten Artikeln im Browser. Mobil scrollt die Artikeltabelle innerhalb ihres Rahmens
+  waagerecht; sie bleibt eine Desktop-Darstellung.
+- Noch nicht umgesetzt aus Stufe 1: Das Lager im VB-Editor schlägt weiter nur die schon in der
+  Vorbereitung genutzten Lager vor; die Stammdaten-Lager fließen dort noch nicht ein.
+- Hinweis: `planning-list.spec.ts` hat zwei zeitabhängige Fälle („in 7 Tagen“, „in 30 Tagen“), die
+  abends fehlschlagen. Sie fielen auch ohne die Änderungen dieser Stufe durch und sind nicht Teil davon.

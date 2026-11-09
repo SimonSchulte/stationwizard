@@ -90,6 +90,11 @@ Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespiel
    der Datenbank).
 3. Worker deployen, danach `0022` einspielen. Die Startvorlage erscheint unter
    _Verwaltung → Einsatz-Vorlagen_.
+4. **Lager und Artikel (Stufe 1 der Packeinheiten):** `0023_lager_artikel.sql` einspielen (Tabellen
+   `lager` und `artikel`, ohne Startbestand), **bevor** die Seite _Verwaltung → Lager und Artikel_
+   benutzt wird; ohne die Tabellen antworten die Endpunkte mit 502 `EINSATZPLANUNG_DB_FEHLER`.
+   Die Migration ist bis zum Vermerk hier **noch nicht eingespielt**. Reihenfolge: Worker deployen,
+   Migration einspielen, `d1_migrations` vermerken.
 
 ## HiOrg-Server-API (OAuth, optional)
 

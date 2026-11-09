@@ -1,0 +1,74 @@
+:host {
+  display: block;
+}
+
+.neu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.neu-feld {
+  flex: 1 1 auto;
+  max-width: 28rem;
+}
+
+.hinweis {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md);
+}
+
+.liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-primary);
+}
+
+.griff {
+  cursor: grab;
+  color: var(--text-secondary);
+}
+
+.nummer {
+  flex: 0 0 var(--space-lg);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.anzahl {
+  flex: 0 0 6rem;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cdk-drag-preview {
+  box-shadow: var(--focus-shadow);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}

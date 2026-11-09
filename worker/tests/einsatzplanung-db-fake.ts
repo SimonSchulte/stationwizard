@@ -68,7 +68,32 @@ interface PepVorlageZeile {
   geaendert_von: string;
 }
 
+interface LagerZeile {
+  id: string;
+  name: string;
+  name_vergleich: string;
+  reihenfolge: number;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
+interface ArtikelZeile {
+  id: string;
+  name: string;
+  name_vergleich: string;
+  einheit: string;
+  lager_id: string | null;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeEinsatzplanungDb {
+  lager = new Map<string, LagerZeile>();
+  artikel = new Map<string, ArtikelZeile>();
+  /** Zählt die `db.batch()`-Aufrufe: die Lagerreihenfolge muss mit genau einem auskommen. */
+  batches = 0;
   einsaetze = new Map<string, EinsatzZeile>();
   vorlagen = new Map<string, VorlageZeile>();
   vorbereitungen = new Map<string, VorbereitungZeile>();
@@ -78,6 +103,13 @@ export class FakeEinsatzplanungDb {
   listenabfragen = 0;
   /** Simuliert ein Rennen: die Vorabprüfung der Veranstaltung findet nichts. */
   vorabpruefungUebergehen = false;
+
+  async batch(anweisungen: FakeStatement[]): Promise<unknown[]> {
+    this.batches += 1;
+    const ergebnisse: unknown[] = [];
+    for (const anweisung of anweisungen) ergebnisse.push(await anweisung.run());
+    return ergebnisse;
+  }
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query.trim().replace(/\s+/g, ' '));
@@ -115,6 +147,140 @@ class FakeStatement {
 
   async run(): Promise<Ergebnis> {
     const w = this.werte;
+    if (this.query.startsWith('INSERT INTO lager')) {
+      const [id, name, vergleich, reihenfolge, am, von] = w as [
+        string,
+        string,
+        string,
+        number,
+        string,
+        string,
+      ];
+      if (this.db.lager.has(id)) throw new Error('UNIQUE constraint failed: lager.id');
+      if ([...this.db.lager.values()].some((z) => z.name_vergleich === vergleich)) {
+        throw new Error('UNIQUE constraint failed: lager.name_vergleich');
+      }
+      this.db.lager.set(id, {
+        id,
+        name,
+        name_vergleich: vergleich,
+        reihenfolge,
+        version: 1,
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE lager SET name = ?')) {
+      const [name, vergleich, am, von, id, version] = w as [
+        string,
+        string,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.lager.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      if ([...this.db.lager.values()].some((z) => z.id !== id && z.name_vergleich === vergleich)) {
+        throw new Error('UNIQUE constraint failed: lager.name_vergleich');
+      }
+      this.db.lager.set(id, {
+        ...bestehend,
+        name,
+        name_vergleich: vergleich,
+        geaendert_am: am,
+        geaendert_von: von,
+        version: bestehend.version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE lager SET reihenfolge = ?')) {
+      const [reihenfolge, am, von, id] = w as [number, string, string, string];
+      const bestehend = this.db.lager.get(id);
+      if (!bestehend) return KEIN_TREFFER;
+      this.db.lager.set(id, { ...bestehend, reihenfolge, geaendert_am: am, geaendert_von: von });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM lager')) {
+      const [id, version] = w as [string, number];
+      const bestehend = this.db.lager.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      if ([...this.db.artikel.values()].some((z) => z.lager_id === id)) {
+        throw new Error('FOREIGN KEY constraint failed');
+      }
+      this.db.lager.delete(id);
+      return OK;
+    }
+    if (this.query.startsWith('INSERT INTO artikel')) {
+      const [id, name, vergleich, einheit, lagerId, am, von] = w as [
+        string,
+        string,
+        string,
+        string,
+        string | null,
+        string,
+        string,
+      ];
+      if (this.db.artikel.has(id)) throw new Error('UNIQUE constraint failed: artikel.id');
+      if ([...this.db.artikel.values()].some((z) => z.name_vergleich === vergleich)) {
+        throw new Error('UNIQUE constraint failed: artikel.name_vergleich');
+      }
+      if (lagerId !== null && !this.db.lager.has(lagerId)) {
+        throw new Error('FOREIGN KEY constraint failed');
+      }
+      this.db.artikel.set(id, {
+        id,
+        name,
+        name_vergleich: vergleich,
+        einheit,
+        lager_id: lagerId,
+        version: 1,
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE artikel SET name = ?')) {
+      const [name, vergleich, einheit, lagerId, am, von, id, version] = w as [
+        string,
+        string,
+        string,
+        string | null,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.artikel.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      if (
+        [...this.db.artikel.values()].some((z) => z.id !== id && z.name_vergleich === vergleich)
+      ) {
+        throw new Error('UNIQUE constraint failed: artikel.name_vergleich');
+      }
+      if (lagerId !== null && !this.db.lager.has(lagerId)) {
+        throw new Error('FOREIGN KEY constraint failed');
+      }
+      this.db.artikel.set(id, {
+        ...bestehend,
+        name,
+        name_vergleich: vergleich,
+        einheit,
+        lager_id: lagerId,
+        geaendert_am: am,
+        geaendert_von: von,
+        version: bestehend.version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM artikel')) {
+      const [id, version] = w as [string, number];
+      const bestehend = this.db.artikel.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.artikel.delete(id);
+      return OK;
+    }
     if (this.query.startsWith('INSERT INTO einsaetze')) {
       const [id, titel, beginn, ende, ort, veranstaltung, angelegtAm, geaendertAm, von1, von2] =
         w as [
@@ -454,6 +620,29 @@ class FakeStatement {
   async first<T = Record<string, unknown>>(): Promise<T | null> {
     const w = this.werte;
     const als = <U>(wert: U | undefined): T | null => (wert as unknown as T | undefined) ?? null;
+    if (this.query.startsWith('SELECT COUNT(*) AS n, COALESCE(MAX(reihenfolge), 0) AS hoechste')) {
+      const zeilen = [...this.db.lager.values()];
+      return als({
+        n: zeilen.length,
+        hoechste: zeilen.reduce((h, z) => Math.max(h, z.reihenfolge), 0),
+      });
+    }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM artikel WHERE lager_id = ?')) {
+      const n = [...this.db.artikel.values()].filter((z) => z.lager_id === w[0]).length;
+      return als({ n });
+    }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM artikel')) {
+      return als({ n: this.db.artikel.size });
+    }
+    if (this.query.startsWith('SELECT id FROM lager WHERE id = ?')) {
+      return als(this.db.lager.has(w[0] as string) ? { id: w[0] } : undefined);
+    }
+    if (this.query.startsWith('SELECT id FROM artikel WHERE id = ?')) {
+      return als(this.db.artikel.has(w[0] as string) ? { id: w[0] } : undefined);
+    }
+    if (this.query.startsWith('SELECT id, name, reihenfolge, version')) {
+      return als(this.db.lager.get(w[0] as string));
+    }
     if (this.query.startsWith('SELECT id FROM einsaetze WHERE hiorg_veranstaltung_id = ?')) {
       if (this.db.vorabpruefungUebergehen) return null;
       const [veranstaltung, ausser] = w as [string, string];
@@ -500,6 +689,16 @@ class FakeStatement {
   }
 
   async all<T = Record<string, unknown>>(): Promise<{ success: true; results: T[] }> {
+    if (this.query.startsWith('SELECT id, name, reihenfolge, version')) {
+      const zeilen = [...this.db.lager.values()].sort(
+        (a, b) => a.reihenfolge - b.reihenfolge || a.name.localeCompare(b.name),
+      );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT id, name, einheit, lager_id, version')) {
+      const zeilen = [...this.db.artikel.values()].sort((a, b) => a.name.localeCompare(b.name));
+      return { success: true, results: zeilen as unknown as T[] };
+    }
     if (this.query.startsWith('SELECT e.*, v.laufzettel AS vb_laufzettel')) {
       this.db.listenabfragen += 1;
       const zeilen = [...this.db.einsaetze.values()]
