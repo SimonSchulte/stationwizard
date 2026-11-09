@@ -3599,11 +3599,11 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (mit Balken in der
   Abschnittsfarbe, Schrift nach Länge), _Inhalt_ = Überschriften der Laufzettel (bis 12 einspaltig,
   darüber zweispaltig bis 28, Rest als „… und n weitere“), _Beschriftung_ = Fachgruppe neben „Inhalt:“,
-  Fußband links = „Abschnitt n von m“ mit Veranstaltung, Zeitraum und Ort. _Gewicht_ bleibt eine
+  Fußband links (Platz von „Geräteanhänger NRW 04“) = Abschnittsname fett, darunter klein „Abschnitt n von m“ sowie Veranstaltung und Zeitraum.
+  _Gewicht_ bleibt eine
   Zeile zum handschriftlichen Eintragen: die App kennt kein Istgewicht (in der Vorlage ein
   Serienbrieffeld `Gewicht_IST`). Das Verladungsfoto steht rechts über dem Kästchen.
-- Die Fußzeile „Geräteanhänger NRW 04“ der Vorlage ist eine feste Einheitsbezeichnung und wird nicht
-  übernommen. Die Vorlagenschrift „Maven Johanniter“ ist nicht eingebunden; das PDF nutzt Roboto.
+- Die Vorlagenschrift „Maven Johanniter“ ist nicht eingebunden; das PDF nutzt Roboto.
 - Geprüft: Tests (Aufteilung, Lage des zweiten Schilds, Inhaltsliste, Titelschrift), Sicht im
   erzeugten PDF (Seite 1 mit zwei Schildern, kurzer und langer Titel, 5/12/40 Laufzettel). Nicht
   geprüft: Druck auf Papier und Zuschnitt (Ränder 0, die Rahmenlinie liegt direkt am A5-Rand; die

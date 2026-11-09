@@ -726,7 +726,7 @@ export const SCHILD = {
   fotoBreite: 180,
   fotoHoehe: 132,
   gewichtY: 300,
-  fussY: 352,
+  fussY: 347,
   fussBreite: 255,
 } as const;
 
@@ -762,7 +762,7 @@ export function schildInhaltZeilen(abschnitt: VbInhalt['abschnitte'][number]): {
  * Ein Schild (A5 quer) an der senkrechten Stelle `y0` der Seite: Rahmenbild, Abschnittsfarbe
  * und Titel im Kopfband, links die Inhaltsliste (Überschriften der Laufzettel) samt Fachgruppe, rechts ein
  * etwaiges Verladungsfoto, darunter Gewicht zum Eintragen und im Fußband
- * „Abschnitt n von m“ mit Veranstaltung. Alles ist absolut positioniert, damit nichts
+ * Abschnittsname (Platz von „Geräteanhänger NRW 04“) mit „Abschnitt n von m“ und Veranstaltung. Alles ist absolut positioniert, damit nichts
  * umbrechen kann.
  */
 function schild(
@@ -775,8 +775,6 @@ function schild(
   const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
   const titel = abschnitt.titel.trim();
   const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
-  const ort = kopf.ort?.trim() ?? '';
-  const veranstaltung = [kopf.titel, zeitraum, ort].filter((t) => t !== '').join(' · ');
   const inhalt = schildInhaltZeilen(abschnitt);
   const spaltenBreite = SCHILD.inhaltBreite / inhalt.spalten.length;
   const textBreite = SCHILD.breite - 2 * SCHILD.rand;
@@ -885,15 +883,23 @@ function schild(
     feld(SCHILD.rand, SCHILD.fussY, SCHILD.fussBreite, null, {
       stack: [
         {
-          text: `Abschnitt ${nummer} von ${gesamt}`,
-          fontSize: 15,
+          // Wie „Geräteanhänger NRW 04“ in der Vorlage: Name groß, fett, bis zu zwei Zeilen.
+          text: kuerze(titel, 52),
+          fontSize: 16,
           bold: true,
+          lineHeight: 1,
           color: PDF_FARBEN.dunkelblau,
         },
         {
-          text: kuerze(veranstaltung, 100),
+          text: `Abschnitt ${nummer} von ${gesamt}`,
           fontSize: 8.5,
-          margin: [0, 3, 0, 0],
+          bold: true,
+          margin: [0, 4, 0, 0],
+          color: PDF_FARBEN.sekundaer,
+        },
+        {
+          text: kuerze([kopf.titel, zeitraum].filter((t) => t !== '').join(' · '), 66),
+          fontSize: 7.5,
           color: PDF_FARBEN.sekundaer,
         },
       ],
