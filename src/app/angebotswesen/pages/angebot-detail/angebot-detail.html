@@ -146,7 +146,12 @@
       <app-angebot-kalkulationstabelle [angebot]="entwurf" />
 
       <div class="aktionen">
-        <button matButton="outlined" type="button" (click)="tabelleKopieren()">
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="entwurf.schichten.length === 0"
+          (click)="tabelleKopieren()"
+        >
           <mat-icon>content_copy</mat-icon> Als Word-Tabelle kopieren
         </button>
       </div>

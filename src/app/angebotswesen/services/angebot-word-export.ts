@@ -1,7 +1,7 @@
 import { formatiereDatum, wochentag } from '../../kern/kalender/datum';
 import { Angebot } from '../models/angebot.model';
 import { berechneAngebot, KalkulationPositionZeile } from './angebot-kalkulation';
-import { formatEuro } from './waehrung';
+import { formatEuro, formatStunden } from './waehrung';
 
 /**
  * Baut sowohl die Klartext- als auch die HTML-Fassung der Kalkulationstabelle
@@ -10,16 +10,16 @@ import { formatEuro } from './waehrung';
  * beide nie auseinanderlaufen können.
  */
 
+/** Zahlenspalten stehen rechtsbündig – wie in der Bildschirmanzeige. */
+const ZAHLSPALTEN = new Set(['Anzahl', 'Stunde(n)', 'Gesamt']);
+const RECHTS = 'text-align:right';
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}
-
-function formatStunden(stunden: number): string {
-  return Number.isInteger(stunden) ? String(stunden) : stunden.toFixed(2).replace(/0+$/, '');
 }
 
 function stundenText(zeile: Pick<KalkulationPositionZeile, 'art' | 'stunden'>): string {
@@ -94,7 +94,10 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
   const kopf =
     '<tr>' +
     ['Pos.', 'Bezeichnung', 'Einzelpreis', 'Anzahl', 'Stunde(n)', 'Gesamt']
-      .map((titel) => `<th style="text-align:left">${titel}</th>`)
+      .map(
+        (titel) =>
+          `<th style="text-align:${ZAHLSPALTEN.has(titel) ? 'right' : 'left'}">${titel}</th>`,
+      )
       .join('') +
     '</tr>';
   const zeilen: string[] = [];
@@ -108,9 +111,9 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
           `<td>${position.pos}</td>` +
           `<td>${escapeHtml(position.bezeichnung)}</td>` +
           `<td>${escapeHtml(einzelpreisText(position))}</td>` +
-          `<td>${position.anzahl}</td>` +
-          `<td>${stundenText(position)}</td>` +
-          `<td>${formatEuro(position.gesamtCent)}</td>` +
+          `<td style="${RECHTS}">${position.anzahl}</td>` +
+          `<td style="${RECHTS}">${stundenText(position)}</td>` +
+          `<td style="${RECHTS}">${formatEuro(position.gesamtCent)}</td>` +
           '</tr>',
       );
     }
@@ -119,7 +122,7 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
         '<td></td>' +
         '<td style="font-weight:600">Zwischensumme</td>' +
         '<td></td><td></td><td></td>' +
-        `<td style="font-weight:600">${formatEuro(gruppe.gesamtCent)}</td>` +
+        `<td style="font-weight:600;${RECHTS}">${formatEuro(gruppe.gesamtCent)}</td>` +
         '</tr>',
     );
   }
@@ -129,7 +132,7 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
         '<td></td>' +
         '<td style="font-weight:600">Materialpauschale</td>' +
         '<td></td><td></td><td></td>' +
-        `<td style="font-weight:600">${formatEuro(kalkulation.materialpauschaleCent ?? 0)}</td>` +
+        `<td style="font-weight:600;${RECHTS}">${formatEuro(kalkulation.materialpauschaleCent ?? 0)}</td>` +
         '</tr>',
     );
   }
@@ -138,7 +141,7 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
       '<td></td>' +
       `<td style="font-weight:700">${gesamtLabel(angebot)}</td>` +
       '<td></td><td></td><td></td>' +
-      `<td style="font-weight:700">${formatEuro(kalkulation.gesamtCent)}</td>` +
+      `<td style="font-weight:700;${RECHTS}">${formatEuro(kalkulation.gesamtCent)}</td>` +
       '</tr>',
   );
   if (angebot.pauschalpreisAktiv) {
@@ -147,7 +150,7 @@ export function angebotAlsHtmlTabelle(angebot: Angebot): string {
         '<td></td>' +
         '<td style="font-size:0.85em;color:#5c6070">rechnerisch</td>' +
         '<td></td><td></td><td></td>' +
-        `<td style="font-size:0.85em;color:#5c6070">${formatEuro(kalkulation.rechnerischGesamtCent)}</td>` +
+        `<td style="font-size:0.85em;color:#5c6070;${RECHTS}">${formatEuro(kalkulation.rechnerischGesamtCent)}</td>` +
         '</tr>',
     );
   }

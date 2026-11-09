@@ -17,3 +17,10 @@ export function euroEingabeZuCent(wert: string): number | null {
   if (!Number.isFinite(zahl) || zahl < 0) return null;
   return Math.round(zahl * 100);
 }
+
+const STUNDEN_FORMATIERER = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+
+/** Stunden mit deutschem Dezimalkomma („7,5“), höchstens zwei Nachkommastellen, ohne Nullen am Ende. */
+export function formatStunden(stunden: number): string {
+  return STUNDEN_FORMATIERER.format(stunden);
+}

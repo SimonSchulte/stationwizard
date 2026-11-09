@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { formatiereDatum, wochentag } from '../../../kern/kalender/datum';
 import { berechneAngebot } from '../../services/angebot-kalkulation';
 import { Angebot } from '../../models/angebot.model';
-import { formatEuro } from '../../services/waehrung';
+import { formatEuro, formatStunden } from '../../services/waehrung';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /**
@@ -22,6 +22,7 @@ export class AngebotKalkulationstabelle {
   readonly angebot = input.required<Angebot>();
 
   readonly formatEuro = formatEuro;
+  readonly formatStunden = formatStunden;
   readonly formatiereDatum = formatiereDatum;
   readonly wochentag = wochentag;
 
