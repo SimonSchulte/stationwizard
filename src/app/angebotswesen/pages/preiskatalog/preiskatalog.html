@@ -46,7 +46,7 @@
         <tbody>
           @for (eintrag of store.eintraege(); track eintrag.id) {
             <tr>
-              <td>
+              <td data-label="Bezeichnung">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <input
                     matInput
@@ -56,7 +56,7 @@
                   />
                 </mat-form-field>
               </td>
-              <td>
+              <td data-label="Art">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-select
                     [value]="eintrag.art"
@@ -69,7 +69,7 @@
                   </mat-select>
                 </mat-form-field>
               </td>
-              <td class="rechts">
+              <td class="rechts" data-label="Einzelpreis">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="preis-feld">
                   <input
                     matInput
@@ -83,7 +83,7 @@
                   <span matSuffix>&nbsp;€</span>
                 </mat-form-field>
               </td>
-              <td>
+              <td class="aktion">
                 <button
                   matIconButton
                   [disabled]="store.loeschtId() === eintrag.id"

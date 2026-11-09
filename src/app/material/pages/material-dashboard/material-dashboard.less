@@ -71,7 +71,8 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  // Feste Breiten für Stand und Befund, damit die Spalten über alle Zeilen untereinander stehen.
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 13rem 14rem;
   align-items: baseline;
   gap: var(--space-md);
   padding: var(--space-base) var(--space-sm);

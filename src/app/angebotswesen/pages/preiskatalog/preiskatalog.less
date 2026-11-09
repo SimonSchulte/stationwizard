@@ -43,4 +43,68 @@
   .preis-feld {
     width: 9em;
   }
+
+  // Das Euro-Zeichen lag direkt am Rand des Feldes.
+  .preis-feld [matSuffix] {
+    padding-inline-end: var(--space-sm);
+  }
+}
+
+// Auf dem Handy wird aus jeder Tabellenzeile eine Karte: Bezeichnung oben, darunter Art und
+// Preis, der Löschknopf oben rechts. Die Spaltenüberschriften stehen als Beschriftung je Feld.
+@media (max-width: 780px) {
+  .preiskatalog-content {
+    padding: var(--space-md);
+  }
+
+  .bericht-tabelle {
+    min-width: 0;
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    tr {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: var(--space-sm);
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    td {
+      display: block;
+      padding: 0;
+      border-bottom: none;
+    }
+
+    td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: var(--space-2xs);
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+    }
+
+    td:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .rechts {
+      text-align: left;
+    }
+
+    .preis-feld {
+      width: 100%;
+    }
+
+    td.aktion {
+      grid-column: 1 / -1;
+      text-align: right;
+    }
+  }
 }
