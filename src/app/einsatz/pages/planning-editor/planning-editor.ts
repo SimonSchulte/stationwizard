@@ -7,7 +7,9 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { firstValueFrom, map } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { erzeugeTaktischesZeichen } from 'taktische-zeichen-core';
@@ -107,6 +109,13 @@ export class PlanningEditor implements OnDestroy {
   private readonly kontext = inject(PepEditorKontext);
   private readonly speichernDienst = inject(PepEditorSpeichernDienst);
   private readonly meldungen = inject(MeldungsDienst);
+  /** Schmale Fenster (Tablet hochkant, Handy): der Editor ist auf große Bildschirme ausgelegt. */
+  protected readonly schmal = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 1023px)')
+      .pipe(map((zustand) => zustand.matches)),
+    { initialValue: false },
+  );
   private readonly efs = inject(EfsQuelle);
   private readonly importService = inject(ImportService);
 

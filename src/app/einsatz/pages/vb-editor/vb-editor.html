@@ -128,10 +128,12 @@
       </button>
     </app-leerzustand>
   } @else if (store.entwurf(); as entwurf) {
-    <p class="mobil-hinweis">
-      Die Bearbeitung ist für den Desktop gedacht. Am Handy lassen sich Laufzettel ansehen und
-      drucken; Umsortieren per Ziehen und die Positionentabelle sind dort eingeschränkt bedienbar.
-    </p>
+    @if (schmal()) {
+      <app-meldung art="info">
+        Die Bearbeitung ist für den Desktop gedacht. Am Handy lassen sich Laufzettel ansehen und
+        drucken; Umsortieren per Ziehen und die Positionentabelle sind dort eingeschränkt bedienbar.
+      </app-meldung>
+    }
 
     @if (modus === 'vorlage') {
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="vorlagentitel">

@@ -6,6 +6,7 @@ import {
   CdkDropListGroup,
 } from '@angular/cdk/drag-drop';
 import { ComponentType } from '@angular/cdk/portal';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ChangeDetectionStrategy,
@@ -129,6 +130,13 @@ export class VbEditor {
   protected readonly layout = inject(LaufzettelLayoutWahl);
   protected readonly streifenWahl = STREIFEN_WAHL;
   private readonly route = inject(ActivatedRoute);
+  /** Handybreite: die Bearbeitung ist dort eingeschränkt bedienbar. */
+  protected readonly schmal = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 780px)')
+      .pipe(map((zustand) => zustand.matches)),
+    { initialValue: false },
+  );
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly dialogDienst = inject(DialogDienst);

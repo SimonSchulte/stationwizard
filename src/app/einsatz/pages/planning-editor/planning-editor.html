@@ -1,8 +1,10 @@
-<p class="mobil-hinweis" role="note">
-  Der Planungseditor ist für große Bildschirme optimiert. Auf kleinen Bildschirmen kannst du
-  Helferpool und Postenbereich seitlich scrollen. Für umfangreiche Zuordnungen empfehlen wir einen
-  Computer.
-</p>
+@if (schmal()) {
+  <app-meldung art="info">
+    Der Planungseditor ist für große Bildschirme optimiert. Auf kleinen Bildschirmen kannst du
+    Helferpool und Postenbereich seitlich scrollen. Für umfangreiche Zuordnungen empfehlen wir einen
+    Computer.
+  </app-meldung>
+}
 @if (planung(); as p) {
   <div class="editor-shell">
     <!-- Invisible context menu trigger positioned at cursor -->
