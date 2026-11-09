@@ -64,6 +64,8 @@ export class CheckSeite {
   private readonly token = checkTokenAusPfad(location.pathname);
   private readonly heute = heuteBerlin();
   private entpreller: ReturnType<typeof setTimeout> | null = null;
+  /** Der noch nicht geschriebene Zwischenstand; `sofortSichern()` schreibt ihn ohne Wartezeit. */
+  private ausstehend: { token: string; stand: Checkstand } | null = null;
 
   readonly faecher = computed<PruefFach[]>(() => this.behaelter()?.vorlage.faecher ?? []);
 
@@ -103,6 +105,12 @@ export class CheckSeite {
   constructor() {
     this.name.set(leseGemerktenNamen());
     this.bereit = this.laden();
+    // Sperrt das Telefon oder wechselt die Person die App, kann der Browser die Seite jederzeit
+    // verwerfen: der entprellte Stand wird dann sofort geschrieben, nicht erst nach zwei Sekunden.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.sofortSichern();
+    });
+    window.addEventListener('pagehide', () => this.sofortSichern());
   }
 
   private async laden(): Promise<void> {
@@ -264,6 +272,7 @@ export class CheckSeite {
   entwurfVerwerfen(): void {
     const behaelter = this.behaelter();
     if (!behaelter || this.token === null) return;
+    this.ausstehendesVerwerfen();
     vergissCheckEntwurf(this.token);
     this.entwurfGefundenAm.set(null);
     this.bemerkung.set('');
@@ -275,7 +284,23 @@ export class CheckSeite {
     if (!stand || this.token === null) return;
     if (this.entpreller !== null) clearTimeout(this.entpreller);
     const token = this.token;
-    this.entpreller = setTimeout(() => merkeCheckEntwurf(token, stand), ENTPRELLUNG_MS);
+    this.ausstehend = { token, stand };
+    this.entpreller = setTimeout(() => this.sofortSichern(), ENTPRELLUNG_MS);
+  }
+
+  /** Schreibt einen noch ausstehenden Zwischenstand sofort; ohne ausstehenden Stand ohne Wirkung. */
+  sofortSichern(): void {
+    if (this.entpreller !== null) clearTimeout(this.entpreller);
+    this.entpreller = null;
+    const offen = this.ausstehend;
+    this.ausstehend = null;
+    if (offen) merkeCheckEntwurf(offen.token, offen.stand);
+  }
+
+  private ausstehendesVerwerfen(): void {
+    if (this.entpreller !== null) clearTimeout(this.entpreller);
+    this.entpreller = null;
+    this.ausstehend = null;
   }
 
   async absenden(): Promise<void> {
@@ -291,7 +316,7 @@ export class CheckSeite {
         positionen: Object.values(stand.positionen),
       });
       merkeNamen(this.name().trim());
-      if (this.entpreller !== null) clearTimeout(this.entpreller);
+      this.ausstehendesVerwerfen();
       vergissCheckEntwurf(this.token);
       this.quittung.set(quittung);
       this.zustand.set('gesendet');

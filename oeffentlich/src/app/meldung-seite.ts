@@ -54,6 +54,16 @@ export class MeldungSeite {
     return wert;
   });
 
+  /** Warum der Stand nicht gilt – „keine ganze Zahl“ und „außerhalb des Bereichs“ sind verschiedene Fehler. */
+  readonly standFehler = computed<string>(() => {
+    const roh = this.standRoh().trim();
+    if (roh === '' || this.stand() !== null) return '';
+    const wert = Number(roh);
+    return Number.isInteger(wert)
+      ? `Bitte einen Stand zwischen 0 und ${STAND_MAX.toLocaleString('de-DE')} km angeben.`
+      : 'Bitte eine ganze Zahl ohne Nachkommastellen angeben.';
+  });
+
   readonly bemerkungZuLang = computed(() => this.bemerkung().length > BEMERKUNG_MAX);
   readonly absendbar = computed(
     () =>

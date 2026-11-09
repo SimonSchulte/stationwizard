@@ -17,21 +17,23 @@
 
   @case ('gesendet') {
     <main class="seite">
-      <h1>Danke</h1>
-      @if (quittung(); as q) {
-        <p class="quittung">
-          {{ q.positionenGeprueft }} von {{ q.positionenGesamt }} Positionen geprüft.
+      <section class="karte erfolg">
+        <h2>Danke, die Prüfung ist eingegangen</h2>
+        @if (quittung(); as q) {
+          <p class="quittung">
+            {{ q.positionenGeprueft }} von {{ q.positionenGesamt }} Positionen geprüft.
+          </p>
+          <ul class="quittungsliste">
+            <li>{{ q.fehlmengen === 1 ? '1 Fehlmenge' : q.fehlmengen + ' Fehlmengen' }}</li>
+            <li>{{ q.unbrauchbar }} unbrauchbar</li>
+            <li>{{ q.abgelaufen }} abgelaufen</li>
+          </ul>
+        }
+        <p>
+          <strong>Die Prüfung gilt erst nach der Freigabe</strong> durch die Zug- oder
+          Gruppenführung. Bis dahin ändert sie nichts am gespeicherten Stand.
         </p>
-        <ul class="quittungsliste">
-          <li>{{ q.fehlmengen }} Fehlmengen</li>
-          <li>{{ q.unbrauchbar }} unbrauchbar</li>
-          <li>{{ q.abgelaufen }} abgelaufen</li>
-        </ul>
-      }
-      <p class="hinweis">
-        Die Prüfung gilt erst nach der Freigabe durch die Zug- oder Gruppenführung. Bis dahin ändert
-        sie nichts am gespeicherten Stand.
-      </p>
+      </section>
     </main>
   }
 
@@ -49,8 +51,14 @@
             </div>
           </div>
           <div class="pillen">
-            <span class="pille" [class.warnung]="k.fehlmengen + k.unbrauchbar > 0">
-              @if (k.fehlmengen + k.unbrauchbar > 0) {
+            <span
+              class="pille"
+              [class.warnung]="k.fehlmengen + k.unbrauchbar > 0"
+              [class.offen]="k.geprueft === 0"
+            >
+              @if (k.geprueft === 0) {
+                noch nichts geprüft
+              } @else if (k.fehlmengen + k.unbrauchbar > 0) {
                 {{ k.fehlmengen + k.unbrauchbar }} zu melden
               } @else {
                 vollständig

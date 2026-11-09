@@ -78,8 +78,8 @@
             />
             <span class="einheit">km</span>
           </span>
-          @if (standRoh() && stand() === null) {
-            <span class="feld-fehler">Bitte eine ganze Zahl ohne Nachkommastellen angeben.</span>
+          @if (standFehler(); as fehlertext) {
+            <span class="feld-fehler">{{ fehlertext }}</span>
           }
         </label>
 
