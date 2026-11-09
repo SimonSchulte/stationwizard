@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
+import { laufzettelNummern } from './laufzettel-platz';
 import {
   baueVbPdfDefinition,
   formatiereZeitraum,
@@ -159,20 +160,34 @@ describe('Abschnittsschild', () => {
     expect(SCHILD.hoehe * 2).toBeCloseTo(841.89, 0);
   });
 
-  it('nennt Laufzettelüberschriften als Inhalt und kürzt, was nicht passt', () => {
+  it('nennt je Laufzettel Nummer, Überschrift und Lager und kürzt, was nicht passt', () => {
     const laufzettel = Array.from({ length: 40 }, (_, i) =>
-      testLaufzettel({ ueberschrift: `Laufzettel Nummer ${i + 1}` }),
+      testLaufzettel({ ueberschrift: `Laufzettel Nummer ${i + 1}`, lagerort: 'Lager Nord' }),
     );
-    const { spalten, schrift } = schildInhaltZeilen(testAbschnitt({ laufzettel }));
+    const abschnitt = testAbschnitt({ laufzettel });
+    const nummern = laufzettelNummern(testInhalt({ abschnitte: [abschnitt] }));
+    const { spalten, schrift } = schildInhaltZeilen(abschnitt, nummern);
     const zeilen = spalten.flat();
     expect(spalten).toHaveLength(2);
     expect(zeilen).toHaveLength(28);
     expect(zeilen.at(-1)).toBe('… und 13 weitere');
     expect(schrift).toBe(9);
-    const wenige = schildInhaltZeilen(testAbschnitt({ laufzettel: laufzettel.slice(0, 3) }));
+    const kurz = testAbschnitt({ laufzettel: laufzettel.slice(0, 2) });
+    const wenige = schildInhaltZeilen(kurz, laufzettelNummern(testInhalt({ abschnitte: [kurz] })));
     expect(wenige.spalten).toEqual([
-      ['Laufzettel Nummer 1', 'Laufzettel Nummer 2', 'Laufzettel Nummer 3'],
+      ['Nr 1 · Laufzettel Nummer 1 · Lager Nord', 'Nr 2 · Laufzettel Nummer 2 · Lager Nord'],
     ]);
+  });
+
+  it('lässt „· Lager“ weg, wenn ein Laufzettel keines hat', () => {
+    const abschnitt = testAbschnitt({
+      laufzettel: [testLaufzettel({ ueberschrift: 'Pavillon', lagerort: ' ' })],
+    });
+    const { spalten } = schildInhaltZeilen(
+      abschnitt,
+      laufzettelNummern(testInhalt({ abschnitte: [abschnitt] })),
+    );
+    expect(spalten).toEqual([['Nr 1 · Pavillon']]);
   });
 
   it('verkleinert die Schrift bei langen Titeln', () => {
@@ -238,8 +253,8 @@ describe('baueVbPdfDefinition', () => {
     const letzte = (seiten[1] as { stack: { columns?: unknown[] }[] }).stack[1].columns;
     expect(letzte).toHaveLength(6);
     const texte = alleTexte(seiten);
-    expect(texte).toContain('Nr. 1/7 · S. 1/2');
-    expect(texte).not.toContain('Laufzettel 1 von 7 · Seite 1 von 2');
+    expect(texte).toContain('Nr. 1/7 · Schild 1 · S. 1/2');
+    expect(texte).not.toContain('Laufzettel 1 von 7 · Schild 1 von 1 · Seite 1 von 2');
   });
 
   it('erzeugt ohne Laufzettel keinen Laufzettelabschnitt', () => {
@@ -261,11 +276,31 @@ describe('baueVbPdfDefinition', () => {
     });
     const texte = alleTexte(laufzettelSeiten(definition(inhalt)));
     expect(texte.filter((t) => t === '(Fortsetzung)')).toHaveLength(1);
-    expect(texte).toContain('Laufzettel 1 von 2 · Seite 1 von 1');
-    expect(texte).toContain('Laufzettel 2 von 2 · Seite 1 von 1');
+    expect(texte).toContain('Laufzettel 1 von 2 · Schild 1 von 1 · Seite 1 von 1');
+    expect(texte).toContain('Laufzettel 2 von 2 · Schild 1 von 1 · Seite 1 von 1');
     expect(texte).toContain('Zweiter');
     expect(texte).toContain('AUFTRAG');
     expect(texte).toContain('Betreuung');
+  });
+
+  it('hat genau einen Haken „Erledigt“ und kein „nicht möglich“', () => {
+    const texte = alleTexte(laufzettelSeiten(definition()));
+    expect(texte.filter((t) => t === 'Erledigt')).toHaveLength(1);
+    expect(texte.join('|')).not.toContain('nicht möglich');
+    expect(texte).toContain('Bemerkung:');
+  });
+
+  it('druckt den Abschnitt als „Auf / In“, wenn „Transport mit“ leer ist', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({
+          titel: 'Rollwagen 01',
+          laufzettel: [testLaufzettel({ transportMit: '' })],
+        }),
+      ],
+    });
+    const texte = alleTexte(laufzettelSeiten(definition(inhalt)));
+    expect(texte).toContain('Rollwagen 01');
   });
 
   it('zeigt Anzahl mit „×“ und leere Anzahl als „__“, mit festem Raster aus 23 Zeilen', () => {

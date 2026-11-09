@@ -3596,7 +3596,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   `einsatz/services/abschnittsschild-rahmen.ts` (Base64, ~43 KB); alle Texte liegen als pdfmake-Text
   darüber.
 - Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (mit Balken in der
-  Abschnittsfarbe, Schrift nach Länge), _Inhalt_ = Überschriften der Laufzettel (bis 12 einspaltig,
+  Abschnittsfarbe, Schrift nach Länge), _Inhalt_ = alle Laufzettel des Abschnitts als „Nr n · Überschrift · Lager“ (bis 12 einspaltig,
   darüber zweispaltig bis 28, Rest als „… und n weitere“), _Beschriftung_ = Fachgruppe neben „Inhalt:“,
   Fußband links (Platz von „Geräteanhänger NRW 04“) = Abschnittsname fett, darunter klein „Abschnitt n von m“ sowie Veranstaltung und Zeitraum.
   _Gewicht_ bleibt eine
@@ -3607,3 +3607,22 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   erzeugten PDF (Seite 1 mit zwei Schildern, kurzer und langer Titel, 5/12/40 Laufzettel). Nicht
   geprüft: Druck auf Papier und Zuschnitt (Ränder 0, die Rahmenlinie liegt direkt am A5-Rand; die
   meisten Drucker lassen 3–5 mm Rand unbedruckt).
+
+## Schild und Laufzettel arbeiten zusammen
+
+- Fachlich (vom Betreiber beschrieben): Das **Schild** ist das Ziel, auf das verladen wird, und bleibt
+  dort. Der **Laufzettel** ist ein Aushang: Material im Lager zusammensuchen, beim Schild abliefern.
+  Ein Laufzettel hat ein Lager und ein Ziel; mehrere Laufzettel je Lager und je Ziel sind möglich.
+- Schild: Liste „Nr n · Überschrift · Lager“ statt bloßer Überschriften (`schildInhaltZeilen()`),
+  keine Gruppierung, kein eigener Haken.
+- Laufzettel: ein einziger Haken „Erledigt“ statt „Durchgeführt ☐ Ja ☐ nicht möglich“; „Grund“
+  heißt jetzt „Bemerkung“. „Auf / In“ nimmt den Abschnitt, wenn „Transport mit“ leer ist
+  (`baueLaufzettelStreifen()`, auch bei der Platzberechnung), der Fuß nennt „Schild n von m“.
+- Aushang nach Lager sortierbar (`nachLagerSortiert()`, Umschalter im VB-Editor, Vorgabe „Nach
+  Lager“, nur Sitzung). LfdNr bleiben unverändert.
+- Grenzen: Die Editorwarnung „zu voll“ rechnet weiter mit dem eigenen „Transport mit“, nicht mit dem
+  Abschnittsnamen als Ersatz (nur der Druck setzt ihn ein, die Platzberechnung des Drucks nutzt ihn).
+  Ein Wechsel der Lager-Schreibweise („Lager nord“ gegenüber „Lager Nord“) sortiert zusammen, die
+  Anzeige bleibt wie erfasst. Nicht geprüft: Papierdruck und der Umschalter im Browser.
+- Plan und Mocks: Artifact „Schild und Laufzettel“. Zurückgestellt: Inhaltsart „Material
+  zusammengezählt“ auf dem Schild und ein Vorschlag im Editor, Laufzettel nach Lager aufzuteilen.

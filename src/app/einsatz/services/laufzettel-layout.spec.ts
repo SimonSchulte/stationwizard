@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
 import { VbInhalt } from '../models/vb.model';
-import { baueLaufzettelStreifen as baueMit, seitenAufteilen } from './laufzettel-layout';
+import {
+  baueLaufzettelStreifen as baueMit,
+  nachLagerSortiert,
+  seitenAufteilen,
+} from './laufzettel-layout';
 import { LAUFZETTEL_KAPAZITAET } from './laufzettel-platz';
 
 // Die bisherigen Fälle gelten für drei Streifen je Seite (38 Zeichen je Zeile).
@@ -106,6 +110,72 @@ describe('baueLaufzettelStreifen', () => {
 
   it('liefert ohne Laufzettel keine Streifen', () => {
     expect(baueLaufzettelStreifen(testInhalt({ abschnitte: [] }))).toEqual([]);
+  });
+});
+
+describe('Ziel aus dem Abschnitt', () => {
+  const inhalt = (transportMit: string) =>
+    testInhalt({
+      abschnitte: [
+        testAbschnitt({ titel: 'Rollwagen 01', laufzettel: [testLaufzettel({ transportMit })] }),
+        testAbschnitt({
+          titel: 'Tisch',
+          laufzettel: [testLaufzettel({ transportMit: 'Sackkarre' })],
+        }),
+      ],
+    });
+
+  it('setzt den Abschnitt als „Auf / In“, wenn „Transport mit“ leer ist', () => {
+    const [erste] = baueLaufzettelStreifen(inhalt('  '));
+    expect(erste.transportMit).toBe('Rollwagen 01');
+  });
+
+  it('lässt einen eigenen Eintrag Vorrang haben', () => {
+    const streifen = baueLaufzettelStreifen(inhalt(''));
+    expect(streifen[1].transportMit).toBe('Sackkarre');
+  });
+
+  it('nennt die Nummer des Schilds und deren Zahl', () => {
+    const streifen = baueLaufzettelStreifen(inhalt(''));
+    expect(streifen.map((s) => [s.schild, s.schildGesamt])).toEqual([
+      [1, 2],
+      [2, 2],
+    ]);
+  });
+});
+
+describe('nachLagerSortiert', () => {
+  const lz = (lagerort: string) => testLaufzettel({ lagerort });
+  const inhalt = testInhalt({
+    abschnitte: [
+      testAbschnitt({ laufzettel: [lz('Lager Süd'), lz('lager  nord'), lz('')] }),
+      testAbschnitt({ laufzettel: [lz('Lager Nord'), lz('Lager Süd')] }),
+    ],
+  });
+
+  it('legt Zettel eines Lagers zusammen und lässt die Nummern unverändert', () => {
+    const streifen = baueMit(inhalt, 3, 'lager');
+    expect(streifen.map((s) => s.nr)).toEqual([2, 4, 1, 5, 3]);
+  });
+
+  it('ignoriert Groß-/Kleinschreibung und Leerzeichen und stellt ein leeres Lager zuletzt', () => {
+    const streifen = baueMit(inhalt, 3, 'lager');
+    expect(streifen.at(-1)?.lagerort).toBe('');
+  });
+
+  it('belässt die Reihenfolge der Vorbereitung bei „abschnitt“', () => {
+    expect(baueMit(inhalt, 3, 'abschnitt').map((s) => s.nr)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('hält einen Fortsetzungsstreifen hinter seinem Original', () => {
+    const voll = testLaufzettel({
+      lagerort: 'Lager Nord',
+      positionen: Array.from({ length: 40 }, () => testPosition()),
+    });
+    const streifen = nachLagerSortiert(
+      baueMit(testInhalt({ abschnitte: [testAbschnitt({ laufzettel: [voll] })] }), 3),
+    );
+    expect(streifen.map((s) => s.istFortsetzung)).toEqual([false, true]);
   });
 });
 

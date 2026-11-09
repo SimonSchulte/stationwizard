@@ -11,7 +11,12 @@ import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
 import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
 import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
-import { STREIFEN_STANDARD, gueltigeStreifenZahl, laufzettelMasse } from './laufzettel-platz';
+import {
+  STREIFEN_STANDARD,
+  gueltigeStreifenZahl,
+  laufzettelMasse,
+  laufzettelNummern,
+} from './laufzettel-platz';
 import { harterUmbruch } from './text-umbruch';
 
 export interface VbDruckKopf {
@@ -514,34 +519,10 @@ function schreibfelder(m: Streifenmass): Content {
     stack: [
       { text: 'Durchführung von', fontSize: SCHRIFT.infoBeschriftung, color: PDF_FARBEN.sekundaer },
       { ...linie(feldBreite), margin: [0, 11, 0, 0] },
-      // Auf schmalen Streifen steht „Durchgeführt“ über den beiden Kästchen statt davor.
-      m.schmal
-        ? {
-            margin: [0, 5, 0, 0],
-            stack: [
-              { text: 'Durchgeführt', fontSize: SCHRIFT.info, bold: true },
-              {
-                margin: [0, 2, 0, 0],
-                columns: [ankreuz('Ja', 8), ankreuz('nicht möglich')],
-              },
-            ],
-          }
-        : {
-            margin: [0, 5, 0, 0],
-            columns: [
-              {
-                width: 'auto',
-                text: 'Durchgeführt',
-                fontSize: SCHRIFT.info,
-                bold: true,
-                margin: [0, 0, 8, 0],
-              },
-              ankreuz('Ja', 8),
-              ankreuz('nicht möglich'),
-            ],
-          },
+      // Ein einziger Haken: erledigt. Was nicht ging, steht unter „Bemerkung“.
+      { margin: [0, 5, 0, 0], bold: true, columns: [ankreuz('Erledigt')] },
       {
-        text: 'Grund:',
+        text: 'Bemerkung:',
         fontSize: SCHRIFT.infoBeschriftung,
         color: PDF_FARBEN.sekundaer,
         margin: [0, 4, 0, 0],
@@ -572,8 +553,8 @@ function streifenInhalt(
       schreibfelder(m),
       {
         text: m.schmal
-          ? `Nr. ${streifen.nr}/${laufzettelGesamt} · S. ${seite}/${seitenGesamt}`
-          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Seite ${seite} von ${seitenGesamt}`,
+          ? `Nr. ${streifen.nr}/${laufzettelGesamt} · Schild ${streifen.schild} · S. ${seite}/${seitenGesamt}`
+          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Schild ${streifen.schild} von ${streifen.schildGesamt} · Seite ${seite} von ${seitenGesamt}`,
         alignment: 'center',
         fontSize: 6.5,
         color: PDF_FARBEN.sekundaer,
@@ -736,19 +717,30 @@ function kuerze(text: string, max: number): string {
 }
 
 /**
- * Inhaltsliste eines Schilds: die Überschriften der Laufzettel. Bis 12 Einträge einspaltig,
- * darüber zweispaltig in kleinerer Schrift; was nicht mehr passt, steht als „… und n weitere“.
+ * Inhaltsliste eines Schilds: alle Laufzettel, die hier enden, je Zeile „Nr 3 · Überschrift ·
+ * Lager“ (Nummer wie auf dem Laufzettel). Bis 12 Einträge einspaltig, darüber zweispaltig in
+ * kleinerer Schrift; was nicht mehr passt, steht als „… und n weitere“. Die Zeilen stehen in
+ * der Reihenfolge der Nummern.
  */
-export function schildInhaltZeilen(abschnitt: VbInhalt['abschnitte'][number]): {
+export function schildInhaltZeilen(
+  abschnitt: VbInhalt['abschnitte'][number],
+  nummern: ReadonlyMap<string, number>,
+): {
   spalten: string[][];
   schrift: number;
 } {
-  const alle = abschnitt.laufzettel.map((l) => l.ueberschrift.trim() || 'Laufzettel');
-  const einspaltig = alle.length <= 12;
+  const einspaltig = abschnitt.laufzettel.length <= 12;
   const schrift = einspaltig ? 11 : 9;
   const zeichen = einspaltig ? 58 : 36;
   const kapazitaet = einspaltig ? 12 : 28;
-  let zeilen = alle.map((z) => kuerze(z, zeichen));
+  const alle = abschnitt.laufzettel.map((l) => {
+    const vorne = `Nr ${nummern.get(l.id) ?? 0} · `;
+    const lager = l.lagerort.trim();
+    const hinten = lager ? ` · ${kuerze(lager, 14)}` : '';
+    const platz = Math.max(8, zeichen - vorne.length - hinten.length);
+    return `${vorne}${kuerze(l.ueberschrift.trim() || 'Laufzettel', platz)}${hinten}`;
+  });
+  let zeilen = alle;
   if (zeilen.length > kapazitaet) {
     const sichtbar = zeilen.slice(0, kapazitaet - 1);
     zeilen = [...sichtbar, `… und ${alle.length - sichtbar.length} weitere`];
@@ -760,7 +752,7 @@ export function schildInhaltZeilen(abschnitt: VbInhalt['abschnitte'][number]): {
 
 /**
  * Ein Schild (A5 quer) an der senkrechten Stelle `y0` der Seite: Rahmenbild, Abschnittsfarbe
- * und Titel im Kopfband, links die Inhaltsliste (Überschriften der Laufzettel) samt Fachgruppe, rechts ein
+ * und Titel im Kopfband, links die Auftragsliste (Nr, Überschrift, Lager) samt Fachgruppe, rechts ein
  * etwaiges Verladungsfoto, darunter Gewicht zum Eintragen und im Fußband
  * Abschnittsname (Platz von „Geräteanhänger NRW 04“) mit „Abschnitt n von m“ und Veranstaltung. Alles ist absolut positioniert, damit nichts
  * umbrechen kann.
@@ -771,11 +763,12 @@ function schild(
   nummer: number,
   gesamt: number,
   y0: number,
+  nummern: ReadonlyMap<string, number>,
 ): Content[] {
   const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
   const titel = abschnitt.titel.trim();
   const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
-  const inhalt = schildInhaltZeilen(abschnitt);
+  const inhalt = schildInhaltZeilen(abschnitt, nummern);
   const spaltenBreite = SCHILD.inhaltBreite / inhalt.spalten.length;
   const textBreite = SCHILD.breite - 2 * SCHILD.rand;
 
@@ -915,6 +908,7 @@ function schild(
  */
 function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
   const seiten: Content[] = [];
+  const nummern = laufzettelNummern(inhalt);
   for (let i = 0; i < inhalt.abschnitte.length; i += 2) {
     const paar = inhalt.abschnitte.slice(i, i + 2);
     seiten.push({
@@ -922,7 +916,7 @@ function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
       stack: [
         { text: ' ', fontSize: 1 },
         ...paar.flatMap((a, j) =>
-          schild(kopf, a, i + j + 1, inhalt.abschnitte.length, j * SCHILD.hoehe),
+          schild(kopf, a, i + j + 1, inhalt.abschnitte.length, j * SCHILD.hoehe, nummern),
         ),
       ],
     });

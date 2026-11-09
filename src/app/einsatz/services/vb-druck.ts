@@ -54,7 +54,7 @@ export class VbDruckDienst {
       );
     }
     const streifenJeSeite = this.layout.streifenJeSeite();
-    const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite);
+    const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite, this.layout.sortierung());
     const definition = baueVbPdfDefinition(kopf, inhalt, streifen, new Date(), streifenJeSeite);
     const pdfMake = await this.ladeBibliothek();
     const daten = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());

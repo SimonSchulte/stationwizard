@@ -18,6 +18,16 @@
       <mat-button-toggle [value]="zahl">{{ zahl }} je Seite</mat-button-toggle>
     }
   </mat-button-toggle-group>
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Reihenfolge der Laufzettel im Druck"
+    matTooltip="Reihenfolge am Aushang: nach Lager (Zettel eines Lagers beisammen) oder nach Abschnitt (Ziel). Die Nummern bleiben gleich."
+    [value]="layout.sortierung()"
+    (change)="layout.setzeSortierung($event.value)"
+  >
+    <mat-button-toggle value="lager">Nach Lager</mat-button-toggle>
+    <mat-button-toggle value="abschnitt">Nach Abschnitt</mat-button-toggle>
+  </mat-button-toggle-group>
   <button
     matButton="outlined"
     type="button"

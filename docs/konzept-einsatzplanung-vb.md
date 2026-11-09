@@ -190,7 +190,17 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
   - direkt unter dem Kopf ein Zielblock „VON“ (Lagerort) und „AUF / IN“ (Transport mit), je eine
     Zeile in 10,5 pt fett, leer als Schreiblinie; darunter am Materialende „Rückfragen an“ als
     kleine Zeile,
-  - „Durchführung von“, „Durchgeführt ☐ Ja ☐ nicht möglich“ und „Grund“ kompakt am Fuß.
+  - „Durchführung von“, ein einziger Haken „Erledigt“ und „Bemerkung“ kompakt am Fuß (früher
+    „Durchgeführt ☐ Ja ☐ nicht möglich“ mit „Grund“),
+  - „AUF / IN“ ist das Ziel und damit der **Abschnitt** (sein Schild); ein eigener Eintrag bei
+    „Transport mit“ hat Vorrang. Der Fuß nennt „Schild n von m“.
+  - **Sortierung am Aushang** (Umschalter im VB-Editor, nur Sitzungszustand, Vorgabe „nach Lager“):
+    nach Lager (ohne Groß-/Kleinschreibung und Leerzeichen, ohne Lager zuletzt), dann nach LfdNr, oder
+    nach Abschnitt wie in der Vorbereitung. Die LfdNr ändern sich dabei nicht, weil das Schild sie
+    als Schlüssel nutzt.
+  - **Schild und Laufzettel:** Der Laufzettel ist der Aushang (Material im Lager holen, beim Schild
+    abliefern), das Schild bleibt am Ziel. Das Schild listet alle Laufzettel seines Abschnitts als
+    „Nr n · Überschrift · Lager“, ohne eigenen Haken.
 
 ### Platzberechnung und Warnung
 
