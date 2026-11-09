@@ -191,7 +191,6 @@ function kasten(hoehe: number, inhalt: Content): Content {
 }
 
 function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen, m: Streifenmass): Content {
-  const farbe = FARBE_ABSCHNITT[streifen.abschnitt.farbe];
   // 30 und 24 Zeichen passen auf den Streifen mit drei je Seite; schmalere Streifen kürzer.
   const anteil = m.feld / (MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts);
   const maxTitel = Math.max(8, Math.round(30 * anteil));
@@ -208,20 +207,10 @@ function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen, m: Streifenm
       {
         width: '45%',
         alignment: 'right',
-        columns: [
-          { width: '*', text: '' },
-          {
-            width: 8,
-            canvas: [{ type: 'ellipse', x: 3, y: 4.2, r1: 3, r2: 3, color: farbe }],
-          },
-          {
-            width: 'auto',
-            text: kuerzen(streifen.abschnitt.titel, maxAbschnitt),
-            fontSize: 7.5,
-            bold: true,
-            color: PDF_FARBEN.text,
-          },
-        ],
+        text: kuerzen(streifen.abschnitt.titel, maxAbschnitt),
+        fontSize: 7.5,
+        bold: true,
+        color: PDF_FARBEN.text,
       },
     ],
   });
@@ -234,46 +223,24 @@ function kopfkasten(streifen: LaufzettelStreifen, m: Streifenmass): Content {
   const ueberschriftGroesse =
     (ueberschrift.length <= 40 ? SCHRIFT.ueberschrift : ueberschrift.length <= 80 ? 9 : 8) -
     (m.schmal ? 2 : 0);
-  const balkenBreite = m.schmal ? 5 : 7;
   const links: Content = {
-    // Die Abschnittsfarbe als dicker Balken am linken Rand der Überschrift.
-    columns: [
+    margin: [m.schmal ? 3 : 5, 5, 3, 0],
+    stack: [
       {
-        width: balkenBreite,
-        canvas: [
-          {
-            type: 'rect',
-            x: 0.4,
-            y: 0.4,
-            w: balkenBreite - 0.4,
-            h: MASS.kopf - 0.8,
-            color: FARBE_ABSCHNITT[streifen.abschnitt.farbe],
-          },
-        ],
+        text: 'AUFTRAG',
+        fontSize: SCHRIFT.klein,
+        bold: true,
+        color: PDF_FARBEN.rot,
       },
       {
-        width: '*',
-        margin: [m.schmal ? 3 : 5, 5, 3, 0],
-        stack: [
-          {
-            text: 'AUFTRAG',
-            fontSize: SCHRIFT.klein,
-            bold: true,
-            color: PDF_FARBEN.rot,
-          },
-          {
-            text:
-              harterUmbruch(ueberschrift, laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile) ||
-              ' ',
-            bold: true,
-            fontSize: ueberschriftGroesse,
-            color: PDF_FARBEN.dunkelblau,
-            margin: [0, 2, 0, 0],
-          },
-        ],
+        text:
+          harterUmbruch(ueberschrift, laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile) || ' ',
+        bold: true,
+        fontSize: ueberschriftGroesse,
+        color: PDF_FARBEN.dunkelblau,
+        margin: [0, 2, 0, 0],
       },
     ],
-    columnGap: 0,
   };
   const nummer: Content[] = [
     {

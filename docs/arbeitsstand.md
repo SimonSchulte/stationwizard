@@ -3595,8 +3595,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   A4-Querschild entfällt. Der Rahmen (Kopfband, Fußband mit Johanniter- und NRW-Logo) ist das Bild der Vorlage (`image1.png`; das Kästchen „Material zur Ausgabe an Laien?“ des zweiten Vorlagenbilds ist bewusst weggelassen), verkleinert in
   `einsatz/services/abschnittsschild-rahmen.ts` (Base64, ~43 KB); alle Texte liegen als pdfmake-Text
   darüber.
-- Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (mit Balken in der
-  Abschnittsfarbe, Schrift nach Länge), _Inhalt_ = alle Laufzettel des Abschnitts als „Nr n · Überschrift · Lager“ (bis 12 einspaltig,
+- Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (Schrift nach Länge), _Inhalt_ = alle Laufzettel des Abschnitts als „Nr n · Überschrift · Lager“ (bis 12 einspaltig,
   darüber zweispaltig bis 28, Rest als „… und n weitere“), _Beschriftung_ = Fachgruppe neben „Inhalt:“,
   Fußband links (Platz von „Geräteanhänger NRW 04“) = der **Einsatz** groß und fett, darunter klein der Zeitraum; das Ziel steht oben im Kopfband, „Abschnitt n von m“ entfällt.
   _Gewicht_ bleibt eine
@@ -3627,13 +3626,14 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Plan und Mocks: Artifact „Schild und Laufzettel“. Zurückgestellt: Inhaltsart „Material
   zusammengezählt“ auf dem Schild und ein Vorschlag im Editor, Laufzettel nach Lager aufzuteilen.
 - Nachtrag: Die Fachgruppe (Sanität, Betreuung, TeSi …) ist im **Druck** zurückgebaut, auf Laufzettel
-  und Schild. Es zählt die Abschnittsfarbe: Auf dem Laufzettel steht sie als dicker Balken links der
-  Überschrift (zusätzlich zu Farbband und Punkt am Klemmrand), auf dem Schild als Balken im Kopfband.
+  und Schild. Es zählt die Abschnittsfarbe: Auf dem Laufzettel steht sie nur noch als **Farbband** links
+  über die ganze Länge (Balken an der Überschrift und Farbpunkt am Klemmrand entfallen; der Abschnittsname
+  bleibt am Klemmrand als Text), auf dem Schild als Rahmen ums Foto.
   Das Feld `fachgruppe` in Datenmodell, Worker und Editor bleibt unverändert; ob es dort ebenfalls
   ausgeblendet wird, ist offen. Zwischen den beiden Schildern eines Blatts verläuft eine gestrichelte
   Schnittlinie (zwischen den Laufzettelstreifen gab es sie schon).
 - Nachtrag Schild: Die Abschnittsfarbe steht dort als **Rahmen ums Verladungsfoto** (5 pt), der Balken
   im Kopfband entfällt. Ohne Foto bleibt ein leerer Rahmen in derselben Größe des Fotofelds. Der Rahmen
   liegt eng am Bild: Breite und Höhe liest `jpeg-masse.ts` aus dem JPEG (Start-of-Frame), bei
-  unlesbaren Maßen gilt das ganze Feld. Auf dem Laufzettel bleibt der Balken links der Überschrift,
-  weil er kein Foto hat.
+  unlesbaren Maßen gilt das ganze Feld. Auf dem Laufzettel ist das Farbband der einzige
+  Farbhinweis.

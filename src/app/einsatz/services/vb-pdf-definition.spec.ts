@@ -292,7 +292,7 @@ describe('baueVbPdfDefinition', () => {
     expect(texte).not.toContain('Betreuung');
   });
 
-  it('zeigt die Abschnittsfarbe als Balken in der Überschrift und keine Fachgruppe', () => {
+  it('zeigt die Abschnittsfarbe nur als Farbband und keine Fachgruppe', () => {
     const inhalt = testInhalt({
       abschnitte: [
         testAbschnitt({ farbe: 'abschnitt-5', fachgruppe: 'tesi', laufzettel: [testLaufzettel()] }),
@@ -300,7 +300,8 @@ describe('baueVbPdfDefinition', () => {
     });
     const seiten = laufzettelSeiten(definition(inhalt));
     const json = JSON.stringify(seiten);
-    expect(json).toContain(PDF_FARBEN.abschnitt5);
+    // genau ein Farbhinweis je Streifen: das Farbband, weder Balken noch Punkt
+    expect(json.split(PDF_FARBEN.abschnitt5)).toHaveLength(2);
     expect(json).not.toContain(PDF_FARBEN.katTesi);
     expect(alleTexte(seiten)).not.toContain('TeSi');
     const schild = JSON.stringify(schildAbschnitt(definition(inhalt)));
