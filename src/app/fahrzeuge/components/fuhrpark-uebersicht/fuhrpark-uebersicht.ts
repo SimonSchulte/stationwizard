@@ -7,9 +7,13 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSelectionList } from '@angular/material/list';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { VERLASSEN_NACHRICHT } from '../../../kern/verlassen-guard';
 import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -148,6 +152,8 @@ interface TerminAnzeige {
 })
 export class FuhrparkUebersicht implements OnInit {
   private readonly fahrzeugeStore = inject(FahrzeugStoreService);
+  private readonly dialogDienst = inject(DialogDienst);
+  private readonly fahrzeugListe = viewChild(MatSelectionList);
   private readonly berichtStore = inject(KmBerichtStoreService);
   private readonly konfiguration = inject(SystemkonfigurationStoreService);
   readonly ablesungStore = inject(AblesungStoreService);
@@ -341,7 +347,24 @@ export class FuhrparkUebersicht implements OnInit {
     if (event.value) this.neuerTerminDatum.set(lokalesDatumZuIso(event.value));
   }
 
-  auswaehlen(id: string): void {
+  /** Wechselt das Fahrzeug; ein ungespeicherter Bearbeitungsstand wird nicht stillschweigend verworfen. */
+  async auswaehlen(id: string): Promise<void> {
+    if (id === this.ausgewaehltId()) return;
+    if (this.fahrzeugeStore.hatUngesicherteAenderungen()) {
+      const verwerfen = await this.dialogDienst.bestaetigen(
+        VERLASSEN_NACHRICHT,
+        'Ungespeicherte Änderungen',
+        'Verwerfen und wechseln',
+      );
+      if (!verwerfen) {
+        // Die Auswahlliste hat den Wechsel schon gezeigt: auf das bearbeitete Fahrzeug zurück.
+        const aktuell = this.ausgewaehltId();
+        this.fahrzeugListe()?.options.forEach(
+          (option) => (option.selected = option.value === aktuell),
+        );
+        return;
+      }
+    }
     this.ausgewaehltId.set(id);
   }
 

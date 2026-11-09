@@ -66,6 +66,21 @@ export class AngebotStoreService {
     return JSON.stringify(entwurf) !== JSON.stringify(this.basislinie());
   });
 
+  /** Ein neues Angebot, in das noch nichts eingetragen wurde – beim Verlassen geht nichts verloren. */
+  readonly istUnberuehrtNeu = computed(() => {
+    const entwurf = this.entwurf();
+    return (
+      this.istNeu() &&
+      entwurf !== null &&
+      entwurf.bezeichnung === '' &&
+      entwurf.auftraggeber === '' &&
+      entwurf.bemerkung === '' &&
+      entwurf.schichten.length === 0 &&
+      !entwurf.materialpauschaleAktiv &&
+      !entwurf.pauschalpreisAktiv
+    );
+  });
+
   constructor() {
     inject(VerlassenSchutz).registrieren(() => this.hatUngesicherteAenderungen());
   }

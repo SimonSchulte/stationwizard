@@ -1,4 +1,12 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { verlassenGuard } from '../kern/verlassen-guard';
+import { AngebotStoreService } from './services/angebot-store.service';
+
+const angebotVerlassen = verlassenGuard(() => {
+  const store = inject(AngebotStoreService);
+  return store.hatUngesicherteAenderungen() && !store.istUnberuehrtNeu();
+});
 
 export const angebotswesenRoutes: Routes = [
   {
@@ -21,11 +29,13 @@ export const angebotswesenRoutes: Routes = [
   },
   {
     path: 'angebote/neu',
+    canDeactivate: [angebotVerlassen],
     loadComponent: () =>
       import('./pages/angebot-detail/angebot-detail').then((modul) => modul.AngebotDetail),
   },
   {
     path: 'angebote/:id',
+    canDeactivate: [angebotVerlassen],
     loadComponent: () =>
       import('./pages/angebot-detail/angebot-detail').then((modul) => modul.AngebotDetail),
   },

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { heuteIso, versetzeTage } from '../../../kern/kalender/datum';
 import { Einstellungen } from '../../../systemkonfiguration/models/systemkonfiguration.model';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { FuhrparkUebersicht } from './fuhrpark-uebersicht';
 import { BerichtZeile, KmBericht } from '../../models/km-bericht.model';
 import { Fahrzeugstamm, Kilometerstand, Wartungstermin } from '../../models/fahrzeug.model';
@@ -30,9 +31,10 @@ function berichtZeile(ueberschreibung: Partial<BerichtZeile> = {}): BerichtZeile
   };
 }
 
-function fahrzeugeStoreMock(fahrzeuge: Fahrzeugstamm[]) {
+function fahrzeugeStoreMock(fahrzeuge: Fahrzeugstamm[], ungesichert = false) {
   const entwurf = signal<Fahrzeugstamm | null>(null);
   return {
+    hatUngesicherteAenderungen: () => ungesichert,
     fahrzeuge: () => fahrzeuge,
     entwurf,
     fahrzeugLaden: vi.fn(async (id: string) => {
@@ -385,9 +387,44 @@ describe('FuhrparkUebersicht', () => {
     komponente.bearbeitungBeginnen();
     expect(komponente.bearbeitungModus()).toBe(true);
 
-    komponente.auswaehlen('f-b');
+    await komponente.auswaehlen('f-b');
     TestBed.tick();
     expect(komponente.bearbeitungModus()).toBe(false);
+  });
+
+  it('fragt beim Wechsel mit ungespeicherten Änderungen nach und bleibt bei „Abbrechen“', async () => {
+    const a = erzeugeTestfahrzeug({ id: 'f-a', bezeichnung: 'A-Fahrzeug' });
+    const b = erzeugeTestfahrzeug({ id: 'f-b', bezeichnung: 'B-Fahrzeug' });
+    const bestaetigen = vi.fn().mockResolvedValue(false);
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: fahrzeugeStoreMock([a, b], true) },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+      { provide: DialogDienst, useValue: { bestaetigen } },
+    ]);
+    const vorher = komponente.ausgewaehltId();
+
+    await komponente.auswaehlen('f-b');
+
+    expect(bestaetigen).toHaveBeenCalledOnce();
+    expect(komponente.ausgewaehltId()).toBe(vorher);
+  });
+
+  it('wechselt nach „Verwerfen und wechseln“', async () => {
+    const a = erzeugeTestfahrzeug({ id: 'f-a', bezeichnung: 'A-Fahrzeug' });
+    const b = erzeugeTestfahrzeug({ id: 'f-b', bezeichnung: 'B-Fahrzeug' });
+    const komponente = await erzeugeUebersicht([
+      { provide: FahrzeugStoreService, useValue: fahrzeugeStoreMock([a, b], true) },
+      { provide: KmBerichtStoreService, useValue: berichtStoreMock(LEERER_BERICHT) },
+      { provide: SystemkonfigurationStoreService, useValue: konfigurationMock() },
+      { provide: AblesungStoreService, useValue: ablesungStoreMock() },
+      { provide: DialogDienst, useValue: { bestaetigen: vi.fn().mockResolvedValue(true) } },
+    ]);
+
+    await komponente.auswaehlen('f-b');
+
+    expect(komponente.ausgewaehltId()).toBe('f-b');
   });
 
   it('lehnt eine ungültige Fahrgestellnummer ab und sperrt das Speichern', async () => {

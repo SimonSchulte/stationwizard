@@ -38,6 +38,14 @@ describe('AngebotStoreService', () => {
     expect(service.hatUngesicherteAenderungen()).toBe(true);
   });
 
+  it('erkennt ein neues Angebot ohne Eintragungen als unberührt', () => {
+    service.neuesAngebotBeginnen();
+    expect(service.istUnberuehrtNeu()).toBe(true);
+
+    service.entwurfAktualisieren({ bezeichnung: 'Erfunden' });
+    expect(service.istUnberuehrtNeu()).toBe(false);
+  });
+
   it('meldet ein frisch geladenes Angebot als gesichert, eine Änderung als ungesichert', async () => {
     const angebot = erzeugeTestAngebot();
     storage.ladeAngebot.mockResolvedValue({ daten: angebot, version: '"1"' });
