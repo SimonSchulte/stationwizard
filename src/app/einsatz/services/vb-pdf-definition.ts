@@ -9,6 +9,7 @@ import type {
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
+import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
 import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
 import { STREIFEN_STANDARD, gueltigeStreifenZahl, laufzettelMasse } from './laufzettel-platz';
 import { harterUmbruch } from './text-umbruch';
@@ -148,6 +149,13 @@ function formatiereDruckzeit(zeitpunkt: Date): string {
     minute: '2-digit',
     timeZone: 'Europe/Berlin',
   }).format(zeitpunkt);
+}
+
+/** Oberer Abstand, der den Titel (geschätzte Zeilenzahl) im 54 pt hohen Kopfband zentriert. */
+function titelAbstand(titel: string, breite: number): number {
+  const schrift = schildTitelSchrift(titel);
+  const zeilen = Math.max(1, Math.ceil((titel.length * schrift * 0.56) / breite));
+  return Math.max(0, (54 - zeilen * schrift) / 2);
 }
 
 /** Kürzt auf `max` Zeichen mit Auslassungspunkt (nur für Klemmrand-Texte mit festem Platz). */
@@ -687,146 +695,239 @@ function anweisungsAbschnitt(
   };
 }
 
-/** Schriftgröße des Abschnittstitels auf dem Kennzeichnungsschild; lange Titel werden kleiner. */
+/**
+ * Schriftgröße des Abschnittstitels im Kopfband des Schilds; lange Titel werden kleiner und
+ * laufen dann über zwei bis drei Zeilen (das Kopfband ist 54 pt hoch).
+ */
 export function schildTitelSchrift(titel: string): number {
   const laenge = titel.trim().length;
-  if (laenge <= 14) return 96;
-  if (laenge <= 28) return 68;
-  if (laenge <= 60) return 44;
-  if (laenge <= 120) return 32;
-  return 24;
+  if (laenge <= 14) return 34;
+  if (laenge <= 28) return 28;
+  if (laenge <= 60) return 20;
+  if (laenge <= 120) return 14;
+  return 11;
 }
 
-const SCHILD_RAND = 48;
-const SCHILD_BAND = 44;
-/** Schild mit Foto: Breite der Textspalte, Abstand zum Foto und größte Fotohöhe. */
-const SCHILD_TEXTSPALTE = 300;
-const SCHILD_ABSTAND = 24;
-const SCHILD_FOTO_HOEHE = 420;
+/**
+ * Maße des Abschnittsschilds in pt. Vorlage ist die Word-Vorlage „Kistenbezeichnung“: A5 quer
+ * (210 × 148,5 mm), zwei Schilder untereinander auf einem A4-Hochformatblatt. Die Lage der
+ * Felder folgt dem Rahmenbild (`SCHILD_RAHMEN`): Kopfband bis 72 pt, Fußband ab 341 pt, das
+ * Kästchen „Material zur Ausgabe an Laien?“ unten rechts.
+ */
+export const SCHILD = {
+  breite: 595.28,
+  hoehe: 420.94,
+  rand: 26,
+  kopfHoehe: 72,
+  /** Obergrenze des Inhaltsfelds und linke Spalte; rechts davon liegen Foto und Kästchen. */
+  inhaltOben: 84,
+  inhaltBreite: 350,
+  fotoX: 393,
+  fotoBreite: 180,
+  fotoHoehe: 132,
+  gewichtY: 300,
+  fussY: 352,
+  fussBreite: 255,
+} as const;
+
+/** Kürzt auf `max` Zeichen mit Auslassungszeichen. */
+function kuerze(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+}
 
 /**
- * Kennzeichnungsschild eines Abschnitts: eine A4-Querseite, Farbbänder oben und unten in der
- * Abschnittsfarbe, der Titel groß in der Mitte, darunter die Fachgruppe; Veranstaltung und
- * Zeitraum stehen unten. Die Seite besteht ausschließlich aus Fließinhalt mit festen Abständen,
- * damit pdfmake sie nie auf eine zweite Seite umbricht.
+ * Inhaltsliste eines Schilds: die Überschriften der Laufzettel. Bis 12 Einträge einspaltig,
+ * darüber zweispaltig in kleinerer Schrift; was nicht mehr passt, steht als „… und n weitere“.
  */
-function kennzeichnungsschild(
+export function schildInhaltZeilen(abschnitt: VbInhalt['abschnitte'][number]): {
+  spalten: string[][];
+  schrift: number;
+} {
+  const alle = abschnitt.laufzettel.map((l) => l.ueberschrift.trim() || 'Laufzettel');
+  const einspaltig = alle.length <= 12;
+  const schrift = einspaltig ? 11 : 9;
+  const zeichen = einspaltig ? 58 : 36;
+  const kapazitaet = einspaltig ? 12 : 28;
+  let zeilen = alle.map((z) => kuerze(z, zeichen));
+  if (zeilen.length > kapazitaet) {
+    const sichtbar = zeilen.slice(0, kapazitaet - 1);
+    zeilen = [...sichtbar, `… und ${alle.length - sichtbar.length} weitere`];
+  }
+  if (einspaltig) return { spalten: [zeilen], schrift };
+  const haelfte = Math.ceil(zeilen.length / 2);
+  return { spalten: [zeilen.slice(0, haelfte), zeilen.slice(haelfte)], schrift };
+}
+
+/**
+ * Ein Schild (A5 quer) an der senkrechten Stelle `y0` der Seite: Rahmenbild, Abschnittsfarbe
+ * und Titel im Kopfband, links die Inhaltsliste (Überschriften der Laufzettel) samt Fachgruppe, rechts ein
+ * etwaiges Verladungsfoto, darunter Gewicht zum Eintragen und im Fußband
+ * „Abschnitt n von m“ mit Veranstaltung. Alles ist absolut positioniert, damit nichts
+ * umbrechen kann.
+ */
+function schild(
   kopf: VbDruckKopf,
   abschnitt: VbInhalt['abschnitte'][number],
   nummer: number,
   gesamt: number,
-  erste: boolean,
-): Content {
+  y0: number,
+): Content[] {
   const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
   const titel = abschnitt.titel.trim();
-  const schrift = schildTitelSchrift(titel);
   const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
   const ort = kopf.ort?.trim() ?? '';
-  const breite = MASS.seiteBreite - 2 * SCHILD_RAND;
   const veranstaltung = [kopf.titel, zeitraum, ort].filter((t) => t !== '').join(' · ');
-  const mitFoto = Boolean(abschnitt.foto);
-  const ausrichtung: 'left' | 'center' = mitFoto ? 'left' : 'center';
-  const titelSchrift = mitFoto ? Math.max(18, Math.round(schrift * 0.5)) : schrift;
-  const textBloecke: Content[] = [
+  const inhalt = schildInhaltZeilen(abschnitt);
+  const spaltenBreite = SCHILD.inhaltBreite / inhalt.spalten.length;
+  const textBreite = SCHILD.breite - 2 * SCHILD.rand;
+
+  const feld = (
+    x: number,
+    y: number,
+    breite: number,
+    hoehe: number | null,
+    zelle: Content,
+  ): Content => ({
+    table: {
+      widths: [breite],
+      ...(hoehe === null ? {} : { heights: [hoehe] }),
+      body: [[zelle as TableCell]],
+    },
+    layout: keinRand(),
+    absolutePosition: { x, y: y0 + y },
+  });
+
+  const bloecke: Content[] = [
     {
-      text: `ABSCHNITT ${nummer} VON ${gesamt}`,
-      fontSize: 12,
-      bold: true,
-      characterSpacing: 2,
-      alignment: ausrichtung,
-      color: PDF_FARBEN.sekundaer,
-      margin: mitFoto ? [0, 0, 0, 0] : [SCHILD_RAND, SCHILD_BAND + 56, SCHILD_RAND, 0],
+      image: SCHILD_RAHMEN,
+      width: SCHILD.breite,
+      height: SCHILD.hoehe,
+      absolutePosition: { x: 0, y: y0 },
     },
     {
+      // Abschnittsfarbe als Balken am linken Rand des Kopfbands.
+      canvas: [{ type: 'rect', x: 0, y: 0, w: 8, h: 54, color: farbe }],
+      absolutePosition: { x: SCHILD.rand - 4, y: y0 + 9 },
+    },
+    feld(SCHILD.rand + 12, 9, textBreite - 12, 54, {
       text: titel,
-      fontSize: titelSchrift,
+      margin: [0, titelAbstand(titel, textBreite - 12), 0, 0],
+      fontSize: schildTitelSchrift(titel),
       bold: true,
-      alignment: ausrichtung,
-      lineHeight: 1.05,
+      lineHeight: 1,
       color: PDF_FARBEN.dunkelblau,
-      margin: mitFoto ? [0, 16, 0, 0] : [SCHILD_RAND, 40, SCHILD_RAND, 0],
+    }),
+    {
+      text: 'Inhalt:',
+      fontSize: 11,
+      bold: true,
+      color: PDF_FARBEN.dunkelblau,
+      absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.inhaltOben },
     },
-    ...(abschnitt.fachgruppe
-      ? [
-          {
-            text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
-            fontSize: 32,
-            bold: true,
-            alignment: ausrichtung,
-            color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
-            margin: (mitFoto ? [0, 16, 0, 0] : [SCHILD_RAND, 28, SCHILD_RAND, 0]) as [
-              number,
-              number,
-              number,
-              number,
-            ],
-          },
-        ]
-      : []),
+    {
+      columns: inhalt.spalten.map((zeilen) => ({
+        width: spaltenBreite,
+        stack: zeilen.map((zeile) => ({
+          text: zeile,
+          fontSize: inhalt.schrift,
+          noWrap: true,
+          lineHeight: 1.2,
+          color: PDF_FARBEN.text,
+        })),
+      })),
+      columnGap: 0,
+      absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.inhaltOben + 18 },
+    },
   ];
-  const fotoSpalten: Content | null = abschnitt.foto
-    ? {
-        // Bezeichnung links, Foto rechts: weiterhin genau ein Blatt je Abschnitt.
-        columns: [
-          { width: SCHILD_TEXTSPALTE, stack: textBloecke },
-          {
-            width: '*' as const,
-            stack: [
-              {
-                image: abschnitt.foto,
-                fit: [breite - SCHILD_TEXTSPALTE - SCHILD_ABSTAND, SCHILD_FOTO_HOEHE],
-                alignment: 'right' as const,
-              },
-            ],
-          },
-        ],
-        columnGap: SCHILD_ABSTAND,
-        margin: [SCHILD_RAND, SCHILD_BAND + 24, SCHILD_RAND, 0],
-      }
-    : null;
-  return {
-    ...(erste ? {} : { pageBreak: 'before' as const }),
-    stack: [
-      {
-        canvas: [
-          { type: 'rect', x: 0, y: 0, w: MASS.seiteBreite, h: SCHILD_BAND, color: farbe },
-          {
-            type: 'rect',
-            x: 0,
-            y: MASS.seiteHoehe - SCHILD_BAND,
-            w: MASS.seiteBreite,
-            h: SCHILD_BAND,
-            color: farbe,
-          },
-        ],
-        absolutePosition: { x: 0, y: 0 },
-      },
-      ...(fotoSpalten ? [fotoSpalten] : textBloecke),
-      {
-        table: {
-          widths: [breite],
-          body: [
-            [
-              {
-                text: veranstaltung,
-                fontSize: 13,
-                alignment: 'center',
-                color: PDF_FARBEN.sekundaer,
-              },
-            ],
-          ],
+  if (abschnitt.foto) {
+    bloecke.push({
+      image: abschnitt.foto,
+      fit: [SCHILD.fotoBreite, SCHILD.fotoHoehe],
+      absolutePosition: { x: SCHILD.fotoX, y: y0 + SCHILD.inhaltOben },
+    });
+  }
+  if (abschnitt.fachgruppe) {
+    bloecke.push({
+      text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
+      fontSize: 14,
+      bold: true,
+      color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
+      absolutePosition: { x: SCHILD.rand + 70, y: y0 + SCHILD.inhaltOben - 3 },
+    });
+  }
+  bloecke.push(
+    {
+      text: 'Gewicht:',
+      fontSize: 14,
+      color: PDF_FARBEN.dunkelblau,
+      absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.gewichtY },
+    },
+    {
+      canvas: [
+        {
+          type: 'line',
+          x1: 0,
+          y1: 0,
+          x2: 120,
+          y2: 0,
+          lineWidth: 0.8,
+          lineColor: PDF_FARBEN.dunkelblau,
         },
-        layout: keinRand(),
-        absolutePosition: { x: SCHILD_RAND, y: MASS.seiteHoehe - SCHILD_BAND - 38 },
-      },
-    ],
-  };
+      ],
+      absolutePosition: { x: SCHILD.rand + 70, y: y0 + SCHILD.gewichtY + 16 },
+    },
+    {
+      text: 'kg',
+      fontSize: 14,
+      color: PDF_FARBEN.dunkelblau,
+      absolutePosition: { x: SCHILD.rand + 196, y: y0 + SCHILD.gewichtY },
+    },
+    feld(SCHILD.rand, SCHILD.fussY, SCHILD.fussBreite, null, {
+      stack: [
+        {
+          text: `Abschnitt ${nummer} von ${gesamt}`,
+          fontSize: 15,
+          bold: true,
+          color: PDF_FARBEN.dunkelblau,
+        },
+        {
+          text: kuerze(veranstaltung, 100),
+          fontSize: 8.5,
+          margin: [0, 3, 0, 0],
+          color: PDF_FARBEN.sekundaer,
+        },
+      ],
+    }),
+  );
+  return bloecke;
+}
+
+/**
+ * Abschnittsschilder: je A4-Hochformatblatt zwei Schilder im A5-Querformat untereinander.
+ * Jede Seite beginnt mit einer unsichtbaren Fließzeile, damit pdfmake den Seitenumbruch
+ * setzt, obwohl alle Schilder absolut positioniert sind.
+ */
+function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
+  const seiten: Content[] = [];
+  for (let i = 0; i < inhalt.abschnitte.length; i += 2) {
+    const paar = inhalt.abschnitte.slice(i, i + 2);
+    seiten.push({
+      ...(i > 0 ? { pageBreak: 'before' as const } : {}),
+      stack: [
+        { text: ' ', fontSize: 1 },
+        ...paar.flatMap((a, j) =>
+          schild(kopf, a, i + j + 1, inhalt.abschnitte.length, j * SCHILD.hoehe),
+        ),
+      ],
+    });
+  }
+  return seiten;
 }
 
 /**
  * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
- * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt je Abschnitt ein
- * Kennzeichnungsschild (eine A4-Querseite). Reine Funktion; Farben nur aus
+ * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt die Abschnittsschilder
+ * (A5 quer, zwei je A4-Hochformatblatt, Vorlage „Kistenbezeichnung“). Reine Funktion; Farben nur aus
  * `PDF_FARBEN`. Die Streifen müssen mit derselben Zahl gebaut sein (`baueLaufzettelStreifen()`).
  */
 export function baueVbPdfDefinition(
@@ -868,11 +969,9 @@ export function baueVbPdfDefinition(
   if (inhalt.abschnitte.length > 0) {
     abschnitte.push({
       pageSize: 'A4',
-      pageOrientation: 'landscape',
+      pageOrientation: 'portrait',
       pageMargins: [0, 0, 0, 0],
-      section: inhalt.abschnitte.map((a, i) =>
-        kennzeichnungsschild(kopf, a, i + 1, inhalt.abschnitte.length, i === 0),
-      ),
+      section: schildSeiten(kopf, inhalt),
     });
   }
 

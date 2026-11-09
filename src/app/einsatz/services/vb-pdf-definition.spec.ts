@@ -6,6 +6,8 @@ import { baueLaufzettelStreifen } from './laufzettel-layout';
 import {
   baueVbPdfDefinition,
   formatiereZeitraum,
+  SCHILD,
+  schildInhaltZeilen,
   schildTitelSchrift,
   VbDruckKopf,
 } from './vb-pdf-definition';
@@ -104,8 +106,12 @@ describe('Hinweis auf dem Laufzettel', () => {
   });
 });
 
+function schildAbschnitt(def: TDocumentDefinitions): ContentSection | undefined {
+  return abschnitte(def).find((a) => a.pageOrientation === 'portrait');
+}
+
 describe('Verladungsfoto', () => {
-  it('steht neben der Bezeichnung auf demselben Blatt, nie auf einer zweiten Seite', () => {
+  it('steht im Schild neben der Inhaltsliste, nie auf einer zweiten Seite', () => {
     const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
     const inhalt = testInhalt({
       abschnitte: [
@@ -113,35 +119,60 @@ describe('Verladungsfoto', () => {
         testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
       ],
     });
-    const schilder = abschnitte(definition(inhalt)).find((a) =>
-      JSON.stringify(a).includes('Sanitätszelt'),
-    );
+    const schilder = schildAbschnitt(definition(inhalt));
     const seiten = schilder?.section as { pageBreak?: string }[];
-    expect(seiten).toHaveLength(2);
-    expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
-    const erste = JSON.stringify(seiten[0]);
-    expect(erste).toContain('"columns"');
-    expect(erste).toContain(foto);
-    expect(erste).toContain('Sanitätszelt');
-    expect(JSON.stringify(seiten[1])).not.toContain('"columns"');
+    expect(seiten).toHaveLength(1);
+    const text = JSON.stringify(seiten[0]);
+    expect(text.split(foto)).toHaveLength(2);
+    expect(text).toContain('Sanitätszelt');
   });
 });
 
-describe('Kennzeichnungsschild', () => {
-  it('legt je Abschnitt eine eigene A4-Querseite an', () => {
-    const inhalt = testInhalt({
-      abschnitte: [
-        testAbschnitt({ titel: 'Sanitätszelt', laufzettel: [] }),
-        testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
-      ],
-    });
-    const def = definition(inhalt);
-    const schilder = abschnitte(def).find((a) => alleTexte(a).includes('Sanitätszelt'));
-    expect(schilder?.pageOrientation).toBe('landscape');
+describe('Abschnittsschild', () => {
+  const zwei = [
+    testAbschnitt({ titel: 'Sanitätszelt', laufzettel: [] }),
+    testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
+    testAbschnitt({ titel: 'Funk', laufzettel: [] }),
+  ];
+
+  it('setzt zwei A5-Schilder auf ein A4-Hochformatblatt', () => {
+    const schilder = schildAbschnitt(definition(testInhalt({ abschnitte: zwei })));
+    expect(schilder?.pageSize).toBe('A4');
     const seiten = schilder?.section as { pageBreak?: string }[];
     expect(seiten).toHaveLength(2);
     expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
-    expect(alleTexte(schilder)).toContain('ABSCHNITT 2 VON 2');
+    const ersteSeite = alleTexte(seiten[0]);
+    expect(ersteSeite).toContain('Abschnitt 1 von 3');
+    expect(ersteSeite).toContain('Abschnitt 2 von 3');
+    expect(ersteSeite).not.toContain('Abschnitt 3 von 3');
+    expect(alleTexte(seiten[1])).toContain('Abschnitt 3 von 3');
+  });
+
+  it('legt das zweite Schild genau eine A5-Höhe tiefer', () => {
+    const seiten = schildAbschnitt(definition(testInhalt({ abschnitte: zwei })))?.section as {
+      stack: { absolutePosition?: { y: number } }[];
+    }[];
+    const rahmen = seiten[0].stack.filter(
+      (k) => (k as { image?: string }).image?.startsWith('data:image/png') === true,
+    );
+    expect(rahmen.map((k) => k.absolutePosition?.y)).toEqual([0, SCHILD.hoehe]);
+    expect(SCHILD.hoehe * 2).toBeCloseTo(841.89, 0);
+  });
+
+  it('nennt Laufzettelüberschriften als Inhalt und kürzt, was nicht passt', () => {
+    const laufzettel = Array.from({ length: 40 }, (_, i) =>
+      testLaufzettel({ ueberschrift: `Laufzettel Nummer ${i + 1}` }),
+    );
+    const { spalten, schrift } = schildInhaltZeilen(testAbschnitt({ laufzettel }));
+    const zeilen = spalten.flat();
+    expect(spalten).toHaveLength(2);
+    expect(zeilen).toHaveLength(28);
+    expect(zeilen.at(-1)).toBe('… und 13 weitere');
+    expect(schrift).toBe(9);
+    const wenige = schildInhaltZeilen(testAbschnitt({ laufzettel: laufzettel.slice(0, 3) }));
+    expect(wenige.spalten).toEqual([
+      ['Laufzettel Nummer 1', 'Laufzettel Nummer 2', 'Laufzettel Nummer 3'],
+    ]);
   });
 
   it('verkleinert die Schrift bei langen Titeln', () => {
@@ -151,11 +182,13 @@ describe('Kennzeichnungsschild', () => {
 });
 
 describe('baueVbPdfDefinition', () => {
-  it('ist ein A4-Querformat-Dokument', () => {
+  it('ist ein A4-Querformat-Dokument, nur die Abschnittsschilder stehen hoch', () => {
     const def = definition();
     expect(def.pageSize).toBe('A4');
     expect(def.pageOrientation).toBe('landscape');
-    for (const a of abschnitte(def)) expect(a.pageOrientation).toBe('landscape');
+    for (const a of abschnitte(def).filter((x) => x !== schildAbschnitt(def))) {
+      expect(a.pageOrientation).toBe('landscape');
+    }
   });
 
   it('setzt die Seite „Allgemeine Anweisungen“ nur bei vorhandenem Text', () => {

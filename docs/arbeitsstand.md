@@ -3586,3 +3586,25 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Geprüft: Tests (Abgleich, API-Dienst, Quelle, Personalvergleich, Karte, Helferpool, Editor,
   PEP-Anlage), Build, Sicht im Chromium mit gemockter API auf 1440×900. Nicht geprüft: mobile
   Ansicht dieser Zeile, echter EFS-Abruf.
+
+## Abschnittsschild nach der Vorlage „Kistenbezeichnung“
+
+- Das Kennzeichnungsschild je VB-Abschnitt folgt jetzt der Word-Vorlage „Kistenbezeichnung“
+  (`.dotx`): **A5 quer, zwei Schilder untereinander auf einem A4-Hochformatblatt**
+  (`schild()`/`schildSeiten()` in `einsatz/services/vb-pdf-definition.ts`). Das frühere
+  A4-Querschild entfällt. Der Rahmen (Kopfband, Fußband mit Johanniter- und NRW-Logo, Kästchen
+  „Material zur Ausgabe an Laien?“) ist das Bild der Vorlage, verkleinert in
+  `einsatz/services/abschnittsschild-rahmen.ts` (Base64, ~43 KB); alle Texte liegen als pdfmake-Text
+  darüber.
+- Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (mit Balken in der
+  Abschnittsfarbe, Schrift nach Länge), _Inhalt_ = Überschriften der Laufzettel (bis 12 einspaltig,
+  darüber zweispaltig bis 28, Rest als „… und n weitere“), _Beschriftung_ = Fachgruppe neben „Inhalt:“,
+  Fußband links = „Abschnitt n von m“ mit Veranstaltung, Zeitraum und Ort. _Gewicht_ bleibt eine
+  Zeile zum handschriftlichen Eintragen: die App kennt kein Istgewicht (in der Vorlage ein
+  Serienbrieffeld `Gewicht_IST`). Das Verladungsfoto steht rechts über dem Kästchen.
+- Die Fußzeile „Geräteanhänger NRW 04“ der Vorlage ist eine feste Einheitsbezeichnung und wird nicht
+  übernommen. Die Vorlagenschrift „Maven Johanniter“ ist nicht eingebunden; das PDF nutzt Roboto.
+- Geprüft: Tests (Aufteilung, Lage des zweiten Schilds, Inhaltsliste, Titelschrift), Sicht im
+  erzeugten PDF (Seite 1 mit zwei Schildern, kurzer und langer Titel, 5/12/40 Laufzettel). Nicht
+  geprüft: Druck auf Papier und Zuschnitt (Ränder 0, die Rahmenlinie liegt direkt am A5-Rand; die
+  meisten Drucker lassen 3–5 mm Rand unbedruckt).
