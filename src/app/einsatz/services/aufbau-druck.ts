@@ -2,6 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { AufbauInhalt } from '../models/aufbau.model';
 import { DruckAbschnitt, DruckInhalt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { leiteZettelAb, Zettel, ZettelStammdaten } from './aufbau-zettel';
+import { schilderAusAufbau } from './aufbau-kistenschilder';
+import { KistenDruckDienst } from './kisten-druck';
 import { ZettelDruckDienst } from './zettel-druck';
 import { DruckKopf } from './zettel-pdf-definition';
 
@@ -69,6 +71,7 @@ export function aufbauAlsDruckInhalt(inhalt: AufbauInhalt, daten: ZettelStammdat
 @Injectable({ providedIn: 'root' })
 export class AufbauDruckDienst {
   private readonly druck = inject(ZettelDruckDienst);
+  private readonly kistenDruck = inject(KistenDruckDienst);
 
   drucken(kopf: DruckKopf, inhalt: AufbauInhalt, daten: ZettelStammdaten): Promise<void> {
     return this.druck.drucken(kopf, aufbauAlsDruckInhalt(inhalt, daten));
@@ -76,5 +79,17 @@ export class AufbauDruckDienst {
 
   herunterladen(kopf: DruckKopf, inhalt: AufbauInhalt, daten: ZettelStammdaten): Promise<void> {
     return this.druck.herunterladen(kopf, aufbauAlsDruckInhalt(inhalt, daten));
+  }
+
+  /** Kistenschilder (eine Kopie je Kiste) mit dem Inhalt aus dem Aufbau; `false`: keine Kiste im Aufbau. */
+  async kistenschilderDrucken(
+    titel: string,
+    inhalt: AufbauInhalt,
+    daten: ZettelStammdaten,
+  ): Promise<boolean> {
+    const schilder = schilderAusAufbau(inhalt, daten);
+    if (schilder.length === 0) return false;
+    await this.kistenDruck.schilderDrucken(schilder, titel);
+    return true;
   }
 }

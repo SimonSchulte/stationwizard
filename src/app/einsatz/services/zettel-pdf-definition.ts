@@ -95,6 +95,11 @@ const FARBE_ABSCHNITT: Record<AbschnittFarbe, string> = {
   'abschnitt-8': PDF_FARBEN.abschnitt8,
 };
 
+/** Konkreter Farbwert der Abschnittsfarbe (pdfmake kennt keine CSS-Variablen). */
+export function abschnittFarbeHex(farbe: AbschnittFarbe): string {
+  return FARBE_ABSCHNITT[farbe];
+}
+
 const WOCHENTAGE = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'] as const;
 
 const ZEITPUNKT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;

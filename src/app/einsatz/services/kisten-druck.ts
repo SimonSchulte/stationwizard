@@ -6,6 +6,8 @@ import { Kiste } from '../models/stammdaten.model';
 import {
   baueKistenschildDefinition,
   baueKistenzettelDefinition,
+  baueSchilderDefinition,
+  Kistenschild,
   KistenDruckDaten,
 } from './kisten-pdf-definition';
 import { LaufzettelLayoutWahl } from './laufzettel-layout-wahl';
@@ -39,6 +41,20 @@ export class KistenDruckDienst {
       await pdfMake.createPdf(baueKistenschildDefinition(kisten, daten)).getBuffer(),
     );
     await this.ausgabe.drucken(bytes, kistenDateiname('Schild', kisten, heuteIso()));
+  }
+
+  /** Schilder aus dem Aufbau (Inhalt und Zielfarbe stehen schon im Schild). */
+  async schilderDrucken(schilder: readonly Kistenschild[], titel: string): Promise<void> {
+    if (schilder.length === 0) return;
+    const pdfMake = await this.ladeBibliothek();
+    const bytes = Uint8Array.from(
+      await pdfMake.createPdf(baueSchilderDefinition(schilder, titel)).getBuffer(),
+    );
+    const dateiname = `Kistenschilder ${titel} ${heuteIso()}.pdf`.replace(
+      /[<>:"/\\|?*\u0000-\u001f]/g,
+      '_',
+    );
+    await this.ausgabe.drucken(bytes, dateiname);
   }
 
   async zettelDrucken(kisten: readonly Kiste[], daten: KistenDruckDaten): Promise<void> {

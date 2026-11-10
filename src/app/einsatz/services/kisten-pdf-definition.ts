@@ -43,13 +43,37 @@ function artikelName(position: KistenPosition, daten: KistenDruckDaten): string 
  * „1 Packung Salz“; eine Bemerkung steht in Klammern dahinter.
  */
 export function kistenZeile(position: KistenPosition, daten: KistenDruckDaten): string {
-  const einheit = daten.artikel.get(position.artikelId)?.einheit ?? 'Stück';
+  return schildZeile({
+    name: artikelName(position, daten),
+    einheit: daten.artikel.get(position.artikelId)?.einheit ?? 'Stück',
+    menge: position.menge,
+    bemerkung: position.bemerkung,
+  });
+}
+
+/** Zeile aus fertigen Angaben; „Stück“ und leere Einheit stehen als „3×“. */
+export function schildZeile(p: {
+  name: string;
+  einheit: string;
+  menge: number;
+  bemerkung: string;
+}): string {
+  const einheit = p.einheit.trim();
   const menge =
-    einheit === 'Stück'
-      ? `${mengeText(position.menge)}×`
-      : `${mengeText(position.menge)} ${einheit}`;
-  const bemerkung = position.bemerkung.trim();
-  return `${menge} ${artikelName(position, daten)}${bemerkung ? ` (${bemerkung})` : ''}`;
+    einheit === '' || einheit === 'Stück'
+      ? `${mengeText(p.menge)}×`
+      : `${mengeText(p.menge)} ${einheit}`;
+  const bemerkung = p.bemerkung.trim();
+  return `${menge} ${p.name}${bemerkung ? ` (${bemerkung})` : ''}`;
+}
+
+/** Was ein Kistenschild trägt; aus einer Stammdaten-Kiste oder aus dem Aufbau abgeleitet. */
+export interface Kistenschild {
+  titel: string;
+  heimatlager: string;
+  zeilen: string[];
+  /** Rahmenfarbe des Inhaltsfelds; ohne Angabe das neutrale Dunkelblau. */
+  rahmenFarbe?: string;
 }
 
 /** Spalten und Schrift der Inhaltsliste eines Kistenschilds; Überlanges endet mit „… und n weitere“. */
@@ -81,16 +105,12 @@ const INHALT_BREITE = SCHILD.breite - 2 * INHALT_X;
 const INHALT_HOEHE = 216;
 const RAHMEN_DICKE = 3;
 
-function kistenschild(
-  kiste: Kiste,
-  daten: KistenDruckDaten,
-  y0: number,
-  rahmenFarbe: string,
-): Content[] {
-  const titel = kiste.name.trim();
+function kistenschild(schild: Kistenschild, y0: number): Content[] {
+  const titel = schild.titel.trim();
+  const rahmenFarbe = schild.rahmenFarbe ?? PDF_FARBEN.dunkelblau;
   const textBreite = SCHILD.breite - 2 * SCHILD.rand;
-  const heimatlager = (kiste.lagerId && daten.lager.get(kiste.lagerId)?.name) || '';
-  const { spalten, schrift } = kistenschildSpalten(kiste.inhalt.map((p) => kistenZeile(p, daten)));
+  const heimatlager = schild.heimatlager;
+  const { spalten, schrift } = kistenschildSpalten(schild.zeilen);
   const spaltenBreite = (INHALT_BREITE - 2 * 8) / spalten.length;
 
   const feld = (
@@ -203,19 +223,18 @@ function kistenschild(
 }
 
 /** Kistenschilder: je A4-Hochformatblatt zwei im A5-Querformat, dazwischen die Schnittlinie. */
-export function baueKistenschildDefinition(
-  kisten: readonly Kiste[],
-  daten: KistenDruckDaten,
-  rahmenFarbe: string = PDF_FARBEN.dunkelblau,
+export function baueSchilderDefinition(
+  schilder: readonly Kistenschild[],
+  titel: string,
 ): TDocumentDefinitions {
   const seiten: Content[] = [];
-  for (let i = 0; i < kisten.length; i += 2) {
-    const paar = kisten.slice(i, i + 2);
+  for (let i = 0; i < schilder.length; i += 2) {
+    const paar = schilder.slice(i, i + 2);
     seiten.push({
       ...(i > 0 ? { pageBreak: 'before' as const } : {}),
       stack: [
         { text: ' ', fontSize: 1 },
-        ...paar.flatMap((kiste, j) => kistenschild(kiste, daten, j * SCHILD.hoehe, rahmenFarbe)),
+        ...paar.flatMap((schild, j) => kistenschild(schild, j * SCHILD.hoehe)),
         ...(paar.length === 2 ? [schnittlinie()] : []),
       ],
     });
@@ -224,10 +243,27 @@ export function baueKistenschildDefinition(
     pageSize: 'A4',
     pageOrientation: 'portrait',
     pageMargins: [0, 0, 0, 0],
-    info: { title: kisten.length === 1 ? `Kistenschild ${kisten[0].name}` : 'Kistenschilder' },
+    info: { title: titel },
     defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
     content: seiten,
   };
+}
+
+/** Kistenschilder der Stammdaten-Kisten. */
+export function baueKistenschildDefinition(
+  kisten: readonly Kiste[],
+  daten: KistenDruckDaten,
+  rahmenFarbe: string = PDF_FARBEN.dunkelblau,
+): TDocumentDefinitions {
+  return baueSchilderDefinition(
+    kisten.map((kiste) => ({
+      titel: kiste.name,
+      heimatlager: (kiste.lagerId && daten.lager.get(kiste.lagerId)?.name) || '',
+      zeilen: kiste.inhalt.map((p) => kistenZeile(p, daten)),
+      rahmenFarbe,
+    })),
+    kisten.length === 1 ? `Kistenschild ${kisten[0].name}` : 'Kistenschilder',
+  );
 }
 
 /**
