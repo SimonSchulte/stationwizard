@@ -634,7 +634,9 @@ Momentaufnahme, unten das Heimatlager und einen Rahmen in der Zielfarbe der ober
 (`abschnittFarbeHex()` in `zettel-pdf-definition.ts`). Beim Zettel ist „Auf / In“ die Zieleinheit (ein Wagen
 im Fahrzeug nennt das Fahrzeug) und das Farbband deren Farbe. Beide nutzen die Bausteine von
 `kisten-pdf-definition.ts` (`baueSchilderDefinition()`, `baueKistenzettelAusInhalt()`); die Druckwege der
-Stammdaten-Kisten bleiben unverändert. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
+Stammdaten-Kisten bleiben unverändert. Der Name einer Kiste lässt sich im Aufbau ändern (Eingabefeld in der
+Tabelle, `eintragAendern(…, { name })`); die Stammdaten bleiben unberührt, `kisteWeichtAb()` meldet danach den
+Unterschied, „Übernehmen“ stellt den Stammdaten-Namen wieder her. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
 liefern `false`, wenn der Aufbau keine Kiste enthält.
 
 **Druck des Aufbaus („Drucken“):** Außer Anweisungsseite und Laufzettelstreifen je Einheit enthält er (a) einen

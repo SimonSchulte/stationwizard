@@ -95,8 +95,18 @@
             <td data-label="Eintrag">
               @if (zeile.eintrag.art === 'kiste') {
                 <span class="typ">Kiste</span>
+                <input
+                  class="kisten-name"
+                  type="text"
+                  autocomplete="off"
+                  aria-label="Name der Kiste"
+                  [attr.maxlength]="maxName"
+                  [value]="zeile.eintrag.name"
+                  (change)="kisteUmbenennen(zeile.eintrag.id, $event)"
+                />
+              } @else {
+                {{ zeile.titel }}
               }
-              {{ zeile.titel }}
               @if (zeile.eintrag.art === 'kiste') {
                 <button
                   matButton

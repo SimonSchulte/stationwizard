@@ -49,6 +49,8 @@ export interface KistePositionEntfernung {
 
 export interface EintragAenderung {
   eintragId: string;
+  /** Neuer Name einer Kiste im Aufbau (die Stammdaten bleiben unberührt). */
+  name?: string;
   menge?: number;
   anzahl?: number;
   lagerId?: string | null;
@@ -215,6 +217,18 @@ export class EinheitDetail {
     this.artikelHinzugefuegt.emit({ artikelId, menge: this.neueMenge() });
     this.neuerArtikelId.set(null);
     this.neueMenge.set(1);
+  }
+
+  protected kisteUmbenennen(eintragId: string, ereignis: Event): void {
+    const feld = ereignis.target as HTMLInputElement;
+    const name = feld.value.trim().replace(/\s+/g, ' ');
+    const aktuell = this.einheit().inhalt.find((x) => x.id === eintragId);
+    if (name === '' || aktuell?.art !== 'kiste') {
+      // Leerer Name gilt nicht: das Feld zeigt wieder den gespeicherten.
+      if (aktuell?.art === 'kiste') feld.value = aktuell.name;
+      return;
+    }
+    if (name !== aktuell.name) this.eintragGeaendert.emit({ eintragId, name });
   }
 
   protected kisteUmschalten(eintragId: string): void {

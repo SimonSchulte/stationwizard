@@ -179,6 +179,21 @@ describe('Aufbau bearbeiten', () => {
     expect(istAufbauInhalt(inhalt)).toBe(true);
   });
 
+  it('benennt eine Kiste im Aufbau um, ohne Inhalt und Verweis zu ändern; leere Namen gelten nicht', () => {
+    const e = testEinheit();
+    let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, kiste, 2);
+    const id = inhalt.einheiten[0]!.inhalt[0]!.id;
+    inhalt = eintragAendern(inhalt, e.id, id, { name: '  Verband   groß ' });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({
+      name: 'Verband groß',
+      kisteId: kiste.id,
+      anzahl: 2,
+    });
+    inhalt = eintragAendern(inhalt, e.id, id, { name: '   ' });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ name: 'Verband groß' });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
   it('gleicht eine Kiste mit den Stammdaten ab', () => {
     const e = testEinheit();
     let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, kiste);

@@ -249,6 +249,7 @@ export function eintragAendern(
   einheitId: string,
   eintragId: string,
   aenderung: {
+    name?: string;
     menge?: number;
     bemerkung?: string;
     anzahl?: number;
@@ -279,6 +280,8 @@ export function eintragAendern(
       }
       return {
         ...x,
+        ...(aenderung.name !== undefined &&
+          aenderung.name.trim() !== '' && { name: aenderung.name.trim().replace(/\s+/g, ' ') }),
         ...(aenderung.anzahl !== undefined && { anzahl: aenderung.anzahl }),
         ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
       };
