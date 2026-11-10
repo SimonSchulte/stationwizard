@@ -1,0 +1,57 @@
+<div class="kopf">
+  <p class="hinweis">
+    Eine Vorlage ist die Packliste, die ein neuer Aufbau kopiert: Fahrzeuge, Wagen, Kisten und lose
+    Artikel.
+  </p>
+  <a matButton="filled" routerLink="/einsatzplanung/aufbau-vorlagen/neu">
+    <mat-icon>add</mat-icon>
+    Neue Vorlage
+  </a>
+</div>
+
+@if (laedt() && vorlagen().length === 0) {
+  <app-ladeanzeige text="Vorlagen werden geladen …" />
+} @else if (fehler() && vorlagen().length === 0) {
+  <app-leerzustand icon="error_outline" titel="Konnte nicht geladen werden">
+    {{ fehler() }}
+  </app-leerzustand>
+} @else if (vorlagen().length === 0) {
+  <app-leerzustand icon="inventory_2" titel="Noch keine Aufbau-Vorlagen">
+    Lege eine Vorlage an oder sichere den Aufbau eines Einsatzes über „Als neue Vorlage speichern“.
+  </app-leerzustand>
+} @else {
+  <mat-list class="liste">
+    @for (vorlage of vorlagen(); track vorlage.id) {
+      <mat-list-item>
+        <a matListItemTitle [routerLink]="['/einsatzplanung/aufbau-vorlagen', vorlage.id]">
+          {{ vorlage.titel }}
+        </a>
+        <span matListItemLine>
+          {{ vorlage.einheiten }} {{ vorlage.einheiten === 1 ? 'Einheit' : 'Einheiten' }} ·
+          {{ vorlage.kisten }} {{ vorlage.kisten === 1 ? 'Kiste' : 'Kisten' }} ·
+          {{ vorlage.positionen }} Pos.
+        </span>
+        <span matListItemMeta>
+          <button
+            matIconButton
+            type="button"
+            [attr.aria-label]="'Weitere Aktionen für ' + vorlage.titel"
+            [matMenuTriggerFor]="menue"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menue="matMenu">
+            <a mat-menu-item [routerLink]="['/einsatzplanung/aufbau-vorlagen', vorlage.id]">
+              <mat-icon>edit</mat-icon>
+              <span>Bearbeiten</span>
+            </a>
+            <button mat-menu-item type="button" [disabled]="arbeitet()" (click)="loeschen(vorlage)">
+              <mat-icon>delete</mat-icon>
+              <span>Löschen …</span>
+            </button>
+          </mat-menu>
+        </span>
+      </mat-list-item>
+    }
+  </mat-list>
+}

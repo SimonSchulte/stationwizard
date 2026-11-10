@@ -47,6 +47,7 @@ import {
   findeEinheit,
   kisteAbgleichen,
   kisteHinzufuegen,
+  mitNeuenIds,
 } from '../../services/aufbau-bearbeiten';
 import { AufbauEditorStoreService } from '../../services/aufbau-editor-store.service';
 import { AufbauVorlagenStoreService } from '../../services/aufbau-vorlagen-store.service';
@@ -249,6 +250,30 @@ export class AufbauEditor {
     this.meldungen.erfolg(
       this.modus === 'vorlage' ? 'Vorlage gespeichert.' : 'Aufbau gespeichert.',
     );
+  }
+
+  protected async alsNeueVorlage(): Promise<void> {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const vorgabe =
+      this.modus === 'vorlage'
+        ? `${this.store.titel()} (Kopie)`.slice(0, this.maxTitel)
+        : (this.einsatz()?.titel ?? '');
+    const titel = await this.dialogDienst.eingabe(
+      'Aus dem aktuellen Stand wird eine neue Vorlage angelegt. Dieser Einsatz und andere Vorlagen bleiben unverändert.',
+      'Als neue Vorlage speichern',
+      'Titel der Vorlage',
+      { wert: vorgabe, bestaetigenLabel: 'Anlegen', maxLaenge: this.maxTitel },
+    );
+    if (titel === null) return;
+    const version = await this.vorlagen.anlegen({
+      id: crypto.randomUUID(),
+      titel,
+      inhalt: mitNeuenIds(inhalt),
+    });
+    if (version !== null) this.meldungen.erfolg(`Vorlage „${titel}“ angelegt.`);
+    else
+      this.meldungen.fehler(this.vorlagen.fehler() || 'Die Vorlage konnte nicht angelegt werden.');
   }
 
   protected titelAendern(ereignis: Event): void {

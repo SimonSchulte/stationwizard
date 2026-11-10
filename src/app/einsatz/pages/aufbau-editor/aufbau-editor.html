@@ -31,6 +31,10 @@
       <mat-icon>undo</mat-icon>
       <span>Rückgängig</span>
     </button>
+    <button mat-menu-item type="button" [disabled]="store.istNeu()" (click)="alsNeueVorlage()">
+      <mat-icon>library_add</mat-icon>
+      <span>Als neue Vorlage speichern…</span>
+    </button>
     @if (!store.istNeu()) {
       <button mat-menu-item type="button" (click)="neuLaden()">
         <mat-icon>refresh</mat-icon>
