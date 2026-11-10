@@ -3743,6 +3743,6 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Druckadapter), `npm run build`, Sicht im Chromium mit API-Attrappe auf 1300 und 400 px (leer beginnen,
   Fahrzeug, Wagen im Fahrzeug, Kiste und Artikel, Speichern; kein waagerechtes Scrollen) und ein echtes PDF
   (zwei Streifen, Schild mit Farbrahmen).
-- **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist **nicht** eingespielt; sie muss vor dem
-  Deployment dieses Workers laufen (siehe `docs/einrichtung.md`, Schritt 6). Papierdruck und Zuschnitt;
+- **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist am 10.11.2026 eingespielt, der Worker
+  danach per Merge automatisch deployt; ein Test gegen den laufenden Betrieb steht aus. Papierdruck und Zuschnitt;
   Foto im Schild mit echtem Bild; Handy-Nutzung der Bearbeitung (die Tabelle scrollt im Rahmen).
