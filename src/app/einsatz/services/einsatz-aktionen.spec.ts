@@ -126,6 +126,26 @@ describe('EinsatzAktionenDienst', () => {
     });
   });
 
+  describe('Aufbau', () => {
+    it('navigiert direkt zur Aufbau-Seite des Einsatzes, ohne zu fragen', async () => {
+      const einsatz = testEinsatz();
+      einsaetze._vorbelegen(einsatz);
+
+      await dienst.aufbauOeffnen((await liste())[0]);
+
+      expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', einsatz.id, 'aufbau']);
+      expect(dialogOeffnen).not.toHaveBeenCalled();
+    });
+
+    it('legt für eine Veranstaltung ohne Einsatz zuerst still den Einsatz an', async () => {
+      await dienst.aufbauOeffnen(gruppe);
+
+      const alle = await einsaetze.ladeEinsaetze();
+      expect(alle).toHaveLength(1);
+      expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', alle[0].id, 'aufbau']);
+    });
+  });
+
   describe('VB', () => {
     it('navigiert bei vorhandener VB direkt in den Editor, ohne Dialog', async () => {
       const einsatz = testEinsatz();

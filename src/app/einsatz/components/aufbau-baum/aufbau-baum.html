@@ -1,0 +1,58 @@
+@if (zeilen().length === 0) {
+  <p class="leer">Noch keine Fahrzeuge oder Wagen. Lege unten die erste Einheit an.</p>
+} @else {
+  <div class="baum" role="group" aria-label="Packliste">
+    @for (zeile of zeilen(); track zeile.einheit.id) {
+      <button
+        type="button"
+        class="eintrag"
+        [class.eingerueckt]="zeile.tiefe === 1"
+        [attr.aria-pressed]="zeile.einheit.id === gewaehltId()"
+        (click)="gewaehlt.emit(zeile.einheit.id)"
+      >
+        @if (zeile.tiefe === 0) {
+          <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
+        }
+        <span class="typ">{{ zeile.einheit.typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
+        <span class="name">{{ zeile.einheit.name }}</span>
+        @if (zeile.probleme > 0) {
+          <mat-icon class="warnung" aria-label="Hinweise vorhanden">info</mat-icon>
+        }
+        <span class="zahl">{{ zeile.eintraege }}</span>
+      </button>
+    }
+  </div>
+}
+
+<div class="hinzufuegen">
+  <button
+    matButton="outlined"
+    type="button"
+    (click)="hinzufuegen.emit({ typ: 'fahrzeug', inFahrzeugId: null })"
+  >
+    <mat-icon>add</mat-icon>
+    Fahrzeug
+  </button>
+  <button
+    matButton="outlined"
+    type="button"
+    (click)="hinzufuegen.emit({ typ: 'wagen', inFahrzeugId: null })"
+  >
+    <mat-icon>add</mat-icon>
+    Wagen
+  </button>
+  @if (fahrzeuge().length > 0) {
+    <button matButton type="button" [matMenuTriggerFor]="imFahrzeug">Wagen in Fahrzeug …</button>
+    <mat-menu #imFahrzeug="matMenu">
+      @for (fahrzeug of fahrzeuge(); track fahrzeug.id) {
+        <button
+          mat-menu-item
+          type="button"
+          (click)="hinzufuegen.emit({ typ: 'wagen', inFahrzeugId: fahrzeug.id })"
+        >
+          {{ fahrzeug.name }}
+        </button>
+      }
+    </mat-menu>
+  }
+</div>

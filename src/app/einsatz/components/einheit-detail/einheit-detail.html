@@ -1,0 +1,220 @@
+<header class="kopf">
+  <span class="typ">{{ einheit().typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="name">
+    <mat-label>Name</mat-label>
+    <input
+      matInput
+      autocomplete="off"
+      [attr.maxlength]="maxName"
+      [value]="einheit().name"
+      (change)="geaendert.emit({ name: textAus($event) })"
+    />
+  </mat-form-field>
+  <button matIconButton type="button" aria-label="Einheit entfernen" (click)="entfernt.emit()">
+    <mat-icon>delete</mat-icon>
+  </button>
+</header>
+
+<div class="felder">
+  @if (oberste()) {
+    <fieldset class="feld">
+      <legend>Farbe (Zielfarbe auf Zettel und Schild)</legend>
+      <div class="farben">
+        @for (farbe of farben; track farbe) {
+          <button
+            type="button"
+            class="farbe"
+            [style.--c]="'var(--' + farbe + ')'"
+            [attr.aria-label]="farbName[farbe]"
+            [attr.aria-pressed]="farbe === einheit().farbe"
+            (click)="geaendert.emit({ farbe })"
+          ></button>
+        }
+      </div>
+    </fieldset>
+    <div class="feld foto">
+      <span class="legende">Foto (Schild)</span>
+      <div class="foto-zeile">
+        <span
+          class="vorschau"
+          [class.leer]="!einheit().foto"
+          [style.--c]="'var(--' + einheit().farbe + ')'"
+        >
+          @if (einheit().foto) {
+            <img [src]="einheit().foto" alt="Foto der Einheit" />
+          }
+        </span>
+        <label class="datei">
+          <input
+            type="file"
+            accept="image/*"
+            (change)="fotoGewaehlt($event)"
+            [disabled]="fotoLaeuft()"
+          />
+          <span matButton="outlined" class="knopf-optik">{{
+            einheit().foto ? 'Foto ersetzen' : 'Foto wählen'
+          }}</span>
+        </label>
+        @if (einheit().foto) {
+          <button matButton type="button" (click)="geaendert.emit({ foto: undefined })">
+            Entfernen
+          </button>
+        }
+      </div>
+    </div>
+  }
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
+    <mat-label>Anweisung</mat-label>
+    <textarea
+      matInput
+      rows="2"
+      [attr.maxlength]="maxAnweisung"
+      [value]="einheit().anweisung"
+      (change)="geaendert.emit({ anweisung: textAus($event) })"
+    ></textarea>
+  </mat-form-field>
+</div>
+
+<h3 class="titel">Inhalt ({{ zeilen().length }})</h3>
+@if (zeilen().length === 0) {
+  <p class="leer">Noch nichts eingepackt. Füge unten Kisten oder Artikel hinzu.</p>
+} @else {
+  <div class="rahmen">
+    <table class="tabelle">
+      <thead>
+        <tr>
+          <th scope="col">Eintrag</th>
+          <th scope="col">Lager</th>
+          <th scope="col" class="zahl">Menge</th>
+          <th scope="col"><span class="sr-only">Aktionen</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (zeile of zeilen(); track zeile.eintrag.id) {
+          <tr>
+            <td data-label="Eintrag">
+              @if (zeile.eintrag.art === 'kiste') {
+                <span class="typ">Kiste</span>
+              }
+              {{ zeile.titel }}
+              @if (zeile.weichtAb) {
+                <span class="marke warn">weicht von den Stammdaten ab</span>
+                <button matButton type="button" (click)="kisteAbgeglichen.emit(zeile.eintrag.id)">
+                  Übernehmen
+                </button>
+              }
+              @if (zeile.problem && zeile.eintrag.art === 'artikel' && !zeile.eintrag.lagerId) {
+                <span class="marke fehler">kein Lager</span>
+              }
+            </td>
+            <td data-label="Lager">
+              @if (zeile.eintrag.art === 'artikel') {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="klein">
+                  <mat-select
+                    aria-label="Lager"
+                    placeholder="Kein Lager"
+                    [value]="zeile.eintrag.lagerId"
+                    (selectionChange)="
+                      eintragGeaendert.emit({ eintragId: zeile.eintrag.id, lagerId: $event.value })
+                    "
+                  >
+                    <mat-option [value]="null">Kein Lager</mat-option>
+                    @for (l of lager(); track l.id) {
+                      <mat-option [value]="l.id">{{ l.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              } @else {
+                {{ zeile.lagerName }}
+              }
+            </td>
+            <td data-label="Menge" class="zahl">
+              @if (zeile.eintrag.art === 'artikel') {
+                <input
+                  class="menge"
+                  type="text"
+                  inputmode="decimal"
+                  aria-label="Menge"
+                  [value]="zeile.eintrag.menge"
+                  (change)="mengeAendern(zeile.eintrag.id, zahlAus($event))"
+                />
+                {{ einheitName(zeile.eintrag.artikelId) }}
+              } @else if (zeile.eintrag.art === 'kiste') {
+                <input
+                  class="menge"
+                  type="text"
+                  inputmode="numeric"
+                  aria-label="Anzahl"
+                  [value]="zeile.eintrag.anzahl"
+                  (change)="anzahlAendern(zeile.eintrag.id, zahlAus($event))"
+                />
+                ×
+              } @else {
+                {{ zeile.menge }}
+              }
+            </td>
+            <td class="aktion">
+              @if (zeile.eintrag.art !== 'wagen') {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="Eintrag entfernen"
+                  (click)="eintragEntfernt.emit(zeile.eintrag.id)"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<div class="hinzu">
+  <button
+    matButton="outlined"
+    type="button"
+    [matMenuTriggerFor]="kistenMenue"
+    [disabled]="kisten().length === 0"
+  >
+    <mat-icon>inventory_2</mat-icon>
+    Kiste aus Stammdaten
+  </button>
+  <mat-menu #kistenMenue="matMenu">
+    @for (kiste of kisten(); track kiste.id) {
+      <button mat-menu-item type="button" (click)="kisteHinzugefuegt.emit(kiste.id)">
+        {{ kiste.name }} ({{ kiste.inhalt.length }} Pos.)
+      </button>
+    }
+  </mat-menu>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="artikel-wahl">
+    <mat-label>Artikel</mat-label>
+    <mat-select [value]="neuerArtikelId()" (selectionChange)="neuerArtikelId.set($event.value)">
+      @for (a of artikel(); track a.id) {
+        <mat-option [value]="a.id">{{ a.name }} ({{ a.einheit }})</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="menge-feld">
+    <mat-label>Menge</mat-label>
+    <input
+      matInput
+      type="text"
+      inputmode="decimal"
+      [value]="neueMenge()"
+      (input)="neueMenge.set(zahlAus($event))"
+    />
+  </mat-form-field>
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!neueMengeGueltig()"
+    (click)="artikelHinzufuegen()"
+  >
+    <mat-icon>add</mat-icon>
+    Artikel hinzufügen
+  </button>
+</div>
