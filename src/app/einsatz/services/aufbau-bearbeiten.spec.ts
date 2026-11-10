@@ -17,6 +17,8 @@ import {
   einheitHinzufuegen,
   findeEinheit,
   freieKisteHinzufuegen,
+  freiePositionVerknuepfen,
+  freienArtikelVerknuepfen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
   kisteHinzufuegen,
@@ -140,6 +142,41 @@ describe('Aufbau bearbeiten', () => {
     expect(istAufbauInhalt(inhalt)).toBe(true);
     inhalt = kistePositionEntfernen(inhalt, e.id, kisteId, 0);
     expect((inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt).toHaveLength(1);
+  });
+
+  it('verknüpft einen freien Artikel mit dem Katalog und behält Id, Menge und Phase', () => {
+    const e = testEinheit();
+    let inhalt = freienArtikelHinzufuegen(testAufbauInhalt([e]), e.id, 'Wasser', 'Liter', 7);
+    const id = inhalt.einheiten[0]!.inhalt[0]!.id;
+    inhalt = eintragAendern(inhalt, e.id, id, { phase: 'vorher', bemerkung: 'kalt' });
+    inhalt = freienArtikelVerknuepfen(inhalt, e.id, id, wasser);
+    expect(inhalt.einheiten[0]!.inhalt[0]).toEqual({
+      art: 'artikel',
+      id,
+      artikelId: wasser.id,
+      menge: 7,
+      bemerkung: 'kalt',
+      lagerId: lager.id,
+      phase: 'vorher',
+    });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
+  it('verknüpft eine freie Kistenposition; ein schon enthaltener Artikel addiert die Menge', () => {
+    const e = testEinheit();
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Getränke', 1);
+    const kisteId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    const frei = { artikelId: null, name: 'Wasser', einheit: 'Liter', menge: 2, bemerkung: '' };
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, { ...frei });
+    inhalt = freiePositionVerknuepfen(inhalt, e.id, kisteId, 0, wasser);
+    const positionen = (inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt;
+    expect(positionen).toEqual([{ artikelId: wasser.id, menge: 2, bemerkung: '' }]);
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, { ...frei, menge: 3 });
+    inhalt = freiePositionVerknuepfen(inhalt, e.id, kisteId, 1, wasser);
+    expect((inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt).toEqual([
+      { artikelId: wasser.id, menge: 5, bemerkung: '' },
+    ]);
+    expect(istAufbauInhalt(inhalt)).toBe(true);
   });
 
   it('gleicht eine Kiste mit den Stammdaten ab', () => {

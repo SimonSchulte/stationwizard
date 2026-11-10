@@ -606,6 +606,13 @@ Einträge verweisen auf nichts. Worker (`einsatzplanung-aufbau-pruefung.ts`) und
 `aufbau.model.ts`) prüfen dieselben Formen und sind gemeinsam zu ändern. Ein freier Artikel erscheint auf dem
 Zettel in der Gruppe „Weitere Artikel“ (hinter den Lagern, vor „Ohne Heimatlager“) und löst nie „kein Lager“
 aus. Eine Stammdaten-Kiste mit freien Positionen gilt als „weicht von den Stammdaten ab“ (`kisteWeichtAb()`).
+**Übernahme in den Katalog:** Ein freier Artikel und eine freie Kistenposition lassen sich im `EinheitDetail` per
+Knopf „In den Artikelkatalog übernehmen“ zum Katalogartikel machen (`AufbauEditor.katalogartikelFuer()`,
+`freienArtikelVerknuepfen()`/`freiePositionVerknuepfen()` in `aufbau-bearbeiten.ts`). Gibt es den Namen schon
+(`StammdatenStoreService.artikelFinden()`, Vergleichsform), wird nach Rückfrage verknüpft; sonst legt die Seite den
+Artikel nach Rückfrage an – Einheit nur bei exakter Übereinstimmung mit `ARTIKEL_EINHEITEN`, sonst „Stück“, ohne
+Heimatlager. Der Katalog wird **sofort** geschrieben, unabhängig vom „Speichern“ des Aufbaus; der Aufbau-Eintrag
+behält Id, Menge, Bemerkung und Phase und wird erst mit „Speichern“ umgestellt.
 
 **Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und
 `aufbau-vorlagen/:id|neu`): Der Zustand liegt im `AufbauEditorStoreService` (Entwurf, Basislinie, Rückgängig,

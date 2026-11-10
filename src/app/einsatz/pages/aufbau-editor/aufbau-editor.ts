@@ -37,6 +37,7 @@ import {
 } from '../../components/einheit-detail/einheit-detail';
 import { ZettelVorschau } from '../../components/zettel-vorschau/zettel-vorschau';
 import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
+import { Artikel, ARTIKEL_EINHEITEN, ArtikelEinheit } from '../../models/stammdaten.model';
 import { Einsatz } from '../../models/einsatz.model';
 import { pruefeAufbau } from '../../services/aufbau-abgleich';
 import {
@@ -49,6 +50,8 @@ import {
   einheitHinzufuegen,
   findeEinheit,
   freieKisteHinzufuegen,
+  freiePositionVerknuepfen,
+  freienArtikelVerknuepfen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
   kistePositionAendern,
@@ -505,6 +508,78 @@ export class AufbauEditor {
   protected kistePositionEntfernt(einheitId: string, e: KistePositionEntfernung): void {
     const inhalt = this.store.inhalt();
     if (inhalt) this.store.aendern(kistePositionEntfernen(inhalt, einheitId, e.eintragId, e.index));
+  }
+
+  /**
+   * Nimmt einen freien Artikel in den Katalog auf (oder verknüpft ihn mit dem gleichnamigen) und
+   * liefert den Katalogartikel; `null` bei Abbruch oder Fehler. Der Katalog wird sofort geschrieben,
+   * unabhängig vom „Speichern“ des Aufbaus.
+   */
+  private async katalogartikelFuer(name: string, einheit: string): Promise<Artikel | null> {
+    const vorhanden = this.stammdaten.artikelFinden(name);
+    if (vorhanden) {
+      const ok = await this.dialogDienst.bestaetigen(
+        `Im Artikelkatalog gibt es „${vorhanden.name}“ (${vorhanden.einheit}) schon. Der Eintrag wird damit verknüpft; Name und Einheit kommen dann aus dem Katalog.`,
+        'Mit Katalogartikel verknüpfen',
+        'Verknüpfen',
+      );
+      return ok ? vorhanden : null;
+    }
+    const gleiche = ARTIKEL_EINHEITEN.find((e) => e.toLowerCase() === einheit.trim().toLowerCase());
+    const katalogEinheit: ArtikelEinheit = gleiche ?? 'Stück';
+    const abweichung =
+      !gleiche && einheit.trim() !== ''
+        ? ` statt „${einheit.trim()}“ (der Katalog kennt nur feste Einheiten)`
+        : '';
+    const ok = await this.dialogDienst.bestaetigen(
+      `„${name}“ wird mit der Einheit ${katalogEinheit}${abweichung} und ohne Heimatlager in den Artikelkatalog aufgenommen. Das wird sofort in den Stammdaten gespeichert, unabhängig vom „Speichern“ des Aufbaus.`,
+      'In den Artikelkatalog übernehmen',
+      'Übernehmen',
+    );
+    if (!ok) return null;
+    const id = crypto.randomUUID();
+    if (
+      !(await this.stammdaten.artikelAnlegen({ id, name, einheit: katalogEinheit, lagerId: null }))
+    ) {
+      this.meldungen.fehler(
+        this.stammdaten.fehler() || 'Der Artikel konnte nicht angelegt werden.',
+      );
+      return null;
+    }
+    this.meldungen.erfolg(`„${name}“ ist jetzt im Artikelkatalog.`);
+    return this.stammdaten.artikelNachId().get(id) ?? null;
+  }
+
+  protected async freienArtikelUebernehmen(einheitId: string, eintragId: string): Promise<void> {
+    const eintrag = findeEinheit(
+      this.store.inhalt() ?? { anweisungen: '', einheiten: [] },
+      einheitId,
+    )?.inhalt.find((x) => x.id === eintragId);
+    if (eintrag?.art !== 'frei') return;
+    const artikel = await this.katalogartikelFuer(eintrag.name, eintrag.einheit);
+    const inhalt = this.store.inhalt();
+    if (artikel && inhalt) {
+      this.store.aendern(freienArtikelVerknuepfen(inhalt, einheitId, eintragId, artikel));
+    }
+  }
+
+  protected async freiePositionUebernehmen(
+    einheitId: string,
+    ziel: { eintragId: string; index: number },
+  ): Promise<void> {
+    const kiste = findeEinheit(
+      this.store.inhalt() ?? { anweisungen: '', einheiten: [] },
+      einheitId,
+    )?.inhalt.find((x) => x.id === ziel.eintragId);
+    const position = kiste?.art === 'kiste' ? kiste.inhalt[ziel.index] : undefined;
+    if (!position || position.artikelId !== null) return;
+    const artikel = await this.katalogartikelFuer(position.name, position.einheit);
+    const inhalt = this.store.inhalt();
+    if (artikel && inhalt) {
+      this.store.aendern(
+        freiePositionVerknuepfen(inhalt, einheitId, ziel.eintragId, ziel.index, artikel),
+      );
+    }
   }
 
   protected kisteAbgeglichen(einheitId: string, eintragId: string): void {

@@ -170,6 +170,17 @@
               }
             </td>
             <td class="aktion">
+              @if (zeile.eintrag.art === 'frei') {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="In den Artikelkatalog übernehmen"
+                  matTooltip="In den Artikelkatalog übernehmen"
+                  (click)="freierArtikelUebernommen.emit(zeile.eintrag.id)"
+                >
+                  <mat-icon>playlist_add</mat-icon>
+                </button>
+              }
               @if (zeile.eintrag.art !== 'wagen') {
                 <button
                   matIconButton
@@ -200,6 +211,19 @@
                       (change)="positionMenge(zeile.eintrag.id, i, zahlAus($event))"
                     />
                     <span>{{ positionsEinheit(p) }}</span>
+                    @if (p.artikelId === null) {
+                      <button
+                        matIconButton
+                        type="button"
+                        aria-label="In den Artikelkatalog übernehmen"
+                        matTooltip="In den Artikelkatalog übernehmen"
+                        (click)="
+                          freiePositionUebernommen.emit({ eintragId: zeile.eintrag.id, index: i })
+                        "
+                      >
+                        <mat-icon>playlist_add</mat-icon>
+                      </button>
+                    }
                     <button
                       matIconButton
                       type="button"

@@ -196,6 +196,54 @@ export function freieKisteHinzufuegen(
   return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
 }
 
+/** Macht aus einem freien Artikel einen Katalogartikel; Id, Menge, Bemerkung und Phase bleiben. */
+export function freienArtikelVerknuepfen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  artikel: Artikel,
+): AufbauInhalt {
+  return ersetzeEinheit(inhalt, einheitId, (e) => ({
+    ...e,
+    inhalt: e.inhalt.map((x): AufbauEintrag => {
+      if (x.id !== eintragId || x.art !== 'frei') return x;
+      return {
+        art: 'artikel',
+        id: x.id,
+        artikelId: artikel.id,
+        menge: x.menge,
+        bemerkung: x.bemerkung,
+        lagerId: artikel.lagerId,
+        phase: x.phase,
+      };
+    }),
+  }));
+}
+
+/** Verknüpft eine freie Kistenposition mit einem Katalogartikel; ist er schon in der Kiste, addiert sich die Menge. */
+export function freiePositionVerknuepfen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  index: number,
+  artikel: Artikel,
+): AufbauInhalt {
+  return kistePositionen(inhalt, einheitId, eintragId, (liste) => {
+    const position = liste[index];
+    if (!position || position.artikelId !== null) return liste;
+    const verknuepft: AufbauKistenPosition = {
+      artikelId: artikel.id,
+      menge: position.menge,
+      bemerkung: position.bemerkung,
+    };
+    const vorhanden = liste.findIndex((p, i) => i !== index && p.artikelId === artikel.id);
+    if (vorhanden < 0) return liste.map((p, i) => (i === index ? verknuepft : p));
+    return liste
+      .map((p, i) => (i === vorhanden ? { ...p, menge: p.menge + verknuepft.menge } : p))
+      .filter((_, i) => i !== index);
+  });
+}
+
 export function eintragAendern(
   inhalt: AufbauInhalt,
   einheitId: string,

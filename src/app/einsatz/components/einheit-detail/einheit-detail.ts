@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   AUFBAU_GRENZEN,
   AufbauEinheit,
@@ -77,6 +78,7 @@ interface Zeile {
     MatInputModule,
     MatMenuModule,
     MatSelectModule,
+    MatTooltipModule,
   ],
   templateUrl: './einheit-detail.html',
   styleUrl: './einheit-detail.less',
@@ -101,6 +103,10 @@ export class EinheitDetail {
   readonly kistePositionHinzugefuegt = output<KistePositionNeu>();
   readonly kistePositionGeaendert = output<KistePositionAenderung>();
   readonly kistePositionEntfernt = output<KistePositionEntfernung>();
+  /** Ein freier Artikel (Eintrag-Id) soll in den Katalog übernommen werden. */
+  readonly freierArtikelUebernommen = output<string>();
+  /** Eine freie Kistenposition soll in den Katalog übernommen werden. */
+  readonly freiePositionUebernommen = output<KistePositionEntfernung>();
   readonly kisteAbgeglichen = output<string>();
   readonly entfernt = output<void>();
   readonly fotoFehler = output<string>();

@@ -3763,6 +3763,10 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   Kiste (`anzahl`), Inhalt aus der Momentaufnahme, Rahmen beziehungsweise Farbband in der Zielfarbe, „Auf / In“
   beim Zettel die Zieleinheit. Neue Dateien `aufbau-kistenschilder.ts` (mit Test); `kisten-pdf-definition.ts`
   wurde in wiederverwendbare Bausteine zerlegt, der Druck der Stammdaten-Kisten bleibt unverändert.
+- **Übernahme in den Katalog:** Knopf „In den Artikelkatalog übernehmen“ an freien Artikeln und freien
+  Kistenpositionen (Anlegen mit Rückfrage oder Verknüpfen mit gleichnamigem Katalogartikel). Im Browser mit
+  Attrappen-Server geprüft (Anlegen, Verknüpfen, gespeicherter JSON); freie Kistenposition nur im Unit-Test. Der
+  Katalog wird sofort geschrieben, der Aufbau erst beim Speichern.
 - Damit ist die oben genannte Grenze „Kistenschilder und Kistenzettel aus dem Aufbau gibt es noch nicht“
   aufgehoben; ein Eintrag der Anweisung je Einheit im Druck fehlt weiterhin.
 - **Geprüft:** `npm test` (Frontend 209 Dateien, 1709 Tests), `npm run worker:test` (942 Tests), `npm run build`,
