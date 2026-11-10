@@ -630,8 +630,8 @@ bearbeiten“: Menge ändern, entfernen, freie Position oder Katalogartikel hinz
 Funktionen `kistePosition…()` in `aufbau-bearbeiten.ts`). **Kistenschilder und Kistenzettel aus dem Aufbau**
 (Menü „Weitere Aktionen“ des Editors): `aufbau-kistenschilder.ts` leitet je **physischer Kiste** (`anzahl` Kopien,
 auch in Wagen) ein `Kistenschild` beziehungsweise einen Laufzettel ab. Das Schild trägt den Inhalt der
-Momentaufnahme, unten das Heimatlager und einen Rahmen in der Zielfarbe der obersten Einheit
-(`abschnittFarbeHex()` in `zettel-pdf-definition.ts`). Beim Zettel ist „Auf / In“ die Zieleinheit (ein Wagen
+Momentaufnahme, unten das Heimatlager und einen Rahmen in der **Farbe der Einheit, in der die Kiste steht**
+(`abschnittFarbeHex()` in `zettel-pdf-definition.ts`). Beim Zettel ist „Auf / In“ die Einheit (ein Wagen
 im Fahrzeug nennt das Fahrzeug) und das Farbband deren Farbe. Beide nutzen die Bausteine von
 `kisten-pdf-definition.ts` (`baueSchilderDefinition()`, `baueKistenzettelAusInhalt()`); die Druckwege der
 Stammdaten-Kisten bleiben unverändert. Der Name einer Kiste lässt sich im Aufbau ändern (Eingabefeld in der
@@ -639,11 +639,16 @@ Tabelle, `eintragAendern(…, { name })`); die Stammdaten bleiben unberührt, `k
 Unterschied, „Übernehmen“ stellt den Stammdaten-Namen wieder her. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
 liefern `false`, wenn der Aufbau keine Kiste enthält.
 
+**Farbcodierung:** Jede Einheit trägt ihre **eigene Farbe** – auch ein Wagen im Fahrzeug (Farbwahl und Foto im
+`EinheitDetail` für alle Einheiten; ein neuer Wagen im Fahrzeug startet in der Farbe des Fahrzeugs). Laufzettel,
+Packzettel, Aushang und Kistenschild nehmen die Farbe der jeweiligen Einheit. Der Druck bildet je Fahrzeug **und** je
+Wagen einen `DruckAbschnitt` (Reihenfolge wie die Aushänge, damit die Schildnummer auf dem Laufzettel stimmt).
+
 **Druck des Aufbaus („Drucken“):** Außer Anweisungsseite und Laufzettelstreifen je Einheit enthält er (a) einen
 **Packzettel je physischer Kiste** (`DruckInhalt.kistenzettel`, aus `kistenzettelAusAufbau()`; Abschnitt „Packzettel“
 nach den Laufzetteln, eigene Zählung, ohne Schildnummer) und (b) einen **Aushang je Fahrzeug und je Wagen**, auch je
-Wagen im Fahrzeug (`DruckInhalt.schilder`, `schilderVon()` in `aufbau-druck.ts`; A5-Schild mit Titel, Foto, Zielfarbe
-des obersten Fahrzeugs und dem **Soll-Inhalt**: Kisten mit Anzahl, lose Artikel, Wagen – `sollInhaltZeilen()`).
+Wagen im Fahrzeug (`DruckInhalt.schilder`, `schilderVon()` in `aufbau-druck.ts`; A5-Schild mit Titel, Foto, eigener
+Farbe und dem **Soll-Inhalt**: Kisten mit Anzahl, lose Artikel, Wagen – `sollInhaltZeilen()`).
 Zuletzt folgen die **Kistenschilder** (ein A5-Schild je physischer Kiste, `DruckInhalt.kistenschilder`, aus
 `schilderAusAufbau()`; `ZettelDruckDienst` hängt sie über `kistenschildAbschnitt()` aus `kisten-pdf-definition.ts` an,
 weil `zettel-pdf-definition.ts` sie sonst zyklisch importieren müsste). Reihenfolge im PDF: Anweisungen, Laufzettel je

@@ -67,7 +67,7 @@ interface Zeile {
 }
 
 /**
- * Angaben einer gewählten Einheit: Name, Farbe (nur oberste Ebene), Foto, Anweisung und ihr
+ * Angaben einer gewählten Einheit: Name, Farbe, Foto, Anweisung und ihr
  * Inhalt (Kisten, lose Artikel, Wagen). Rein darstellend: jede Änderung geht als eigene Ausgabe an
  * die Seite, die sie in den Aufbau einarbeitet.
  */
@@ -88,8 +88,6 @@ interface Zeile {
 })
 export class EinheitDetail {
   readonly einheit = input.required<AufbauEinheit>();
-  /** `true` für Fahrzeug und freien Wagen; ein Wagen im Fahrzeug erbt die Farbe. */
-  readonly oberste = input(true);
   readonly lager = input.required<readonly Lager[]>();
   readonly artikel = input.required<readonly Artikel[]>();
   readonly kisten = input.required<readonly Kiste[]>();

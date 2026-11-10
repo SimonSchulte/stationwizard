@@ -73,14 +73,16 @@ export function einheitHinzufuegen(
     id: neueId(),
     typ,
     name: name.trim() || (typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen'),
-    farbe: naechsteFarbe(inhalt),
+    // Ein Wagen im Fahrzeug startet in der Farbe des Fahrzeugs, bleibt aber frei wählbar.
+    farbe:
+      (typ === 'wagen' && inFahrzeugId ? findeEinheit(inhalt, inFahrzeugId)?.farbe : undefined) ??
+      naechsteFarbe(inhalt),
     anweisung: '',
     bemerkung: '',
     inhalt: [],
   };
   if (typ === 'wagen' && inFahrzeugId) {
     const eintrag: AufbauEintrag = { art: 'wagen', id: neueId(), einheit };
-    // Ein Wagen im Fahrzeug erbt die Farbe des Fahrzeugs beim Druck; die eigene wird nicht gezeigt.
     return {
       inhalt: ersetzeEinheit(inhalt, inFahrzeugId, (f) => ({
         ...f,

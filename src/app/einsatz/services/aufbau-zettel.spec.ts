@@ -125,7 +125,7 @@ describe('leiteZettelAb', () => {
     ]);
   });
 
-  it('macht aus einem Wagen im Fahrzeug einen eigenen Zettel mit der Farbe des Fahrzeugs', () => {
+  it('macht aus einem Wagen im Fahrzeug einen eigenen Zettel in seiner eigenen Farbe', () => {
     const wagen = einheit(30, [art(31, 11, 1)], { name: 'Rollwagen', farbe: 'abschnitt-2' });
     const fahrzeug = einheit(20, [{ art: 'wagen', id: id(21), einheit: wagen }, kiste(22, 3)], {
       typ: 'fahrzeug',
@@ -135,7 +135,7 @@ describe('leiteZettelAb', () => {
     const zettel = leiteZettelAb({ anweisungen: '', einheiten: [fahrzeug] }, DATEN);
     expect(zettel.map((z) => [z.nr, z.name, z.farbe, z.inFahrzeug])).toEqual([
       [1, 'GW-San', 'abschnitt-1', null],
-      [2, 'Rollwagen', 'abschnitt-1', 'GW-San'],
+      [2, 'Rollwagen', 'abschnitt-2', 'GW-San'],
     ]);
     expect(zettel[0]!.posten.map((p) => p.text)).toEqual([
       'Fahrzeughalle',

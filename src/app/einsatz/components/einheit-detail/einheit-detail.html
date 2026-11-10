@@ -16,53 +16,51 @@
 </header>
 
 <div class="felder">
-  @if (oberste()) {
-    <fieldset class="feld">
-      <legend>Farbe (Zielfarbe auf Zettel und Schild)</legend>
-      <div class="farben">
-        @for (farbe of farben; track farbe) {
-          <button
-            type="button"
-            class="farbe"
-            [style.--c]="'var(--' + farbe + ')'"
-            [attr.aria-label]="farbName[farbe]"
-            [attr.aria-pressed]="farbe === einheit().farbe"
-            (click)="geaendert.emit({ farbe })"
-          ></button>
-        }
-      </div>
-    </fieldset>
-    <div class="feld foto">
-      <span class="legende">Foto (Schild)</span>
-      <div class="foto-zeile">
-        <span
-          class="vorschau"
-          [class.leer]="!einheit().foto"
-          [style.--c]="'var(--' + einheit().farbe + ')'"
-        >
-          @if (einheit().foto) {
-            <img [src]="einheit().foto" alt="Foto der Einheit" />
-          }
-        </span>
-        <label class="datei">
-          <input
-            type="file"
-            accept="image/*"
-            (change)="fotoGewaehlt($event)"
-            [disabled]="fotoLaeuft()"
-          />
-          <span matButton="outlined" class="knopf-optik">{{
-            einheit().foto ? 'Foto ersetzen' : 'Foto wählen'
-          }}</span>
-        </label>
-        @if (einheit().foto) {
-          <button matButton type="button" (click)="geaendert.emit({ foto: undefined })">
-            Entfernen
-          </button>
-        }
-      </div>
+  <fieldset class="feld">
+    <legend>Farbe (Zielfarbe auf Zettel und Schild)</legend>
+    <div class="farben">
+      @for (farbe of farben; track farbe) {
+        <button
+          type="button"
+          class="farbe"
+          [style.--c]="'var(--' + farbe + ')'"
+          [attr.aria-label]="farbName[farbe]"
+          [attr.aria-pressed]="farbe === einheit().farbe"
+          (click)="geaendert.emit({ farbe })"
+        ></button>
+      }
     </div>
-  }
+  </fieldset>
+  <div class="feld foto">
+    <span class="legende">Foto (Schild)</span>
+    <div class="foto-zeile">
+      <span
+        class="vorschau"
+        [class.leer]="!einheit().foto"
+        [style.--c]="'var(--' + einheit().farbe + ')'"
+      >
+        @if (einheit().foto) {
+          <img [src]="einheit().foto" alt="Foto der Einheit" />
+        }
+      </span>
+      <label class="datei">
+        <input
+          type="file"
+          accept="image/*"
+          (change)="fotoGewaehlt($event)"
+          [disabled]="fotoLaeuft()"
+        />
+        <span matButton="outlined" class="knopf-optik">{{
+          einheit().foto ? 'Foto ersetzen' : 'Foto wählen'
+        }}</span>
+      </label>
+      @if (einheit().foto) {
+        <button matButton type="button" (click)="geaendert.emit({ foto: undefined })">
+          Entfernen
+        </button>
+      }
+    </div>
+  </div>
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
     <mat-label>Anweisung</mat-label>
     <textarea

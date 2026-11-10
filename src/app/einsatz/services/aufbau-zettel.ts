@@ -41,7 +41,7 @@ export interface Zettel {
   einheitId: string;
   name: string;
   typ: AufbauEinheit['typ'];
-  /** Farbe des obersten Ziels; ein Wagen im Fahrzeug erbt die des Fahrzeugs. */
+  /** Eigene Farbe der Einheit; auch ein Wagen im Fahrzeug hat seine eigene. */
   farbe: AbschnittFarbe;
   /** Name des Fahrzeugs, wenn der Zettel zu einem Wagen im Fahrzeug gehört. */
   inFahrzeug: string | null;
@@ -221,7 +221,13 @@ export function leiteZettelAb(inhalt: AufbauInhalt, daten: ZettelStammdaten): Ze
     for (const eintrag of einheit.inhalt) {
       if (eintrag.art === 'wagen') {
         zettel.push(
-          zettelFuer(eintrag.einheit, zettel.length + 1, einheit.farbe, einheit.name, daten),
+          zettelFuer(
+            eintrag.einheit,
+            zettel.length + 1,
+            eintrag.einheit.farbe,
+            einheit.name,
+            daten,
+          ),
         );
       }
     }

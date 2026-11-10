@@ -80,7 +80,7 @@ export function sollInhaltZeilen(einheit: AufbauEinheit, daten: ZettelStammdaten
 }
 
 /**
- * Ein Aushang je Fahrzeug und je Wagen (auch Wagen im Fahrzeug, in der Farbe des Fahrzeugs) mit
+ * Ein Aushang je Fahrzeug und je Wagen (auch Wagen im Fahrzeug, jeweils in der eigenen Farbe) mit
  * dem Soll-Inhalt.
  */
 function schilderVon(inhalt: AufbauInhalt, daten: ZettelStammdaten): DruckSchild[] {
@@ -98,7 +98,7 @@ function schilderVon(inhalt: AufbauInhalt, daten: ZettelStammdaten): DruckSchild
   for (const einheit of inhalt.einheiten) {
     hinzu(einheit, einheit.farbe);
     for (const eintrag of einheit.inhalt) {
-      if (eintrag.art === 'wagen') hinzu(eintrag.einheit, einheit.farbe);
+      if (eintrag.art === 'wagen') hinzu(eintrag.einheit, eintrag.einheit.farbe);
     }
   }
   return schilder;
@@ -106,25 +106,27 @@ function schilderVon(inhalt: AufbauInhalt, daten: ZettelStammdaten): DruckSchild
 
 export function aufbauAlsDruckInhalt(inhalt: AufbauInhalt, daten: ZettelStammdaten): DruckInhalt {
   const zettel = new Map(leiteZettelAb(inhalt, daten).map((z) => [z.einheitId, z]));
-  const abschnitte: DruckAbschnitt[] = inhalt.einheiten.map((einheit) => {
-    const ids = [
-      einheit.id,
-      ...einheit.inhalt.flatMap((x) => (x.art === 'wagen' ? [x.einheit.id] : [])),
-    ];
+  // Ein Abschnitt je Fahrzeug und je Wagen: jede Einheit trägt ihre eigene Farbe und ihr Foto, und die
+  // Nummer des Abschnitts ist die des Aushangs (`schilderVon()` liefert dieselbe Reihenfolge).
+  const abschnitte: DruckAbschnitt[] = [];
+  const abschnittVon = (einheit: AufbauEinheit): void => {
+    const z = zettel.get(einheit.id);
     const abschnitt: DruckAbschnitt = {
       id: einheit.id,
       herkunftId: null,
       titel: einheit.name,
       farbe: einheit.farbe,
       fachgruppe: null,
-      laufzettel: ids.flatMap((id) => {
-        const z = zettel.get(id);
-        return z ? [laufzettelVon(z)] : [];
-      }),
+      laufzettel: z ? [laufzettelVon(z)] : [],
     };
     if (einheit.foto) abschnitt.foto = einheit.foto;
-    return abschnitt;
-  });
+    abschnitte.push(abschnitt);
+  };
+  for (const einheit of inhalt.einheiten) {
+    abschnittVon(einheit);
+    for (const eintrag of einheit.inhalt)
+      if (eintrag.art === 'wagen') abschnittVon(eintrag.einheit);
+  }
   const druck: DruckInhalt = { anweisungen: inhalt.anweisungen, abschnitte };
   const schilder = schilderVon(inhalt, daten);
   if (schilder.length > 0) druck.schilder = schilder;

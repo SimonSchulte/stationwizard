@@ -180,7 +180,7 @@ export class AufbauEditor {
     const einheit =
       (gewaehlt ? findeEinheit(inhalt, gewaehlt) : undefined) ?? alleEinheiten(inhalt)[0];
     if (!einheit) return null;
-    return { einheit, oberste: inhalt.einheiten.some((e) => e.id === einheit.id) };
+    return { einheit };
   });
 
   protected readonly kannSpeichern = computed(
