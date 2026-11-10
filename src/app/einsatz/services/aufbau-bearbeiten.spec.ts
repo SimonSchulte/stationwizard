@@ -16,6 +16,8 @@ import {
   einheitEntfernen,
   einheitHinzufuegen,
   findeEinheit,
+  freieKisteHinzufuegen,
+  freienArtikelHinzufuegen,
   kisteAbgleichen,
   kisteHinzufuegen,
   mitNeuenIds,
@@ -88,6 +90,26 @@ describe('Aufbau bearbeiten', () => {
     });
     inhalt = eintragEntfernen(inhalt, e.id, eintrag.id);
     expect(inhalt.einheiten[0]!.inhalt).toEqual([]);
+  });
+
+  it('legt freie Artikel und freie Kisten ohne Stammdaten an', () => {
+    const e = testEinheit();
+    let inhalt = freienArtikelHinzufuegen(
+      testAufbauInhalt([e]),
+      e.id,
+      '  Absperr  band ',
+      'Rollen',
+      4,
+    );
+    inhalt = freieKisteHinzufuegen(inhalt, e.id, 'Werkzeugkiste', 2);
+    const [frei, leereKiste] = inhalt.einheiten[0]!.inhalt;
+    expect(frei).toMatchObject({ art: 'frei', name: 'Absperr band', einheit: 'Rollen', menge: 4 });
+    expect(leereKiste).toMatchObject({ art: 'kiste', kisteId: null, anzahl: 2, inhalt: [] });
+    inhalt = eintragAendern(inhalt, e.id, frei!.id, { menge: 6, lagerId: null });
+    expect(inhalt.einheiten[0]!.inhalt[0]).not.toHaveProperty('lagerId');
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ menge: 6 });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    expect(zaehleAufbauInhalt(inhalt)).toMatchObject({ kisten: 2, positionen: 1 });
   });
 
   it('gleicht eine Kiste mit den Stammdaten ab', () => {

@@ -129,7 +129,7 @@
               }
             </td>
             <td data-label="Menge" class="zahl">
-              @if (zeile.eintrag.art === 'artikel') {
+              @if (zeile.eintrag.art === 'artikel' || zeile.eintrag.art === 'frei') {
                 <input
                   class="menge"
                   type="text"
@@ -138,7 +138,11 @@
                   [value]="zeile.eintrag.menge"
                   (change)="mengeAendern(zeile.eintrag.id, zahlAus($event))"
                 />
-                {{ einheitName(zeile.eintrag.artikelId) }}
+                {{
+                  zeile.eintrag.art === 'artikel'
+                    ? einheitName(zeile.eintrag.artikelId)
+                    : zeile.eintrag.einheit
+                }}
               } @else if (zeile.eintrag.art === 'kiste') {
                 <input
                   class="menge"
@@ -216,5 +220,69 @@
   >
     <mat-icon>add</mat-icon>
     Artikel hinzufügen
+  </button>
+</div>
+
+<div class="hinzu">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="artikel-wahl">
+    <mat-label>Neuer Artikel (frei)</mat-label>
+    <input
+      matInput
+      autocomplete="off"
+      [attr.maxlength]="maxName"
+      [value]="freierName()"
+      (input)="freierName.set(textAus($event))"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="menge-feld">
+    <mat-label>Menge</mat-label>
+    <input
+      matInput
+      type="text"
+      inputmode="decimal"
+      [value]="freieMenge()"
+      (input)="freieMenge.set(zahlAus($event))"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="menge-feld">
+    <mat-label>Einheit</mat-label>
+    <input
+      matInput
+      autocomplete="off"
+      [attr.maxlength]="maxEinheit"
+      [value]="freieEinheit()"
+      (input)="freieEinheit.set(textAus($event))"
+    />
+  </mat-form-field>
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!freierArtikelGueltig()"
+    (click)="freienArtikelHinzufuegen()"
+  >
+    <mat-icon>add</mat-icon>
+    Freien Artikel hinzufügen
+  </button>
+</div>
+
+<div class="hinzu">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="artikel-wahl">
+    <mat-label>Neue Kiste (frei)</mat-label>
+    <input
+      matInput
+      autocomplete="off"
+      [attr.maxlength]="maxName"
+      [value]="kistenName()"
+      (input)="kistenName.set(textAus($event))"
+    />
+  </mat-form-field>
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!freieKisteGueltig()"
+    (click)="freieKisteHinzufuegen()"
+  >
+    <mat-icon>add</mat-icon>
+    Freie Kiste hinzufügen
   </button>
 </div>

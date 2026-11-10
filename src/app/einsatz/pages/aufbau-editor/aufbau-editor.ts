@@ -45,6 +45,8 @@ import {
   einheitEntfernen,
   einheitHinzufuegen,
   findeEinheit,
+  freieKisteHinzufuegen,
+  freienArtikelHinzufuegen,
   kisteAbgleichen,
   kisteHinzufuegen,
   mitNeuenIds,
@@ -415,6 +417,27 @@ export class AufbauEditor {
     if (inhalt && artikel) {
       this.store.aendern(artikelHinzufuegen(inhalt, einheitId, artikel, wahl.menge));
     }
+  }
+
+  protected freierArtikelHinzugefuegt(
+    einheitId: string,
+    wahl: { name: string; einheit: string; menge: number },
+  ): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(
+        freienArtikelHinzufuegen(inhalt, einheitId, wahl.name, wahl.einheit, wahl.menge),
+      );
+    }
+  }
+
+  protected freieKisteHinzugefuegt(
+    einheitId: string,
+    wahl: { name: string; anzahl: number },
+  ): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt)
+      this.store.aendern(freieKisteHinzufuegen(inhalt, einheitId, wahl.name, wahl.anzahl));
   }
 
   protected kisteAbgeglichen(einheitId: string, eintragId: string): void {

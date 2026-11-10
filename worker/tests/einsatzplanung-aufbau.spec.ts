@@ -101,6 +101,41 @@ const aufbau = (einheiten: unknown[]) => ({
 });
 
 describe('Aufbau eines Einsatzes', () => {
+  it('speichert freie Artikel und freie Kisten ohne Stammdaten', async () => {
+    const db = new FakeEinsatzplanungDb();
+    db.einsaetze.set(EINSATZ, {
+      id: EINSATZ,
+      titel: 'Stadtfest',
+      beginn: null,
+      ende: null,
+      ort: null,
+      hiorg_veranstaltung_id: null,
+      version: 1,
+      angelegt_am: 'x',
+      geaendert_am: 'x',
+      angelegt_von: 'x',
+      geaendert_von: 'x',
+    });
+    const frei = (n: number, zusatz: Record<string, unknown> = {}) => ({
+      art: 'frei',
+      id: id(n),
+      name: 'Absperrband',
+      einheit: 'Rollen',
+      menge: 4,
+      bemerkung: '',
+      phase: null,
+      ...zusatz,
+    });
+    const leereKiste = kiste(31, { lagerId: null, inhalt: [] });
+    const koerper = aufbau([einheit(20, [frei(22), leereKiste])]);
+    expect((await senden(db, 'PUT', AUFBAU, koerper, NEU)).status).toBe(201);
+    expect(db.aufbauten.get(EINSATZ)).toMatchObject({ einheiten: 1, kisten: 2, positionen: 1 });
+    const unbekannt = aufbau([einheit(20, [frei(22, { lagerId: id(1) })])]);
+    expect((await senden(db, 'PUT', AUFBAU, unbekannt, { 'If-Match': '"1"' })).status).toBe(400);
+    const ohneName = aufbau([einheit(20, [frei(22, { name: ' ' })])]);
+    expect((await senden(db, 'PUT', AUFBAU, ohneName, { 'If-Match': '"1"' })).status).toBe(400);
+  });
+
   it('legt an, liest, ändert nur mit der Version und zählt Kennzahlen', async () => {
     const db = await vorbereiten();
     const koerper = aufbau([einheit(20, [kiste(21), artikel(22)])]);

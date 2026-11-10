@@ -61,6 +61,18 @@ function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is Auf
       istPhase(wert['phase'])
     );
   }
+  if (wert['art'] === 'frei') {
+    return (
+      nurFelder(wert, ['art', 'id', 'name', 'einheit', 'menge', 'bemerkung', 'phase']) &&
+      neueId(wert['id'], z) &&
+      istTextBis(wert['name'], AUFBAU_GRENZEN.name, 1) &&
+      istTextBis(wert['einheit'], AUFBAU_GRENZEN.einheit) &&
+      typeof wert['menge'] === 'number' &&
+      istGueltigeMenge(wert['menge']) &&
+      istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung) &&
+      istPhase(wert['phase'])
+    );
+  }
   if (wert['art'] === 'kiste') {
     const inhalt = wert['inhalt'];
     const positionen = Array.isArray(inhalt) ? inhalt : null;

@@ -3,6 +3,7 @@ import {
   AufbauArtikelEintrag,
   AufbauEinheit,
   AufbauEintrag,
+  AufbauFreierEintrag,
   AufbauInhalt,
   AufbauKistenEintrag,
   AufbauPhase,
@@ -154,6 +155,46 @@ export function artikelHinzufuegen(
   return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
 }
 
+/** Fügt einen freien Artikel hinzu: Name und Einheit gehören dem Aufbau, nicht dem Katalog. */
+export function freienArtikelHinzufuegen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  name: string,
+  einheit: string,
+  menge = 1,
+): AufbauInhalt {
+  const eintrag: AufbauFreierEintrag = {
+    art: 'frei',
+    id: neueId(),
+    name: name.trim().replace(/\s+/g, ' '),
+    einheit: einheit.trim(),
+    menge,
+    bemerkung: '',
+    phase: null,
+  };
+  return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
+}
+
+/** Fügt eine neue, leere Kiste ohne Bezug zu den Stammdaten hinzu. */
+export function freieKisteHinzufuegen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  name: string,
+  anzahl = 1,
+): AufbauInhalt {
+  const eintrag: AufbauKistenEintrag = {
+    art: 'kiste',
+    id: neueId(),
+    kisteId: null,
+    name: name.trim().replace(/\s+/g, ' '),
+    lagerId: null,
+    anzahl: Math.min(Math.max(1, Math.round(anzahl)), AUFBAU_GRENZEN.kistenAnzahl),
+    inhalt: [],
+    phase: null,
+  };
+  return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
+}
+
 export function eintragAendern(
   inhalt: AufbauInhalt,
   einheitId: string,
@@ -170,6 +211,14 @@ export function eintragAendern(
     ...e,
     inhalt: e.inhalt.map((x) => {
       if (x.id !== eintragId || x.art === 'wagen') return x;
+      if (x.art === 'frei') {
+        return {
+          ...x,
+          ...(aenderung.menge !== undefined && { menge: aenderung.menge }),
+          ...(aenderung.bemerkung !== undefined && { bemerkung: aenderung.bemerkung }),
+          ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
+        };
+      }
       if (x.art === 'artikel') {
         return {
           ...x,
@@ -249,7 +298,7 @@ export function zaehleAufbauInhalt(inhalt: AufbauInhalt): {
       if (x.art === 'kiste') {
         kisten += x.anzahl;
         positionen += x.inhalt.length;
-      } else if (x.art === 'artikel') {
+      } else if (x.art === 'artikel' || x.art === 'frei') {
         positionen += 1;
       }
     }

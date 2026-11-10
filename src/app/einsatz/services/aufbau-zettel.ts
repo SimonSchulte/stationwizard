@@ -110,19 +110,26 @@ function zettelFuer(
   const lagerNachId = new Map(daten.lager.map((l) => [l.id, l]));
   const artikelNachId = new Map(daten.artikel.map((a) => [a.id, a]));
   const gruppen = new Map<string, Gruppe>();
-  const gruppe = (phase: AufbauPhase | null, lagerId: string | null, wagen = false): Gruppe => {
+  const gruppe = (
+    phase: AufbauPhase | null,
+    lagerId: string | null,
+    wagen = false,
+    frei = false,
+  ): Gruppe => {
     const lager = lagerId ? lagerNachId.get(lagerId) : undefined;
-    const schluessel = `${rang(phase)}|${wagen ? 'wagen' : (lager?.id ?? 'ohne')}`;
+    const schluessel = `${rang(phase)}|${wagen ? 'wagen' : frei ? 'frei' : (lager?.id ?? 'ohne')}`;
     let g = gruppen.get(schluessel);
     if (!g) {
       g = {
         rang: rang(phase),
         reihenfolge: wagen
           ? Number.MAX_SAFE_INTEGER
-          : (lager?.reihenfolge ?? Number.MAX_SAFE_INTEGER - 1),
+          : frei
+            ? Number.MAX_SAFE_INTEGER - 2
+            : (lager?.reihenfolge ?? Number.MAX_SAFE_INTEGER - 1),
         phase,
         lagerId: wagen ? null : (lager?.id ?? null),
-        titel: wagen ? 'Wagen' : (lager?.name ?? 'Ohne Heimatlager'),
+        titel: wagen ? 'Wagen' : frei ? 'Weitere Artikel' : (lager?.name ?? 'Ohne Heimatlager'),
         zeilen: [],
       };
       gruppen.set(schluessel, g);
@@ -152,6 +159,17 @@ function zettelFuer(
         bezeichnung: artikel?.name ?? 'Unbekannter Artikel',
         anzahl: zahlText(eintrag.menge),
         zusatz: mengeZusatz(artikel?.einheit ?? '', eintrag.bemerkung),
+        eintragId: eintrag.id,
+      });
+    } else if (eintrag.art === 'frei') {
+      gruppe(eintrag.phase, null, false, true).zeilen.push({
+        art: 'zeile',
+        quelle: 'artikel',
+        text: eintrag.name,
+        menge: mengeText(eintrag.menge, eintrag.einheit, eintrag.bemerkung),
+        bezeichnung: eintrag.name,
+        anzahl: zahlText(eintrag.menge),
+        zusatz: mengeZusatz(eintrag.einheit, eintrag.bemerkung),
         eintragId: eintrag.id,
       });
     } else {

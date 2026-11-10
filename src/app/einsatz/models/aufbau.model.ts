@@ -19,6 +19,7 @@ export const AUFBAU_GRENZEN = {
   anweisung: 2000,
   anweisungen: 6000,
   bemerkung: 200,
+  einheit: 20,
   foto: 100_000,
 } as const;
 
@@ -30,6 +31,17 @@ export interface AufbauArtikelEintrag {
   bemerkung: string;
   /** Lager, aus dem der Artikel geholt wird; `null`: das Heimatlager fehlt. */
   lagerId: string | null;
+  phase: AufbauPhase | null;
+}
+
+/** Freier Artikel: Name und Einheit stehen im Aufbau selbst, ohne Artikelkatalog und Lager. */
+export interface AufbauFreierEintrag {
+  art: 'frei';
+  id: string;
+  name: string;
+  einheit: string;
+  menge: number;
+  bemerkung: string;
   phase: AufbauPhase | null;
 }
 
@@ -58,7 +70,11 @@ export interface AufbauWagenEintrag {
   einheit: AufbauEinheit;
 }
 
-export type AufbauEintrag = AufbauArtikelEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
+export type AufbauEintrag =
+  | AufbauArtikelEintrag
+  | AufbauFreierEintrag
+  | AufbauKistenEintrag
+  | AufbauWagenEintrag;
 
 export interface AufbauEinheit {
   id: string;

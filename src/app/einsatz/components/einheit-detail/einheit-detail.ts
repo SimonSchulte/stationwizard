@@ -79,6 +79,8 @@ export class EinheitDetail {
   readonly eintragEntfernt = output<string>();
   readonly kisteHinzugefuegt = output<string>();
   readonly artikelHinzugefuegt = output<{ artikelId: string; menge: number }>();
+  readonly freierArtikelHinzugefuegt = output<{ name: string; einheit: string; menge: number }>();
+  readonly freieKisteHinzugefuegt = output<{ name: string; anzahl: number }>();
   readonly kisteAbgeglichen = output<string>();
   readonly entfernt = output<void>();
   readonly fotoFehler = output<string>();
@@ -90,6 +92,15 @@ export class EinheitDetail {
   protected readonly fotoLaeuft = signal(false);
   protected readonly neuerArtikelId = signal<string | null>(null);
   protected readonly neueMenge = signal(1);
+  protected readonly freierName = signal('');
+  protected readonly freieEinheit = signal('');
+  protected readonly freieMenge = signal(1);
+  protected readonly kistenName = signal('');
+  protected readonly maxEinheit = AUFBAU_GRENZEN.einheit;
+  protected readonly freierArtikelGueltig = computed(
+    () => this.freierName().trim().length > 0 && istGueltigeMenge(this.freieMenge()),
+  );
+  protected readonly freieKisteGueltig = computed(() => this.kistenName().trim().length > 0);
 
   protected readonly neueMengeGueltig = computed(
     () => this.neuerArtikelId() !== null && istGueltigeMenge(this.neueMenge()),
@@ -127,6 +138,16 @@ export class EinheitDetail {
           problem: probleme.has(eintrag.id),
         };
       }
+      if (eintrag.art === 'frei') {
+        return {
+          eintrag,
+          titel: eintrag.name,
+          lagerName: '',
+          menge: mengeText(eintrag.menge, eintrag.einheit, eintrag.bemerkung),
+          weichtAb: false,
+          problem: false,
+        };
+      }
       return {
         eintrag,
         titel: `${eintrag.einheit.name} (Wagen)`,
@@ -156,6 +177,23 @@ export class EinheitDetail {
     this.artikelHinzugefuegt.emit({ artikelId, menge: this.neueMenge() });
     this.neuerArtikelId.set(null);
     this.neueMenge.set(1);
+  }
+
+  protected freienArtikelHinzufuegen(): void {
+    if (!this.freierArtikelGueltig()) return;
+    this.freierArtikelHinzugefuegt.emit({
+      name: this.freierName().trim(),
+      einheit: this.freieEinheit().trim(),
+      menge: this.freieMenge(),
+    });
+    this.freierName.set('');
+    this.freieMenge.set(1);
+  }
+
+  protected freieKisteHinzufuegen(): void {
+    if (!this.freieKisteGueltig()) return;
+    this.freieKisteHinzugefuegt.emit({ name: this.kistenName().trim(), anzahl: 1 });
+    this.kistenName.set('');
   }
 
   protected mengeAendern(eintragId: string, wert: number): void {

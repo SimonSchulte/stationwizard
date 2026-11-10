@@ -38,6 +38,17 @@ export interface AufbauArtikelEintrag {
   lagerId: string | null;
   phase: AufbauPhase | null;
 }
+/** Freier Artikel: Name und Einheit stehen im Aufbau selbst, ohne Artikelkatalog und Lager. */
+export interface AufbauFreierEintrag {
+  art: 'frei';
+  id: string;
+  name: string;
+  einheit: string;
+  menge: number;
+  bemerkung: string;
+  phase: AufbauPhase | null;
+}
+export const FREI_EINHEIT_MAX = 20;
 export interface AufbauKistenPosition {
   artikelId: string;
   menge: number;
@@ -59,7 +70,8 @@ export interface AufbauWagenEintrag {
   id: string;
   einheit: AufbauEinheit;
 }
-export type AufbauEintrag = AufbauArtikelEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
+export type AufbauEintrag =
+  AufbauArtikelEintrag | AufbauFreierEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
 
 export interface AufbauEinheit {
   id: string;
@@ -159,6 +171,33 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       menge: wert['menge'],
       bemerkung: wert['bemerkung'].trim(),
       lagerId: kleinOderNull(wert['lagerId']),
+      phase,
+    };
+  }
+  if (wert['art'] === 'frei') {
+    if (!hatNurFelder(wert, ['art', 'id', 'name', 'einheit', 'menge', 'bemerkung', 'phase'])) {
+      return null;
+    }
+    const id = pruefeEindeutigeId(wert['id'], z);
+    const phase = pruefePhase(wert['phase']);
+    if (
+      !id ||
+      !istNichtleererText(wert['name']) ||
+      wert['name'].trim().length > NAME_MAX ||
+      !istText0bis(wert['einheit'], FREI_EINHEIT_MAX) ||
+      !istMenge(wert['menge']) ||
+      !istText0bis(wert['bemerkung'], BEMERKUNG_MAX) ||
+      phase === undefined
+    ) {
+      return null;
+    }
+    return {
+      art: 'frei',
+      id,
+      name: wert['name'].trim().replace(/\s+/g, ' '),
+      einheit: wert['einheit'].trim(),
+      menge: wert['menge'],
+      bemerkung: wert['bemerkung'].trim(),
       phase,
     };
   }
@@ -323,7 +362,7 @@ export function zaehleAufbau(inhalt: AufbauInhalt): AufbauKennzahlen {
       if (eintrag.art === 'kiste') {
         kisten += eintrag.anzahl;
         positionen += eintrag.inhalt.length;
-      } else if (eintrag.art === 'artikel') {
+      } else if (eintrag.art === 'artikel' || eintrag.art === 'frei') {
         positionen += 1;
       }
     }
