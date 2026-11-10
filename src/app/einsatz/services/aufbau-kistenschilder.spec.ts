@@ -11,7 +11,7 @@ import {
   kistePositionHinzufuegen,
   kisteHinzufuegen,
 } from './aufbau-bearbeiten';
-import { schilderAusAufbau } from './aufbau-kistenschilder';
+import { kistenzettelAusAufbau, schilderAusAufbau } from './aufbau-kistenschilder';
 import { abschnittFarbeHex } from './zettel-pdf-definition';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -45,5 +45,40 @@ describe('schilderAusAufbau', () => {
       heimatlager: '',
       zeilen: ['1× Hammer'],
     });
+  });
+});
+
+describe('kistenzettelAusAufbau', () => {
+  it('macht je Kiste einen Laufzettel mit Zieleinheit und Heimatlager', () => {
+    const e = testEinheit();
+    let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, stamm, 2);
+    inhalt = freieKisteHinzufuegen(inhalt, e.id, 'Werkzeug', 1);
+    const freieId = inhalt.einheiten[0]!.inhalt[1]!.id;
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, freieId, {
+      artikelId: null,
+      name: 'Hammer',
+      einheit: 'Stück',
+      menge: 1,
+      bemerkung: 'groß',
+    });
+    const abschnitte = kistenzettelAusAufbau(inhalt, daten);
+    expect(abschnitte).toHaveLength(1);
+    expect(abschnitte[0]).toMatchObject({ titel: e.name, farbe: e.farbe });
+    const zettel = abschnitte[0]!.laufzettel;
+    expect(zettel).toHaveLength(3);
+    expect(zettel[0]).toMatchObject({
+      ueberschrift: 'Verbandkiste packen',
+      lagerort: 'Halle A',
+      transportMit: e.name,
+    });
+    expect(zettel[0]!.positionen[0]).toMatchObject({
+      anzahl: '3',
+      material: 'Trinkwasser (Liter)',
+    });
+    expect(zettel[2]!.positionen[0]).toMatchObject({ anzahl: '1', material: 'Hammer – groß' });
+  });
+
+  it('lässt Einheiten ohne Kiste aus', () => {
+    expect(kistenzettelAusAufbau(testAufbauInhalt([testEinheit()]), daten)).toEqual([]);
   });
 });

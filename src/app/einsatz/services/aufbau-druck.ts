@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { AufbauInhalt } from '../models/aufbau.model';
 import { DruckAbschnitt, DruckInhalt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { leiteZettelAb, Zettel, ZettelStammdaten } from './aufbau-zettel';
-import { schilderAusAufbau } from './aufbau-kistenschilder';
+import { kistenzettelAusAufbau, schilderAusAufbau } from './aufbau-kistenschilder';
 import { KistenDruckDienst } from './kisten-druck';
 import { ZettelDruckDienst } from './zettel-druck';
 import { DruckKopf } from './zettel-pdf-definition';
@@ -90,6 +90,18 @@ export class AufbauDruckDienst {
     const schilder = schilderAusAufbau(inhalt, daten);
     if (schilder.length === 0) return false;
     await this.kistenDruck.schilderDrucken(schilder, titel);
+    return true;
+  }
+
+  /** Kistenzettel (ein Streifen je Kiste) aus dem Aufbau; `false`: keine Kiste im Aufbau. */
+  async kistenzettelDrucken(
+    titel: string,
+    inhalt: AufbauInhalt,
+    daten: ZettelStammdaten,
+  ): Promise<boolean> {
+    const abschnitte = kistenzettelAusAufbau(inhalt, daten);
+    if (abschnitte.length === 0) return false;
+    await this.kistenDruck.zettelAusInhaltDrucken({ anweisungen: '', abschnitte }, titel);
     return true;
   }
 }

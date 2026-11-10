@@ -59,6 +59,10 @@
       <mat-icon>label</mat-icon>
       <span>Kistenschilder drucken</span>
     </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="kistenzettel()">
+      <mat-icon>checklist</mat-icon>
+      <span>Kistenzettel drucken</span>
+    </button>
     <button mat-menu-item type="button" [disabled]="store.istNeu()" (click)="alsNeueVorlage()">
       <mat-icon>library_add</mat-icon>
       <span>Als neue Vorlage speichern…</span>

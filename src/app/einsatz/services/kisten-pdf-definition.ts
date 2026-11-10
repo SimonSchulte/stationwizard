@@ -310,7 +310,22 @@ export function baueKistenzettelDefinition(
       },
     ],
   };
-  // Ohne Aufbau gibt es kein Schild: die Nummer des Schilds bleibt aus dem Fuß weg.
+  return baueKistenzettelAusInhalt(
+    inhalt,
+    kisten.length === 1 ? `Kistenzettel ${kisten[0].name}` : 'Kistenzettel',
+    streifenJeSeite,
+  );
+}
+
+/**
+ * Kistenzettel aus fertigem Druckinhalt (ein Abschnitt je Ziel, ein Laufzettel je Kiste). Das Schild
+ * des Abschnitts ist hier nicht das Abschnittsschild des Aufbaus; seine Nummer bleibt aus dem Fuß weg.
+ */
+export function baueKistenzettelAusInhalt(
+  inhalt: DruckInhalt,
+  titel: string,
+  streifenJeSeite: number = STREIFEN_STANDARD,
+): TDocumentDefinitions {
   const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite).map((s) => ({
     ...s,
     schild: 0,
@@ -320,7 +335,7 @@ export function baueKistenzettelDefinition(
   return {
     pageSize: 'A4',
     pageOrientation: 'landscape',
-    info: { title: kisten.length === 1 ? `Kistenzettel ${kisten[0].name}` : 'Kistenzettel' },
+    info: { title: titel },
     defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
     content: abschnitt ? [abschnitt] : [],
   };

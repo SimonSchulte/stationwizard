@@ -370,6 +370,26 @@ export class AufbauEditor {
     }
   }
 
+  protected async kistenzettel(): Promise<void> {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const titel =
+      this.modus === 'vorlage'
+        ? this.store.titel() || 'Aufbau'
+        : (this.einsatz()?.titel ?? 'Aufbau');
+    try {
+      if (!(await this.druck.kistenzettelDrucken(titel, inhalt, this.daten()))) {
+        this.meldungen.warnung('Im Aufbau gibt es noch keine Kiste.');
+      }
+    } catch (ursache) {
+      this.meldungen.fehler(
+        ursache instanceof Error && ursache.message
+          ? ursache.message
+          : 'Die Kistenzettel konnten nicht erstellt werden.',
+      );
+    }
+  }
+
   protected async neuLaden(): Promise<void> {
     if (
       this.store.geaendert() &&

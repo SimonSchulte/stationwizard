@@ -2,9 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { heuteIso } from '../../kern/kalender/datum';
 import { PdfAusgabe } from '../../kern/pdf/pdf-ausgabe';
 import { ladePdfBibliothek } from '../../kern/pdf/pdf-bibliothek';
+import { DruckInhalt } from '../models/druck.model';
 import { Kiste } from '../models/stammdaten.model';
 import {
   baueKistenschildDefinition,
+  baueKistenzettelAusInhalt,
   baueKistenzettelDefinition,
   baueSchilderDefinition,
   Kistenschild,
@@ -51,6 +53,23 @@ export class KistenDruckDienst {
       await pdfMake.createPdf(baueSchilderDefinition(schilder, titel)).getBuffer(),
     );
     const dateiname = `Kistenschilder ${titel} ${heuteIso()}.pdf`.replace(
+      /[<>:"/\\|?*\u0000-\u001f]/g,
+      '_',
+    );
+    await this.ausgabe.drucken(bytes, dateiname);
+  }
+
+  /** Kistenzettel aus dem Aufbau: ein Laufzettelstreifen je Kiste, „Auf / In“ ist die Zieleinheit. */
+  async zettelAusInhaltDrucken(inhalt: DruckInhalt, titel: string): Promise<void> {
+    if (inhalt.abschnitte.every((a) => a.laufzettel.length === 0)) return;
+    const pdfMake = await this.ladeBibliothek();
+    const definition = baueKistenzettelAusInhalt(
+      inhalt,
+      `Kistenzettel ${titel}`,
+      this.layout.streifenJeSeite(),
+    );
+    const bytes = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());
+    const dateiname = `Kistenzettel ${titel} ${heuteIso()}.pdf`.replace(
       /[<>:"/\\|?*\u0000-\u001f]/g,
       '_',
     );
