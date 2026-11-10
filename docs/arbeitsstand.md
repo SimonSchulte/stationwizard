@@ -3673,7 +3673,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   SQLite (Eindeutigkeit, Fremdschlüssel, Löschsperre), Frontend-Tests für Adapter, Store, beide
   Komponenten und die Seite, Build, Sicht im Chromium mit zustandsbehafteter API-Attrappe auf 1300
   und 400 px (anlegen, Pfeil, Heimatlager, Löschsperre, Löschen mit Rückfrage).
-- **Nicht geprüft:** der echte Worker mit D1 (Migration noch nicht eingespielt, siehe
+- **Nicht geprüft:** der echte Worker mit D1 (Migration am 10.11.2026 eingespielt, aber noch kein Zugriff durch den deployten Worker, siehe
   `docs/einrichtung.md`), Ziehen mit der Maus (nur die Pfeile im Browser bedient), eine Liste mit
   Hunderten Artikeln im Browser. Mobil scrollt die Artikeltabelle innerhalb ihres Rahmens
   waagerecht; sie bleibt eine Desktop-Darstellung.
@@ -3701,7 +3701,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   Definitionen, Build, Sicht im Chromium mit zustandsbehafteter Attrappe (Kiste anlegen, Artikel und Menge
   erfassen, speichern, Wechsel mit ungespeicherten Änderungen, Druckmenü) und echte PDFs: Kistenschild mit
   4 und mit 40 Positionen, Kistenzettel mit Fortsetzungsstreifen.
-- **Nicht geprüft:** der echte Worker mit D1 (Migrationen `0023` und `0024` noch nicht eingespielt), ein Papierdruck
+- **Nicht geprüft:** der echte Worker mit D1 (Migrationen `0023` und `0024` am 10.11.2026 eingespielt, Worker mit den Endpunkten noch nicht deployt), ein Papierdruck
   und der Zuschnitt der Schilder, die Kistenseite am Handy (Tabelle scrollt waagerecht in ihrem Rahmen, sie
   bleibt eine Desktop-Darstellung).
 - Hinweis: Die zwei zeitabhängigen Tests in `planning-list.spec.ts` schlagen weiter abends fehl (siehe
