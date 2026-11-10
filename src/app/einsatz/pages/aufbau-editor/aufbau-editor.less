@@ -73,6 +73,11 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Am Handy steht die Prüfung zuerst, damit Hinweise nicht ganz unten verborgen bleiben. */
+  .leiste {
+    order: -1;
+  }
+
   .leiste.offen {
     width: auto;
   }

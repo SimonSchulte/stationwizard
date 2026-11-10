@@ -3774,6 +3774,11 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **UI-Review des Aufbau-Editors** (Desktop 1300 px, Handy 400 px, mit Fahrzeug, Wagen in anderer Farbe, Kisten mit und ohne
+  Inhalt, offener Seitenleiste): kein waagerechtes Scrollen, Tokens statt Literalen, Meldungen nur über den
+  `MeldungsDienst`. Behoben: Seitenleiste steht am Handy oben statt unten, Fokusrahmen an Mengen- und Kistennamenfeldern.
+  Offen: Ziehen per Tastatur und Touch (nicht geprüft), die Eingabezeile „Neue Position“ bricht in schmaler Spalte
+  auf zwei Zeilen um.
 - **Packzettel ohne Soll-Inhalt:** Eine Kiste ohne Inhalt druckt „Kein Soll-Inhalt hinterlegt“ (Hinweiszeile), der Editor
   markiert sie („ohne Inhalt“) und die Prüfung meldet sie als Fehler. Im PDF geprüft. Offen bleibt, ob der Inhalt einer
   Kiste mit Stammdatenbezug automatisch aus den Stammdaten kommen soll, wenn die Momentaufnahme leer ist (heute nicht).
