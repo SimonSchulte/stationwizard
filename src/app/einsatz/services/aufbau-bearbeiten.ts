@@ -6,6 +6,7 @@ import {
   AufbauFreierEintrag,
   AufbauInhalt,
   AufbauKistenEintrag,
+  AufbauKistenPosition,
   AufbauPhase,
   EinheitTyp,
 } from '../models/aufbau.model';
@@ -235,6 +236,59 @@ export function eintragAendern(
       };
     }),
   }));
+}
+
+function kistePositionen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  aendern: (positionen: AufbauKistenPosition[]) => AufbauKistenPosition[],
+): AufbauInhalt {
+  return ersetzeEinheit(inhalt, einheitId, (e) => ({
+    ...e,
+    inhalt: e.inhalt.map((x) =>
+      x.id === eintragId && x.art === 'kiste' ? { ...x, inhalt: aendern(x.inhalt) } : x,
+    ),
+  }));
+}
+
+/** Fügt einer Kiste im Aufbau eine Position hinzu; ein bereits enthaltener Katalogartikel zählt hoch. */
+export function kistePositionHinzufuegen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  position: AufbauKistenPosition,
+): AufbauInhalt {
+  return kistePositionen(inhalt, einheitId, eintragId, (liste) => {
+    const vorhanden = position.artikelId
+      ? liste.findIndex((p) => p.artikelId === position.artikelId)
+      : -1;
+    if (vorhanden < 0) return [...liste, position];
+    return liste.map((p, i) => (i === vorhanden ? { ...p, menge: p.menge + position.menge } : p));
+  });
+}
+
+export function kistePositionAendern(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  index: number,
+  aenderung: { menge?: number; bemerkung?: string },
+): AufbauInhalt {
+  return kistePositionen(inhalt, einheitId, eintragId, (liste) =>
+    liste.map((p, i) => (i === index ? { ...p, ...aenderung } : p)),
+  );
+}
+
+export function kistePositionEntfernen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  index: number,
+): AufbauInhalt {
+  return kistePositionen(inhalt, einheitId, eintragId, (liste) =>
+    liste.filter((_, i) => i !== index),
+  );
 }
 
 export function eintragEntfernen(

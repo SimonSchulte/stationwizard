@@ -31,6 +31,9 @@ import {
   EinheitAenderung,
   EinheitDetail,
   EintragAenderung,
+  KistePositionAenderung,
+  KistePositionEntfernung,
+  KistePositionNeu,
 } from '../../components/einheit-detail/einheit-detail';
 import { ZettelVorschau } from '../../components/zettel-vorschau/zettel-vorschau';
 import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
@@ -48,6 +51,9 @@ import {
   freieKisteHinzufuegen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
+  kistePositionAendern,
+  kistePositionEntfernen,
+  kistePositionHinzufuegen,
   kisteHinzufuegen,
   mitNeuenIds,
 } from '../../services/aufbau-bearbeiten';
@@ -438,6 +444,27 @@ export class AufbauEditor {
     const inhalt = this.store.inhalt();
     if (inhalt)
       this.store.aendern(freieKisteHinzufuegen(inhalt, einheitId, wahl.name, wahl.anzahl));
+  }
+
+  protected kistePositionHinzugefuegt(einheitId: string, neu: KistePositionNeu): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(kistePositionHinzufuegen(inhalt, einheitId, neu.eintragId, neu.position));
+    }
+  }
+
+  protected kistePositionGeaendert(einheitId: string, a: KistePositionAenderung): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(
+        kistePositionAendern(inhalt, einheitId, a.eintragId, a.index, { menge: a.menge }),
+      );
+    }
+  }
+
+  protected kistePositionEntfernt(einheitId: string, e: KistePositionEntfernung): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) this.store.aendern(kistePositionEntfernen(inhalt, einheitId, e.eintragId, e.index));
   }
 
   protected kisteAbgeglichen(einheitId: string, eintragId: string): void {

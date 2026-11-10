@@ -9,6 +9,7 @@ import {
   AUFBAU_GRENZEN,
   AufbauEinheit,
   AufbauEintrag,
+  AufbauKistenPosition,
   AufbauPhase,
 } from '../../models/aufbau.model';
 import { Artikel, Kiste, Lager } from '../../models/stammdaten.model';
@@ -27,6 +28,22 @@ export interface EinheitAenderung {
   farbe?: AbschnittFarbe;
   anweisung?: string;
   foto?: string | undefined;
+}
+
+export interface KistePositionNeu {
+  eintragId: string;
+  position: AufbauKistenPosition;
+}
+
+export interface KistePositionAenderung {
+  eintragId: string;
+  index: number;
+  menge: number;
+}
+
+export interface KistePositionEntfernung {
+  eintragId: string;
+  index: number;
 }
 
 export interface EintragAenderung {
@@ -81,6 +98,9 @@ export class EinheitDetail {
   readonly artikelHinzugefuegt = output<{ artikelId: string; menge: number }>();
   readonly freierArtikelHinzugefuegt = output<{ name: string; einheit: string; menge: number }>();
   readonly freieKisteHinzugefuegt = output<{ name: string; anzahl: number }>();
+  readonly kistePositionHinzugefuegt = output<KistePositionNeu>();
+  readonly kistePositionGeaendert = output<KistePositionAenderung>();
+  readonly kistePositionEntfernt = output<KistePositionEntfernung>();
   readonly kisteAbgeglichen = output<string>();
   readonly entfernt = output<void>();
   readonly fotoFehler = output<string>();
@@ -96,6 +116,18 @@ export class EinheitDetail {
   protected readonly freieEinheit = signal('');
   protected readonly freieMenge = signal(1);
   protected readonly kistenName = signal('');
+  /** Kiste, deren Inhalt gerade aufgeklappt ist. */
+  protected readonly offeneKiste = signal<string | null>(null);
+  protected readonly posName = signal('');
+  protected readonly posEinheit = signal('');
+  protected readonly posMenge = signal(1);
+  protected readonly posArtikelId = signal<string | null>(null);
+  protected readonly posFreiGueltig = computed(
+    () => this.posName().trim().length > 0 && istGueltigeMenge(this.posMenge()),
+  );
+  protected readonly posKatalogGueltig = computed(
+    () => this.posArtikelId() !== null && istGueltigeMenge(this.posMenge()),
+  );
   protected readonly maxEinheit = AUFBAU_GRENZEN.einheit;
   protected readonly freierArtikelGueltig = computed(
     () => this.freierName().trim().length > 0 && istGueltigeMenge(this.freieMenge()),
@@ -177,6 +209,53 @@ export class EinheitDetail {
     this.artikelHinzugefuegt.emit({ artikelId, menge: this.neueMenge() });
     this.neuerArtikelId.set(null);
     this.neueMenge.set(1);
+  }
+
+  protected kisteUmschalten(eintragId: string): void {
+    this.offeneKiste.update((id) => (id === eintragId ? null : eintragId));
+  }
+
+  protected positionsName(p: AufbauKistenPosition): string {
+    return p.artikelId === null
+      ? p.name
+      : (this.artikel().find((a) => a.id === p.artikelId)?.name ?? 'Unbekannter Artikel');
+  }
+
+  protected positionsEinheit(p: AufbauKistenPosition): string {
+    return p.artikelId === null
+      ? p.einheit
+      : (this.artikel().find((a) => a.id === p.artikelId)?.einheit ?? '');
+  }
+
+  protected positionFrei(eintragId: string): void {
+    if (!this.posFreiGueltig()) return;
+    this.kistePositionHinzugefuegt.emit({
+      eintragId,
+      position: {
+        artikelId: null,
+        name: this.posName().trim(),
+        einheit: this.posEinheit().trim(),
+        menge: this.posMenge(),
+        bemerkung: '',
+      },
+    });
+    this.posName.set('');
+    this.posMenge.set(1);
+  }
+
+  protected positionKatalog(eintragId: string): void {
+    const artikelId = this.posArtikelId();
+    if (artikelId === null || !this.posKatalogGueltig()) return;
+    this.kistePositionHinzugefuegt.emit({
+      eintragId,
+      position: { artikelId, menge: this.posMenge(), bemerkung: '' },
+    });
+    this.posArtikelId.set(null);
+    this.posMenge.set(1);
+  }
+
+  protected positionMenge(eintragId: string, index: number, menge: number): void {
+    if (istGueltigeMenge(menge)) this.kistePositionGeaendert.emit({ eintragId, index, menge });
   }
 
   protected freienArtikelHinzufuegen(): void {

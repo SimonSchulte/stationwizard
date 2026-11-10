@@ -45,11 +45,10 @@ export interface AufbauFreierEintrag {
   phase: AufbauPhase | null;
 }
 
-export interface AufbauKistenPosition {
-  artikelId: string;
-  menge: number;
-  bemerkung: string;
-}
+/** Katalogartikel (`artikelId`) oder freie Position (`artikelId: null` mit Name und Einheit). */
+export type AufbauKistenPosition =
+  | { artikelId: string; menge: number; bemerkung: string }
+  | { artikelId: null; name: string; einheit: string; menge: number; bemerkung: string };
 
 /** Momentaufnahme einer Kiste; spätere Änderungen an den Stammdaten wirken nicht rückwirkend. */
 export interface AufbauKistenEintrag {

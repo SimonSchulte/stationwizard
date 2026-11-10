@@ -20,6 +20,9 @@ import {
   freienArtikelHinzufuegen,
   kisteAbgleichen,
   kisteHinzufuegen,
+  kistePositionAendern,
+  kistePositionEntfernen,
+  kistePositionHinzufuegen,
   mitNeuenIds,
   naechsteFarbe,
   zaehleAufbauInhalt,
@@ -110,6 +113,33 @@ describe('Aufbau bearbeiten', () => {
     expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ menge: 6 });
     expect(istAufbauInhalt(inhalt)).toBe(true);
     expect(zaehleAufbauInhalt(inhalt)).toMatchObject({ kisten: 2, positionen: 1 });
+  });
+
+  it('befüllt eine freie Kiste mit freien und Katalog-Positionen', () => {
+    const e = testEinheit();
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Werkzeug', 1);
+    const kisteId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    const frei = { artikelId: null, name: 'Hammer', einheit: 'Stück', menge: 1, bemerkung: '' };
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, frei);
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, {
+      artikelId: wasser.id,
+      menge: 2,
+      bemerkung: '',
+    });
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, {
+      artikelId: wasser.id,
+      menge: 3,
+      bemerkung: '',
+    });
+    inhalt = kistePositionAendern(inhalt, e.id, kisteId, 0, { menge: 4 });
+    const k = inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] };
+    expect(k.inhalt).toEqual([
+      { ...frei, menge: 4 },
+      { artikelId: wasser.id, menge: 5, bemerkung: '' },
+    ]);
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    inhalt = kistePositionEntfernen(inhalt, e.id, kisteId, 0);
+    expect((inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt).toHaveLength(1);
   });
 
   it('gleicht eine Kiste mit den Stammdaten ab', () => {

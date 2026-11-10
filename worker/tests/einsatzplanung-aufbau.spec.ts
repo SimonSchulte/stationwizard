@@ -130,10 +130,32 @@ describe('Aufbau eines Einsatzes', () => {
     const koerper = aufbau([einheit(20, [frei(22), leereKiste])]);
     expect((await senden(db, 'PUT', AUFBAU, koerper, NEU)).status).toBe(201);
     expect(db.aufbauten.get(EINSATZ)).toMatchObject({ einheiten: 1, kisten: 2, positionen: 1 });
+    const mitPositionen = aufbau([
+      einheit(20, [
+        kiste(31, {
+          lagerId: null,
+          inhalt: [
+            { artikelId: null, name: 'Hammer', einheit: 'Stück', menge: 1, bemerkung: '' },
+            { artikelId: null, name: 'Hammer', einheit: 'Stück', menge: 2, bemerkung: '' },
+          ],
+        }),
+      ]),
+    ]);
+    expect((await senden(db, 'PUT', AUFBAU, mitPositionen, { 'If-Match': '"1"' })).status).toBe(
+      200,
+    );
+    const ohneName2 = aufbau([
+      einheit(20, [
+        kiste(31, {
+          inhalt: [{ artikelId: null, name: '', einheit: '', menge: 1, bemerkung: '' }],
+        }),
+      ]),
+    ]);
+    expect((await senden(db, 'PUT', AUFBAU, ohneName2, { 'If-Match': '"2"' })).status).toBe(400);
     const unbekannt = aufbau([einheit(20, [frei(22, { lagerId: id(1) })])]);
-    expect((await senden(db, 'PUT', AUFBAU, unbekannt, { 'If-Match': '"1"' })).status).toBe(400);
+    expect((await senden(db, 'PUT', AUFBAU, unbekannt, { 'If-Match': '"2"' })).status).toBe(400);
     const ohneName = aufbau([einheit(20, [frei(22, { name: ' ' })])]);
-    expect((await senden(db, 'PUT', AUFBAU, ohneName, { 'If-Match': '"1"' })).status).toBe(400);
+    expect((await senden(db, 'PUT', AUFBAU, ohneName, { 'If-Match': '"2"' })).status).toBe(400);
   });
 
   it('legt an, liest, ändert nur mit der Version und zählt Kennzahlen', async () => {

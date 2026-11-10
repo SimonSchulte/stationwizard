@@ -32,10 +32,10 @@ export interface AufbauProblem {
 }
 
 function gleicherInhalt(a: AufbauKistenEintrag['inhalt'], b: Kiste['inhalt']): boolean {
-  if (a.length !== b.length) return false;
+  if (a.length !== b.length || a.some((p) => p.artikelId === null)) return false;
   const nachArtikel = new Map(b.map((p) => [p.artikelId, p]));
   return a.every((p) => {
-    const gegen = nachArtikel.get(p.artikelId);
+    const gegen = p.artikelId === null ? undefined : nachArtikel.get(p.artikelId);
     return !!gegen && gegen.menge === p.menge && gegen.bemerkung.trim() === p.bemerkung.trim();
   });
 }

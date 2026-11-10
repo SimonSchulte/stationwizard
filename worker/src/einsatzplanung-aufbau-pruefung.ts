@@ -49,11 +49,10 @@ export interface AufbauFreierEintrag {
   phase: AufbauPhase | null;
 }
 export const FREI_EINHEIT_MAX = 20;
-export interface AufbauKistenPosition {
-  artikelId: string;
-  menge: number;
-  bemerkung: string;
-}
+/** Katalogartikel (`artikelId`) oder freie Position (`artikelId: null` mit Name und Einheit). */
+export type AufbauKistenPosition =
+  | { artikelId: string; menge: number; bemerkung: string }
+  | { artikelId: null; name: string; einheit: string; menge: number; bemerkung: string };
 export interface AufbauKistenEintrag {
   art: 'kiste';
   id: string;
@@ -135,9 +134,30 @@ function pruefeKistenPositionen(wert: unknown): AufbauKistenPosition[] | null {
   const gesehen = new Set<string>();
   const ergebnis: AufbauKistenPosition[] = [];
   for (const p of wert) {
-    if (!istObjekt(p) || !hatNurFelder(p, ['artikelId', 'menge', 'bemerkung'])) return null;
-    if (!istUuid(p['artikelId']) || !istMenge(p['menge'])) return null;
-    if (!istText0bis(p['bemerkung'], BEMERKUNG_MAX)) return null;
+    if (!istObjekt(p) || !istMenge(p['menge']) || !istText0bis(p['bemerkung'], BEMERKUNG_MAX)) {
+      return null;
+    }
+    if (p['artikelId'] === null) {
+      if (
+        !hatNurFelder(p, ['artikelId', 'name', 'einheit', 'menge', 'bemerkung']) ||
+        !istNichtleererText(p['name']) ||
+        p['name'].trim().length > NAME_MAX ||
+        !istText0bis(p['einheit'], FREI_EINHEIT_MAX)
+      ) {
+        return null;
+      }
+      ergebnis.push({
+        artikelId: null,
+        name: p['name'].trim().replace(/\s+/g, ' '),
+        einheit: p['einheit'].trim(),
+        menge: p['menge'],
+        bemerkung: p['bemerkung'].trim(),
+      });
+      continue;
+    }
+    if (!hatNurFelder(p, ['artikelId', 'menge', 'bemerkung']) || !istUuid(p['artikelId'])) {
+      return null;
+    }
     const artikelId = p['artikelId'].toLowerCase();
     if (gesehen.has(artikelId)) return null;
     gesehen.add(artikelId);
@@ -380,7 +400,7 @@ export function sammleVerweise(inhalt: AufbauInhalt): AufbauVerweise {
         artikelIds.add(eintrag.artikelId);
         if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
       } else if (eintrag.art === 'kiste') {
-        for (const p of eintrag.inhalt) artikelIds.add(p.artikelId);
+        for (const p of eintrag.inhalt) if (p.artikelId) artikelIds.add(p.artikelId);
         if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
       }
     }
