@@ -30,9 +30,18 @@
     <input
       matInput
       [attr.maxlength]="grenzen.text"
+      [matAutocomplete]="lagerAuswahl"
       [value]="laufzettel().lagerort"
       (input)="feld('lagerort', $event)"
     />
+    <mat-autocomplete
+      #lagerAuswahl="matAutocomplete"
+      (optionSelected)="lagerGewaehlt($event.option.value)"
+    >
+      @for (lager of lagerVorschlaege(); track lager) {
+        <mat-option [value]="lager">{{ lager }}</mat-option>
+      }
+    </mat-autocomplete>
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Auf / In (Transport)</mat-label>
@@ -42,6 +51,7 @@
       [value]="laufzettel().transportMit"
       (input)="feld('transportMit', $event)"
     />
+    <mat-hint>Leer: der Abschnitt „{{ abschnittTitel() }}“</mat-hint>
   </mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
     <mat-label>Auftrag (Überschrift)</mat-label>
@@ -60,28 +70,6 @@
       }
     </mat-select>
   </mat-form-field>
-</div>
-
-<div class="fachgruppe">
-  <span class="feldname" id="fachgruppe-label">Fachgruppe</span>
-  <mat-chip-listbox
-    aria-labelledby="fachgruppe-label"
-    [value]="laufzettel().fachgruppe ?? 'keine'"
-    (change)="fachgruppeGewaehlt($event.value)"
-  >
-    <mat-chip-option value="keine">keine</mat-chip-option>
-    @for (gruppe of fachgruppen; track gruppe) {
-      <mat-chip-option [value]="gruppe">
-        <span
-          class="gruppenpunkt"
-          matChipAvatar
-          aria-hidden="true"
-          [style.background-color]="'var(' + fachgruppeFarbe[gruppe] + ')'"
-        ></span>
-        {{ fachgruppeBezeichnung[gruppe] }}
-      </mat-chip-option>
-    }
-  </mat-chip-listbox>
 </div>
 
 <div class="felder">

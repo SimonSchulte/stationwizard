@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
+import { laufzettelNummern } from './laufzettel-platz';
 import {
   baueVbPdfDefinition,
   formatiereZeitraum,
+  SCHILD,
+  schildInhaltZeilen,
   schildTitelSchrift,
   VbDruckKopf,
 } from './vb-pdf-definition';
@@ -104,8 +107,12 @@ describe('Hinweis auf dem Laufzettel', () => {
   });
 });
 
+function schildAbschnitt(def: TDocumentDefinitions): ContentSection | undefined {
+  return abschnitte(def).find((a) => a.pageOrientation === 'portrait');
+}
+
 describe('Verladungsfoto', () => {
-  it('steht neben der Bezeichnung auf demselben Blatt, nie auf einer zweiten Seite', () => {
+  it('steht im Schild neben der Inhaltsliste, nie auf einer zweiten Seite', () => {
     const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
     const inhalt = testInhalt({
       abschnitte: [
@@ -113,35 +120,83 @@ describe('Verladungsfoto', () => {
         testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
       ],
     });
-    const schilder = abschnitte(definition(inhalt)).find((a) =>
-      JSON.stringify(a).includes('Sanitätszelt'),
-    );
+    const schilder = schildAbschnitt(definition(inhalt));
     const seiten = schilder?.section as { pageBreak?: string }[];
-    expect(seiten).toHaveLength(2);
-    expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
-    const erste = JSON.stringify(seiten[0]);
-    expect(erste).toContain('"columns"');
-    expect(erste).toContain(foto);
-    expect(erste).toContain('Sanitätszelt');
-    expect(JSON.stringify(seiten[1])).not.toContain('"columns"');
+    expect(seiten).toHaveLength(1);
+    const text = JSON.stringify(seiten[0]);
+    expect(text.split(foto)).toHaveLength(2);
+    expect(text).toContain('Sanitätszelt');
   });
 });
 
-describe('Kennzeichnungsschild', () => {
-  it('legt je Abschnitt eine eigene A4-Querseite an', () => {
-    const inhalt = testInhalt({
-      abschnitte: [
-        testAbschnitt({ titel: 'Sanitätszelt', laufzettel: [] }),
-        testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
-      ],
-    });
-    const def = definition(inhalt);
-    const schilder = abschnitte(def).find((a) => alleTexte(a).includes('Sanitätszelt'));
-    expect(schilder?.pageOrientation).toBe('landscape');
+describe('Abschnittsschild', () => {
+  const zwei = [
+    testAbschnitt({ titel: 'Sanitätszelt', laufzettel: [] }),
+    testAbschnitt({ titel: 'Verpflegung', laufzettel: [] }),
+    testAbschnitt({ titel: 'Funk', laufzettel: [] }),
+  ];
+
+  it('setzt zwei A5-Schilder auf ein A4-Hochformatblatt', () => {
+    const schilder = schildAbschnitt(definition(testInhalt({ abschnitte: zwei })));
+    expect(schilder?.pageSize).toBe('A4');
     const seiten = schilder?.section as { pageBreak?: string }[];
     expect(seiten).toHaveLength(2);
     expect(seiten.map((s) => s.pageBreak)).toEqual([undefined, 'before']);
-    expect(alleTexte(schilder)).toContain('ABSCHNITT 2 VON 2');
+    const ersteSeite = alleTexte(seiten[0]);
+    expect(ersteSeite).toContain('Sanitätszelt');
+    expect(ersteSeite).toContain('Verpflegung');
+    expect(ersteSeite).not.toContain('Funk');
+    expect(alleTexte(seiten[1])).toContain('Funk');
+  });
+
+  it('nennt oben das Ziel und unten den Einsatz mit Zeitraum', () => {
+    const schilder = schildAbschnitt(definition(testInhalt({ abschnitte: [zwei[0]] })));
+    const texte = alleTexte(schilder);
+    expect(texte).toContain('Sanitätszelt');
+    expect(texte).toContain('Weihnachtsmarkt Ummeln');
+    expect(texte).toContain('Sa., 05.12.2026, 10:00 – 20:00 Uhr');
+    expect(texte.join('|')).not.toContain('Abschnitt 1 von');
+  });
+
+  it('legt das zweite Schild genau eine A5-Höhe tiefer', () => {
+    const seiten = schildAbschnitt(definition(testInhalt({ abschnitte: zwei })))?.section as {
+      stack: { absolutePosition?: { y: number } }[];
+    }[];
+    const rahmen = seiten[0].stack.filter(
+      (k) => (k as { image?: string }).image?.startsWith('data:image/png') === true,
+    );
+    expect(rahmen.map((k) => k.absolutePosition?.y)).toEqual([0, SCHILD.hoehe]);
+    expect(SCHILD.hoehe * 2).toBeCloseTo(841.89, 0);
+  });
+
+  it('nennt je Laufzettel Nummer, Überschrift und Lager und kürzt, was nicht passt', () => {
+    const laufzettel = Array.from({ length: 40 }, (_, i) =>
+      testLaufzettel({ ueberschrift: `Laufzettel Nummer ${i + 1}`, lagerort: 'Lager Nord' }),
+    );
+    const abschnitt = testAbschnitt({ laufzettel });
+    const nummern = laufzettelNummern(testInhalt({ abschnitte: [abschnitt] }));
+    const { spalten, schrift } = schildInhaltZeilen(abschnitt, nummern);
+    const zeilen = spalten.flat();
+    expect(spalten).toHaveLength(2);
+    expect(zeilen).toHaveLength(28);
+    expect(zeilen.at(-1)).toBe('… und 13 weitere');
+    expect(schrift).toBe(9);
+    const kurz = testAbschnitt({ laufzettel: laufzettel.slice(0, 2) });
+    const wenige = schildInhaltZeilen(kurz, laufzettelNummern(testInhalt({ abschnitte: [kurz] })));
+    expect(wenige.spalten).toEqual([
+      ['Nr 1 · Laufzettel Nummer 1 · Lager Nord', 'Nr 2 · Laufzettel Nummer 2 · Lager Nord'],
+    ]);
+  });
+
+  it('lässt „· Lager“ weg, wenn ein Laufzettel keines hat', () => {
+    const abschnitt = testAbschnitt({
+      laufzettel: [testLaufzettel({ ueberschrift: 'Pavillon', lagerort: ' ' })],
+    });
+    const { spalten } = schildInhaltZeilen(
+      abschnitt,
+      laufzettelNummern(testInhalt({ abschnitte: [abschnitt] })),
+    );
+    expect(spalten).toEqual([['Nr 1 · Pavillon']]);
   });
 
   it('verkleinert die Schrift bei langen Titeln', () => {
@@ -151,11 +206,13 @@ describe('Kennzeichnungsschild', () => {
 });
 
 describe('baueVbPdfDefinition', () => {
-  it('ist ein A4-Querformat-Dokument', () => {
+  it('ist ein A4-Querformat-Dokument, nur die Abschnittsschilder stehen hoch', () => {
     const def = definition();
     expect(def.pageSize).toBe('A4');
     expect(def.pageOrientation).toBe('landscape');
-    for (const a of abschnitte(def)) expect(a.pageOrientation).toBe('landscape');
+    for (const a of abschnitte(def).filter((x) => x !== schildAbschnitt(def))) {
+      expect(a.pageOrientation).toBe('landscape');
+    }
   });
 
   it('setzt die Seite „Allgemeine Anweisungen“ nur bei vorhandenem Text', () => {
@@ -205,8 +262,8 @@ describe('baueVbPdfDefinition', () => {
     const letzte = (seiten[1] as { stack: { columns?: unknown[] }[] }).stack[1].columns;
     expect(letzte).toHaveLength(6);
     const texte = alleTexte(seiten);
-    expect(texte).toContain('Nr. 1/7 · S. 1/2');
-    expect(texte).not.toContain('Laufzettel 1 von 7 · Seite 1 von 2');
+    expect(texte).toContain('Nr. 1/7 · Schild 1 · S. 1/2');
+    expect(texte).not.toContain('Laufzettel 1 von 7 · Schild 1 von 1 · Seite 1 von 2');
   });
 
   it('erzeugt ohne Laufzettel keinen Laufzettelabschnitt', () => {
@@ -228,11 +285,73 @@ describe('baueVbPdfDefinition', () => {
     });
     const texte = alleTexte(laufzettelSeiten(definition(inhalt)));
     expect(texte.filter((t) => t === '(Fortsetzung)')).toHaveLength(1);
-    expect(texte).toContain('Laufzettel 1 von 2 · Seite 1 von 1');
-    expect(texte).toContain('Laufzettel 2 von 2 · Seite 1 von 1');
+    expect(texte).toContain('Laufzettel 1 von 2 · Schild 1 von 1 · Seite 1 von 1');
+    expect(texte).toContain('Laufzettel 2 von 2 · Schild 1 von 1 · Seite 1 von 1');
     expect(texte).toContain('Zweiter');
     expect(texte).toContain('AUFTRAG');
-    expect(texte).toContain('Betreuung');
+    expect(texte).not.toContain('Betreuung');
+  });
+
+  it('zeigt die Abschnittsfarbe nur als Farbband und keine Fachgruppe', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({ farbe: 'abschnitt-5', fachgruppe: 'tesi', laufzettel: [testLaufzettel()] }),
+      ],
+    });
+    const seiten = laufzettelSeiten(definition(inhalt));
+    const json = JSON.stringify(seiten);
+    // genau ein Farbhinweis je Streifen: das Farbband, weder Balken noch Punkt
+    expect(json.split(PDF_FARBEN.abschnitt5)).toHaveLength(2);
+    expect(json).not.toContain(PDF_FARBEN.katTesi);
+    expect(alleTexte(seiten)).not.toContain('TeSi');
+    const schild = JSON.stringify(schildAbschnitt(definition(inhalt)));
+    expect(schild).not.toContain('TeSi');
+    expect(schild).not.toContain(PDF_FARBEN.katTesi);
+  });
+
+  it('rahmt das Foto in der Abschnittsfarbe, auch leer ohne Foto', () => {
+    const mit = testInhalt({
+      abschnitte: [
+        testAbschnitt({ farbe: 'abschnitt-5', foto: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' }),
+      ],
+    });
+    const ohne = testInhalt({ abschnitte: [testAbschnitt({ farbe: 'abschnitt-5' })] });
+    for (const inhalt of [mit, ohne]) {
+      const json = JSON.stringify(schildAbschnitt(definition(inhalt)));
+      expect(json).toContain(`"lineColor":"${PDF_FARBEN.abschnitt5}"`);
+    }
+    expect(JSON.stringify(schildAbschnitt(definition(ohne)))).not.toContain(
+      '"image":"data:image/jpeg',
+    );
+  });
+
+  it('zieht zwischen zwei Schildern eine Schnittlinie, bei einem einzelnen nicht', () => {
+    const zweiSchilder = testInhalt({ abschnitte: [testAbschnitt(), testAbschnitt()] });
+    const einSchild = testInhalt({ abschnitte: [testAbschnitt()] });
+    const mitLinie = (inhalt: ReturnType<typeof testInhalt>) =>
+      JSON.stringify(schildAbschnitt(definition(inhalt))).includes('"dash"');
+    expect(mitLinie(zweiSchilder)).toBe(true);
+    expect(mitLinie(einSchild)).toBe(false);
+  });
+
+  it('hat genau einen Haken „Erledigt“ und kein „nicht möglich“', () => {
+    const texte = alleTexte(laufzettelSeiten(definition()));
+    expect(texte.filter((t) => t === 'Erledigt')).toHaveLength(1);
+    expect(texte.join('|')).not.toContain('nicht möglich');
+    expect(texte).toContain('Bemerkung:');
+  });
+
+  it('druckt den Abschnitt als „Auf / In“, wenn „Transport mit“ leer ist', () => {
+    const inhalt = testInhalt({
+      abschnitte: [
+        testAbschnitt({
+          titel: 'Rollwagen 01',
+          laufzettel: [testLaufzettel({ transportMit: '' })],
+        }),
+      ],
+    });
+    const texte = alleTexte(laufzettelSeiten(definition(inhalt)));
+    expect(texte).toContain('Rollwagen 01');
   });
 
   it('zeigt Anzahl mit „×“ und leere Anzahl als „__“, mit festem Raster aus 23 Zeilen', () => {
@@ -273,7 +392,7 @@ describe('baueVbPdfDefinition', () => {
       abschnitte: (['abschnitt-1', 'abschnitt-5', 'abschnitt-8'] as const).map((farbe) =>
         testAbschnitt({
           farbe,
-          laufzettel: [testLaufzettel(), testLaufzettel({ fachgruppe: 'tesi' })],
+          laufzettel: [testLaufzettel(), testLaufzettel()],
         }),
       ),
     });
@@ -284,9 +403,8 @@ describe('baueVbPdfDefinition', () => {
     const verwendet = json.match(/#[0-9a-fA-F]{3,8}/g) ?? [];
     expect(verwendet.length).toBeGreaterThan(0);
     for (const farbe of verwendet) expect(erlaubt.has(farbe.toUpperCase())).toBe(true);
-    // Abschnittsfarben und Fachgruppenfarbe kommen aus der zentralen Quelle
+    // Abschnittsfarben kommen aus der zentralen Quelle
     expect(json).toContain(PDF_FARBEN.abschnitt5);
-    expect(json).toContain(PDF_FARBEN.katTesi);
   });
 });
 

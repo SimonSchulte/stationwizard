@@ -3586,3 +3586,163 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Geprüft: Tests (Abgleich, API-Dienst, Quelle, Personalvergleich, Karte, Helferpool, Editor,
   PEP-Anlage), Build, Sicht im Chromium mit gemockter API auf 1440×900. Nicht geprüft: mobile
   Ansicht dieser Zeile, echter EFS-Abruf.
+
+## Abschnittsschild nach der Vorlage „Kistenbezeichnung“
+
+- Das Kennzeichnungsschild je VB-Abschnitt folgt jetzt der Word-Vorlage „Kistenbezeichnung“
+  (`.dotx`): **A5 quer, zwei Schilder untereinander auf einem A4-Hochformatblatt**
+  (`schild()`/`schildSeiten()` in `einsatz/services/vb-pdf-definition.ts`). Das frühere
+  A4-Querschild entfällt. Der Rahmen (Kopfband, Fußband mit Johanniter- und NRW-Logo) ist das Bild der Vorlage (`image1.png`; das Kästchen „Material zur Ausgabe an Laien?“ des zweiten Vorlagenbilds ist bewusst weggelassen), verkleinert in
+  `einsatz/services/abschnittsschild-rahmen.ts` (Base64, ~43 KB); alle Texte liegen als pdfmake-Text
+  darüber.
+- Zuordnung der Vorlagenfelder: _Kistenbezeichnung_ = Abschnittstitel im Kopfband (Schrift nach Länge), _Inhalt_ = alle Laufzettel des Abschnitts als „Nr n · Überschrift · Lager“ (bis 12 einspaltig,
+  darüber zweispaltig bis 28, Rest als „… und n weitere“), _Beschriftung_ = Fachgruppe neben „Inhalt:“,
+  Fußband links (Platz von „Geräteanhänger NRW 04“) = der **Einsatz** groß und fett, darunter klein der Zeitraum; das Ziel steht oben im Kopfband, „Abschnitt n von m“ entfällt.
+  _Gewicht_ bleibt eine
+  Zeile zum handschriftlichen Eintragen: die App kennt kein Istgewicht (in der Vorlage ein
+  Serienbrieffeld `Gewicht_IST`). Das Verladungsfoto steht rechts, bis 180 × 232 pt.
+- Die Vorlagenschrift „Maven Johanniter“ ist nicht eingebunden; das PDF nutzt Roboto.
+- Geprüft: Tests (Aufteilung, Lage des zweiten Schilds, Inhaltsliste, Titelschrift), Sicht im
+  erzeugten PDF (Seite 1 mit zwei Schildern, kurzer und langer Titel, 5/12/40 Laufzettel). Nicht
+  geprüft: Druck auf Papier und Zuschnitt (Ränder 0, die Rahmenlinie liegt direkt am A5-Rand; die
+  meisten Drucker lassen 3–5 mm Rand unbedruckt).
+
+## Schild und Laufzettel arbeiten zusammen
+
+- Fachlich (vom Betreiber beschrieben): Das **Schild** ist das Ziel, auf das verladen wird, und bleibt
+  dort. Der **Laufzettel** ist ein Aushang: Material im Lager zusammensuchen, beim Schild abliefern.
+  Ein Laufzettel hat ein Lager und ein Ziel; mehrere Laufzettel je Lager und je Ziel sind möglich.
+- Schild: Liste „Nr n · Überschrift · Lager“ statt bloßer Überschriften (`schildInhaltZeilen()`),
+  keine Gruppierung, kein eigener Haken.
+- Laufzettel: ein einziger Haken „Erledigt“ statt „Durchgeführt ☐ Ja ☐ nicht möglich“; „Grund“
+  heißt jetzt „Bemerkung“. „Auf / In“ nimmt den Abschnitt, wenn „Transport mit“ leer ist
+  (`baueLaufzettelStreifen()`, auch bei der Platzberechnung), der Fuß nennt „Schild n von m“.
+- Aushang nach Lager sortierbar (`nachLagerSortiert()`, Umschalter im VB-Editor, Vorgabe „Nach
+  Lager“, nur Sitzung). LfdNr bleiben unverändert.
+- Grenzen: Die Editorwarnung „zu voll“ rechnet weiter mit dem eigenen „Transport mit“, nicht mit dem
+  Abschnittsnamen als Ersatz (nur der Druck setzt ihn ein, die Platzberechnung des Drucks nutzt ihn).
+  Ein Wechsel der Lager-Schreibweise („Lager nord“ gegenüber „Lager Nord“) sortiert zusammen, die
+  Anzeige bleibt wie erfasst. Nicht geprüft: Papierdruck und der Umschalter im Browser.
+- Plan und Mocks: Artifact „Schild und Laufzettel“. Zurückgestellt: Inhaltsart „Material
+  zusammengezählt“ auf dem Schild und ein Vorschlag im Editor, Laufzettel nach Lager aufzuteilen.
+- Nachtrag: Die Fachgruppe (Sanität, Betreuung, TeSi …) ist im **Druck** zurückgebaut, auf Laufzettel
+  und Schild. Es zählt die Abschnittsfarbe: Auf dem Laufzettel steht sie nur noch als **Farbband** links
+  über die ganze Länge (Balken an der Überschrift und Farbpunkt am Klemmrand entfallen; der Abschnittsname
+  bleibt am Klemmrand als Text), auf dem Schild als Rahmen ums Foto.
+  Das Feld `fachgruppe` in Datenmodell, Worker und Editor bleibt unverändert; ob es dort ebenfalls
+  ausgeblendet wird, ist offen. Zwischen den beiden Schildern eines Blatts verläuft eine gestrichelte
+  Schnittlinie (zwischen den Laufzettelstreifen gab es sie schon).
+- Nachtrag Schild: Die Abschnittsfarbe steht dort als **Rahmen ums Verladungsfoto** (5 pt), der Balken
+  im Kopfband entfällt. Ohne Foto bleibt ein leerer Rahmen in derselben Größe des Fotofelds. Der Rahmen
+  liegt eng am Bild: Breite und Höhe liest `jpeg-masse.ts` aus dem JPEG (Start-of-Frame), bei
+  unlesbaren Maßen gilt das ganze Feld. Auf dem Laufzettel ist das Farbband der einzige
+  Farbhinweis.
+
+## VB-Editor: Fachgruppe raus, Lager mit Vorschlägen, „Lager → Ziel“
+
+- **Fachgruppe ausgeblendet** (Karte, Abschnittskopf, Abschnittsdialog samt „Auf alle Laufzettel
+  übertragen“, Bearbeitung, Vorlagenansicht). Die Daten bleiben unverändert: das Feld `fachgruppe` an
+  Abschnitt und Laufzettel, der Worker und `fachgruppeAufLaufzettelUebertragen()` im Store bestehen
+  weiter, der Abschnittsdialog reicht den vorhandenen Wert unverändert durch. Die Methode ist
+  derzeit von der Oberfläche aus nicht erreichbar. Entscheidung offen, ob das Feld ganz entfällt.
+- **Lager mit Vorschlägen:** `Von (Lagerort)` ist ein `mat-autocomplete` über den schon erfassten
+  Lagern (`lagerVorschlaege()` in `einsatz/services/lager.ts`, je Vergleichsform einmal, alphabetisch).
+  Freie Eingabe bleibt möglich. `lagerSchluessel()` ist dieselbe Vergleichsform wie beim Sortieren des
+  Aushangs.
+- **Karte „Lager → Ziel“:** Das Ziel ist „Auf / In“, sonst der Abschnitt (dann grau und kursiv);
+  fehlt das Lager, steht „Kein Lager“ in Warnfarbe. In der Bearbeitung nennt ein Hinweis unter
+  „Auf / In“ den Abschnitt als Ersatz.
+- Geprüft: Tests (Karte, Bearbeitung, Dialog, `lager.ts`), Build, Sicht im Chromium mit gemockter API
+  an einer neuen Vorlage auf 1300 und 400 px Breite (Lager anlegen, Vorschlag wählen, Karte). Nicht
+  geprüft: der Abschnittsdialog im Browser, ein echter Einsatz mit gespeicherten Daten.
+
+## Packeinheiten, Stufe 1: Lager und Artikel
+
+- Umgesetzt wie in `docs/konzept-packeinheiten.md`, Abschnitt 7, Stufe 1: Migration
+  `0023_lager_artikel.sql`, Worker-Module für Lager und Artikel (Endpunkte in der Tabelle der
+  `CLAUDE.md`), Frontend-Schicht (Modell, Prüffunktionen, Storage-Vertrag mit API- und
+  In-Memory-Adapter, Store), Seite `/verwaltung/einsatz-stammdaten` mit den Reitern „Lager“ und
+  „Artikel“ und die Karte in der Verwaltung.
+- Entscheidungen: Lager und Artikel tragen je Zeile eine Version (wie der Preiskatalog). Die
+  Reihenfolge der Lager setzt ein eigener Aufruf ohne Version (`PUT …/lager/reihenfolge`) in **einem**
+  `db.batch()` und schreibt nur geänderte Zeilen; weicht die Menge der Lager ab, antwortet er mit 412.
+  Der Store prüft doppelte Namen, volle Listen und das Löschen eines genutzten Lagers vorab, damit kein
+  Schreibzugriff ohne Aussicht auf Erfolg entsteht; verbindlich bleibt der Worker (und die Indizes).
+- Geprüft: Worker-Tests (Prüfung, Vorbedingungen, Konflikte, Namenskollision, Löschschutz, Grenzen,
+  Reihenfolge mit einem Batch, Großbuchstaben im Pfad; 904 Tests insgesamt), die Migration gegen echtes
+  SQLite (Eindeutigkeit, Fremdschlüssel, Löschsperre), Frontend-Tests für Adapter, Store, beide
+  Komponenten und die Seite, Build, Sicht im Chromium mit zustandsbehafteter API-Attrappe auf 1300
+  und 400 px (anlegen, Pfeil, Heimatlager, Löschsperre, Löschen mit Rückfrage).
+- **Nicht geprüft:** der echte Worker mit D1 (Migration am 10.11.2026 eingespielt, aber noch kein Zugriff durch den deployten Worker, siehe
+  `docs/einrichtung.md`), Ziehen mit der Maus (nur die Pfeile im Browser bedient), eine Liste mit
+  Hunderten Artikeln im Browser. Mobil scrollt die Artikeltabelle innerhalb ihres Rahmens
+  waagerecht; sie bleibt eine Desktop-Darstellung.
+- Noch nicht umgesetzt aus Stufe 1: Das Lager im VB-Editor schlägt weiter nur die schon in der
+  Vorbereitung genutzten Lager vor; die Stammdaten-Lager fließen dort noch nicht ein.
+- Hinweis: `planning-list.spec.ts` hat zwei zeitabhängige Fälle („in 7 Tagen“, „in 30 Tagen“), die
+  abends fehlschlagen. Sie fielen auch ohne die Änderungen dieser Stufe durch und sind nicht Teil davon.
+
+## Packeinheiten, Stufe 2: Kisten
+
+- Entscheidungen des Betreibers zu den früher offenen Fragen sind in `docs/konzept-packeinheiten.md`,
+  Abschnitt 9, festgehalten (alle wie vorgeschlagen). Stufe 2 ist umgesetzt wie in Abschnitt 7 beschrieben.
+- Neu: Migration `0024_kisten.sql`, Worker `einsatzplanung-kisten.ts` (Endpunkte in der Tabelle der
+  `CLAUDE.md`), Löschschutz für Artikel in Kisten und Lager mit Kisten, Frontend-Schicht (Modell,
+  Prüfung, Storage-Erweiterung, Store), Reiter „Kisten“ in der Stammdatenseite, Kistenschild und Kistenzettel
+  als PDF (`kisten-pdf-definition.ts`, `KistenDruckDienst`). Aus `vb-pdf-definition.ts` sind
+  `laufzettelAbschnitt()` und `schnittlinie()` herausgelöst und werden von beiden Drucken genutzt.
+- Entscheidungen: Eine Kiste wird mit „Speichern“ in einem Schreibvorgang gesichert (Free-Tier: nie je
+  Zeile). Gedruckt wird der gespeicherte Stand; bei ungespeicherten Änderungen ist „Drucken“ gesperrt.
+  Der Artikel einer Kistenzeile wird aus einer Auswahlliste gewählt (Tippen springt zum Eintrag); bei
+  mehreren hundert Artikeln wäre eine Suche im Auswahlfeld besser, das ist noch nicht gebaut.
+- Geprüft: Worker-Tests (935 insgesamt: Prüfung des Inhalts, Mengen, Verweise, Namen, Konflikte, Grenzen,
+  Löschschutz in beide Richtungen), die Migration gegen echtes SQLite (Eindeutigkeit, Fremdschlüssel,
+  `LIKE`-Suche), Frontend-Tests für Adapter, Store, `KisteListe`, `KisteEditor`, Seite und beide PDF-
+  Definitionen, Build, Sicht im Chromium mit zustandsbehafteter Attrappe (Kiste anlegen, Artikel und Menge
+  erfassen, speichern, Wechsel mit ungespeicherten Änderungen, Druckmenü) und echte PDFs: Kistenschild mit
+  4 und mit 40 Positionen, Kistenzettel mit Fortsetzungsstreifen.
+- **Nicht geprüft:** der echte Worker mit D1 (Migrationen `0023` und `0024` am 10.11.2026 eingespielt, Worker mit den Endpunkten noch nicht deployt), ein Papierdruck
+  und der Zuschnitt der Schilder, die Kistenseite am Handy (Tabelle scrollt waagerecht in ihrem Rahmen, sie
+  bleibt eine Desktop-Darstellung).
+- Hinweis: Die zwei zeitabhängigen Tests in `planning-list.spec.ts` schlagen weiter abends fehl (siehe
+  oben), unabhängig von dieser Stufe.
+
+## Packeinheiten, Stufe 3: Aufbau
+
+- Mock des Aufbau-Editors vom Betreiber abgenommen („Passt“). Umgesetzt sind Worker, Frontend, Editor,
+  Vorlagenliste und Druck. **Noch offen:** Abbau von VB-Editor und -Endpunkten (Konzept Abschnitt 7), weil
+  die Einsatzübersicht, die Vorlagenverwaltung und die Einsatzliste noch auf der VB aufbauen; das ist ein
+  eigener, größerer Schritt und braucht zuerst die Abnahme des Aufbaus im Betrieb.
+- **Worker:** Migration `0025_aufbau.sql` (`aufbauten`, `aufbau_vorlagen`), `einsatzplanung-aufbauten.ts`,
+  `-aufbau-vorlagen.ts`, `-aufbau-pruefung.ts`, `-aufbau-verweise.ts`, Endpunkte in der Tabelle der
+  `CLAUDE.md`, Löschschutz für Artikel und Lager, auf die ein Aufbau verweist.
+- **Frontend:** `models/aufbau.model.ts`, `services/aufbau-pruefung.ts` (Serverantworten),
+  `aufbau-bearbeiten.ts` (reine Änderungen), `aufbau-zettel.ts` (`leiteZettelAb()`, `sortiereAushang()`),
+  `aufbau-abgleich.ts` (`pruefeAufbau()`, `kisteWeichtAb()`), `aufbau-editor-store.service.ts` (Entwurf,
+  Rückgängig, Speichern mit Version), `AufbauVorlagenStoreService`, Adapter `ApiAufbauStorage` und
+  `ApiAufbauVorlagenStorage`. Bausteine `AufbauBaum`, `EinheitDetail`, `ZettelVorschau`,
+  `AufbauVorlagenReiter`; Seite `AufbauEditor` unter `einsatz/:id/aufbau` und `aufbau-vorlagen/:id`
+  (mit `verlassenGuard`). Einstieg: dritte Kachel „Aufbau“ der Einsatzkarte, Reiter „Aufbau“ in
+  _Verwaltung → Einsatz-Vorlagen_.
+- **Druck:** `aufbau-druck.ts` bringt die abgeleiteten Zettel in die Form der VB (`aufbauAlsVbInhalt()`: je
+  oberste Einheit ein Abschnitt mit Farbe und Foto, je Zettel ein Laufzettel, ein Lagertrenner ist eine
+  Hinweiszeile „!“) und nutzt den vorhandenen, geprüften Druck (Anweisungsseite, Streifen mit
+  Fortsetzungsstreifen, Schilder). Der Dateiname beginnt deshalb noch mit „VB“.
+- Abweichungen vom Konzept: Ein Kisteneintrag trägt zusätzlich `name` und `lagerId` (Momentaufnahme); ein
+  Wagen ist in das Fahrzeug eingebettet; die Einsatzkarte zeigt für den Aufbau keine Kennzahlen, weil die
+  Einsatzliste sie noch nicht liefert (die Seite fragt selbst, ob es einen Aufbau gibt).
+- **Bekannte Grenzen:** Die Anweisung je Einheit (`anweisung`) und die Bemerkung werden gespeichert, aber
+  noch nicht gedruckt. Kistenschilder und Kistenzettel aus dem Aufbau (mit Zielfarbe und Einsatz) gibt es
+  noch nicht; der Druck der Kisten läuft weiter über die Stammdaten. Das Schild einer Einheit listet ihre
+  Zettel („Nr · Überschrift · Lager“), nicht den Soll-Inhalt. Phase („zuerst“/„zum Schluss“) lässt sich im
+  Modell, aber noch nicht in der Oberfläche setzen. Das Zettelraster zählt eine Zeile je Eintrag; der
+  Druck bricht lange Texte um und gibt bei Bedarf Fortsetzungsstreifen aus, die Platzanzeige im Editor kennt
+  den Umbruch nicht.
+- **Geprüft:** Worker 957 Tests (22 neu), Migration gegen echtes SQLite, Frontend `src/app/einsatz` 791 Tests
+  (u. a. `aufbau-zettel`, `aufbau-abgleich`, `aufbau-bearbeiten`, `aufbau-pruefung`, Store, Seite, Bausteine,
+  Druckadapter), `npm run build`, Sicht im Chromium mit API-Attrappe auf 1300 und 400 px (leer beginnen,
+  Fahrzeug, Wagen im Fahrzeug, Kiste und Artikel, Speichern; kein waagerechtes Scrollen) und ein echtes PDF
+  (zwei Streifen, Schild mit Farbrahmen).
+- **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist **nicht** eingespielt; sie muss vor dem
+  Deployment dieses Workers laufen (siehe `docs/einrichtung.md`, Schritt 6). Papierdruck und Zuschnitt;
+  Foto im Schild mit echtem Bild; Handy-Nutzung der Bearbeitung (die Tabelle scrollt im Rahmen).

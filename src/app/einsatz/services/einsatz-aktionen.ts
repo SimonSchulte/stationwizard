@@ -91,6 +91,18 @@ export class EinsatzAktionenDienst {
     });
   }
 
+  /**
+   * Öffnet den Aufbau (Packliste) des Einsatzes. Ob es schon einen gibt, klärt die Seite selbst
+   * und bietet sonst „leer beginnen“ oder eine Vorlage an; deshalb braucht es hier keine Abfrage.
+   */
+  async aufbauOeffnen(ziel: EinsatzZiel): Promise<void> {
+    await this.exklusiv(ziel, async () => {
+      const einsatz = await this.einsatzSicherstellen(ziel);
+      if (!einsatz) return;
+      await this.router.navigate(['/einsatzplanung/einsatz', einsatz.id, 'aufbau']);
+    });
+  }
+
   /** Der Einsatz zum Ziel; bei einer Veranstaltung ohne Einsatz wird er still angelegt. */
   private async einsatzSicherstellen(ziel: EinsatzZiel): Promise<Einsatz | null> {
     if (!istVeranstaltung(ziel)) {

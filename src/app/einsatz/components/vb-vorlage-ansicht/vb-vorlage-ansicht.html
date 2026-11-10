@@ -12,9 +12,6 @@
     <h3 class="abschnitt-kopf">
       <app-abschnitt-farbpunkt [farbe]="abschnitt.farbe" />
       <span class="abschnitt-titel">{{ abschnitt.titel }}</span>
-      @if (abschnitt.fachgruppe; as fachgruppe) {
-        <app-fachgruppe-chip [fachgruppe]="fachgruppe" />
-      }
     </h3>
     @if (abschnitt.zeilen.length === 0) {
       <app-leerzustand kompakt titel="Dieser Abschnitt enthält noch keinen Laufzettel." />

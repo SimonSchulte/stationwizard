@@ -6,11 +6,17 @@ import type {
   TableCell,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
-import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
+import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
+import { jpegMasse } from './jpeg-masse';
 import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
-import { STREIFEN_STANDARD, gueltigeStreifenZahl, laufzettelMasse } from './laufzettel-platz';
+import {
+  STREIFEN_STANDARD,
+  gueltigeStreifenZahl,
+  laufzettelMasse,
+  laufzettelNummern,
+} from './laufzettel-platz';
 import { harterUmbruch } from './text-umbruch';
 
 export interface VbDruckKopf {
@@ -89,22 +95,6 @@ const FARBE_ABSCHNITT: Record<AbschnittFarbe, string> = {
   'abschnitt-8': PDF_FARBEN.abschnitt8,
 };
 
-const FARBE_FACHGRUPPE: Record<Fachgruppe, string> = {
-  sanitaet: PDF_FARBEN.katSan,
-  betreuung: PDF_FARBEN.katBtvp,
-  verpflegung: PDF_FARBEN.katBtvp,
-  tesi: PDF_FARBEN.katTesi,
-  fuehrung: PDF_FARBEN.katFuehrung,
-};
-
-const FACHGRUPPE_TEXT: Record<Fachgruppe, string> = {
-  sanitaet: 'Sanität',
-  betreuung: 'Betreuung',
-  verpflegung: 'Verpflegung',
-  tesi: 'TeSi',
-  fuehrung: 'Führung',
-};
-
 const WOCHENTAGE = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'] as const;
 
 const ZEITPUNKT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
@@ -150,12 +140,39 @@ function formatiereDruckzeit(zeitpunkt: Date): string {
   }).format(zeitpunkt);
 }
 
+/** Oberer Abstand, der den Titel (geschätzte Zeilenzahl) im 54 pt hohen Kopfband zentriert. */
+export function titelAbstand(titel: string, breite: number): number {
+  const schrift = schildTitelSchrift(titel);
+  const zeilen = Math.max(1, Math.ceil((titel.length * schrift * 0.56) / breite));
+  return Math.max(0, (54 - zeilen * schrift) / 2);
+}
+
+/**
+ * Lage und Größe des Rahmens ums Foto: rechtsbündig im Fotofeld, eng am Bild (Maße aus dem JPEG)
+ * und höchstens so groß wie das Feld. Ohne Foto oder bei unlesbaren Maßen das ganze Feld.
+ */
+function fotoRahmen(foto: string | undefined): { x: number; breite: number; hoehe: number } {
+  const innen = {
+    b: SCHILD.fotoBreite - 2 * SCHILD.rahmen,
+    h: SCHILD.fotoHoehe - 2 * SCHILD.rahmen,
+  };
+  const masse = foto ? jpegMasse(foto) : null;
+  let breite = SCHILD.fotoBreite;
+  let hoehe = SCHILD.fotoHoehe;
+  if (masse) {
+    const faktor = Math.min(innen.b / masse.breite, innen.h / masse.hoehe);
+    breite = Math.round(masse.breite * faktor) + 2 * SCHILD.rahmen;
+    hoehe = Math.round(masse.hoehe * faktor) + 2 * SCHILD.rahmen;
+  }
+  return { x: SCHILD.fotoX + SCHILD.fotoBreite - breite, breite, hoehe };
+}
+
 /** Kürzt auf `max` Zeichen mit Auslassungspunkt (nur für Klemmrand-Texte mit festem Platz). */
 function kuerzen(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-function keinRand() {
+export function keinRand() {
   return {
     hLineWidth: () => 0,
     vLineWidth: () => 0,
@@ -174,7 +191,6 @@ function kasten(hoehe: number, inhalt: Content): Content {
 }
 
 function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen, m: Streifenmass): Content {
-  const farbe = FARBE_ABSCHNITT[streifen.abschnitt.farbe];
   // 30 und 24 Zeichen passen auf den Streifen mit drei je Seite; schmalere Streifen kürzer.
   const anteil = m.feld / (MASS.streifenBreite - MASS.innenLinks - MASS.innenRechts);
   const maxTitel = Math.max(8, Math.round(30 * anteil));
@@ -191,20 +207,10 @@ function klemmrand(kopfTitel: string, streifen: LaufzettelStreifen, m: Streifenm
       {
         width: '45%',
         alignment: 'right',
-        columns: [
-          { width: '*', text: '' },
-          {
-            width: 8,
-            canvas: [{ type: 'ellipse', x: 3, y: 4.2, r1: 3, r2: 3, color: farbe }],
-          },
-          {
-            width: 'auto',
-            text: kuerzen(streifen.abschnitt.titel, maxAbschnitt),
-            fontSize: 7.5,
-            bold: true,
-            color: PDF_FARBEN.text,
-          },
-        ],
+        text: kuerzen(streifen.abschnitt.titel, maxAbschnitt),
+        fontSize: 7.5,
+        bold: true,
+        color: PDF_FARBEN.text,
       },
     ],
   });
@@ -217,41 +223,15 @@ function kopfkasten(streifen: LaufzettelStreifen, m: Streifenmass): Content {
   const ueberschriftGroesse =
     (ueberschrift.length <= 40 ? SCHRIFT.ueberschrift : ueberschrift.length <= 80 ? 9 : 8) -
     (m.schmal ? 2 : 0);
-  const kennzeichen: Column[] = [
-    {
-      width: 'auto',
-      text: 'AUFTRAG',
-      fontSize: SCHRIFT.klein,
-      bold: true,
-      color: PDF_FARBEN.rot,
-      margin: [0, 1.5, 5, 0],
-    },
-  ];
-  if (streifen.fachgruppe) {
-    kennzeichen.push({
-      width: 'auto',
-      table: {
-        body: [
-          [
-            {
-              text: FACHGRUPPE_TEXT[streifen.fachgruppe],
-              fontSize: 7,
-              bold: true,
-              color: PDF_FARBEN.weiss,
-              fillColor: FARBE_FACHGRUPPE[streifen.fachgruppe],
-              margin: [4, 1, 4, 1],
-            },
-          ],
-        ],
-      },
-      layout: keinRand(),
-    });
-  }
   const links: Content = {
     margin: [m.schmal ? 3 : 5, 5, 3, 0],
     stack: [
-      // Auf schmalen Streifen stehen „AUFTRAG“ und die Fachgruppe übereinander.
-      m.schmal ? { stack: kennzeichen } : { columns: kennzeichen, columnGap: 0 },
+      {
+        text: 'AUFTRAG',
+        fontSize: SCHRIFT.klein,
+        bold: true,
+        color: PDF_FARBEN.rot,
+      },
       {
         text:
           harterUmbruch(ueberschrift, laufzettelMasse(m.streifenJeSeite).zeichenJeZielzeile) || ' ',
@@ -506,34 +486,10 @@ function schreibfelder(m: Streifenmass): Content {
     stack: [
       { text: 'Durchführung von', fontSize: SCHRIFT.infoBeschriftung, color: PDF_FARBEN.sekundaer },
       { ...linie(feldBreite), margin: [0, 11, 0, 0] },
-      // Auf schmalen Streifen steht „Durchgeführt“ über den beiden Kästchen statt davor.
-      m.schmal
-        ? {
-            margin: [0, 5, 0, 0],
-            stack: [
-              { text: 'Durchgeführt', fontSize: SCHRIFT.info, bold: true },
-              {
-                margin: [0, 2, 0, 0],
-                columns: [ankreuz('Ja', 8), ankreuz('nicht möglich')],
-              },
-            ],
-          }
-        : {
-            margin: [0, 5, 0, 0],
-            columns: [
-              {
-                width: 'auto',
-                text: 'Durchgeführt',
-                fontSize: SCHRIFT.info,
-                bold: true,
-                margin: [0, 0, 8, 0],
-              },
-              ankreuz('Ja', 8),
-              ankreuz('nicht möglich'),
-            ],
-          },
+      // Ein einziger Haken: erledigt. Was nicht ging, steht unter „Bemerkung“.
+      { margin: [0, 5, 0, 0], bold: true, columns: [ankreuz('Erledigt')] },
       {
-        text: 'Grund:',
+        text: 'Bemerkung:',
         fontSize: SCHRIFT.infoBeschriftung,
         color: PDF_FARBEN.sekundaer,
         margin: [0, 4, 0, 0],
@@ -564,8 +520,8 @@ function streifenInhalt(
       schreibfelder(m),
       {
         text: m.schmal
-          ? `Nr. ${streifen.nr}/${laufzettelGesamt} · S. ${seite}/${seitenGesamt}`
-          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt} · Seite ${seite} von ${seitenGesamt}`,
+          ? `Nr. ${streifen.nr}/${laufzettelGesamt}${streifen.schild > 0 ? ` · Schild ${streifen.schild}` : ''} · S. ${seite}/${seitenGesamt}`
+          : `Laufzettel ${streifen.nr} von ${laufzettelGesamt}${streifen.schild > 0 ? ` · Schild ${streifen.schild} von ${streifen.schildGesamt}` : ''} · Seite ${seite} von ${seitenGesamt}`,
         alignment: 'center',
         fontSize: 6.5,
         color: PDF_FARBEN.sekundaer,
@@ -687,166 +643,292 @@ function anweisungsAbschnitt(
   };
 }
 
-/** Schriftgröße des Abschnittstitels auf dem Kennzeichnungsschild; lange Titel werden kleiner. */
+/**
+ * Schriftgröße des Abschnittstitels im Kopfband des Schilds; lange Titel werden kleiner und
+ * laufen dann über zwei bis drei Zeilen (das Kopfband ist 54 pt hoch).
+ */
 export function schildTitelSchrift(titel: string): number {
   const laenge = titel.trim().length;
-  if (laenge <= 14) return 96;
-  if (laenge <= 28) return 68;
-  if (laenge <= 60) return 44;
-  if (laenge <= 120) return 32;
-  return 24;
+  if (laenge <= 14) return 34;
+  if (laenge <= 28) return 28;
+  if (laenge <= 60) return 20;
+  if (laenge <= 120) return 14;
+  return 11;
 }
 
-const SCHILD_RAND = 48;
-const SCHILD_BAND = 44;
-/** Schild mit Foto: Breite der Textspalte, Abstand zum Foto und größte Fotohöhe. */
-const SCHILD_TEXTSPALTE = 300;
-const SCHILD_ABSTAND = 24;
-const SCHILD_FOTO_HOEHE = 420;
+/**
+ * Maße des Abschnittsschilds in pt. Vorlage ist die Word-Vorlage „Kistenbezeichnung“: A5 quer
+ * (210 × 148,5 mm), zwei Schilder untereinander auf einem A4-Hochformatblatt. Die Lage der
+ * Felder folgt dem Rahmenbild (`SCHILD_RAHMEN`): Kopfband bis 72 pt, Fußband ab 341 pt, rechts
+ * daneben Platz für das Verladungsfoto.
+ */
+export const SCHILD = {
+  breite: 595.28,
+  hoehe: 420.94,
+  rand: 26,
+  kopfHoehe: 72,
+  /** Obergrenze des Inhaltsfelds und linke Spalte; rechts davon liegt das Foto. */
+  inhaltOben: 84,
+  inhaltBreite: 350,
+  fotoX: 393,
+  fotoBreite: 180,
+  fotoHoehe: 232,
+  /** Dicke des Rahmens ums Foto. */
+  rahmen: 5,
+  gewichtY: 300,
+  fussY: 347,
+  fussBreite: 255,
+} as const;
+
+/** Kürzt auf `max` Zeichen mit Auslassungszeichen. */
+export function kuerze(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+}
 
 /**
- * Kennzeichnungsschild eines Abschnitts: eine A4-Querseite, Farbbänder oben und unten in der
- * Abschnittsfarbe, der Titel groß in der Mitte, darunter die Fachgruppe; Veranstaltung und
- * Zeitraum stehen unten. Die Seite besteht ausschließlich aus Fließinhalt mit festen Abständen,
- * damit pdfmake sie nie auf eine zweite Seite umbricht.
+ * Inhaltsliste eines Schilds: alle Laufzettel, die hier enden, je Zeile „Nr 3 · Überschrift ·
+ * Lager“ (Nummer wie auf dem Laufzettel). Bis 12 Einträge einspaltig, darüber zweispaltig in
+ * kleinerer Schrift; was nicht mehr passt, steht als „… und n weitere“. Die Zeilen stehen in
+ * der Reihenfolge der Nummern.
  */
-function kennzeichnungsschild(
+export function schildInhaltZeilen(
+  abschnitt: VbInhalt['abschnitte'][number],
+  nummern: ReadonlyMap<string, number>,
+): {
+  spalten: string[][];
+  schrift: number;
+} {
+  const einspaltig = abschnitt.laufzettel.length <= 12;
+  const schrift = einspaltig ? 11 : 9;
+  const zeichen = einspaltig ? 58 : 36;
+  const kapazitaet = einspaltig ? 12 : 28;
+  const alle = abschnitt.laufzettel.map((l) => {
+    const vorne = `Nr ${nummern.get(l.id) ?? 0} · `;
+    const lager = l.lagerort.trim();
+    const hinten = lager ? ` · ${kuerze(lager, 14)}` : '';
+    const platz = Math.max(8, zeichen - vorne.length - hinten.length);
+    return `${vorne}${kuerze(l.ueberschrift.trim() || 'Laufzettel', platz)}${hinten}`;
+  });
+  let zeilen = alle;
+  if (zeilen.length > kapazitaet) {
+    const sichtbar = zeilen.slice(0, kapazitaet - 1);
+    zeilen = [...sichtbar, `… und ${alle.length - sichtbar.length} weitere`];
+  }
+  if (einspaltig) return { spalten: [zeilen], schrift };
+  const haelfte = Math.ceil(zeilen.length / 2);
+  return { spalten: [zeilen.slice(0, haelfte), zeilen.slice(haelfte)], schrift };
+}
+
+/**
+ * Ein Schild (A5 quer) an der senkrechten Stelle `y0` der Seite: Rahmenbild, Abschnittsfarbe
+ * und Titel im Kopfband, links die Auftragsliste (Nr, Überschrift, Lager) rechts ein
+ * etwaiges Verladungsfoto, darunter Gewicht zum Eintragen und im Fußband
+ * Einsatz mit Zeitraum (Platz von „Geräteanhänger NRW 04“). Alles ist absolut positioniert, damit nichts
+ * umbrechen kann.
+ */
+function schild(
   kopf: VbDruckKopf,
   abschnitt: VbInhalt['abschnitte'][number],
-  nummer: number,
-  gesamt: number,
-  erste: boolean,
-): Content {
+  y0: number,
+  nummern: ReadonlyMap<string, number>,
+): Content[] {
   const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
   const titel = abschnitt.titel.trim();
-  const schrift = schildTitelSchrift(titel);
   const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
-  const ort = kopf.ort?.trim() ?? '';
-  const breite = MASS.seiteBreite - 2 * SCHILD_RAND;
-  const veranstaltung = [kopf.titel, zeitraum, ort].filter((t) => t !== '').join(' · ');
-  const mitFoto = Boolean(abschnitt.foto);
-  const ausrichtung: 'left' | 'center' = mitFoto ? 'left' : 'center';
-  const titelSchrift = mitFoto ? Math.max(18, Math.round(schrift * 0.5)) : schrift;
-  const textBloecke: Content[] = [
-    {
-      text: `ABSCHNITT ${nummer} VON ${gesamt}`,
-      fontSize: 12,
-      bold: true,
-      characterSpacing: 2,
-      alignment: ausrichtung,
-      color: PDF_FARBEN.sekundaer,
-      margin: mitFoto ? [0, 0, 0, 0] : [SCHILD_RAND, SCHILD_BAND + 56, SCHILD_RAND, 0],
+  const inhalt = schildInhaltZeilen(abschnitt, nummern);
+  const spaltenBreite = SCHILD.inhaltBreite / inhalt.spalten.length;
+  const textBreite = SCHILD.breite - 2 * SCHILD.rand;
+
+  const feld = (
+    x: number,
+    y: number,
+    breite: number,
+    hoehe: number | null,
+    zelle: Content,
+  ): Content => ({
+    table: {
+      widths: [breite],
+      ...(hoehe === null ? {} : { heights: [hoehe] }),
+      body: [[zelle as TableCell]],
     },
+    layout: keinRand(),
+    absolutePosition: { x, y: y0 + y },
+  });
+
+  const bloecke: Content[] = [
     {
+      image: SCHILD_RAHMEN,
+      width: SCHILD.breite,
+      height: SCHILD.hoehe,
+      absolutePosition: { x: 0, y: y0 },
+    },
+    feld(SCHILD.rand, 9, textBreite, 54, {
       text: titel,
-      fontSize: titelSchrift,
+      margin: [0, titelAbstand(titel, textBreite), 0, 0],
+      fontSize: schildTitelSchrift(titel),
       bold: true,
-      alignment: ausrichtung,
-      lineHeight: 1.05,
+      lineHeight: 1,
       color: PDF_FARBEN.dunkelblau,
-      margin: mitFoto ? [0, 16, 0, 0] : [SCHILD_RAND, 40, SCHILD_RAND, 0],
+    }),
+    {
+      text: 'Inhalt:',
+      fontSize: 11,
+      bold: true,
+      color: PDF_FARBEN.dunkelblau,
+      absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.inhaltOben },
     },
-    ...(abschnitt.fachgruppe
-      ? [
-          {
-            text: FACHGRUPPE_TEXT[abschnitt.fachgruppe],
-            fontSize: 32,
-            bold: true,
-            alignment: ausrichtung,
-            color: FARBE_FACHGRUPPE[abschnitt.fachgruppe],
-            margin: (mitFoto ? [0, 16, 0, 0] : [SCHILD_RAND, 28, SCHILD_RAND, 0]) as [
-              number,
-              number,
-              number,
-              number,
-            ],
-          },
-        ]
-      : []),
+    {
+      columns: inhalt.spalten.map((zeilen) => ({
+        width: spaltenBreite,
+        stack: zeilen.map((zeile) => ({
+          text: zeile,
+          fontSize: inhalt.schrift,
+          noWrap: true,
+          lineHeight: 1.2,
+          color: PDF_FARBEN.text,
+        })),
+      })),
+      columnGap: 0,
+      absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.inhaltOben + 18 },
+    },
   ];
-  const fotoSpalten: Content | null = abschnitt.foto
-    ? {
-        // Bezeichnung links, Foto rechts: weiterhin genau ein Blatt je Abschnitt.
-        columns: [
-          { width: SCHILD_TEXTSPALTE, stack: textBloecke },
-          {
-            width: '*' as const,
-            stack: [
-              {
-                image: abschnitt.foto,
-                fit: [breite - SCHILD_TEXTSPALTE - SCHILD_ABSTAND, SCHILD_FOTO_HOEHE],
-                alignment: 'right' as const,
-              },
-            ],
-          },
-        ],
-        columnGap: SCHILD_ABSTAND,
-        margin: [SCHILD_RAND, SCHILD_BAND + 24, SCHILD_RAND, 0],
-      }
-    : null;
-  return {
-    ...(erste ? {} : { pageBreak: 'before' as const }),
-    stack: [
+  // Die Abschnittsfarbe als Rahmen ums Verladungsfoto; ohne Foto bleibt der Rahmen leer.
+  const rahmen = fotoRahmen(abschnitt.foto);
+  bloecke.push({
+    canvas: [
       {
-        canvas: [
-          { type: 'rect', x: 0, y: 0, w: MASS.seiteBreite, h: SCHILD_BAND, color: farbe },
-          {
-            type: 'rect',
-            x: 0,
-            y: MASS.seiteHoehe - SCHILD_BAND,
-            w: MASS.seiteBreite,
-            h: SCHILD_BAND,
-            color: farbe,
-          },
-        ],
-        absolutePosition: { x: 0, y: 0 },
-      },
-      ...(fotoSpalten ? [fotoSpalten] : textBloecke),
-      {
-        table: {
-          widths: [breite],
-          body: [
-            [
-              {
-                text: veranstaltung,
-                fontSize: 13,
-                alignment: 'center',
-                color: PDF_FARBEN.sekundaer,
-              },
-            ],
-          ],
-        },
-        layout: keinRand(),
-        absolutePosition: { x: SCHILD_RAND, y: MASS.seiteHoehe - SCHILD_BAND - 38 },
+        type: 'rect',
+        x: SCHILD.rahmen / 2,
+        y: SCHILD.rahmen / 2,
+        w: rahmen.breite - SCHILD.rahmen,
+        h: rahmen.hoehe - SCHILD.rahmen,
+        lineWidth: SCHILD.rahmen,
+        lineColor: farbe,
       },
     ],
+    absolutePosition: { x: rahmen.x, y: y0 + SCHILD.inhaltOben },
+  });
+  if (abschnitt.foto) {
+    bloecke.push({
+      image: abschnitt.foto,
+      fit: [rahmen.breite - 2 * SCHILD.rahmen, rahmen.hoehe - 2 * SCHILD.rahmen],
+      absolutePosition: {
+        x: rahmen.x + SCHILD.rahmen,
+        y: y0 + SCHILD.inhaltOben + SCHILD.rahmen,
+      },
+    });
+  }
+  bloecke.push(
+    {
+      text: 'Gewicht:',
+      fontSize: 14,
+      color: PDF_FARBEN.dunkelblau,
+      absolutePosition: { x: SCHILD.rand, y: y0 + SCHILD.gewichtY },
+    },
+    {
+      canvas: [
+        {
+          type: 'line',
+          x1: 0,
+          y1: 0,
+          x2: 120,
+          y2: 0,
+          lineWidth: 0.8,
+          lineColor: PDF_FARBEN.dunkelblau,
+        },
+      ],
+      absolutePosition: { x: SCHILD.rand + 70, y: y0 + SCHILD.gewichtY + 16 },
+    },
+    {
+      text: 'kg',
+      fontSize: 14,
+      color: PDF_FARBEN.dunkelblau,
+      absolutePosition: { x: SCHILD.rand + 196, y: y0 + SCHILD.gewichtY },
+    },
+    feld(SCHILD.rand, SCHILD.fussY, SCHILD.fussBreite, null, {
+      stack: [
+        {
+          // Wie „Geräteanhänger NRW 04“ in der Vorlage: groß, fett, bis zu zwei Zeilen. Das Ziel
+          // steht schon im Kopfband; unten steht der Einsatz.
+          text: kuerze(kopf.titel.trim(), 52),
+          fontSize: 16,
+          bold: true,
+          lineHeight: 1,
+          color: PDF_FARBEN.dunkelblau,
+        },
+        ...(zeitraum
+          ? [
+              {
+                text: kuerze(zeitraum, 60),
+                fontSize: 8.5,
+                margin: [0, 4, 0, 0] as [number, number, number, number],
+                color: PDF_FARBEN.sekundaer,
+              },
+            ]
+          : []),
+      ],
+    }),
+  );
+  return bloecke;
+}
+
+/** Gestrichelte Schnittlinie zwischen den zwei A5-Schildern eines A4-Hochformatblatts. */
+export function schnittlinie(): Content {
+  return {
+    canvas: [
+      {
+        type: 'line' as const,
+        x1: 0,
+        y1: 0,
+        x2: SCHILD.breite,
+        y2: 0,
+        lineWidth: 0.5,
+        lineColor: PDF_FARBEN.platzhalter,
+        dash: { length: 4, space: 3 },
+      },
+    ],
+    absolutePosition: { x: 0, y: SCHILD.hoehe },
   };
 }
 
 /**
- * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
- * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt je Abschnitt ein
- * Kennzeichnungsschild (eine A4-Querseite). Reine Funktion; Farben nur aus
- * `PDF_FARBEN`. Die Streifen müssen mit derselben Zahl gebaut sein (`baueLaufzettelStreifen()`).
+ * Abschnittsschilder: je A4-Hochformatblatt zwei Schilder im A5-Querformat untereinander.
+ * Jede Seite beginnt mit einer unsichtbaren Fließzeile, damit pdfmake den Seitenumbruch
+ * setzt, obwohl alle Schilder absolut positioniert sind.
  */
-export function baueVbPdfDefinition(
-  kopf: VbDruckKopf,
-  inhalt: VbInhalt,
+function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
+  const seiten: Content[] = [];
+  const nummern = laufzettelNummern(inhalt);
+  for (let i = 0; i < inhalt.abschnitte.length; i += 2) {
+    const paar = inhalt.abschnitte.slice(i, i + 2);
+    seiten.push({
+      ...(i > 0 ? { pageBreak: 'before' as const } : {}),
+      stack: [
+        { text: ' ', fontSize: 1 },
+        ...paar.flatMap((a, j) => schild(kopf, a, j * SCHILD.hoehe, nummern)),
+        ...(paar.length === 2 ? [schnittlinie()] : []),
+      ],
+    });
+  }
+  return seiten;
+}
+
+/**
+ * Die Laufzettelseiten (A4 quer, 3 bis 6 Streifen je Seite) als eigener Abschnitt; `null` ohne
+ * Streifen. Auch der Druck der Kistenzettel nutzt ihn (`kisten-pdf-definition.ts`).
+ */
+export function laufzettelAbschnitt(
+  kopfTitel: string,
   streifen: readonly LaufzettelStreifen[],
-  gedrucktAm: Date,
   streifenJeSeite: number = STREIFEN_STANDARD,
-): TDocumentDefinitions {
+): ContentSection | null {
   const m = streifenmass(streifenJeSeite);
   const seiten = seitenAufteilen(streifen, m.streifenJeSeite);
+  if (seiten.length === 0) return null;
   const laufzettelGesamt = streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
-  const abschnitte: ContentSection[] = [];
-  if (inhalt.anweisungen.trim().length > 0) {
-    abschnitte.push(anweisungsAbschnitt(kopf, inhalt, gedrucktAm));
-  }
-
   const laufzettelSeiten: Content[] = seiten.map((seite, index) => {
     const spalten: Column[] = seite.map((s) =>
-      streifenInhalt(kopf.titel, s, laufzettelGesamt, index + 1, seiten.length, m),
+      streifenInhalt(kopfTitel, s, laufzettelGesamt, index + 1, seiten.length, m),
     );
     while (spalten.length < m.streifenJeSeite) {
       spalten.push({ width: m.breite, text: '' });
@@ -856,23 +938,40 @@ export function baueVbPdfDefinition(
       stack: [seitenGrafik(seite, m), { columns: spalten, columnGap: 0 }],
     };
   });
-  if (laufzettelSeiten.length > 0) {
-    abschnitte.push({
-      pageSize: 'A4',
-      pageOrientation: 'landscape',
-      pageMargins: [0, 0, 0, 0],
-      section: laufzettelSeiten,
-    });
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'landscape',
+    pageMargins: [0, 0, 0, 0],
+    section: laufzettelSeiten,
+  };
+}
+
+/**
+ * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
+ * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt die Abschnittsschilder
+ * (A5 quer, zwei je A4-Hochformatblatt, Vorlage „Kistenbezeichnung“). Reine Funktion; Farben nur aus
+ * `PDF_FARBEN`. Die Streifen müssen mit derselben Zahl gebaut sein (`baueLaufzettelStreifen()`).
+ */
+export function baueVbPdfDefinition(
+  kopf: VbDruckKopf,
+  inhalt: VbInhalt,
+  streifen: readonly LaufzettelStreifen[],
+  gedrucktAm: Date,
+  streifenJeSeite: number = STREIFEN_STANDARD,
+): TDocumentDefinitions {
+  const abschnitte: ContentSection[] = [];
+  if (inhalt.anweisungen.trim().length > 0) {
+    abschnitte.push(anweisungsAbschnitt(kopf, inhalt, gedrucktAm));
   }
+  const laufzettel = laufzettelAbschnitt(kopf.titel, streifen, streifenJeSeite);
+  if (laufzettel) abschnitte.push(laufzettel);
 
   if (inhalt.abschnitte.length > 0) {
     abschnitte.push({
       pageSize: 'A4',
-      pageOrientation: 'landscape',
+      pageOrientation: 'portrait',
       pageMargins: [0, 0, 0, 0],
-      section: inhalt.abschnitte.map((a, i) =>
-        kennzeichnungsschild(kopf, a, i + 1, inhalt.abschnitte.length, i === 0),
-      ),
+      section: schildSeiten(kopf, inhalt),
     });
   }
 

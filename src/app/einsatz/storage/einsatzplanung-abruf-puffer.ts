@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AbrufPuffer } from '../../kern/abruf-puffer';
 import { EinsatzListenEintrag } from '../models/einsatz.model';
+import { AufbauVorlageKopf } from '../models/aufbau.model';
 import { PepVorlageKopf } from '../models/pep.model';
 import { VbVorlageKopf } from '../models/vb.model';
 
@@ -17,6 +18,7 @@ export class EinsatzplanungAbrufPuffer {
   readonly einsaetze = new AbrufPuffer<EinsatzListenEintrag[]>(GUELTIG_MS);
   readonly vorlagen = new AbrufPuffer<VbVorlageKopf[]>(GUELTIG_MS);
   readonly pepVorlagen = new AbrufPuffer<PepVorlageKopf[]>(GUELTIG_MS);
+  readonly aufbauVorlagen = new AbrufPuffer<AufbauVorlageKopf[]>(GUELTIG_MS);
 
   verwerfenEinsaetze(): void {
     this.einsaetze.verwerfen();
@@ -24,6 +26,10 @@ export class EinsatzplanungAbrufPuffer {
 
   verwerfenVorlagen(): void {
     this.vorlagen.verwerfen();
+  }
+
+  verwerfenAufbauVorlagen(): void {
+    this.aufbauVorlagen.verwerfen();
   }
 
   verwerfenPepVorlagen(): void {

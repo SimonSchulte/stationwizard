@@ -1,0 +1,34 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.inhalt {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.beschreibung {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary);
+}
+
+.reiter-inhalt {
+  padding-top: var(--space-lg);
+}
+
+.kisten {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kisten {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

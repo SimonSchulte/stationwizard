@@ -1,0 +1,90 @@
+<app-seitenkopf titel="Lager und Artikel" icon="warehouse" zurueck="/verwaltung" />
+
+<div class="inhalt">
+  @if (store.laedt()) {
+    <app-ladeanzeige text="Stammdaten werden geladen …" />
+  }
+  @if (store.ladeFehler()) {
+    <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>
+  }
+  @if (store.fehler()) {
+    <app-meldung art="fehler">
+      {{ store.fehler() }}
+      @if (store.konflikt()) {
+        <button matButton meldungAktion type="button" (click)="store.laden()">
+          Aktuellen Stand laden
+        </button>
+      }
+    </app-meldung>
+  }
+
+  <p class="beschreibung">
+    Einmal gepflegt, später in Kisten, Wagen und Zetteln genutzt. Lager und Artikel speichern
+    sofort, eine Kiste mit „Speichern“.
+  </p>
+
+  <mat-tab-group class="reiter" animationDuration="0ms" mat-stretch-tabs="false">
+    <mat-tab [label]="'Lager (' + store.lager().length + ')'">
+      <ng-template matTabContent>
+        <div class="reiter-inhalt">
+          <app-lager-liste
+            [lager]="store.lager()"
+            [artikelJeLager]="store.artikelJeLager()"
+            [beschaeftigtId]="store.beschaeftigtId()"
+            (angelegt)="lagerAnlegen($event)"
+            (umbenannt)="lagerUmbenennen($event)"
+            (geloescht)="lagerLoeschen($event)"
+            (verschoben)="lagerVerschieben($event)"
+          />
+        </div>
+      </ng-template>
+    </mat-tab>
+    <mat-tab [label]="'Artikel (' + store.artikel().length + ')'">
+      <ng-template matTabContent>
+        <div class="reiter-inhalt">
+          <app-artikel-tabelle
+            [artikel]="store.artikel()"
+            [lager]="store.lager()"
+            [beschaeftigtId]="store.beschaeftigtId()"
+            (angelegt)="store.artikelAnlegen($event)"
+            (geaendert)="store.artikelAendern($event.artikel, $event.aenderung)"
+            (geloescht)="artikelLoeschen($event)"
+          />
+        </div>
+      </ng-template>
+    </mat-tab>
+    <mat-tab [label]="'Kisten (' + store.kisten().length + ')'">
+      <ng-template matTabContent>
+        <div class="reiter-inhalt kisten">
+          <app-kiste-liste
+            class="kisten-liste"
+            [kisten]="store.kisten()"
+            [lager]="store.lager()"
+            [gewaehltId]="gewaehlteKisteId()"
+            (gewaehlt)="kisteWaehlen($event)"
+            (angelegt)="kisteAnlegen($event)"
+          />
+          <div class="kisten-editor">
+            @if (gewaehlteKiste(); as kiste) {
+              <app-kiste-editor
+                [kiste]="kiste"
+                [lager]="store.lager()"
+                [artikel]="store.artikel()"
+                [beschaeftigt]="store.beschaeftigtId() === kiste.id"
+                (gespeichert)="kisteSpeichern(kiste, $event)"
+                (geloescht)="kisteLoeschen(kiste)"
+                (schildDrucken)="kisteDrucken('schild', kiste)"
+                (zettelDrucken)="kisteDrucken('zettel', kiste)"
+                (ungespeichert)="kisteUngespeichert.set($event)"
+              />
+            } @else {
+              <app-leerzustand kompakt icon="inventory" titel="Keine Kiste gewählt">
+                Wähle links eine Kiste oder lege eine neue an.
+              </app-leerzustand>
+            }
+          </div>
+        </div>
+      </ng-template>
+    </mat-tab>
+  </mat-tab-group>
+</div>

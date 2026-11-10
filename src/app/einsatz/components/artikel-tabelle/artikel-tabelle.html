@@ -1,0 +1,144 @@
+<form
+  class="neu"
+  (submit)="$event.preventDefault(); anlegen(neuerName)"
+  aria-label="Neuen Artikel anlegen"
+>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="neu-name">
+    <mat-label>Neuer Artikel</mat-label>
+    <input #neuerName matInput autocomplete="off" [attr.maxlength]="maxName" />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="schmal">
+    <mat-label>Einheit</mat-label>
+    <mat-select [value]="neueEinheit()" (selectionChange)="neueEinheit.set($event.value)">
+      @for (einheit of einheiten; track einheit) {
+        <mat-option [value]="einheit">{{ einheit }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mittel">
+    <mat-label>Heimatlager</mat-label>
+    <mat-select [value]="neuesLager()" (selectionChange)="neuesLager.set($event.value)">
+      <mat-option [value]="null">Kein Heimatlager</mat-option>
+      @for (eintrag of lager(); track eintrag.id) {
+        <mat-option [value]="eintrag.id">{{ eintrag.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <button matButton="filled" type="submit">
+    <mat-icon>add</mat-icon>
+    Hinzufügen
+  </button>
+</form>
+
+<div class="werkzeuge">
+  <app-suchfeld
+    class="suche"
+    beschriftung="Artikel suchen"
+    [wert]="suche()"
+    (wertChange)="suchen($event)"
+  />
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Filter"
+    [value]="filter()"
+    (change)="filtern($event.value)"
+  >
+    <mat-button-toggle value="alle">Alle ({{ artikel().length }})</mat-button-toggle>
+    <mat-button-toggle value="ohne-lager"
+      >Ohne Heimatlager ({{ ohneLagerAnzahl() }})</mat-button-toggle
+    >
+  </mat-button-toggle-group>
+</div>
+
+@if (artikel().length === 0) {
+  <app-leerzustand kompakt icon="inventory_2" titel="Noch keine Artikel">
+    Lege Artikel an, die in Kisten und Wagen vorkommen. Das Heimatlager bestimmt später den Laufweg.
+  </app-leerzustand>
+} @else if (treffer().length === 0) {
+  <app-leerzustand kompakt icon="search_off" titel="Keine Treffer" />
+} @else {
+  <div class="rahmen">
+    <table class="tabelle">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Einheit</th>
+          <th scope="col">Heimatlager</th>
+          <th scope="col"><span class="sr-only">Aktionen</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (eintrag of sichtbar(); track eintrag.id) {
+          <tr>
+            <td data-label="Name">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <input
+                  #namensfeld
+                  matInput
+                  autocomplete="off"
+                  [attr.aria-label]="'Name: ' + eintrag.name"
+                  [attr.maxlength]="maxName"
+                  [value]="eintrag.name"
+                  [disabled]="beschaeftigtId() === eintrag.id"
+                  (change)="umbenennen(eintrag, namensfeld)"
+                />
+              </mat-form-field>
+            </td>
+            <td data-label="Einheit">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="schmal">
+                <mat-select
+                  [attr.aria-label]="'Einheit: ' + eintrag.name"
+                  [value]="eintrag.einheit"
+                  [disabled]="beschaeftigtId() === eintrag.id"
+                  (selectionChange)="
+                    geaendert.emit({ artikel: eintrag, aenderung: { einheit: $event.value } })
+                  "
+                >
+                  @for (einheit of einheiten; track einheit) {
+                    <mat-option [value]="einheit">{{ einheit }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </td>
+            <td data-label="Heimatlager">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mittel">
+                <mat-select
+                  placeholder="Kein Heimatlager"
+                  [attr.aria-label]="'Heimatlager: ' + eintrag.name"
+                  [value]="eintrag.lagerId"
+                  [disabled]="beschaeftigtId() === eintrag.id"
+                  (selectionChange)="
+                    geaendert.emit({ artikel: eintrag, aenderung: { lagerId: $event.value } })
+                  "
+                >
+                  <mat-option [value]="null">Kein Heimatlager</mat-option>
+                  @for (eintragLager of lager(); track eintragLager.id) {
+                    <mat-option [value]="eintragLager.id">{{ eintragLager.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </td>
+            <td class="aktion">
+              <button
+                matIconButton
+                type="button"
+                [attr.aria-label]="'Artikel ' + eintrag.name + ' löschen'"
+                [disabled]="beschaeftigtId() === eintrag.id"
+                (click)="geloescht.emit(eintrag)"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <mat-paginator
+    [length]="treffer().length"
+    [pageSize]="seitengroesse"
+    [pageIndex]="seite()"
+    [hidePageSize]="true"
+    (page)="seiteGewaehlt($event)"
+  />
+}

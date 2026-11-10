@@ -121,5 +121,22 @@
         }
       </span>
     </button>
+    <button
+      matButton="outlined"
+      type="button"
+      class="kachel"
+      [disabled]="gesperrt()"
+      [attr.aria-label]="'Aufbau öffnen: ' + titel()"
+      (click)="aufbau.emit()"
+    >
+      <span class="inhalt">
+        <mat-icon class="symbol" aria-hidden="true">inventory_2</mat-icon>
+        <span class="text">
+          <span class="name">Aufbau</span>
+          <span class="untertitel">Packliste</span>
+        </span>
+        <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
+      </span>
+    </button>
   </div>
 </article>

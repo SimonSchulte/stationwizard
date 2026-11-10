@@ -1,18 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatChipsModule } from '@angular/material/chips';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import {
-  FACHGRUPPE_BEZEICHNUNG,
-  FACHGRUPPE_FARBVARIABLE,
-  FACHGRUPPEN,
-  Fachgruppe,
-  istFachgruppe,
-} from '../../../kern/fachgruppen/fachgruppe';
+import { Fachgruppe } from '../../../kern/fachgruppen/fachgruppe';
 import {
   ABSCHNITT_FARBEN,
   ABSCHNITT_FARBE_BEZEICHNUNG,
@@ -20,7 +12,6 @@ import {
   VB_GRENZEN,
 } from '../../models/vb.model';
 import { fotoVerkleinern } from '../../services/foto-verkleinern';
-import { FachgruppeChip } from '../fachgruppe-chip/fachgruppe-chip';
 
 export interface AbschnittDialogDaten {
   titel: string;
@@ -37,30 +28,21 @@ export type AbschnittDialogErgebnis =
       aktion: 'speichern';
       titel: string;
       farbe: AbschnittFarbe;
+      /** Unverändert durchgereicht: die Oberfläche bearbeitet die Fachgruppe vorerst nicht. */
       fachgruppe: Fachgruppe | null;
-      uebertragen: boolean;
       /** `null`: Foto entfernen. */
       foto: string | null;
     }
   | { aktion: 'loeschen' };
 
 /**
- * Dialog „Abschnitt bearbeiten“: Titel, Farbe aus der festen Palette, Fachgruppe (Vorgabe für
- * die Laufzettel, auf Wunsch auf alle übertragbar) und eine Vorschau des Laufzettelkopfs.
+ * Dialog „Abschnitt bearbeiten“: Titel, Farbe aus der festen Palette, Verladungsfoto und eine
+ * Vorschau des Laufzettelkopfs. Die Fachgruppe wird vorerst nicht bearbeitet.
  * Schließt mit dem Ergebnis; Bestätigung und Ausführung des Löschens liegen bei der Seite.
  */
 @Component({
   selector: 'app-abschnitt-dialog',
-  imports: [
-    MatButtonModule,
-    MatCheckboxModule,
-    MatChipsModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    FachgruppeChip,
-  ],
+  imports: [MatButtonModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule],
   templateUrl: './abschnitt-dialog.html',
   styleUrl: './abschnitt-dialog.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,24 +54,15 @@ export class AbschnittDialog {
 
   protected readonly farben = ABSCHNITT_FARBEN;
   protected readonly farbBezeichnung = ABSCHNITT_FARBE_BEZEICHNUNG;
-  protected readonly fachgruppen = FACHGRUPPEN;
-  protected readonly fachgruppeBezeichnung = FACHGRUPPE_BEZEICHNUNG;
-  protected readonly fachgruppeFarbe = FACHGRUPPE_FARBVARIABLE;
   protected readonly maxTitel = VB_GRENZEN.text;
 
   protected readonly titel = signal(this.daten.titel);
   protected readonly farbe = signal<AbschnittFarbe>(this.daten.farbe);
-  protected readonly fachgruppe = signal<Fachgruppe | null>(this.daten.fachgruppe);
-  protected readonly uebertragen = signal(false);
   protected readonly foto = signal<string | null>(this.daten.foto ?? null);
   protected readonly fotoFehler = signal('');
   protected readonly fotoLaeuft = signal(false);
 
   protected readonly gueltig = computed(() => this.titel().trim() !== '');
-
-  protected fachgruppeGewaehlt(wert: unknown): void {
-    this.fachgruppe.set(istFachgruppe(wert) ? wert : null);
-  }
 
   protected async fotoGewaehlt(ereignis: Event): Promise<void> {
     const eingabe = ereignis.target as HTMLInputElement;
@@ -113,8 +86,7 @@ export class AbschnittDialog {
       aktion: 'speichern',
       titel: this.titel().trim(),
       farbe: this.farbe(),
-      fachgruppe: this.fachgruppe(),
-      uebertragen: this.uebertragen(),
+      fachgruppe: this.daten.fachgruppe,
       foto: this.foto(),
     });
   }

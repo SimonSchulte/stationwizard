@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { verlassenGuard } from '../kern/verlassen-guard';
+import type { Stammdaten } from '../einsatz/pages/stammdaten/stammdaten';
 
 /**
  * Administrationsbereich. Die Fachlogik der einzelnen Aufgaben bleibt beim
@@ -72,5 +74,11 @@ export const verwaltungRouten: Routes = [
       import('../einsatz/pages/einsatz-vorlagen/einsatz-vorlagen').then(
         (modul) => modul.EinsatzVorlagen,
       ),
+  },
+  {
+    path: 'einsatz-stammdaten',
+    canDeactivate: [verlassenGuard<Stammdaten>((seite) => seite.hatUngespeichertes())],
+    loadComponent: () =>
+      import('../einsatz/pages/stammdaten/stammdaten').then((modul) => modul.Stammdaten),
   },
 ];

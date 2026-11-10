@@ -40,14 +40,14 @@ describe('EinsatzVorlagen', () => {
     });
   });
 
-  it('zeigt Seitenkopf und die Reiter PEP und VB', async () => {
+  it('zeigt Seitenkopf und die Reiter PEP, VB und Aufbau', async () => {
     fixture = TestBed.createComponent(EinsatzVorlagen);
     await stabil();
     expect(element().querySelector('app-seitenkopf')?.textContent).toContain('Einsatz-Vorlagen');
     const reiter = [...element().querySelectorAll('[role="tab"]')].map((e) =>
       e.textContent?.trim(),
     );
-    expect(reiter).toEqual(['PEP', 'VB']);
+    expect(reiter).toEqual(['PEP', 'VB', 'Aufbau']);
   });
 
   it('zeigt zuerst die PEP-Vorlagen und lädt die VB-Vorlagen erst beim Öffnen ihres Reiters', async () => {

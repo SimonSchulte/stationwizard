@@ -243,84 +243,94 @@ Prüfungen und offene Abnahmegrenzen.
 
 ### Erlaubte API-Oberfläche
 
-| Pfad                                               | Methode            | Vertrag                                                                                   |
-| -------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
-| `/api/status`                                      | GET                | Worker-Status                                                                             |
-| `/api/benutzer`                                    | GET                | Verifizierte E-Mail-Adresse                                                               |
-| `/api/benutzer/profilbild`                         | GET                | Best-effort Google-Profilbild-URL oder `null`, siehe unten                                |
-| `/api/efs/checkapikey`                             | POST               | JSON `{}`                                                                                 |
-| `/api/efs/getveranstaltungen`                      | POST               | JSON `{}`                                                                                 |
-| `/api/efs/getveranstaltung`                        | POST               | JSON mit ausschließlich `id`                                                              |
-| `/api/kalender`                                    | GET                | Alle Jahre samt Ideen und KatS-Plan in einem Aufruf, je mit Version                       |
-| `/api/kalender/jahre`                              | POST               | Neues Jahr; nur mit `If-None-Match: *`                                                    |
-| `/api/kalender/jahre/<JJJJ>`                       | PUT                | Jahr speichern; nur mit `If-Match`                                                        |
-| `/api/kalender/migration`                          | POST               | Einmalige Excel-Übernahme in den leeren Kalender; sonst 409                               |
-| `/api/hiorg/kalender`                              | GET                | HiOrg-Kalenderfeed, nur lesend                                                            |
-| `/api/hiorg/verbindung`                            | GET / DELETE       | HiOrg-Server-API: Verbindungsstatus bzw. Token verwerfen                                  |
-| `/api/hiorg/verbindung/code`                       | POST               | HiOrg-Server-API: kopierte Access-Callback-Adresse einlösen (manueller Rückruf)           |
-| `/api/hiorg/personal`                              | GET                | HiOrg-Server-API: aktives Personal, feste kleine Feldauswahl                              |
-| `/api/hiorg/personal/<Id>/antragsdaten`            | GET                | Nur Anrede, Straße, PLZ, Ort, Geburtsdatum genau einer Person; nur für den Ehrungsantrag  |
-| `/hiorg/verbinden`, `/hiorg/rueckruf`              | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                              |
-| `/api/personal/fuehrerschein-vorlage`              | GET / PUT          | Word-Vorlage der Führerscheinliste: Metadaten bzw. Ersetzen; Update nur mit `If-Match`    |
-| `/api/personal/fuehrerschein-vorlage/datei`        | GET                | Rohinhalt der Vorlage; der Worker liest ihn nie, er verwahrt sie nur                      |
-| `/api/personal/ehrungen`                           | GET                | Ehrungen aller Personen mit Version je Person                                             |
-| `/api/personal/ehrungen/<UUID>`                    | PUT / DELETE       | Erhaltene Auszeichnungen, Eintrittsdatum, Verdienste; Update nur mit `If-Match`           |
-| `/api/personal/ehrungen/import`                    | POST               | Sammelimport für Stunden bzw. Eintrittsdaten; Ergebnis je Eintrag                         |
-| `/api/personal/ehrungen/<UUID>/aenderungen`        | GET                | Änderungsprotokoll der Stundenzahlen, neueste zuerst; nur lesend                          |
-| `/api/personal/ehrungen/vorgaenge`                 | GET                | Haken „Abgestimmt OB“/„Beantragt“ aller offenen Ehrungen in einem Aufruf                  |
-| `/api/personal/ehrungen/<UUID>/vorgaenge/<art>`    | PUT                | Setzt nur die genannten Felder (Haken, Begründung, Antrag erstellt); ohne Version         |
-| `/api/personal/ehrungen/<UUID>/zustaendigkeit`     | PUT                | Zuständiger OV der Person (`bielefeld`, `werther` oder `null`); ohne Version              |
-| `/api/personal/ehrungsantrag-vorlage`              | GET / PUT          | PDF-Formular des Ehrungsantrags: Metadaten bzw. Ersetzen; Update nur mit `If-Match`       |
-| `/api/personal/ehrungsantrag-vorlage/datei`        | GET                | Rohinhalt des PDF-Formulars; der Worker liest ihn nie, er verwahrt ihn nur                |
-| `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig                |
-| `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                      |
-| `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                            |
-| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`          | DELETE             | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist               |
-| `/api/fahrzeuge/<UUID>/aenderungen`                | GET                | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff                |
-| `/api/fahrzeuge/km-bericht`                        | GET                | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht                        |
-| `/api/fahrzeuge/km-bericht/senden`                 | POST               | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld               |
-| `/api/benutzerverwaltung`                          | GET                | Liste aller bereits geprüft angemeldeten Personen samt Rolle                              |
-| `/api/benutzerverwaltung/<E-Mail>`                 | PUT                | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung               |
-| `/api/systemkonfiguration`                         | GET / PUT          | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten                     |
-| `/api/angebotswesen/preiskatalog`                  | GET / POST         | Preiskatalog-Liste (mit Version je Zeile); Neuanlage nur mit `If-None-Match: *`           |
-| `/api/angebotswesen/preiskatalog/<UUID>`           | PUT / DELETE       | Einzelner Eintrag; Update nur mit `If-Match`                                              |
-| `/api/angebotswesen/angebote`                      | GET / POST         | Angebotsliste (vollständig, inkl. Schichten); Neuanlage nur mit `If-None-Match: *`        |
-| `/api/angebotswesen/angebote/<UUID>`               | GET / PUT / DELETE | Einzelnes Angebot; Update nur mit `If-Match`                                              |
-| `/api/einsatzplanung/einsaetze`                    | GET / POST         | Alle Einsätze samt VB-Kennzahlen (ein Aufruf); Neuanlage nur mit `If-None-Match: *`       |
-| `/api/einsatzplanung/einsaetze/<UUID>`             | GET / PUT          | Einzelner Einsatz; Update nur mit `If-Match`, HiOrg-Veranstaltung eindeutig               |
-| `/api/einsatzplanung/einsaetze/<UUID>/vb`          | GET / PUT / DELETE | Vorbereitung; Anlage mit `If-None-Match: *`, sonst `If-Match`; Löschen nur mit `If-Match` |
-| `/api/einsatzplanung/vb-vorlagen`                  | GET / POST         | VB-Vorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`            |
-| `/api/einsatzplanung/vb-vorlagen/<UUID>`           | GET / PUT / DELETE | Einzelne Vorlage samt Inhalt; Update und Löschen nur mit `If-Match`                       |
-| `/api/einsatzplanung/einsaetze/<UUID>/pep`         | GET / PUT / DELETE | PEP; Anlage mit `If-None-Match: *`, sonst `If-Match`; Löschen nur mit `If-Match`          |
-| `/api/einsatzplanung/pep-vorlagen`                 | GET / POST         | PEP-Vorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`           |
-| `/api/einsatzplanung/pep-vorlagen/<UUID>`          | GET / PUT / DELETE | Einzelne Vorlage samt Inhalt; Update und Löschen nur mit `If-Match`                       |
-| `/f/<UUID>`, `/f/<UUID>/km`                        | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                    |
-| `/api/fahrzeuge/erfassungslinks`                   | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt                     |
-| `/api/fahrzeuge/<UUID>/erfassungslink`             | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                      |
-| `/e/<TOKEN>`                                       | GET                | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                                   |
-| `/oeffentlich/<datei>`                             | GET                | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels                          |
-| `/api/oeffentlich/meldung/<TOKEN>`                 | GET / POST         | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen                         |
-| `/api/material/vorlagen`                           | GET / POST         | Prüfvorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`           |
-| `/api/material/vorlagen/<UUID>`                    | GET / PUT / DELETE | Einzelne Vorlage samt Baum; Update nur mit `If-Match`; Löschen gesperrt bei Nutzung       |
-| `/api/material/behaelter`                          | GET / POST         | Alle Behälter mit Fahrzeug, Vorlage und letztem Check; Neuanlage mit `If-None-Match: *`   |
-| `/api/material/behaelter/<UUID>`                   | GET / PUT / DELETE | Einzelner Behälter; Update nur mit `If-Match`; Löschen gesperrt, solange Checks bestehen  |
-| `/api/material/behaelter/<UUID>/pruefauftrag`      | GET                | Behälter, Fahrzeug und vollständige Vorlage in einem Aufruf                               |
-| `/api/material/behaelter/<UUID>/checks`            | GET / POST         | Checkhistorie ohne Positionen; POST legt einen Check an, kein Update                      |
-| `/api/material/behaelter/<UUID>/entwurf`           | PUT / DELETE       | Eigener Zwischenstand eines laufenden Checks; **kein GET** – er reist im Prüfauftrag mit  |
-| `/api/material/behaelter/<UUID>/pruefcode`         | GET / POST         | Prüftoken lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                  |
-| `/api/material/pruefcodes`                         | GET                | Alle Prüftoken, auf die eigenen Freigabegruppen begrenzt                                  |
-| `/api/material/checks/<UUID>`                      | GET                | Einzelner Check vollständig, inklusive Positionen                                         |
-| `/api/material/checks/<UUID>/bericht/<art>`        | GET                | Bestellschein oder Mängelanzeige als Text; `art` im Pfad, nie als Query                   |
-| `/api/material/checks/<UUID>/bericht/<art>/senden` | POST               | Versendet denselben Bericht; nur Empfänger im Körper, nie ein Text                        |
-| `/api/material/einreichungen`                      | GET                | Offene Check-Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert            |
-| `/api/material/einreichungen/<UUID>`               | GET                | Einzelne Meldung samt Positionen, für die Durchsicht vor der Freigabe                     |
-| `/api/material/einreichungen/freigabe`             | POST               | Mehrfachfreigabe; Ergebnis je Eintrag, höchstens 50 je Aufruf                             |
-| `/api/material/einreichungen/<UUID>/ablehnung`     | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                    |
-| `/c/<TOKEN>`                                       | GET                | **Ohne Anmeldung.** Öffentliche Checkseite                                                |
-| `/api/oeffentlich/check/<TOKEN>`                   | GET / POST         | **Ohne Anmeldung.** Behälter und Soll-Liste lesen bzw. Prüfung einreichen                 |
-| `/api/fahrzeuge/einreichungen`                     | GET                | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert                  |
-| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`     | POST               | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung                     |
-| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung`    | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                    |
+| Pfad                                               | Methode            | Vertrag                                                                                         |
+| -------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| `/api/status`                                      | GET                | Worker-Status                                                                                   |
+| `/api/benutzer`                                    | GET                | Verifizierte E-Mail-Adresse                                                                     |
+| `/api/benutzer/profilbild`                         | GET                | Best-effort Google-Profilbild-URL oder `null`, siehe unten                                      |
+| `/api/efs/checkapikey`                             | POST               | JSON `{}`                                                                                       |
+| `/api/efs/getveranstaltungen`                      | POST               | JSON `{}`                                                                                       |
+| `/api/efs/getveranstaltung`                        | POST               | JSON mit ausschließlich `id`                                                                    |
+| `/api/kalender`                                    | GET                | Alle Jahre samt Ideen und KatS-Plan in einem Aufruf, je mit Version                             |
+| `/api/kalender/jahre`                              | POST               | Neues Jahr; nur mit `If-None-Match: *`                                                          |
+| `/api/kalender/jahre/<JJJJ>`                       | PUT                | Jahr speichern; nur mit `If-Match`                                                              |
+| `/api/kalender/migration`                          | POST               | Einmalige Excel-Übernahme in den leeren Kalender; sonst 409                                     |
+| `/api/hiorg/kalender`                              | GET                | HiOrg-Kalenderfeed, nur lesend                                                                  |
+| `/api/hiorg/verbindung`                            | GET / DELETE       | HiOrg-Server-API: Verbindungsstatus bzw. Token verwerfen                                        |
+| `/api/hiorg/verbindung/code`                       | POST               | HiOrg-Server-API: kopierte Access-Callback-Adresse einlösen (manueller Rückruf)                 |
+| `/api/hiorg/personal`                              | GET                | HiOrg-Server-API: aktives Personal, feste kleine Feldauswahl                                    |
+| `/api/hiorg/personal/<Id>/antragsdaten`            | GET                | Nur Anrede, Straße, PLZ, Ort, Geburtsdatum genau einer Person; nur für den Ehrungsantrag        |
+| `/hiorg/verbinden`, `/hiorg/rueckruf`              | GET                | OAuth-Seitenaufrufe (hinter Access); Token bleiben im Worker                                    |
+| `/api/personal/fuehrerschein-vorlage`              | GET / PUT          | Word-Vorlage der Führerscheinliste: Metadaten bzw. Ersetzen; Update nur mit `If-Match`          |
+| `/api/personal/fuehrerschein-vorlage/datei`        | GET                | Rohinhalt der Vorlage; der Worker liest ihn nie, er verwahrt sie nur                            |
+| `/api/personal/ehrungen`                           | GET                | Ehrungen aller Personen mit Version je Person                                                   |
+| `/api/personal/ehrungen/<UUID>`                    | PUT / DELETE       | Erhaltene Auszeichnungen, Eintrittsdatum, Verdienste; Update nur mit `If-Match`                 |
+| `/api/personal/ehrungen/import`                    | POST               | Sammelimport für Stunden bzw. Eintrittsdaten; Ergebnis je Eintrag                               |
+| `/api/personal/ehrungen/<UUID>/aenderungen`        | GET                | Änderungsprotokoll der Stundenzahlen, neueste zuerst; nur lesend                                |
+| `/api/personal/ehrungen/vorgaenge`                 | GET                | Haken „Abgestimmt OB“/„Beantragt“ aller offenen Ehrungen in einem Aufruf                        |
+| `/api/personal/ehrungen/<UUID>/vorgaenge/<art>`    | PUT                | Setzt nur die genannten Felder (Haken, Begründung, Antrag erstellt); ohne Version               |
+| `/api/personal/ehrungen/<UUID>/zustaendigkeit`     | PUT                | Zuständiger OV der Person (`bielefeld`, `werther` oder `null`); ohne Version                    |
+| `/api/personal/ehrungsantrag-vorlage`              | GET / PUT          | PDF-Formular des Ehrungsantrags: Metadaten bzw. Ersetzen; Update nur mit `If-Match`             |
+| `/api/personal/ehrungsantrag-vorlage/datei`        | GET                | Rohinhalt des PDF-Formulars; der Worker liest ihn nie, er verwahrt ihn nur                      |
+| `/api/fahrzeuge`                                   | GET / POST         | Fahrzeugliste; Neuanlage nur mit `If-None-Match: *`, Kennzeichen eindeutig                      |
+| `/api/fahrzeuge/<UUID>`                            | GET / PUT          | Einzelnes Fahrzeug; Update nur mit `If-Match`, Kennzeichen eindeutig                            |
+| `/api/fahrzeuge/<UUID>/ablesungen`                 | GET / POST         | Kilometerablesungen; kein Update, nur Anhängen                                                  |
+| `/api/fahrzeuge/<UUID>/ablesungen/<UUID>`          | DELETE             | Einzelne Ablesung löschen; gesperrt, solange eine Korrektur darauf verweist                     |
+| `/api/fahrzeuge/<UUID>/aenderungen`                | GET                | Änderungsprotokoll, neueste zuerst; nur lesend, kein Client-Schreibzugriff                      |
+| `/api/fahrzeuge/km-bericht`                        | GET                | Kilometerstandsbericht über alle Fahrzeuge; Vorschau und Übersicht                              |
+| `/api/fahrzeuge/km-bericht/senden`                 | POST               | Versendet denselben Bericht an die gespeicherte Adresse; kein Empfängerfeld                     |
+| `/api/benutzerverwaltung`                          | GET                | Liste aller bereits geprüft angemeldeten Personen samt Rolle                                    |
+| `/api/benutzerverwaltung/<E-Mail>`                 | PUT                | Setzt Hauptrolle und Sonderrollen vollständig; 404 ohne vorherige Anmeldung                     |
+| `/api/systemkonfiguration`                         | GET / PUT          | Betriebseinstellungen aus fester Schlüsselliste; niemals Zugangsdaten                           |
+| `/api/angebotswesen/preiskatalog`                  | GET / POST         | Preiskatalog-Liste (mit Version je Zeile); Neuanlage nur mit `If-None-Match: *`                 |
+| `/api/angebotswesen/preiskatalog/<UUID>`           | PUT / DELETE       | Einzelner Eintrag; Update nur mit `If-Match`                                                    |
+| `/api/angebotswesen/angebote`                      | GET / POST         | Angebotsliste (vollständig, inkl. Schichten); Neuanlage nur mit `If-None-Match: *`              |
+| `/api/angebotswesen/angebote/<UUID>`               | GET / PUT / DELETE | Einzelnes Angebot; Update nur mit `If-Match`                                                    |
+| `/api/einsatzplanung/einsaetze`                    | GET / POST         | Alle Einsätze samt VB-Kennzahlen (ein Aufruf); Neuanlage nur mit `If-None-Match: *`             |
+| `/api/einsatzplanung/einsaetze/<UUID>`             | GET / PUT          | Einzelner Einsatz; Update nur mit `If-Match`, HiOrg-Veranstaltung eindeutig                     |
+| `/api/einsatzplanung/einsaetze/<UUID>/vb`          | GET / PUT / DELETE | Vorbereitung; Anlage mit `If-None-Match: *`, sonst `If-Match`; Löschen nur mit `If-Match`       |
+| `/api/einsatzplanung/vb-vorlagen`                  | GET / POST         | VB-Vorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`                  |
+| `/api/einsatzplanung/vb-vorlagen/<UUID>`           | GET / PUT / DELETE | Einzelne Vorlage samt Inhalt; Update und Löschen nur mit `If-Match`                             |
+| `/api/einsatzplanung/einsaetze/<UUID>/pep`         | GET / PUT / DELETE | PEP; Anlage mit `If-None-Match: *`, sonst `If-Match`; Löschen nur mit `If-Match`                |
+| `/api/einsatzplanung/pep-vorlagen`                 | GET / POST         | PEP-Vorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`                 |
+| `/api/einsatzplanung/pep-vorlagen/<UUID>`          | GET / PUT / DELETE | Einzelne Vorlage samt Inhalt; Update und Löschen nur mit `If-Match`                             |
+| `/api/einsatzplanung/lager`                        | GET / POST         | Alle Lager in einem Aufruf (Version je Zeile); Neuanlage nur mit `If-None-Match: *`             |
+| `/api/einsatzplanung/lager/reihenfolge`            | PUT                | Reihenfolge aller Lager in einem Schreibvorgang; ohne Version, 412 bei geänderter Menge         |
+| `/api/einsatzplanung/lager/<UUID>`                 | PUT / DELETE       | Update und Löschen nur mit `If-Match`; Löschen gesperrt, solange Artikel es nutzen              |
+| `/api/einsatzplanung/artikel`                      | GET / POST         | Ganzer Artikelkatalog in einem Aufruf; Neuanlage nur mit `If-None-Match: *`                     |
+| `/api/einsatzplanung/artikel/<UUID>`               | PUT / DELETE       | Update und Löschen nur mit `If-Match`                                                           |
+| `/api/einsatzplanung/kisten`                       | GET / POST         | Alle Kisten samt Inhalt in einem Aufruf; Neuanlage nur mit `If-None-Match: *`                   |
+| `/api/einsatzplanung/kisten/<UUID>`                | PUT / DELETE       | Update und Löschen nur mit `If-Match`                                                           |
+| `/api/einsatzplanung/einsaetze/<UUID>/aufbau`      | GET / PUT / DELETE | Aufbau (Packliste); Anlage mit `If-None-Match: *`, sonst `If-Match`; Löschen nur mit `If-Match` |
+| `/api/einsatzplanung/aufbau-vorlagen`              | GET / POST         | Aufbau-Vorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`              |
+| `/api/einsatzplanung/aufbau-vorlagen/<UUID>`       | GET / PUT / DELETE | Einzelne Vorlage samt Inhalt; Update und Löschen nur mit `If-Match`                             |
+| `/f/<UUID>`, `/f/<UUID>/km`                        | GET                | QR-Kurzlink, leitet auf die aktuelle Hash-Route weiter                                          |
+| `/api/fahrzeuge/erfassungslinks`                   | GET                | Öffentliche Erfassungstoken, auf die eigenen Freigabegruppen begrenzt                           |
+| `/api/fahrzeuge/<UUID>/erfassungslink`             | GET / POST         | Token lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                            |
+| `/e/<TOKEN>`                                       | GET                | **Ohne Anmeldung.** Öffentliche Meldeseite, siehe unten                                         |
+| `/oeffentlich/<datei>`                             | GET                | **Ohne Anmeldung.** Nur die drei Dateien des zweiten Build-Ziels                                |
+| `/api/oeffentlich/meldung/<TOKEN>`                 | GET / POST         | **Ohne Anmeldung.** Fahrzeugangaben lesen bzw. Meldung einreichen                               |
+| `/api/material/vorlagen`                           | GET / POST         | Prüfvorlagen als Kopfdaten mit Kennzahlen; Neuanlage nur mit `If-None-Match: *`                 |
+| `/api/material/vorlagen/<UUID>`                    | GET / PUT / DELETE | Einzelne Vorlage samt Baum; Update nur mit `If-Match`; Löschen gesperrt bei Nutzung             |
+| `/api/material/behaelter`                          | GET / POST         | Alle Behälter mit Fahrzeug, Vorlage und letztem Check; Neuanlage mit `If-None-Match: *`         |
+| `/api/material/behaelter/<UUID>`                   | GET / PUT / DELETE | Einzelner Behälter; Update nur mit `If-Match`; Löschen gesperrt, solange Checks bestehen        |
+| `/api/material/behaelter/<UUID>/pruefauftrag`      | GET                | Behälter, Fahrzeug und vollständige Vorlage in einem Aufruf                                     |
+| `/api/material/behaelter/<UUID>/checks`            | GET / POST         | Checkhistorie ohne Positionen; POST legt einen Check an, kein Update                            |
+| `/api/material/behaelter/<UUID>/entwurf`           | PUT / DELETE       | Eigener Zwischenstand eines laufenden Checks; **kein GET** – er reist im Prüfauftrag mit        |
+| `/api/material/behaelter/<UUID>/pruefcode`         | GET / POST         | Prüftoken lesen; POST erneuert es und macht gedruckte Aufkleber ungültig                        |
+| `/api/material/pruefcodes`                         | GET                | Alle Prüftoken, auf die eigenen Freigabegruppen begrenzt                                        |
+| `/api/material/checks/<UUID>`                      | GET                | Einzelner Check vollständig, inklusive Positionen                                               |
+| `/api/material/checks/<UUID>/bericht/<art>`        | GET                | Bestellschein oder Mängelanzeige als Text; `art` im Pfad, nie als Query                         |
+| `/api/material/checks/<UUID>/bericht/<art>/senden` | POST               | Versendet denselben Bericht; nur Empfänger im Körper, nie ein Text                              |
+| `/api/material/einreichungen`                      | GET                | Offene Check-Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert                  |
+| `/api/material/einreichungen/<UUID>`               | GET                | Einzelne Meldung samt Positionen, für die Durchsicht vor der Freigabe                           |
+| `/api/material/einreichungen/freigabe`             | POST               | Mehrfachfreigabe; Ergebnis je Eintrag, höchstens 50 je Aufruf                                   |
+| `/api/material/einreichungen/<UUID>/ablehnung`     | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                          |
+| `/c/<TOKEN>`                                       | GET                | **Ohne Anmeldung.** Öffentliche Checkseite                                                      |
+| `/api/oeffentlich/check/<TOKEN>`                   | GET / POST         | **Ohne Anmeldung.** Behälter und Soll-Liste lesen bzw. Prüfung einreichen                       |
+| `/api/fahrzeuge/einreichungen`                     | GET                | Offene Meldungen, serverseitig auf die eigenen Freigabegruppen gefiltert                        |
+| `/api/fahrzeuge/einreichungen/<UUID>/freigabe`     | POST               | Erzeugt daraus die echte Ablesung; nur Zugführung oder Gruppenführung                           |
+| `/api/fahrzeuge/einreichungen/<UUID>/ablehnung`    | POST               | Verwirft die Meldung mit Grund; dieselbe Rollenprüfung                                          |
 
 Der Kalender (`src/app/ausbildung/`, `worker/src/kalender-planung.ts`) löst die frühere
 Excel-Arbeitsmappe in der früheren Dateifreigabe ab. Eigene D1-Datenbank `KALENDER_DB`
@@ -534,6 +544,71 @@ Worker; die Einsatzliste liefert `pep` und `vb` je Einsatz per `LEFT JOIN` in ei
 `EINSATZPLANUNG_PEP_VORLAGE_NICHT_GEFUNDEN` (404). Alte Nextcloud-Dateien werden nicht
 übernommen; nach dem Einspielen der Migration kann der Betreiber die Secrets `NEXTCLOUD_*`
 löschen.
+
+**Stammdaten der Packeinheiten, Stufe 1** (Entwurf und Begründung in
+`docs/konzept-packeinheiten.md`): **Lager** (feste Liste, `reihenfolge` = Laufweg) und der
+**Artikelkatalog** (Name, feste Einheit, Heimatlager) liegen in `EINSATZPLANUNG_DB`
+(`worker/migrations/einsatzplanung/0023_lager_artikel.sql`; Worker `einsatzplanung-lager.ts`,
+`einsatzplanung-artikel.ts`, gemeinsam `einsatzplanung-stammdaten.ts`). Je Zeile eine eigene `version`
+(Anlage `If-None-Match: *`, sonst `If-Match`), `angelegt`/`geaendert_von` aus der geprüften Anmeldung.
+Der Name ist je Tabelle eindeutig in einer **Vergleichsform** (ohne Groß-/Kleinschreibung und überzählige
+Leerzeichen, Spalte `name_vergleich`, nur vom Worker gesetzt): 409 `EINSATZPLANUNG_NAME_VERGEBEN`. Die
+Vergleichsform steht im Worker (`namenVergleich()`) und im Frontend (`lagerSchluessel()` in
+`einsatz/services/lager.ts`, auch für Sortierung und Vorschläge im VB-Editor) – gemeinsam ändern. Ein Lager
+mit Artikeln lässt sich nicht löschen (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`, zusätzlich
+Fremdschlüssel `ON DELETE RESTRICT`), Grenzen 100 Lager und 2000 Artikel (409
+`EINSATZPLANUNG_GRENZE_ERREICHT`). Die Einheiten sind eine feste Liste (`ARTIKEL_EINHEITEN`, Worker und
+`stammdaten.model.ts` gemeinsam ändern). Beide Listen kommen in **einem** Aufruf, `ApiStammdatenStorage`
+puffert sie über `kern/abruf-puffer.ts`. Die Oberfläche (`einsatz/pages/stammdaten/`, Route
+`/verwaltung/einsatz-stammdaten`, Karte „Lager und Artikel“ in der Verwaltung) hält den Zustand im
+`StammdatenStoreService`; die Komponenten `LagerListe` (Ziehen am Griff oder Pfeile) und `ArtikelTabelle`
+(Suche, Filter „Ohne Heimatlager“, 50 je Seite) sind rein darstellend. Rollenvergabe fehlt auch hier –
+dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
+
+**Kisten (Stufe 2)** liegen in derselben Datenbank (`0024_kisten.sql`, Worker `einsatzplanung-kisten.ts`): eine
+Zeile je Kiste mit `name` (eindeutig in der Vergleichsform), Heimatlager (`lager_id`, leer möglich,
+Fremdschlüssel `ON DELETE RESTRICT`) und `inhalt` als vom Worker streng geprüftes JSON
+(`pruefeKisteEingabe()`: unbekannte Felder abgelehnt, `artikelId` je Kiste einmal und vorhanden, `menge` > 0 mit
+höchstens drei Nachkommastellen bis 1 000 000, `bemerkung` ≤ 200 Zeichen, höchstens 100 Positionen und 300
+Kisten). Die Kennzahl `positionen` setzt nur der Worker. Löschschutz: ein **Artikel in einer Kiste** (Suche
+`inhalt LIKE '%"artikelId":"<id>"%'`, deshalb schreibt der Worker den Inhalt immer in dieser Schlüsselfolge und
+ohne Leerraum) und ein **Lager mit Kisten** lassen sich nicht löschen (409
+`EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`). Die Seite hat den Reiter „Kisten“ (`KisteListe`, `KisteEditor`):
+Eine Kiste wird **ausdrücklich mit „Speichern“** gespeichert (ein Schreibvorgang je Kiste, nie je Zeile);
+ungespeicherte Änderungen fragen beim Wechsel der Kiste und beim Verlassen der Seite nach
+(`verlassenGuard`, `Stammdaten.hatUngespeichertes()`). Druck: `kisten-pdf-definition.ts` und `KistenDruckDienst`
+– **Kistenschild** (A5 quer, zwei je A4-Hochformatblatt mit Schnittlinie, Inhaltsliste in einer bis drei Spalten
+mit „… und n weitere“, unten das Heimatlager) und **Kistenzettel** (ein Laufzettelstreifen „<Kiste> packen“ über
+`baueLaufzettelStreifen()`, „Auf / In“ als Schreiblinie, ohne Schild-Nummer im Fuß). Gedruckt wird der gespeicherte
+Stand; ohne Aufbau gibt es weder Ziel noch Einsatz, deshalb dunkelblauer Rahmen und neutrales Farbband (Stufe 3
+setzt Zielfarbe und Einsatz ein).
+
+**Aufbau (Stufe 3, Worker-Teil)** liegt in derselben Datenbank (`0025_aufbau.sql`: `aufbauten`, eine Zeile je
+Einsatz, und `aufbau_vorlagen`; Worker `einsatzplanung-aufbauten.ts`, `-aufbau-vorlagen.ts`,
+`-aufbau-pruefung.ts`, `-aufbau-verweise.ts`). Gleiches Muster wie PEP und VB: vom Worker streng geprüftes
+JSON (`pruefeAufbauInhalt()`: unbekannte Felder abgelehnt, **alle** Ids im ganzen Inhalt eindeutig, höchstens 60
+Einheiten, 200 Einträge je Einheit, Kiste bis 99-fach mit höchstens 100 Positionen, Körper ≤ 1 MB wegen der
+Fotos), eigene `version`, Kennzahlen (`einheiten`, `kisten`, `positionen`) nur vom Worker. Ein Wagen steht nur
+direkt in einem Fahrzeug, nie in einem Wagen. Eine Kiste im Aufbau ist eine **Momentaufnahme** (Name, Heimatlager,
+Inhalt; `kisteId` nur zur Nachverfolgung, ohne Prüfung gegen die Stammdaten). `artikelId` und `lagerId` im Inhalt
+sind keine Fremdschlüssel; der Worker prüft sie beim Schreiben in Blöcken zu 80 (D1 erlaubt 100 gebundene Werte)
+und sperrt das Löschen eines Artikels oder Lagers, solange ein Aufbau oder eine Aufbau-Vorlage darauf verweist
+(409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`, Suche `inhalt LIKE '%"artikelId":"<id>"%'`, deshalb schreibt der
+Worker den Inhalt als kompaktes JSON). Fehlercodes `EINSATZPLANUNG_AUFBAU_NICHT_GEFUNDEN` und
+`EINSATZPLANUNG_AUFBAU_VORLAGE_NICHT_GEFUNDEN` (404). Die Migration `0025` muss vor dem Deployment dieses Workers
+eingespielt sein, weil das Löschen von Artikeln und Lagern die neuen Tabellen liest. Rollenvergabe fehlt auch hier
+– dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
+
+**Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und
+`aufbau-vorlagen/:id|neu`): Der Zustand liegt im `AufbauEditorStoreService` (Entwurf, Basislinie, Rückgängig,
+ein Schreibvorgang je „Speichern“, `If-Match`, Konflikt bewahrt den Entwurf); die Seite hält nur Auswahl und
+Sortierung. Alle Änderungen sind reine Funktionen in `services/aufbau-bearbeiten.ts`, Zettel und Prüfung werden
+nie gespeichert, sondern in `aufbau-zettel.ts` (`leiteZettelAb()`) und `aufbau-abgleich.ts` (`pruefeAufbau()`)
+abgeleitet. Die Zahl der Rasterzeilen (23) kommt aus `laufzettel-platz.ts`. Gedruckt wird über
+`aufbau-druck.ts`, das die Zettel in die Form der VB bringt und den vorhandenen `VbDruckDienst` nutzt; ein
+Lagertrenner ist dabei eine Hinweiszeile. Eine Kiste im Aufbau wird beim Hinzufügen als Momentaufnahme kopiert;
+„Übernehmen“ gleicht sie mit den Stammdaten ab. VB-Editor und -Endpunkte bestehen weiter, bis der Aufbau im
+Betrieb abgenommen ist.
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte

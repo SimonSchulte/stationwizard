@@ -1,0 +1,29 @@
+:host {
+  display: block;
+}
+
+.neu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.neu-feld {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.suche {
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.liste {
+  padding: 0;
+}
+
+.liste button.mdc-list-item--activated {
+  background: var(--surface-secondary);
+  box-shadow: inset var(--space-xs) 0 0 var(--ci-blue);
+}

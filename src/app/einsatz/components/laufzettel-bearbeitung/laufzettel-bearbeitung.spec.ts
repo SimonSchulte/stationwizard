@@ -101,17 +101,42 @@ describe('LaufzettelBearbeitung', () => {
     ]);
   });
 
-  it('übersetzt „keine“ und eine Fachgruppe in die Ausgabe', () => {
+  it('bietet keine Fachgruppe zur Auswahl an', () => {
     const fixture = erzeuge(testLaufzettel({ fachgruppe: 'betreuung' }));
+    expect(el(fixture).querySelector('mat-chip-listbox')).toBeNull();
+    expect(el(fixture).textContent).not.toContain('Fachgruppe');
+  });
+
+  it('schlägt zur Eingabe passende, schon erfasste Lager vor', () => {
+    const fixture = erzeuge(testLaufzettel({ lagerort: 'nord' }));
+    fixture.componentRef.setInput('lagerorte', ['Fahrzeughalle', 'Lager Nord', 'Lager Süd']);
+    fixture.detectChanges();
+    const vorschlaege = () =>
+      (fixture.componentInstance as unknown as { lagerVorschlaege(): string[] }).lagerVorschlaege();
+    expect(vorschlaege()).toEqual(['Lager Nord']);
+    // genau so geschrieben (auch in anderer Groß-/Kleinschreibung): kein Vorschlag mehr
+    fixture.componentRef.setInput('laufzettel', testLaufzettel({ lagerort: ' lager NORD ' }));
+    fixture.detectChanges();
+    expect(vorschlaege()).toEqual([]);
+    // leere Eingabe: alle Lager
+    fixture.componentRef.setInput('laufzettel', testLaufzettel({ lagerort: '' }));
+    fixture.detectChanges();
+    expect(vorschlaege()).toHaveLength(3);
+  });
+
+  it('meldet ein gewähltes Lager als Änderung des Lagerorts', () => {
+    const fixture = erzeuge(testLaufzettel());
     const gemeldet: unknown[] = [];
     fixture.componentInstance.felderGeaendert.subscribe((f) => gemeldet.push(f));
-    const instanz = fixture.componentInstance as unknown as {
-      fachgruppeGewaehlt(wert: unknown): void;
-    };
-    instanz.fachgruppeGewaehlt('tesi');
-    instanz.fachgruppeGewaehlt('keine');
-    instanz.fachgruppeGewaehlt(undefined);
-    expect(gemeldet).toEqual([{ fachgruppe: 'tesi' }, { fachgruppe: null }, { fachgruppe: null }]);
+    (fixture.componentInstance as unknown as { lagerGewaehlt(lager: string): void }).lagerGewaehlt(
+      'Lager Süd',
+    );
+    expect(gemeldet).toEqual([{ lagerort: 'Lager Süd' }]);
+  });
+
+  it('nennt bei leerem „Auf / In“ den Abschnitt als Ziel', () => {
+    const fixture = erzeuge(testLaufzettel({ transportMit: '' }));
+    expect(el(fixture).textContent).toContain('Leer: der Abschnitt „Betreuung“');
   });
 
   it('warnt bei einem zu vollen Laufzettel und bietet das Aufteilen an', () => {

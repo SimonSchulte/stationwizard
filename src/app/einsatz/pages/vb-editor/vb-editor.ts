@@ -46,7 +46,6 @@ import {
   AbschnittDialogErgebnis,
 } from '../../components/abschnitt-dialog/abschnitt-dialog';
 import { AbschnittFarbpunkt } from '../../components/abschnitt-farbpunkt/abschnitt-farbpunkt';
-import { FachgruppeChip } from '../../components/fachgruppe-chip/fachgruppe-chip';
 import {
   AbschnittAuswahl,
   LaufzettelAuswahl,
@@ -70,6 +69,7 @@ import {
   OHNE_ABSCHNITT_TITEL,
   VbEditorStoreService,
 } from '../../services/vb-editor-store.service';
+import { lagerVorschlaege } from '../../services/lager';
 import { VbDruckDienst } from '../../services/vb-druck';
 import { laufzettelMarken } from '../../services/vb-marken';
 
@@ -112,7 +112,6 @@ function dateiname(text: string): string {
     MatTooltipModule,
     RouterLink,
     AbschnittFarbpunkt,
-    FachgruppeChip,
     Ladeanzeige,
     Leerzustand,
     LaufzettelBearbeitung,
@@ -129,6 +128,10 @@ export class VbEditor {
   protected readonly store = inject(VbEditorStoreService);
   protected readonly layout = inject(LaufzettelLayoutWahl);
   protected readonly streifenWahl = STREIFEN_WAHL;
+  /** Bereits erfasste Lager als Vorschläge für „Von (Lagerort)“. */
+  protected readonly lagerorte = computed(() =>
+    lagerVorschlaege(this.store.entwurf()?.inhalt.abschnitte ?? []),
+  );
   private readonly route = inject(ActivatedRoute);
   /** Handybreite: die Bearbeitung ist dort eingeschränkt bedienbar. */
   protected readonly schmal = toSignal(
@@ -494,7 +497,6 @@ export class VbEditor {
       fachgruppe: ergebnis.fachgruppe,
       foto: ergebnis.foto,
     });
-    if (ergebnis.uebertragen) this.store.fachgruppeAufLaufzettelUebertragen(abschnitt.id);
   }
 
   private async abschnittLoeschen(abschnitt: VbAbschnitt): Promise<void> {

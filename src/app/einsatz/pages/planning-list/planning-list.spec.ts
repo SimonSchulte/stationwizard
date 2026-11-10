@@ -235,20 +235,24 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(kacheln(karte(fixture, 'Altes Fest'))).toEqual([
       'PEP öffnen: Altes Fest',
       'VB anlegen: Altes Fest',
+      'Aufbau öffnen: Altes Fest',
     ]);
     await anstehendWaehlen(fixture);
 
     expect(kacheln(karte(fixture, 'Weihnachtsmarkt'))).toEqual([
       'PEP öffnen: Weihnachtsmarkt',
       'VB öffnen: Weihnachtsmarkt',
+      'Aufbau öffnen: Weihnachtsmarkt',
     ]);
     expect(kacheln(karte(fixture, 'Stadtlauf'))).toEqual([
       'PEP anlegen: Stadtlauf',
       'VB anlegen: Stadtlauf',
+      'Aufbau öffnen: Stadtlauf',
     ]);
     expect(kacheln(karte(fixture, 'Dienst ohne HiOrg'))).toEqual([
       'PEP anlegen: Dienst ohne HiOrg',
       'VB anlegen: Dienst ohne HiOrg',
+      'Aufbau öffnen: Dienst ohne HiOrg',
     ]);
   });
 
@@ -521,6 +525,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(kacheln(karte(fixture, 'Neuer Dienst'))).toEqual([
       'PEP anlegen: Neuer Dienst',
       'VB anlegen: Neuer Dienst',
+      'Aufbau öffnen: Neuer Dienst',
     ]);
   });
 });

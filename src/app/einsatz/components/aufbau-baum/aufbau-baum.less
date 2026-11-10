@@ -1,0 +1,90 @@
+:host {
+  display: block;
+}
+
+.leer {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md);
+}
+
+.baum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.eintrag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--space-xs);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.eintrag:hover {
+  background: var(--surface-hover);
+}
+
+.eintrag[aria-pressed='true'] {
+  background: var(--status-ok-bg);
+  border-color: var(--status-ok);
+}
+
+.eintrag:focus-visible {
+  outline: 3px solid var(--ci-red);
+  outline-offset: 2px;
+}
+
+.eingerueckt {
+  margin-left: var(--space-lg);
+  width: calc(100% - var(--space-lg));
+}
+
+.typ {
+  flex: none;
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.zahl {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
+.warnung {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  font-size: 1.1em;
+  color: var(--status-warn);
+}
+
+.hinzufuegen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}

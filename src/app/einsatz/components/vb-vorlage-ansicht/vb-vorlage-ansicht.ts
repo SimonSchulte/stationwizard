@@ -1,12 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTableModule } from '@angular/material/table';
-import { Fachgruppe } from '../../../kern/fachgruppen/fachgruppe';
 import { Leerzustand } from '../../../kern/zustand/zustand';
 import { AbschnittFarbe, VbInhalt, VbPosition } from '../../models/vb.model';
 import { laufzettelNummern } from '../../services/laufzettel-platz';
 import { AbschnittFarbpunkt } from '../abschnitt-farbpunkt/abschnitt-farbpunkt';
-import { FachgruppeChip } from '../fachgruppe-chip/fachgruppe-chip';
 
 interface LaufzettelZeile {
   id: string;
@@ -21,7 +19,6 @@ interface AbschnittAnsicht {
   id: string;
   titel: string;
   farbe: AbschnittFarbe;
-  fachgruppe: Fachgruppe | null;
   zeilen: LaufzettelZeile[];
 }
 
@@ -38,7 +35,7 @@ export function materialKurztext(positionen: readonly VbPosition[]): string {
  */
 @Component({
   selector: 'app-vb-vorlage-ansicht',
-  imports: [MatExpansionModule, MatTableModule, Leerzustand, AbschnittFarbpunkt, FachgruppeChip],
+  imports: [MatExpansionModule, MatTableModule, Leerzustand, AbschnittFarbpunkt],
   templateUrl: './vb-vorlage-ansicht.html',
   styleUrl: './vb-vorlage-ansicht.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,7 +51,6 @@ export class VbVorlageAnsicht {
       id: abschnitt.id,
       titel: abschnitt.titel,
       farbe: abschnitt.farbe,
-      fachgruppe: abschnitt.fachgruppe,
       zeilen: abschnitt.laufzettel.map((laufzettel) => ({
         id: laufzettel.id,
         nr: nummern.get(laufzettel.id) ?? 0,

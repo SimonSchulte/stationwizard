@@ -13,16 +13,17 @@
   <div class="inhalt">
     <div class="kopf">
       <span class="nummer">{{ nummer() }}</span>
-      <span class="ort">{{ ort() }}</span>
+      <span class="ort" [attr.aria-label]="ortBeschreibung()">
+        <span class="lager" [class.fehlt]="!lager()">{{ lager() || 'Kein Lager' }}</span>
+        <span class="pfeil" aria-hidden="true"> → </span>
+        <span class="ziel" [class.abgeleitet]="zielAbgeleitet()">{{ ziel() }}</span>
+      </span>
       @if (marke(); as m) {
         <span class="marke" [class.neu]="m === 'neu'">{{ m === 'neu' ? 'neu' : 'geändert' }}</span>
       }
     </div>
     <div class="kurztext">{{ kurztext() }}</div>
     <div class="fuss">
-      @if (laufzettel().fachgruppe; as gruppe) {
-        <app-fachgruppe-chip [fachgruppe]="gruppe" />
-      }
       <span
         class="platz"
         [attr.data-zustand]="platz().zustand"

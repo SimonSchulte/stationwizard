@@ -9,8 +9,8 @@ import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
 import type { EfsAbgleichArt } from '../../services/efs-abgleich';
 
 /**
- * Eine Karte der Einsatzübersicht: Datumsblock, Titel mit Metazeile und zwei Kacheln
- * „PEP“/„VB“ (öffnen oder anlegen). Rein darstellend; die Kacheln sind echte Material-Knöpfe
+ * Eine Karte der Einsatzübersicht: Datumsblock, Titel mit Metazeile und drei Kacheln
+ * „PEP“/„VB“/„Aufbau“ (öffnen oder anlegen). Rein darstellend; die Kacheln sind echte Material-Knöpfe
  * (`matButton="outlined"`), gestaltet über `--mat-button-outlined-*`-Tokens.
  */
 @Component({
@@ -43,6 +43,7 @@ export class EinsatzKarte {
   readonly efsPruefen = output<void>();
   readonly pep = output<void>();
   readonly vb = output<void>();
+  readonly aufbau = output<void>();
 
   protected readonly pepDa = computed(() => this.pepVorhanden() || this.pepKennzahlen() !== null);
   protected readonly abstand = computed(() => abstandText(this.abstandTage()));

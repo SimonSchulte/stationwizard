@@ -21,7 +21,8 @@ export function vbDateiname(titel: string, datum: string): string {
 /**
  * Druck der Vorbereitung: optional die Seite „Allgemeine Anweisungen“, danach 3 bis 6
  * Laufzettelstreifen je A4-Querseite (siehe `docs/konzept-einsatzplanung-vb.md`, Abschnitt 6),
- * zuletzt ein Kennzeichnungsschild je Abschnitt (eine A4-Querseite).
+ * zuletzt die Abschnittsschilder (A5 quer nach der Vorlage „Kistenbezeichnung“, zwei je
+ * A4-Hochformatblatt).
  * `drucken()` öffnet direkt den Druckdialog des Browsers, `herunterladen()` speichert das PDF.
  * Fehler werden geworfen; der Aufrufer meldet sie.
  */
@@ -53,7 +54,7 @@ export class VbDruckDienst {
       );
     }
     const streifenJeSeite = this.layout.streifenJeSeite();
-    const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite);
+    const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite, this.layout.sortierung());
     const definition = baueVbPdfDefinition(kopf, inhalt, streifen, new Date(), streifenJeSeite);
     const pdfMake = await this.ladeBibliothek();
     const daten = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());

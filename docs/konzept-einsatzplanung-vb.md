@@ -180,17 +180,27 @@ pdfmake über `ladePdfBibliothek()`, Farben aus `PDF_FARBEN`; keine zweite Palet
   gestrichelte Schnittlinien. Inhalte nach der Word-Führungshilfe, aber so dicht gesetzt,
   dass der größte Teil des Streifens den Materialzeilen gehört:
   - oben ein freier **Klemmrand** (ca. 13 mm) für den Bonhalter mit dem Einsatztitel,
-  - ein Kopf aus „Auftrag“, Fachgruppe als beschrifteter Chip in ihrer Farbe, Überschrift
-    und LfdNr,
+  - ein Kopf aus „Auftrag“, Überschrift und LfdNr. Die Fachgruppe (Sanität, TeSi …) wird im Druck
+    vorerst nicht mehr gezeigt, die Abschnittsfarbe genügt; die Daten und der Editor behalten das Feld,
   - ein **Farbband** (ca. 2 mm) in der Abschnittsfarbe links über die ganze Länge des
-    Streifens, dazu Farbpunkt und Abschnittsname am Klemmrand – so bleiben Abschnitt und
-    Fachgruppe auch im Schwarz-Weiß-Druck über den Text erkennbar,
+    Streifens als **einziger Farbhinweis**, dazu der Abschnittsname als Text am Klemmrand – so
+    bleibt der Abschnitt auch im Schwarz-Weiß-Druck über den Text erkennbar,
   - der **Materialbereich mit festem Raster von 23 Zeilen** (je ca. 5 mm, Kästchen, Anzahl,
     Material); nicht belegte Zeilen bleiben mit Kästchen für Nachträge von Hand,
   - direkt unter dem Kopf ein Zielblock „VON“ (Lagerort) und „AUF / IN“ (Transport mit), je eine
     Zeile in 10,5 pt fett, leer als Schreiblinie; darunter am Materialende „Rückfragen an“ als
     kleine Zeile,
-  - „Durchführung von“, „Durchgeführt ☐ Ja ☐ nicht möglich“ und „Grund“ kompakt am Fuß.
+  - „Durchführung von“, ein einziger Haken „Erledigt“ und „Bemerkung“ kompakt am Fuß (früher
+    „Durchgeführt ☐ Ja ☐ nicht möglich“ mit „Grund“),
+  - „AUF / IN“ ist das Ziel und damit der **Abschnitt** (sein Schild); ein eigener Eintrag bei
+    „Transport mit“ hat Vorrang. Der Fuß nennt „Schild n von m“.
+  - **Sortierung am Aushang** (Umschalter im VB-Editor, nur Sitzungszustand, Vorgabe „nach Lager“):
+    nach Lager (ohne Groß-/Kleinschreibung und Leerzeichen, ohne Lager zuletzt), dann nach LfdNr, oder
+    nach Abschnitt wie in der Vorbereitung. Die LfdNr ändern sich dabei nicht, weil das Schild sie
+    als Schlüssel nutzt.
+  - **Schild und Laufzettel:** Der Laufzettel ist der Aushang (Material im Lager holen, beim Schild
+    abliefern), das Schild bleibt am Ziel. Das Schild listet alle Laufzettel seines Abschnitts als
+    „Nr n · Überschrift · Lager“, ohne eigenen Haken.
 
 ### Platzberechnung und Warnung
 
