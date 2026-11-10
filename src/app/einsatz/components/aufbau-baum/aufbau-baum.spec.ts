@@ -49,6 +49,7 @@ describe('AufbauBaum', () => {
     expect(eintraege[1]!.closest('.zeile')!.classList.contains('eingerueckt')).toBe(true);
     expect(eintraege[1]!.getAttribute('aria-pressed')).toBe('true');
     expect(eintraege[0]!.getAttribute('aria-pressed')).toBe('false');
+    expect(eintraege[1]!.querySelector('app-abschnitt-farbpunkt')).not.toBeNull();
     expect(eintraege[1]!.querySelector('mat-icon.warnung')).not.toBeNull();
     expect(eintraege[0]!.querySelector('mat-icon.warnung')).toBeNull();
   });

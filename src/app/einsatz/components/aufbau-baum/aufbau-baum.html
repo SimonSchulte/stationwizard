@@ -32,9 +32,7 @@
           @if (zeile.art === 'kiste') {
             <mat-icon class="kisten-symbol" aria-hidden="true">inventory_2</mat-icon>
           } @else {
-            @if (zeile.tiefe === 0) {
-              <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
-            }
+            <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
             <span class="typ">{{ zeile.einheit.typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
           }
           <span class="name">{{ zeile.name }}</span>
