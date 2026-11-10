@@ -644,7 +644,10 @@ liefern `false`, wenn der Aufbau keine Kiste enthält.
 nach den Laufzetteln, eigene Zählung, ohne Schildnummer) und (b) einen **Aushang je Fahrzeug und je Wagen**, auch je
 Wagen im Fahrzeug (`DruckInhalt.schilder`, `schilderVon()` in `aufbau-druck.ts`; A5-Schild mit Titel, Foto, Zielfarbe
 des obersten Fahrzeugs und dem **Soll-Inhalt**: Kisten mit Anzahl, lose Artikel, Wagen – `sollInhaltZeilen()`).
-Fehlt `schilder`, bleibt es bei der Zettelliste je Abschnitt (`schildInhaltZeilen()`); die Zeilenanordnung teilen
+Zuletzt folgen die **Kistenschilder** (ein A5-Schild je physischer Kiste, `DruckInhalt.kistenschilder`, aus
+`schilderAusAufbau()`; `ZettelDruckDienst` hängt sie über `kistenschildAbschnitt()` aus `kisten-pdf-definition.ts` an,
+weil `zettel-pdf-definition.ts` sie sonst zyklisch importieren müsste). Reihenfolge im PDF: Anweisungen, Laufzettel je
+Fahrzeug und Wagen, Packzettel je Kiste, Aushang je Fahrzeug und Wagen, Kistenschilder. Fehlt `schilder`, bleibt es bei der Zettelliste je Abschnitt (`schildInhaltZeilen()`); die Zeilenanordnung teilen
 beide über `schildSpalten()`.
 
 Die Seite des Aufbau-Editors zeigt die **Packliste** (`AufbauBaum`) als vollständigen Baum bis zur Kistenebene

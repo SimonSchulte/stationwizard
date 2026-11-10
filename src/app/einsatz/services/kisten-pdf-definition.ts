@@ -1,4 +1,4 @@
-import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { Content, ContentSection, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { Artikel, Kiste, KistenPosition, Lager } from '../models/stammdaten.model';
 import { DruckInhalt, DruckLaufzettel } from '../models/druck.model';
@@ -222,11 +222,8 @@ function kistenschild(schild: Kistenschild, y0: number): Content[] {
   ];
 }
 
-/** Kistenschilder: je A4-Hochformatblatt zwei im A5-Querformat, dazwischen die Schnittlinie. */
-export function baueSchilderDefinition(
-  schilder: readonly Kistenschild[],
-  titel: string,
-): TDocumentDefinitions {
+/** Seiten der Kistenschilder: je A4-Hochformatblatt zwei im A5-Querformat, dazwischen die Schnittlinie. */
+export function kistenschildSeiten(schilder: readonly Kistenschild[]): Content[] {
   const seiten: Content[] = [];
   for (let i = 0; i < schilder.length; i += 2) {
     const paar = schilder.slice(i, i + 2);
@@ -239,13 +236,31 @@ export function baueSchilderDefinition(
       ],
     });
   }
+  return seiten;
+}
+
+/** Eigener Abschnitt (A4 hochkant, ohne Rand) für Kistenschilder, etwa am Ende des Aufbau-Drucks. */
+export function kistenschildAbschnitt(schilder: readonly Kistenschild[]): ContentSection {
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'portrait',
+    pageMargins: [0, 0, 0, 0],
+    section: kistenschildSeiten(schilder),
+  };
+}
+
+/** Kistenschilder: je A4-Hochformatblatt zwei im A5-Querformat, dazwischen die Schnittlinie. */
+export function baueSchilderDefinition(
+  schilder: readonly Kistenschild[],
+  titel: string,
+): TDocumentDefinitions {
   return {
     pageSize: 'A4',
     pageOrientation: 'portrait',
     pageMargins: [0, 0, 0, 0],
     info: { title: titel },
     defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
-    content: seiten,
+    content: kistenschildSeiten(schilder),
   };
 }
 

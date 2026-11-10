@@ -4,6 +4,7 @@ import { ladePdfBibliothek } from '../../kern/pdf/pdf-bibliothek';
 import { PdfAusgabe } from '../../kern/pdf/pdf-ausgabe';
 import { MeldungsDienst } from '../../kern/zustand/meldungs-dienst';
 import { DruckInhalt } from '../models/druck.model';
+import { kistenschildAbschnitt } from './kisten-pdf-definition';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
 import { LaufzettelLayoutWahl } from './laufzettel-layout-wahl';
 import { zuVolleLaufzettel } from './laufzettel-platz';
@@ -54,6 +55,13 @@ export class ZettelDruckDienst {
     const streifenJeSeite = this.layout.streifenJeSeite();
     const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite, this.layout.sortierung());
     const definition = baueZettelPdfDefinition(kopf, inhalt, streifen, new Date(), streifenJeSeite);
+    if (inhalt.kistenschilder?.length) {
+      // Die Kistenschilder stehen zuletzt; sie kennen den Einsatz nicht (Heimatlager statt Zeitraum).
+      const inhaltAbschnitte = Array.isArray(definition.content)
+        ? definition.content
+        : [definition.content];
+      definition.content = [...inhaltAbschnitte, kistenschildAbschnitt(inhalt.kistenschilder)];
+    }
     const pdfMake = await this.ladeBibliothek();
     const daten = Uint8Array.from(await pdfMake.createPdf(definition).getBuffer());
 

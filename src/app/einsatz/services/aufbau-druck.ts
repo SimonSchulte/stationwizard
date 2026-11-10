@@ -130,6 +130,8 @@ export function aufbauAlsDruckInhalt(inhalt: AufbauInhalt, daten: ZettelStammdat
   if (schilder.length > 0) druck.schilder = schilder;
   const kistenzettel = kistenzettelAusAufbau(inhalt, daten);
   if (kistenzettel.length > 0) druck.kistenzettel = kistenzettel;
+  const kistenschilder = schilderAusAufbau(inhalt, daten);
+  if (kistenschilder.length > 0) druck.kistenschilder = kistenschilder;
   return druck;
 }
 

@@ -90,6 +90,15 @@ export interface DruckSchild {
   zeilen: string[];
 }
 
+/** Ein Kistenschild (A5 quer) mit fertigen Zeilen; am Ende des Drucks, ein Schild je physischer Kiste. */
+export interface DruckKistenschild {
+  titel: string;
+  heimatlager: string;
+  zeilen: string[];
+  /** Rahmenfarbe als konkreter Wert (pdfmake kennt keine CSS-Variablen). */
+  rahmenFarbe?: string;
+}
+
 export interface DruckInhalt {
   anweisungen: string;
   abschnitte: DruckAbschnitt[];
@@ -97,4 +106,6 @@ export interface DruckInhalt {
   schilder?: DruckSchild[];
   /** Fehlt oder leer: kein Packzettel je Kiste. Ein Abschnitt je Ziel, ein Laufzettel je Kiste. */
   kistenzettel?: DruckAbschnitt[];
+  /** Fehlt oder leer: keine Kistenschilder im Druck. */
+  kistenschilder?: DruckKistenschild[];
 }

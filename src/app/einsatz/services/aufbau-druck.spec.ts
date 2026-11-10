@@ -58,10 +58,23 @@ describe('Aushang je Einheit und Packzettel je Kiste', () => {
     expect(wagenId).toBeTruthy();
   });
 
+  it('liefert ein Kistenschild je physischer Kiste mit Inhalt, Heimatlager und Zielfarbe', () => {
+    const { inhalt } = beispiel();
+    const schilder = aufbauAlsDruckInhalt(inhalt, DATEN).kistenschilder!;
+    expect(schilder).toHaveLength(2);
+    expect(schilder[0]).toMatchObject({
+      titel: 'Verbandkiste',
+      heimatlager: 'Medizinlager',
+      zeilen: ['3 Liter Trinkwasser'],
+    });
+    expect(schilder[0]!.rahmenFarbe).toMatch(/^#/);
+  });
+
   it('lässt Aushang und Packzettel ohne Einträge weg und nennt freie Artikel', () => {
     const e = testEinheit();
     const leer = aufbauAlsDruckInhalt(testAufbauInhalt([e]), DATEN);
     expect(leer.kistenzettel).toBeUndefined();
+    expect(leer.kistenschilder).toBeUndefined();
     expect(leer.schilder).toHaveLength(1);
     expect(sollInhaltZeilen({ ...e, inhalt: [] }, DATEN)).toEqual([]);
     const frei = {

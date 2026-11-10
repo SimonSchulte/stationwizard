@@ -3774,6 +3774,9 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **Hauptdruck vollständig:** Anweisungen, Laufzettel je Fahrzeug und Wagen, Packzettel je Kiste, Aushang je Fahrzeug
+  und Wagen, zuletzt Kistenschilder je Kiste (ein PDF, im Browser mit Fahrzeug, Wagen und zwei Kisten geprüft: vier
+  Seiten in dieser Reihenfolge).
 - **Drag and drop, Nachtrag:** freier Wagen per seitlichem Ziehen in ein Fahrzeug einrücken und wieder herausnehmen;
   im Browser alle vier Gesten (Wagen ein/aus, Kiste ins Fahrzeug, Kiste in den Wagen) mit der Maus geprüft.
 - **Drag and drop in der Packliste:** Kisten zwischen Fahrzeug und Wagen, Wagen zwischen Fahrzeugen, Fahrzeuge und
