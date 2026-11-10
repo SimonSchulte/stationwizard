@@ -123,6 +123,7 @@ describe('Aufbau eines Einsatzes', () => {
       einheit: 'Rollen',
       menge: 4,
       bemerkung: '',
+      lagerId: null,
       phase: null,
       ...zusatz,
     });
@@ -152,8 +153,21 @@ describe('Aufbau eines Einsatzes', () => {
       ]),
     ]);
     expect((await senden(db, 'PUT', AUFBAU, ohneName2, { 'If-Match': '"2"' })).status).toBe(400);
+    // Ein Quelllager muss es geben; ein Feld, das der Vertrag nicht kennt, wird abgelehnt.
     const unbekannt = aufbau([einheit(20, [frei(22, { lagerId: id(1) })])]);
     expect((await senden(db, 'PUT', AUFBAU, unbekannt, { 'If-Match': '"2"' })).status).toBe(400);
+    const fremdesFeld = aufbau([einheit(20, [frei(22, { regal: 'A' })])]);
+    expect((await senden(db, 'PUT', AUFBAU, fremdesFeld, { 'If-Match': '"2"' })).status).toBe(400);
+    expect((await senden(db, 'POST', LAGER, { id: id(1), name: 'Medizinlager' }, NEU)).status).toBe(
+      201,
+    );
+    const mitLager = aufbau([einheit(20, [frei(22, { lagerId: id(1) })])]);
+    expect((await senden(db, 'PUT', AUFBAU, mitLager, { 'If-Match': '"2"' })).status).toBe(200);
+    // Das Lager ist belegt: Löschen gesperrt, solange der freie Artikel darauf verweist.
+    const gesperrt = await senden(db, 'DELETE', `${LAGER}/${id(1)}`, undefined, {
+      'If-Match': '"1"',
+    });
+    expect(gesperrt.status).toBe(409);
     const ohneName = aufbau([einheit(20, [frei(22, { name: ' ' })])]);
     expect((await senden(db, 'PUT', AUFBAU, ohneName, { 'If-Match': '"2"' })).status).toBe(400);
   });

@@ -110,6 +110,16 @@ export function pruefeAufbau(inhalt: AufbauInhalt, daten: AufbauStammdaten): Auf
             eintragId: eintrag.id,
           });
         }
+      } else if (eintrag.art === 'frei') {
+        if (eintrag.lagerId === null) {
+          probleme.push({
+            schwere: 'fehler',
+            art: 'ohne-heimatlager',
+            text: `Der freie Artikel ${eintrag.name} in ${e.name} hat kein Quelllager; er steht am Zettelende.`,
+            einheitId: e.id,
+            eintragId: eintrag.id,
+          });
+        }
       } else if (eintrag.art === 'kiste') {
         if (eintrag.inhalt.length === 0) {
           probleme.push({

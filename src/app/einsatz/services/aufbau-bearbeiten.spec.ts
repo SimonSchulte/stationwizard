@@ -113,9 +113,11 @@ describe('Aufbau bearbeiten', () => {
     const [frei, leereKiste] = inhalt.einheiten[0]!.inhalt;
     expect(frei).toMatchObject({ art: 'frei', name: 'Absperr band', einheit: 'Rollen', menge: 4 });
     expect(leereKiste).toMatchObject({ art: 'kiste', kisteId: null, anzahl: 2, inhalt: [] });
-    inhalt = eintragAendern(inhalt, e.id, frei!.id, { menge: 6, lagerId: null });
-    expect(inhalt.einheiten[0]!.inhalt[0]).not.toHaveProperty('lagerId');
-    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ menge: 6 });
+    expect(frei).toMatchObject({ lagerId: null });
+    inhalt = eintragAendern(inhalt, e.id, frei!.id, { menge: 6, lagerId: lager.id });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ menge: 6, lagerId: lager.id });
+    inhalt = eintragAendern(inhalt, e.id, leereKiste!.id, { lagerId: lager.id });
+    expect(inhalt.einheiten[0]!.inhalt[1]).toMatchObject({ lagerId: lager.id });
     expect(istAufbauInhalt(inhalt)).toBe(true);
     expect(zaehleAufbauInhalt(inhalt)).toMatchObject({ kisten: 2, positionen: 1 });
   });
@@ -145,6 +147,24 @@ describe('Aufbau bearbeiten', () => {
     expect(istAufbauInhalt(inhalt)).toBe(true);
     inhalt = kistePositionEntfernen(inhalt, e.id, kisteId, 0);
     expect((inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt).toHaveLength(1);
+  });
+
+  it('legt einen freien Artikel mit Quelllager an und behält es bei der Katalogübernahme', () => {
+    const e = testEinheit();
+    const medizin = testLager(2, 'Medizinlager', 2);
+    let inhalt = freienArtikelHinzufuegen(
+      testAufbauInhalt([e]),
+      e.id,
+      'Wasser',
+      'Liter',
+      7,
+      medizin.id,
+    );
+    const id = inhalt.einheiten[0]!.inhalt[0]!.id;
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'frei', lagerId: medizin.id });
+    inhalt = freienArtikelVerknuepfen(inhalt, e.id, id, { ...wasser, lagerId: lager.id });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'artikel', lagerId: medizin.id });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
   });
 
   it('verknüpft einen freien Artikel mit dem Katalog und behält Id, Menge und Phase', () => {

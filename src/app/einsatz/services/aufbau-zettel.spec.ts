@@ -146,6 +146,34 @@ describe('leiteZettelAb', () => {
     expect(zettel[0]!.von).toBe('Fahrzeughalle');
   });
 
+  it('sortiert einen freien Artikel nach seinem Quelllager, ohne Lager an das Ende', () => {
+    const frei = (n: number, name: string, lagerId: number | null): AufbauEintrag => ({
+      art: 'frei',
+      id: id(n),
+      name,
+      einheit: 'Rollen',
+      menge: 4,
+      bemerkung: '',
+      lagerId: lagerId === null ? null : id(lagerId),
+      phase: null,
+    });
+    const e = einheit(20, [
+      frei(21, 'Absperrband', null),
+      frei(22, 'Warnweste', 2),
+      art(23, 11, 1),
+    ]);
+    const zettel = leiteZettelAb({ anweisungen: '', einheiten: [e] }, DATEN)[0]!;
+    expect(zettel.posten.map((p) => p.text)).toEqual([
+      'Halle A',
+      'Trinkwasser',
+      'Medizinlager',
+      'Warnweste',
+      'Ohne Heimatlager',
+      'Absperrband',
+    ]);
+    expect(zettel.von).toBe('Halle A');
+  });
+
   it('meldet Fortsetzungsstreifen, sobald das Raster überläuft', () => {
     const viele = Array.from({ length: 30 }, (_, i) => art(100 + i, 11, 1));
     const [zettel] = leiteZettelAb({ anweisungen: '', einheiten: [einheit(20, viele)] }, DATEN);

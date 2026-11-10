@@ -110,26 +110,19 @@ function zettelFuer(
   const lagerNachId = new Map(daten.lager.map((l) => [l.id, l]));
   const artikelNachId = new Map(daten.artikel.map((a) => [a.id, a]));
   const gruppen = new Map<string, Gruppe>();
-  const gruppe = (
-    phase: AufbauPhase | null,
-    lagerId: string | null,
-    wagen = false,
-    frei = false,
-  ): Gruppe => {
+  const gruppe = (phase: AufbauPhase | null, lagerId: string | null, wagen = false): Gruppe => {
     const lager = lagerId ? lagerNachId.get(lagerId) : undefined;
-    const schluessel = `${rang(phase)}|${wagen ? 'wagen' : frei ? 'frei' : (lager?.id ?? 'ohne')}`;
+    const schluessel = `${rang(phase)}|${wagen ? 'wagen' : (lager?.id ?? 'ohne')}`;
     let g = gruppen.get(schluessel);
     if (!g) {
       g = {
         rang: rang(phase),
         reihenfolge: wagen
           ? Number.MAX_SAFE_INTEGER
-          : frei
-            ? Number.MAX_SAFE_INTEGER - 2
-            : (lager?.reihenfolge ?? Number.MAX_SAFE_INTEGER - 1),
+          : (lager?.reihenfolge ?? Number.MAX_SAFE_INTEGER - 1),
         phase,
         lagerId: wagen ? null : (lager?.id ?? null),
-        titel: wagen ? 'Wagen' : frei ? 'Weitere Artikel' : (lager?.name ?? 'Ohne Heimatlager'),
+        titel: wagen ? 'Wagen' : (lager?.name ?? 'Ohne Heimatlager'),
         zeilen: [],
       };
       gruppen.set(schluessel, g);
@@ -162,7 +155,7 @@ function zettelFuer(
         eintragId: eintrag.id,
       });
     } else if (eintrag.art === 'frei') {
-      gruppe(eintrag.phase, null, false, true).zeilen.push({
+      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push({
         art: 'zeile',
         quelle: 'artikel',
         text: eintrag.name,

@@ -481,12 +481,19 @@ export class AufbauEditor {
 
   protected freierArtikelHinzugefuegt(
     einheitId: string,
-    wahl: { name: string; einheit: string; menge: number },
+    wahl: { name: string; einheit: string; menge: number; lagerId: string | null },
   ): void {
     const inhalt = this.store.inhalt();
     if (inhalt) {
       this.store.aendern(
-        freienArtikelHinzufuegen(inhalt, einheitId, wahl.name, wahl.einheit, wahl.menge),
+        freienArtikelHinzufuegen(
+          inhalt,
+          einheitId,
+          wahl.name,
+          wahl.einheit,
+          wahl.menge,
+          wahl.lagerId,
+        ),
       );
     }
   }
@@ -526,7 +533,11 @@ export class AufbauEditor {
    * liefert den Katalogartikel; `null` bei Abbruch oder Fehler. Der Katalog wird sofort geschrieben,
    * unabhängig vom „Speichern“ des Aufbaus.
    */
-  private async katalogartikelFuer(name: string, einheit: string): Promise<Artikel | null> {
+  private async katalogartikelFuer(
+    name: string,
+    einheit: string,
+    lagerId: string | null = null,
+  ): Promise<Artikel | null> {
     const vorhanden = this.stammdaten.artikelFinden(name);
     if (vorhanden) {
       const ok = await this.dialogDienst.bestaetigen(
@@ -543,15 +554,13 @@ export class AufbauEditor {
         ? ` statt „${einheit.trim()}“ (der Katalog kennt nur feste Einheiten)`
         : '';
     const ok = await this.dialogDienst.bestaetigen(
-      `„${name}“ wird mit der Einheit ${katalogEinheit}${abweichung} und ohne Heimatlager in den Artikelkatalog aufgenommen. Das wird sofort in den Stammdaten gespeichert, unabhängig vom „Speichern“ des Aufbaus.`,
+      `„${name}“ wird mit der Einheit ${katalogEinheit}${abweichung} und ${lagerId ? 'dem gewählten Quelllager als Heimatlager' : 'ohne Heimatlager'} in den Artikelkatalog aufgenommen. Das wird sofort in den Stammdaten gespeichert, unabhängig vom „Speichern“ des Aufbaus.`,
       'In den Artikelkatalog übernehmen',
       'Übernehmen',
     );
     if (!ok) return null;
     const id = crypto.randomUUID();
-    if (
-      !(await this.stammdaten.artikelAnlegen({ id, name, einheit: katalogEinheit, lagerId: null }))
-    ) {
+    if (!(await this.stammdaten.artikelAnlegen({ id, name, einheit: katalogEinheit, lagerId }))) {
       this.meldungen.fehler(
         this.stammdaten.fehler() || 'Der Artikel konnte nicht angelegt werden.',
       );
@@ -567,7 +576,7 @@ export class AufbauEditor {
       einheitId,
     )?.inhalt.find((x) => x.id === eintragId);
     if (eintrag?.art !== 'frei') return;
-    const artikel = await this.katalogartikelFuer(eintrag.name, eintrag.einheit);
+    const artikel = await this.katalogartikelFuer(eintrag.name, eintrag.einheit, eintrag.lagerId);
     const inhalt = this.store.inhalt();
     if (artikel && inhalt) {
       this.store.aendern(freienArtikelVerknuepfen(inhalt, einheitId, eintragId, artikel));

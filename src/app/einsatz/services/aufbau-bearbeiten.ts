@@ -165,6 +165,7 @@ export function freienArtikelHinzufuegen(
   name: string,
   einheit: string,
   menge = 1,
+  lagerId: string | null = null,
 ): AufbauInhalt {
   const eintrag: AufbauFreierEintrag = {
     art: 'frei',
@@ -173,6 +174,7 @@ export function freienArtikelHinzufuegen(
     einheit: einheit.trim(),
     menge,
     bemerkung: '',
+    lagerId,
     phase: null,
   };
   return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
@@ -215,7 +217,8 @@ export function freienArtikelVerknuepfen(
         artikelId: artikel.id,
         menge: x.menge,
         bemerkung: x.bemerkung,
-        lagerId: artikel.lagerId,
+        // Das gewählte Quelllager bleibt; ohne eins gilt das Heimatlager des Katalogartikels.
+        lagerId: x.lagerId ?? artikel.lagerId,
         phase: x.phase,
       };
     }),
@@ -409,6 +412,7 @@ export function eintragAendern(
           ...x,
           ...(aenderung.menge !== undefined && { menge: aenderung.menge }),
           ...(aenderung.bemerkung !== undefined && { bemerkung: aenderung.bemerkung }),
+          ...(aenderung.lagerId !== undefined && { lagerId: aenderung.lagerId }),
           ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
         };
       }
@@ -425,6 +429,7 @@ export function eintragAendern(
         ...x,
         ...(aenderung.name !== undefined &&
           aenderung.name.trim() !== '' && { name: aenderung.name.trim().replace(/\s+/g, ' ') }),
+        ...(aenderung.lagerId !== undefined && { lagerId: aenderung.lagerId }),
         ...(aenderung.anzahl !== undefined && { anzahl: aenderung.anzahl }),
         ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
       };

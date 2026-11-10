@@ -46,6 +46,8 @@ export interface AufbauFreierEintrag {
   einheit: string;
   menge: number;
   bemerkung: string;
+  /** Quelllager des freien Artikels; `null`: noch keins gewählt. */
+  lagerId: string | null;
   phase: AufbauPhase | null;
 }
 export const FREI_EINHEIT_MAX = 20;
@@ -195,7 +197,18 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
     };
   }
   if (wert['art'] === 'frei') {
-    if (!hatNurFelder(wert, ['art', 'id', 'name', 'einheit', 'menge', 'bemerkung', 'phase'])) {
+    if (
+      !hatNurFelder(wert, [
+        'art',
+        'id',
+        'name',
+        'einheit',
+        'menge',
+        'bemerkung',
+        'lagerId',
+        'phase',
+      ])
+    ) {
       return null;
     }
     const id = pruefeEindeutigeId(wert['id'], z);
@@ -207,6 +220,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       !istText0bis(wert['einheit'], FREI_EINHEIT_MAX) ||
       !istMenge(wert['menge']) ||
       !istText0bis(wert['bemerkung'], BEMERKUNG_MAX) ||
+      !istUuidOderNull(wert['lagerId']) ||
       phase === undefined
     ) {
       return null;
@@ -218,6 +232,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       einheit: wert['einheit'].trim(),
       menge: wert['menge'],
       bemerkung: wert['bemerkung'].trim(),
+      lagerId: kleinOderNull(wert['lagerId']),
       phase,
     };
   }
@@ -398,6 +413,8 @@ export function sammleVerweise(inhalt: AufbauInhalt): AufbauVerweise {
     for (const eintrag of einheit.inhalt) {
       if (eintrag.art === 'artikel') {
         artikelIds.add(eintrag.artikelId);
+        if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
+      } else if (eintrag.art === 'frei') {
         if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
       } else if (eintrag.art === 'kiste') {
         for (const p of eintrag.inhalt) if (p.artikelId) artikelIds.add(p.artikelId);

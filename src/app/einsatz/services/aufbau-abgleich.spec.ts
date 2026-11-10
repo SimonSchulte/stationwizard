@@ -7,7 +7,12 @@ import {
   testLager,
 } from '../testing/aufbau-testdaten';
 import { AufbauKistenEintrag } from '../models/aufbau.model';
-import { artikelHinzufuegen, freieKisteHinzufuegen, kisteHinzufuegen } from './aufbau-bearbeiten';
+import {
+  artikelHinzufuegen,
+  freieKisteHinzufuegen,
+  freienArtikelHinzufuegen,
+  kisteHinzufuegen,
+} from './aufbau-bearbeiten';
 import { kisteWeichtAb, pruefeAufbau } from './aufbau-abgleich';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -52,6 +57,19 @@ describe('pruefeAufbau', () => {
       ['ohne-heimatlager', 'fehler'],
       ['artikel-entfallen', 'fehler'],
     ]);
+  });
+
+  it('meldet einen freien Artikel ohne Quelllager als Fehler', () => {
+    const e = testEinheit({ name: 'GW' });
+    let inhalt = freienArtikelHinzufuegen(testAufbauInhalt([e]), e.id, 'Absperrband', 'Rollen', 4);
+    inhalt = freienArtikelHinzufuegen(inhalt, e.id, 'Warnweste', 'Stück', 2, lager.id);
+    const fehler = pruefeAufbau(inhalt, DATEN).filter((p) => p.art === 'ohne-heimatlager');
+    expect(fehler).toHaveLength(1);
+    expect(fehler[0]).toMatchObject({
+      schwere: 'fehler',
+      eintragId: inhalt.einheiten[0]!.inhalt[0]!.id,
+    });
+    expect(fehler[0]!.text).toContain('Absperrband');
   });
 
   it('meldet eine Kiste ohne Inhalt als Fehler, weil der Packzettel nichts kontrollieren kann', () => {

@@ -128,12 +128,20 @@
               @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.inhalt.length === 0) {
                 <span class="marke fehler">ohne Inhalt</span>
               }
-              @if (zeile.problem && zeile.eintrag.art === 'artikel' && !zeile.eintrag.lagerId) {
+              @if (
+                zeile.problem &&
+                (zeile.eintrag.art === 'artikel' || zeile.eintrag.art === 'frei') &&
+                !zeile.eintrag.lagerId
+              ) {
                 <span class="marke fehler">kein Lager</span>
               }
             </td>
             <td data-label="Lager">
-              @if (zeile.eintrag.art === 'artikel') {
+              @if (
+                zeile.eintrag.art === 'artikel' ||
+                zeile.eintrag.art === 'frei' ||
+                zeile.eintrag.art === 'kiste'
+              ) {
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="klein">
                   <mat-select
                     aria-label="Lager"
@@ -408,6 +416,15 @@
       [value]="freieEinheit()"
       (input)="freieEinheit.set(textAus($event))"
     />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="klein">
+    <mat-label>Quelllager</mat-label>
+    <mat-select [value]="freiesLager()" (selectionChange)="freiesLager.set($event.value)">
+      <mat-option [value]="null">Kein Lager</mat-option>
+      @for (l of lager(); track l.id) {
+        <mat-option [value]="l.id">{{ l.name }}</mat-option>
+      }
+    </mat-select>
   </mat-form-field>
   <button
     matButton="outlined"

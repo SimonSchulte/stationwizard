@@ -597,21 +597,22 @@ eingespielt sein, weil das Löschen von Artikeln und Lagern die neuen Tabellen l
 
 **Der Aufbau ist von Artikelkatalog und Lagern unabhängig bedienbar.** Neben dem Katalogartikel
 (`art: 'artikel'`, `artikelId` + `lagerId`) kennt er den **freien Artikel** (`art: 'frei'`: `id`, `name` ≤ 100,
-`einheit` ≤ 20 Zeichen und leer erlaubt, `menge`, `bemerkung`, `phase`; kein Lager, keine Prüfung gegen die
-Stammdaten). Eine Kiste im Aufbau darf ohne Stammdaten-Kiste entstehen (`kisteId: null`, zunächst leer), und ihre
+`einheit` ≤ 20 Zeichen und leer erlaubt, `menge`, `bemerkung`, **`lagerId` = Quelllager**, `phase`; keine Prüfung gegen die
+Stammdaten außer dem Lager). Eine Kiste im Aufbau darf ohne Stammdaten-Kiste entstehen (`kisteId: null`, zunächst leer), und ihre
 Positionen (`AufbauKistenPosition`) sind entweder Katalogartikel (`artikelId`, `menge`, `bemerkung`, je Kiste
 einmal) oder **freie Positionen** (`artikelId: null` mit `name`, `einheit`, `menge`, `bemerkung`, beliebig oft).
-`sammleVerweise()` und damit die Verweisprüfung und der Löschschutz kennen nur Katalogartikel und Lager; freie
-Einträge verweisen auf nichts. Worker (`einsatzplanung-aufbau-pruefung.ts`) und Frontend (`aufbau-pruefung.ts`,
+`sammleVerweise()` und damit die Verweisprüfung und der Löschschutz kennen Katalogartikel und Lager (auch das Quelllager
+eines freien Artikels); der Rest der freien Einträge verweist auf nichts. Worker (`einsatzplanung-aufbau-pruefung.ts`) und Frontend (`aufbau-pruefung.ts`,
 `aufbau.model.ts`) prüfen dieselben Formen und sind gemeinsam zu ändern. Ein freier Artikel erscheint auf dem
-Zettel in der Gruppe „Weitere Artikel“ (hinter den Lagern, vor „Ohne Heimatlager“) und löst nie „kein Lager“
-aus. Eine Stammdaten-Kiste mit freien Positionen gilt als „weicht von den Stammdaten ab“ (`kisteWeichtAb()`).
+Zettel in der Gruppe seines Quelllagers (Laufweg wie ein Katalogartikel); ohne Quelllager steht er unter „Ohne
+Heimatlager“ und die Prüfung meldet `ohne-heimatlager` als Fehler. Das Quelllager lässt sich beim Anlegen und in der
+Tabelle wählen, ebenso das Lager einer Kiste; bei der Übernahme in den Katalog wird es zum Heimatlager des Artikels. Eine Stammdaten-Kiste mit freien Positionen gilt als „weicht von den Stammdaten ab“ (`kisteWeichtAb()`).
 **Übernahme in den Katalog:** Ein freier Artikel und eine freie Kistenposition lassen sich im `EinheitDetail` per
 Knopf „In den Artikelkatalog übernehmen“ zum Katalogartikel machen (`AufbauEditor.katalogartikelFuer()`,
 `freienArtikelVerknuepfen()`/`freiePositionVerknuepfen()` in `aufbau-bearbeiten.ts`). Gibt es den Namen schon
 (`StammdatenStoreService.artikelFinden()`, Vergleichsform), wird nach Rückfrage verknüpft; sonst legt die Seite den
 Artikel nach Rückfrage an – Einheit nur bei exakter Übereinstimmung mit `ARTIKEL_EINHEITEN`, sonst „Stück“, ohne
-Heimatlager. Der Katalog wird **sofort** geschrieben, unabhängig vom „Speichern“ des Aufbaus; der Aufbau-Eintrag
+Heimatlager (bei einem freien Artikel das Quelllager). Der Katalog wird **sofort** geschrieben, unabhängig vom „Speichern“ des Aufbaus; der Aufbau-Eintrag
 behält Id, Menge, Bemerkung und Phase und wird erst mit „Speichern“ umgestellt.
 
 **Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und

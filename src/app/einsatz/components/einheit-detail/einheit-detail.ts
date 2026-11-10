@@ -98,7 +98,12 @@ export class EinheitDetail {
   readonly eintragEntfernt = output<string>();
   readonly kisteHinzugefuegt = output<string>();
   readonly artikelHinzugefuegt = output<{ artikelId: string; menge: number }>();
-  readonly freierArtikelHinzugefuegt = output<{ name: string; einheit: string; menge: number }>();
+  readonly freierArtikelHinzugefuegt = output<{
+    name: string;
+    einheit: string;
+    menge: number;
+    lagerId: string | null;
+  }>();
   readonly freieKisteHinzugefuegt = output<{ name: string; anzahl: number }>();
   readonly kistePositionHinzugefuegt = output<KistePositionNeu>();
   readonly kistePositionGeaendert = output<KistePositionAenderung>();
@@ -121,6 +126,7 @@ export class EinheitDetail {
   protected readonly freierName = signal('');
   protected readonly freieEinheit = signal('');
   protected readonly freieMenge = signal(1);
+  protected readonly freiesLager = signal<string | null>(null);
   protected readonly kistenName = signal('');
   /** Kiste, deren Inhalt gerade aufgeklappt ist. */
   protected readonly offeneKiste = signal<string | null>(null);
@@ -180,10 +186,10 @@ export class EinheitDetail {
         return {
           eintrag,
           titel: eintrag.name,
-          lagerName: '',
+          lagerName: eintrag.lagerId ? (lager.get(eintrag.lagerId) ?? '') : '',
           menge: mengeText(eintrag.menge, eintrag.einheit, eintrag.bemerkung),
           weichtAb: false,
-          problem: false,
+          problem: probleme.has(eintrag.id),
         };
       }
       return {
@@ -282,6 +288,7 @@ export class EinheitDetail {
       name: this.freierName().trim(),
       einheit: this.freieEinheit().trim(),
       menge: this.freieMenge(),
+      lagerId: this.freiesLager(),
     });
     this.freierName.set('');
     this.freieMenge.set(1);

@@ -90,6 +90,7 @@ describe('Aushang je Einheit und Packzettel je Kiste', () => {
       einheit: 'Rollen',
       menge: 4,
       bemerkung: '',
+      lagerId: null,
       phase: null,
     };
     expect(sollInhaltZeilen({ ...e, inhalt: [frei] }, DATEN)).toEqual(['4 Rollen Absperrband']);

@@ -42,6 +42,8 @@ export interface AufbauFreierEintrag {
   einheit: string;
   menge: number;
   bemerkung: string;
+  /** Quelllager, aus dem der freie Artikel geholt wird; `null`: noch keins gewählt. */
+  lagerId: string | null;
   phase: AufbauPhase | null;
 }
 

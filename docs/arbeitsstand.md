@@ -3774,6 +3774,11 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **Quelllager für freie Artikel:** `lagerId` am freien Artikel (Worker und Frontend, nullbar, geprüft gegen die Lager,
+  Löschschutz für das Lager), Auswahl beim Anlegen und in der Tabelle (auch für Kisten), Zettelgruppe nach Lager, Fehler
+  „ohne Quelllager“ in der Prüfung, Übernahme in den Katalog nimmt es als Heimatlager. Die frühere Gruppe „Weitere
+  Artikel“ entfällt. Im Browser geprüft (Anlegen, Zuweisen, Hinweis verschwindet, Speichern). Alte Stände ohne `lagerId`
+  gibt es nicht (Änderung noch nicht gemergt).
 - **UI-Review, Nachbesserung:** Packliste per Tastatur bedienbar (Alt+Pfeile, Fokus bleibt, im Browser geprüft), Ziehen per
   Touch mit echten Touch-Ereignissen (Chromium-CDP) geprüft, Kistenname als `mat-form-field`, „Neue Position“ mit Name
   über die volle Breite. Offen: Touch am echten Gerät und mit Screenreader, die Snackbar über dem Inhalt (Material-Verhalten).

@@ -106,8 +106,8 @@ darauf verweist (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`).
 // Eintrag
 { "art": "artikel", "id": "<uuid>", "artikelId": "<uuid>", "menge": 2, "bemerkung": "",
   "lagerId": "<uuid>" | null, "phase": null | "vorher" | "zum-schluss" }
-{ "art": "frei",    "id": "<uuid>", "name": "Absperrband", "einheit": "Rollen", "menge": 4, "bemerkung": "",
-  "phase": null | … }                                                   // freier Artikel, ohne Katalog und Lager
+{ "art": "frei",    "id": "<uuid>", "name": "Absperrband", "einheit": "Rollen", "menge": 4, "bemerkung": "", "lagerId": "<uuid>" | null,
+  "phase": null | … }                                                   // freier Artikel, ohne Katalog; Quelllager
 { "art": "kiste",   "id": "<uuid>", "kisteId": "<uuid>" | null, "name": "Verbandkiste", "lagerId": "<uuid>" | null,
   "anzahl": 1,
   "inhalt": [ { "artikelId": "<uuid>", "menge": 3, "bemerkung": "" },     // Momentaufnahme: Katalogartikel
