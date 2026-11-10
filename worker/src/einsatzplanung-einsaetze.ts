@@ -13,7 +13,7 @@ import {
 import { type Einsatz, pruefeEinsatz } from './einsatzplanung-pruefung';
 import { starkesEtag } from './etag';
 
-/** Einsätze: Liste mit VB- und PEP-Kennzahlen, Einzelabruf, Anlage, Änderung mit `If-Match`. */
+/** Einsätze: Liste mit Aufbau- und PEP-Kennzahlen, Einzelabruf, Anlage, Änderung mit `If-Match`. */
 
 interface EinsatzZeile {
   id: string;
@@ -26,8 +26,9 @@ interface EinsatzZeile {
 }
 
 interface EinsatzListenZeile extends EinsatzZeile {
-  vb_laufzettel: number | null;
-  vb_positionen: number | null;
+  aufbau_einheiten: number | null;
+  aufbau_kisten: number | null;
+  aufbau_positionen: number | null;
   pep_posten: number | null;
   pep_positionen: number | null;
   pep_besetzt: number | null;
@@ -77,13 +78,14 @@ function uebersetzeIndexfehler(ursache: unknown): Response {
 }
 
 export async function listeEinsaetze(db: D1Database): Promise<Response> {
-  // Ein Aufruf über den ganzen Bestand: Einsatz sowie VB- und PEP-Kennzahlen per LEFT JOIN.
+  // Ein Aufruf über den ganzen Bestand: Einsatz sowie Aufbau- und PEP-Kennzahlen per LEFT JOIN.
   const ergebnis = await db
     .prepare(
-      `SELECT e.*, v.laufzettel AS vb_laufzettel, v.positionen AS vb_positionen,
+      `SELECT e.*, a.einheiten AS aufbau_einheiten, a.kisten AS aufbau_kisten,
+              a.positionen AS aufbau_positionen,
               p.posten AS pep_posten, p.positionen AS pep_positionen, p.besetzt AS pep_besetzt
        FROM einsaetze e
-       LEFT JOIN vorbereitungen v ON v.einsatz_id = e.id
+       LEFT JOIN aufbauten a ON a.einsatz_id = e.id
        LEFT JOIN peps p ON p.einsatz_id = e.id
        ORDER BY e.beginn DESC, e.titel`,
     )
@@ -92,10 +94,16 @@ export async function listeEinsaetze(db: D1Database): Promise<Response> {
     einsaetze: ergebnis.results.map((zeile) => ({
       ...zuEinsatzJson(zeile),
       version: zeile.version,
-      vb:
-        zeile.vb_laufzettel === null || zeile.vb_positionen === null
+      aufbau:
+        zeile.aufbau_einheiten === null ||
+        zeile.aufbau_kisten === null ||
+        zeile.aufbau_positionen === null
           ? null
-          : { laufzettel: zeile.vb_laufzettel, positionen: zeile.vb_positionen },
+          : {
+              einheiten: zeile.aufbau_einheiten,
+              kisten: zeile.aufbau_kisten,
+              positionen: zeile.aufbau_positionen,
+            },
       pep:
         zeile.pep_posten === null || zeile.pep_positionen === null || zeile.pep_besetzt === null
           ? null
