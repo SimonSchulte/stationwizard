@@ -127,7 +127,7 @@ describe('AufbauEditor', () => {
     expect((await aufbauten.ladeAufbau(einsatz.id))?.daten.vorlageId).toBe(testId(5));
   });
 
-  it('zeigt Packliste, Zettel und Prüfung eines vorhandenen Aufbaus und speichert Änderungen', async () => {
+  it('zeigt Packliste und Prüfung eines vorhandenen Aufbaus und speichert Änderungen', async () => {
     aufbauten._vorbelegen(
       einsatz.id,
       testAufbau(testAufbauInhalt([testEinheit({ name: 'Wagen 1' })])),
@@ -137,7 +137,6 @@ describe('AufbauEditor', () => {
     );
     expect(element.textContent).toContain('Stadtfest');
     expect(element.querySelector('app-aufbau-baum')).not.toBeNull();
-    expect(element.querySelector('app-zettel-vorschau')?.textContent).toContain('Wagen 1');
     // Leere Einheit ohne Foto: zwei Hinweise in der Prüfung.
     expect(element.textContent).toContain('Wagen 1 ist leer.');
     expect(knopf(element, 'Speichern')!.disabled).toBe(true);
@@ -153,7 +152,6 @@ describe('AufbauEditor', () => {
     );
     harness.detectChanges();
     expect(store.geaendert()).toBe(true);
-    expect(element.querySelector('app-zettel-vorschau')?.textContent).toContain('1× Verbandkiste');
     expect(komponente.hatUngespeichertes()).toBe(true);
 
     knopf(element, 'Speichern')!.click();

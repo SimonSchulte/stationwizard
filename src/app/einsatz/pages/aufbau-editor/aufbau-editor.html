@@ -189,15 +189,6 @@
     </div>
 
     <div class="raster unten">
-      <section class="box" aria-label="Zettelvorschau">
-        <h2>Zettelvorschau</h2>
-        @if (aktiverZettel(); as z) {
-          <app-zettel-vorschau [zettel]="z" />
-        } @else {
-          <p class="leise">Sobald es eine Einheit gibt, erscheint hier ihr Zettel.</p>
-        }
-      </section>
-
       <section class="box" aria-label="Prüfung und Aushang">
         <h2>Prüfung</h2>
         @if (probleme().length === 0) {

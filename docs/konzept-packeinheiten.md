@@ -157,7 +157,7 @@ Bausteine wie in `CLAUDE.md` (`Seitenkopf`, `Leerzustand`, `MeldungsDienst`, Mat
    Suche, Heimatlager, Einheit), _Kisten_ (Liste, Detail mit Inhalt, Heimatlager, Kistenschild-Vorschau).
 2. **Aufbau-Editor** (ersetzt den VB-Editor): links der **Baum** (Fahrzeug → Wagen → Kisten und lose
    Artikel), rechts die gewählte Einheit mit Inhalt, Farbe (nur oberste Ebene), Foto, Anweisung,
-   Bemerkung und **Zettelvorschau** (die abgeleiteten Zeilen mit Lagertrennern und Platzanzeige).
+   Bemerkung und ~~Zettelvorschau~~ (die abgeleiteten Zeilen mit Lagertrennern und Platzanzeige; später auf Wunsch des Betreibers entfernt).
 3. **Druckdialog**: Streifen je Seite, Reihenfolge des Aushangs (nach Lager des Zettels oder nach Nummer),
    Mitdrucken (Anweisungen, Zettel, Schilder, Kistenschilder), Prüfung vor dem Drucken (Zettel zu voll,
    Einheit ohne Foto, Artikel ohne Heimatlager, abweichende Kiste).

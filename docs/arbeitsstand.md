@@ -3720,7 +3720,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   `aufbau-bearbeiten.ts` (reine Änderungen), `aufbau-zettel.ts` (`leiteZettelAb()`, `sortiereAushang()`),
   `aufbau-abgleich.ts` (`pruefeAufbau()`, `kisteWeichtAb()`), `aufbau-editor-store.service.ts` (Entwurf,
   Rückgängig, Speichern mit Version), `AufbauVorlagenStoreService`, Adapter `ApiAufbauStorage` und
-  `ApiAufbauVorlagenStorage`. Bausteine `AufbauBaum`, `EinheitDetail`, `ZettelVorschau`,
+  `ApiAufbauVorlagenStorage`. Bausteine `AufbauBaum`, `EinheitDetail`, `ZettelVorschau` (später entfernt, siehe Nachtrag),
   `AufbauVorlagenReiter`; Seite `AufbauEditor` unter `einsatz/:id/aufbau` und `aufbau-vorlagen/:id`
   (mit `verlassenGuard`). Einstieg: dritte Kachel „Aufbau“ der Einsatzkarte, Reiter „Aufbau“ in
   _Verwaltung → Einsatz-Vorlagen_.
@@ -3763,6 +3763,10 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   Kiste (`anzahl`), Inhalt aus der Momentaufnahme, Rahmen beziehungsweise Farbband in der Zielfarbe, „Auf / In“
   beim Zettel die Zieleinheit. Neue Dateien `aufbau-kistenschilder.ts` (mit Test); `kisten-pdf-definition.ts`
   wurde in wiederverwendbare Bausteine zerlegt, der Druck der Stammdaten-Kisten bleibt unverändert.
+- **Zettelvorschau entfernt:** Auf Wunsch des Betreibers („nicht hilfreich“) zeigt der Aufbau-Editor die
+  Zettelvorschau nicht mehr; der Baustein `ZettelVorschau` ist gelöscht. Prüfung, Reihenfolge am Aushang und
+  Anweisungen stehen unverändert unter der Packliste; die Zettel entstehen weiter über `leiteZettelAb()` für
+  Aushang, Prüfung und Druck.
 - **Übernahme in den Katalog:** Knopf „In den Artikelkatalog übernehmen“ an freien Artikeln und freien
   Kistenpositionen (Anlegen mit Rückfrage oder Verknüpfen mit gleichnamigem Katalogartikel). Im Browser mit
   Attrappen-Server geprüft (Anlegen, Verknüpfen, gespeicherter JSON); freie Kistenposition nur im Unit-Test. Der

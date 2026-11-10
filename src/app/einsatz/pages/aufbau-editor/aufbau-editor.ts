@@ -35,7 +35,6 @@ import {
   KistePositionEntfernung,
   KistePositionNeu,
 } from '../../components/einheit-detail/einheit-detail';
-import { ZettelVorschau } from '../../components/zettel-vorschau/zettel-vorschau';
 import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
 import { Artikel, ARTIKEL_EINHEITEN, ArtikelEinheit } from '../../models/stammdaten.model';
 import { Einsatz } from '../../models/einsatz.model';
@@ -96,7 +95,6 @@ type Modus = 'aufbau' | 'vorlage';
     Meldung,
     RouterLink,
     Seitenkopf,
-    ZettelVorschau,
   ],
   templateUrl: './aufbau-editor.html',
   styleUrl: './aufbau-editor.less',
@@ -177,10 +175,6 @@ export class AufbauEditor {
       (gewaehlt ? findeEinheit(inhalt, gewaehlt) : undefined) ?? alleEinheiten(inhalt)[0];
     if (!einheit) return null;
     return { einheit, oberste: inhalt.einheiten.some((e) => e.id === einheit.id) };
-  });
-  protected readonly aktiverZettel = computed(() => {
-    const aktiv = this.aktiv();
-    return aktiv ? (this.zettel().find((z) => z.einheitId === aktiv.einheit.id) ?? null) : null;
   });
 
   protected readonly kannSpeichern = computed(
