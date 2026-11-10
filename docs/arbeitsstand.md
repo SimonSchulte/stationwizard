@@ -3766,10 +3766,18 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
 - Damit ist die oben genannte Grenze „Kistenschilder und Kistenzettel aus dem Aufbau gibt es noch nicht“
   aufgehoben; ein Eintrag der Anweisung je Einheit im Druck fehlt weiterhin.
 - **Geprüft:** `npm test` (Frontend 209 Dateien, 1709 Tests), `npm run worker:test` (942 Tests), `npm run build`,
-  `npm run worker:check`, Prettier für die geänderten Dateien. **Nicht geprüft:** Sicht im Browser auf Desktop
-  und Mobil (Bedienung der neuen Felder und der aufgeklappten Kiste), ein echtes PDF der beiden Druckarten,
-  Papierdruck, der echte Worker mit D1. `format:check` meldet `aufbau.model.ts`; das war schon vor diesen
-  Änderungen so.
+  `npm run worker:check`, Prettier für die geänderten Dateien. **Sicht im Chromium** gegen den gebauten
+  Stand mit einem Attrappen-Server (statische App plus Test-API, außerhalb des Repositories) auf 1300 und
+  400 px: Fahrzeug anlegen, freien Artikel und freie Kiste anlegen, „Inhalt bearbeiten“ mit zwei freien
+  Positionen und einem Katalogartikel, Kiste aus Stammdaten, Speichern (gespeicherter JSON enthält `frei`,
+  `kisteId: null` und `artikelId: null` wie vorgesehen), kein waagerechtes Scrollen am Handy, aufgeklappte
+  Kiste ohne zusätzlichen Überlauf der Tabelle. **Echte PDFs** beider Druckarten (Download, mit pdftoppm
+  gerendert): Kistenschild mit Zielfarbrahmen, Inhaltsliste und Heimatlager (leer als „–“ bei freier Kiste),
+  Kistenzettel mit Zieleinheit bei „Auf / In“, Farbband, „<Kiste> packen“ und Positionen.
+- **Nicht geprüft:** der echte Worker mit D1 (die Attrappe prüft keine Verträge), Papierdruck und Zuschnitt,
+  der Druckdialog des Browsers (headless fällt auf den Download zurück), ein Wagen im Fahrzeug im Zettel
+  (nur im Unit-Test), Bedienung per Touch am echten Gerät. `format:check` meldet `aufbau.model.ts`; das war
+  schon vor diesen Änderungen so.
 
 ## Vorbereitung (VB) entfernt
 
