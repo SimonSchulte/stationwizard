@@ -123,6 +123,9 @@
                   Übernehmen
                 </button>
               }
+              @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.inhalt.length === 0) {
+                <span class="marke fehler">ohne Inhalt</span>
+              }
               @if (zeile.problem && zeile.eintrag.art === 'artikel' && !zeile.eintrag.lagerId) {
                 <span class="marke fehler">kein Lager</span>
               }

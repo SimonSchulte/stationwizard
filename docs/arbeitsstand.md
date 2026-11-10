@@ -3774,6 +3774,9 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **Packzettel ohne Soll-Inhalt:** Eine Kiste ohne Inhalt druckt „Kein Soll-Inhalt hinterlegt“ (Hinweiszeile), der Editor
+  markiert sie („ohne Inhalt“) und die Prüfung meldet sie als Fehler. Im PDF geprüft. Offen bleibt, ob der Inhalt einer
+  Kiste mit Stammdatenbezug automatisch aus den Stammdaten kommen soll, wenn die Momentaufnahme leer ist (heute nicht).
 - **Laufende Nummern im Hauptdruck:** Die Packzettel setzen die Nummern der Laufzettel fort (Laufzettel 1–2, Packzettel
   3–4, „Nr. n/4“ in beiden Abschnitten); vorher begannen beide bei 1. Im PDF geprüft.
 - **Farbcodierung je Wagen:** Farbe und Foto lassen sich für jede Einheit setzen, auch für einen Wagen im Fahrzeug

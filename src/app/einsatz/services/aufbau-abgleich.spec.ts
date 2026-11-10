@@ -7,7 +7,7 @@ import {
   testLager,
 } from '../testing/aufbau-testdaten';
 import { AufbauKistenEintrag } from '../models/aufbau.model';
-import { artikelHinzufuegen, kisteHinzufuegen } from './aufbau-bearbeiten';
+import { artikelHinzufuegen, freieKisteHinzufuegen, kisteHinzufuegen } from './aufbau-bearbeiten';
 import { kisteWeichtAb, pruefeAufbau } from './aufbau-abgleich';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -52,6 +52,16 @@ describe('pruefeAufbau', () => {
       ['ohne-heimatlager', 'fehler'],
       ['artikel-entfallen', 'fehler'],
     ]);
+  });
+
+  it('meldet eine Kiste ohne Inhalt als Fehler, weil der Packzettel nichts kontrollieren kann', () => {
+    const e = testEinheit({ name: 'GW' });
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'TeSi Mat', 1);
+    inhalt = kisteHinzufuegen(inhalt, e.id, kiste);
+    const probleme = pruefeAufbau(inhalt, DATEN).filter((p) => p.art === 'kiste-ohne-inhalt');
+    expect(probleme).toHaveLength(1);
+    expect(probleme[0]).toMatchObject({ schwere: 'fehler', einheitId: e.id });
+    expect(probleme[0]!.text).toContain('TeSi Mat');
   });
 
   it('meldet abweichende und entfallene Kisten', () => {

@@ -1,6 +1,6 @@
 import { AufbauEinheit, AufbauInhalt, AufbauKistenPosition } from '../models/aufbau.model';
 import { Artikel, Lager } from '../models/stammdaten.model';
-import { DruckAbschnitt, DruckLaufzettel } from '../models/druck.model';
+import { DruckAbschnitt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { Kistenschild, mengeText, schildZeile } from './kisten-pdf-definition';
 import { abschnittFarbeHex } from './zettel-pdf-definition';
 
@@ -8,6 +8,9 @@ import { abschnittFarbeHex } from './zettel-pdf-definition';
  * Kistenschilder aus dem Aufbau: ein Schild je physischer Kiste (`anzahl` Kopien), mit dem Inhalt der
  * Momentaufnahme im Aufbau und dem Rahmen in der Farbe der Einheit, in der die Kiste steht. Reine Berechnung.
  */
+
+/** Zeile auf einem Packzettel ohne Soll-Inhalt: die Kiste lässt sich so nicht kontrollieren. */
+export const KEIN_SOLL_INHALT = 'Kein Soll-Inhalt hinterlegt';
 
 export interface KistenschildStammdaten {
   lager: readonly Lager[];
@@ -51,6 +54,38 @@ export function schilderAusAufbau(
   return schilder;
 }
 
+/** Soll-Inhalt einer Kiste als Abhakliste; eine leere Kiste nennt das ausdrücklich, statt leer zu bleiben. */
+function sollPositionen(
+  inhalt: readonly AufbauKistenPosition[],
+  idPrefix: string,
+  artikel: ReadonlyMap<string, Artikel>,
+): DruckPosition[] {
+  if (inhalt.length === 0) {
+    return [
+      {
+        id: `${idPrefix}:leer`,
+        herkunftId: null,
+        anzahl: '',
+        material: KEIN_SOLL_INHALT,
+        hinweis: true,
+      },
+    ];
+  }
+  return inhalt.map((p, i) => {
+    const stamm = p.artikelId === null ? undefined : artikel.get(p.artikelId);
+    const name = p.artikelId === null ? p.name : (stamm?.name ?? '(Artikel fehlt)');
+    const einheitText = p.artikelId === null ? p.einheit : (stamm?.einheit ?? 'Stück');
+    const bemerkung = p.bemerkung.trim();
+    const zusatz = einheitText && einheitText !== 'Stück' ? ` (${einheitText})` : '';
+    return {
+      id: `${idPrefix}:${i}`,
+      herkunftId: null,
+      anzahl: mengeText(p.menge),
+      material: `${name}${zusatz}${bemerkung ? ` – ${bemerkung}` : ''}`,
+    };
+  });
+}
+
 /**
  * Kistenzettel aus dem Aufbau als Druckinhalt: je Einheit mit Kisten (Fahrzeug oder Wagen) ein Abschnitt in
  * deren eigener Farbe, „Auf / In“ ist die Einheit (ein Wagen im Fahrzeug nennt das Fahrzeug), je
@@ -78,19 +113,7 @@ export function kistenzettelAusAufbau(
           transportMit: ziel,
           auftraggeber: '',
           fachgruppe: null,
-          positionen: eintrag.inhalt.map((p, i) => {
-            const stamm = p.artikelId === null ? undefined : artikel.get(p.artikelId);
-            const name = p.artikelId === null ? p.name : (stamm?.name ?? '(Artikel fehlt)');
-            const einheitText = p.artikelId === null ? p.einheit : (stamm?.einheit ?? 'Stück');
-            const bemerkung = p.bemerkung.trim();
-            const zusatz = einheitText && einheitText !== 'Stück' ? ` (${einheitText})` : '';
-            return {
-              id: `${id}:${i}`,
-              herkunftId: null,
-              anzahl: mengeText(p.menge),
-              material: `${name}${zusatz}${bemerkung ? ` – ${bemerkung}` : ''}`,
-            };
-          }),
+          positionen: sollPositionen(eintrag.inhalt, id, artikel),
         });
       }
     }

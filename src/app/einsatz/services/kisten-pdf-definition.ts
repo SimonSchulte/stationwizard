@@ -299,17 +299,28 @@ export function baueKistenzettelDefinition(
     transportMit: '',
     auftraggeber: '',
     fachgruppe: null,
-    positionen: kiste.inhalt.map((position) => {
-      const artikel = daten.artikel.get(position.artikelId);
-      const bemerkung = position.bemerkung.trim();
-      const einheit = artikel && artikel.einheit !== 'Stück' ? ` (${artikel.einheit})` : '';
-      return {
-        id: `${kiste.id}:${position.artikelId}`,
-        herkunftId: null,
-        anzahl: mengeText(position.menge),
-        material: `${artikelName(position, daten)}${einheit}${bemerkung ? ` – ${bemerkung}` : ''}`,
-      };
-    }),
+    positionen:
+      kiste.inhalt.length === 0
+        ? [
+            {
+              id: `${kiste.id}:leer`,
+              herkunftId: null,
+              anzahl: '',
+              material: 'Kein Soll-Inhalt hinterlegt',
+              hinweis: true as const,
+            },
+          ]
+        : kiste.inhalt.map((position) => {
+            const artikel = daten.artikel.get(position.artikelId);
+            const bemerkung = position.bemerkung.trim();
+            const einheit = artikel && artikel.einheit !== 'Stück' ? ` (${artikel.einheit})` : '';
+            return {
+              id: `${kiste.id}:${position.artikelId}`,
+              herkunftId: null,
+              anzahl: mengeText(position.menge),
+              material: `${artikelName(position, daten)}${einheit}${bemerkung ? ` – ${bemerkung}` : ''}`,
+            };
+          }),
   }));
   const inhalt: DruckInhalt = {
     anweisungen: '',

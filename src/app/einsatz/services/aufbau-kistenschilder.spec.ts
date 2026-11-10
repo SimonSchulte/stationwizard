@@ -11,7 +11,11 @@ import {
   kistePositionHinzufuegen,
   kisteHinzufuegen,
 } from './aufbau-bearbeiten';
-import { kistenzettelAusAufbau, schilderAusAufbau } from './aufbau-kistenschilder';
+import {
+  KEIN_SOLL_INHALT,
+  kistenzettelAusAufbau,
+  schilderAusAufbau,
+} from './aufbau-kistenschilder';
 import { abschnittFarbeHex } from './zettel-pdf-definition';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -76,6 +80,14 @@ describe('kistenzettelAusAufbau', () => {
       material: 'Trinkwasser (Liter)',
     });
     expect(zettel[2]!.positionen[0]).toMatchObject({ anzahl: '1', material: 'Hammer – groß' });
+  });
+
+  it('nennt bei einer Kiste ohne Inhalt ausdrücklich, dass kein Soll-Inhalt hinterlegt ist', () => {
+    const e = testEinheit();
+    const inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'TeSi Mat', 1);
+    const positionen = kistenzettelAusAufbau(inhalt, daten)[0]!.laufzettel[0]!.positionen;
+    expect(positionen).toHaveLength(1);
+    expect(positionen[0]).toMatchObject({ hinweis: true, material: KEIN_SOLL_INHALT });
   });
 
   it('lässt Einheiten ohne Kiste aus', () => {

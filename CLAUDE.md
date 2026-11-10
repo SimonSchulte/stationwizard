@@ -639,6 +639,11 @@ Tabelle, `eintragAendern(…, { name })`); die Stammdaten bleiben unberührt, `k
 Unterschied, „Übernehmen“ stellt den Stammdaten-Namen wieder her. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
 liefern `false`, wenn der Aufbau keine Kiste enthält.
 
+**Packzettel enthalten immer den Soll-Inhalt der Kiste** (Abhakliste aus der Momentaufnahme im Aufbau, mit Menge, Einheit
+und Bemerkung), damit sich die Kiste kontrollieren lässt. Eine Kiste ohne Inhalt druckt die Hinweiszeile „Kein
+Soll-Inhalt hinterlegt“ (`KEIN_SOLL_INHALT`) statt eines leeren Streifens, im Editor steht „ohne Inhalt“ an der
+Kistenzeile und die Prüfung meldet `kiste-ohne-inhalt` als Fehler; der Kistenzettel der Stammdaten verhält sich genauso.
+
 **Farbcodierung:** Jede Einheit trägt ihre **eigene Farbe** – auch ein Wagen im Fahrzeug (Farbwahl und Foto im
 `EinheitDetail` für alle Einheiten; ein neuer Wagen im Fahrzeug startet in der Farbe des Fahrzeugs). Laufzettel,
 Packzettel, Aushang und Kistenschild nehmen die Farbe der jeweiligen Einheit. Der Druck bildet je Fahrzeug **und** je
