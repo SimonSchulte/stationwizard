@@ -595,6 +595,18 @@ Worker den Inhalt als kompaktes JSON). Fehlercodes `EINSATZPLANUNG_AUFBAU_NICHT_
 eingespielt sein, weil das Löschen von Artikeln und Lagern die neuen Tabellen liest. Rollenvergabe fehlt auch hier
 – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
+**Der Aufbau ist von Artikelkatalog und Lagern unabhängig bedienbar.** Neben dem Katalogartikel
+(`art: 'artikel'`, `artikelId` + `lagerId`) kennt er den **freien Artikel** (`art: 'frei'`: `id`, `name` ≤ 100,
+`einheit` ≤ 20 Zeichen und leer erlaubt, `menge`, `bemerkung`, `phase`; kein Lager, keine Prüfung gegen die
+Stammdaten). Eine Kiste im Aufbau darf ohne Stammdaten-Kiste entstehen (`kisteId: null`, zunächst leer), und ihre
+Positionen (`AufbauKistenPosition`) sind entweder Katalogartikel (`artikelId`, `menge`, `bemerkung`, je Kiste
+einmal) oder **freie Positionen** (`artikelId: null` mit `name`, `einheit`, `menge`, `bemerkung`, beliebig oft).
+`sammleVerweise()` und damit die Verweisprüfung und der Löschschutz kennen nur Katalogartikel und Lager; freie
+Einträge verweisen auf nichts. Worker (`einsatzplanung-aufbau-pruefung.ts`) und Frontend (`aufbau-pruefung.ts`,
+`aufbau.model.ts`) prüfen dieselben Formen und sind gemeinsam zu ändern. Ein freier Artikel erscheint auf dem
+Zettel in der Gruppe „Weitere Artikel“ (hinter den Lagern, vor „Ohne Heimatlager“) und löst nie „kein Lager“
+aus. Eine Stammdaten-Kiste mit freien Positionen gilt als „weicht von den Stammdaten ab“ (`kisteWeichtAb()`).
+
 **Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und
 `aufbau-vorlagen/:id|neu`): Der Zustand liegt im `AufbauEditorStoreService` (Entwurf, Basislinie, Rückgängig,
 ein Schreibvorgang je „Speichern“, `If-Match`, Konflikt bewahrt den Entwurf); die Seite hält nur Auswahl und
@@ -605,6 +617,18 @@ abgeleitet. Die Zahl der Rasterzeilen (23) kommt aus `laufzettel-platz.ts`. Gedr
 Lagertrenner ist dabei eine Hinweiszeile. Eine Kiste im Aufbau wird beim Hinzufügen als Momentaufnahme kopiert;
 „Übernehmen“ gleicht sie mit den Stammdaten ab. Die Einsatzkarte zeigt die Kennzahlen des Aufbaus
 (`aufbau` der Einsatzliste, `istAufbauKennzahlen()` in `einsatz-pruefung.ts`).
+
+Im `EinheitDetail` legt die Person freie Artikel und freie Kisten an und befüllt den Inhalt jeder Kiste („Inhalt
+bearbeiten“: Menge ändern, entfernen, freie Position oder Katalogartikel hinzufügen; Änderungen sind reine
+Funktionen `kistePosition…()` in `aufbau-bearbeiten.ts`). **Kistenschilder und Kistenzettel aus dem Aufbau**
+(Menü „Weitere Aktionen“ des Editors): `aufbau-kistenschilder.ts` leitet je **physischer Kiste** (`anzahl` Kopien,
+auch in Wagen) ein `Kistenschild` beziehungsweise einen Laufzettel ab. Das Schild trägt den Inhalt der
+Momentaufnahme, unten das Heimatlager und einen Rahmen in der Zielfarbe der obersten Einheit
+(`abschnittFarbeHex()` in `zettel-pdf-definition.ts`). Beim Zettel ist „Auf / In“ die Zieleinheit (ein Wagen
+im Fahrzeug nennt das Fahrzeug) und das Farbband deren Farbe. Beide nutzen die Bausteine von
+`kisten-pdf-definition.ts` (`baueSchilderDefinition()`, `baueKistenzettelAusInhalt()`); die Druckwege der
+Stammdaten-Kisten bleiben unverändert. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
+liefern `false`, wenn der Aufbau keine Kiste enthält.
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte

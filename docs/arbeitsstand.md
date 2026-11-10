@@ -3747,6 +3747,30 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   danach per Merge automatisch deployt; ein Test gegen den laufenden Betrieb steht aus. Papierdruck und Zuschnitt;
   Foto im Schild mit echtem Bild; Handy-Nutzung der Bearbeitung (die Tabelle scrollt im Rahmen).
 
+### Nachtrag: Aufbau ohne Stammdaten, Kisteninhalt, Kistenschilder und -zettel
+
+Auf Wunsch des Betreibers ist der Aufbau von Lager- und Artikelfeature getrennt vollständig in der Maske
+erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981ji`):
+
+- **Freie Artikel und freie Kisten:** neuer Eintrag `art: 'frei'` (Name, Einheit, Menge, Bemerkung, Phase) und
+  eine Kiste ohne Stammdaten-Kiste. Worker (`pruefeEintrag()`) und Frontend (`istEintrag()`) prüfen sie streng;
+  Zettel führt sie unter „Weitere Artikel“.
+- **Kisteninhalt in der Maske:** „Inhalt bearbeiten“ je Kiste im `EinheitDetail`; Positionen sind
+  Katalogartikel oder frei (`artikelId: null` mit Name und Einheit). Bereits gespeicherte Aufbauten bleiben
+  gültig (Katalogposition unverändert in drei Feldern). Doppelte Katalogartikel in einer Kiste addieren die
+  Menge, freie Positionen dürfen doppelt vorkommen.
+- **Kistenschilder und Kistenzettel aus dem Aufbau:** Menü „Weitere Aktionen“, ein Exemplar je physischer
+  Kiste (`anzahl`), Inhalt aus der Momentaufnahme, Rahmen beziehungsweise Farbband in der Zielfarbe, „Auf / In“
+  beim Zettel die Zieleinheit. Neue Dateien `aufbau-kistenschilder.ts` (mit Test); `kisten-pdf-definition.ts`
+  wurde in wiederverwendbare Bausteine zerlegt, der Druck der Stammdaten-Kisten bleibt unverändert.
+- Damit ist die oben genannte Grenze „Kistenschilder und Kistenzettel aus dem Aufbau gibt es noch nicht“
+  aufgehoben; ein Eintrag der Anweisung je Einheit im Druck fehlt weiterhin.
+- **Geprüft:** `npm test` (Frontend 209 Dateien, 1709 Tests), `npm run worker:test` (942 Tests), `npm run build`,
+  `npm run worker:check`, Prettier für die geänderten Dateien. **Nicht geprüft:** Sicht im Browser auf Desktop
+  und Mobil (Bedienung der neuen Felder und der aufgeklappten Kiste), ein echtes PDF der beiden Druckarten,
+  Papierdruck, der echte Worker mit D1. `format:check` meldet `aufbau.model.ts`; das war schon vor diesen
+  Änderungen so.
+
 ## Vorbereitung (VB) entfernt
 
 - Auf Entscheidung des Betreibers ist die VB vollständig zurückgenommen: Worker-Endpunkte `…/vb` und

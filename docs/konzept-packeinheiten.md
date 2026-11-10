@@ -106,9 +106,12 @@ darauf verweist (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`).
 // Eintrag
 { "art": "artikel", "id": "<uuid>", "artikelId": "<uuid>", "menge": 2, "bemerkung": "",
   "lagerId": "<uuid>" | null, "phase": null | "vorher" | "zum-schluss" }
+{ "art": "frei",    "id": "<uuid>", "name": "Absperrband", "einheit": "Rollen", "menge": 4, "bemerkung": "",
+  "phase": null | … }                                                   // freier Artikel, ohne Katalog und Lager
 { "art": "kiste",   "id": "<uuid>", "kisteId": "<uuid>" | null, "name": "Verbandkiste", "lagerId": "<uuid>" | null,
   "anzahl": 1,
-  "inhalt": [ { "artikelId": "<uuid>", "menge": 3, "bemerkung": "" } ],   // Momentaufnahme
+  "inhalt": [ { "artikelId": "<uuid>", "menge": 3, "bemerkung": "" },     // Momentaufnahme: Katalogartikel
+             { "artikelId": null, "name": "Hammer", "einheit": "Stück", "menge": 1, "bemerkung": "" } ], // oder frei
   "phase": null | … }
 { "art": "wagen",   "id": "<uuid>", "einheit": { /* Wagen wie oben, nur in einem Fahrzeug */ } }
 ```
@@ -117,6 +120,11 @@ darauf verweist (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`).
   `inhalt` und behält `kisteId` nur zur Nachverfolgung (wie `herkunftEintragId` im Angebot und
   `vorlage_id` bei Checks). Spätere Änderungen am Stammdatum wirken **nicht** rückwirkend; ein
   Abgleichshinweis („Kiste weicht von den Stammdaten ab“) bietet das Übernehmen an.
+- **Aufbau ohne Stammdaten (Nachtrag):** Der Aufbau ist unabhängig vom Lager- und Artikelfeature
+  vollständig in der Maske erstellbar. Freie Artikel (`art: 'frei'`), Kisten ohne Stammdaten-Kiste
+  (`kisteId: null`) und freie Kistenpositionen (`artikelId: null`) tragen Name und Einheit selbst; sie werden
+  nicht gegen die Stammdaten geprüft und sperren nichts. Kistenschild und Kistenzettel lassen sich aus dem
+  Aufbau drucken (ein Exemplar je physischer Kiste, Rahmen und Farbband in der Zielfarbe).
 - **Grenzen (Vorschlag):** 100 Lager, 2000 Artikel, 300 Kisten mit je 100 Positionen, 60 Einheiten
   je Aufbau, 200 Einträge je Einheit, Texte 200 Zeichen, Körper ≤ 512 KB. Menge: positive Zahl,
   höchstens drei Nachkommastellen, in der Oberfläche „85 Liter“ mit Bemerkung „80–90“.
