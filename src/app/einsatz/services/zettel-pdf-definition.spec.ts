@@ -271,6 +271,37 @@ describe('baueZettelPdfDefinition', () => {
     expect(texte).not.toContain('Laufzettel 1 von 7 · Schild 1 von 1 · Seite 1 von 2');
   });
 
+  it('setzt die Nummern der Laufzettel bei den Packzetteln fort', () => {
+    const basis = inhaltMitLaufzetteln(2);
+    const packzettel = inhaltMitLaufzetteln(2).abschnitte.map((a, i) => ({
+      ...a,
+      id: `pack-${i}`,
+      laufzettel: a.laufzettel.map((l) => ({
+        ...l,
+        id: `pack-${l.id}`,
+        ueberschrift: 'Kiste packen',
+      })),
+    }));
+    const inhalt = { ...basis, kistenzettel: packzettel };
+    const def = definition(inhalt);
+    const alle = abschnitte(def).filter((a) => a.pageMargins?.toString() === '0,0,0,0');
+    const texte = (i: number) => alleTexte(alle[i]!.section);
+    // Laufzettel 1 und 2 von insgesamt 4, Packzettel 3 und 4 von 4 (Fuß bei drei Streifen je Seite).
+    expect(texte(0)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Laufzettel 1 von 4')]),
+    );
+    expect(texte(0)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Laufzettel 2 von 4')]),
+    );
+    expect(texte(1)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Laufzettel 3 von 4')]),
+    );
+    expect(texte(1)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Laufzettel 4 von 4')]),
+    );
+    expect(texte(1).join('|')).not.toContain('Laufzettel 1 von');
+  });
+
   it('erzeugt ohne Laufzettel keinen Laufzettelabschnitt', () => {
     const def = definition(testInhalt({ abschnitte: [] }));
     expect(abschnitte(def)).toHaveLength(1);

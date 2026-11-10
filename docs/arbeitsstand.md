@@ -3774,6 +3774,8 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **Laufende Nummern im Hauptdruck:** Die Packzettel setzen die Nummern der Laufzettel fort (Laufzettel 1–2, Packzettel
+  3–4, „Nr. n/4“ in beiden Abschnitten); vorher begannen beide bei 1. Im PDF geprüft.
 - **Farbcodierung je Wagen:** Farbe und Foto lassen sich für jede Einheit setzen, auch für einen Wagen im Fahrzeug
   (zuvor erbte er die Fahrzeugfarbe). Laufzettel, Packzettel, Aushang und Kistenschild tragen die eigene Farbe; im
   Browser und im PDF geprüft (Wagen magenta, Fahrzeug orange, Kistenschild magenta). **Hinweis:** bereits gespeicherte

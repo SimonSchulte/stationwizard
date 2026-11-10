@@ -950,11 +950,13 @@ export function laufzettelAbschnitt(
   kopfTitel: string,
   streifen: readonly LaufzettelStreifen[],
   streifenJeSeite: number = STREIFEN_STANDARD,
+  nummerGesamt?: number,
 ): ContentSection | null {
   const m = streifenmass(streifenJeSeite);
   const seiten = seitenAufteilen(streifen, m.streifenJeSeite);
   if (seiten.length === 0) return null;
-  const laufzettelGesamt = streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
+  const laufzettelGesamt =
+    nummerGesamt ?? streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
   const laufzettelSeiten: Content[] = seiten.map((seite, index) => {
     const spalten: Column[] = seite.map((s) =>
       streifenInhalt(kopfTitel, s, laufzettelGesamt, index + 1, seiten.length, m),
@@ -992,16 +994,25 @@ export function baueZettelPdfDefinition(
   if (inhalt.anweisungen.trim().length > 0) {
     abschnitte.push(anweisungsAbschnitt(kopf, inhalt, gedrucktAm));
   }
-  const laufzettel = laufzettelAbschnitt(kopf.titel, streifen, streifenJeSeite);
+  // Die Packzettel setzen die Nummern der Laufzettel fort (1, 2, dann 3, 4 …), die Gesamtzahl gilt für beide.
+  const anzahlLaufzettel = laufzettelNummern(inhalt).size;
+  const packzettel = inhalt.kistenzettel?.length
+    ? { anweisungen: '', abschnitte: inhalt.kistenzettel }
+    : null;
+  const anzahlPackzettel = packzettel ? laufzettelNummern(packzettel).size : 0;
+  const nummerGesamt = anzahlPackzettel > 0 ? anzahlLaufzettel + anzahlPackzettel : undefined;
+  const laufzettel = laufzettelAbschnitt(kopf.titel, streifen, streifenJeSeite, nummerGesamt);
   if (laufzettel) abschnitte.push(laufzettel);
 
-  if (inhalt.kistenzettel?.length) {
-    // Packzettel je Kiste: eigene Zählung, das Abschnittsschild des Aufbaus ist hier ohne Bedeutung.
+  if (packzettel) {
+    // Eigener Abschnitt; das Abschnittsschild des Aufbaus ist hier ohne Bedeutung.
     const kistenStreifen = baueLaufzettelStreifen(
-      { anweisungen: '', abschnitte: inhalt.kistenzettel },
+      packzettel,
       streifenJeSeite,
+      'abschnitt',
+      anzahlLaufzettel,
     ).map((s) => ({ ...s, schild: 0, schildGesamt: 0 }));
-    const kisten = laufzettelAbschnitt('Packzettel', kistenStreifen, streifenJeSeite);
+    const kisten = laufzettelAbschnitt('Packzettel', kistenStreifen, streifenJeSeite, nummerGesamt);
     if (kisten) abschnitte.push(kisten);
   }
 

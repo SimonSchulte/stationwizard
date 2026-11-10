@@ -113,10 +113,13 @@ export function laufzettelPlatz(
   return { belegt, kapazitaet: LAUFZETTEL_KAPAZITAET, zustand };
 }
 
-/** Laufende Nummer je Laufzettel-Id, fortlaufend über alle Abschnitte ab 1 (nie gespeichert). */
-export function laufzettelNummern(inhalt: DruckInhalt): Map<string, number> {
+/**
+ * Laufende Nummer je Laufzettel-Id, fortlaufend über alle Abschnitte ab 1 (nie gespeichert); mit `start`
+ * beginnt sie dahinter (die Packzettel setzen die der Laufzettel fort).
+ */
+export function laufzettelNummern(inhalt: DruckInhalt, start = 0): Map<string, number> {
   const nummern = new Map<string, number>();
-  let nummer = 0;
+  let nummer = start;
   for (const abschnitt of inhalt.abschnitte) {
     for (const laufzettel of abschnitt.laufzettel) {
       nummer += 1;
