@@ -8,7 +8,7 @@ import {
   testKiste,
   testLager,
 } from '../testing/aufbau-testdaten';
-import { aufbauAlsDruckInhalt, AufbauDruckDienst } from './aufbau-druck';
+import { aufbauAlsDruckInhalt, AufbauDruckDienst, sollInhaltZeilen } from './aufbau-druck';
 import { artikelHinzufuegen, einheitHinzufuegen, kisteHinzufuegen } from './aufbau-bearbeiten';
 import { ZettelDruckDienst } from './zettel-druck';
 
@@ -30,6 +30,52 @@ function beispiel() {
   };
   return { inhalt, fahrzeugId: f.id, wagenId: w.id };
 }
+
+describe('Aushang je Einheit und Packzettel je Kiste', () => {
+  it('liefert einen Aushang je Fahrzeug und je Wagen mit Soll-Inhalt in der Farbe des Fahrzeugs', () => {
+    const { inhalt, fahrzeugId, wagenId } = beispiel();
+    const druck = aufbauAlsDruckInhalt(inhalt, DATEN);
+    expect(druck.schilder?.map((s) => [s.id, s.titel, s.farbe])).toEqual([
+      [fahrzeugId, 'GW-San 1', 'abschnitt-1'],
+      [wagenId, 'Rollwagen 03', 'abschnitt-1'],
+    ]);
+    expect(druck.schilder?.[0]?.zeilen).toEqual(['Wagen: Rollwagen 03']);
+    expect(druck.schilder?.[1]?.zeilen).toEqual([
+      '2× Verbandkiste',
+      '85 Liter Trinkwasser (80–90)',
+    ]);
+    expect(druck.schilder?.[0]?.foto).toBe('data:image/jpeg;base64,AAAA');
+  });
+
+  it('liefert einen Packzettel je physischer Kiste', () => {
+    const { inhalt, wagenId } = beispiel();
+    const kisten = aufbauAlsDruckInhalt(inhalt, DATEN).kistenzettel!;
+    expect(kisten).toHaveLength(1);
+    expect(kisten[0]!.laufzettel.map((l) => [l.ueberschrift, l.transportMit])).toEqual([
+      ['Verbandkiste packen', 'Rollwagen 03 (in GW-San 1)'],
+      ['Verbandkiste packen', 'Rollwagen 03 (in GW-San 1)'],
+    ]);
+    expect(wagenId).toBeTruthy();
+  });
+
+  it('lässt Aushang und Packzettel ohne Einträge weg und nennt freie Artikel', () => {
+    const e = testEinheit();
+    const leer = aufbauAlsDruckInhalt(testAufbauInhalt([e]), DATEN);
+    expect(leer.kistenzettel).toBeUndefined();
+    expect(leer.schilder).toHaveLength(1);
+    expect(sollInhaltZeilen({ ...e, inhalt: [] }, DATEN)).toEqual([]);
+    const frei = {
+      art: 'frei' as const,
+      id: 'x',
+      name: 'Absperrband',
+      einheit: 'Rollen',
+      menge: 4,
+      bemerkung: '',
+      phase: null,
+    };
+    expect(sollInhaltZeilen({ ...e, inhalt: [frei] }, DATEN)).toEqual(['4 Rollen Absperrband']);
+  });
+});
 
 describe('aufbauAlsDruckInhalt', () => {
   it('macht aus jeder obersten Einheit einen Abschnitt mit Farbe und Foto und aus jedem Zettel einen Laufzettel', () => {

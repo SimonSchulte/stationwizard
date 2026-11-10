@@ -79,7 +79,22 @@ export interface DruckAbschnitt {
 }
 
 /** Druckmodell: so liest der Druck (Laufzettelstreifen, Schilder) seinen Inhalt; der Aufbau bringt seine Zettel hierin. */
+/** Ein Aushang (Schild, A5 quer) mit fertigen Inhaltszeilen; je Einheit eines, auch je Wagen. */
+export interface DruckSchild {
+  id: string;
+  titel: string;
+  farbe: AbschnittFarbe;
+  /** JPEG als Data-URL für den Rahmen; fehlt, wenn es keins gibt. */
+  foto?: string;
+  /** Soll-Inhalt in Druckreihenfolge, eine Zeile je Eintrag. */
+  zeilen: string[];
+}
+
 export interface DruckInhalt {
   anweisungen: string;
   abschnitte: DruckAbschnitt[];
+  /** Fehlt oder leer: die Schilder kommen aus den Abschnitten (Zettelliste). */
+  schilder?: DruckSchild[];
+  /** Fehlt oder leer: kein Packzettel je Kiste. Ein Abschnitt je Ziel, ein Laufzettel je Kiste. */
+  kistenzettel?: DruckAbschnitt[];
 }

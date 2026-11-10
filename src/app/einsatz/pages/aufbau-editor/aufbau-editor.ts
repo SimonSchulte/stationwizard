@@ -10,6 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -84,6 +85,7 @@ type Modus = 'aufbau' | 'vorlage';
     EinheitDetail,
     Ladeanzeige,
     Leerzustand,
+    MatBadgeModule,
     MatButtonModule,
     MatButtonToggleModule,
     MatDividerModule,
@@ -122,6 +124,8 @@ export class AufbauEditor {
   protected readonly einsatz = signal<Einsatz | null>(null);
   protected readonly gewaehltId = signal<string | null>(null);
   protected readonly druckLaeuft = signal(false);
+  /** Seitenleiste mit Prüfung, Aushang-Reihenfolge und Anweisungen; reiner Sitzungszustand. */
+  protected readonly pruefungOffen = signal(false);
   /** Reihenfolge am Aushang; dieselbe Wahl gilt für den Druck (`LaufzettelLayoutWahl`). */
   protected readonly sortierung = computed(() =>
     this.layout.sortierung() === 'lager' ? 'lager' : 'nummer',

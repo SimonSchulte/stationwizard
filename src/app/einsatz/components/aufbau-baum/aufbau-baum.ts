@@ -13,9 +13,14 @@ export interface EinheitNeu {
 }
 
 interface Zeile {
+  schluessel: string;
+  art: 'einheit' | 'kiste';
+  /** Einheit, die ein Klick auf die Zeile wählt (bei einer Kiste die, in der sie steht). */
   einheit: AufbauEinheit;
-  tiefe: 0 | 1;
-  eintraege: number;
+  tiefe: 0 | 1 | 2;
+  name: string;
+  /** Bei einer Einheit Zahl der Einträge ohne Wagen, bei einer Kiste ihre Positionen. */
+  zahl: number;
   probleme: number;
 }
 
@@ -38,18 +43,38 @@ export class AufbauBaum {
   readonly gewaehlt = output<string>();
   readonly hinzufuegen = output<EinheitNeu>();
 
+  /** Vollständiger Baum bis zur Kistenebene: Fahrzeug → Kisten und Wagen → Kisten im Wagen. */
   protected readonly zeilen = computed<Zeile[]>(() => {
     const probleme = this.probleme();
-    const zeile = (einheit: AufbauEinheit, tiefe: 0 | 1): Zeile => ({
-      einheit,
-      tiefe,
-      eintraege: einheit.inhalt.filter((x) => x.art !== 'wagen').length,
-      probleme: probleme.filter((p) => p.einheitId === einheit.id).length,
-    });
-    return this.inhalt().einheiten.flatMap((e) => [
-      zeile(e, 0),
-      ...e.inhalt.flatMap((x) => (x.art === 'wagen' ? [zeile(x.einheit, 1)] : [])),
-    ]);
+    const zeilen: Zeile[] = [];
+    const einheit = (e: AufbauEinheit, tiefe: 0 | 1): void => {
+      zeilen.push({
+        schluessel: e.id,
+        art: 'einheit',
+        einheit: e,
+        tiefe,
+        name: e.name,
+        zahl: e.inhalt.filter((x) => x.art !== 'wagen').length,
+        probleme: probleme.filter((p) => p.einheitId === e.id).length,
+      });
+      const kistenTiefe = (tiefe + 1) as 1 | 2;
+      for (const x of e.inhalt) {
+        if (x.art === 'kiste') {
+          zeilen.push({
+            schluessel: x.id,
+            art: 'kiste',
+            einheit: e,
+            tiefe: kistenTiefe,
+            name: `${x.anzahl}× ${x.name}`,
+            zahl: x.inhalt.length,
+            probleme: probleme.filter((p) => p.eintragId === x.id).length,
+          });
+        }
+      }
+      for (const x of e.inhalt) if (x.art === 'wagen') einheit(x.einheit, 1);
+    };
+    for (const e of this.inhalt().einheiten) einheit(e, 0);
+    return zeilen;
   });
 
   protected readonly fahrzeuge = computed(() =>

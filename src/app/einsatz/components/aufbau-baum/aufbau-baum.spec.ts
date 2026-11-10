@@ -74,4 +74,38 @@ describe('AufbauBaum', () => {
     // Mit einem Fahrzeug gibt es zusätzlich das Menü „Wagen in Fahrzeug …“.
     expect(element.textContent).toContain('Wagen in Fahrzeug');
   });
+
+  it('zeigt den vollständigen Baum bis zur Kistenebene und wählt bei einer Kiste ihre Einheit', () => {
+    const kiste = (name: string, anzahl: number) => ({
+      art: 'kiste' as const,
+      id: crypto.randomUUID(),
+      kisteId: null,
+      name,
+      lagerId: null,
+      anzahl,
+      inhalt: [],
+      phase: null,
+    });
+    const wagen = testEinheit({ name: 'Rollwagen', inhalt: [kiste('Verbandkiste', 2)] });
+    const fahrzeug = testEinheit({
+      typ: 'fahrzeug',
+      name: 'GW-San',
+      inhalt: [kiste('Werkzeug', 1), { art: 'wagen', id: crypto.randomUUID(), einheit: wagen }],
+    });
+    const { fixture, element } = erzeuge(testAufbauInhalt([fahrzeug]));
+    const zeilen = [...element.querySelectorAll('.baum .eintrag')];
+    expect(zeilen.map((z) => z.querySelector('.name')?.textContent?.trim())).toEqual([
+      'GW-San',
+      '1× Werkzeug',
+      'Rollwagen',
+      '2× Verbandkiste',
+    ]);
+    expect(zeilen.map((z) => z.className.includes('kiste'))).toEqual([false, true, false, true]);
+    expect(zeilen[1]!.classList.contains('eingerueckt')).toBe(true);
+    expect(zeilen[3]!.classList.contains('eingerueckt-tief')).toBe(true);
+    const gewaehlt: string[] = [];
+    fixture.componentInstance.gewaehlt.subscribe((id) => gewaehlt.push(id));
+    (zeilen[3] as HTMLButtonElement).click();
+    expect(gewaehlt).toEqual([wagen.id]);
+  });
 });

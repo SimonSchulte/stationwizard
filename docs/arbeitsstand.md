@@ -3767,6 +3767,13 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   Zettelvorschau nicht mehr; der Baustein `ZettelVorschau` ist gelöscht. Prüfung, Reihenfolge am Aushang und
   Anweisungen stehen unverändert unter der Packliste; die Zettel entstehen weiter über `leiteZettelAb()` für
   Aushang, Prüfung und Druck.
+- **Druck „Drucken“ erweitert:** Packzettel je physischer Kiste (Abschnitt „Packzettel“) und ein Aushang je
+  Fahrzeug und je Wagen (auch Wagen im Fahrzeug) mit Soll-Inhalt statt der Zettelliste. **Packliste als Baum bis
+  zur Kistenebene**, **Prüfung in einklappbarer Seitenleiste**. Im Browser mit Attrappen-Server und einem echten
+  PDF (Fahrzeug mit Kiste, Wagen mit Kiste: zwei Packzettel, zwei Aushänge) geprüft; Desktop und 400 px ohne
+  waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
+  „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
+  Fortsetzungsstreifen.
 - **Übernahme in den Katalog:** Knopf „In den Artikelkatalog übernehmen“ an freien Artikeln und freien
   Kistenpositionen (Anlegen mit Rückfrage oder Verknüpfen mit gleichnamigem Katalogartikel). Im Browser mit
   Attrappen-Server geprüft (Anlegen, Verknüpfen, gespeicherter JSON); freie Kistenposition nur im Unit-Test. Der

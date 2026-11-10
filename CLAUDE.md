@@ -637,6 +637,19 @@ im Fahrzeug nennt das Fahrzeug) und das Farbband deren Farbe. Beide nutzen die B
 Stammdaten-Kisten bleiben unverändert. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
 liefern `false`, wenn der Aufbau keine Kiste enthält.
 
+**Druck des Aufbaus („Drucken“):** Außer Anweisungsseite und Laufzettelstreifen je Einheit enthält er (a) einen
+**Packzettel je physischer Kiste** (`DruckInhalt.kistenzettel`, aus `kistenzettelAusAufbau()`; Abschnitt „Packzettel“
+nach den Laufzetteln, eigene Zählung, ohne Schildnummer) und (b) einen **Aushang je Fahrzeug und je Wagen**, auch je
+Wagen im Fahrzeug (`DruckInhalt.schilder`, `schilderVon()` in `aufbau-druck.ts`; A5-Schild mit Titel, Foto, Zielfarbe
+des obersten Fahrzeugs und dem **Soll-Inhalt**: Kisten mit Anzahl, lose Artikel, Wagen – `sollInhaltZeilen()`).
+Fehlt `schilder`, bleibt es bei der Zettelliste je Abschnitt (`schildInhaltZeilen()`); die Zeilenanordnung teilen
+beide über `schildSpalten()`.
+
+Die Seite des Aufbau-Editors zeigt die **Packliste** (`AufbauBaum`) als vollständigen Baum bis zur Kistenebene
+(Fahrzeug → Kisten und Wagen → Kisten; ein Klick auf eine Kiste wählt ihre Einheit, lose Artikel stehen nicht im
+Baum). **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
+(`pruefungOffen`, standardmäßig zu, Knopf mit Zähler der Hinweise; mobil unter dem Inhalt).
+
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte
 offen angelegt, aber nicht dafür gebaut, jede Materialfrage aufzunehmen. Konzept und

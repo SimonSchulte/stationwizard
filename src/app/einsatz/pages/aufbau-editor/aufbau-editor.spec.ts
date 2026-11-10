@@ -137,7 +137,10 @@ describe('AufbauEditor', () => {
     );
     expect(element.textContent).toContain('Stadtfest');
     expect(element.querySelector('app-aufbau-baum')).not.toBeNull();
-    // Leere Einheit ohne Foto: zwei Hinweise in der Prüfung.
+    // Leere Einheit ohne Foto: zwei Hinweise in der Prüfung (Seitenleiste erst aufklappen).
+    expect(element.textContent).not.toContain('Wagen 1 ist leer.');
+    element.querySelector<HTMLButtonElement>('button[aria-label="Prüfung ausklappen"]')!.click();
+    harness.detectChanges();
     expect(element.textContent).toContain('Wagen 1 ist leer.');
     expect(knopf(element, 'Speichern')!.disabled).toBe(true);
 

@@ -70,10 +70,7 @@ export interface AufbauWagenEintrag {
 }
 
 export type AufbauEintrag =
-  | AufbauArtikelEintrag
-  | AufbauFreierEintrag
-  | AufbauKistenEintrag
-  | AufbauWagenEintrag;
+  AufbauArtikelEintrag | AufbauFreierEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
 
 export interface AufbauEinheit {
   id: string;

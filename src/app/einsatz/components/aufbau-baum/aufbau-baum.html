@@ -2,23 +2,29 @@
   <p class="leer">Noch keine Fahrzeuge oder Wagen. Lege unten die erste Einheit an.</p>
 } @else {
   <div class="baum" role="group" aria-label="Packliste">
-    @for (zeile of zeilen(); track zeile.einheit.id) {
+    @for (zeile of zeilen(); track zeile.schluessel) {
       <button
         type="button"
         class="eintrag"
         [class.eingerueckt]="zeile.tiefe === 1"
-        [attr.aria-pressed]="zeile.einheit.id === gewaehltId()"
+        [class.eingerueckt-tief]="zeile.tiefe === 2"
+        [class.kiste]="zeile.art === 'kiste'"
+        [attr.aria-pressed]="zeile.einheit.id === gewaehltId() && zeile.art === 'einheit'"
         (click)="gewaehlt.emit(zeile.einheit.id)"
       >
-        @if (zeile.tiefe === 0) {
-          <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
+        @if (zeile.art === 'kiste') {
+          <mat-icon class="kisten-symbol" aria-hidden="true">inventory_2</mat-icon>
+        } @else {
+          @if (zeile.tiefe === 0) {
+            <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
+          }
+          <span class="typ">{{ zeile.einheit.typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
         }
-        <span class="typ">{{ zeile.einheit.typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
-        <span class="name">{{ zeile.einheit.name }}</span>
+        <span class="name">{{ zeile.name }}</span>
         @if (zeile.probleme > 0) {
           <mat-icon class="warnung" aria-label="Hinweise vorhanden">info</mat-icon>
         }
-        <span class="zahl">{{ zeile.eintraege }}</span>
+        <span class="zahl">{{ zeile.zahl }}</span>
       </button>
     }
   </div>
