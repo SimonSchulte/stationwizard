@@ -32,17 +32,10 @@
     </mat-radio-group>
   }
 
-  @if (art === 'pep') {
-    <p class="hinweis">
-      Die Vorlage wird kopiert: Posten und Positionen werden übernommen, Einsatzkräfte nicht.
-      Änderungen an der PEP dieses Einsatzes verändern die Vorlage nicht.
-    </p>
-  } @else {
-    <p class="hinweis">
-      Die Vorlage wird kopiert: Änderungen an der Vorbereitung dieses Einsatzes verändern die
-      Vorlage nicht. Spätere Änderungen lassen sich gezielt auf die Vorlage übernehmen.
-    </p>
-  }
+  <p class="hinweis">
+    Die Vorlage wird kopiert: Posten und Positionen werden übernommen, Einsatzkräfte nicht.
+    Änderungen an der PEP dieses Einsatzes verändern die Vorlage nicht.
+  </p>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button matButton mat-dialog-close>Abbrechen</button>

@@ -5,26 +5,17 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
 import { ApiEinsatzStorage } from '../storage/api-einsatz-storage';
-import { ApiVbVorlagenStorage } from '../storage/api-vb-vorlagen-storage';
-import { ApiVorbereitungStorage } from '../storage/api-vorbereitung-storage';
-import {
-  InMemoryEinsatzStorage,
-  InMemoryPepStorage,
-  InMemoryVbVorlagenStorage,
-  InMemoryVorbereitungStorage,
-} from '../testing/in-memory-einsatzplanung';
+import { InMemoryEinsatzStorage, InMemoryPepStorage } from '../testing/in-memory-einsatzplanung';
 import { testPep } from '../testing/pep-testdaten';
 import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
-import { testEinsatz, testVorbereitung, testVorlage } from '../testing/vb-testdaten';
+import { testEinsatz } from '../testing/druck-testdaten';
 import { EinsatzAktionenDienst, einsatzZielSchluessel } from './einsatz-aktionen';
 import { EinsatzStoreService } from './einsatz-store.service';
 import { PepEditorOeffnenDienst } from './pep-editor-oeffnen';
 
 describe('EinsatzAktionenDienst', () => {
   let einsaetze: InMemoryEinsatzStorage;
-  let vorbereitungen: InMemoryVorbereitungStorage;
   let peps: InMemoryPepStorage;
-  let vorlagen: InMemoryVbVorlagenStorage;
   let dienst: EinsatzAktionenDienst;
   let navigate: ReturnType<typeof vi.fn>;
   let dialogAntwort: unknown;
@@ -33,10 +24,8 @@ describe('EinsatzAktionenDienst', () => {
   const gruppe = testVeranstaltung();
 
   beforeEach(() => {
-    vorbereitungen = new InMemoryVorbereitungStorage();
     peps = new InMemoryPepStorage();
-    einsaetze = new InMemoryEinsatzStorage(vorbereitungen, peps);
-    vorlagen = new InMemoryVbVorlagenStorage();
+    einsaetze = new InMemoryEinsatzStorage(undefined, peps);
     navigate = vi.fn().mockResolvedValue(true);
     dialogAntwort = undefined;
     dialogOeffnen.mockReset().mockImplementation(() => ({ afterClosed: () => of(dialogAntwort) }));
@@ -45,8 +34,6 @@ describe('EinsatzAktionenDienst', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: ApiEinsatzStorage, useValue: einsaetze },
-        { provide: ApiVorbereitungStorage, useValue: vorbereitungen },
-        { provide: ApiVbVorlagenStorage, useValue: vorlagen },
         { provide: Router, useValue: { navigate } },
         { provide: MatDialog, useValue: { open: dialogOeffnen } },
         { provide: PepEditorOeffnenDienst, useValue: pepEditor },
@@ -146,90 +133,6 @@ describe('EinsatzAktionenDienst', () => {
     });
   });
 
-  describe('VB', () => {
-    it('navigiert bei vorhandener VB direkt in den Editor, ohne Dialog', async () => {
-      const einsatz = testEinsatz();
-      einsaetze._vorbelegen(einsatz);
-      vorbereitungen._vorbelegen(einsatz.id, testVorbereitung());
-
-      await dienst.vbOeffnenOderAnlegen((await liste())[0]);
-
-      expect(dialogOeffnen).not.toHaveBeenCalled();
-      expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', einsatz.id, 'vb']);
-    });
-
-    it('kopiert nach der Wahl einer Vorlage und öffnet den Editor', async () => {
-      const einsatz = testEinsatz();
-      einsaetze._vorbelegen(einsatz);
-      const vorlage = testVorlage();
-      vorlagen._vorbelegen(vorlage);
-      dialogAntwort = { art: 'vorlage', vorlageId: vorlage.id };
-      const ausVorlage = vi.spyOn(TestBed.inject(ApiVorbereitungStorage), 'legeVorbereitungAn');
-
-      await dienst.vbOeffnenOderAnlegen((await liste())[0]);
-
-      expect(ausVorlage).toHaveBeenCalledTimes(1);
-      expect(vorbereitungen.kennzahlen(einsatz.id)).toEqual({ laufzettel: 1, positionen: 1 });
-      expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', einsatz.id, 'vb']);
-    });
-
-    it('legt bei „Leer beginnen“ eine leere VB an und öffnet den Editor', async () => {
-      const einsatz = testEinsatz();
-      einsaetze._vorbelegen(einsatz);
-      dialogAntwort = { art: 'leer' };
-
-      await dienst.vbOeffnenOderAnlegen((await liste())[0]);
-
-      expect(vorbereitungen.kennzahlen(einsatz.id)).toEqual({ laufzettel: 0, positionen: 0 });
-      expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', einsatz.id, 'vb']);
-    });
-
-    it('tut bei Abbruch des Dialogs nichts', async () => {
-      const einsatz = testEinsatz();
-      einsaetze._vorbelegen(einsatz);
-      dialogAntwort = undefined;
-
-      await dienst.vbOeffnenOderAnlegen((await liste())[0]);
-
-      expect(vorbereitungen.kennzahlen(einsatz.id)).toBeNull();
-      expect(navigate).not.toHaveBeenCalled();
-      expect(dienst.laufend()).toBeNull();
-    });
-
-    it('meldet einen Fehler beim Anlegen und navigiert nicht', async () => {
-      const einsatz = testEinsatz();
-      einsaetze._vorbelegen(einsatz);
-      dialogAntwort = { art: 'vorlage', vorlageId: crypto.randomUUID() };
-      const fehler = vi.spyOn(TestBed.inject(MeldungsDienst), 'fehler');
-
-      await dienst.vbOeffnenOderAnlegen((await liste())[0]);
-
-      expect(fehler).toHaveBeenCalledWith('Die Vorlage wurde nicht gefunden.');
-      expect(navigate).not.toHaveBeenCalled();
-    });
-
-    it('legt für eine Veranstaltung ohne Einsatz zuerst den Einsatz an', async () => {
-      dialogAntwort = { art: 'leer' };
-
-      await dienst.vbOeffnenOderAnlegen(gruppe);
-
-      const alle = await einsaetze.ladeEinsaetze();
-      expect(alle).toHaveLength(1);
-      expect(alle[0]).toMatchObject({ hiorgVeranstaltungId: 'dienst-4711' });
-      expect(vorbereitungen.kennzahlen(alle[0].id)).not.toBeNull();
-      expect(navigate).toHaveBeenCalledWith(['/einsatzplanung/einsatz', alle[0].id, 'vb']);
-    });
-
-    it('legt für eine Veranstaltung ohne Einsatz auch bei Abbruch nur den Einsatz an', async () => {
-      await dienst.vbOeffnenOderAnlegen(gruppe);
-
-      const alle = await einsaetze.ladeEinsaetze();
-      expect(alle).toHaveLength(1);
-      expect(vorbereitungen.kennzahlen(alle[0].id)).toBeNull();
-      expect(navigate).not.toHaveBeenCalled();
-    });
-  });
-
   describe('Sperre', () => {
     it('ignoriert weitere Aktionen, solange eine läuft', async () => {
       const einsatz = testEinsatz();
@@ -247,9 +150,9 @@ describe('EinsatzAktionenDienst', () => {
       const erste = dienst.pepOeffnenOderAnlegen(eintrag);
       await vi.waitFor(() => expect(dienst.laufend()).toBe(einsatzZielSchluessel(eintrag)));
       await dienst.pepOeffnenOderAnlegen(eintrag);
-      await dienst.vbOeffnenOderAnlegen(eintrag);
+      await dienst.aufbauOeffnen(eintrag);
       expect(pepEditor.oeffnen).toHaveBeenCalledTimes(1);
-      expect(dialogOeffnen).not.toHaveBeenCalled();
+      expect(navigate).not.toHaveBeenCalled();
 
       fertig();
       await erste;

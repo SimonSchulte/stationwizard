@@ -1,15 +1,8 @@
-import {
-  VbAbschnitt,
-  VbInhalt,
-  VbLaufzettel,
-  VbPosition,
-  VbVorlage,
-  Vorbereitung,
-} from '../models/vb.model';
+import { DruckAbschnitt, DruckInhalt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { Einsatz } from '../models/einsatz.model';
 
 /** Testdaten werden im Test erzeugt; die Ids sind echte UUIDs, damit die Prüfungen greifen. */
-export function testPosition(ueberschreibung: Partial<VbPosition> = {}): VbPosition {
+export function testPosition(ueberschreibung: Partial<DruckPosition> = {}): DruckPosition {
   return {
     id: crypto.randomUUID(),
     herkunftId: null,
@@ -19,7 +12,7 @@ export function testPosition(ueberschreibung: Partial<VbPosition> = {}): VbPosit
   };
 }
 
-export function testLaufzettel(ueberschreibung: Partial<VbLaufzettel> = {}): VbLaufzettel {
+export function testLaufzettel(ueberschreibung: Partial<DruckLaufzettel> = {}): DruckLaufzettel {
   return {
     id: crypto.randomUUID(),
     herkunftId: null,
@@ -33,7 +26,7 @@ export function testLaufzettel(ueberschreibung: Partial<VbLaufzettel> = {}): VbL
   };
 }
 
-export function testAbschnitt(ueberschreibung: Partial<VbAbschnitt> = {}): VbAbschnitt {
+export function testAbschnitt(ueberschreibung: Partial<DruckAbschnitt> = {}): DruckAbschnitt {
   return {
     id: crypto.randomUUID(),
     herkunftId: null,
@@ -45,21 +38,8 @@ export function testAbschnitt(ueberschreibung: Partial<VbAbschnitt> = {}): VbAbs
   };
 }
 
-export function testInhalt(ueberschreibung: Partial<VbInhalt> = {}): VbInhalt {
+export function testInhalt(ueberschreibung: Partial<DruckInhalt> = {}): DruckInhalt {
   return { anweisungen: 'Treffpunkt 8 Uhr', abschnitte: [testAbschnitt()], ...ueberschreibung };
-}
-
-export function testVorlage(ueberschreibung: Partial<VbVorlage> = {}): VbVorlage {
-  return {
-    id: crypto.randomUUID(),
-    titel: 'Weihnachtsmarkt',
-    inhalt: testInhalt(),
-    ...ueberschreibung,
-  };
-}
-
-export function testVorbereitung(ueberschreibung: Partial<Vorbereitung> = {}): Vorbereitung {
-  return { vorlageId: null, vorlageVersion: null, inhalt: testInhalt(), ...ueberschreibung };
 }
 
 export function testEinsatz(ueberschreibung: Partial<Einsatz> = {}): Einsatz {

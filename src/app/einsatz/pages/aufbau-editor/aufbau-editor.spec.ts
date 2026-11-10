@@ -22,7 +22,7 @@ import {
   erzeugeTestKiste,
   erzeugeTestLager,
 } from '../../testing/stammdaten-testdaten';
-import { testEinsatz } from '../../testing/vb-testdaten';
+import { testEinsatz } from '../../testing/druck-testdaten';
 import { AufbauEditor } from './aufbau-editor';
 
 describe('AufbauEditor', () => {

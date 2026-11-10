@@ -1,4 +1,4 @@
-import { VB_GRENZEN } from '../models/vb.model';
+import { AUFBAU_GRENZEN } from '../models/aufbau.model';
 
 /** Kantenlängen und JPEG-Qualitäten, die der Reihe nach versucht werden, bis das Foto passt. */
 const STUFEN: readonly { kante: number; qualitaet: number }[] = [
@@ -10,8 +10,8 @@ const STUFEN: readonly { kante: number; qualitaet: number }[] = [
 ];
 
 /**
- * Verkleinert ein Foto im Browser zu einer JPEG-Data-URL, die in `VB_GRENZEN.foto` passt
- * (das Foto wird im Abschnitt der VB gespeichert und gedruckt). Wirft einen Fehler mit
+ * Verkleinert ein Foto im Browser zu einer JPEG-Data-URL, die in `AUFBAU_GRENZEN.foto` passt
+ * (das Foto wird in der Einheit des Aufbaus gespeichert und gedruckt). Wirft einen Fehler mit
  * verständlichem Text, wenn die Datei kein lesbares Bild ist oder nicht klein genug wird.
  */
 export async function fotoVerkleinern(datei: Blob): Promise<string> {
@@ -35,7 +35,8 @@ export async function fotoVerkleinern(datei: Blob): Promise<string> {
       kontext.fillRect(0, 0, leinwand.width, leinwand.height);
       kontext.drawImage(bild, 0, 0, leinwand.width, leinwand.height);
       const url = leinwand.toDataURL('image/jpeg', qualitaet);
-      if (url.startsWith('data:image/jpeg;base64,') && url.length <= VB_GRENZEN.foto) return url;
+      if (url.startsWith('data:image/jpeg;base64,') && url.length <= AUFBAU_GRENZEN.foto)
+        return url;
     }
   } finally {
     bild.close();

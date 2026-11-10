@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
-import { VbInhalt } from '../models/vb.model';
+import {
+  testAbschnitt,
+  testInhalt,
+  testLaufzettel,
+  testPosition,
+} from '../testing/druck-testdaten';
+import { DruckInhalt } from '../models/druck.model';
 import {
   baueLaufzettelStreifen as baueMit,
   nachLagerSortiert,
@@ -9,7 +14,7 @@ import {
 import { LAUFZETTEL_KAPAZITAET } from './laufzettel-platz';
 
 // Die bisherigen Fälle gelten für drei Streifen je Seite (38 Zeichen je Zeile).
-const baueLaufzettelStreifen = (inhalt: VbInhalt) => baueMit(inhalt, 3);
+const baueLaufzettelStreifen = (inhalt: DruckInhalt) => baueMit(inhalt, 3);
 
 const LANG = 'x'.repeat(76); // zwei Zeilen
 

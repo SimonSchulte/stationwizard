@@ -1,8 +1,9 @@
 import type { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 
 /**
- * Datenvertrag der Vorbereitung (VB), identisch mit dem Worker
- * (`docs/konzept-einsatzplanung-vb.md`, Abschnitt 9). Alle Ids sind UUIDs.
+ * Farbpalette der Abschnitte und das Druckmodell. Die frühere Vorbereitung (VB) gibt es nicht
+ * mehr; der Aufbau bringt seine Zettel in diese Form (`aufbau-druck.ts`), damit der vorhandene
+ * Druck (Laufzettelstreifen, Schilder) sie lesen kann.
  */
 
 /** Schlüssel der festen Abschnittspalette (Tokens `--abschnitt-1` … `--abschnitt-8`). */
@@ -38,23 +39,7 @@ export const ABSCHNITT_FARBE_BEZEICHNUNG: Record<AbschnittFarbe, string> = {
   'abschnitt-8': 'Braun',
 };
 
-/** Grenzen laut Vertrag; der Worker prüft dieselben Werte. */
-export const VB_GRENZEN = {
-  abschnitte: 30,
-  laufzettel: 300,
-  positionen: 50,
-  /** Titel, Überschrift, Lagerort, Transport, Auftraggeber, Material. */
-  text: 200,
-  anzahl: 20,
-  anweisungen: 6000,
-  /** Verladungsfoto eines Abschnitts als JPEG-Data-URL (Zeichen). */
-  foto: 100_000,
-} as const;
-
-/** Format, in dem das Verladungsfoto gespeichert wird (der Worker prüft dasselbe Muster). */
-export const FOTO_MUSTER = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
-
-export interface VbPosition {
+export interface DruckPosition {
   id: string;
   /** Id des Gegenstücks in der Vorlage; in Vorlagen `null`. */
   herkunftId: string | null;
@@ -69,7 +54,7 @@ export interface VbPosition {
   hinweis?: true;
 }
 
-export interface VbLaufzettel {
+export interface DruckLaufzettel {
   id: string;
   herkunftId: string | null;
   ueberschrift: string;
@@ -78,10 +63,10 @@ export interface VbLaufzettel {
   /** Auftraggeber für Rückfragen. */
   auftraggeber: string;
   fachgruppe: Fachgruppe | null;
-  positionen: VbPosition[];
+  positionen: DruckPosition[];
 }
 
-export interface VbAbschnitt {
+export interface DruckAbschnitt {
   id: string;
   herkunftId: string | null;
   /** 1–200 Zeichen. */
@@ -90,35 +75,11 @@ export interface VbAbschnitt {
   fachgruppe: Fachgruppe | null;
   /** Foto für die Verladung (JPEG als Data-URL); kommt mit auf den Druck. Fehlt, wenn es keins gibt. */
   foto?: string;
-  laufzettel: VbLaufzettel[];
+  laufzettel: DruckLaufzettel[];
 }
 
-/** Inhalt von Vorlage und Vorbereitung (gleiche Struktur). */
-export interface VbInhalt {
+/** Druckmodell: so liest der Druck (Laufzettelstreifen, Schilder) seinen Inhalt; der Aufbau bringt seine Zettel hierin. */
+export interface DruckInhalt {
   anweisungen: string;
-  abschnitte: VbAbschnitt[];
-}
-
-export interface Vorbereitung {
-  vorlageId: string | null;
-  vorlageVersion: number | null;
-  inhalt: VbInhalt;
-}
-
-export interface VbVorlage {
-  id: string;
-  titel: string;
-  inhalt: VbInhalt;
-}
-
-/** Listeneintrag einer Vorlage (ohne Inhalt) mit Kennzahlen. */
-export interface VbVorlageKopf {
-  id: string;
-  titel: string;
-  version: number;
-  abschnitte: number;
-  laufzettel: number;
-  positionen: number;
-  /** ISO-Zeitstempel, vom Worker gesetzt. */
-  geaendertAm: string;
+  abschnitte: DruckAbschnitt[];
 }

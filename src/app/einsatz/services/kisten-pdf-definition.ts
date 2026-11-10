@@ -1,7 +1,7 @@
 import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { Artikel, Kiste, KistenPosition, Lager } from '../models/stammdaten.model';
-import { VbInhalt, VbLaufzettel } from '../models/vb.model';
+import { DruckInhalt, DruckLaufzettel } from '../models/druck.model';
 import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
 import { STREIFEN_STANDARD } from './laufzettel-platz';
@@ -13,7 +13,7 @@ import {
   SCHILD,
   schildTitelSchrift,
   titelAbstand,
-} from './vb-pdf-definition';
+} from './zettel-pdf-definition';
 
 /**
  * Druck der Kisten (Stufe 2 der Packeinheiten, `docs/konzept-packeinheiten.md`): das **Kistenschild**
@@ -240,7 +240,7 @@ export function baueKistenzettelDefinition(
   daten: KistenDruckDaten,
   streifenJeSeite: number = STREIFEN_STANDARD,
 ): TDocumentDefinitions {
-  const laufzettel: VbLaufzettel[] = kisten.map((kiste) => ({
+  const laufzettel: DruckLaufzettel[] = kisten.map((kiste) => ({
     id: kiste.id,
     herkunftId: null,
     ueberschrift: `${kiste.name} packen`,
@@ -260,7 +260,7 @@ export function baueKistenzettelDefinition(
       };
     }),
   }));
-  const inhalt: VbInhalt = {
+  const inhalt: DruckInhalt = {
     anweisungen: '',
     abschnitte: [
       {

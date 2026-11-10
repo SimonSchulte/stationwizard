@@ -34,26 +34,27 @@ export const einsatzRouten: Routes = [
       import('./pages/planning-editor/planning-editor').then((modul) => modul.PlanningEditor),
   },
   {
-    // Die Vorlagenliste liegt in der Verwaltung (PEP- und VB-Vorlagen gemeinsam).
+    // Die Vorlagenliste liegt in der Verwaltung (PEP- und Aufbau-Vorlagen gemeinsam).
     path: 'vb-vorlagen',
     pathMatch: 'full',
     redirectTo: '/verwaltung/einsatz-vorlagen',
   },
   {
     path: 'vb-vorlagen/:id',
-    data: { modus: 'vorlage' },
-    loadComponent: () => import('./pages/vb-editor/vb-editor').then((modul) => modul.VbEditor),
+    pathMatch: 'full',
+    redirectTo: '/verwaltung/einsatz-vorlagen',
   },
   {
-    // Alte Lesezeichen der früheren Einsatzseite: die Übersicht hat jetzt PEP und VB direkt.
+    // Alte Lesezeichen der früheren Einsatzseite: die Übersicht hat jetzt PEP und Aufbau direkt.
     path: 'einsatz/:id',
     pathMatch: 'full',
     redirectTo: '',
   },
   {
+    // Die frühere Vorbereitung (VB) ist im Aufbau aufgegangen.
     path: 'einsatz/:id/vb',
-    data: { modus: 'vorbereitung' },
-    loadComponent: () => import('./pages/vb-editor/vb-editor').then((modul) => modul.VbEditor),
+    pathMatch: 'full',
+    redirectTo: 'einsatz/:id/aufbau',
   },
   {
     // Aufbau (Packliste) eines Einsatzes; ohne Aufbau bietet die Seite „leer“ oder „aus Vorlage“ an.

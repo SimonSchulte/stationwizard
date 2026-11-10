@@ -18,13 +18,12 @@ import { firstValueFrom } from 'rxjs';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 import { PepVorlagenStoreService } from '../../services/pep-vorlagen-store.service';
-import { VbVorlagenStoreService } from '../../services/vb-vorlagen-store.service';
 
 /** Ergebnis des Dialogs: eine Vorlage kopieren oder leer beginnen; Abbrechen schließt ohne Wert. */
 export type VorlageWahlErgebnis = { art: 'vorlage'; vorlageId: string } | { art: 'leer' };
 
-/** Wofür eine Vorlage gewählt wird: PEP (Posten und Positionen) oder Vorbereitung (VB). */
-export type VorlageArt = 'pep' | 'vb';
+/** Wofür eine Vorlage gewählt wird: PEP (Posten und Positionen). */
+export type VorlageArt = 'pep';
 
 export interface VorlageWahlDaten {
   art: VorlageArt;
@@ -39,7 +38,7 @@ interface VorlageZeile {
 
 /**
  * Öffnet den Dialog „Vorlage wählen“ für die Art und liefert die Wahl; `undefined` beim
- * Abbrechen. Gemeinsam für PEP (`PepEditorOeffnenDienst`) und VB (`EinsatzAktionenDienst`).
+ * Abbrechen. Genutzt vom `PepEditorOeffnenDienst`; der Aufbau bietet seine Vorlagen im Editor selbst an.
  */
 export async function vorlageWaehlen(
   dialog: MatDialog,
@@ -58,7 +57,7 @@ export async function vorlageWaehlen(
 }
 
 /**
- * Wählt die Vorlage (PEP oder VB, je nach Dialogdaten; ohne Daten VB), die für einen Einsatz
+ * Wählt die PEP-Vorlage, die für einen Einsatz
  * kopiert wird, oder den leeren Anfang.
  */
 @Component({
@@ -80,12 +79,8 @@ export class VorlageWahlDialog {
   private readonly dialogRef = inject(MatDialogRef<VorlageWahlDialog, VorlageWahlErgebnis>);
   private readonly injector = inject(Injector);
   protected readonly art: VorlageArt =
-    inject<VorlageWahlDaten | null>(MAT_DIALOG_DATA, { optional: true })?.art ?? 'vb';
-  // Nur den Store der gewählten Art erzeugen: der andere braucht seinen Speicher nicht.
-  protected readonly store =
-    this.art === 'pep'
-      ? this.injector.get(PepVorlagenStoreService)
-      : this.injector.get(VbVorlagenStoreService);
+    inject<VorlageWahlDaten | null>(MAT_DIALOG_DATA, { optional: true })?.art ?? 'pep';
+  protected readonly store = this.injector.get(PepVorlagenStoreService);
 
   readonly suche = signal('');
   readonly gewaehlt = signal<string | null>(null);
@@ -94,10 +89,7 @@ export class VorlageWahlDialog {
     this.store.vorlagen().map((vorlage) => ({
       id: vorlage.id,
       titel: vorlage.titel,
-      kennzahlen:
-        'abschnitte' in vorlage
-          ? `${vorlage.abschnitte} Abschnitte · ${vorlage.laufzettel} Laufzettel · ${vorlage.positionen} Positionen · Version ${vorlage.version}`
-          : `${vorlage.posten} Posten · ${vorlage.positionen} Positionen · Version ${vorlage.version}`,
+      kennzahlen: `${vorlage.posten} Posten · ${vorlage.positionen} Positionen · Version ${vorlage.version}`,
     })),
   );
 

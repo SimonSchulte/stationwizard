@@ -13,7 +13,7 @@ const BEREITS_VORHANDEN_TEXTE: Record<string, string> = {
   EINSATZPLANUNG_BEREITS_VORHANDEN: 'Dieser Eintrag existiert bereits.',
 };
 
-/** HTTP 409: Id oder Vorbereitung existiert schon, oder die HiOrg-Veranstaltung ist vergeben. */
+/** HTTP 409: Id oder Aufbau existiert schon, oder die HiOrg-Veranstaltung ist vergeben. */
 export class EinsatzplanungBereitsVorhandenFehler extends Error {
   constructor(
     /** Fester Diagnosecode des Workers, sofern geliefert. */

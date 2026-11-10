@@ -3746,3 +3746,20 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist am 10.11.2026 eingespielt, der Worker
   danach per Merge automatisch deployt; ein Test gegen den laufenden Betrieb steht aus. Papierdruck und Zuschnitt;
   Foto im Schild mit echtem Bild; Handy-Nutzung der Bearbeitung (die Tabelle scrollt im Rahmen).
+
+## Vorbereitung (VB) entfernt
+
+- Auf Entscheidung des Betreibers ist die VB vollständig zurückgenommen: Worker-Endpunkte `…/vb` und
+  `…/vb-vorlagen` samt Prüfung und Tests, VB-Editor, Laufzettel-/Abschnitts-Komponenten, VB-Vorlagen-Reiter,
+  Excel-Import der Packliste, Abgleich mit der Vorlage und die VB-Kachel der Einsatzkarte. Die alten Adressen
+  `einsatz/:id/vb` und `vb-vorlagen/:id` leiten auf Aufbau beziehungsweise Vorlagenverwaltung um.
+- Die Einsatzliste liefert statt `vb` jetzt `aufbau` (`einheiten`, `kisten`, `positionen`); die Kachel „Aufbau“
+  zeigt sie, der Filter heißt „Aufbau fehlt“. `ApiAufbauStorage` verwirft beim Schreiben die gepufferte Liste.
+- Die Druckkette bleibt, ist aber umbenannt: `Vb…` → `Druck…`/`Zettel…` (`druck.model.ts`,
+  `zettel-druck.ts`, `zettel-pdf-definition.ts`, `ZettelDruckDienst`). PDF-Dateien heißen „Aufbau <Titel> <Datum>.pdf“.
+- `vb-pruefung.ts` ist zu `einsatz-pruefung.ts` geworden (gemeinsame Prüfprimitive, Einsatz, Kennzahlen).
+- Die Tabellen `vorbereitungen` und `vb_vorlagen` samt Startvorlage bleiben ungenutzt in der Datenbank (keine
+  Migration zum Löschen); Bestandsdaten wurden nicht übernommen.
+- Geprüft: Worker 941 Tests (neu: die alten VB-Pfade antworten mit JSON-404), Frontend 1704 Tests, Build,
+  `worker:check`, Prettier. **Nicht geprüft:** der Betrieb gegen die echte Datenbank nach dem Deployment;
+  Browser-Sichtprüfung der Einsatzübersicht mit der neuen Kachel steht aus.

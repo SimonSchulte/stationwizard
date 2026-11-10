@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { ABSCHNITT_FARBE_BEZEICHNUNG, AbschnittFarbe } from '../../models/vb.model';
+import { ABSCHNITT_FARBE_BEZEICHNUNG, AbschnittFarbe } from '../../models/druck.model';
 
-/** Farbpunkt eines VB-Abschnitts (Token `--abschnitt-n`), mit Farbname für Screenreader. */
+/** Farbpunkt einer Einheit des Aufbaus (Token `--abschnitt-n`), mit Farbname für Screenreader. */
 @Component({
   selector: 'app-abschnitt-farbpunkt',
   templateUrl: './abschnitt-farbpunkt.html',

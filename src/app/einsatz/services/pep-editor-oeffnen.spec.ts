@@ -12,7 +12,7 @@ import {
 } from '../testing/in-memory-einsatzplanung';
 import { testPep, testPepVorlage } from '../testing/pep-testdaten';
 import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
-import { testEinsatz } from '../testing/vb-testdaten';
+import { testEinsatz } from '../testing/druck-testdaten';
 import { EfsQuelle } from './efs-quelle.service';
 import { HiorgVeranstaltungenQuelle } from './hiorg-veranstaltungen-quelle.service';
 import { PepEditorKontext } from './pep-editor-kontext';

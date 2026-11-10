@@ -1,5 +1,6 @@
 import { HiorgArt, HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
-import { EinsatzListenEintrag, VbKennzahlen } from '../models/einsatz.model';
+import { AufbauKennzahlen } from '../models/aufbau.model';
+import { EinsatzListenEintrag } from '../models/einsatz.model';
 import { PepKennzahlen } from '../models/pep.model';
 import { EinsatzZiel, einsatzZielSchluessel } from './einsatz-aktionen';
 import { abstandInTagen, istDringend, lokalerBeginn } from './einsatz-anzeige';
@@ -22,7 +23,8 @@ export interface EinsatzListenZeile {
   pepVorhanden: boolean;
   /** Kennzahlen der PEP, `null` ohne PEP. */
   pep: PepKennzahlen | null;
-  vb: VbKennzahlen | null;
+  /** Kennzahlen des Aufbaus, `null` ohne Aufbau. */
+  aufbau: AufbauKennzahlen | null;
 }
 
 export interface EinsatzListe {
@@ -45,7 +47,7 @@ function nachBeginn(a: EinsatzListenZeile, b: EinsatzListenZeile): number {
  *
  * Ein gespeicherter Einsatz, dessen Veranstaltung der Feed nicht (mehr) liefert – das Fenster
  * des Feeds ist begrenzt –, erscheint mit seinen gespeicherten Angaben weiter, damit PEP und
- * VB erreichbar bleiben.
+ * Aufbau erreichbar bleiben.
  */
 export function baueEinsatzListe(
   veranstaltungen: readonly HiorgVeranstaltung[],
@@ -73,7 +75,7 @@ export function baueEinsatzListe(
         art: veranstaltung.art,
         pepVorhanden: (einsatz?.pep ?? null) !== null,
         pep: einsatz?.pep ?? null,
-        vb: einsatz?.vb ?? null,
+        aufbau: einsatz?.aufbau ?? null,
       },
       ende: veranstaltung.ende,
     });
@@ -92,7 +94,7 @@ export function baueEinsatzListe(
         art: artAusVeranstaltungsId(einsatz.hiorgVeranstaltungId),
         pepVorhanden: einsatz.pep !== null,
         pep: einsatz.pep,
-        vb: einsatz.vb,
+        aufbau: einsatz.aufbau,
       },
       ende: lokalerBeginn(einsatz.ende) ?? lokalerBeginn(einsatz.beginn),
     });
@@ -114,7 +116,7 @@ export interface EinsatzFilter {
   /** Teiltext in Titel oder Ort, Groß-/Kleinschreibung egal. */
   suche: string;
   pepFehlt: boolean;
-  vbFehlt: boolean;
+  aufbauFehlt: boolean;
   ohneHiorg: boolean;
   /** `alle` oder nur Dienste bzw. nur Veranstaltungen; Einsätze ohne Art fallen dann heraus. */
   art: 'alle' | HiorgArt;
@@ -123,7 +125,7 @@ export interface EinsatzFilter {
 export const KEIN_FILTER: EinsatzFilter = {
   suche: '',
   pepFehlt: false,
-  vbFehlt: false,
+  aufbauFehlt: false,
   ohneHiorg: false,
   art: 'alle',
 };
@@ -132,7 +134,7 @@ export function istFilterAktiv(filter: EinsatzFilter): boolean {
   return (
     filter.suche.trim() !== '' ||
     filter.pepFehlt ||
-    filter.vbFehlt ||
+    filter.aufbauFehlt ||
     filter.ohneHiorg ||
     filter.art !== 'alle'
   );
@@ -153,7 +155,7 @@ export function filtereEinsaetze(
       return false;
     }
     if (filter.pepFehlt && zeile.pepVorhanden) return false;
-    if (filter.vbFehlt && zeile.vb !== null) return false;
+    if (filter.aufbauFehlt && zeile.aufbau !== null) return false;
     if (filter.ohneHiorg && zeile.herkunft !== 'eigen') return false;
     if (filter.art !== 'alle' && zeile.art !== filter.art) return false;
     return true;
@@ -164,7 +166,7 @@ export function filtereEinsaetze(
 export interface EinsatzKartenEintrag extends EinsatzListenZeile {
   /** Tage bis zum Beginn (heute = 0); `null`, wenn kein Hinweis gezeigt wird. */
   abstandTage: number | null;
-  /** Gelb: Beginn in höchstens 14 Tagen und PEP oder VB fehlt. */
+  /** Gelb: Beginn in höchstens 14 Tagen und PEP oder Aufbau fehlt. */
   dringend: boolean;
 }
 
@@ -180,7 +182,7 @@ export function mitAbstand(
     return {
       ...zeile,
       abstandTage: hinweis,
-      dringend: istDringend(hinweis, !zeile.pepVorhanden, zeile.vb === null),
+      dringend: istDringend(hinweis, !zeile.pepVorhanden, zeile.aufbau === null),
     };
   });
 }

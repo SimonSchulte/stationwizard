@@ -97,45 +97,29 @@
       matButton="outlined"
       type="button"
       class="kachel"
-      [class.vorhanden]="!!vbKennzahlen()"
+      [class.vorhanden]="!!aufbauKennzahlen()"
       [disabled]="gesperrt()"
-      [attr.aria-label]="(vbKennzahlen() ? 'VB öffnen: ' : 'VB anlegen: ') + titel()"
-      (click)="vb.emit()"
-    >
-      <span class="inhalt">
-        <mat-icon class="symbol" aria-hidden="true">checklist</mat-icon>
-        <span class="text">
-          <span class="name">VB</span>
-          <span class="untertitel">
-            @if (vbKennzahlen(); as k) {
-              {{ k.laufzettel }} Laufzettel<span class="zusatz"> · {{ k.positionen }} Pos.</span>
-            } @else {
-              nicht angelegt
-            }
-          </span>
-        </span>
-        @if (vbKennzahlen()) {
-          <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
-        } @else {
-          <span class="anlegen">Anlegen</span>
-        }
-      </span>
-    </button>
-    <button
-      matButton="outlined"
-      type="button"
-      class="kachel"
-      [disabled]="gesperrt()"
-      [attr.aria-label]="'Aufbau öffnen: ' + titel()"
+      [attr.aria-label]="(aufbauKennzahlen() ? 'Aufbau öffnen: ' : 'Aufbau anlegen: ') + titel()"
       (click)="aufbau.emit()"
     >
       <span class="inhalt">
         <mat-icon class="symbol" aria-hidden="true">inventory_2</mat-icon>
         <span class="text">
           <span class="name">Aufbau</span>
-          <span class="untertitel">Packliste</span>
+          <span class="untertitel">
+            @if (aufbauKennzahlen(); as k) {
+              {{ k.einheiten }} {{ k.einheiten === 1 ? 'Einheit' : 'Einheiten'
+              }}<span class="zusatz"> · {{ k.positionen }} Pos.</span>
+            } @else {
+              nicht angelegt
+            }
+          </span>
         </span>
-        <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
+        @if (aufbauKennzahlen()) {
+          <mat-icon class="rechts" aria-hidden="true">chevron_right</mat-icon>
+        } @else {
+          <span class="anlegen">Anlegen</span>
+        }
       </span>
     </button>
   </div>

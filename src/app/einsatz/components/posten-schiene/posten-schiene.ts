@@ -22,7 +22,7 @@ export class PostenSchiene {
   readonly gewaehlt = output<string>();
   readonly neuerPosten = output<void>();
 
-  /** Abschnittsfarben der Vorbereitung, reihum: gleiche Palette, gleiche Wiedererkennung. */
+  /** Abschnittsfarben des Aufbaus, reihum: gleiche Palette, gleiche Wiedererkennung. */
   protected farbe(index: number): string {
     return `var(--abschnitt-${(index % 8) + 1})`;
   }

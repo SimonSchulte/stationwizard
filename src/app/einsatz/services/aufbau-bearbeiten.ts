@@ -9,7 +9,7 @@ import {
   EinheitTyp,
 } from '../models/aufbau.model';
 import { Artikel, Kiste } from '../models/stammdaten.model';
-import { ABSCHNITT_FARBEN, AbschnittFarbe } from '../models/vb.model';
+import { ABSCHNITT_FARBEN, AbschnittFarbe } from '../models/druck.model';
 
 /**
  * Reine Änderungen am Aufbau (unveränderlich, jeweils ein neuer Inhalt). Der Editor ruft sie auf;

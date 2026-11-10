@@ -5,7 +5,7 @@ import { MitVersion } from './mit-version';
 export interface EinsatzStorage {
   readonly bezeichnung: string;
 
-  /** Alle Einsätze samt VB-Kennzahlen; kurz gepuffert, ohne Version für Schreibzugriffe. */
+  /** Alle Einsätze samt Kennzahlen von PEP und Aufbau; kurz gepuffert, ohne Version für Schreibzugriffe. */
   ladeEinsaetze(): Promise<EinsatzListenEintrag[]>;
   /** `null`, wenn es den Einsatz nicht gibt. Ungepuffert. */
   ladeEinsatz(id: string): Promise<MitVersion<Einsatz> | null>;

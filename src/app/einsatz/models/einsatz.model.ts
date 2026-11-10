@@ -1,3 +1,4 @@
+import type { AufbauKennzahlen } from './aufbau.model';
 import { PepKennzahlen } from './pep.model';
 
 /** Einsatz als eigene Zeile (Vertrag: `docs/konzept-einsatzplanung-vb.md`, Abschnitt 9). */
@@ -14,15 +15,10 @@ export interface Einsatz {
   hiorgVeranstaltungId: string | null;
 }
 
-export interface VbKennzahlen {
-  laufzettel: number;
-  positionen: number;
-}
-
 export type EinsatzListenEintrag = Einsatz & {
   version: number;
   /** `null`, solange der Einsatz keine PEP hat. */
   pep: PepKennzahlen | null;
-  /** `null`, solange der Einsatz keine Vorbereitung hat. */
-  vb: VbKennzahlen | null;
+  /** `null`, solange der Einsatz keinen Aufbau hat. */
+  aufbau: AufbauKennzahlen | null;
 };

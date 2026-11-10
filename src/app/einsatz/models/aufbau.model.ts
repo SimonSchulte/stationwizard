@@ -1,4 +1,4 @@
-import type { AbschnittFarbe } from './vb.model';
+import type { AbschnittFarbe } from './druck.model';
 
 /**
  * Datenvertrag des Aufbaus (Packliste eines Einsatzes), identisch mit dem Worker
@@ -97,4 +97,11 @@ export interface AufbauVorlageKopf {
   kisten: number;
   positionen: number;
   geaendertAm: string;
+}
+
+/** Kennzahlen des Aufbaus in der Einsatzliste (setzt der Worker). */
+export interface AufbauKennzahlen {
+  einheiten: number;
+  kisten: number;
+  positionen: number;
 }

@@ -8,9 +8,9 @@ import {
   testKiste,
   testLager,
 } from '../testing/aufbau-testdaten';
-import { aufbauAlsVbInhalt, AufbauDruckDienst } from './aufbau-druck';
+import { aufbauAlsDruckInhalt, AufbauDruckDienst } from './aufbau-druck';
 import { artikelHinzufuegen, einheitHinzufuegen, kisteHinzufuegen } from './aufbau-bearbeiten';
-import { VbDruckDienst } from './vb-druck';
+import { ZettelDruckDienst } from './zettel-druck';
 
 const halle = testLager(1, 'Halle A', 1);
 const med = testLager(2, 'Medizinlager', 2);
@@ -31,10 +31,10 @@ function beispiel() {
   return { inhalt, fahrzeugId: f.id, wagenId: w.id };
 }
 
-describe('aufbauAlsVbInhalt', () => {
+describe('aufbauAlsDruckInhalt', () => {
   it('macht aus jeder obersten Einheit einen Abschnitt mit Farbe und Foto und aus jedem Zettel einen Laufzettel', () => {
     const { inhalt, fahrzeugId, wagenId } = beispiel();
-    const vb = aufbauAlsVbInhalt(inhalt, DATEN);
+    const vb = aufbauAlsDruckInhalt(inhalt, DATEN);
     expect(vb.anweisungen).toBe('Zuerst Halle A');
     expect(vb.abschnitte).toHaveLength(1);
     const abschnitt = vb.abschnitte[0]!;
@@ -52,7 +52,7 @@ describe('aufbauAlsVbInhalt', () => {
 
   it('übersetzt Lagertrenner in Hinweiszeilen und Zeilen in Anzahl und Text', () => {
     const { inhalt, wagenId } = beispiel();
-    const wagen = aufbauAlsVbInhalt(inhalt, DATEN).abschnitte[0]!.laufzettel.find(
+    const wagen = aufbauAlsDruckInhalt(inhalt, DATEN).abschnitte[0]!.laufzettel.find(
       (l) => l.id === wagenId,
     )!;
     expect(wagen.lagerort).toBe('Halle A');
@@ -67,7 +67,7 @@ describe('aufbauAlsVbInhalt', () => {
   });
 
   it('lässt einen Aufbau ohne Einheiten leer', () => {
-    expect(aufbauAlsVbInhalt(testAufbauInhalt([]), DATEN)).toEqual({
+    expect(aufbauAlsDruckInhalt(testAufbauInhalt([]), DATEN)).toEqual({
       anweisungen: '',
       abschnitte: [],
     });
@@ -78,7 +78,7 @@ describe('aufbauAlsVbInhalt', () => {
     const inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, kiste);
     const eintrag = inhalt.einheiten[0]!.inhalt[0] as AufbauKistenEintrag;
     expect(eintrag.name).toBe('Verbandkiste');
-    const vb = aufbauAlsVbInhalt(inhalt, { lager: [halle, med], artikel: [] });
+    const vb = aufbauAlsDruckInhalt(inhalt, { lager: [halle, med], artikel: [] });
     expect(vb.abschnitte[0]!.laufzettel[0]!.positionen.map((p) => p.material)).toEqual([
       'Medizinlager',
       'Verbandkiste · 1 Pos.',
@@ -88,11 +88,13 @@ describe('aufbauAlsVbInhalt', () => {
 
 describe('AufbauDruckDienst', () => {
   it('reicht die abgeleitete Vorbereitung an den vorhandenen Druck weiter', async () => {
-    const vbDruck = {
+    const zettelDruck = {
       drucken: vi.fn().mockResolvedValue(undefined),
       herunterladen: vi.fn().mockResolvedValue(undefined),
     };
-    TestBed.configureTestingModule({ providers: [{ provide: VbDruckDienst, useValue: vbDruck }] });
+    TestBed.configureTestingModule({
+      providers: [{ provide: ZettelDruckDienst, useValue: zettelDruck }],
+    });
     const dienst = TestBed.inject(AufbauDruckDienst);
     const { inhalt } = beispiel();
     const kopf = { titel: 'Stadtfest', beginn: null, ende: null, ort: null };
@@ -100,7 +102,10 @@ describe('AufbauDruckDienst', () => {
     await dienst.drucken(kopf, inhalt, DATEN);
     await dienst.herunterladen(kopf, inhalt, DATEN);
 
-    expect(vbDruck.drucken).toHaveBeenCalledWith(kopf, aufbauAlsVbInhalt(inhalt, DATEN));
-    expect(vbDruck.herunterladen).toHaveBeenCalledWith(kopf, aufbauAlsVbInhalt(inhalt, DATEN));
+    expect(zettelDruck.drucken).toHaveBeenCalledWith(kopf, aufbauAlsDruckInhalt(inhalt, DATEN));
+    expect(zettelDruck.herunterladen).toHaveBeenCalledWith(
+      kopf,
+      aufbauAlsDruckInhalt(inhalt, DATEN),
+    );
   });
 });

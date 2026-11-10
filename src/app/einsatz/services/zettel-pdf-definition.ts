@@ -7,7 +7,7 @@ import type {
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
-import { AbschnittFarbe, VbInhalt } from '../models/vb.model';
+import { AbschnittFarbe, DruckInhalt } from '../models/druck.model';
 import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
 import { jpegMasse } from './jpeg-masse';
 import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
@@ -19,7 +19,7 @@ import {
 } from './laufzettel-platz';
 import { harterUmbruch } from './text-umbruch';
 
-export interface VbDruckKopf {
+export interface DruckKopf {
   titel: string;
   /** Lokale Berliner Zeit `YYYY-MM-DDTHH:mm`, ohne Zone. */
   beginn: string | null;
@@ -563,8 +563,8 @@ function seitenGrafik(streifenAufSeite: readonly LaufzettelStreifen[], m: Streif
 const ANWEISUNGEN_RAND = { links: 36, oben: 30, rechts: 36, unten: 40 } as const;
 
 function anweisungsAbschnitt(
-  kopf: VbDruckKopf,
-  inhalt: VbInhalt,
+  kopf: DruckKopf,
+  inhalt: DruckInhalt,
   gedrucktAm: Date,
 ): ContentSection {
   const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
@@ -589,7 +589,7 @@ function anweisungsAbschnitt(
     },
     section: [
       {
-        text: 'Vorbereitung · Allgemeine Anweisungen',
+        text: 'Aufbau · Allgemeine Anweisungen',
         fontSize: 10,
         bold: true,
         color: PDF_FARBEN.rot,
@@ -692,7 +692,7 @@ export function kuerze(text: string, max: number): string {
  * der Reihenfolge der Nummern.
  */
 export function schildInhaltZeilen(
-  abschnitt: VbInhalt['abschnitte'][number],
+  abschnitt: DruckInhalt['abschnitte'][number],
   nummern: ReadonlyMap<string, number>,
 ): {
   spalten: string[][];
@@ -727,8 +727,8 @@ export function schildInhaltZeilen(
  * umbrechen kann.
  */
 function schild(
-  kopf: VbDruckKopf,
-  abschnitt: VbInhalt['abschnitte'][number],
+  kopf: DruckKopf,
+  abschnitt: DruckInhalt['abschnitte'][number],
   y0: number,
   nummern: ReadonlyMap<string, number>,
 ): Content[] {
@@ -896,7 +896,7 @@ export function schnittlinie(): Content {
  * Jede Seite beginnt mit einer unsichtbaren Fließzeile, damit pdfmake den Seitenumbruch
  * setzt, obwohl alle Schilder absolut positioniert sind.
  */
-function schildSeiten(kopf: VbDruckKopf, inhalt: VbInhalt): Content[] {
+function schildSeiten(kopf: DruckKopf, inhalt: DruckInhalt): Content[] {
   const seiten: Content[] = [];
   const nummern = laufzettelNummern(inhalt);
   for (let i = 0; i < inhalt.abschnitte.length; i += 2) {
@@ -947,14 +947,14 @@ export function laufzettelAbschnitt(
 }
 
 /**
- * Pdfmake-Dokumentdefinition der VB: A4 quer, optional die Seite „Allgemeine Anweisungen“,
+ * Pdfmake-Dokumentdefinition des Aufbaus: A4 quer, optional die Seite „Allgemeine Anweisungen“,
  * danach 3 bis 6 Laufzettelstreifen je Seite (Vorgabe 6), zuletzt die Abschnittsschilder
  * (A5 quer, zwei je A4-Hochformatblatt, Vorlage „Kistenbezeichnung“). Reine Funktion; Farben nur aus
  * `PDF_FARBEN`. Die Streifen müssen mit derselben Zahl gebaut sein (`baueLaufzettelStreifen()`).
  */
-export function baueVbPdfDefinition(
-  kopf: VbDruckKopf,
-  inhalt: VbInhalt,
+export function baueZettelPdfDefinition(
+  kopf: DruckKopf,
+  inhalt: DruckInhalt,
   streifen: readonly LaufzettelStreifen[],
   gedrucktAm: Date,
   streifenJeSeite: number = STREIFEN_STANDARD,
@@ -978,7 +978,7 @@ export function baueVbPdfDefinition(
   return {
     pageSize: 'A4',
     pageOrientation: 'landscape',
-    info: { title: `VB ${kopf.titel}` },
+    info: { title: `Aufbau ${kopf.titel}` },
     defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
     content: abschnitte,
   };

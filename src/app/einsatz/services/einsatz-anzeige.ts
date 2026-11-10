@@ -111,10 +111,10 @@ export function abstandText(tage: number | null): string {
   return `in ${tage} Tagen`;
 }
 
-/** Tage bis zum Beginn, ab denen ein fehlender PEP oder eine fehlende VB hervorgehoben wird. */
+/** Tage bis zum Beginn, ab denen ein fehlender PEP oder ein fehlender Aufbau hervorgehoben wird. */
 export const DRINGEND_TAGE = 14;
 
-/** Gelb hervorgehoben: Beginn heute bis in 14 Tagen und PEP oder VB fehlt. */
-export function istDringend(tage: number | null, pepFehlt: boolean, vbFehlt: boolean): boolean {
-  return tage !== null && tage >= 0 && tage <= DRINGEND_TAGE && (pepFehlt || vbFehlt);
+/** Gelb hervorgehoben: Beginn heute bis in 14 Tagen und PEP oder Aufbau fehlt. */
+export function istDringend(tage: number | null, pepFehlt: boolean, aufbauFehlt: boolean): boolean {
+  return tage !== null && tage >= 0 && tage <= DRINGEND_TAGE && (pepFehlt || aufbauFehlt);
 }

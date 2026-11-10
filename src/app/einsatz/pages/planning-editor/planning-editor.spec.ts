@@ -20,10 +20,9 @@ import {
   InMemoryEinsatzStorage,
   InMemoryPepStorage,
   InMemoryPepVorlagenStorage,
-  InMemoryVorbereitungStorage,
 } from '../../testing/in-memory-einsatzplanung';
 import { testPep, testPepVorlage } from '../../testing/pep-testdaten';
-import { testEinsatz } from '../../testing/vb-testdaten';
+import { testEinsatz } from '../../testing/druck-testdaten';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { MeldungsDienst } from '../../../kern/zustand/zustand';
 import { Einsatz } from '../../models/einsatz.model';
@@ -88,7 +87,7 @@ describe('PlanningEditor', () => {
     navigate.mockResolvedValue(true);
     peps = new InMemoryPepStorage();
     vorlagen = new InMemoryPepVorlagenStorage();
-    einsaetze = new InMemoryEinsatzStorage(new InMemoryVorbereitungStorage(), peps);
+    einsaetze = new InMemoryEinsatzStorage(undefined, peps);
   });
 
   /** Einsatz mit PEP in der Datenbank, im Editor geöffnet wie über die Einsatzübersicht. */
@@ -212,7 +211,7 @@ describe('PlanningEditor', () => {
       store.oeffneGespeichert(datei);
       const editor = editorBauen();
       dialogOeffnen.mockReturnValue({
-        afterClosed: () => of({ ...einsatz, pep: null, vb: null, version: 1 }),
+        afterClosed: () => of({ ...einsatz, pep: null, aufbau: null, version: 1 }),
       });
       const erfolg = vi.spyOn(meldungen, 'erfolg');
 
@@ -254,7 +253,7 @@ describe('PlanningEditor', () => {
       store.oeffneGespeichert(datei);
       const editor = editorBauen();
       dialogOeffnen.mockReturnValue({
-        afterClosed: () => of({ ...einsatz, pep: null, vb: null, version: 1 }),
+        afterClosed: () => of({ ...einsatz, pep: null, aufbau: null, version: 1 }),
       });
 
       await editor.speichern();

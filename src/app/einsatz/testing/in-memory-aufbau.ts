@@ -1,4 +1,4 @@
-import { Aufbau, AufbauVorlage, AufbauVorlageKopf } from '../models/aufbau.model';
+import { Aufbau, AufbauKennzahlen, AufbauVorlage, AufbauVorlageKopf } from '../models/aufbau.model';
 import { AufbauStorage, AufbauVorlagenStorage } from '../storage/aufbau-storage';
 import {
   EinsatzplanungBereitsVorhandenFehler,
@@ -47,6 +47,12 @@ export class InMemoryAufbauStorage implements AufbauStorage {
       throw new EinsatzplanungKonfliktFehler('Der Aufbau');
     }
     this.eintraege.delete(einsatzId);
+  }
+
+  /** Nur für Tests und `InMemoryEinsatzStorage`. */
+  kennzahlen(einsatzId: string): AufbauKennzahlen | null {
+    const eintrag = this.eintraege.get(einsatzId);
+    return eintrag ? zaehleAufbauInhalt(eintrag.daten.inhalt) : null;
   }
 
   /** Nur für Tests: direkt vorbelegen. */

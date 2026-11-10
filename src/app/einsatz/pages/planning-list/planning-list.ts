@@ -94,7 +94,7 @@ export class PlanningList implements OnInit {
   readonly suche = signal('');
   readonly ansicht = signal<'anstehend' | 'vergangen'>('anstehend');
   readonly pepFehlt = signal(false);
-  readonly vbFehlt = signal(false);
+  readonly aufbauFehlt = signal(false);
   readonly ohneHiorg = signal(false);
   /** Nur Einsätze ohne sicheren EFS-Treffer; wirkt nur, solange EFS erreichbar ist. */
   readonly ohneEfs = signal(false);
@@ -105,7 +105,7 @@ export class PlanningList implements OnInit {
       istFilterAktiv({
         suche: this.suche(),
         pepFehlt: this.pepFehlt(),
-        vbFehlt: this.vbFehlt(),
+        aufbauFehlt: this.aufbauFehlt(),
         ohneHiorg: this.ohneHiorg(),
         art: this.art(),
       }) || this.ohneEfsAktiv(),
@@ -120,7 +120,7 @@ export class PlanningList implements OnInit {
     const gefiltert = filtereEinsaetze(anstehend ? liste.anstehend : liste.vergangen, {
       suche: this.suche(),
       pepFehlt: this.pepFehlt(),
-      vbFehlt: this.vbFehlt(),
+      aufbauFehlt: this.aufbauFehlt(),
       ohneHiorg: this.ohneHiorg(),
       art: this.art(),
     }).filter((zeile) => !this.ohneEfsAktiv() || this.efsArt(zeile) !== 'treffer');
@@ -153,7 +153,7 @@ export class PlanningList implements OnInit {
   filterZuruecksetzen(): void {
     this.suche.set('');
     this.pepFehlt.set(false);
-    this.vbFehlt.set(false);
+    this.aufbauFehlt.set(false);
     this.ohneHiorg.set(false);
     this.ohneEfs.set(false);
     this.art.set('alle');
@@ -207,7 +207,7 @@ export class PlanningList implements OnInit {
       );
       return;
     }
-    this.meldungen.erfolg('Einsatz angelegt. PEP und VB legst du in der Zeile an.');
+    this.meldungen.erfolg('Einsatz angelegt. PEP und Aufbau legst du in der Zeile an.');
   }
 
   async loadFromFile(): Promise<void> {

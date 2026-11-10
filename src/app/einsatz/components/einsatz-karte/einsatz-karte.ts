@@ -2,15 +2,15 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { HiorgArt } from '../../models/hiorg-veranstaltung.model';
-import { VbKennzahlen } from '../../models/einsatz.model';
+import { AufbauKennzahlen } from '../../models/aufbau.model';
 import { PepKennzahlen } from '../../models/pep.model';
 import { Datumsblock } from '../../../kern/datumsblock/datumsblock';
 import { abstandText, datumsblock } from '../../services/einsatz-anzeige';
 import type { EfsAbgleichArt } from '../../services/efs-abgleich';
 
 /**
- * Eine Karte der Einsatzübersicht: Datumsblock, Titel mit Metazeile und drei Kacheln
- * „PEP“/„VB“/„Aufbau“ (öffnen oder anlegen). Rein darstellend; die Kacheln sind echte Material-Knöpfe
+ * Eine Karte der Einsatzübersicht: Datumsblock, Titel mit Metazeile und zwei Kacheln
+ * „PEP“/„Aufbau“ (öffnen oder anlegen). Rein darstellend; die Kacheln sind echte Material-Knöpfe
  * (`matButton="outlined"`), gestaltet über `--mat-button-outlined-*`-Tokens.
  */
 @Component({
@@ -32,17 +32,16 @@ export class EinsatzKarte {
   readonly pepVorhanden = input(false);
   /** Kennzahlen der PEP; zeigt „n / m besetzt“. Gesetzt heißt: die PEP ist vorhanden. */
   readonly pepKennzahlen = input<PepKennzahlen | null>(null);
-  readonly vbKennzahlen = input<VbKennzahlen | null>(null);
+  readonly aufbauKennzahlen = input<AufbauKennzahlen | null>(null);
   /** Tage bis zum Beginn (heute = 0); `null` ohne Hinweis (vergangen oder ohne Datum). */
   readonly abstandTage = input<number | null>(null);
-  /** Hebt den Abstandshinweis gelb hervor (bald und PEP oder VB fehlt). */
+  /** Hebt den Abstandshinweis gelb hervor (bald und PEP oder Aufbau fehlt). */
   readonly dringend = input(false);
   readonly gesperrt = input(false);
   /** Ergebnis des EFS-Abgleichs; `null`, solange EFS nicht erreichbar ist (dann keine Anzeige). */
   readonly efsArt = input<EfsAbgleichArt | null>(null);
   readonly efsPruefen = output<void>();
   readonly pep = output<void>();
-  readonly vb = output<void>();
   readonly aufbau = output<void>();
 
   protected readonly pepDa = computed(() => this.pepVorhanden() || this.pepKennzahlen() !== null);

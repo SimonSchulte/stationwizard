@@ -1,19 +1,24 @@
 import type { ContentSection, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { describe, expect, it } from 'vitest';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
-import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
+import {
+  testAbschnitt,
+  testInhalt,
+  testLaufzettel,
+  testPosition,
+} from '../testing/druck-testdaten';
 import { baueLaufzettelStreifen } from './laufzettel-layout';
 import { laufzettelNummern } from './laufzettel-platz';
 import {
-  baueVbPdfDefinition,
+  baueZettelPdfDefinition,
   formatiereZeitraum,
   SCHILD,
   schildInhaltZeilen,
   schildTitelSchrift,
-  VbDruckKopf,
-} from './vb-pdf-definition';
+  DruckKopf,
+} from './zettel-pdf-definition';
 
-const KOPF: VbDruckKopf = {
+const KOPF: DruckKopf = {
   titel: 'Weihnachtsmarkt Ummeln',
   beginn: '2026-12-05T10:00',
   ende: '2026-12-05T20:00',
@@ -23,7 +28,7 @@ const JETZT = new Date(2026, 10, 4, 12, 30);
 
 /** Die bisherigen Fälle gelten für drei Streifen je Seite; andere Zahlen nennen die Tests selbst. */
 function definition(inhalt = testInhalt(), kopf = KOPF, streifenJeSeite = 3): TDocumentDefinitions {
-  return baueVbPdfDefinition(
+  return baueZettelPdfDefinition(
     kopf,
     inhalt,
     baueLaufzettelStreifen(inhalt, streifenJeSeite),
@@ -205,7 +210,7 @@ describe('Abschnittsschild', () => {
   });
 });
 
-describe('baueVbPdfDefinition', () => {
+describe('baueZettelPdfDefinition', () => {
   it('ist ein A4-Querformat-Dokument, nur die Abschnittsschilder stehen hoch', () => {
     const def = definition();
     expect(def.pageSize).toBe('A4');
@@ -219,7 +224,7 @@ describe('baueVbPdfDefinition', () => {
     const mit = definition(testInhalt({ anweisungen: 'Treffpunkt 8 Uhr' }));
     expect(abschnitte(mit)).toHaveLength(3); // Anweisungen, Laufzettel, Schilder
     const texte = alleTexte(abschnitte(mit)[0]);
-    expect(texte).toContain('Vorbereitung · Allgemeine Anweisungen');
+    expect(texte).toContain('Aufbau · Allgemeine Anweisungen');
     expect(texte).toContain('Treffpunkt 8 Uhr');
     expect(texte).toContain('Weihnachtsmarkt Ummeln');
     expect(

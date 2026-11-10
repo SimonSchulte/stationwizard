@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
-import { VbInhalt, VbLaufzettel } from '../models/vb.model';
+import {
+  testAbschnitt,
+  testInhalt,
+  testLaufzettel,
+  testPosition,
+} from '../testing/druck-testdaten';
+import { DruckInhalt, DruckLaufzettel } from '../models/druck.model';
 import {
   LAUFZETTEL_KAPAZITAET,
   STREIFEN_STANDARD,
@@ -17,9 +22,9 @@ const DREI = 3;
 const { zeichenJeZeile: ZEICHEN_JE_ZEILE, zeichenJeZielzeile: ZEICHEN_JE_ZIELZEILE } =
   laufzettelMasse(DREI);
 const ZEICHEN_JE_INFOZEILE = laufzettelMasse(DREI).zeichenJeInfozeile;
-const laufzettelPlatz = (l: VbLaufzettel) => platzMit(l, DREI);
-const ueberlaufPositionen = (l: VbLaufzettel) => ueberlaufMit(l, DREI);
-const zuVolleLaufzettel = (i: VbInhalt) => zuVolleMit(i, DREI);
+const laufzettelPlatz = (l: DruckLaufzettel) => platzMit(l, DREI);
+const ueberlaufPositionen = (l: DruckLaufzettel) => ueberlaufMit(l, DREI);
+const zuVolleLaufzettel = (i: DruckInhalt) => zuVolleMit(i, DREI);
 
 function mitPositionen(anzahl: number, material = 'Stuhl') {
   return testLaufzettel({

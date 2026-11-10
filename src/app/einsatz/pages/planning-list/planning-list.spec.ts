@@ -17,14 +17,12 @@ import { EinsatzAktionenDienst } from '../../services/einsatz-aktionen';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { ApiEinsatzStorage } from '../../storage/api-einsatz-storage';
-import {
-  InMemoryEinsatzStorage,
-  InMemoryPepStorage,
-  InMemoryVorbereitungStorage,
-} from '../../testing/in-memory-einsatzplanung';
+import { InMemoryEinsatzStorage, InMemoryPepStorage } from '../../testing/in-memory-einsatzplanung';
 import { lokaleZeitText } from '../../services/einsatz-anzeige';
 import { testPep } from '../../testing/pep-testdaten';
-import { testEinsatz, testVorbereitung } from '../../testing/vb-testdaten';
+import { InMemoryAufbauStorage } from '../../testing/in-memory-aufbau';
+import { testAufbau } from '../../testing/aufbau-testdaten';
+import { testEinsatz } from '../../testing/druck-testdaten';
 
 /** Ersatz für die Feed-Quelle mit festen Veranstaltungen. */
 function quelleMit(veranstaltungen: HiorgVeranstaltung[]) {
@@ -130,7 +128,7 @@ describe('Rückkehr von der HiOrg-Anmeldung', () => {
   });
 });
 
-describe('Einsatzübersicht: PEP und VB je Zeile', () => {
+describe('Einsatzübersicht: PEP und Aufbau je Zeile', () => {
   beforeAll(() => registerLocaleData(localeDe, 'de-DE'));
 
   const kuenftig = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
@@ -156,10 +154,10 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
   const aktionen = {
     laufend: signal<string | null>(null),
     pepOeffnenOderAnlegen: vi.fn().mockResolvedValue(undefined),
-    vbOeffnenOderAnlegen: vi.fn().mockResolvedValue(undefined),
+    aufbauOeffnen: vi.fn().mockResolvedValue(undefined),
   };
   let speicher: InMemoryEinsatzStorage;
-  let vorbereitungen: InMemoryVorbereitungStorage;
+  let aufbauten: InMemoryAufbauStorage;
   let peps: InMemoryPepStorage;
   let navigate: ReturnType<typeof vi.fn>;
   let dialogAntwort: unknown;
@@ -211,21 +209,21 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
   }
 
   beforeEach(() => {
-    vorbereitungen = new InMemoryVorbereitungStorage();
+    aufbauten = new InMemoryAufbauStorage();
     peps = new InMemoryPepStorage();
-    speicher = new InMemoryEinsatzStorage(vorbereitungen, peps);
+    speicher = new InMemoryEinsatzStorage(aufbauten, peps);
     navigate = vi.fn().mockResolvedValue(true);
     dialogAntwort = undefined;
     aktionen.laufend.set(null);
     aktionen.pepOeffnenOderAnlegen.mockClear();
-    aktionen.vbOeffnenOderAnlegen.mockClear();
+    aktionen.aufbauOeffnen.mockClear();
   });
 
-  it('beschriftet die Kacheln je Stand: anlegen ohne Einsatz, öffnen mit PEP und VB', async () => {
+  it('beschriftet die Kacheln je Stand: anlegen ohne Einsatz, öffnen mit PEP und Aufbau', async () => {
     const mitBeidem = testEinsatz({ hiorgVeranstaltungId: '4711' });
     speicher._vorbelegen(mitBeidem);
     peps._vorbelegen(mitBeidem.id, testPep());
-    vorbereitungen._vorbelegen(mitBeidem.id, testVorbereitung());
+    aufbauten._vorbelegen(mitBeidem.id, testAufbau());
     const nurPep = testEinsatz({ hiorgVeranstaltungId: '4700' });
     speicher._vorbelegen(nurPep);
     peps._vorbelegen(nurPep.id, testPep());
@@ -234,25 +232,21 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     await vergangenWaehlen(fixture);
     expect(kacheln(karte(fixture, 'Altes Fest'))).toEqual([
       'PEP öffnen: Altes Fest',
-      'VB anlegen: Altes Fest',
-      'Aufbau öffnen: Altes Fest',
+      'Aufbau anlegen: Altes Fest',
     ]);
     await anstehendWaehlen(fixture);
 
     expect(kacheln(karte(fixture, 'Weihnachtsmarkt'))).toEqual([
       'PEP öffnen: Weihnachtsmarkt',
-      'VB öffnen: Weihnachtsmarkt',
       'Aufbau öffnen: Weihnachtsmarkt',
     ]);
     expect(kacheln(karte(fixture, 'Stadtlauf'))).toEqual([
       'PEP anlegen: Stadtlauf',
-      'VB anlegen: Stadtlauf',
-      'Aufbau öffnen: Stadtlauf',
+      'Aufbau anlegen: Stadtlauf',
     ]);
     expect(kacheln(karte(fixture, 'Dienst ohne HiOrg'))).toEqual([
       'PEP anlegen: Dienst ohne HiOrg',
-      'VB anlegen: Dienst ohne HiOrg',
-      'Aufbau öffnen: Dienst ohne HiOrg',
+      'Aufbau anlegen: Dienst ohne HiOrg',
     ]);
   });
 
@@ -350,7 +344,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(titelListe(fixture.nativeElement)).toEqual(['Dienst ohne HiOrg']);
   });
 
-  it('verknüpft die Chips „PEP fehlt“, „VB fehlt“ und „ohne HiOrg“ mit UND', async () => {
+  it('verknüpft die Chips „PEP fehlt“, „Aufbau fehlt“ und „ohne HiOrg“ mit UND', async () => {
     const markt = testEinsatz({ hiorgVeranstaltungId: '4711' });
     speicher._vorbelegen(markt);
     peps._vorbelegen(markt.id, testPep());
@@ -364,7 +358,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(titelListe(wurzel)).toEqual(['Dienst ohne HiOrg']);
     await chipKlicken(fixture, 'PEP fehlt');
     await chipKlicken(fixture, 'ohne HiOrg');
-    await chipKlicken(fixture, 'VB fehlt');
+    await chipKlicken(fixture, 'Aufbau fehlt');
     expect(titelListe(wurzel)).toHaveLength(3);
   });
 
@@ -433,7 +427,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(menue.querySelectorAll('[mat-menu-item], .mat-mdc-menu-item')).toHaveLength(2);
   });
 
-  it('zeigt den Abstandshinweis, gelb nur bei ≤ 14 Tagen und fehlendem PEP oder VB', async () => {
+  it('zeigt den Abstandshinweis, gelb nur bei ≤ 14 Tagen und fehlendem PEP oder Aufbau', async () => {
     const fixture = await oeffnen();
     const wurzel: HTMLElement = fixture.nativeElement;
     const hinweis = (titel: string) => karte(fixture, titel).querySelector('.abstand');
@@ -461,10 +455,10 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     markt[0].click();
     markt[1].click();
     expect(aktionen.pepOeffnenOderAnlegen).toHaveBeenCalledWith(gruppen[0]);
-    expect(aktionen.vbOeffnenOderAnlegen).toHaveBeenCalledWith(gruppen[0]);
+    expect(aktionen.aufbauOeffnen).toHaveBeenCalledWith(gruppen[0]);
 
     karte(fixture, 'Dienst ohne HiOrg').querySelectorAll<HTMLButtonElement>('button')[1].click();
-    expect(aktionen.vbOeffnenOderAnlegen).toHaveBeenLastCalledWith(
+    expect(aktionen.aufbauOeffnen).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: ohne.id }),
     );
   });
@@ -505,13 +499,13 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(text).not.toContain('Neue Planung');
   });
 
-  it('zeigt am VB die Kennzahlen im Untertitel', async () => {
+  it('zeigt am Aufbau die Kennzahlen im Untertitel', async () => {
     const einsatz = testEinsatz({ hiorgVeranstaltungId: '4711' });
     speicher._vorbelegen(einsatz);
-    vorbereitungen._vorbelegen(einsatz.id, testVorbereitung());
+    aufbauten._vorbelegen(einsatz.id, testAufbau());
     const fixture = await oeffnen();
-    const vb = karte(fixture, 'Weihnachtsmarkt').querySelectorAll('button.kachel')[1];
-    expect(vb.textContent).toMatch(/\d+ Laufzettel · \d+ Pos\./);
+    const aufbau = karte(fixture, 'Weihnachtsmarkt').querySelectorAll('button.kachel')[1];
+    expect(aufbau.textContent).toMatch(/\d+ Einheit(en)? · \d+ Pos\./);
   });
 
   it('legt über „Einsatz anlegen“ einen Einsatz an und bleibt in der Liste', async () => {
@@ -524,8 +518,7 @@ describe('Einsatzübersicht: PEP und VB je Zeile', () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(kacheln(karte(fixture, 'Neuer Dienst'))).toEqual([
       'PEP anlegen: Neuer Dienst',
-      'VB anlegen: Neuer Dienst',
-      'Aufbau öffnen: Neuer Dienst',
+      'Aufbau anlegen: Neuer Dienst',
     ]);
   });
 });

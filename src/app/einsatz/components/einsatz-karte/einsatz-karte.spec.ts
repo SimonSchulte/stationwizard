@@ -51,24 +51,25 @@ describe('EinsatzKarte', () => {
   });
 
   it('beschriftet fehlende Stände mit „Anlegen“ und gestricheltem Zustand', () => {
-    setze({ pepVorhanden: false, vbKennzahlen: null });
-    const [pep, vb] = kacheln();
+    setze({ pepVorhanden: false, aufbauKennzahlen: null });
+    const [pep, aufbau] = kacheln();
     expect(pep.classList.contains('vorhanden')).toBe(false);
     expect(text(pep)).toContain('nicht angelegt');
     expect(text(pep)).toContain('Anlegen');
     expect(pep.getAttribute('aria-label')).toBe('PEP anlegen: Weihnachtsmarkt');
-    expect(vb.getAttribute('aria-label')).toBe('VB anlegen: Weihnachtsmarkt');
+    expect(aufbau.getAttribute('aria-label')).toBe('Aufbau anlegen: Weihnachtsmarkt');
+    expect(text(aufbau)).toContain('nicht angelegt');
   });
 
   it('zeigt vorhandene Stände mit Untertitel, Kennzahlen und „öffnen“ im aria-label', () => {
-    setze({ pepVorhanden: true, vbKennzahlen: { laufzettel: 22, positionen: 64 } });
-    const [pep, vb] = kacheln();
+    setze({ pepVorhanden: true, aufbauKennzahlen: { einheiten: 3, kisten: 5, positionen: 64 } });
+    const [pep, aufbau] = kacheln();
     expect(pep.classList.contains('vorhanden')).toBe(true);
     expect(text(pep)).toContain('verknüpft');
     expect(text(pep)).not.toContain('Anlegen');
-    expect(text(vb)).toContain('22 Laufzettel · 64 Pos.');
+    expect(text(aufbau)).toContain('3 Einheiten · 64 Pos.');
     expect(pep.getAttribute('aria-label')).toBe('PEP öffnen: Weihnachtsmarkt');
-    expect(vb.getAttribute('aria-label')).toBe('VB öffnen: Weihnachtsmarkt');
+    expect(aufbau.getAttribute('aria-label')).toBe('Aufbau öffnen: Weihnachtsmarkt');
   });
 
   it('zeigt bei Kennzahlen „n / m besetzt“, am Handy ohne Wort „besetzt“ (zusatz)', () => {
@@ -81,17 +82,17 @@ describe('EinsatzKarte', () => {
     expect(pep.getAttribute('aria-label')).toBe('PEP öffnen: Weihnachtsmarkt');
   });
 
-  it('meldet Klicks über pep und vb', () => {
+  it('meldet Klicks über pep und aufbau', () => {
     setze({});
     let pep = 0;
-    let vb = 0;
+    let aufbau = 0;
     fixture.componentInstance.pep.subscribe(() => pep++);
-    fixture.componentInstance.vb.subscribe(() => vb++);
-    const [kachelPep, kachelVb] = kacheln();
+    fixture.componentInstance.aufbau.subscribe(() => aufbau++);
+    const [kachelPep, kachelAufbau] = kacheln();
     kachelPep.click();
-    kachelVb.click();
-    kachelVb.click();
-    expect([pep, vb]).toEqual([1, 2]);
+    kachelAufbau.click();
+    kachelAufbau.click();
+    expect([pep, aufbau]).toEqual([1, 2]);
   });
 
   it('sperrt beide Kacheln, solange gesperrt', () => {

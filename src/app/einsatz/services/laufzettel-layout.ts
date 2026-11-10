@@ -1,6 +1,6 @@
 import { Fachgruppe } from '../../kern/fachgruppen/fachgruppe';
 import { lagerSchluessel } from './lager';
-import { AbschnittFarbe, VbInhalt, VbLaufzettel, VbPosition } from '../models/vb.model';
+import { AbschnittFarbe, DruckInhalt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import {
   LAUFZETTEL_KAPAZITAET,
   STREIFEN_STANDARD,
@@ -23,7 +23,7 @@ export interface LaufzettelStreifen {
   lagerort: string;
   transportMit: string;
   auftraggeber: string;
-  positionen: VbPosition[];
+  positionen: DruckPosition[];
   /** Von Positionen und Umbruchzeilen der Infofelder belegte Materialzeilen. */
   belegt: number;
   /** Nicht belegte Zeilen des festen Rasters (für Nachträge von Hand): `23 − belegt`. */
@@ -35,13 +35,13 @@ export interface LaufzettelStreifen {
  * belegt. Der Platzbedarf kommt ausschließlich aus `laufzettelPlatz()`, damit Editorwarnung
  * und Ausdruck übereinstimmen. Jeder Teil enthält mindestens eine Position.
  */
-function teilePositionen(laufzettel: VbLaufzettel, streifenJeSeite: number): VbPosition[][] {
+function teilePositionen(laufzettel: DruckLaufzettel, streifenJeSeite: number): DruckPosition[][] {
   if (laufzettelPlatz(laufzettel, streifenJeSeite).zustand !== 'zu-voll')
     return [laufzettel.positionen];
   const infoKosten = laufzettelPlatz({ ...laufzettel, positionen: [] }, streifenJeSeite).belegt;
   const verfuegbar = Math.max(1, LAUFZETTEL_KAPAZITAET - infoKosten);
-  const teile: VbPosition[][] = [];
-  let aktuell: VbPosition[] = [];
+  const teile: DruckPosition[][] = [];
+  let aktuell: DruckPosition[] = [];
   let belegt = 0;
   for (const position of laufzettel.positionen) {
     const zeilen =
@@ -64,7 +64,7 @@ function teilePositionen(laufzettel: VbLaufzettel, streifenJeSeite: number): VbP
  * Fortsetzungsstreifen mit denselben Kopfdaten, nie eine kleinere Schrift.
  */
 export function baueLaufzettelStreifen(
-  inhalt: VbInhalt,
+  inhalt: DruckInhalt,
   streifenJeSeite: number = STREIFEN_STANDARD,
   sortierung: AushangSortierung = 'abschnitt',
 ): LaufzettelStreifen[] {
@@ -101,7 +101,7 @@ export function baueLaufzettelStreifen(
   return sortierung === 'lager' ? nachLagerSortiert(streifen) : streifen;
 }
 
-/** Reihenfolge am Aushang: nach Ziel (Abschnitt, wie in der Vorbereitung) oder nach Lager. */
+/** Reihenfolge am Aushang: nach Ziel (Abschnitt, wie im Aufbau) oder nach Lager. */
 export type AushangSortierung = 'abschnitt' | 'lager';
 
 /**

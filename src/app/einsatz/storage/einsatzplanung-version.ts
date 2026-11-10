@@ -1,6 +1,6 @@
 /**
  * Liest die ganze Versionsnummer aus einem ETag (`"3"` oder `W/"3"`). `null`, wenn der
- * Wert keine positive ganze Zahl ist. Für `Vorbereitung.vorlageVersion`.
+ * Wert keine positive ganze Zahl ist. Für `Aufbau.vorlageVersion`.
  */
 export function versionAlsZahl(etag: string): number | null {
   const treffer = /^(?:W\/)?"(\d+)"$/.exec(etag.trim());
