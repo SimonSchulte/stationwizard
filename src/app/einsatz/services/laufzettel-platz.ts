@@ -1,4 +1,4 @@
-import { VbInhalt, VbLaufzettel } from '../models/vb.model';
+import { DruckInhalt, DruckLaufzettel } from '../models/druck.model';
 
 /** Materialzeilen eines Laufzettelstreifens (festes Raster, siehe Konzept Abschnitt 6). */
 export const LAUFZETTEL_KAPAZITAET = 23;
@@ -15,7 +15,7 @@ export const STREIFEN_WAHL: readonly number[] = [3, 4, 5, 6];
 
 /** A4 quer in pt (1 mm = 72 / 25,4 pt). */
 const SEITE_BREITE = 841.89;
-/** Innenränder eines Streifens und Spalten des Materialrasters in pt (siehe `vb-pdf-definition.ts`). */
+/** Innenränder eines Streifens und Spalten des Materialrasters in pt (siehe `zettel-pdf-definition.ts`). */
 const INNEN_RAND = 13 + 11;
 const MATERIAL_FIXSPALTEN = 10 + 28 + 4;
 const ZIEL_BESCHRIFTUNG = 34;
@@ -89,7 +89,7 @@ export function positionsZeilen(material: string, masse: LaufzettelMasse): numbe
  *   Reserve, jede weitere kostet eine Materialzeile.
  */
 export function laufzettelPlatz(
-  laufzettel: VbLaufzettel,
+  laufzettel: DruckLaufzettel,
   streifenJeSeite: number = STREIFEN_STANDARD,
 ): LaufzettelPlatz {
   const masse = laufzettelMasse(streifenJeSeite);
@@ -114,7 +114,7 @@ export function laufzettelPlatz(
 }
 
 /** Laufende Nummer je Laufzettel-Id, fortlaufend über alle Abschnitte ab 1 (nie gespeichert). */
-export function laufzettelNummern(inhalt: VbInhalt): Map<string, number> {
+export function laufzettelNummern(inhalt: DruckInhalt): Map<string, number> {
   const nummern = new Map<string, number>();
   let nummer = 0;
   for (const abschnitt of inhalt.abschnitte) {
@@ -128,9 +128,9 @@ export function laufzettelNummern(inhalt: VbInhalt): Map<string, number> {
 
 /** Alle Laufzettel, die nicht auf einen Streifen passen, in Druckreihenfolge. */
 export function zuVolleLaufzettel(
-  inhalt: VbInhalt,
+  inhalt: DruckInhalt,
   streifenJeSeite: number = STREIFEN_STANDARD,
-): VbLaufzettel[] {
+): DruckLaufzettel[] {
   return inhalt.abschnitte
     .flatMap((abschnitt) => abschnitt.laufzettel)
     .filter((laufzettel) => laufzettelPlatz(laufzettel, streifenJeSeite).zustand === 'zu-voll');
@@ -142,7 +142,7 @@ export function zuVolleLaufzettel(
  * Ein Laufzettel, der passt, liefert eine leere Liste.
  */
 export function ueberlaufPositionen(
-  laufzettel: VbLaufzettel,
+  laufzettel: DruckLaufzettel,
   streifenJeSeite: number = STREIFEN_STANDARD,
 ): string[] {
   if (laufzettelPlatz(laufzettel, streifenJeSeite).zustand !== 'zu-voll') return [];

@@ -2,7 +2,7 @@
  * Rahmen des Abschnittsschilds: Kopfband, Inhaltsfeld und Fußband mit Logos. Übernommen aus
  * der Word-Vorlage „Kistenbezeichnung“ (A5 quer, `image1.png`, ohne das Kästchen „Material zur
  * Ausgabe an Laien?“ des zweiten Vorlagenbilds), auf 1488 × 1049 Pixel mit 64 Farben verkleinert.
- * Das Bild enthält keine Fachdaten; Texte setzt `vb-pdf-definition.ts` darüber.
+ * Das Bild enthält keine Fachdaten; Texte setzt `zettel-pdf-definition.ts` darüber.
  */
 export const SCHILD_RAHMEN =
   'data:image/png;base64,' +

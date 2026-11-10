@@ -67,9 +67,9 @@ Fehlercode-Mapping stehen im [Worker-README](../worker/README.md).
 
 ## Einsatzplanung-Datenbank
 
-Einsätze, Vorbereitungen (VB), PEP sowie VB- und PEP-Vorlagen liegen in der D1-Datenbank
+Einsätze, PEP, Aufbau sowie PEP- und Aufbau-Vorlagen liegen (die frühere VB ist entfallen, ihre Tabellen bleiben ungenutzt) in in der D1-Datenbank
 `stationwizard-einsatzplanung` (Binding `EINSATZPLANUNG_DB`, Schema und Startvorlage
-„Weihnachtsmarkt Ummeln“ in `worker/migrations/einsatzplanung/0020_einsatzplanung.sql`).
+„Weihnachtsmarkt Ummeln“ der früheren VB in `worker/migrations/einsatzplanung/0020_einsatzplanung.sql`).
 **Eingerichtet am 05.11.2026:** Datenbank in WEUR angelegt
 (`database_id` `c70551e7-5c6e-40ef-b453-822f7e194b89`, in `worker/wrangler.toml` eingetragen),
 Migration `0020_einsatzplanung.sql` über den Cloudflare-D1-Connector eingespielt und in

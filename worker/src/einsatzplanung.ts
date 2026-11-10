@@ -37,27 +37,14 @@ import {
   loeschePepVorlage,
 } from './einsatzplanung-pep-vorlagen';
 import { lesePep, loeschePep, schreibePep } from './einsatzplanung-peps';
-import {
-  leseVorbereitung,
-  loescheVorbereitung,
-  schreibeVorbereitung,
-} from './einsatzplanung-vorbereitungen';
-import {
-  aktualisiereVorlage,
-  legeVorlageAn,
-  leseVorlage,
-  listeVorlagen,
-  loescheVorlage,
-} from './einsatzplanung-vorlagen';
 import { UUID_MUSTER } from './json-lesen';
 
 /**
- * Einsatzplanung: Einsätze, Vorbereitungen (VB), PEP und beide Vorlagenarten liegen in einer
+ * Einsatzplanung: Einsätze, PEP, Aufbau und deren Vorlagen liegen in einer
  * eigenen D1-Datenbank (EINSATZPLANUNG_DB). Rechte vorerst alle, Rollen später.
  */
 const EINSAETZE_LISTE_PFAD = '/api/einsatzplanung/einsaetze';
 const EINSATZ_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})$`, 'i');
-const VB_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})/vb$`, 'i');
 const PEP_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})/pep$`, 'i');
 const AUFBAU_PFAD = new RegExp(`^/api/einsatzplanung/einsaetze/(${UUID_MUSTER})/aufbau$`, 'i');
 const AUFBAU_VORLAGEN_LISTE_PFAD = '/api/einsatzplanung/aufbau-vorlagen';
@@ -67,8 +54,6 @@ const AUFBAU_VORLAGE_PFAD = new RegExp(
 );
 const PEP_VORLAGEN_LISTE_PFAD = '/api/einsatzplanung/pep-vorlagen';
 const PEP_VORLAGE_PFAD = new RegExp(`^/api/einsatzplanung/pep-vorlagen/(${UUID_MUSTER})$`, 'i');
-const VORLAGEN_LISTE_PFAD = '/api/einsatzplanung/vb-vorlagen';
-const VORLAGE_PFAD = new RegExp(`^/api/einsatzplanung/vb-vorlagen/(${UUID_MUSTER})$`, 'i');
 const LAGER_LISTE_PFAD = '/api/einsatzplanung/lager';
 const LAGER_REIHENFOLGE_PFAD = '/api/einsatzplanung/lager/reihenfolge';
 const LAGER_PFAD = new RegExp(`^/api/einsatzplanung/lager/(${UUID_MUSTER})$`, 'i');
@@ -120,16 +105,6 @@ export async function verarbeiteEinsatzplanung(
       return nichtErlaubt('GET, PUT');
     }
 
-    const vbEinsatzId = VB_PFAD.exec(url.pathname)?.[1];
-    if (vbEinsatzId) {
-      if (methode === 'GET') return await leseVorbereitung(db, vbEinsatzId);
-      if (methode === 'PUT') {
-        return await schreibeVorbereitung(anfrage, db, vbEinsatzId, identitaet);
-      }
-      if (methode === 'DELETE') return await loescheVorbereitung(anfrage, db, vbEinsatzId);
-      return nichtErlaubt('GET, PUT, DELETE');
-    }
-
     const pepEinsatzId = PEP_PFAD.exec(url.pathname)?.[1];
     if (pepEinsatzId) {
       if (methode === 'GET') return await lesePep(db, pepEinsatzId);
@@ -175,20 +150,6 @@ export async function verarbeiteEinsatzplanung(
         return await aktualisierePepVorlage(anfrage, db, pepVorlageId, identitaet);
       }
       if (methode === 'DELETE') return await loeschePepVorlage(anfrage, db, pepVorlageId);
-      return nichtErlaubt('GET, PUT, DELETE');
-    }
-
-    if (url.pathname === VORLAGEN_LISTE_PFAD) {
-      if (methode === 'GET') return await listeVorlagen(db);
-      if (methode === 'POST') return await legeVorlageAn(anfrage, db, identitaet);
-      return nichtErlaubt('GET, POST');
-    }
-
-    const vorlageId = VORLAGE_PFAD.exec(url.pathname)?.[1];
-    if (vorlageId) {
-      if (methode === 'GET') return await leseVorlage(db, vorlageId);
-      if (methode === 'PUT') return await aktualisiereVorlage(anfrage, db, vorlageId, identitaet);
-      if (methode === 'DELETE') return await loescheVorlage(anfrage, db, vorlageId);
       return nichtErlaubt('GET, PUT, DELETE');
     }
 

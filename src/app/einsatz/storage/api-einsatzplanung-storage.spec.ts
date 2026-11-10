@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkerClient, WorkerFehler } from '../../kern/worker-client';
-import { testEinsatz, testVorbereitung, testVorlage } from '../testing/vb-testdaten';
+import { testAufbau, testAufbauInhalt } from '../testing/aufbau-testdaten';
+import { testEinsatz } from '../testing/druck-testdaten';
 import { ApiEinsatzStorage } from './api-einsatz-storage';
 import { ApiPepStorage } from './api-pep-storage';
 import { ApiPepVorlagenStorage } from './api-pep-vorlagen-storage';
 import { testPep, testPepVorlage } from '../testing/pep-testdaten';
-import { ApiVbVorlagenStorage } from './api-vb-vorlagen-storage';
-import { ApiVorbereitungStorage } from './api-vorbereitung-storage';
+import { ApiAufbauStorage, ApiAufbauVorlagenStorage } from './api-aufbau-storage';
 import {
   EinsatzplanungBereitsVorhandenFehler,
   EinsatzplanungKonfliktFehler,
@@ -31,7 +31,7 @@ describe('Api-Adapter der Einsatzplanung', () => {
   describe('ApiEinsatzStorage', () => {
     it('filtert die Liste mit der Prüfung und puffert sie bis zum nächsten Schreiben', async () => {
       const storage = TestBed.inject(ApiEinsatzStorage);
-      const eintrag = { ...testEinsatz(), version: 1, vb: null, pep: null };
+      const eintrag = { ...testEinsatz(), version: 1, aufbau: null, pep: null };
       worker.json.mockResolvedValue({ einsaetze: [eintrag, { kaputt: true }] });
       expect(await storage.ladeEinsaetze()).toEqual([eintrag]);
       await storage.ladeEinsaetze();
@@ -117,114 +117,127 @@ describe('Api-Adapter der Einsatzplanung', () => {
     });
   });
 
-  describe('ApiVorbereitungStorage', () => {
-    it('adressiert …/einsaetze/<id>/vb mit den richtigen Vorbedingungen', async () => {
-      const storage = TestBed.inject(ApiVorbereitungStorage);
+  describe('ApiAufbauStorage', () => {
+    it('adressiert …/einsaetze/<id>/aufbau mit den richtigen Vorbedingungen', async () => {
+      const storage = TestBed.inject(ApiAufbauStorage);
       const einsatzId = crypto.randomUUID();
-      const vorbereitung = testVorbereitung();
+      const aufbau = testAufbau();
       worker.anfragen.mockResolvedValue(
         new Response(null, { status: 201, headers: { ETag: '"1"' } }),
       );
-      await storage.legeVorbereitungAn(einsatzId, vorbereitung);
+      await storage.legeAufbauAn(einsatzId, aufbau);
       let [pfad, optionen] = worker.anfragen.mock.calls[0];
-      expect(pfad).toBe(`/api/einsatzplanung/einsaetze/${einsatzId}/vb`);
+      expect(pfad).toBe(`/api/einsatzplanung/einsaetze/${einsatzId}/aufbau`);
       expect(optionen.method).toBe('PUT');
       expect(optionen.headers.get('If-None-Match')).toBe('*');
 
       worker.anfragen.mockResolvedValue(new Response(null, { headers: { ETag: '"2"' } }));
-      await storage.speichereVorbereitung(einsatzId, vorbereitung, '"1"');
+      await storage.speichereAufbau(einsatzId, aufbau, '"1"');
       [pfad, optionen] = worker.anfragen.mock.calls[1];
       expect(optionen.headers.get('If-Match')).toBe('"1"');
 
       worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
-      await storage.loescheVorbereitung(einsatzId, '"2"');
+      await storage.loescheAufbau(einsatzId, '"2"');
       [pfad, optionen] = worker.anfragen.mock.calls[2];
       expect(optionen.method).toBe('DELETE');
       expect(new Headers(optionen.headers).get('If-Match')).toBe('"2"');
     });
 
-    it('liefert bei 404 null und lädt sonst Vorbereitung mit Version', async () => {
-      const storage = TestBed.inject(ApiVorbereitungStorage);
+    it('liefert bei 404 null, lädt sonst den Aufbau mit Version und weist Ungültiges ab', async () => {
+      const storage = TestBed.inject(ApiAufbauStorage);
       worker.anfragen.mockRejectedValueOnce(new WorkerFehler('keine', 404));
-      expect(await storage.ladeVorbereitung('x')).toBeNull();
-      const vorbereitung = testVorbereitung();
-      worker.anfragen.mockResolvedValueOnce(json(vorbereitung, '"4"'));
-      expect(await storage.ladeVorbereitung('x')).toEqual({ daten: vorbereitung, version: '"4"' });
+      expect(await storage.ladeAufbau('x')).toBeNull();
+      const aufbau = testAufbau();
+      worker.anfragen.mockResolvedValueOnce(json(aufbau, '"4"'));
+      expect(await storage.ladeAufbau('x')).toEqual({ daten: aufbau, version: '"4"' });
+      worker.anfragen.mockResolvedValueOnce(json({ vorlageId: null, inhalt: 5 }, '"4"'));
+      await expect(storage.ladeAufbau('x')).rejects.toThrow(/ungültiger Form/);
     });
 
-    it('verwirft nach dem Schreiben die Einsatzliste (VB-Kennzahlen)', async () => {
+    it('verwirft nach jedem Schreiben die Einsatzliste (Aufbau-Kennzahlen)', async () => {
       const einsaetze = TestBed.inject(ApiEinsatzStorage);
-      const storage = TestBed.inject(ApiVorbereitungStorage);
+      const storage = TestBed.inject(ApiAufbauStorage);
       worker.json.mockResolvedValue({ einsaetze: [] });
       await einsaetze.ladeEinsaetze();
       worker.anfragen.mockResolvedValue(new Response(null, { headers: { ETag: '"2"' } }));
-      await storage.speichereVorbereitung('e', testVorbereitung(), '"1"');
+      await storage.speichereAufbau('e', testAufbau(), '"1"');
       await einsaetze.ladeEinsaetze();
       expect(worker.json).toHaveBeenCalledTimes(2);
+
+      await storage.legeAufbauAn('e', testAufbau());
+      await einsaetze.ladeEinsaetze();
+      expect(worker.json).toHaveBeenCalledTimes(3);
+
+      worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
+      await storage.loescheAufbau('e', '"2"');
+      await einsaetze.ladeEinsaetze();
+      expect(worker.json).toHaveBeenCalledTimes(4);
     });
 
     it('übersetzt 412 beim Speichern', async () => {
       worker.anfragen.mockRejectedValue(new WorkerFehler('alt', 412));
       await expect(
-        TestBed.inject(ApiVorbereitungStorage).speichereVorbereitung(
-          'e',
-          testVorbereitung(),
-          '"1"',
-        ),
+        TestBed.inject(ApiAufbauStorage).speichereAufbau('e', testAufbau(), '"1"'),
       ).rejects.toBeInstanceOf(EinsatzplanungKonfliktFehler);
     });
   });
 
-  describe('ApiVbVorlagenStorage', () => {
+  describe('ApiAufbauVorlagenStorage', () => {
+    const vorlage = () => ({
+      id: crypto.randomUUID(),
+      titel: 'V',
+      inhalt: testAufbauInhalt([]),
+    });
+
     it('lädt Kopfdaten gefiltert und gepuffert, Einzelabruf ungepuffert', async () => {
-      const storage = TestBed.inject(ApiVbVorlagenStorage);
+      const storage = TestBed.inject(ApiAufbauVorlagenStorage);
       const kopf = {
         id: crypto.randomUUID(),
         titel: 'V',
         version: 1,
-        abschnitte: 1,
-        laufzettel: 1,
-        positionen: 1,
+        einheiten: 1,
+        kisten: 2,
+        positionen: 3,
         geaendertAm: '2026-01-01T00:00:00.000Z',
       };
       worker.json.mockResolvedValue({ vorlagen: [kopf, 7] });
       expect(await storage.ladeVorlagen()).toEqual([kopf]);
       await storage.ladeVorlagen();
       expect(worker.json).toHaveBeenCalledOnce();
-      expect(worker.json.mock.calls[0][0]).toBe('/api/einsatzplanung/vb-vorlagen');
+      expect(worker.json.mock.calls[0][0]).toBe('/api/einsatzplanung/aufbau-vorlagen');
 
-      const vorlage = testVorlage();
-      worker.anfragen.mockResolvedValueOnce(json(vorlage, '"1"'));
-      worker.anfragen.mockResolvedValueOnce(json(vorlage, '"2"'));
-      await storage.ladeVorlage(vorlage.id);
-      expect((await storage.ladeVorlage(vorlage.id))?.version).toBe('"2"');
+      const eine = vorlage();
+      worker.anfragen.mockResolvedValueOnce(json(eine, '"1"'));
+      worker.anfragen.mockResolvedValueOnce(json(eine, '"2"'));
+      await storage.ladeVorlage(eine.id);
+      expect((await storage.ladeVorlage(eine.id))?.version).toBe('"2"');
     });
 
     it('legt an, speichert und löscht mit den richtigen Pfaden und Köpfen', async () => {
-      const storage = TestBed.inject(ApiVbVorlagenStorage);
-      const vorlage = testVorlage();
+      const storage = TestBed.inject(ApiAufbauVorlagenStorage);
+      const eine = vorlage();
       worker.anfragen.mockResolvedValue(
         new Response(null, { status: 201, headers: { ETag: '"1"' } }),
       );
-      await storage.legeVorlageAn(vorlage);
-      expect(worker.anfragen.mock.calls[0][0]).toBe('/api/einsatzplanung/vb-vorlagen');
+      await storage.legeVorlageAn(eine);
+      expect(worker.anfragen.mock.calls[0][0]).toBe('/api/einsatzplanung/aufbau-vorlagen');
       expect(worker.anfragen.mock.calls[0][1].headers.get('If-None-Match')).toBe('*');
-      await storage.speichereVorlage(vorlage, '"1"');
+      await storage.speichereVorlage(eine, '"1"');
       expect(worker.anfragen.mock.calls[1][0]).toBe(
-        `/api/einsatzplanung/vb-vorlagen/${vorlage.id}`,
+        `/api/einsatzplanung/aufbau-vorlagen/${eine.id}`,
       );
       expect(worker.anfragen.mock.calls[1][1].headers.get('If-Match')).toBe('"1"');
       worker.anfragen.mockResolvedValue(new Response(null, { status: 204 }));
-      await storage.loescheVorlage(vorlage.id, '"1"');
+      await storage.loescheVorlage(eine.id, '"1"');
       expect(worker.anfragen.mock.calls[2][1].method).toBe('DELETE');
     });
 
     it('verwirft die Liste nach dem Schreiben', async () => {
-      const storage = TestBed.inject(ApiVbVorlagenStorage);
+      const storage = TestBed.inject(ApiAufbauVorlagenStorage);
       worker.json.mockResolvedValue({ vorlagen: [] });
       await storage.ladeVorlagen();
       worker.anfragen.mockResolvedValue(new Response(null, { headers: { ETag: '"2"' } }));
-      await storage.speichereVorlage(testVorlage(), '"1"');
+      await storage.speichereVorlage(vorlage(), '"1"');
       await storage.ladeVorlagen();
       expect(worker.json).toHaveBeenCalledTimes(2);
     });

@@ -1,6 +1,5 @@
-import { Einsatz, EinsatzListenEintrag, VbKennzahlen } from '../models/einsatz.model';
+import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
 import { Pep, PepKennzahlen, PepVorlage, PepVorlageKopf } from '../models/pep.model';
-import { VbInhalt, VbVorlage, VbVorlageKopf, Vorbereitung } from '../models/vb.model';
 import { EinsatzStorage } from '../storage/einsatz-storage';
 import {
   EinsatzplanungBereitsVorhandenFehler,
@@ -10,8 +9,7 @@ import { MitVersion } from '../storage/mit-version';
 import { PepStorage } from '../storage/pep-storage';
 import { PepVorlagenStorage } from '../storage/pep-vorlagen-storage';
 import { pepKennzahlen } from '../services/pep-abbildung';
-import { VbVorlagenStorage } from '../storage/vb-vorlagen-storage';
-import { VorbereitungStorage } from '../storage/vorbereitung-storage';
+import type { InMemoryAufbauStorage } from './in-memory-aufbau';
 
 /**
  * Referenzadapter für Tests: bilden die Versions- und Eindeutigkeitsregeln des Workers nach
@@ -29,65 +27,6 @@ function etag(version: number): string {
 
 function istAktuell(eintrag: Eintrag<unknown> | undefined, version: string): boolean {
   return eintrag !== undefined && etag(eintrag.version) === version.replace(/^W\//, '');
-}
-
-export function kennzahlenVon(inhalt: VbInhalt): VbKennzahlen {
-  const laufzettel = inhalt.abschnitte.flatMap((a) => a.laufzettel);
-  return {
-    laufzettel: laufzettel.length,
-    positionen: laufzettel.reduce((summe, l) => summe + l.positionen.length, 0),
-  };
-}
-
-export class InMemoryVorbereitungStorage implements VorbereitungStorage {
-  readonly bezeichnung = 'In-Memory (nur für Tests)';
-  private readonly eintraege = new Map<string, Eintrag<Vorbereitung>>();
-
-  async ladeVorbereitung(einsatzId: string): Promise<MitVersion<Vorbereitung> | null> {
-    const eintrag = this.eintraege.get(einsatzId);
-    return eintrag
-      ? { daten: structuredClone(eintrag.daten), version: etag(eintrag.version) }
-      : null;
-  }
-
-  async legeVorbereitungAn(einsatzId: string, vorbereitung: Vorbereitung): Promise<string> {
-    if (this.eintraege.has(einsatzId)) throw new EinsatzplanungBereitsVorhandenFehler(null);
-    this.eintraege.set(einsatzId, { daten: structuredClone(vorbereitung), version: 1 });
-    return etag(1);
-  }
-
-  async speichereVorbereitung(
-    einsatzId: string,
-    vorbereitung: Vorbereitung,
-    version: string,
-  ): Promise<string> {
-    const eintrag = this.eintraege.get(einsatzId);
-    if (!eintrag || !istAktuell(eintrag, version)) {
-      throw new EinsatzplanungKonfliktFehler('Die Vorbereitung');
-    }
-    eintrag.daten = structuredClone(vorbereitung);
-    eintrag.version += 1;
-    return etag(eintrag.version);
-  }
-
-  async loescheVorbereitung(einsatzId: string, version: string): Promise<void> {
-    if (!istAktuell(this.eintraege.get(einsatzId), version)) {
-      throw new EinsatzplanungKonfliktFehler('Die Vorbereitung');
-    }
-    this.eintraege.delete(einsatzId);
-  }
-
-  /** Nur für Tests und `InMemoryEinsatzStorage`. */
-  kennzahlen(einsatzId: string): VbKennzahlen | null {
-    const eintrag = this.eintraege.get(einsatzId);
-    return eintrag ? kennzahlenVon(eintrag.daten.inhalt) : null;
-  }
-
-  /** Nur für Tests: direkt vorbelegen. */
-  _vorbelegen(einsatzId: string, vorbereitung: Vorbereitung): string {
-    this.eintraege.set(einsatzId, { daten: structuredClone(vorbereitung), version: 1 });
-    return etag(1);
-  }
 }
 
 export class InMemoryPepStorage implements PepStorage {
@@ -142,7 +81,7 @@ export class InMemoryEinsatzStorage implements EinsatzStorage {
   private readonly eintraege = new Map<string, Eintrag<Einsatz>>();
 
   constructor(
-    private readonly vorbereitungen?: InMemoryVorbereitungStorage,
+    private readonly aufbauten?: InMemoryAufbauStorage,
     private readonly peps?: InMemoryPepStorage,
   ) {}
 
@@ -150,7 +89,7 @@ export class InMemoryEinsatzStorage implements EinsatzStorage {
     return [...this.eintraege.values()].map((eintrag) => ({
       ...structuredClone(eintrag.daten),
       version: eintrag.version,
-      vb: this.vorbereitungen?.kennzahlen(eintrag.daten.id) ?? null,
+      aufbau: this.aufbauten?.kennzahlen(eintrag.daten.id) ?? null,
       pep: this.peps?.kennzahlen(eintrag.daten.id) ?? null,
     }));
   }
@@ -194,67 +133,6 @@ export class InMemoryEinsatzStorage implements EinsatzStorage {
   /** Nur für Tests: direkt vorbelegen. */
   _vorbelegen(einsatz: Einsatz): string {
     this.eintraege.set(einsatz.id, { daten: structuredClone(einsatz), version: 1 });
-    return etag(1);
-  }
-}
-
-export class InMemoryVbVorlagenStorage implements VbVorlagenStorage {
-  readonly bezeichnung = 'In-Memory (nur für Tests)';
-  private readonly eintraege = new Map<string, Eintrag<VbVorlage> & { geaendertAm: string }>();
-
-  async ladeVorlagen(): Promise<VbVorlageKopf[]> {
-    return [...this.eintraege.values()].map((e) => ({
-      id: e.daten.id,
-      titel: e.daten.titel,
-      version: e.version,
-      abschnitte: e.daten.inhalt.abschnitte.length,
-      ...kennzahlenVon(e.daten.inhalt),
-      geaendertAm: e.geaendertAm,
-    }));
-  }
-
-  async ladeVorlage(id: string): Promise<MitVersion<VbVorlage> | null> {
-    const eintrag = this.eintraege.get(id);
-    return eintrag
-      ? { daten: structuredClone(eintrag.daten), version: etag(eintrag.version) }
-      : null;
-  }
-
-  async legeVorlageAn(vorlage: VbVorlage): Promise<string> {
-    if (this.eintraege.has(vorlage.id)) throw new EinsatzplanungBereitsVorhandenFehler(null);
-    this.eintraege.set(vorlage.id, {
-      daten: structuredClone(vorlage),
-      version: 1,
-      geaendertAm: new Date().toISOString(),
-    });
-    return etag(1);
-  }
-
-  async speichereVorlage(vorlage: VbVorlage, version: string): Promise<string> {
-    const eintrag = this.eintraege.get(vorlage.id);
-    if (!eintrag || !istAktuell(eintrag, version)) {
-      throw new EinsatzplanungKonfliktFehler('Die Vorlage');
-    }
-    eintrag.daten = structuredClone(vorlage);
-    eintrag.version += 1;
-    eintrag.geaendertAm = new Date().toISOString();
-    return etag(eintrag.version);
-  }
-
-  async loescheVorlage(id: string, version: string): Promise<void> {
-    if (!istAktuell(this.eintraege.get(id), version)) {
-      throw new EinsatzplanungKonfliktFehler('Die Vorlage');
-    }
-    this.eintraege.delete(id);
-  }
-
-  /** Nur für Tests: direkt vorbelegen; Version 1. */
-  _vorbelegen(vorlage: VbVorlage): string {
-    this.eintraege.set(vorlage.id, {
-      daten: structuredClone(vorlage),
-      version: 1,
-      geaendertAm: new Date().toISOString(),
-    });
     return etag(1);
   }
 }

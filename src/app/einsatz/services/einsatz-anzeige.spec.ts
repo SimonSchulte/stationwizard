@@ -87,7 +87,7 @@ describe('abstandText und istDringend', () => {
     expect(abstandText(null)).toBe('');
   });
 
-  it('ist dringend bis 14 Tage und nur bei fehlendem PEP oder VB', () => {
+  it('ist dringend bis 14 Tage und nur bei fehlendem PEP oder Aufbau', () => {
     expect(istDringend(14, true, false)).toBe(true);
     expect(istDringend(0, false, true)).toBe(true);
     expect(istDringend(15, true, true)).toBe(false);

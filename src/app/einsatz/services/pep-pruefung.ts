@@ -13,7 +13,7 @@ import {
   PepVorlageKopf,
 } from '../models/pep.model';
 import { MEDIZINISCH_ORDER, TAKTISCH_ORDER } from '../models/planung.model';
-import { istGanzzahlAb, istTextBis, istUuid, istUuidOderNull, nurFelder } from './vb-pruefung';
+import { istGanzzahlAb, istTextBis, istUuid, istUuidOderNull, nurFelder } from './einsatz-pruefung';
 
 /**
  * Prüfungen für unbekannte externe Daten (Worker-Antworten, Vorlagen) gegen den Vertrag

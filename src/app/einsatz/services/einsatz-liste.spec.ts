@@ -8,7 +8,7 @@ import {
   istFilterAktiv,
   mitAbstand,
 } from './einsatz-liste';
-import { testEinsatz } from '../testing/vb-testdaten';
+import { testEinsatz } from '../testing/druck-testdaten';
 import { HiorgArt, HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
 import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
 
@@ -33,7 +33,7 @@ function gruppe(
 const eintrag = (teil: Parameters<typeof testEinsatz>[0]) => ({
   ...testEinsatz(teil),
   version: 1,
-  vb: null,
+  aufbau: null,
   pep: null,
 });
 
@@ -67,10 +67,10 @@ describe('baueEinsatzListe', () => {
     expect(liste.vergangen.map((z) => z.titel)).toEqual(['Jüngerer', 'Altes Fest']);
   });
 
-  it('verknüpft Veranstaltungen mit ihrem Einsatz (PEP, VB) und ignoriert dessen eigene Zeile', () => {
+  it('verknüpft Veranstaltungen mit ihrem Einsatz (PEP, Aufbau) und ignoriert dessen eigene Zeile', () => {
     const einsatz = {
       ...eintrag({ hiorgVeranstaltungId: 'dienst-1' }),
-      vb: { laufzettel: 22, positionen: 64 },
+      aufbau: { einheiten: 5, kisten: 22, positionen: 64 },
       pep: { posten: 3, positionen: 9, besetzt: 4 },
     };
     const liste = baueEinsatzListe([gruppe('1', 'Markt', '2026-12-01T10:00')], [einsatz], JETZT);
@@ -80,7 +80,7 @@ describe('baueEinsatzListe', () => {
       beginn: '2026-12-01T10:00',
       pepVorhanden: true,
       pep: { posten: 3, positionen: 9, besetzt: 4 },
-      vb: { laufzettel: 22, positionen: 64 },
+      aufbau: { einheiten: 5, kisten: 22, positionen: 64 },
     });
   });
 
@@ -118,9 +118,9 @@ describe('baueEinsatzListe', () => {
     expect(liste.anstehend[0].art).toBe('termin');
   });
 
-  it('zeigt Veranstaltungen ohne Einsatz mit fehlendem PEP und VB', () => {
+  it('zeigt Veranstaltungen ohne Einsatz mit fehlendem PEP und Aufbau', () => {
     const liste = baueEinsatzListe([gruppe('9', 'Neu', '2026-12-01T10:00')], [], JETZT);
-    expect(liste.anstehend[0]).toMatchObject({ pepVorhanden: false, pep: null, vb: null });
+    expect(liste.anstehend[0]).toMatchObject({ pepVorhanden: false, pep: null, aufbau: null });
   });
 });
 
@@ -136,16 +136,16 @@ function zeile(teil: Partial<EinsatzListenZeile>): EinsatzListenZeile {
     art: null,
     pepVorhanden: false,
     pep: null,
-    vb: null,
+    aufbau: null,
     ...teil,
   };
 }
 
 describe('filtereEinsaetze', () => {
-  const vb = { abschnitte: 1, laufzettel: 1, positionen: 1 };
+  const aufbau = { einheiten: 1, kisten: 0, positionen: 1 };
   const zeilen = [
     zeile({ titel: 'Weihnachtsmarkt', ort: 'Ummeln', herkunft: 'hiorg', pepVorhanden: true }),
-    zeile({ titel: 'Stadtlauf', ort: 'Bielefeld', herkunft: 'hiorg', vb }),
+    zeile({ titel: 'Stadtlauf', ort: 'Bielefeld', herkunft: 'hiorg', aufbau }),
     zeile({ titel: 'Dienst', ort: null }),
   ];
   const titel = (liste: EinsatzListenZeile[]) => liste.map((z) => z.titel);
@@ -166,12 +166,12 @@ describe('filtereEinsaetze', () => {
     expect(istFilterAktiv({ ...KEIN_FILTER, suche: '  ' })).toBe(false);
   });
 
-  it('filtert fehlende PEP, fehlende VB und ohne HiOrg', () => {
+  it('filtert fehlende PEP, fehlenden Aufbau und ohne HiOrg', () => {
     expect(titel(filtereEinsaetze(zeilen, { ...KEIN_FILTER, pepFehlt: true }))).toEqual([
       'Stadtlauf',
       'Dienst',
     ]);
-    expect(titel(filtereEinsaetze(zeilen, { ...KEIN_FILTER, vbFehlt: true }))).toEqual([
+    expect(titel(filtereEinsaetze(zeilen, { ...KEIN_FILTER, aufbauFehlt: true }))).toEqual([
       'Weihnachtsmarkt',
       'Dienst',
     ]);
@@ -197,7 +197,7 @@ describe('filtereEinsaetze', () => {
   });
 
   it('verknüpft Bedingungen mit UND', () => {
-    const filter = { ...KEIN_FILTER, pepFehlt: true, vbFehlt: true, suche: 'dienst' };
+    const filter = { ...KEIN_FILTER, pepFehlt: true, aufbauFehlt: true, suche: 'dienst' };
     expect(titel(filtereEinsaetze(zeilen, filter))).toEqual(['Dienst']);
     expect(filtereEinsaetze(zeilen, { ...filter, ohneHiorg: false, suche: 'markt' })).toEqual([]);
   });
@@ -232,12 +232,12 @@ describe('gruppiereNachMonat', () => {
 });
 
 describe('mitAbstand', () => {
-  const vb = { abschnitte: 1, laufzettel: 1, positionen: 1 };
+  const aufbau = { einheiten: 1, kisten: 0, positionen: 1 };
 
   it('setzt Abstand und Dringlichkeit nur für Anstehendes', () => {
     const liste = [
       zeile({ titel: 'bald fehlt', beginn: '2026-11-19T10:00' }),
-      zeile({ titel: 'bald komplett', beginn: '2026-11-19T10:00', pepVorhanden: true, vb }),
+      zeile({ titel: 'bald komplett', beginn: '2026-11-19T10:00', pepVorhanden: true, aufbau }),
       zeile({ titel: 'weit', beginn: '2026-11-20T10:00' }),
       zeile({ titel: 'ohne Datum', beginn: null }),
     ];

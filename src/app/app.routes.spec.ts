@@ -88,17 +88,25 @@ describe('Fachbereiche in der gemeinsamen Anwendung', () => {
     expect(TestBed.inject(Router).url).toBe('/einsatzplanung');
   });
 
-  it('kennt die Seiten für Vorbereitungen und Vorlagen', async () => {
+  it('kennt die Seiten für Aufbau und Vorlagen', async () => {
     const ansicht = await RouterTestingHarness.create();
     for (const pfad of [
-      '/einsatzplanung/vb-vorlagen/x',
+      '/einsatzplanung/aufbau-vorlagen/x',
       '/einsatzplanung/pep-vorlagen/x',
       '/einsatzplanung/pep-vorlagen/neu',
-      '/einsatzplanung/einsatz/x/vb',
+      '/einsatzplanung/einsatz/x/aufbau',
     ]) {
       await ansicht.navigateByUrl(pfad);
       expect(TestBed.inject(Router).url).toBe(pfad);
     }
+  });
+
+  it('leitet die Adressen der früheren Vorbereitung auf Aufbau und Verwaltung um', async () => {
+    const ansicht = await RouterTestingHarness.create();
+    await ansicht.navigateByUrl('/einsatzplanung/einsatz/x/vb');
+    expect(TestBed.inject(Router).url).toBe('/einsatzplanung/einsatz/x/aufbau');
+    await ansicht.navigateByUrl('/einsatzplanung/vb-vorlagen/x');
+    expect(TestBed.inject(Router).url).toBe('/verwaltung/einsatz-vorlagen');
   });
 
   it('leitet die frühere Vorlagenliste in die Verwaltung um', async () => {

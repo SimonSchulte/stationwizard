@@ -4,7 +4,7 @@ import { HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
 import { ApiEinsatzStorage } from '../storage/api-einsatz-storage';
 import { InMemoryEinsatzStorage } from '../testing/in-memory-einsatzplanung';
 import { testVeranstaltung } from '../testing/veranstaltung-testdaten';
-import { testEinsatz } from '../testing/vb-testdaten';
+import { testEinsatz } from '../testing/druck-testdaten';
 import { EinsatzStoreService } from './einsatz-store.service';
 
 function gruppe(ueberschreibung: Partial<HiorgVeranstaltung> = {}): HiorgVeranstaltung {

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { WorkerClient } from '../../kern/worker-client';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
-import { istEinsatz, istEinsatzListenEintrag } from '../services/vb-pruefung';
+import { istEinsatz, istEinsatzListenEintrag } from '../services/einsatz-pruefung';
 import { EinsatzStorage } from './einsatz-storage';
 import { EINSATZPLANUNG_BASIS, ladeEinzeln, ladeListe, schreibe } from './einsatzplanung-api';
 import { EinsatzplanungAbrufPuffer } from './einsatzplanung-abruf-puffer';

@@ -11,7 +11,7 @@ import {
   KistenDruckDaten,
   mengeText,
 } from './kisten-pdf-definition';
-import { SCHILD } from './vb-pdf-definition';
+import { SCHILD } from './zettel-pdf-definition';
 
 const artikel = new Map<string, Pick<Artikel, 'name' | 'einheit'>>([
   ['oel', { name: 'Öl', einheit: 'Liter' }],

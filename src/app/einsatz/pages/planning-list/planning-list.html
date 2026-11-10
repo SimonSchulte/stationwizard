@@ -93,8 +93,11 @@
         <mat-chip-option [selected]="pepFehlt()" (selectionChange)="pepFehlt.set($event.selected)">
           PEP fehlt
         </mat-chip-option>
-        <mat-chip-option [selected]="vbFehlt()" (selectionChange)="vbFehlt.set($event.selected)">
-          VB fehlt
+        <mat-chip-option
+          [selected]="aufbauFehlt()"
+          (selectionChange)="aufbauFehlt.set($event.selected)"
+        >
+          Aufbau fehlt
         </mat-chip-option>
         <mat-chip-option
           [selected]="ohneHiorg()"
@@ -143,14 +146,13 @@
                   [art]="zeile.art"
                   [pepVorhanden]="zeile.pepVorhanden"
                   [pepKennzahlen]="zeile.pep"
-                  [vbKennzahlen]="zeile.vb"
+                  [aufbauKennzahlen]="zeile.aufbau"
                   [abstandTage]="zeile.abstandTage"
                   [dringend]="zeile.dringend"
                   [efsArt]="efsArt(zeile)"
                   (efsPruefen)="efsPruefen(zeile)"
                   [gesperrt]="aktionen.laufend() !== null"
                   (pep)="aktionen.pepOeffnenOderAnlegen(zeile.ziel)"
-                  (vb)="aktionen.vbOeffnenOderAnlegen(zeile.ziel)"
                   (aufbau)="aktionen.aufbauOeffnen(zeile.ziel)"
                 />
               </li>

@@ -1,20 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 import { AufbauInhalt } from '../models/aufbau.model';
-import { VbAbschnitt, VbInhalt, VbLaufzettel, VbPosition } from '../models/vb.model';
+import { DruckAbschnitt, DruckInhalt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { leiteZettelAb, Zettel, ZettelStammdaten } from './aufbau-zettel';
-import { VbDruckDienst } from './vb-druck';
-import { VbDruckKopf } from './vb-pdf-definition';
+import { ZettelDruckDienst } from './zettel-druck';
+import { DruckKopf } from './zettel-pdf-definition';
 
 /**
- * Druck des Aufbaus. Die abgeleiteten Zettel werden in die Form der Vorbereitung gebracht
- * (`aufbauAlsVbInhalt()`), damit der vorhandene, geprüfte Druck (Anweisungsseite, Laufzettelstreifen
+ * Druck des Aufbaus. Die abgeleiteten Zettel werden in das Druckmodell gebracht
+ * (`aufbauAlsDruckInhalt()`), damit der vorhandene, geprüfte Druck (Anweisungsseite, Laufzettelstreifen
  * mit Platzberechnung und Fortsetzungsstreifen, Schilder) unverändert Grundlage bleibt:
  * - je oberste Einheit ein Abschnitt (Farbe, Foto, Schild), Wagen im Fahrzeug stehen darin,
  * - je Zettel ein Laufzettel, ein Lagertrenner ist eine Hinweiszeile („!“) und kostet eine Zeile.
  */
 
-function laufzettelVon(zettel: Zettel): VbLaufzettel {
-  const positionen: VbPosition[] = zettel.posten.map((posten, index) =>
+function laufzettelVon(zettel: Zettel): DruckLaufzettel {
+  const positionen: DruckPosition[] = zettel.posten.map((posten, index) =>
     posten.art === 'trenner'
       ? {
           id: `${zettel.einheitId}-t${index}`,
@@ -42,14 +42,14 @@ function laufzettelVon(zettel: Zettel): VbLaufzettel {
   };
 }
 
-export function aufbauAlsVbInhalt(inhalt: AufbauInhalt, daten: ZettelStammdaten): VbInhalt {
+export function aufbauAlsDruckInhalt(inhalt: AufbauInhalt, daten: ZettelStammdaten): DruckInhalt {
   const zettel = new Map(leiteZettelAb(inhalt, daten).map((z) => [z.einheitId, z]));
-  const abschnitte: VbAbschnitt[] = inhalt.einheiten.map((einheit) => {
+  const abschnitte: DruckAbschnitt[] = inhalt.einheiten.map((einheit) => {
     const ids = [
       einheit.id,
       ...einheit.inhalt.flatMap((x) => (x.art === 'wagen' ? [x.einheit.id] : [])),
     ];
-    const abschnitt: VbAbschnitt = {
+    const abschnitt: DruckAbschnitt = {
       id: einheit.id,
       herkunftId: null,
       titel: einheit.name,
@@ -68,13 +68,13 @@ export function aufbauAlsVbInhalt(inhalt: AufbauInhalt, daten: ZettelStammdaten)
 
 @Injectable({ providedIn: 'root' })
 export class AufbauDruckDienst {
-  private readonly druck = inject(VbDruckDienst);
+  private readonly druck = inject(ZettelDruckDienst);
 
-  drucken(kopf: VbDruckKopf, inhalt: AufbauInhalt, daten: ZettelStammdaten): Promise<void> {
-    return this.druck.drucken(kopf, aufbauAlsVbInhalt(inhalt, daten));
+  drucken(kopf: DruckKopf, inhalt: AufbauInhalt, daten: ZettelStammdaten): Promise<void> {
+    return this.druck.drucken(kopf, aufbauAlsDruckInhalt(inhalt, daten));
   }
 
-  herunterladen(kopf: VbDruckKopf, inhalt: AufbauInhalt, daten: ZettelStammdaten): Promise<void> {
-    return this.druck.herunterladen(kopf, aufbauAlsVbInhalt(inhalt, daten));
+  herunterladen(kopf: DruckKopf, inhalt: AufbauInhalt, daten: ZettelStammdaten): Promise<void> {
+    return this.druck.herunterladen(kopf, aufbauAlsDruckInhalt(inhalt, daten));
   }
 }

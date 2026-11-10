@@ -9,8 +9,8 @@ import {
   AufbauVorlage,
   AufbauVorlageKopf,
 } from '../models/aufbau.model';
-import { ABSCHNITT_FARBEN } from '../models/vb.model';
-import { istGanzzahlAb, istTextBis, istUuid, istUuidOderNull, nurFelder } from './vb-pruefung';
+import { ABSCHNITT_FARBEN } from '../models/druck.model';
+import { istGanzzahlAb, istTextBis, istUuid, istUuidOderNull, nurFelder } from './einsatz-pruefung';
 import { istGueltigeMenge } from './stammdaten-pruefung';
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Fachgruppen der Gruppenführungsrollen (siehe `Hauptrolle` in
  * `benutzerverwaltung/models/benutzerkonto.model.ts`), fachübergreifend gebraucht, zuerst
- * von der Vorbereitung (VB) der Einsatzplanung. Hier statt in der Benutzerverwaltung, damit
+ * vom Fachgruppen-Konzept der Einsatzplanung. Hier statt in der Benutzerverwaltung, damit
  * kein Fachmodul das andere importieren muss.
  */
 export type Fachgruppe = 'sanitaet' | 'betreuung' | 'verpflegung' | 'tesi' | 'fuehrung';

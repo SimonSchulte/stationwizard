@@ -29,29 +29,42 @@ export class ApiAufbauStorage implements AufbauStorage {
   }
 
   async legeAufbauAn(einsatzId: string, aufbau: Aufbau): Promise<string> {
-    return schreibe(
-      this.worker,
-      this.pfad(einsatzId),
-      'PUT',
-      { ifNoneMatch: true },
-      aufbau,
-      'Der Aufbau',
-    );
+    try {
+      return await schreibe(
+        this.worker,
+        this.pfad(einsatzId),
+        'PUT',
+        { ifNoneMatch: true },
+        aufbau,
+        'Der Aufbau',
+      );
+    } finally {
+      // Die Einsatzliste trägt die Kennzahlen des Aufbaus.
+      this.puffer.verwerfenEinsaetze();
+    }
   }
 
   async speichereAufbau(einsatzId: string, aufbau: Aufbau, version: string): Promise<string> {
-    return schreibe(
-      this.worker,
-      this.pfad(einsatzId),
-      'PUT',
-      { ifMatch: version },
-      aufbau,
-      'Der Aufbau',
-    );
+    try {
+      return await schreibe(
+        this.worker,
+        this.pfad(einsatzId),
+        'PUT',
+        { ifMatch: version },
+        aufbau,
+        'Der Aufbau',
+      );
+    } finally {
+      this.puffer.verwerfenEinsaetze();
+    }
   }
 
   async loescheAufbau(einsatzId: string, version: string): Promise<void> {
-    await loesche(this.worker, this.pfad(einsatzId), version, 'Der Aufbau');
+    try {
+      await loesche(this.worker, this.pfad(einsatzId), version, 'Der Aufbau');
+    } finally {
+      this.puffer.verwerfenEinsaetze();
+    }
   }
 }
 

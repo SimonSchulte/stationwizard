@@ -2,13 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiEinsatzStorage } from '../../storage/api-einsatz-storage';
-import {
-  InMemoryEinsatzStorage,
-  InMemoryPepStorage,
-  InMemoryVorbereitungStorage,
-} from '../../testing/in-memory-einsatzplanung';
+import { InMemoryEinsatzStorage, InMemoryPepStorage } from '../../testing/in-memory-einsatzplanung';
 import { testPep } from '../../testing/pep-testdaten';
-import { testEinsatz } from '../../testing/vb-testdaten';
+import { testEinsatz } from '../../testing/druck-testdaten';
 import { EinsatzZuordnenDialog } from './einsatz-zuordnen-dialog';
 
 describe('EinsatzZuordnenDialog', () => {
@@ -19,7 +15,7 @@ describe('EinsatzZuordnenDialog', () => {
 
   async function oeffnen(vorbelegen = true) {
     const peps = new InMemoryPepStorage();
-    const speicher = new InMemoryEinsatzStorage(new InMemoryVorbereitungStorage(), peps);
+    const speicher = new InMemoryEinsatzStorage(undefined, peps);
     if (vorbelegen) {
       for (const e of [ohnePep, andererOhnePep, mitPep]) speicher._vorbelegen(e);
       peps._vorbelegen(mitPep.id, testPep());

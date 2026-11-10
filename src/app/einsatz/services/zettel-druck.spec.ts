@@ -2,19 +2,24 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { PdfAusgabe } from '../../kern/pdf/pdf-ausgabe';
 import { MeldungsDienst } from '../../kern/zustand/meldungs-dienst';
-import { testAbschnitt, testInhalt, testLaufzettel, testPosition } from '../testing/vb-testdaten';
-import { VbDruckDienst, vbDateiname } from './vb-druck';
+import {
+  testAbschnitt,
+  testInhalt,
+  testLaufzettel,
+  testPosition,
+} from '../testing/druck-testdaten';
+import { ZettelDruckDienst, zettelDateiname } from './zettel-druck';
 
 const KOPF = { titel: 'Markt', beginn: null, ende: null, ort: null };
 
-describe('VbDruckDienst', () => {
+describe('ZettelDruckDienst', () => {
   const warnung = vi.fn();
   const drucken = vi.fn().mockResolvedValue(undefined);
   const herunterladen = vi.fn();
   const getBuffer = vi.fn();
   const createPdf = vi.fn();
-  let dienst: VbDruckDienst;
-  let lade: MockInstance<VbDruckDienst['ladeBibliothek']>;
+  let dienst: ZettelDruckDienst;
+  let lade: MockInstance<ZettelDruckDienst['ladeBibliothek']>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +31,7 @@ describe('VbDruckDienst', () => {
         { provide: PdfAusgabe, useValue: { drucken, herunterladen } },
       ],
     });
-    dienst = TestBed.inject(VbDruckDienst);
+    dienst = TestBed.inject(ZettelDruckDienst);
     lade = vi
       .spyOn(dienst, 'ladeBibliothek')
       .mockResolvedValue({ createPdf } as unknown as Awaited<
@@ -41,15 +46,15 @@ describe('VbDruckDienst', () => {
     expect(drucken).toHaveBeenCalledOnce();
     const [daten, name] = drucken.mock.calls[0];
     expect(daten).toBeInstanceOf(Uint8Array);
-    expect(name).toMatch(/^VB Markt \d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(name).toMatch(/^Aufbau Markt \d{4}-\d{2}-\d{2}\.pdf$/);
     expect(herunterladen).not.toHaveBeenCalled();
     expect(warnung).not.toHaveBeenCalled();
   });
 
-  it('lädt „VB <Titel> <Datum>.pdf“ herunter, ohne zu drucken', async () => {
+  it('lädt „Aufbau <Titel> <Datum>.pdf“ herunter, ohne zu drucken', async () => {
     await dienst.herunterladen(KOPF, testInhalt());
     expect(herunterladen).toHaveBeenCalledOnce();
-    expect(herunterladen.mock.calls[0][1]).toMatch(/^VB Markt \d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(herunterladen.mock.calls[0][1]).toMatch(/^Aufbau Markt \d{4}-\d{2}-\d{2}\.pdf$/);
     expect(drucken).not.toHaveBeenCalled();
   });
 
@@ -82,11 +87,11 @@ describe('VbDruckDienst', () => {
   });
 });
 
-describe('vbDateiname', () => {
+describe('zettelDateiname', () => {
   it('bereinigt unzulässige Zeichen und leere Titel', () => {
-    expect(vbDateiname('Markt: Ummeln/Nord?', '2026-12-05')).toBe(
-      'VB Markt_ Ummeln_Nord_ 2026-12-05.pdf',
+    expect(zettelDateiname('Markt: Ummeln/Nord?', '2026-12-05')).toBe(
+      'Aufbau Markt_ Ummeln_Nord_ 2026-12-05.pdf',
     );
-    expect(vbDateiname('  ', '2026-12-05')).toBe('VB Vorbereitung 2026-12-05.pdf');
+    expect(zettelDateiname('  ', '2026-12-05')).toBe('Aufbau Aufbau 2026-12-05.pdf');
   });
 });

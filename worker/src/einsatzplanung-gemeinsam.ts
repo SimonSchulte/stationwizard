@@ -8,7 +8,6 @@ export interface EinsatzplanungKonfiguration {
   EINSATZPLANUNG_DB?: D1Database;
 }
 
-export const FACHGRUPPEN = new Set(['sanitaet', 'betreuung', 'verpflegung', 'tesi', 'fuehrung']);
 export const ABSCHNITT_FARBEN = new Set([
   'abschnitt-1',
   'abschnitt-2',
@@ -20,20 +19,13 @@ export const ABSCHNITT_FARBEN = new Set([
   'abschnitt-8',
 ]);
 
-// Ein VB-Inhalt hat höchstens 300 Laufzettel zu je höchstens 50 Positionen; die
-// Grenze gilt für Vorlagen und Vorbereitungen gleichermaßen (Vertrag: Körper ≤ 256 KB).
 /** Mit Verladungsfotos der Abschnitte (je höchstens `FOTO_MAX` Zeichen); weit unter dem D1-Zeilenlimit. */
-export const VB_KOERPER_GRENZE = 1024 * 1024;
 /** Verladungsfoto eines Abschnitts als JPEG-Data-URL, höchstens so viele Zeichen. */
 export const FOTO_MAX = 100_000;
 export const FOTO_MUSTER = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
 export const EINSATZ_KOERPER_GRENZE = 16 * 1024;
 
-export const MAX_ABSCHNITTE = 30;
-export const MAX_LAUFZETTEL = 300;
-export const MAX_POSITIONEN = 50;
 export const TEXT_MAX = 200;
-export const ANZAHL_MAX = 20;
 export const ANWEISUNGEN_MAX = 6000;
 
 export function lesePruefeKoerper(
@@ -95,7 +87,7 @@ export function erwarteteVersion(anfrage: Request): number | Response {
   return version;
 }
 
-// PEP (Konzept Abschnitt 10). Der Körper ist größer als bei der VB: bis zu 500 Einsatzkräfte
+// PEP (Konzept Abschnitt 10). Der Körper ist größer als bei den übrigen Inhalten: bis zu 500 Einsatzkräfte
 // und 100 Posten mit je bis zu 50 Positionen.
 export const PEP_KOERPER_GRENZE = 512 * 1024;
 export const MAX_PEP_POSTEN = 100;

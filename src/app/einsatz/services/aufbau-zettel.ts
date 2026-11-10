@@ -1,6 +1,6 @@
 import { AufbauEinheit, AufbauInhalt, AufbauPhase } from '../models/aufbau.model';
 import { Artikel, Lager } from '../models/stammdaten.model';
-import { AbschnittFarbe } from '../models/vb.model';
+import { AbschnittFarbe } from '../models/druck.model';
 import { LAUFZETTEL_KAPAZITAET } from './laufzettel-platz';
 
 /**

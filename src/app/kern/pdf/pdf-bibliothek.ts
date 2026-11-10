@@ -28,12 +28,12 @@ export const PDF_FARBEN = {
   gelb: '#DEE100',
   neutral: '#E8E8E8',
   neutralText: '#424242',
-  /** `--kat-san`, `--kat-btvp`, `--kat-tesi`, `--kat-fuehrung` (Fachgruppen der VB); gemeinsam ändern. */
+  /** `--kat-san`, `--kat-btvp`, `--kat-tesi`, `--kat-fuehrung` (Fachgruppen); gemeinsam ändern. */
   katSan: '#C62828',
   katBtvp: '#2F8F68',
   katTesi: '#4A6FB8',
   katFuehrung: '#B06000',
-  /** `--abschnitt-1` bis `--abschnitt-8` (Abschnittsfarben der VB); gemeinsam ändern. */
+  /** `--abschnitt-1` bis `--abschnitt-8` (Abschnittsfarben der Einheiten); gemeinsam ändern. */
   abschnitt1: '#E65100',
   abschnitt2: '#00838F',
   abschnitt3: '#AD1457',

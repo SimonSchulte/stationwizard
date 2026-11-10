@@ -16,7 +16,7 @@ import {
   ABSCHNITT_FARBEN,
   ABSCHNITT_FARBE_BEZEICHNUNG,
   AbschnittFarbe,
-} from '../../models/vb.model';
+} from '../../models/druck.model';
 import { AufbauProblem, kisteWeichtAb } from '../../services/aufbau-abgleich';
 import { mengeText } from '../../services/aufbau-zettel';
 import { fotoVerkleinern } from '../../services/foto-verkleinern';

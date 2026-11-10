@@ -1,13 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
 import { MeldungsDienst } from '../../kern/zustand/zustand';
-import { vorlageWaehlen } from '../components/vorlage-wahl-dialog/vorlage-wahl-dialog';
 import { Einsatz, EinsatzListenEintrag } from '../models/einsatz.model';
 import { HiorgVeranstaltung } from '../models/hiorg-veranstaltung.model';
 import { EinsatzStoreService } from './einsatz-store.service';
 import { PepEditorOeffnenDienst } from './pep-editor-oeffnen';
-import { VbEditorStoreService } from './vb-editor-store.service';
 
 /** Ziel einer Aktion: ein vorhandener Einsatz oder eine HiOrg-Veranstaltung (ggf. ohne Einsatz). */
 export type EinsatzZiel = Einsatz | EinsatzListenEintrag | HiorgVeranstaltung;
@@ -22,7 +19,7 @@ export function einsatzZielSchluessel(ziel: EinsatzZiel): string {
 }
 
 /**
- * Aktionen der Einsatzübersicht: PEP und Vorbereitung (VB) je Einsatz direkt öffnen oder
+ * Aktionen der Einsatzübersicht: PEP und Aufbau je Einsatz direkt öffnen oder
  * anlegen, ohne Zwischenseite. Für eine HiOrg-Veranstaltung ohne Einsatz wird zuerst still
  * der Einsatz angelegt. Eine laufende Aktion sperrt weitere (`laufend`), damit ein
  * Mehrfachklick nichts doppelt anlegt.
@@ -30,11 +27,9 @@ export function einsatzZielSchluessel(ziel: EinsatzZiel): string {
 @Injectable({ providedIn: 'root' })
 export class EinsatzAktionenDienst {
   private readonly router = inject(Router);
-  private readonly dialog = inject(MatDialog);
   private readonly meldungen = inject(MeldungsDienst);
   private readonly einsatzStore = inject(EinsatzStoreService);
   private readonly pepEditor = inject(PepEditorOeffnenDienst);
-  private readonly vbEditor = inject(VbEditorStoreService);
 
   /** Schlüssel (siehe `einsatzZielSchluessel()`) der gerade laufenden Aktion, sonst `null`. */
   readonly laufend = signal<string | null>(null);
@@ -58,36 +53,6 @@ export class EinsatzAktionenDienst {
           fehler instanceof Error ? fehler.message : 'Die PEP konnte nicht geöffnet werden.',
         );
       }
-    });
-  }
-
-  /**
-   * Öffnet die Vorbereitung; hat der Einsatz noch keine, fragt der Vorlage-Wahl-Dialog nach
-   * Vorlage oder leerem Anfang, legt sie an und öffnet den Editor. Abbrechen ändert nichts.
-   */
-  async vbOeffnenOderAnlegen(ziel: EinsatzZiel): Promise<void> {
-    await this.exklusiv(ziel, async () => {
-      const einsatz = await this.einsatzSicherstellen(ziel);
-      if (!einsatz) return;
-      const eintrag = this.einsatzStore.einsaetze().find((e) => e.id === einsatz.id);
-      const vorhanden = eintrag ? eintrag.vb : 'vb' in ziel ? ziel.vb : null;
-      if (!vorhanden) {
-        const wahl = await vorlageWaehlen(this.dialog, 'vb');
-        if (!wahl) return;
-        const angelegt =
-          wahl.art === 'vorlage'
-            ? await this.vbEditor.ausVorlageAnlegen(einsatz.id, wahl.vorlageId)
-            : await this.vbEditor.leerAnlegen(einsatz.id);
-        if (!angelegt) {
-          this.meldungen.fehler(
-            this.vbEditor.ladeFehler() || 'Die Vorbereitung konnte nicht angelegt werden.',
-          );
-          return;
-        }
-        // Die Liste zeigt danach „VB öffnen“ mit Kennzahlen.
-        void this.einsatzStore.laden();
-      }
-      await this.router.navigate(['/einsatzplanung/einsatz', einsatz.id, 'vb']);
     });
   }
 

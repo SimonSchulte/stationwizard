@@ -11,7 +11,7 @@ import { istAufbauInhalt } from './aufbau-pruefung';
 export type AufbauModus = 'aufbau' | 'vorlage';
 export type AufbauSpeicherZustand = 'ruhig' | 'speichert' | 'konflikt' | 'fehler';
 
-/** Mindestens 30 Schritte laut Vorgabe der VB; großzügig bemessen. */
+/** Mindestens 30 Schritte laut Vorgabe; großzügig bemessen. */
 const UNDO_TIEFE = 50;
 
 interface Stand {

@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { verarbeiteEinsatzplanung } from '../src/einsatzplanung';
 import {
@@ -7,12 +6,10 @@ import {
   pruefePepVorlage,
   zaehlePep,
 } from '../src/einsatzplanung-pep-pruefung';
-import { pruefeVbInhalt, pruefeVbVorlage, zaehleVb } from '../src/einsatzplanung-pruefung';
 import { FakeEinsatzplanungDb } from './einsatzplanung-db-fake';
 
 const EINSATZ_ID = '01234567-89ab-4cde-8fab-0123456789ab';
 const ANDERER_EINSATZ_ID = '11234567-89ab-4cde-8fab-0123456789ab';
-const VORLAGE_ID = '21234567-89ab-4cde-8fab-0123456789ab';
 const IDENTITAET = { email: 'geprueft@example.test' };
 const JSON_KOPF = { 'Content-Type': 'application/json' };
 
@@ -22,42 +19,6 @@ function neueId(): string {
   return `aaaaaaaa-0000-4000-8000-${String(zaehler).padStart(12, '0')}`;
 }
 
-function position(ueberschreibung: Record<string, unknown> = {}) {
-  return {
-    id: neueId(),
-    herkunftId: null,
-    anzahl: '2',
-    material: 'Warnwesten',
-    ...ueberschreibung,
-  };
-}
-function laufzettel(ueberschreibung: Record<string, unknown> = {}) {
-  return {
-    id: neueId(),
-    herkunftId: null,
-    ueberschrift: 'Material verlasten',
-    lagerort: 'Lager',
-    transportMit: 'Rollwagen',
-    auftraggeber: 'GF Betreuung',
-    fachgruppe: 'betreuung',
-    positionen: [position(), position({ anzahl: '', material: 'Ketchup' })],
-    ...ueberschreibung,
-  };
-}
-function abschnitt(ueberschreibung: Record<string, unknown> = {}) {
-  return {
-    id: neueId(),
-    herkunftId: null,
-    titel: 'GF Betreuung',
-    farbe: 'abschnitt-1',
-    fachgruppe: 'betreuung',
-    laufzettel: [laufzettel(), laufzettel()],
-    ...ueberschreibung,
-  };
-}
-function inhalt(ueberschreibung: Record<string, unknown> = {}) {
-  return { anweisungen: 'Bitte pünktlich.', abschnitte: [abschnitt()], ...ueberschreibung };
-}
 function einsatz(ueberschreibung: Record<string, unknown> = {}) {
   return {
     id: EINSATZ_ID,
@@ -69,13 +30,6 @@ function einsatz(ueberschreibung: Record<string, unknown> = {}) {
     ...ueberschreibung,
   };
 }
-function vorbereitung(ueberschreibung: Record<string, unknown> = {}) {
-  return { vorlageId: null, vorlageVersion: null, inhalt: inhalt(), ...ueberschreibung };
-}
-function vorlage(ueberschreibung: Record<string, unknown> = {}) {
-  return { id: VORLAGE_ID, titel: 'Neue Vorlage', inhalt: inhalt(), ...ueberschreibung };
-}
-
 function pepPosition(ueberschreibung: Record<string, unknown> = {}) {
   return {
     id: neueId(),
@@ -165,8 +119,7 @@ function senden(
 const NEU = { 'If-None-Match': '*' };
 
 const EINSAETZE = '/api/einsatzplanung/einsaetze';
-const VORLAGEN = '/api/einsatzplanung/vb-vorlagen';
-const VB = `${EINSAETZE}/${EINSATZ_ID}/vb`;
+const AUFBAU = `${EINSAETZE}/${EINSATZ_ID}/aufbau`;
 const PEP = `${EINSAETZE}/${EINSATZ_ID}/pep`;
 const PEP_VORLAGEN = '/api/einsatzplanung/pep-vorlagen';
 const PEP_VORLAGE_ID = '31234567-89ab-4cde-8fab-0123456789ab';
@@ -194,7 +147,11 @@ describe('Einsatzplanung: Verteiler', () => {
     '/api/einsatzplanung/einsaetze/keine-uuid',
     `${EINSAETZE}/${EINSATZ_ID}/anderes`,
     `${EINSAETZE}?x=1`,
-    `${VORLAGEN}/${VORLAGE_ID}?x=1`,
+    `${PEP_VORLAGEN}/${PEP_VORLAGE_ID}?x=1`,
+    // Die frühere VB gibt es nicht mehr: kein Pfad, kein Rückfall.
+    `${EINSAETZE}/${EINSATZ_ID}/vb`,
+    '/api/einsatzplanung/vb-vorlagen',
+    `/api/einsatzplanung/vb-vorlagen/${PEP_VORLAGE_ID}`,
   ])('liefert für %s ein JSON-404', async (pfad) => {
     const antwort = await verarbeiten(new FakeEinsatzplanungDb(), pfad);
     expect(antwort.status).toBe(404);
@@ -207,7 +164,7 @@ describe('Einsatzplanung: Verteiler', () => {
     expect((await verarbeiten(db, `${EINSAETZE}/${EINSATZ_ID}`, { method: 'DELETE' })).status).toBe(
       405,
     );
-    expect((await verarbeiten(db, VB, { method: 'POST' })).status).toBe(405);
+    expect((await verarbeiten(db, AUFBAU, { method: 'POST' })).status).toBe(405);
   });
 });
 
@@ -415,21 +372,45 @@ describe('Einsatzplanung: Einsätze', () => {
     });
   });
 
-  it('listet Einsätze samt VB-Kennzahlen oder null mit einer einzigen Abfrage', async () => {
+  const aufbauKoerper = {
+    vorlageId: null,
+    vorlageVersion: null,
+    inhalt: {
+      anweisungen: '',
+      einheiten: [
+        {
+          id: 'bbbbbbbb-0000-4000-8000-000000000001',
+          typ: 'wagen',
+          name: 'Rollwagen',
+          farbe: 'abschnitt-1',
+          anweisung: '',
+          bemerkung: '',
+          inhalt: [],
+        },
+      ],
+    },
+  };
+
+  it('listet Einsätze samt Aufbau-Kennzahlen oder null mit einer einzigen Abfrage', async () => {
     const db = new FakeEinsatzplanungDb();
     await legeEinsatzAn(db);
     await legeEinsatzAn(
       db,
       einsatz({ id: ANDERER_EINSATZ_ID, hiorgVeranstaltungId: null, beginn: null, ende: null }),
     );
-    await senden(db, 'PUT', VB, vorbereitung(), NEU);
+    expect((await senden(db, 'PUT', AUFBAU, aufbauKoerper, NEU)).status).toBe(201);
 
     const antwort = await verarbeiten(db, EINSAETZE);
     expect(antwort.status).toBe(200);
     const koerper = (await antwort.json()) as { einsaetze: Record<string, unknown>[] };
     expect(db.listenabfragen).toBe(1);
     expect(koerper.einsaetze).toEqual([
-      { ...einsatz(), version: 1, vb: { laufzettel: 2, positionen: 4 }, pep: null },
+      {
+        ...einsatz(),
+        version: 1,
+        aufbau: { einheiten: 1, kisten: 0, positionen: 0 },
+        pep: null,
+      },
       {
         ...einsatz({
           id: ANDERER_EINSATZ_ID,
@@ -438,13 +419,13 @@ describe('Einsatzplanung: Einsätze', () => {
           ende: null,
         }),
         version: 1,
-        vb: null,
+        aufbau: null,
         pep: null,
       },
     ]);
   });
 
-  it('liefert pep- und vb-Kennzahlen unabhängig voneinander in derselben Abfrage', async () => {
+  it('liefert pep- und aufbau-Kennzahlen unabhängig voneinander in derselben Abfrage', async () => {
     const db = new FakeEinsatzplanungDb();
     await legeEinsatzAn(db);
     await legeEinsatzAn(
@@ -452,429 +433,20 @@ describe('Einsatzplanung: Einsätze', () => {
       einsatz({ id: ANDERER_EINSATZ_ID, hiorgVeranstaltungId: null, beginn: null }),
     );
     await senden(db, 'PUT', PEP, pep(), NEU);
-    await senden(db, 'PUT', `${EINSAETZE}/${ANDERER_EINSATZ_ID}/vb`, vorbereitung(), NEU);
+    await senden(db, 'PUT', `${EINSAETZE}/${ANDERER_EINSATZ_ID}/aufbau`, aufbauKoerper, NEU);
 
     const koerper = (await (await verarbeiten(db, EINSAETZE)).json()) as {
-      einsaetze: { id: string; vb: unknown; pep: unknown }[];
+      einsaetze: { id: string; aufbau: unknown; pep: unknown }[];
     };
     expect(db.listenabfragen).toBe(1);
     expect(koerper.einsaetze.find((e) => e.id === EINSATZ_ID)).toMatchObject({
-      vb: null,
+      aufbau: null,
       pep: { posten: 2, positionen: 3, besetzt: 1 },
     });
     expect(koerper.einsaetze.find((e) => e.id === ANDERER_EINSATZ_ID)).toMatchObject({
-      vb: { laufzettel: 2, positionen: 4 },
+      aufbau: { einheiten: 1, kisten: 0, positionen: 0 },
       pep: null,
     });
-  });
-});
-
-describe('Einsatzplanung: Vorbereitung', () => {
-  it('legt an, liest, ändert und löscht', async () => {
-    const db = new FakeEinsatzplanungDb();
-    await legeEinsatzAn(db);
-    const eingabe = vorbereitung({ vorlageId: VORLAGE_ID, vorlageVersion: 3 });
-
-    const angelegt = await senden(db, 'PUT', VB, eingabe, NEU);
-    expect(angelegt.status).toBe(201);
-    expect(angelegt.headers.get('ETag')).toBe('"1"');
-    expect(await angelegt.json()).toEqual(eingabe);
-    expect(db.vorbereitungen.get(EINSATZ_ID)).toMatchObject({
-      laufzettel: 2,
-      positionen: 4,
-      geaendert_von: IDENTITAET.email,
-    });
-
-    const gelesen = await verarbeiten(db, VB);
-    expect(gelesen.status).toBe(200);
-    expect(gelesen.headers.get('ETag')).toBe('"1"');
-    expect(await gelesen.json()).toEqual(eingabe);
-
-    const geaendert = vorbereitung({
-      inhalt: inhalt({ abschnitte: [abschnitt({ laufzettel: [laufzettel()] })] }),
-    });
-    const aktualisiert = await senden(db, 'PUT', VB, geaendert, { 'If-Match': 'W/"1"' });
-    expect(aktualisiert.status).toBe(200);
-    expect(aktualisiert.headers.get('ETag')).toBe('"2"');
-    expect(db.vorbereitungen.get(EINSATZ_ID)).toMatchObject({ laufzettel: 1, positionen: 2 });
-
-    const veraltet = await senden(db, 'DELETE', VB, undefined, { 'If-Match': '"1"' });
-    expect(veraltet.status).toBe(412);
-    expect((await senden(db, 'DELETE', VB, undefined, {})).status).toBe(428);
-    const geloescht = await verarbeiten(db, VB, {
-      method: 'DELETE',
-      headers: { 'If-Match': '"2"' },
-    });
-    expect(geloescht.status).toBe(204);
-    const danach = await verarbeiten(db, VB);
-    expect(danach.status).toBe(404);
-    expect(danach.headers.get('X-Stationwizard-Diagnose')).toBe('EINSATZPLANUNG_VB_NICHT_GEFUNDEN');
-  });
-
-  it('antwortet auf PUT für einen unbekannten Einsatz mit 404 NICHT_GEFUNDEN', async () => {
-    const db = new FakeEinsatzplanungDb();
-    const anlegen = await senden(db, 'PUT', VB, vorbereitung(), NEU);
-    expect(anlegen.status).toBe(404);
-    expect(anlegen.headers.get('X-Stationwizard-Diagnose')).toBe('EINSATZPLANUNG_NICHT_GEFUNDEN');
-    const aendern = await senden(db, 'PUT', VB, vorbereitung(), { 'If-Match': '"1"' });
-    expect(aendern.status).toBe(404);
-    expect(aendern.headers.get('X-Stationwizard-Diagnose')).toBe('EINSATZPLANUNG_NICHT_GEFUNDEN');
-  });
-
-  it('unterscheidet bei vorhandenem Einsatz ohne VB 404 VB_NICHT_GEFUNDEN von 412', async () => {
-    const db = new FakeEinsatzplanungDb();
-    await legeEinsatzAn(db);
-    const antwort = await senden(db, 'PUT', VB, vorbereitung(), { 'If-Match': '"1"' });
-    expect(antwort.status).toBe(404);
-    expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe(
-      'EINSATZPLANUNG_VB_NICHT_GEFUNDEN',
-    );
-  });
-
-  it('prüft die Vorbedingungen und meldet eine zweite Anlage als 409', async () => {
-    const db = new FakeEinsatzplanungDb();
-    await legeEinsatzAn(db);
-    expect((await senden(db, 'PUT', VB, vorbereitung(), {})).status).toBe(428);
-    expect((await senden(db, 'PUT', VB, vorbereitung(), { 'If-Match': 'kaputt' })).status).toBe(
-      400,
-    );
-    expect(
-      (await senden(db, 'PUT', VB, vorbereitung(), { ...NEU, 'If-Match': '"1"' })).status,
-    ).toBe(400);
-    expect((await senden(db, 'PUT', VB, vorbereitung(), { 'If-None-Match': '"1"' })).status).toBe(
-      400,
-    );
-    expect(db.vorbereitungen.size).toBe(0);
-    await senden(db, 'PUT', VB, vorbereitung(), NEU);
-    const doppelt = await senden(db, 'PUT', VB, vorbereitung(), NEU);
-    expect(doppelt.status).toBe(409);
-    expect(doppelt.headers.get('X-Stationwizard-Diagnose')).toBe(
-      'EINSATZPLANUNG_BEREITS_VORHANDEN',
-    );
-  });
-
-  it('speichert das Verladungsfoto eines Abschnitts und liefert es unverändert zurück', async () => {
-    const db = new FakeEinsatzplanungDb();
-    await legeEinsatzAn(db);
-    const foto = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
-    const eingabe = vorbereitung({ inhalt: inhalt({ abschnitte: [abschnitt({ foto })] }) });
-    expect((await senden(db, 'PUT', VB, eingabe, NEU)).status).toBeLessThan(300);
-    const gelesen = (await (await senden(db, 'GET', VB)).json()) as {
-      inhalt: { abschnitte: { foto?: string }[] };
-    };
-    expect(gelesen.inhalt.abschnitte[0].foto).toBe(foto);
-  });
-
-  it('speichert einen Hinweis als Position und weist andere Werte ab', async () => {
-    const db = new FakeEinsatzplanungDb();
-    await legeEinsatzAn(db);
-    const mit = (hinweis: unknown) =>
-      vorbereitung({
-        inhalt: inhalt({
-          abschnitte: [
-            abschnitt({
-              laufzettel: [laufzettel({ positionen: [position({ anzahl: '', hinweis })] })],
-            }),
-          ],
-        }),
-      });
-    expect((await senden(db, 'PUT', VB, mit('ja'), NEU)).status).toBe(400);
-    expect((await senden(db, 'PUT', VB, mit(true), NEU)).status).toBeLessThan(300);
-    const gelesen = (await (await senden(db, 'GET', VB)).json()) as {
-      inhalt: { abschnitte: { laufzettel: { positionen: { hinweis?: boolean }[] }[] }[] };
-    };
-    expect(gelesen.inhalt.abschnitte[0].laufzettel[0].positionen[0].hinweis).toBe(true);
-  });
-
-  it('weist ungültige Körper ab', async () => {
-    const db = new FakeEinsatzplanungDb();
-    await legeEinsatzAn(db);
-    for (const schlecht of [
-      { ...vorbereitung(), zusatz: true },
-      vorbereitung({ vorlageId: 'keine-uuid' }),
-      vorbereitung({ vorlageVersion: 0 }),
-      vorbereitung({ vorlageVersion: 1.5 }),
-      vorbereitung({ inhalt: null }),
-      vorbereitung({ inhalt: inhalt({ anweisungen: 'a'.repeat(6001) }) }),
-      vorbereitung({
-        inhalt: inhalt({ abschnitte: [abschnitt({ foto: 'data:image/png;base64,AAAA' })] }),
-      }),
-      vorbereitung({
-        inhalt: inhalt({
-          abschnitte: [abschnitt({ foto: 'data:image/jpeg;base64,' + 'A'.repeat(100_000) })],
-        }),
-      }),
-    ]) {
-      const antwort = await senden(db, 'PUT', VB, schlecht, NEU);
-      expect(antwort.status).toBe(400);
-      expect(antwort.headers.get('X-Stationwizard-Diagnose')).toBe('EINSATZPLANUNG_UNGUELTIG');
-    }
-    expect(db.vorbereitungen.size).toBe(0);
-  });
-});
-
-describe('Einsatzplanung: VB-Vorlagen', () => {
-  it('legt an, liest, ändert, listet mit Kennzahlen und löscht', async () => {
-    const db = new FakeEinsatzplanungDb();
-    const eingabe = vorlage();
-    const angelegt = await senden(db, 'POST', VORLAGEN, eingabe, NEU);
-    expect(angelegt.status).toBe(201);
-    expect(angelegt.headers.get('ETag')).toBe('"1"');
-    expect(await angelegt.json()).toEqual(eingabe);
-
-    const gelesen = await verarbeiten(db, `${VORLAGEN}/${VORLAGE_ID}`);
-    expect(gelesen.headers.get('ETag')).toBe('"1"');
-    expect(await gelesen.json()).toEqual(eingabe);
-
-    const liste = await verarbeiten(db, VORLAGEN);
-    const koerper = (await liste.json()) as { vorlagen: Record<string, unknown>[] };
-    expect(koerper.vorlagen).toHaveLength(1);
-    expect(koerper.vorlagen[0]).toMatchObject({
-      id: VORLAGE_ID,
-      titel: 'Neue Vorlage',
-      version: 1,
-      abschnitte: 1,
-      laufzettel: 2,
-      positionen: 4,
-    });
-    expect(koerper.vorlagen[0]).not.toHaveProperty('inhalt');
-    expect(typeof koerper.vorlagen[0]?.['geaendertAm']).toBe('string');
-
-    const geaendert = await senden(
-      db,
-      'PUT',
-      `${VORLAGEN}/${VORLAGE_ID}`,
-      vorlage({ titel: 'Anders' }),
-      {
-        'If-Match': 'W/"1"',
-      },
-    );
-    expect(geaendert.status).toBe(200);
-    expect(geaendert.headers.get('ETag')).toBe('"2"');
-
-    expect((await senden(db, 'DELETE', `${VORLAGEN}/${VORLAGE_ID}`, undefined, {})).status).toBe(
-      428,
-    );
-    const veraltet = await verarbeiten(db, `${VORLAGEN}/${VORLAGE_ID}`, {
-      method: 'DELETE',
-      headers: { 'If-Match': '"1"' },
-    });
-    expect(veraltet.status).toBe(412);
-    const geloescht = await verarbeiten(db, `${VORLAGEN}/${VORLAGE_ID}`, {
-      method: 'DELETE',
-      headers: { 'If-Match': '"2"' },
-    });
-    expect(geloescht.status).toBe(204);
-    const weg = await verarbeiten(db, `${VORLAGEN}/${VORLAGE_ID}`);
-    expect(weg.status).toBe(404);
-    expect(weg.headers.get('X-Stationwizard-Diagnose')).toBe(
-      'EINSATZPLANUNG_VORLAGE_NICHT_GEFUNDEN',
-    );
-  });
-
-  it('prüft Vorbedingungen, doppelte Ids und unbekannte Vorlagen', async () => {
-    const db = new FakeEinsatzplanungDb();
-    expect((await senden(db, 'POST', VORLAGEN, vorlage(), {})).status).toBe(428);
-    await senden(db, 'POST', VORLAGEN, vorlage(), NEU);
-    expect((await senden(db, 'POST', VORLAGEN, vorlage(), NEU)).status).toBe(409);
-    const pfad = `${VORLAGEN}/${ANDERER_EINSATZ_ID}`;
-    expect(
-      (await senden(db, 'PUT', pfad, vorlage({ id: ANDERER_EINSATZ_ID }), { 'If-Match': '"1"' }))
-        .status,
-    ).toBe(404);
-    expect((await senden(db, 'PUT', pfad, vorlage(), { 'If-Match': '"1"' })).status).toBe(400);
-    expect((await senden(db, 'PUT', `${VORLAGEN}/${VORLAGE_ID}`, vorlage(), {})).status).toBe(428);
-  });
-
-  it('weist ungültige Vorlagen ab', async () => {
-    const db = new FakeEinsatzplanungDb();
-    for (const schlecht of [
-      { ...vorlage(), zusatz: 1 },
-      vorlage({ titel: '' }),
-      vorlage({ titel: 't'.repeat(201) }),
-      vorlage({ id: 'x' }),
-    ]) {
-      expect((await senden(db, 'POST', VORLAGEN, schlecht, NEU)).status).toBe(400);
-    }
-    expect(db.vorlagen.size).toBe(0);
-  });
-});
-
-describe('Einsatzplanung: Prüfung des VB-Inhalts', () => {
-  it('nimmt einen gültigen Inhalt unverändert an und zählt die Kennzahlen', () => {
-    const wert = inhalt({ abschnitte: [abschnitt(), abschnitt()] });
-    expect(pruefeVbInhalt(wert)).toEqual(wert);
-    expect(zaehleVb(wert as never)).toEqual({ abschnitte: 2, laufzettel: 4, positionen: 8 });
-  });
-
-  it('lehnt unbekannte Felder auf jeder Ebene ab', () => {
-    expect(pruefeVbInhalt({ ...inhalt(), x: 1 })).toBeNull();
-    expect(pruefeVbInhalt(inhalt({ abschnitte: [{ ...abschnitt(), x: 1 }] }))).toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({ abschnitte: [abschnitt({ laufzettel: [{ ...laufzettel(), x: 1 }] })] }),
-      ),
-    ).toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({
-          abschnitte: [
-            abschnitt({ laufzettel: [laufzettel({ positionen: [{ ...position(), x: 1 }] })] }),
-          ],
-        }),
-      ),
-    ).toBeNull();
-  });
-
-  it('lehnt falsche Farben und Fachgruppen ab', () => {
-    expect(
-      pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ farbe: 'abschnitt-9' })] })),
-    ).toBeNull();
-    expect(pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ farbe: '#ff0000' })] }))).toBeNull();
-    expect(
-      pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ fachgruppe: 'technik' })] })),
-    ).toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({ abschnitte: [abschnitt({ laufzettel: [laufzettel({ fachgruppe: 'x' })] })] }),
-      ),
-    ).toBeNull();
-    expect(
-      pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ fachgruppe: null })] })),
-    ).not.toBeNull();
-  });
-
-  it('lehnt zu lange Texte und leere Pflichttexte ab', () => {
-    const mitLaufzettel = (feld: Record<string, unknown>) =>
-      inhalt({ abschnitte: [abschnitt({ laufzettel: [laufzettel(feld)] })] });
-    expect(pruefeVbInhalt(mitLaufzettel({ lagerort: 'l'.repeat(201) }))).toBeNull();
-    expect(pruefeVbInhalt(mitLaufzettel({ transportMit: 't'.repeat(201) }))).toBeNull();
-    expect(pruefeVbInhalt(mitLaufzettel({ auftraggeber: 'a'.repeat(201) }))).toBeNull();
-    expect(pruefeVbInhalt(mitLaufzettel({ ueberschrift: 'u'.repeat(201) }))).toBeNull();
-    expect(pruefeVbInhalt(mitLaufzettel({ ueberschrift: '', lagerort: '' }))).not.toBeNull();
-    expect(
-      pruefeVbInhalt(mitLaufzettel({ positionen: [position({ anzahl: '1'.repeat(21) })] })),
-    ).toBeNull();
-    expect(pruefeVbInhalt(mitLaufzettel({ positionen: [position({ material: '' })] }))).toBeNull();
-    expect(
-      pruefeVbInhalt(mitLaufzettel({ positionen: [position({ material: 'm'.repeat(201) })] })),
-    ).toBeNull();
-    expect(pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ titel: '' })] }))).toBeNull();
-  });
-
-  it('lehnt doppelte Ids über alle Ebenen ab', () => {
-    const gemeinsam = neueId();
-    expect(
-      pruefeVbInhalt(
-        inhalt({ abschnitte: [abschnitt({ id: gemeinsam }), abschnitt({ id: gemeinsam })] }),
-      ),
-    ).toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({
-          abschnitte: [
-            abschnitt({
-              laufzettel: [laufzettel({ id: gemeinsam }), laufzettel({ id: gemeinsam })],
-            }),
-          ],
-        }),
-      ),
-    ).toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({
-          abschnitte: [
-            abschnitt({
-              id: gemeinsam,
-              laufzettel: [laufzettel({ positionen: [position({ id: gemeinsam })] })],
-            }),
-          ],
-        }),
-      ),
-    ).toBeNull();
-    expect(pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ id: 'keine-uuid' })] }))).toBeNull();
-    expect(
-      pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ herkunftId: 'keine-uuid' })] })),
-    ).toBeNull();
-  });
-
-  it('erzwingt die Mengengrenzen', () => {
-    const abschnitte = (n: number) =>
-      Array.from({ length: n }, () => abschnitt({ laufzettel: [] }));
-    expect(pruefeVbInhalt(inhalt({ abschnitte: abschnitte(30) }))).not.toBeNull();
-    expect(pruefeVbInhalt(inhalt({ abschnitte: abschnitte(31) }))).toBeNull();
-
-    const kurz = (n: number) => Array.from({ length: n }, () => laufzettel({ positionen: [] }));
-    expect(
-      pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ laufzettel: kurz(300) })] })),
-    ).not.toBeNull();
-    expect(
-      pruefeVbInhalt(inhalt({ abschnitte: [abschnitt({ laufzettel: kurz(301) })] })),
-    ).toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({
-          abschnitte: [abschnitt({ laufzettel: kurz(150) }), abschnitt({ laufzettel: kurz(151) })],
-        }),
-      ),
-    ).toBeNull();
-
-    const positionen = (n: number) => Array.from({ length: n }, () => position());
-    expect(
-      pruefeVbInhalt(
-        inhalt({
-          abschnitte: [abschnitt({ laufzettel: [laufzettel({ positionen: positionen(50) })] })],
-        }),
-      ),
-    ).not.toBeNull();
-    expect(
-      pruefeVbInhalt(
-        inhalt({
-          abschnitte: [abschnitt({ laufzettel: [laufzettel({ positionen: positionen(51) })] })],
-        }),
-      ),
-    ).toBeNull();
-  });
-});
-
-describe('Einsatzplanung: Startvorlage der Migration', () => {
-  const quelle = JSON.parse(
-    readFileSync(
-      new URL('../../docs/vb-startvorlage-weihnachtsmarkt-ummeln.json', import.meta.url),
-      'utf8',
-    ),
-  ) as { id: string; titel: string; inhalt: unknown };
-  const sql = readFileSync(
-    new URL('../migrations/einsatzplanung/0020_einsatzplanung.sql', import.meta.url),
-    'utf8',
-  );
-
-  it('besteht die eigene Prüfung und hat die Kennzahlen 5/22/64', () => {
-    const vorlageGeprueft = pruefeVbVorlage(quelle);
-    expect(vorlageGeprueft).not.toBeNull();
-    expect(zaehleVb(vorlageGeprueft!.inhalt)).toEqual({
-      abschnitte: 5,
-      laufzettel: 22,
-      positionen: 64,
-    });
-  });
-
-  it('steht inhaltsgleich als INSERT in der Migration', () => {
-    const treffer =
-      /VALUES\s*\('([^']+)', '([^']+)', '((?:[^']|'')*)', (\d+), (\d+), (\d+), 1,/.exec(sql);
-    expect(treffer).not.toBeNull();
-    const [, id, titel, jsonText, abschnitte, laufzettel, positionen] = treffer!;
-    expect(id).toBe(quelle.id);
-    expect(titel).toBe(quelle.titel);
-    expect([abschnitte, laufzettel, positionen]).toEqual(['5', '22', '64']);
-    expect(JSON.parse(jsonText!.replace(/''/g, "'"))).toEqual(quelle.inhalt);
-  });
-
-  it('lässt sich über die API lesen, wenn sie eingespielt ist', async () => {
-    const db = new FakeEinsatzplanungDb();
-    const geprueft = pruefeVbVorlage(quelle)!;
-    const antwort = await senden(db, 'POST', VORLAGEN, geprueft, NEU);
-    expect(antwort.status).toBe(201);
   });
 });
 

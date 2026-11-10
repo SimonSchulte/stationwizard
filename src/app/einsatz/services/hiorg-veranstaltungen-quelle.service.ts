@@ -19,7 +19,7 @@ const KEIN_FEED = 'Der HiOrg-Kalenderfeed ist noch nicht eingerichtet.';
  * Dienste und Veranstaltungen für die Einsatzübersicht, gelesen aus dem HiOrg-Kalenderfeed
  * (`GET /api/hiorg/kalender`). Der Feed schaut je Abruf nur in eine Richtung; geladen werden
  * deshalb zwei Fenster – zwölf Monate voraus und sechs zurück – in zwei Aufrufen. Nichts wird
- * gespeichert; ein Einsatz entsteht erst, wenn PEP oder VB angelegt werden.
+ * gespeichert; ein Einsatz entsteht erst, wenn PEP oder Aufbau angelegt werden.
  *
  * Ein Fehlschlag ist nie blockierend: gespeicherte Einsätze erscheinen in der Liste weiter.
  */
