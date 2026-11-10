@@ -3774,6 +3774,9 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **UI-Review, Nachbesserung:** Packliste per Tastatur bedienbar (Alt+Pfeile, Fokus bleibt, im Browser geprüft), Ziehen per
+  Touch mit echten Touch-Ereignissen (Chromium-CDP) geprüft, Kistenname als `mat-form-field`, „Neue Position“ mit Name
+  über die volle Breite. Offen: Touch am echten Gerät und mit Screenreader, die Snackbar über dem Inhalt (Material-Verhalten).
 - **UI-Review des Aufbau-Editors** (Desktop 1300 px, Handy 400 px, mit Fahrzeug, Wagen in anderer Farbe, Kisten mit und ohne
   Inhalt, offener Seitenleiste): kein waagerechtes Scrollen, Tokens statt Literalen, Meldungen nur über den
   `MeldungsDienst`. Behoben: Seitenleiste steht am Handy oben statt unten, Fokusrahmen an Mengen- und Kistennamenfeldern.

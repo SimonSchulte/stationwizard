@@ -255,18 +255,18 @@
 }
 
 .kisten-name {
-  width: 14em;
+  display: block;
+  width: 16em;
   max-width: 100%;
-  padding: var(--space-xs);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--space-xs);
-  background: var(--surface-primary);
-  color: var(--text-primary);
-  font: inherit;
+  margin-top: var(--space-xs);
 }
 
-.menge:focus-visible,
-.kisten-name:focus-visible {
+/* Neue Position im Kisteninhalt: Name über die volle Breite, Menge, Einheit und Knopf darunter. */
+.kiste-inhalt .hinzu .artikel-wahl {
+  flex: 1 1 100%;
+}
+
+.menge:focus-visible {
   outline: 3px solid var(--ci-red);
   outline-offset: 2px;
 }

@@ -1,3 +1,7 @@
+<span id="baum-tastenhinweis" class="sr-only">
+  Mit Alt und den Pfeiltasten verschieben: hoch und runter ändert die Reihenfolge, rechts rückt
+  einen Wagen in das Fahrzeug darüber ein, links nimmt ihn heraus.
+</span>
 @if (zeilen().length === 0) {
   <p class="leer">Noch keine Fahrzeuge oder Wagen. Lege unten die erste Einheit an.</p>
 } @else {
@@ -27,7 +31,10 @@
           type="button"
           class="eintrag"
           [attr.aria-pressed]="zeile.einheit.id === gewaehltId() && zeile.art === 'einheit'"
+          aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"
+          aria-describedby="baum-tastenhinweis"
           (click)="gewaehlt.emit(zeile.einheit.id)"
+          (keydown)="taste($event, $index)"
         >
           @if (zeile.art === 'kiste') {
             <mat-icon class="kisten-symbol" aria-hidden="true">inventory_2</mat-icon>

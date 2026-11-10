@@ -121,8 +121,7 @@ export class AufbauBaum {
     if (!quelle) return;
     // Seitlich ziehen wechselt die Ebene, aber nur für Wagen (Fahrzeug ↔ freier Wagen).
     const x = ereignis.distance.x;
-    const wagen = quelle.art === 'einheit' && quelle.einheit.typ === 'wagen';
-    const ebene = !wagen
+    const ebene = !this.istWagen(quelle)
       ? undefined
       : x > EINRUECKEN_PX
         ? 'tiefer'
@@ -133,10 +132,59 @@ export class AufbauBaum {
     if (ereignis.previousIndex === ereignis.currentIndex && !ebene) return;
     const rest = zeilen.filter((_, index) => index !== ereignis.previousIndex);
     const anker = ereignis.currentIndex > 0 ? rest[ereignis.currentIndex - 1] : undefined;
+    this.melde(quelle, anker, ebene);
+  }
+
+  private istWagen(zeile: Zeile): boolean {
+    return zeile.art === 'einheit' && zeile.einheit.typ === 'wagen';
+  }
+
+  private melde(quelle: Zeile, anker: Zeile | undefined, ebene?: 'tiefer' | 'hoeher'): void {
     this.verschoben.emit({
       quelle: this.ort(quelle),
       anker: anker ? this.ort(anker) : null,
       ...(ebene ? { ebene } : {}),
     });
+  }
+
+  /**
+   * Tastatur statt Ziehen: Alt+Pfeil hoch/runter verschiebt die Zeile um einen Platz (ein Fahrzeug oder
+   * freier Wagen um eine ganze Gruppe), Alt+Pfeil rechts/links rückt einen Wagen ins Fahrzeug darüber
+   * ein oder nimmt ihn heraus.
+   */
+  protected taste(ereignis: KeyboardEvent, index: number): void {
+    if (!ereignis.altKey || ereignis.ctrlKey || ereignis.metaKey) return;
+    const zeilen = this.zeilen();
+    const quelle = zeilen[index];
+    if (!quelle) return;
+    const taste = ereignis.key;
+    if (taste === 'ArrowRight' || taste === 'ArrowLeft') {
+      if (!this.istWagen(quelle)) return;
+      ereignis.preventDefault();
+      this.melde(quelle, zeilen[index - 1], taste === 'ArrowRight' ? 'tiefer' : 'hoeher');
+      return;
+    }
+    if (taste !== 'ArrowUp' && taste !== 'ArrowDown') return;
+    ereignis.preventDefault();
+    const oben = taste === 'ArrowUp';
+    if (quelle.art === 'einheit' && quelle.tiefe === 0) {
+      // Gruppen der obersten Ebene: Zeilen mit gleicher Wurzel stehen hintereinander.
+      const start = (id: string) => zeilen.findIndex((z) => z.wurzelId === id);
+      const ende = (id: string) => zeilen.map((z) => z.wurzelId).lastIndexOf(id);
+      const wurzeln = zeilen.filter((z) => z.tiefe === 0).map((z) => z.wurzelId);
+      const nr = wurzeln.indexOf(quelle.wurzelId);
+      if (oben) {
+        const davor = wurzeln[nr - 1];
+        if (davor === undefined) return;
+        this.melde(quelle, zeilen[start(davor) - 1]);
+      } else {
+        const danach = wurzeln[nr + 1];
+        if (danach === undefined) return;
+        this.melde(quelle, zeilen[ende(danach)]);
+      }
+      return;
+    }
+    if (oben ? index === 0 : index >= zeilen.length - 1) return;
+    this.melde(quelle, oben ? zeilen[index - 2] : zeilen[index + 1]);
   }
 }

@@ -163,4 +163,83 @@ describe('AufbauBaum', () => {
     });
     expect(meldungen[0]).toMatchObject({ anker: null, ebene: 'tiefer' });
   });
+
+  describe('Tastatur', () => {
+    function aufbau() {
+      const kiste = {
+        art: 'kiste' as const,
+        id: crypto.randomUUID(),
+        kisteId: null,
+        name: 'K',
+        lagerId: null,
+        anzahl: 1,
+        inhalt: [],
+        phase: null,
+      };
+      const a = testEinheit({ typ: 'fahrzeug', name: 'A', inhalt: [kiste] });
+      const b = testEinheit({ typ: 'fahrzeug', name: 'B' });
+      const wagen = testEinheit({ typ: 'wagen', name: 'Frei' });
+      return { a, b, wagen, kiste };
+    }
+
+    function druecke(
+      fixture: ComponentFixture<AufbauBaum>,
+      element: HTMLElement,
+      index: number,
+      key: string,
+    ) {
+      const meldungen: { quelle: { id: string }; anker: { id: string } | null; ebene?: string }[] =
+        [];
+      fixture.componentInstance.verschoben.subscribe((m) => meldungen.push(m));
+      const knoepfe = [...element.querySelectorAll<HTMLButtonElement>('.baum .eintrag')];
+      const ereignis = new KeyboardEvent('keydown', { key, altKey: true, cancelable: true });
+      knoepfe[index]!.dispatchEvent(ereignis);
+      return { meldungen, verhindert: ereignis.defaultPrevented };
+    }
+
+    it('verschiebt ein Fahrzeug mit Alt+Pfeil runter hinter die ganze nächste Gruppe', () => {
+      const { a, b } = aufbau();
+      const { fixture, element } = erzeuge(testAufbauInhalt([a, b]));
+      // Zeilen: A, K, B – A wandert hinter B.
+      const { meldungen, verhindert } = druecke(fixture, element, 0, 'ArrowDown');
+      expect(verhindert).toBe(true);
+      expect(meldungen).toHaveLength(1);
+      expect(meldungen[0]!.quelle.id).toBe(a.id);
+      expect(meldungen[0]!.anker?.id).toBe(b.id);
+    });
+
+    it('verschiebt mit Alt+Pfeil hoch an den Anfang und lässt am Rand alles unverändert', () => {
+      const { a, b } = aufbau();
+      const { fixture, element } = erzeuge(testAufbauInhalt([a, b]));
+      const hoch = druecke(fixture, element, 2, 'ArrowUp'); // B hoch: vor A
+      expect(hoch.meldungen[0]!.quelle.id).toBe(b.id);
+      expect(hoch.meldungen[0]!.anker).toBeNull();
+      const oben = druecke(fixture, element, 0, 'ArrowUp'); // A ist schon ganz oben
+      expect(oben.meldungen).toHaveLength(0);
+    });
+
+    it('rückt einen freien Wagen mit Alt+Pfeil rechts ein und nimmt ihn mit links heraus', () => {
+      const { a, wagen } = aufbau();
+      const { fixture, element } = erzeuge(testAufbauInhalt([a, wagen]));
+      // Zeilen: A, K, Frei (Index 2)
+      const rein = druecke(fixture, element, 2, 'ArrowRight');
+      expect(rein.meldungen[0]).toMatchObject({ ebene: 'tiefer' });
+      expect(rein.meldungen[0]!.quelle.id).toBe(wagen.id);
+      const raus = druecke(fixture, element, 2, 'ArrowLeft');
+      expect(raus.meldungen[0]).toMatchObject({ ebene: 'hoeher' });
+      // Ein Fahrzeug lässt sich nicht einrücken.
+      expect(druecke(fixture, element, 0, 'ArrowRight').meldungen).toHaveLength(0);
+    });
+
+    it('ignoriert Pfeile ohne Alt', () => {
+      const { a } = aufbau();
+      const { fixture, element } = erzeuge(testAufbauInhalt([a]));
+      const meldungen: unknown[] = [];
+      fixture.componentInstance.verschoben.subscribe((m) => meldungen.push(m));
+      const ereignis = new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true });
+      element.querySelector('.baum .eintrag')!.dispatchEvent(ereignis);
+      expect(meldungen).toHaveLength(0);
+      expect(ereignis.defaultPrevented).toBe(false);
+    });
+  });
 });

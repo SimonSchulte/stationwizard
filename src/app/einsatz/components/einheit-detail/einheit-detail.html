@@ -93,15 +93,17 @@
             <td data-label="Eintrag">
               @if (zeile.eintrag.art === 'kiste') {
                 <span class="typ">Kiste</span>
-                <input
-                  class="kisten-name"
-                  type="text"
-                  autocomplete="off"
-                  aria-label="Name der Kiste"
-                  [attr.maxlength]="maxName"
-                  [value]="zeile.eintrag.name"
-                  (change)="kisteUmbenennen(zeile.eintrag.id, $event)"
-                />
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="kisten-name">
+                  <mat-label>Name der Kiste</mat-label>
+                  <input
+                    matInput
+                    type="text"
+                    autocomplete="off"
+                    [attr.maxlength]="maxName"
+                    [value]="zeile.eintrag.name"
+                    (change)="kisteUmbenennen(zeile.eintrag.id, $event)"
+                  />
+                </mat-form-field>
               } @else {
                 {{ zeile.titel }}
               }

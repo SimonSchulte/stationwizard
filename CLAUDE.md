@@ -670,7 +670,9 @@ Ein **freier Wagen** lässt sich durch **seitliches Ziehen nach rechts** (mehr a
 Fahrzeug des Ankers einrücken, ein Wagen im Fahrzeug durch Ziehen **nach links** zum freien Wagen herausnehmen
 (`ebene: 'tiefer' | 'hoeher'` an `verschiebeImBaum()`; das geht auch ohne Platzwechsel). Am Griff bewusst nur ein
 natives `title`, kein `matTooltip`: dessen Fläche deckte beim Ziehen die nächsten Griffe ab.
-Eine Tastaturbedienung gibt es dafür noch nicht. **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
+**Tastatur:** Alt+Pfeil hoch/runter verschiebt die fokussierte Zeile um einen Platz (ein Fahrzeug oder freier Wagen um eine
+ganze Gruppe), Alt+Pfeil rechts/links rückt einen Wagen ein oder nimmt ihn heraus (`AufbauBaum.taste()`, hinterlegt über
+`aria-keyshortcuts` und `aria-describedby`; Ziehen und Tastatur laufen über denselben Ausgang `verschoben`). **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
 (`pruefungOffen`, standardmäßig zu, Knopf mit Zähler der Hinweise; mobil unter dem Inhalt).
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
