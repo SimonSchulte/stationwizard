@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { AufbauEinheit, AufbauInhalt, EinheitTyp } from '../../models/aufbau.model';
 import { BaumOrt } from '../../services/aufbau-bearbeiten';
 import { AufbauProblem } from '../../services/aufbau-abgleich';
@@ -14,6 +13,9 @@ export interface EinheitNeu {
   /** Fahrzeug, in das ein Wagen gestellt wird; sonst steht der Wagen für sich. */
   inFahrzeugId: string | null;
 }
+
+/** Horizontaler Zug, ab dem das Ablegen die Ebene wechselt (Einrücken). */
+const EINRUECKEN_PX = 32;
 
 interface Zeile {
   schluessel: string;
@@ -43,7 +45,6 @@ interface Zeile {
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
-    MatTooltipModule,
   ],
   templateUrl: './aufbau-baum.html',
   styleUrl: './aufbau-baum.less',
@@ -57,7 +58,12 @@ export class AufbauBaum {
   readonly gewaehlt = output<string>();
   readonly hinzufuegen = output<EinheitNeu>();
   /** Eine Zeile wurde per Ziehen verschoben: hinter `anker` (die Zeile davor), `null` ganz oben. */
-  readonly verschoben = output<{ quelle: BaumOrt; anker: BaumOrt | null }>();
+  readonly verschoben = output<{
+    quelle: BaumOrt;
+    anker: BaumOrt | null;
+    /** Weit nach rechts gezogen: eine Ebene tiefer (Wagen ins Fahrzeug), nach links: heraus. */
+    ebene?: 'tiefer' | 'hoeher';
+  }>();
 
   /** Vollständiger Baum bis zur Kistenebene: Fahrzeug → Kisten und Wagen → Kisten im Wagen. */
   protected readonly zeilen = computed<Zeile[]>(() => {
@@ -110,12 +116,27 @@ export class AufbauBaum {
   }
 
   protected abgelegt(ereignis: CdkDragDrop<unknown>): void {
-    if (ereignis.previousIndex === ereignis.currentIndex) return;
     const zeilen = this.zeilen();
     const quelle = zeilen[ereignis.previousIndex];
     if (!quelle) return;
+    // Seitlich ziehen wechselt die Ebene, aber nur für Wagen (Fahrzeug ↔ freier Wagen).
+    const x = ereignis.distance.x;
+    const wagen = quelle.art === 'einheit' && quelle.einheit.typ === 'wagen';
+    const ebene = !wagen
+      ? undefined
+      : x > EINRUECKEN_PX
+        ? 'tiefer'
+        : x < -EINRUECKEN_PX
+          ? 'hoeher'
+          : undefined;
+    // Ohne Platzwechsel zählt nur das Ein- oder Ausrücken.
+    if (ereignis.previousIndex === ereignis.currentIndex && !ebene) return;
     const rest = zeilen.filter((_, index) => index !== ereignis.previousIndex);
     const anker = ereignis.currentIndex > 0 ? rest[ereignis.currentIndex - 1] : undefined;
-    this.verschoben.emit({ quelle: this.ort(quelle), anker: anker ? this.ort(anker) : null });
+    this.verschoben.emit({
+      quelle: this.ort(quelle),
+      anker: anker ? this.ort(anker) : null,
+      ...(ebene ? { ebene } : {}),
+    });
   }
 }

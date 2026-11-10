@@ -417,10 +417,14 @@ export class AufbauEditor {
     this.gewaehltId.set(ergebnis.id);
   }
 
-  protected baumVerschoben(ereignis: { quelle: BaumOrt; anker: BaumOrt | null }): void {
+  protected baumVerschoben(ereignis: {
+    quelle: BaumOrt;
+    anker: BaumOrt | null;
+    ebene?: 'tiefer' | 'hoeher';
+  }): void {
     const inhalt = this.store.inhalt();
     if (!inhalt) return;
-    const neu = verschiebeImBaum(inhalt, ereignis.quelle, ereignis.anker);
+    const neu = verschiebeImBaum(inhalt, ereignis.quelle, ereignis.anker, ereignis.ebene);
     if (neu !== inhalt) this.store.aendern(neu);
   }
 

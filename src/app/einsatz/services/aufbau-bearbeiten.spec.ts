@@ -353,4 +353,41 @@ describe('verschiebeImBaum', () => {
     ).toBe(a.inhalt);
     expect(istAufbauInhalt(neu)).toBe(true);
   });
+
+  it('stellt einen freien Wagen samt Inhalt in ein Fahrzeug und holt einen Wagen wieder heraus', () => {
+    const kw = kisteEintrag('KF');
+    const frei = testEinheit({ name: 'Freier Wagen', inhalt: [kw] });
+    const a = aufbau();
+    const mitFrei = { ...a.inhalt, einheiten: [...a.inhalt.einheiten, frei] };
+    const nachF2 = ort('einheit', a.f2.id, a.f2.id, a.f2.id, 0);
+    const eingerueckt = verschiebeImBaum(
+      mitFrei,
+      ort('einheit', frei.id, frei.id, frei.id, 0),
+      nachF2,
+      'tiefer',
+    );
+    expect(eingerueckt.einheiten.map((e) => e.name)).toEqual(['F1', 'F2', 'Frei']);
+    expect(namen(eingerueckt.einheiten[1]!)).toEqual(['W:Freier Wagen', 'W:Wagen 2']);
+    expect(namen(alleEinheiten(eingerueckt).find((e) => e.id === frei.id)!)).toEqual(['KF']);
+    expect(istAufbauInhalt(eingerueckt)).toBe(true);
+    // Ohne Einrücken bleibt es ein Umsortieren; ein freier Wagen nimmt keinen freien Wagen auf.
+    expect(
+      verschiebeImBaum(
+        mitFrei,
+        ort('einheit', frei.id, frei.id, frei.id, 0),
+        ort('einheit', a.frei.id, a.frei.id, a.frei.id, 0),
+        'tiefer',
+      ),
+    ).toBe(mitFrei);
+    // Zurück auf oberste Ebene, hinter F2.
+    const heraus = verschiebeImBaum(
+      eingerueckt,
+      ort('einheit', frei.id, a.f2.id, a.f2.id, 1),
+      ort('einheit', a.f2.id, a.f2.id, a.f2.id, 0),
+      'hoeher',
+    );
+    expect(heraus.einheiten.map((e) => e.name)).toEqual(['F1', 'F2', 'Freier Wagen', 'Frei']);
+    expect(namen(heraus.einheiten[1]!)).toEqual(['W:Wagen 2']);
+    expect(istAufbauInhalt(heraus)).toBe(true);
+  });
 });

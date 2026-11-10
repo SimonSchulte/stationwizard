@@ -267,11 +267,61 @@ export function verschiebeImBaum(
   inhalt: AufbauInhalt,
   quelle: BaumOrt,
   anker: BaumOrt | null,
+  ebene?: 'tiefer' | 'hoeher',
 ): AufbauInhalt {
   if (anker && anker.art === quelle.art && anker.id === quelle.id) return inhalt;
   if (quelle.art === 'kiste') return verschiebeKiste(inhalt, quelle, anker);
-  if (quelle.tiefe === 0) return verschiebeObersteEinheit(inhalt, quelle, anker);
+  if (quelle.tiefe === 0) {
+    const frei = inhalt.einheiten.find((e) => e.id === quelle.id);
+    if (ebene === 'tiefer' && frei?.typ === 'wagen') return wagenInFahrzeug(inhalt, frei, anker);
+    return verschiebeObersteEinheit(inhalt, quelle, anker);
+  }
+  if (ebene === 'hoeher') return wagenHerausnehmen(inhalt, quelle, anker);
   return verschiebeWagen(inhalt, quelle, anker);
+}
+
+/** Stellt einen freien Wagen (samt Inhalt) als Wagen in das Fahrzeug des Ankers. */
+function wagenInFahrzeug(
+  inhalt: AufbauInhalt,
+  wagen: AufbauEinheit,
+  anker: BaumOrt | null,
+): AufbauInhalt {
+  const ziel = anker ? inhalt.einheiten.find((e) => e.id === anker.wurzelId) : undefined;
+  if (!anker || !ziel || ziel.typ !== 'fahrzeug') return inhalt;
+  const ohne: AufbauInhalt = {
+    ...inhalt,
+    einheiten: inhalt.einheiten.filter((e) => e.id !== wagen.id),
+  };
+  const eintrag: AufbauEintrag = { art: 'wagen', id: neueId(), einheit: wagen };
+  return ersetzeEinheit(ohne, ziel.id, (e) => {
+    const nach = e.inhalt.findIndex((x) => x.art === 'wagen' && x.einheit.id === anker.einheitId);
+    const ersterWagen = e.inhalt.findIndex((x) => x.art === 'wagen');
+    const index = nach >= 0 ? nach + 1 : ersterWagen >= 0 ? ersterWagen : e.inhalt.length;
+    return { ...e, inhalt: [...e.inhalt.slice(0, index), eintrag, ...e.inhalt.slice(index)] };
+  });
+}
+
+/** Macht einen Wagen im Fahrzeug zum freien Wagen auf oberster Ebene, hinter der Gruppe des Ankers. */
+function wagenHerausnehmen(
+  inhalt: AufbauInhalt,
+  quelle: BaumOrt,
+  anker: BaumOrt | null,
+): AufbauInhalt {
+  const wagen = findeEinheit(inhalt, quelle.id);
+  if (!wagen || wagen.typ !== 'wagen') return inhalt;
+  const ohne: AufbauInhalt = {
+    ...inhalt,
+    einheiten: inhalt.einheiten.map((e) => ({
+      ...e,
+      inhalt: e.inhalt.filter((x) => !(x.art === 'wagen' && x.einheit.id === quelle.id)),
+    })),
+  };
+  const nach = anker ? ohne.einheiten.findIndex((e) => e.id === anker.wurzelId) : -1;
+  const index = nach >= 0 ? nach + 1 : 0;
+  return {
+    ...ohne,
+    einheiten: [...ohne.einheiten.slice(0, index), wagen, ...ohne.einheiten.slice(index)],
+  };
 }
 
 function verschiebeKiste(

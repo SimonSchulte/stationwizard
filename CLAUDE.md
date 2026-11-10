@@ -653,6 +653,10 @@ Baum). Der Baum erlaubt **Drag and drop** am Griff (CDK `cdkDropList`, `AufbauBa
 Zeile davor als Anker, die Änderung ist die reine Funktion `verschiebeImBaum()`): eine Kiste wandert in die Einheit des
 Ankers (auch zwischen Fahrzeug und Wagen), ein Wagen in ein anderes Fahrzeug (nie in einen freien Wagen), ein Fahrzeug
 oder freier Wagen ändert seinen Platz auf oberster Ebene und nimmt seinen Inhalt mit; unzulässige Ziele ändern nichts.
+Ein **freier Wagen** lässt sich durch **seitliches Ziehen nach rechts** (mehr als 32 px, `EINRUECKEN_PX`) als Wagen in das
+Fahrzeug des Ankers einrücken, ein Wagen im Fahrzeug durch Ziehen **nach links** zum freien Wagen herausnehmen
+(`ebene: 'tiefer' | 'hoeher'` an `verschiebeImBaum()`; das geht auch ohne Platzwechsel). Am Griff bewusst nur ein
+natives `title`, kein `matTooltip`: dessen Fläche deckte beim Ziehen die nächsten Griffe ab.
 Eine Tastaturbedienung gibt es dafür noch nicht. **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
 (`pruefungOffen`, standardmäßig zu, Knopf mit Zähler der Hinweise; mobil unter dem Inhalt).
 

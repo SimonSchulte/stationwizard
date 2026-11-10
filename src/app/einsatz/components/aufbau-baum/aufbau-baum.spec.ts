@@ -134,6 +134,7 @@ describe('AufbauBaum', () => {
     (fixture.componentInstance as unknown as { abgelegt(e: unknown): void }).abgelegt({
       previousIndex: 1,
       currentIndex: 2,
+      distance: { x: 0, y: 40 },
     });
     expect(meldungen).toEqual([
       {
@@ -157,7 +158,8 @@ describe('AufbauBaum', () => {
     (fixture.componentInstance as unknown as { abgelegt(e: unknown): void }).abgelegt({
       previousIndex: 2,
       currentIndex: 0,
+      distance: { x: 60, y: -40 },
     });
-    expect((meldungen[0] as { anker: unknown }).anker).toBeNull();
+    expect(meldungen[0]).toMatchObject({ anker: null, ebene: 'tiefer' });
   });
 });
