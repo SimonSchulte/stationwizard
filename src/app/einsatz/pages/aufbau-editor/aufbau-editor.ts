@@ -54,6 +54,8 @@ import {
   freienArtikelVerknuepfen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
+  type BaumOrt,
+  verschiebeImBaum,
   kistePositionAendern,
   kistePositionEntfernen,
   kistePositionHinzufuegen,
@@ -413,6 +415,13 @@ export class AufbauEditor {
     const ergebnis = einheitHinzufuegen(inhalt, neu.typ, '', neu.inFahrzeugId);
     this.store.aendern(ergebnis.inhalt);
     this.gewaehltId.set(ergebnis.id);
+  }
+
+  protected baumVerschoben(ereignis: { quelle: BaumOrt; anker: BaumOrt | null }): void {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const neu = verschiebeImBaum(inhalt, ereignis.quelle, ereignis.anker);
+    if (neu !== inhalt) this.store.aendern(neu);
   }
 
   protected einheitGeaendert(id: string, aenderung: EinheitAenderung): void {

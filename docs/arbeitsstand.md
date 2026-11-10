@@ -3774,6 +3774,11 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
   waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
   „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
   Fortsetzungsstreifen.
+- **Drag and drop in der Packliste:** Kisten zwischen Fahrzeug und Wagen, Wagen zwischen Fahrzeugen, Fahrzeuge und
+  freie Wagen umsortieren (`verschiebeImBaum()` mit Unit-Tests, Komponententest für das Ablegen). Im Browser mit Maus
+  am Griff geprüft (Kiste vom Fahrzeug in den Wagen, Speichern). **Nicht geprüft:** Ziehen per Touch am echten
+  Gerät, Tastaturbedienung (gibt es nicht), Ziehen eines ganzen Fahrzeugs im Browser (nur Unit-Test; die Vorschau
+  zeigt nur die Zeile, nicht den Inhalt).
 - **Übernahme in den Katalog:** Knopf „In den Artikelkatalog übernehmen“ an freien Artikeln und freien
   Kistenpositionen (Anlegen mit Rückfrage oder Verknüpfen mit gleichnamigem Katalogartikel). Im Browser mit
   Attrappen-Server geprüft (Anlegen, Verknüpfen, gespeicherter JSON); freie Kistenposition nur im Unit-Test. Der

@@ -649,7 +649,11 @@ beide über `schildSpalten()`.
 
 Die Seite des Aufbau-Editors zeigt die **Packliste** (`AufbauBaum`) als vollständigen Baum bis zur Kistenebene
 (Fahrzeug → Kisten und Wagen → Kisten; ein Klick auf eine Kiste wählt ihre Einheit, lose Artikel stehen nicht im
-Baum). **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
+Baum). Der Baum erlaubt **Drag and drop** am Griff (CDK `cdkDropList`, `AufbauBaum.verschoben` meldet Quelle und die
+Zeile davor als Anker, die Änderung ist die reine Funktion `verschiebeImBaum()`): eine Kiste wandert in die Einheit des
+Ankers (auch zwischen Fahrzeug und Wagen), ein Wagen in ein anderes Fahrzeug (nie in einen freien Wagen), ein Fahrzeug
+oder freier Wagen ändert seinen Platz auf oberster Ebene und nimmt seinen Inhalt mit; unzulässige Ziele ändern nichts.
+Eine Tastaturbedienung gibt es dafür noch nicht. **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
 (`pruefungOffen`, standardmäßig zu, Knopf mit Zähler der Hinweise; mobil unter dem Inhalt).
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von

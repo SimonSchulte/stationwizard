@@ -13,7 +13,40 @@
   gap: var(--space-xs);
 }
 
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.griff {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.cdk-drag-preview {
+  box-shadow: var(--focus-shadow);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}
+
 .eintrag {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: var(--space-sm);

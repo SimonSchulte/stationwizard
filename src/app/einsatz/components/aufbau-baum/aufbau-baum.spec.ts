@@ -46,7 +46,7 @@ describe('AufbauBaum', () => {
       'GW-San',
       'Rollwagen',
     ]);
-    expect(eintraege[1]!.classList.contains('eingerueckt')).toBe(true);
+    expect(eintraege[1]!.closest('.zeile')!.classList.contains('eingerueckt')).toBe(true);
     expect(eintraege[1]!.getAttribute('aria-pressed')).toBe('true');
     expect(eintraege[0]!.getAttribute('aria-pressed')).toBe('false');
     expect(eintraege[1]!.querySelector('mat-icon.warnung')).not.toBeNull();
@@ -93,7 +93,7 @@ describe('AufbauBaum', () => {
       inhalt: [kiste('Werkzeug', 1), { art: 'wagen', id: crypto.randomUUID(), einheit: wagen }],
     });
     const { fixture, element } = erzeuge(testAufbauInhalt([fahrzeug]));
-    const zeilen = [...element.querySelectorAll('.baum .eintrag')];
+    const zeilen = [...element.querySelectorAll('.baum .zeile')];
     expect(zeilen.map((z) => z.querySelector('.name')?.textContent?.trim())).toEqual([
       'GW-San',
       '1× Werkzeug',
@@ -105,7 +105,59 @@ describe('AufbauBaum', () => {
     expect(zeilen[3]!.classList.contains('eingerueckt-tief')).toBe(true);
     const gewaehlt: string[] = [];
     fixture.componentInstance.gewaehlt.subscribe((id) => gewaehlt.push(id));
-    (zeilen[3] as HTMLButtonElement).click();
+    zeilen[3]!.querySelector<HTMLButtonElement>('.eintrag')!.click();
     expect(gewaehlt).toEqual([wagen.id]);
+  });
+
+  it('meldet nach dem Ziehen Quelle und die Zeile davor als Anker', () => {
+    const kiste = (name: string) => ({
+      art: 'kiste' as const,
+      id: crypto.randomUUID(),
+      kisteId: null,
+      name,
+      lagerId: null,
+      anzahl: 1,
+      inhalt: [],
+      phase: null,
+    });
+    const k1 = kiste('K1');
+    const wagen = testEinheit({ name: 'Wagen' });
+    const fahrzeug = testEinheit({
+      typ: 'fahrzeug',
+      name: 'GW',
+      inhalt: [k1, { art: 'wagen', id: crypto.randomUUID(), einheit: wagen }],
+    });
+    const { fixture } = erzeuge(testAufbauInhalt([fahrzeug]));
+    const meldungen: unknown[] = [];
+    fixture.componentInstance.verschoben.subscribe((m) => meldungen.push(m));
+    // Zeilen: GW, K1, Wagen. K1 (Index 1) hinter den Wagen (Index 2) ziehen.
+    (fixture.componentInstance as unknown as { abgelegt(e: unknown): void }).abgelegt({
+      previousIndex: 1,
+      currentIndex: 2,
+    });
+    expect(meldungen).toEqual([
+      {
+        quelle: {
+          art: 'kiste',
+          id: k1.id,
+          einheitId: fahrzeug.id,
+          wurzelId: fahrzeug.id,
+          tiefe: 1,
+        },
+        anker: {
+          art: 'einheit',
+          id: wagen.id,
+          einheitId: wagen.id,
+          wurzelId: fahrzeug.id,
+          tiefe: 1,
+        },
+      },
+    ]);
+    meldungen.length = 0;
+    (fixture.componentInstance as unknown as { abgelegt(e: unknown): void }).abgelegt({
+      previousIndex: 2,
+      currentIndex: 0,
+    });
+    expect((meldungen[0] as { anker: unknown }).anker).toBeNull();
   });
 });

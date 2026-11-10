@@ -244,6 +244,97 @@ export function freiePositionVerknuepfen(
   });
 }
 
+/** Eine Stelle im Baum der Packliste (Zeile eines Fahrzeugs, Wagens oder einer Kiste). */
+export interface BaumOrt {
+  art: 'einheit' | 'kiste';
+  /** Einheit-Id bei einer Einheit, Eintrag-Id bei einer Kiste. */
+  id: string;
+  /** Einheit, die die Zeile ist (Einheit) oder in der sie steht (Kiste). */
+  einheitId: string;
+  /** Oberste Einheit der Zeile. */
+  wurzelId: string;
+  tiefe: 0 | 1 | 2;
+}
+
+/**
+ * Verschiebt eine Zeile der Packliste hinter `anker` (die Zeile davor nach dem Ablegen, `null`:
+ * ganz nach oben). Eine **Kiste** wandert in die Einheit des Ankers, hinter dessen Kiste; ein
+ * **Wagen im Fahrzeug** in das Fahrzeug des Ankers (nie in einen freien Wagen); ein **Fahrzeug oder
+ * freier Wagen** ändert nur seinen Platz auf oberster Ebene und nimmt seinen Inhalt mit. Unzulässige
+ * Ziele lassen den Inhalt unverändert.
+ */
+export function verschiebeImBaum(
+  inhalt: AufbauInhalt,
+  quelle: BaumOrt,
+  anker: BaumOrt | null,
+): AufbauInhalt {
+  if (anker && anker.art === quelle.art && anker.id === quelle.id) return inhalt;
+  if (quelle.art === 'kiste') return verschiebeKiste(inhalt, quelle, anker);
+  if (quelle.tiefe === 0) return verschiebeObersteEinheit(inhalt, quelle, anker);
+  return verschiebeWagen(inhalt, quelle, anker);
+}
+
+function verschiebeKiste(
+  inhalt: AufbauInhalt,
+  quelle: BaumOrt,
+  anker: BaumOrt | null,
+): AufbauInhalt {
+  const eintrag = findeEinheit(inhalt, quelle.einheitId)?.inhalt.find(
+    (x) => x.id === quelle.id && x.art === 'kiste',
+  );
+  const zielId = anker?.einheitId ?? inhalt.einheiten[0]?.id;
+  if (!eintrag || !zielId) return inhalt;
+  const ohne = ersetzeEinheit(inhalt, quelle.einheitId, (e) => ({
+    ...e,
+    inhalt: e.inhalt.filter((x) => x.id !== quelle.id),
+  }));
+  return ersetzeEinheit(ohne, zielId, (e) => {
+    const nach = anker?.art === 'kiste' ? e.inhalt.findIndex((x) => x.id === anker.id) : -1;
+    const index = nach >= 0 ? nach + 1 : 0;
+    return { ...e, inhalt: [...e.inhalt.slice(0, index), eintrag, ...e.inhalt.slice(index)] };
+  });
+}
+
+function verschiebeObersteEinheit(
+  inhalt: AufbauInhalt,
+  quelle: BaumOrt,
+  anker: BaumOrt | null,
+): AufbauInhalt {
+  if (anker?.wurzelId === quelle.id) return inhalt;
+  const einheit = inhalt.einheiten.find((e) => e.id === quelle.id);
+  if (!einheit) return inhalt;
+  const rest = inhalt.einheiten.filter((e) => e.id !== quelle.id);
+  const nach = anker ? rest.findIndex((e) => e.id === anker.wurzelId) : -1;
+  const index = nach >= 0 ? nach + 1 : 0;
+  return { ...inhalt, einheiten: [...rest.slice(0, index), einheit, ...rest.slice(index)] };
+}
+
+function verschiebeWagen(
+  inhalt: AufbauInhalt,
+  quelle: BaumOrt,
+  anker: BaumOrt | null,
+): AufbauInhalt {
+  const ziel = anker ? inhalt.einheiten.find((e) => e.id === anker.wurzelId) : undefined;
+  if (!anker || !ziel || ziel.typ !== 'fahrzeug' || anker.einheitId === quelle.id) return inhalt;
+  const eintrag = inhalt.einheiten
+    .flatMap((e) => e.inhalt)
+    .find((x) => x.art === 'wagen' && x.einheit.id === quelle.id);
+  if (!eintrag) return inhalt;
+  const ohne: AufbauInhalt = {
+    ...inhalt,
+    einheiten: inhalt.einheiten.map((e) => ({
+      ...e,
+      inhalt: e.inhalt.filter((x) => x !== eintrag),
+    })),
+  };
+  return ersetzeEinheit(ohne, ziel.id, (e) => {
+    const nach = e.inhalt.findIndex((x) => x.art === 'wagen' && x.einheit.id === anker.einheitId);
+    const ersterWagen = e.inhalt.findIndex((x) => x.art === 'wagen');
+    const index = nach >= 0 ? nach + 1 : ersterWagen >= 0 ? ersterWagen : e.inhalt.length;
+    return { ...e, inhalt: [...e.inhalt.slice(0, index), eintrag, ...e.inhalt.slice(index)] };
+  });
+}
+
 export function eintragAendern(
   inhalt: AufbauInhalt,
   einheitId: string,
