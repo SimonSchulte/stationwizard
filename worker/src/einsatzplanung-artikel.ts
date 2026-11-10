@@ -20,6 +20,7 @@ import {
   stammdatenInNutzung,
   stammdatenNameVergeben,
 } from './einsatzplanung-stammdaten';
+import { aufbauVerweistAuf } from './einsatzplanung-aufbau-verweise';
 import { starkesEtag } from './etag';
 
 /**
@@ -206,6 +207,9 @@ export async function loescheArtikel(
     .first<{ n: number }>();
   if ((inKisten?.n ?? 0) > 0) {
     return stammdatenInNutzung('Dieser Artikel ist noch in einer Kiste enthalten.');
+  }
+  if (await aufbauVerweistAuf(db, 'artikelId', id)) {
+    return stammdatenInNutzung('Dieser Artikel wird noch in einem Aufbau verwendet.');
   }
   const ergebnis = await db
     .prepare('DELETE FROM artikel WHERE id = ? AND version = ?')

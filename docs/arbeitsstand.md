@@ -3706,3 +3706,20 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   bleibt eine Desktop-Darstellung).
 - Hinweis: Die zwei zeitabhängigen Tests in `planning-list.spec.ts` schlagen weiter abends fehl (siehe
   oben), unabhängig von dieser Stufe.
+
+## Packeinheiten, Stufe 3: Aufbau (Worker-Teil)
+
+- Mock des Aufbau-Editors vom Betreiber abgenommen („Passt“). Umgesetzt ist zunächst nur der Worker-Teil;
+  Frontend (Modell, Storage, `zettelAbleiten()`, Store), Aufbau-Editor, Umstellung des Drucks und der Abbau
+  von VB-Editor und -Endpunkten folgen.
+- Neu: Migration `0025_aufbau.sql` (`aufbauten`, `aufbau_vorlagen`), Worker `einsatzplanung-aufbauten.ts`,
+  `-aufbau-vorlagen.ts`, `-aufbau-pruefung.ts`, `-aufbau-verweise.ts`, Endpunkte in der Tabelle der
+  `CLAUDE.md`, Löschschutz für Artikel und Lager, auf die ein Aufbau verweist.
+- Abweichung vom Konzept: Ein Kisteneintrag trägt zusätzlich `name` und `lagerId` (Momentaufnahme), damit ein
+  gelöschter Stammdatensatz den Aufbau nicht unlesbar macht. Ein Wagen ist wie im Konzept in das Fahrzeug
+  eingebettet (nicht per Verweis wie im Mock).
+- Geprüft: 22 neue Worker-Tests (957 insgesamt: Anlage, Version, 412/428/409/404, Ablehnungsfälle der
+  Prüfung, Verschachtelung, Grenze, Verweise in Blöcken, Löschschutz in beide Richtungen, Vorlagen), die
+  Migration gegen echtes SQLite, `worker:check`, Prettier.
+- **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist **nicht** eingespielt; sie muss vor dem
+  Deployment dieses Workers laufen (siehe `docs/einrichtung.md`, Schritt 6).

@@ -19,6 +19,7 @@ import {
   stammdatenInNutzung,
   stammdatenNameVergeben,
 } from './einsatzplanung-stammdaten';
+import { aufbauVerweistAuf } from './einsatzplanung-aufbau-verweise';
 import { starkesEtag } from './etag';
 import { UUID_REGEX, istObjekt } from './json-lesen';
 
@@ -181,6 +182,9 @@ export async function loescheLager(
     .first<{ n: number }>();
   if ((kisten?.n ?? 0) > 0) {
     return stammdatenInNutzung('Dieses Lager ist noch Heimatlager von Kisten.');
+  }
+  if (await aufbauVerweistAuf(db, 'lagerId', id)) {
+    return stammdatenInNutzung('Dieses Lager wird noch in einem Aufbau verwendet.');
   }
   const ergebnis = await db
     .prepare('DELETE FROM lager WHERE id = ? AND version = ?')

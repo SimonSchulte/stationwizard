@@ -101,7 +101,34 @@ interface KisteZeile {
   geaendert_von: string;
 }
 
+interface AufbauZeile {
+  einsatz_id: string;
+  vorlage_id: string | null;
+  vorlage_version: number | null;
+  inhalt: string;
+  einheiten: number;
+  kisten: number;
+  positionen: number;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
+interface AufbauVorlageZeile {
+  id: string;
+  titel: string;
+  inhalt: string;
+  einheiten: number;
+  kisten: number;
+  positionen: number;
+  version: number;
+  geaendert_am: string;
+  geaendert_von: string;
+}
+
 export class FakeEinsatzplanungDb {
+  aufbauten = new Map<string, AufbauZeile>();
+  aufbauVorlagen = new Map<string, AufbauVorlageZeile>();
   kisten = new Map<string, KisteZeile>();
   lager = new Map<string, LagerZeile>();
   artikel = new Map<string, ArtikelZeile>();
@@ -698,6 +725,153 @@ class FakeStatement {
       this.db.pepVorlagen.delete(id);
       return OK;
     }
+    if (this.query.startsWith('INSERT INTO aufbauten')) {
+      const [
+        einsatz_id,
+        vorlage_id,
+        vorlage_version,
+        inhalt,
+        einheiten,
+        kisten,
+        positionen,
+        am,
+        von,
+      ] = w as [
+        string,
+        string | null,
+        number | null,
+        string,
+        number,
+        number,
+        number,
+        string,
+        string,
+      ];
+      if (this.db.aufbauten.has(einsatz_id)) {
+        throw new Error('UNIQUE constraint failed: aufbauten.einsatz_id');
+      }
+      this.db.aufbauten.set(einsatz_id, {
+        einsatz_id,
+        vorlage_id,
+        vorlage_version,
+        inhalt,
+        einheiten,
+        kisten,
+        positionen,
+        version: 1,
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE aufbauten')) {
+      const [
+        vorlage_id,
+        vorlage_version,
+        inhalt,
+        einheiten,
+        kisten,
+        positionen,
+        am,
+        von,
+        einsatz_id,
+        version,
+      ] = w as [
+        string | null,
+        number | null,
+        string,
+        number,
+        number,
+        number,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.aufbauten.get(einsatz_id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.aufbauten.set(einsatz_id, {
+        ...bestehend,
+        vorlage_id,
+        vorlage_version,
+        inhalt,
+        einheiten,
+        kisten,
+        positionen,
+        geaendert_am: am,
+        geaendert_von: von,
+        version: version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM aufbauten')) {
+      const [einsatz_id, version] = w as [string, number];
+      const bestehend = this.db.aufbauten.get(einsatz_id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.aufbauten.delete(einsatz_id);
+      return OK;
+    }
+    if (this.query.startsWith('INSERT INTO aufbau_vorlagen')) {
+      const [id, titel, inhalt, einheiten, kisten, positionen, am, von] = w as [
+        string,
+        string,
+        string,
+        number,
+        number,
+        number,
+        string,
+        string,
+      ];
+      if (this.db.aufbauVorlagen.has(id)) {
+        throw new Error('UNIQUE constraint failed: aufbau_vorlagen.id');
+      }
+      this.db.aufbauVorlagen.set(id, {
+        id,
+        titel,
+        inhalt,
+        einheiten,
+        kisten,
+        positionen,
+        version: 1,
+        geaendert_am: am,
+        geaendert_von: von,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('UPDATE aufbau_vorlagen')) {
+      const [titel, inhalt, einheiten, kisten, positionen, am, von, id, version] = w as [
+        string,
+        string,
+        number,
+        number,
+        number,
+        string,
+        string,
+        string,
+        number,
+      ];
+      const bestehend = this.db.aufbauVorlagen.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.aufbauVorlagen.set(id, {
+        ...bestehend,
+        titel,
+        inhalt,
+        einheiten,
+        kisten,
+        positionen,
+        geaendert_am: am,
+        geaendert_von: von,
+        version: version + 1,
+      });
+      return OK;
+    }
+    if (this.query.startsWith('DELETE FROM aufbau_vorlagen')) {
+      const [id, version] = w as [string, number];
+      const bestehend = this.db.aufbauVorlagen.get(id);
+      if (!bestehend || bestehend.version !== version) return KEIN_TREFFER;
+      this.db.aufbauVorlagen.delete(id);
+      return OK;
+    }
     throw new Error(`FakeEinsatzplanungDb: unbekannte run()-Anweisung: ${this.query}`);
   }
 
@@ -710,6 +884,38 @@ class FakeStatement {
         n: zeilen.length,
         hoechste: zeilen.reduce((h, z) => Math.max(h, z.reihenfolge), 0),
       });
+    }
+    {
+      const imBlock = /^SELECT COUNT\(\*\) AS n FROM (artikel|lager) WHERE id IN \(/.exec(
+        this.query,
+      );
+      if (imBlock) {
+        const quelle = imBlock[1] === 'artikel' ? this.db.artikel : this.db.lager;
+        return als({ n: (w as string[]).filter((id) => quelle.has(id)).length });
+      }
+    }
+    if (
+      /^SELECT COUNT\(\*\) AS n FROM aufbau(ten|_vorlagen) WHERE inhalt LIKE \?/.test(this.query)
+    ) {
+      const muster = (w[0] as string).replace(/^%|%$/g, '');
+      const quelle = this.query.includes('aufbauten') ? this.db.aufbauten : this.db.aufbauVorlagen;
+      return als({ n: [...quelle.values()].filter((z) => z.inhalt.includes(muster)).length });
+    }
+    if (
+      this.query.startsWith('SELECT vorlage_id, vorlage_version, inhalt, version FROM aufbauten')
+    ) {
+      return als(this.db.aufbauten.get(w[0] as string));
+    }
+    if (this.query.startsWith('SELECT einsatz_id FROM aufbauten WHERE einsatz_id = ?')) {
+      return als(this.db.aufbauten.has(w[0] as string) ? { einsatz_id: w[0] } : undefined);
+    }
+    if (
+      this.query.startsWith('SELECT id, titel, inhalt, version FROM aufbau_vorlagen WHERE id = ?')
+    ) {
+      return als(this.db.aufbauVorlagen.get(w[0] as string));
+    }
+    if (this.query.startsWith('SELECT id FROM aufbau_vorlagen WHERE id = ?')) {
+      return als(this.db.aufbauVorlagen.has(w[0] as string) ? { id: w[0] } : undefined);
     }
     if (this.query.startsWith('SELECT COUNT(*) AS n FROM kisten WHERE lager_id = ?')) {
       return als({ n: [...this.db.kisten.values()].filter((z) => z.lager_id === w[0]).length });
@@ -835,6 +1041,12 @@ class FakeStatement {
     }
     if (this.query.startsWith('SELECT id, titel, version, posten, positionen, geaendert_am')) {
       const zeilen = [...this.db.pepVorlagen.values()].sort((a, b) =>
+        a.titel.localeCompare(b.titel),
+      );
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT id, titel, version, einheiten, kisten, positionen')) {
+      const zeilen = [...this.db.aufbauVorlagen.values()].sort((a, b) =>
         a.titel.localeCompare(b.titel),
       );
       return { success: true, results: zeilen as unknown as T[] };

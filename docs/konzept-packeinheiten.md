@@ -106,7 +106,8 @@ darauf verweist (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`).
 // Eintrag
 { "art": "artikel", "id": "<uuid>", "artikelId": "<uuid>", "menge": 2, "bemerkung": "",
   "lagerId": "<uuid>" | null, "phase": null | "vorher" | "zum-schluss" }
-{ "art": "kiste",   "id": "<uuid>", "kisteId": "<uuid>", "anzahl": 1,
+{ "art": "kiste",   "id": "<uuid>", "kisteId": "<uuid>" | null, "name": "Verbandkiste", "lagerId": "<uuid>" | null,
+  "anzahl": 1,
   "inhalt": [ { "artikelId": "<uuid>", "menge": 3, "bemerkung": "" } ],   // Momentaufnahme
   "phase": null | … }
 { "art": "wagen",   "id": "<uuid>", "einheit": { /* Wagen wie oben, nur in einem Fahrzeug */ } }
