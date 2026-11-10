@@ -599,6 +599,17 @@ Worker den Inhalt als kompaktes JSON). Fehlercodes `EINSATZPLANUNG_AUFBAU_NICHT_
 eingespielt sein, weil das Löschen von Artikeln und Lagern die neuen Tabellen liest. Rollenvergabe fehlt auch hier
 – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
+**Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und
+`aufbau-vorlagen/:id|neu`): Der Zustand liegt im `AufbauEditorStoreService` (Entwurf, Basislinie, Rückgängig,
+ein Schreibvorgang je „Speichern“, `If-Match`, Konflikt bewahrt den Entwurf); die Seite hält nur Auswahl und
+Sortierung. Alle Änderungen sind reine Funktionen in `services/aufbau-bearbeiten.ts`, Zettel und Prüfung werden
+nie gespeichert, sondern in `aufbau-zettel.ts` (`leiteZettelAb()`) und `aufbau-abgleich.ts` (`pruefeAufbau()`)
+abgeleitet. Die Zahl der Rasterzeilen (23) kommt aus `laufzettel-platz.ts`. Gedruckt wird über
+`aufbau-druck.ts`, das die Zettel in die Form der VB bringt und den vorhandenen `VbDruckDienst` nutzt; ein
+Lagertrenner ist dabei eine Hinweiszeile. Eine Kiste im Aufbau wird beim Hinzufügen als Momentaufnahme kopiert;
+„Übernehmen“ gleicht sie mit den Stammdaten ab. VB-Editor und -Endpunkte bestehen weiter, bis der Aufbau im
+Betrieb abgenommen ist.
+
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte
 offen angelegt, aber nicht dafür gebaut, jede Materialfrage aufzunehmen. Konzept und

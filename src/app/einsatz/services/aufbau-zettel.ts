@@ -23,6 +23,12 @@ export interface ZettelZeile {
   text: string;
   /** Menge mit Einheit und Bemerkung, bei einer Kiste die Zahl ihrer Positionen. */
   menge: string;
+  /** Bezeichnung ohne Anzahl („Verbandkiste“); der Druck setzt die Anzahl in eine eigene Spalte. */
+  bezeichnung: string;
+  /** Nur die Zahl („85“, „2“) für die schmale Spalte des gedruckten Zettels (der Druck setzt „×“ dazu). */
+  anzahl: string;
+  /** Rest der Menge („Liter (80–90)“, „14 Pos.“) für den Text der gedruckten Zeile. */
+  zusatz: string;
   /** Kennung des Eintrags im Aufbau (zum Springen aus der Vorschau). */
   eintragId: string;
 }
@@ -70,11 +76,19 @@ function phasenZusatz(phase: AufbauPhase | null): string {
   return '';
 }
 
+function zahlText(menge: number): string {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 }).format(menge);
+}
+
+/** Einheit und Bemerkung ohne die Zahl: „Liter (80–90)“. */
+function mengeZusatz(einheit: string, bemerkung: string): string {
+  const b = bemerkung.trim();
+  return [einheit, b ? `(${b})` : ''].filter(Boolean).join(' ');
+}
+
 /** Menge wie auf dem Zettel: „85 Liter (80–90)“. */
 export function mengeText(menge: number, einheit: string, bemerkung: string): string {
-  const zahl = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 }).format(menge);
-  const text = einheit ? `${zahl} ${einheit}` : zahl;
-  return bemerkung.trim() ? `${text} (${bemerkung.trim()})` : text;
+  return [zahlText(menge), mengeZusatz(einheit, bemerkung)].filter(Boolean).join(' ');
 }
 
 interface Gruppe {
@@ -123,6 +137,9 @@ function zettelFuer(
         quelle: 'kiste',
         text: `${eintrag.anzahl}× ${eintrag.name}`,
         menge: `${eintrag.inhalt.length} Pos.`,
+        bezeichnung: eintrag.name,
+        anzahl: String(eintrag.anzahl),
+        zusatz: `${eintrag.inhalt.length} Pos.`,
         eintragId: eintrag.id,
       });
     } else if (eintrag.art === 'artikel') {
@@ -132,6 +149,9 @@ function zettelFuer(
         quelle: 'artikel',
         text: artikel?.name ?? 'Unbekannter Artikel',
         menge: mengeText(eintrag.menge, artikel?.einheit ?? '', eintrag.bemerkung),
+        bezeichnung: artikel?.name ?? 'Unbekannter Artikel',
+        anzahl: zahlText(eintrag.menge),
+        zusatz: mengeZusatz(artikel?.einheit ?? '', eintrag.bemerkung),
         eintragId: eintrag.id,
       });
     } else {
@@ -140,6 +160,9 @@ function zettelFuer(
         quelle: 'wagen',
         text: `${eintrag.einheit.name} (Wagen)`,
         menge: `${eintrag.einheit.inhalt.length} Einträge`,
+        bezeichnung: `${eintrag.einheit.name} (Wagen)`,
+        anzahl: '1',
+        zusatz: `${eintrag.einheit.inhalt.length} Einträge`,
         eintragId: eintrag.id,
       });
     }
@@ -188,12 +211,12 @@ export function leiteZettelAb(inhalt: AufbauInhalt, daten: ZettelStammdaten): Ze
   return zettel;
 }
 
-export type AushangSortierung = 'lager' | 'nummer';
+export type AufbauSortierung = 'lager' | 'nummer';
 
 /** Reihenfolge des Aushangs: nach dem ersten Lager des Zettels (Laufweg) oder nach Nummer. */
 export function sortiereAushang(
   zettel: readonly Zettel[],
-  sortierung: AushangSortierung,
+  sortierung: AufbauSortierung,
   lager: readonly Lager[],
 ): Zettel[] {
   if (sortierung === 'nummer') return [...zettel].sort((a, b) => a.nr - b.nr);

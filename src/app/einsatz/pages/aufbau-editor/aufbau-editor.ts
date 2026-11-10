@@ -51,7 +51,10 @@ import {
 } from '../../services/aufbau-bearbeiten';
 import { AufbauEditorStoreService } from '../../services/aufbau-editor-store.service';
 import { AufbauVorlagenStoreService } from '../../services/aufbau-vorlagen-store.service';
-import { AushangSortierung, leiteZettelAb, sortiereAushang } from '../../services/aufbau-zettel';
+import { AufbauDruckDienst } from '../../services/aufbau-druck';
+import { leiteZettelAb, sortiereAushang } from '../../services/aufbau-zettel';
+import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
+import { STREIFEN_WAHL } from '../../services/laufzettel-platz';
 import { EinsatzStoreService } from '../../services/einsatz-store.service';
 import { StammdatenStoreService } from '../../services/stammdaten-store.service';
 
@@ -97,6 +100,9 @@ export class AufbauEditor {
   private readonly dialogDienst = inject(DialogDienst);
   private readonly meldungen = inject(MeldungsDienst);
   private readonly einsatzStore = inject(EinsatzStoreService);
+  private readonly druck = inject(AufbauDruckDienst);
+  protected readonly layout = inject(LaufzettelLayoutWahl);
+  protected readonly streifenWahl = STREIFEN_WAHL;
 
   protected readonly modus: Modus =
     this.route.snapshot.data['modus'] === 'vorlage' ? 'vorlage' : 'aufbau';
@@ -106,7 +112,11 @@ export class AufbauEditor {
 
   protected readonly einsatz = signal<Einsatz | null>(null);
   protected readonly gewaehltId = signal<string | null>(null);
-  protected readonly sortierung = signal<AushangSortierung>('lager');
+  protected readonly druckLaeuft = signal(false);
+  /** Reihenfolge am Aushang; dieselbe Wahl gilt für den Druck (`LaufzettelLayoutWahl`). */
+  protected readonly sortierung = computed(() =>
+    this.layout.sortierung() === 'lager' ? 'lager' : 'nummer',
+  );
   protected readonly maxTitel = 200;
   protected readonly maxAnweisungen = AUFBAU_GRENZEN.anweisungen;
 
@@ -287,6 +297,48 @@ export class AufbauEditor {
         ...inhalt,
         anweisungen: (ereignis.target as HTMLTextAreaElement).value,
       });
+    }
+  }
+
+  protected sortierungWaehlen(wert: 'lager' | 'nummer'): void {
+    this.layout.setzeSortierung(wert === 'lager' ? 'lager' : 'abschnitt');
+  }
+
+  protected drucken(): Promise<void> {
+    return this.ausgeben('drucken');
+  }
+
+  protected herunterladen(): Promise<void> {
+    return this.ausgeben('herunterladen');
+  }
+
+  private async ausgeben(weg: 'drucken' | 'herunterladen'): Promise<void> {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const einsatz = this.einsatz();
+    this.druckLaeuft.set(true);
+    try {
+      await this.druck[weg](
+        {
+          titel:
+            this.modus === 'vorlage'
+              ? this.store.titel() || 'Aufbau'
+              : (einsatz?.titel ?? 'Aufbau'),
+          beginn: einsatz?.beginn ?? null,
+          ende: einsatz?.ende ?? null,
+          ort: einsatz?.ort ?? null,
+        },
+        inhalt,
+        this.daten(),
+      );
+    } catch (ursache) {
+      this.meldungen.fehler(
+        ursache instanceof Error && ursache.message
+          ? ursache.message
+          : 'Der Druck konnte nicht erstellt werden.',
+      );
+    } finally {
+      this.druckLaeuft.set(false);
     }
   }
 

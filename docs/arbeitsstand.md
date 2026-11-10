@@ -3707,19 +3707,42 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - Hinweis: Die zwei zeitabhängigen Tests in `planning-list.spec.ts` schlagen weiter abends fehl (siehe
   oben), unabhängig von dieser Stufe.
 
-## Packeinheiten, Stufe 3: Aufbau (Worker-Teil)
+## Packeinheiten, Stufe 3: Aufbau
 
-- Mock des Aufbau-Editors vom Betreiber abgenommen („Passt“). Umgesetzt ist zunächst nur der Worker-Teil;
-  Frontend (Modell, Storage, `zettelAbleiten()`, Store), Aufbau-Editor, Umstellung des Drucks und der Abbau
-  von VB-Editor und -Endpunkten folgen.
-- Neu: Migration `0025_aufbau.sql` (`aufbauten`, `aufbau_vorlagen`), Worker `einsatzplanung-aufbauten.ts`,
+- Mock des Aufbau-Editors vom Betreiber abgenommen („Passt“). Umgesetzt sind Worker, Frontend, Editor,
+  Vorlagenliste und Druck. **Noch offen:** Abbau von VB-Editor und -Endpunkten (Konzept Abschnitt 7), weil
+  die Einsatzübersicht, die Vorlagenverwaltung und die Einsatzliste noch auf der VB aufbauen; das ist ein
+  eigener, größerer Schritt und braucht zuerst die Abnahme des Aufbaus im Betrieb.
+- **Worker:** Migration `0025_aufbau.sql` (`aufbauten`, `aufbau_vorlagen`), `einsatzplanung-aufbauten.ts`,
   `-aufbau-vorlagen.ts`, `-aufbau-pruefung.ts`, `-aufbau-verweise.ts`, Endpunkte in der Tabelle der
   `CLAUDE.md`, Löschschutz für Artikel und Lager, auf die ein Aufbau verweist.
-- Abweichung vom Konzept: Ein Kisteneintrag trägt zusätzlich `name` und `lagerId` (Momentaufnahme), damit ein
-  gelöschter Stammdatensatz den Aufbau nicht unlesbar macht. Ein Wagen ist wie im Konzept in das Fahrzeug
-  eingebettet (nicht per Verweis wie im Mock).
-- Geprüft: 22 neue Worker-Tests (957 insgesamt: Anlage, Version, 412/428/409/404, Ablehnungsfälle der
-  Prüfung, Verschachtelung, Grenze, Verweise in Blöcken, Löschschutz in beide Richtungen, Vorlagen), die
-  Migration gegen echtes SQLite, `worker:check`, Prettier.
+- **Frontend:** `models/aufbau.model.ts`, `services/aufbau-pruefung.ts` (Serverantworten),
+  `aufbau-bearbeiten.ts` (reine Änderungen), `aufbau-zettel.ts` (`leiteZettelAb()`, `sortiereAushang()`),
+  `aufbau-abgleich.ts` (`pruefeAufbau()`, `kisteWeichtAb()`), `aufbau-editor-store.service.ts` (Entwurf,
+  Rückgängig, Speichern mit Version), `AufbauVorlagenStoreService`, Adapter `ApiAufbauStorage` und
+  `ApiAufbauVorlagenStorage`. Bausteine `AufbauBaum`, `EinheitDetail`, `ZettelVorschau`,
+  `AufbauVorlagenReiter`; Seite `AufbauEditor` unter `einsatz/:id/aufbau` und `aufbau-vorlagen/:id`
+  (mit `verlassenGuard`). Einstieg: dritte Kachel „Aufbau“ der Einsatzkarte, Reiter „Aufbau“ in
+  _Verwaltung → Einsatz-Vorlagen_.
+- **Druck:** `aufbau-druck.ts` bringt die abgeleiteten Zettel in die Form der VB (`aufbauAlsVbInhalt()`: je
+  oberste Einheit ein Abschnitt mit Farbe und Foto, je Zettel ein Laufzettel, ein Lagertrenner ist eine
+  Hinweiszeile „!“) und nutzt den vorhandenen, geprüften Druck (Anweisungsseite, Streifen mit
+  Fortsetzungsstreifen, Schilder). Der Dateiname beginnt deshalb noch mit „VB“.
+- Abweichungen vom Konzept: Ein Kisteneintrag trägt zusätzlich `name` und `lagerId` (Momentaufnahme); ein
+  Wagen ist in das Fahrzeug eingebettet; die Einsatzkarte zeigt für den Aufbau keine Kennzahlen, weil die
+  Einsatzliste sie noch nicht liefert (die Seite fragt selbst, ob es einen Aufbau gibt).
+- **Bekannte Grenzen:** Die Anweisung je Einheit (`anweisung`) und die Bemerkung werden gespeichert, aber
+  noch nicht gedruckt. Kistenschilder und Kistenzettel aus dem Aufbau (mit Zielfarbe und Einsatz) gibt es
+  noch nicht; der Druck der Kisten läuft weiter über die Stammdaten. Das Schild einer Einheit listet ihre
+  Zettel („Nr · Überschrift · Lager“), nicht den Soll-Inhalt. Phase („zuerst“/„zum Schluss“) lässt sich im
+  Modell, aber noch nicht in der Oberfläche setzen. Das Zettelraster zählt eine Zeile je Eintrag; der
+  Druck bricht lange Texte um und gibt bei Bedarf Fortsetzungsstreifen aus, die Platzanzeige im Editor kennt
+  den Umbruch nicht.
+- **Geprüft:** Worker 957 Tests (22 neu), Migration gegen echtes SQLite, Frontend `src/app/einsatz` 791 Tests
+  (u. a. `aufbau-zettel`, `aufbau-abgleich`, `aufbau-bearbeiten`, `aufbau-pruefung`, Store, Seite, Bausteine,
+  Druckadapter), `npm run build`, Sicht im Chromium mit API-Attrappe auf 1300 und 400 px (leer beginnen,
+  Fahrzeug, Wagen im Fahrzeug, Kiste und Artikel, Speichern; kein waagerechtes Scrollen) und ein echtes PDF
+  (zwei Streifen, Schild mit Farbrahmen).
 - **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist **nicht** eingespielt; sie muss vor dem
-  Deployment dieses Workers laufen (siehe `docs/einrichtung.md`, Schritt 6).
+  Deployment dieses Workers laufen (siehe `docs/einrichtung.md`, Schritt 6). Papierdruck und Zuschnitt;
+  Foto im Schild mit echtem Bild; Handy-Nutzung der Bearbeitung (die Tabelle scrollt im Rahmen).

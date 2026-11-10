@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { MeldungsDienst } from '../../../kern/zustand/meldungs-dienst';
 import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
+import { AufbauDruckDienst } from '../../services/aufbau-druck';
 import { AufbauEditorStoreService } from '../../services/aufbau-editor-store.service';
 import { ApiAufbauStorage, ApiAufbauVorlagenStorage } from '../../storage/api-aufbau-storage';
 import { ApiEinsatzStorage } from '../../storage/api-einsatz-storage';
@@ -29,6 +30,7 @@ describe('AufbauEditor', () => {
   let vorlagen: InMemoryAufbauVorlagenStorage;
   let einsaetze: InMemoryEinsatzStorage;
   let stammdaten: InMemoryStammdatenStorage;
+  let druck: { drucken: ReturnType<typeof vi.fn>; herunterladen: ReturnType<typeof vi.fn> };
   let meldungen: Record<
     'fehler' | 'warnung' | 'info' | 'erfolg' | 'zeige',
     ReturnType<typeof vi.fn>
@@ -48,6 +50,10 @@ describe('AufbauEditor', () => {
     einsaetze = new InMemoryEinsatzStorage();
     stammdaten = new InMemoryStammdatenStorage();
     stammdaten._vorbelegen([halle], [wasser], [kiste]);
+    druck = {
+      drucken: vi.fn().mockResolvedValue(undefined),
+      herunterladen: vi.fn().mockResolvedValue(undefined),
+    };
     const stumm = () => ({ schliessen: () => undefined });
     meldungen = {
       fehler: vi.fn(stumm),
@@ -76,6 +82,7 @@ describe('AufbauEditor', () => {
         { provide: ApiEinsatzStorage, useValue: einsaetze },
         { provide: ApiStammdatenStorage, useValue: stammdaten },
         { provide: MeldungsDienst, useValue: meldungen },
+        { provide: AufbauDruckDienst, useValue: druck },
         { provide: DialogDienst, useValue: { bestaetigen: vi.fn().mockResolvedValue(true) } },
       ],
     });
@@ -186,5 +193,26 @@ describe('AufbauEditor', () => {
     TestBed.inject(AufbauEditorStoreService).aendern({ anweisungen: 'x', einheiten: [] });
     expect(komponente.hatUngespeichertes()).toBe(true);
     expect(schutz.hatUngesicherteAenderungen()).toBe(true);
+  });
+
+  it('druckt mit Einsatz im Kopf und meldet Fehler des Drucks', async () => {
+    aufbauten._vorbelegen(
+      einsatz.id,
+      testAufbau(testAufbauInhalt([testEinheit({ name: 'Wagen 1' })])),
+    );
+    const { harness, element } = await oeffne(`/einsatzplanung/einsatz/${einsatz.id}/aufbau`);
+
+    knopf(element, 'Drucken')!.click();
+    await harness.fixture.whenStable();
+    expect(druck.drucken).toHaveBeenCalledTimes(1);
+    const [kopf, inhalt, daten] = druck.drucken.mock.calls[0]!;
+    expect(kopf).toMatchObject({ titel: 'Stadtfest' });
+    expect(inhalt.einheiten[0].name).toBe('Wagen 1');
+    expect(daten.lager.map((l: { name: string }) => l.name)).toEqual(['Halle A']);
+
+    druck.drucken.mockRejectedValueOnce(new Error('Kaputt'));
+    knopf(element, 'Drucken')!.click();
+    await harness.fixture.whenStable();
+    expect(meldungen['fehler']).toHaveBeenCalledWith('Kaputt');
   });
 });

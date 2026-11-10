@@ -7,6 +7,26 @@
   @if (untertitel()) {
     <span seitenkopfZusatz class="untertitel" [title]="untertitel()">{{ untertitel() }}</span>
   }
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Zettel je Druckseite"
+    matTooltip="Zettel je A4-Seite: bestimmt Streifenbreite, Zeilenlänge und die Platzanzeige"
+    [value]="layout.streifenJeSeite()"
+    (change)="layout.setze($event.value)"
+  >
+    @for (zahl of streifenWahl; track zahl) {
+      <mat-button-toggle [value]="zahl">{{ zahl }} je Seite</mat-button-toggle>
+    }
+  </mat-button-toggle-group>
+  <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!store.inhalt() || druckLaeuft()"
+    (click)="drucken()"
+  >
+    <mat-icon>print</mat-icon>
+    Drucken
+  </button>
   <button matButton="filled" type="button" [disabled]="!kannSpeichern()" (click)="speichern()">
     <mat-icon>save</mat-icon>
     {{ store.speichertGerade() ? 'Speichert …' : 'Speichern' }}
@@ -30,6 +50,10 @@
     >
       <mat-icon>undo</mat-icon>
       <span>Rückgängig</span>
+    </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="herunterladen()">
+      <mat-icon>picture_as_pdf</mat-icon>
+      <span>Als PDF herunterladen</span>
     </button>
     <button mat-menu-item type="button" [disabled]="store.istNeu()" (click)="alsNeueVorlage()">
       <mat-icon>library_add</mat-icon>
@@ -181,7 +205,7 @@
           hideSingleSelectionIndicator
           aria-label="Reihenfolge am Aushang"
           [value]="sortierung()"
-          (change)="sortierung.set($event.value)"
+          (change)="sortierungWaehlen($event.value)"
         >
           <mat-button-toggle value="lager">Nach Lager</mat-button-toggle>
           <mat-button-toggle value="nummer">Nach Nummer</mat-button-toggle>
