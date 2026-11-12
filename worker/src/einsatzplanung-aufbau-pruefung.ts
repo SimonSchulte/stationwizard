@@ -38,11 +38,23 @@ export interface AufbauArtikelEintrag {
   lagerId: string | null;
   phase: AufbauPhase | null;
 }
-export interface AufbauKistenPosition {
-  artikelId: string;
+/** Freier Artikel: Name und Einheit stehen im Aufbau selbst, ohne Artikelkatalog und Lager. */
+export interface AufbauFreierEintrag {
+  art: 'frei';
+  id: string;
+  name: string;
+  einheit: string;
   menge: number;
   bemerkung: string;
+  /** Quelllager des freien Artikels; `null`: noch keins gewählt. */
+  lagerId: string | null;
+  phase: AufbauPhase | null;
 }
+export const FREI_EINHEIT_MAX = 20;
+/** Katalogartikel (`artikelId`) oder freie Position (`artikelId: null` mit Name und Einheit). */
+export type AufbauKistenPosition =
+  | { artikelId: string; menge: number; bemerkung: string }
+  | { artikelId: null; name: string; einheit: string; menge: number; bemerkung: string };
 export interface AufbauKistenEintrag {
   art: 'kiste';
   id: string;
@@ -59,7 +71,8 @@ export interface AufbauWagenEintrag {
   id: string;
   einheit: AufbauEinheit;
 }
-export type AufbauEintrag = AufbauArtikelEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
+export type AufbauEintrag =
+  AufbauArtikelEintrag | AufbauFreierEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
 
 export interface AufbauEinheit {
   id: string;
@@ -123,9 +136,30 @@ function pruefeKistenPositionen(wert: unknown): AufbauKistenPosition[] | null {
   const gesehen = new Set<string>();
   const ergebnis: AufbauKistenPosition[] = [];
   for (const p of wert) {
-    if (!istObjekt(p) || !hatNurFelder(p, ['artikelId', 'menge', 'bemerkung'])) return null;
-    if (!istUuid(p['artikelId']) || !istMenge(p['menge'])) return null;
-    if (!istText0bis(p['bemerkung'], BEMERKUNG_MAX)) return null;
+    if (!istObjekt(p) || !istMenge(p['menge']) || !istText0bis(p['bemerkung'], BEMERKUNG_MAX)) {
+      return null;
+    }
+    if (p['artikelId'] === null) {
+      if (
+        !hatNurFelder(p, ['artikelId', 'name', 'einheit', 'menge', 'bemerkung']) ||
+        !istNichtleererText(p['name']) ||
+        p['name'].trim().length > NAME_MAX ||
+        !istText0bis(p['einheit'], FREI_EINHEIT_MAX)
+      ) {
+        return null;
+      }
+      ergebnis.push({
+        artikelId: null,
+        name: p['name'].trim().replace(/\s+/g, ' '),
+        einheit: p['einheit'].trim(),
+        menge: p['menge'],
+        bemerkung: p['bemerkung'].trim(),
+      });
+      continue;
+    }
+    if (!hatNurFelder(p, ['artikelId', 'menge', 'bemerkung']) || !istUuid(p['artikelId'])) {
+      return null;
+    }
     const artikelId = p['artikelId'].toLowerCase();
     if (gesehen.has(artikelId)) return null;
     gesehen.add(artikelId);
@@ -156,6 +190,46 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       art: 'artikel',
       id,
       artikelId: wert['artikelId'].toLowerCase(),
+      menge: wert['menge'],
+      bemerkung: wert['bemerkung'].trim(),
+      lagerId: kleinOderNull(wert['lagerId']),
+      phase,
+    };
+  }
+  if (wert['art'] === 'frei') {
+    if (
+      !hatNurFelder(wert, [
+        'art',
+        'id',
+        'name',
+        'einheit',
+        'menge',
+        'bemerkung',
+        'lagerId',
+        'phase',
+      ])
+    ) {
+      return null;
+    }
+    const id = pruefeEindeutigeId(wert['id'], z);
+    const phase = pruefePhase(wert['phase']);
+    if (
+      !id ||
+      !istNichtleererText(wert['name']) ||
+      wert['name'].trim().length > NAME_MAX ||
+      !istText0bis(wert['einheit'], FREI_EINHEIT_MAX) ||
+      !istMenge(wert['menge']) ||
+      !istText0bis(wert['bemerkung'], BEMERKUNG_MAX) ||
+      !istUuidOderNull(wert['lagerId']) ||
+      phase === undefined
+    ) {
+      return null;
+    }
+    return {
+      art: 'frei',
+      id,
+      name: wert['name'].trim().replace(/\s+/g, ' '),
+      einheit: wert['einheit'].trim(),
       menge: wert['menge'],
       bemerkung: wert['bemerkung'].trim(),
       lagerId: kleinOderNull(wert['lagerId']),
@@ -323,7 +397,7 @@ export function zaehleAufbau(inhalt: AufbauInhalt): AufbauKennzahlen {
       if (eintrag.art === 'kiste') {
         kisten += eintrag.anzahl;
         positionen += eintrag.inhalt.length;
-      } else if (eintrag.art === 'artikel') {
+      } else if (eintrag.art === 'artikel' || eintrag.art === 'frei') {
         positionen += 1;
       }
     }
@@ -340,8 +414,10 @@ export function sammleVerweise(inhalt: AufbauInhalt): AufbauVerweise {
       if (eintrag.art === 'artikel') {
         artikelIds.add(eintrag.artikelId);
         if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
+      } else if (eintrag.art === 'frei') {
+        if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
       } else if (eintrag.art === 'kiste') {
-        for (const p of eintrag.inhalt) artikelIds.add(p.artikelId);
+        for (const p of eintrag.inhalt) if (p.artikelId) artikelIds.add(p.artikelId);
         if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
       }
     }

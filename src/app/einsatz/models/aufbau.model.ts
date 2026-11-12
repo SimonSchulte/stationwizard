@@ -19,6 +19,7 @@ export const AUFBAU_GRENZEN = {
   anweisung: 2000,
   anweisungen: 6000,
   bemerkung: 200,
+  einheit: 20,
   foto: 100_000,
 } as const;
 
@@ -33,11 +34,23 @@ export interface AufbauArtikelEintrag {
   phase: AufbauPhase | null;
 }
 
-export interface AufbauKistenPosition {
-  artikelId: string;
+/** Freier Artikel: Name und Einheit stehen im Aufbau selbst, ohne Artikelkatalog und Lager. */
+export interface AufbauFreierEintrag {
+  art: 'frei';
+  id: string;
+  name: string;
+  einheit: string;
   menge: number;
   bemerkung: string;
+  /** Quelllager, aus dem der freie Artikel geholt wird; `null`: noch keins gewählt. */
+  lagerId: string | null;
+  phase: AufbauPhase | null;
 }
+
+/** Katalogartikel (`artikelId`) oder freie Position (`artikelId: null` mit Name und Einheit). */
+export type AufbauKistenPosition =
+  | { artikelId: string; menge: number; bemerkung: string }
+  | { artikelId: null; name: string; einheit: string; menge: number; bemerkung: string };
 
 /** Momentaufnahme einer Kiste; spätere Änderungen an den Stammdaten wirken nicht rückwirkend. */
 export interface AufbauKistenEintrag {
@@ -58,7 +71,8 @@ export interface AufbauWagenEintrag {
   einheit: AufbauEinheit;
 }
 
-export type AufbauEintrag = AufbauArtikelEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
+export type AufbauEintrag =
+  AufbauArtikelEintrag | AufbauFreierEintrag | AufbauKistenEintrag | AufbauWagenEintrag;
 
 export interface AufbauEinheit {
   id: string;

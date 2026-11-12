@@ -37,14 +37,22 @@ function istPhase(wert: unknown): boolean {
 }
 
 function istKistenPosition(wert: unknown): wert is AufbauKistenPosition {
-  return (
-    istObjekt(wert) &&
-    nurFelder(wert, ['artikelId', 'menge', 'bemerkung']) &&
-    istUuid(wert['artikelId']) &&
-    typeof wert['menge'] === 'number' &&
-    istGueltigeMenge(wert['menge']) &&
-    istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung)
-  );
+  if (
+    !istObjekt(wert) ||
+    typeof wert['menge'] !== 'number' ||
+    !istGueltigeMenge(wert['menge']) ||
+    !istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung)
+  ) {
+    return false;
+  }
+  if (wert['artikelId'] === null) {
+    return (
+      nurFelder(wert, ['artikelId', 'name', 'einheit', 'menge', 'bemerkung']) &&
+      istTextBis(wert['name'], AUFBAU_GRENZEN.name, 1) &&
+      istTextBis(wert['einheit'], AUFBAU_GRENZEN.einheit)
+    );
+  }
+  return nurFelder(wert, ['artikelId', 'menge', 'bemerkung']) && istUuid(wert['artikelId']);
 }
 
 function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is AufbauEintrag {
@@ -54,6 +62,19 @@ function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is Auf
       nurFelder(wert, ['art', 'id', 'artikelId', 'menge', 'bemerkung', 'lagerId', 'phase']) &&
       neueId(wert['id'], z) &&
       istUuid(wert['artikelId']) &&
+      typeof wert['menge'] === 'number' &&
+      istGueltigeMenge(wert['menge']) &&
+      istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung) &&
+      istUuidOderNull(wert['lagerId']) &&
+      istPhase(wert['phase'])
+    );
+  }
+  if (wert['art'] === 'frei') {
+    return (
+      nurFelder(wert, ['art', 'id', 'name', 'einheit', 'menge', 'bemerkung', 'lagerId', 'phase']) &&
+      neueId(wert['id'], z) &&
+      istTextBis(wert['name'], AUFBAU_GRENZEN.name, 1) &&
+      istTextBis(wert['einheit'], AUFBAU_GRENZEN.einheit) &&
       typeof wert['menge'] === 'number' &&
       istGueltigeMenge(wert['menge']) &&
       istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung) &&
@@ -75,8 +96,11 @@ function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is Auf
       positionen !== null &&
       positionen.length <= AUFBAU_GRENZEN.kistenPositionen &&
       positionen.every(istKistenPosition) &&
-      new Set(positionen.map((p: AufbauKistenPosition) => p.artikelId.toLowerCase())).size ===
-        positionen.length &&
+      new Set(
+        positionen.flatMap((p: AufbauKistenPosition) =>
+          p.artikelId ? [p.artikelId.toLowerCase()] : [],
+        ),
+      ).size === positionen.filter((p: AufbauKistenPosition) => p.artikelId).length &&
       istPhase(wert['phase'])
     );
   }

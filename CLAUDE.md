@@ -595,6 +595,26 @@ Worker den Inhalt als kompaktes JSON). Fehlercodes `EINSATZPLANUNG_AUFBAU_NICHT_
 eingespielt sein, weil das Löschen von Artikeln und Lagern die neuen Tabellen liest. Rollenvergabe fehlt auch hier
 – dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
+**Der Aufbau ist von Artikelkatalog und Lagern unabhängig bedienbar.** Neben dem Katalogartikel
+(`art: 'artikel'`, `artikelId` + `lagerId`) kennt er den **freien Artikel** (`art: 'frei'`: `id`, `name` ≤ 100,
+`einheit` ≤ 20 Zeichen und leer erlaubt, `menge`, `bemerkung`, **`lagerId` = Quelllager**, `phase`; keine Prüfung gegen die
+Stammdaten außer dem Lager). Eine Kiste im Aufbau darf ohne Stammdaten-Kiste entstehen (`kisteId: null`, zunächst leer), und ihre
+Positionen (`AufbauKistenPosition`) sind entweder Katalogartikel (`artikelId`, `menge`, `bemerkung`, je Kiste
+einmal) oder **freie Positionen** (`artikelId: null` mit `name`, `einheit`, `menge`, `bemerkung`, beliebig oft).
+`sammleVerweise()` und damit die Verweisprüfung und der Löschschutz kennen Katalogartikel und Lager (auch das Quelllager
+eines freien Artikels); der Rest der freien Einträge verweist auf nichts. Worker (`einsatzplanung-aufbau-pruefung.ts`) und Frontend (`aufbau-pruefung.ts`,
+`aufbau.model.ts`) prüfen dieselben Formen und sind gemeinsam zu ändern. Ein freier Artikel erscheint auf dem
+Zettel in der Gruppe seines Quelllagers (Laufweg wie ein Katalogartikel); ohne Quelllager steht er unter „Ohne
+Heimatlager“ und die Prüfung meldet `ohne-heimatlager` als Fehler. Das Quelllager lässt sich beim Anlegen und in der
+Tabelle wählen, ebenso das Lager einer Kiste; bei der Übernahme in den Katalog wird es zum Heimatlager des Artikels. Eine Stammdaten-Kiste mit freien Positionen gilt als „weicht von den Stammdaten ab“ (`kisteWeichtAb()`).
+**Übernahme in den Katalog:** Ein freier Artikel und eine freie Kistenposition lassen sich im `EinheitDetail` per
+Knopf „In den Artikelkatalog übernehmen“ zum Katalogartikel machen (`AufbauEditor.katalogartikelFuer()`,
+`freienArtikelVerknuepfen()`/`freiePositionVerknuepfen()` in `aufbau-bearbeiten.ts`). Gibt es den Namen schon
+(`StammdatenStoreService.artikelFinden()`, Vergleichsform), wird nach Rückfrage verknüpft; sonst legt die Seite den
+Artikel nach Rückfrage an – Einheit nur bei exakter Übereinstimmung mit `ARTIKEL_EINHEITEN`, sonst „Stück“, ohne
+Heimatlager (bei einem freien Artikel das Quelllager). Der Katalog wird **sofort** geschrieben, unabhängig vom „Speichern“ des Aufbaus; der Aufbau-Eintrag
+behält Id, Menge, Bemerkung und Phase und wird erst mit „Speichern“ umgestellt.
+
 **Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und
 `aufbau-vorlagen/:id|neu`): Der Zustand liegt im `AufbauEditorStoreService` (Entwurf, Basislinie, Rückgängig,
 ein Schreibvorgang je „Speichern“, `If-Match`, Konflikt bewahrt den Entwurf); die Seite hält nur Auswahl und
@@ -605,6 +625,56 @@ abgeleitet. Die Zahl der Rasterzeilen (23) kommt aus `laufzettel-platz.ts`. Gedr
 Lagertrenner ist dabei eine Hinweiszeile. Eine Kiste im Aufbau wird beim Hinzufügen als Momentaufnahme kopiert;
 „Übernehmen“ gleicht sie mit den Stammdaten ab. Die Einsatzkarte zeigt die Kennzahlen des Aufbaus
 (`aufbau` der Einsatzliste, `istAufbauKennzahlen()` in `einsatz-pruefung.ts`).
+
+Im `EinheitDetail` legt die Person freie Artikel und freie Kisten an und befüllt den Inhalt jeder Kiste („Inhalt
+bearbeiten“: Menge ändern, entfernen, freie Position oder Katalogartikel hinzufügen; Änderungen sind reine
+Funktionen `kistePosition…()` in `aufbau-bearbeiten.ts`). **Kistenschilder und Kistenzettel aus dem Aufbau**
+(Menü „Weitere Aktionen“ des Editors): `aufbau-kistenschilder.ts` leitet je **physischer Kiste** (`anzahl` Kopien,
+auch in Wagen) ein `Kistenschild` beziehungsweise einen Laufzettel ab. Das Schild trägt den Inhalt der
+Momentaufnahme, unten das Heimatlager und einen Rahmen in der **Farbe der Einheit, in der die Kiste steht**
+(`abschnittFarbeHex()` in `zettel-pdf-definition.ts`). Beim Zettel ist „Auf / In“ die Einheit (ein Wagen
+im Fahrzeug nennt das Fahrzeug) und das Farbband deren Farbe. Beide nutzen die Bausteine von
+`kisten-pdf-definition.ts` (`baueSchilderDefinition()`, `baueKistenzettelAusInhalt()`); die Druckwege der
+Stammdaten-Kisten bleiben unverändert. Der Name einer Kiste lässt sich im Aufbau ändern (Eingabefeld in der
+Tabelle, `eintragAendern(…, { name })`); die Stammdaten bleiben unberührt, `kisteWeichtAb()` meldet danach den
+Unterschied, „Übernehmen“ stellt den Stammdaten-Namen wieder her. `AufbauDruckDienst.kistenschilderDrucken()`/`kistenzettelDrucken()`
+liefern `false`, wenn der Aufbau keine Kiste enthält.
+
+**Packzettel enthalten immer den Soll-Inhalt der Kiste** (Abhakliste aus der Momentaufnahme im Aufbau, mit Menge, Einheit
+und Bemerkung), damit sich die Kiste kontrollieren lässt. Eine Kiste ohne Inhalt druckt die Hinweiszeile „Kein
+Soll-Inhalt hinterlegt“ (`KEIN_SOLL_INHALT`) statt eines leeren Streifens, im Editor steht „ohne Inhalt“ an der
+Kistenzeile und die Prüfung meldet `kiste-ohne-inhalt` als Fehler; der Kistenzettel der Stammdaten verhält sich genauso.
+
+**Farbcodierung:** Jede Einheit trägt ihre **eigene Farbe** – auch ein Wagen im Fahrzeug (Farbwahl und Foto im
+`EinheitDetail` für alle Einheiten; ein neuer Wagen im Fahrzeug startet in der Farbe des Fahrzeugs). Laufzettel,
+Packzettel, Aushang und Kistenschild nehmen die Farbe der jeweiligen Einheit. Der Druck bildet je Fahrzeug **und** je
+Wagen einen `DruckAbschnitt` (Reihenfolge wie die Aushänge, damit die Schildnummer auf dem Laufzettel stimmt).
+
+**Druck des Aufbaus („Drucken“):** Außer Anweisungsseite und Laufzettelstreifen je Einheit enthält er (a) einen
+**Packzettel je physischer Kiste** (`DruckInhalt.kistenzettel`, aus `kistenzettelAusAufbau()`; Abschnitt „Packzettel“
+nach den Laufzetteln, eigene Zählung, ohne Schildnummer) und (b) einen **Aushang je Fahrzeug und je Wagen**, auch je
+Wagen im Fahrzeug (`DruckInhalt.schilder`, `schilderVon()` in `aufbau-druck.ts`; A5-Schild mit Titel, Foto, eigener
+Farbe und dem **Soll-Inhalt**: Kisten mit Anzahl, lose Artikel, Wagen – `sollInhaltZeilen()`).
+Zuletzt folgen die **Kistenschilder** (ein A5-Schild je physischer Kiste, `DruckInhalt.kistenschilder`, aus
+`schilderAusAufbau()`; `ZettelDruckDienst` hängt sie über `kistenschildAbschnitt()` aus `kisten-pdf-definition.ts` an,
+weil `zettel-pdf-definition.ts` sie sonst zyklisch importieren müsste). Reihenfolge im PDF: Anweisungen, Laufzettel je
+Fahrzeug und Wagen, Packzettel je Kiste, Aushang je Fahrzeug und Wagen, Kistenschilder. Fehlt `schilder`, bleibt es bei der Zettelliste je Abschnitt (`schildInhaltZeilen()`); die Zeilenanordnung teilen
+beide über `schildSpalten()`.
+
+Die Seite des Aufbau-Editors zeigt die **Packliste** (`AufbauBaum`) als vollständigen Baum bis zur Kistenebene
+(Fahrzeug → Kisten und Wagen → Kisten; ein Klick auf eine Kiste wählt ihre Einheit, lose Artikel stehen nicht im
+Baum). Der Baum erlaubt **Drag and drop** am Griff (CDK `cdkDropList`, `AufbauBaum.verschoben` meldet Quelle und die
+Zeile davor als Anker, die Änderung ist die reine Funktion `verschiebeImBaum()`): eine Kiste wandert in die Einheit des
+Ankers (auch zwischen Fahrzeug und Wagen), ein Wagen in ein anderes Fahrzeug (nie in einen freien Wagen), ein Fahrzeug
+oder freier Wagen ändert seinen Platz auf oberster Ebene und nimmt seinen Inhalt mit; unzulässige Ziele ändern nichts.
+Ein **freier Wagen** lässt sich durch **seitliches Ziehen nach rechts** (mehr als 32 px, `EINRUECKEN_PX`) als Wagen in das
+Fahrzeug des Ankers einrücken, ein Wagen im Fahrzeug durch Ziehen **nach links** zum freien Wagen herausnehmen
+(`ebene: 'tiefer' | 'hoeher'` an `verschiebeImBaum()`; das geht auch ohne Platzwechsel). Am Griff bewusst nur ein
+natives `title`, kein `matTooltip`: dessen Fläche deckte beim Ziehen die nächsten Griffe ab.
+**Tastatur:** Alt+Pfeil hoch/runter verschiebt die fokussierte Zeile um einen Platz (ein Fahrzeug oder freier Wagen um eine
+ganze Gruppe), Alt+Pfeil rechts/links rückt einen Wagen ein oder nimmt ihn heraus (`AufbauBaum.taste()`, hinterlegt über
+`aria-keyshortcuts` und `aria-describedby`; Ziehen und Tastatur laufen über denselben Ausgang `verschoben`). **Prüfung, Reihenfolge am Aushang und allgemeine Anweisungen** stehen in einer einklappbaren Seitenleiste
+(`pruefungOffen`, standardmäßig zu, Knopf mit Zähler der Hinweise; mobil unter dem Inhalt).
 
 Die Materialverwaltung (`src/app/material/`, `worker/src/material.ts`) prüft den Bestand von
 Behältern – zunächst ausschließlich als **Fahrzeugcheck**; das Modul ist für spätere Punkte

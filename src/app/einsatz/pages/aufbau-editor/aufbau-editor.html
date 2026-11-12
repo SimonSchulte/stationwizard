@@ -55,6 +55,14 @@
       <mat-icon>picture_as_pdf</mat-icon>
       <span>Als PDF herunterladen</span>
     </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="kistenschilder()">
+      <mat-icon>label</mat-icon>
+      <span>Kistenschilder drucken</span>
+    </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="kistenzettel()">
+      <mat-icon>checklist</mat-icon>
+      <span>Kistenzettel drucken</span>
+    </button>
     <button mat-menu-item type="button" [disabled]="store.istNeu()" (click)="alsNeueVorlage()">
       <mat-icon>library_add</mat-icon>
       <span>Als neue Vorlage speichern…</span>
@@ -135,103 +143,124 @@
       </mat-form-field>
     }
 
-    <div class="raster">
-      <section class="box" aria-label="Packliste">
-        <h2>Packliste</h2>
-        <app-aufbau-baum
-          [inhalt]="entwurf.inhalt"
-          [gewaehltId]="aktiv()?.einheit?.id ?? null"
-          [probleme]="probleme()"
-          (gewaehlt)="gewaehltId.set($event)"
-          (hinzufuegen)="einheitNeu($event)"
-        />
-      </section>
+    <div class="mit-leiste">
+      <div class="haupt">
+        <div class="raster">
+          <section class="box" aria-label="Packliste">
+            <h2>Packliste</h2>
+            <app-aufbau-baum
+              [inhalt]="entwurf.inhalt"
+              [gewaehltId]="aktiv()?.einheit?.id ?? null"
+              [probleme]="probleme()"
+              (gewaehlt)="gewaehltId.set($event)"
+              (hinzufuegen)="einheitNeu($event)"
+              (verschoben)="baumVerschoben($event)"
+            />
+          </section>
 
-      <section class="box" aria-label="Gewählte Einheit">
-        @if (aktiv(); as a) {
-          <app-einheit-detail
-            [einheit]="a.einheit"
-            [oberste]="a.oberste"
-            [lager]="stammdaten.lager()"
-            [artikel]="stammdaten.artikel()"
-            [kisten]="stammdaten.kisten()"
-            [probleme]="probleme()"
-            (geaendert)="einheitGeaendert(a.einheit.id, $event)"
-            (eintragGeaendert)="eintragGeaendert(a.einheit.id, $event)"
-            (eintragEntfernt)="eintragEntfernt(a.einheit.id, $event)"
-            (kisteHinzugefuegt)="kisteHinzugefuegt(a.einheit.id, $event)"
-            (artikelHinzugefuegt)="artikelHinzugefuegt(a.einheit.id, $event)"
-            (kisteAbgeglichen)="kisteAbgeglichen(a.einheit.id, $event)"
-            (entfernt)="einheitEntfernen(a.einheit.id)"
-            (fotoFehler)="fotoFehler($event)"
-          />
-        } @else {
-          <app-leerzustand kompakt icon="inventory_2" titel="Noch keine Einheit">
-            Lege links ein Fahrzeug oder einen Wagen an.
-          </app-leerzustand>
-        }
-      </section>
-    </div>
-
-    <div class="raster unten">
-      <section class="box" aria-label="Zettelvorschau">
-        <h2>Zettelvorschau</h2>
-        @if (aktiverZettel(); as z) {
-          <app-zettel-vorschau [zettel]="z" />
-        } @else {
-          <p class="leise">Sobald es eine Einheit gibt, erscheint hier ihr Zettel.</p>
-        }
-      </section>
-
-      <section class="box" aria-label="Prüfung und Aushang">
-        <h2>Prüfung</h2>
-        @if (probleme().length === 0) {
-          <p class="leise">Keine Hinweise. Der Aufbau ist druckbereit.</p>
-        } @else {
-          <ul class="probleme">
-            @for (p of probleme(); track $index) {
-              <li>
-                <span class="marke" [class.fehler]="p.schwere === 'fehler'">
-                  {{ p.schwere === 'fehler' ? 'Fehlt' : 'Hinweis' }}
-                </span>
-                <span>{{ p.text }}</span>
-              </li>
+          <section class="box" aria-label="Gewählte Einheit">
+            @if (aktiv(); as a) {
+              <app-einheit-detail
+                [einheit]="a.einheit"
+                [lager]="stammdaten.lager()"
+                [artikel]="stammdaten.artikel()"
+                [kisten]="stammdaten.kisten()"
+                [probleme]="probleme()"
+                (geaendert)="einheitGeaendert(a.einheit.id, $event)"
+                (eintragGeaendert)="eintragGeaendert(a.einheit.id, $event)"
+                (eintragEntfernt)="eintragEntfernt(a.einheit.id, $event)"
+                (kisteHinzugefuegt)="kisteHinzugefuegt(a.einheit.id, $event)"
+                (artikelHinzugefuegt)="artikelHinzugefuegt(a.einheit.id, $event)"
+                (freierArtikelHinzugefuegt)="freierArtikelHinzugefuegt(a.einheit.id, $event)"
+                (freieKisteHinzugefuegt)="freieKisteHinzugefuegt(a.einheit.id, $event)"
+                (kistePositionHinzugefuegt)="kistePositionHinzugefuegt(a.einheit.id, $event)"
+                (kistePositionGeaendert)="kistePositionGeaendert(a.einheit.id, $event)"
+                (kistePositionEntfernt)="kistePositionEntfernt(a.einheit.id, $event)"
+                (freierArtikelUebernommen)="freienArtikelUebernehmen(a.einheit.id, $event)"
+                (freiePositionUebernommen)="freiePositionUebernehmen(a.einheit.id, $event)"
+                (kisteAbgeglichen)="kisteAbgeglichen(a.einheit.id, $event)"
+                (entfernt)="einheitEntfernen(a.einheit.id)"
+                (fotoFehler)="fotoFehler($event)"
+              />
+            } @else {
+              <app-leerzustand kompakt icon="inventory_2" titel="Noch keine Einheit">
+                Lege links ein Fahrzeug oder einen Wagen an.
+              </app-leerzustand>
             }
-          </ul>
-        }
+          </section>
+        </div>
+      </div>
 
-        <h2 class="abstand">Reihenfolge am Aushang</h2>
-        <mat-button-toggle-group
-          hideSingleSelectionIndicator
-          aria-label="Reihenfolge am Aushang"
-          [value]="sortierung()"
-          (change)="sortierungWaehlen($event.value)"
+      <aside class="leiste" [class.offen]="pruefungOffen()" aria-label="Prüfung und Aushang">
+        <button
+          matIconButton
+          type="button"
+          class="leiste-knopf"
+          [attr.aria-expanded]="pruefungOffen()"
+          [attr.aria-label]="pruefungOffen() ? 'Prüfung einklappen' : 'Prüfung ausklappen'"
+          [matTooltip]="pruefungOffen() ? 'Prüfung einklappen' : 'Prüfung, Aushang und Anweisungen'"
+          (click)="pruefungOffen.set(!pruefungOffen())"
         >
-          <mat-button-toggle value="lager">Nach Lager</mat-button-toggle>
-          <mat-button-toggle value="nummer">Nach Nummer</mat-button-toggle>
-        </mat-button-toggle-group>
-        <ol class="aushang">
-          @for (z of aushang(); track z.einheitId) {
-            <li>
-              <span class="nr">{{ z.nr }}</span>
-              <span class="aushang-name">{{ z.name }}</span>
-              <span class="leise">{{ z.von ?? '–' }}</span>
-            </li>
-          }
-        </ol>
+          <mat-icon
+            aria-hidden="true"
+            [matBadge]="probleme().length"
+            [matBadgeHidden]="probleme().length === 0"
+            matBadgeSize="small"
+            >fact_check</mat-icon
+          >
+        </button>
+        @if (pruefungOffen()) {
+          <div class="leiste-inhalt">
+            <h2>Prüfung</h2>
+            @if (probleme().length === 0) {
+              <p class="leise">Keine Hinweise. Der Aufbau ist druckbereit.</p>
+            } @else {
+              <ul class="probleme">
+                @for (p of probleme(); track $index) {
+                  <li>
+                    <span class="marke" [class.fehler]="p.schwere === 'fehler'">
+                      {{ p.schwere === 'fehler' ? 'Fehlt' : 'Hinweis' }}
+                    </span>
+                    <span>{{ p.text }}</span>
+                  </li>
+                }
+              </ul>
+            }
 
-        <h2 class="abstand">Allgemeine Anweisungen</h2>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
-          <mat-label>Anweisungen für den Aushang</mat-label>
-          <textarea
-            matInput
-            rows="3"
-            [attr.maxlength]="maxAnweisungen"
-            [value]="entwurf.inhalt.anweisungen"
-            (change)="anweisungenAendern($event)"
-          ></textarea>
-        </mat-form-field>
-      </section>
+            <h2 class="abstand">Reihenfolge am Aushang</h2>
+            <mat-button-toggle-group
+              hideSingleSelectionIndicator
+              aria-label="Reihenfolge am Aushang"
+              [value]="sortierung()"
+              (change)="sortierungWaehlen($event.value)"
+            >
+              <mat-button-toggle value="lager">Nach Lager</mat-button-toggle>
+              <mat-button-toggle value="nummer">Nach Nummer</mat-button-toggle>
+            </mat-button-toggle-group>
+            <ol class="aushang">
+              @for (z of aushang(); track z.einheitId) {
+                <li>
+                  <span class="nr">{{ z.nr }}</span>
+                  <span class="aushang-name">{{ z.name }}</span>
+                  <span class="leise">{{ z.von ?? '–' }}</span>
+                </li>
+              }
+            </ol>
+
+            <h2 class="abstand">Allgemeine Anweisungen</h2>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="breit">
+              <mat-label>Anweisungen für den Aushang</mat-label>
+              <textarea
+                matInput
+                rows="3"
+                [attr.maxlength]="maxAnweisungen"
+                [value]="entwurf.inhalt.anweisungen"
+                (change)="anweisungenAendern($event)"
+              ></textarea>
+            </mat-form-field>
+          </div>
+        }
+      </aside>
     </div>
   }
 </div>

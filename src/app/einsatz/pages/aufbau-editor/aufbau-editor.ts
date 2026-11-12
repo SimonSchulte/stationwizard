@@ -10,6 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -31,9 +32,12 @@ import {
   EinheitAenderung,
   EinheitDetail,
   EintragAenderung,
+  KistePositionAenderung,
+  KistePositionEntfernung,
+  KistePositionNeu,
 } from '../../components/einheit-detail/einheit-detail';
-import { ZettelVorschau } from '../../components/zettel-vorschau/zettel-vorschau';
 import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
+import { Artikel, ARTIKEL_EINHEITEN, ArtikelEinheit } from '../../models/stammdaten.model';
 import { Einsatz } from '../../models/einsatz.model';
 import { pruefeAufbau } from '../../services/aufbau-abgleich';
 import {
@@ -45,7 +49,16 @@ import {
   einheitEntfernen,
   einheitHinzufuegen,
   findeEinheit,
+  freieKisteHinzufuegen,
+  freiePositionVerknuepfen,
+  freienArtikelVerknuepfen,
+  freienArtikelHinzufuegen,
   kisteAbgleichen,
+  type BaumOrt,
+  verschiebeImBaum,
+  kistePositionAendern,
+  kistePositionEntfernen,
+  kistePositionHinzufuegen,
   kisteHinzufuegen,
   mitNeuenIds,
 } from '../../services/aufbau-bearbeiten';
@@ -74,6 +87,7 @@ type Modus = 'aufbau' | 'vorlage';
     EinheitDetail,
     Ladeanzeige,
     Leerzustand,
+    MatBadgeModule,
     MatButtonModule,
     MatButtonToggleModule,
     MatDividerModule,
@@ -85,7 +99,6 @@ type Modus = 'aufbau' | 'vorlage';
     Meldung,
     RouterLink,
     Seitenkopf,
-    ZettelVorschau,
   ],
   templateUrl: './aufbau-editor.html',
   styleUrl: './aufbau-editor.less',
@@ -113,6 +126,8 @@ export class AufbauEditor {
   protected readonly einsatz = signal<Einsatz | null>(null);
   protected readonly gewaehltId = signal<string | null>(null);
   protected readonly druckLaeuft = signal(false);
+  /** Seitenleiste mit Prüfung, Aushang-Reihenfolge und Anweisungen; reiner Sitzungszustand. */
+  protected readonly pruefungOffen = signal(false);
   /** Reihenfolge am Aushang; dieselbe Wahl gilt für den Druck (`LaufzettelLayoutWahl`). */
   protected readonly sortierung = computed(() =>
     this.layout.sortierung() === 'lager' ? 'lager' : 'nummer',
@@ -165,11 +180,7 @@ export class AufbauEditor {
     const einheit =
       (gewaehlt ? findeEinheit(inhalt, gewaehlt) : undefined) ?? alleEinheiten(inhalt)[0];
     if (!einheit) return null;
-    return { einheit, oberste: inhalt.einheiten.some((e) => e.id === einheit.id) };
-  });
-  protected readonly aktiverZettel = computed(() => {
-    const aktiv = this.aktiv();
-    return aktiv ? (this.zettel().find((z) => z.einheitId === aktiv.einheit.id) ?? null) : null;
+    return { einheit };
   });
 
   protected readonly kannSpeichern = computed(
@@ -342,6 +353,46 @@ export class AufbauEditor {
     }
   }
 
+  protected async kistenschilder(): Promise<void> {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const titel =
+      this.modus === 'vorlage'
+        ? this.store.titel() || 'Aufbau'
+        : (this.einsatz()?.titel ?? 'Aufbau');
+    try {
+      if (!(await this.druck.kistenschilderDrucken(titel, inhalt, this.daten()))) {
+        this.meldungen.warnung('Im Aufbau gibt es noch keine Kiste.');
+      }
+    } catch (ursache) {
+      this.meldungen.fehler(
+        ursache instanceof Error && ursache.message
+          ? ursache.message
+          : 'Die Kistenschilder konnten nicht erstellt werden.',
+      );
+    }
+  }
+
+  protected async kistenzettel(): Promise<void> {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const titel =
+      this.modus === 'vorlage'
+        ? this.store.titel() || 'Aufbau'
+        : (this.einsatz()?.titel ?? 'Aufbau');
+    try {
+      if (!(await this.druck.kistenzettelDrucken(titel, inhalt, this.daten()))) {
+        this.meldungen.warnung('Im Aufbau gibt es noch keine Kiste.');
+      }
+    } catch (ursache) {
+      this.meldungen.fehler(
+        ursache instanceof Error && ursache.message
+          ? ursache.message
+          : 'Die Kistenzettel konnten nicht erstellt werden.',
+      );
+    }
+  }
+
   protected async neuLaden(): Promise<void> {
     if (
       this.store.geaendert() &&
@@ -364,6 +415,17 @@ export class AufbauEditor {
     const ergebnis = einheitHinzufuegen(inhalt, neu.typ, '', neu.inFahrzeugId);
     this.store.aendern(ergebnis.inhalt);
     this.gewaehltId.set(ergebnis.id);
+  }
+
+  protected baumVerschoben(ereignis: {
+    quelle: BaumOrt;
+    anker: BaumOrt | null;
+    ebene?: 'tiefer' | 'hoeher';
+  }): void {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const neu = verschiebeImBaum(inhalt, ereignis.quelle, ereignis.anker, ereignis.ebene);
+    if (neu !== inhalt) this.store.aendern(neu);
   }
 
   protected einheitGeaendert(id: string, aenderung: EinheitAenderung): void {
@@ -414,6 +476,129 @@ export class AufbauEditor {
     const artikel = this.stammdaten.artikel().find((a) => a.id === wahl.artikelId);
     if (inhalt && artikel) {
       this.store.aendern(artikelHinzufuegen(inhalt, einheitId, artikel, wahl.menge));
+    }
+  }
+
+  protected freierArtikelHinzugefuegt(
+    einheitId: string,
+    wahl: { name: string; einheit: string; menge: number; lagerId: string | null },
+  ): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(
+        freienArtikelHinzufuegen(
+          inhalt,
+          einheitId,
+          wahl.name,
+          wahl.einheit,
+          wahl.menge,
+          wahl.lagerId,
+        ),
+      );
+    }
+  }
+
+  protected freieKisteHinzugefuegt(
+    einheitId: string,
+    wahl: { name: string; anzahl: number },
+  ): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt)
+      this.store.aendern(freieKisteHinzufuegen(inhalt, einheitId, wahl.name, wahl.anzahl));
+  }
+
+  protected kistePositionHinzugefuegt(einheitId: string, neu: KistePositionNeu): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(kistePositionHinzufuegen(inhalt, einheitId, neu.eintragId, neu.position));
+    }
+  }
+
+  protected kistePositionGeaendert(einheitId: string, a: KistePositionAenderung): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(
+        kistePositionAendern(inhalt, einheitId, a.eintragId, a.index, { menge: a.menge }),
+      );
+    }
+  }
+
+  protected kistePositionEntfernt(einheitId: string, e: KistePositionEntfernung): void {
+    const inhalt = this.store.inhalt();
+    if (inhalt) this.store.aendern(kistePositionEntfernen(inhalt, einheitId, e.eintragId, e.index));
+  }
+
+  /**
+   * Nimmt einen freien Artikel in den Katalog auf (oder verknüpft ihn mit dem gleichnamigen) und
+   * liefert den Katalogartikel; `null` bei Abbruch oder Fehler. Der Katalog wird sofort geschrieben,
+   * unabhängig vom „Speichern“ des Aufbaus.
+   */
+  private async katalogartikelFuer(
+    name: string,
+    einheit: string,
+    lagerId: string | null = null,
+  ): Promise<Artikel | null> {
+    const vorhanden = this.stammdaten.artikelFinden(name);
+    if (vorhanden) {
+      const ok = await this.dialogDienst.bestaetigen(
+        `Im Artikelkatalog gibt es „${vorhanden.name}“ (${vorhanden.einheit}) schon. Der Eintrag wird damit verknüpft; Name und Einheit kommen dann aus dem Katalog.`,
+        'Mit Katalogartikel verknüpfen',
+        'Verknüpfen',
+      );
+      return ok ? vorhanden : null;
+    }
+    const gleiche = ARTIKEL_EINHEITEN.find((e) => e.toLowerCase() === einheit.trim().toLowerCase());
+    const katalogEinheit: ArtikelEinheit = gleiche ?? 'Stück';
+    const abweichung =
+      !gleiche && einheit.trim() !== ''
+        ? ` statt „${einheit.trim()}“ (der Katalog kennt nur feste Einheiten)`
+        : '';
+    const ok = await this.dialogDienst.bestaetigen(
+      `„${name}“ wird mit der Einheit ${katalogEinheit}${abweichung} und ${lagerId ? 'dem gewählten Quelllager als Heimatlager' : 'ohne Heimatlager'} in den Artikelkatalog aufgenommen. Das wird sofort in den Stammdaten gespeichert, unabhängig vom „Speichern“ des Aufbaus.`,
+      'In den Artikelkatalog übernehmen',
+      'Übernehmen',
+    );
+    if (!ok) return null;
+    const id = crypto.randomUUID();
+    if (!(await this.stammdaten.artikelAnlegen({ id, name, einheit: katalogEinheit, lagerId }))) {
+      this.meldungen.fehler(
+        this.stammdaten.fehler() || 'Der Artikel konnte nicht angelegt werden.',
+      );
+      return null;
+    }
+    this.meldungen.erfolg(`„${name}“ ist jetzt im Artikelkatalog.`);
+    return this.stammdaten.artikelNachId().get(id) ?? null;
+  }
+
+  protected async freienArtikelUebernehmen(einheitId: string, eintragId: string): Promise<void> {
+    const eintrag = findeEinheit(
+      this.store.inhalt() ?? { anweisungen: '', einheiten: [] },
+      einheitId,
+    )?.inhalt.find((x) => x.id === eintragId);
+    if (eintrag?.art !== 'frei') return;
+    const artikel = await this.katalogartikelFuer(eintrag.name, eintrag.einheit, eintrag.lagerId);
+    const inhalt = this.store.inhalt();
+    if (artikel && inhalt) {
+      this.store.aendern(freienArtikelVerknuepfen(inhalt, einheitId, eintragId, artikel));
+    }
+  }
+
+  protected async freiePositionUebernehmen(
+    einheitId: string,
+    ziel: { eintragId: string; index: number },
+  ): Promise<void> {
+    const kiste = findeEinheit(
+      this.store.inhalt() ?? { anweisungen: '', einheiten: [] },
+      einheitId,
+    )?.inhalt.find((x) => x.id === ziel.eintragId);
+    const position = kiste?.art === 'kiste' ? kiste.inhalt[ziel.index] : undefined;
+    if (!position || position.artikelId !== null) return;
+    const artikel = await this.katalogartikelFuer(position.name, position.einheit);
+    const inhalt = this.store.inhalt();
+    if (artikel && inhalt) {
+      this.store.aendern(
+        freiePositionVerknuepfen(inhalt, einheitId, ziel.eintragId, ziel.index, artikel),
+      );
     }
   }
 

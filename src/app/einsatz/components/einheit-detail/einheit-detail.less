@@ -237,3 +237,36 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+.kiste-inhalt td {
+  padding-left: var(--space-lg);
+  background: var(--surface-tertiary);
+}
+
+.position {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.position-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.kisten-name {
+  display: block;
+  width: 16em;
+  max-width: 100%;
+  margin-top: var(--space-xs);
+}
+
+/* Neue Position im Kisteninhalt: Name über die volle Breite, Menge, Einheit und Knopf darunter. */
+.kiste-inhalt .hinzu .artikel-wahl {
+  flex: 1 1 100%;
+}
+
+.menge:focus-visible {
+  outline: 3px solid var(--ci-red);
+  outline-offset: 2px;
+}

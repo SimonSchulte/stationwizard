@@ -10,7 +10,7 @@ import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { AbschnittFarbe, DruckInhalt } from '../models/druck.model';
 import { SCHILD_RAHMEN } from './abschnittsschild-rahmen';
 import { jpegMasse } from './jpeg-masse';
-import { LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
+import { baueLaufzettelStreifen, LaufzettelStreifen, seitenAufteilen } from './laufzettel-layout';
 import {
   STREIFEN_STANDARD,
   gueltigeStreifenZahl,
@@ -94,6 +94,11 @@ const FARBE_ABSCHNITT: Record<AbschnittFarbe, string> = {
   'abschnitt-7': PDF_FARBEN.abschnitt7,
   'abschnitt-8': PDF_FARBEN.abschnitt8,
 };
+
+/** Konkreter Farbwert der Abschnittsfarbe (pdfmake kennt keine CSS-Variablen). */
+export function abschnittFarbeHex(farbe: AbschnittFarbe): string {
+  return FARBE_ABSCHNITT[farbe];
+}
 
 const WOCHENTAGE = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'] as const;
 
@@ -699,9 +704,7 @@ export function schildInhaltZeilen(
   schrift: number;
 } {
   const einspaltig = abschnitt.laufzettel.length <= 12;
-  const schrift = einspaltig ? 11 : 9;
   const zeichen = einspaltig ? 58 : 36;
-  const kapazitaet = einspaltig ? 12 : 28;
   const alle = abschnitt.laufzettel.map((l) => {
     const vorne = `Nr ${nummern.get(l.id) ?? 0} · `;
     const lager = l.lagerort.trim();
@@ -709,7 +712,16 @@ export function schildInhaltZeilen(
     const platz = Math.max(8, zeichen - vorne.length - hinten.length);
     return `${vorne}${kuerze(l.ueberschrift.trim() || 'Laufzettel', platz)}${hinten}`;
   });
-  let zeilen = alle;
+  return schildSpalten(alle);
+}
+
+/** Ordnet fertige Inhaltszeilen eines Schilds: bis 12 einspaltig, darüber zweispaltig, Rest „… und n weitere“. */
+export function schildSpalten(alle: readonly string[]): { spalten: string[][]; schrift: number } {
+  const einspaltig = alle.length <= 12;
+  const schrift = einspaltig ? 11 : 9;
+  const zeichen = einspaltig ? 58 : 36;
+  const kapazitaet = einspaltig ? 12 : 28;
+  let zeilen = alle.map((z) => kuerze(z, zeichen));
   if (zeilen.length > kapazitaet) {
     const sichtbar = zeilen.slice(0, kapazitaet - 1);
     zeilen = [...sichtbar, `… und ${alle.length - sichtbar.length} weitere`];
@@ -726,16 +738,19 @@ export function schildInhaltZeilen(
  * Einsatz mit Zeitraum (Platz von „Geräteanhänger NRW 04“). Alles ist absolut positioniert, damit nichts
  * umbrechen kann.
  */
-function schild(
-  kopf: DruckKopf,
-  abschnitt: DruckInhalt['abschnitte'][number],
-  y0: number,
-  nummern: ReadonlyMap<string, number>,
-): Content[] {
-  const farbe = FARBE_ABSCHNITT[abschnitt.farbe];
-  const titel = abschnitt.titel.trim();
+interface SchildDaten {
+  titel: string;
+  farbe: AbschnittFarbe;
+  foto?: string;
+  inhalt: { spalten: string[][]; schrift: number };
+}
+
+function schild(kopf: DruckKopf, daten: SchildDaten, y0: number): Content[] {
+  const abschnitt = daten;
+  const farbe = FARBE_ABSCHNITT[daten.farbe];
+  const titel = daten.titel.trim();
   const zeitraum = formatiereZeitraum(kopf.beginn, kopf.ende);
-  const inhalt = schildInhaltZeilen(abschnitt, nummern);
+  const inhalt = daten.inhalt;
   const spaltenBreite = SCHILD.inhaltBreite / inhalt.spalten.length;
   const textBreite = SCHILD.breite - 2 * SCHILD.rand;
 
@@ -899,13 +914,27 @@ export function schnittlinie(): Content {
 function schildSeiten(kopf: DruckKopf, inhalt: DruckInhalt): Content[] {
   const seiten: Content[] = [];
   const nummern = laufzettelNummern(inhalt);
-  for (let i = 0; i < inhalt.abschnitte.length; i += 2) {
-    const paar = inhalt.abschnitte.slice(i, i + 2);
+  // Fertige Aushänge (Soll-Inhalt je Einheit) gehen vor der Zettelliste je Abschnitt.
+  const schilder: SchildDaten[] = inhalt.schilder?.length
+    ? inhalt.schilder.map((s) => ({
+        titel: s.titel,
+        farbe: s.farbe,
+        ...(s.foto ? { foto: s.foto } : {}),
+        inhalt: schildSpalten(s.zeilen),
+      }))
+    : inhalt.abschnitte.map((a) => ({
+        titel: a.titel,
+        farbe: a.farbe,
+        ...(a.foto ? { foto: a.foto } : {}),
+        inhalt: schildInhaltZeilen(a, nummern),
+      }));
+  for (let i = 0; i < schilder.length; i += 2) {
+    const paar = schilder.slice(i, i + 2);
     seiten.push({
       ...(i > 0 ? { pageBreak: 'before' as const } : {}),
       stack: [
         { text: ' ', fontSize: 1 },
-        ...paar.flatMap((a, j) => schild(kopf, a, j * SCHILD.hoehe, nummern)),
+        ...paar.flatMap((a, j) => schild(kopf, a, j * SCHILD.hoehe)),
         ...(paar.length === 2 ? [schnittlinie()] : []),
       ],
     });
@@ -921,11 +950,13 @@ export function laufzettelAbschnitt(
   kopfTitel: string,
   streifen: readonly LaufzettelStreifen[],
   streifenJeSeite: number = STREIFEN_STANDARD,
+  nummerGesamt?: number,
 ): ContentSection | null {
   const m = streifenmass(streifenJeSeite);
   const seiten = seitenAufteilen(streifen, m.streifenJeSeite);
   if (seiten.length === 0) return null;
-  const laufzettelGesamt = streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
+  const laufzettelGesamt =
+    nummerGesamt ?? streifen.reduce((hoechste, s) => Math.max(hoechste, s.nr), 0);
   const laufzettelSeiten: Content[] = seiten.map((seite, index) => {
     const spalten: Column[] = seite.map((s) =>
       streifenInhalt(kopfTitel, s, laufzettelGesamt, index + 1, seiten.length, m),
@@ -963,10 +994,29 @@ export function baueZettelPdfDefinition(
   if (inhalt.anweisungen.trim().length > 0) {
     abschnitte.push(anweisungsAbschnitt(kopf, inhalt, gedrucktAm));
   }
-  const laufzettel = laufzettelAbschnitt(kopf.titel, streifen, streifenJeSeite);
+  // Die Packzettel setzen die Nummern der Laufzettel fort (1, 2, dann 3, 4 …), die Gesamtzahl gilt für beide.
+  const anzahlLaufzettel = laufzettelNummern(inhalt).size;
+  const packzettel = inhalt.kistenzettel?.length
+    ? { anweisungen: '', abschnitte: inhalt.kistenzettel }
+    : null;
+  const anzahlPackzettel = packzettel ? laufzettelNummern(packzettel).size : 0;
+  const nummerGesamt = anzahlPackzettel > 0 ? anzahlLaufzettel + anzahlPackzettel : undefined;
+  const laufzettel = laufzettelAbschnitt(kopf.titel, streifen, streifenJeSeite, nummerGesamt);
   if (laufzettel) abschnitte.push(laufzettel);
 
-  if (inhalt.abschnitte.length > 0) {
+  if (packzettel) {
+    // Eigener Abschnitt; das Abschnittsschild des Aufbaus ist hier ohne Bedeutung.
+    const kistenStreifen = baueLaufzettelStreifen(
+      packzettel,
+      streifenJeSeite,
+      'abschnitt',
+      anzahlLaufzettel,
+    ).map((s) => ({ ...s, schild: 0, schildGesamt: 0 }));
+    const kisten = laufzettelAbschnitt('Packzettel', kistenStreifen, streifenJeSeite, nummerGesamt);
+    if (kisten) abschnitte.push(kisten);
+  }
+
+  if (inhalt.abschnitte.length > 0 || inhalt.schilder?.length) {
     abschnitte.push({
       pageSize: 'A4',
       pageOrientation: 'portrait',

@@ -67,8 +67,9 @@ export function baueLaufzettelStreifen(
   inhalt: DruckInhalt,
   streifenJeSeite: number = STREIFEN_STANDARD,
   sortierung: AushangSortierung = 'abschnitt',
+  nummerStart = 0,
 ): LaufzettelStreifen[] {
-  const nummern = laufzettelNummern(inhalt);
+  const nummern = laufzettelNummern(inhalt, nummerStart);
   const streifen: LaufzettelStreifen[] = [];
   inhalt.abschnitte.forEach((abschnitt, abschnittIndex) => {
     for (const eigenes of abschnitt.laufzettel) {

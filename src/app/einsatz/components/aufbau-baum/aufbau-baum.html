@@ -1,25 +1,54 @@
+<span id="baum-tastenhinweis" class="sr-only">
+  Mit Alt und den Pfeiltasten verschieben: hoch und runter ändert die Reihenfolge, rechts rückt
+  einen Wagen in das Fahrzeug darüber ein, links nimmt ihn heraus.
+</span>
 @if (zeilen().length === 0) {
   <p class="leer">Noch keine Fahrzeuge oder Wagen. Lege unten die erste Einheit an.</p>
 } @else {
-  <div class="baum" role="group" aria-label="Packliste">
-    @for (zeile of zeilen(); track zeile.einheit.id) {
-      <button
-        type="button"
-        class="eintrag"
+  <div
+    class="baum"
+    role="group"
+    aria-label="Packliste"
+    cdkDropList
+    (cdkDropListDropped)="abgelegt($event)"
+  >
+    @for (zeile of zeilen(); track zeile.schluessel) {
+      <div
+        class="zeile"
+        cdkDrag
         [class.eingerueckt]="zeile.tiefe === 1"
-        [attr.aria-pressed]="zeile.einheit.id === gewaehltId()"
-        (click)="gewaehlt.emit(zeile.einheit.id)"
+        [class.eingerueckt-tief]="zeile.tiefe === 2"
+        [class.kiste]="zeile.art === 'kiste'"
       >
-        @if (zeile.tiefe === 0) {
-          <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
-        }
-        <span class="typ">{{ zeile.einheit.typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
-        <span class="name">{{ zeile.einheit.name }}</span>
-        @if (zeile.probleme > 0) {
-          <mat-icon class="warnung" aria-label="Hinweise vorhanden">info</mat-icon>
-        }
-        <span class="zahl">{{ zeile.eintraege }}</span>
-      </button>
+        <mat-icon
+          cdkDragHandle
+          class="griff"
+          aria-label="Zeile verschieben"
+          title="Ziehen zum Verschieben; einen Wagen seitlich ziehen: ein- oder ausrücken"
+          >drag_indicator</mat-icon
+        >
+        <button
+          type="button"
+          class="eintrag"
+          [attr.aria-pressed]="zeile.einheit.id === gewaehltId() && zeile.art === 'einheit'"
+          aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"
+          aria-describedby="baum-tastenhinweis"
+          (click)="gewaehlt.emit(zeile.einheit.id)"
+          (keydown)="taste($event, $index)"
+        >
+          @if (zeile.art === 'kiste') {
+            <mat-icon class="kisten-symbol" aria-hidden="true">inventory_2</mat-icon>
+          } @else {
+            <app-abschnitt-farbpunkt [farbe]="zeile.einheit.farbe" />
+            <span class="typ">{{ zeile.einheit.typ === 'fahrzeug' ? 'Fahrzeug' : 'Wagen' }}</span>
+          }
+          <span class="name">{{ zeile.name }}</span>
+          @if (zeile.probleme > 0) {
+            <mat-icon class="warnung" aria-label="Hinweise vorhanden">info</mat-icon>
+          }
+          <span class="zahl">{{ zeile.zahl }}</span>
+        </button>
+      </div>
     }
   </div>
 }

@@ -16,12 +16,22 @@ import {
   einheitEntfernen,
   einheitHinzufuegen,
   findeEinheit,
+  freieKisteHinzufuegen,
+  freiePositionVerknuepfen,
+  freienArtikelVerknuepfen,
+  freienArtikelHinzufuegen,
   kisteAbgleichen,
+  verschiebeImBaum,
+  type BaumOrt,
   kisteHinzufuegen,
+  kistePositionAendern,
+  kistePositionEntfernen,
+  kistePositionHinzufuegen,
   mitNeuenIds,
   naechsteFarbe,
   zaehleAufbauInhalt,
 } from './aufbau-bearbeiten';
+import type { AufbauEinheit } from '../models/aufbau.model';
 import { istAufbauInhalt } from './aufbau-pruefung';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -90,6 +100,123 @@ describe('Aufbau bearbeiten', () => {
     expect(inhalt.einheiten[0]!.inhalt).toEqual([]);
   });
 
+  it('legt freie Artikel und freie Kisten ohne Stammdaten an', () => {
+    const e = testEinheit();
+    let inhalt = freienArtikelHinzufuegen(
+      testAufbauInhalt([e]),
+      e.id,
+      '  Absperr  band ',
+      'Rollen',
+      4,
+    );
+    inhalt = freieKisteHinzufuegen(inhalt, e.id, 'Werkzeugkiste', 2);
+    const [frei, leereKiste] = inhalt.einheiten[0]!.inhalt;
+    expect(frei).toMatchObject({ art: 'frei', name: 'Absperr band', einheit: 'Rollen', menge: 4 });
+    expect(leereKiste).toMatchObject({ art: 'kiste', kisteId: null, anzahl: 2, inhalt: [] });
+    expect(frei).toMatchObject({ lagerId: null });
+    inhalt = eintragAendern(inhalt, e.id, frei!.id, { menge: 6, lagerId: lager.id });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ menge: 6, lagerId: lager.id });
+    inhalt = eintragAendern(inhalt, e.id, leereKiste!.id, { lagerId: lager.id });
+    expect(inhalt.einheiten[0]!.inhalt[1]).toMatchObject({ lagerId: lager.id });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    expect(zaehleAufbauInhalt(inhalt)).toMatchObject({ kisten: 2, positionen: 1 });
+  });
+
+  it('befüllt eine freie Kiste mit freien und Katalog-Positionen', () => {
+    const e = testEinheit();
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Werkzeug', 1);
+    const kisteId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    const frei = { artikelId: null, name: 'Hammer', einheit: 'Stück', menge: 1, bemerkung: '' };
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, frei);
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, {
+      artikelId: wasser.id,
+      menge: 2,
+      bemerkung: '',
+    });
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, {
+      artikelId: wasser.id,
+      menge: 3,
+      bemerkung: '',
+    });
+    inhalt = kistePositionAendern(inhalt, e.id, kisteId, 0, { menge: 4 });
+    const k = inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] };
+    expect(k.inhalt).toEqual([
+      { ...frei, menge: 4 },
+      { artikelId: wasser.id, menge: 5, bemerkung: '' },
+    ]);
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    inhalt = kistePositionEntfernen(inhalt, e.id, kisteId, 0);
+    expect((inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt).toHaveLength(1);
+  });
+
+  it('legt einen freien Artikel mit Quelllager an und behält es bei der Katalogübernahme', () => {
+    const e = testEinheit();
+    const medizin = testLager(2, 'Medizinlager', 2);
+    let inhalt = freienArtikelHinzufuegen(
+      testAufbauInhalt([e]),
+      e.id,
+      'Wasser',
+      'Liter',
+      7,
+      medizin.id,
+    );
+    const id = inhalt.einheiten[0]!.inhalt[0]!.id;
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'frei', lagerId: medizin.id });
+    inhalt = freienArtikelVerknuepfen(inhalt, e.id, id, { ...wasser, lagerId: lager.id });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'artikel', lagerId: medizin.id });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
+  it('verknüpft einen freien Artikel mit dem Katalog und behält Id, Menge und Phase', () => {
+    const e = testEinheit();
+    let inhalt = freienArtikelHinzufuegen(testAufbauInhalt([e]), e.id, 'Wasser', 'Liter', 7);
+    const id = inhalt.einheiten[0]!.inhalt[0]!.id;
+    inhalt = eintragAendern(inhalt, e.id, id, { phase: 'vorher', bemerkung: 'kalt' });
+    inhalt = freienArtikelVerknuepfen(inhalt, e.id, id, wasser);
+    expect(inhalt.einheiten[0]!.inhalt[0]).toEqual({
+      art: 'artikel',
+      id,
+      artikelId: wasser.id,
+      menge: 7,
+      bemerkung: 'kalt',
+      lagerId: lager.id,
+      phase: 'vorher',
+    });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
+  it('verknüpft eine freie Kistenposition; ein schon enthaltener Artikel addiert die Menge', () => {
+    const e = testEinheit();
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Getränke', 1);
+    const kisteId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    const frei = { artikelId: null, name: 'Wasser', einheit: 'Liter', menge: 2, bemerkung: '' };
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, { ...frei });
+    inhalt = freiePositionVerknuepfen(inhalt, e.id, kisteId, 0, wasser);
+    const positionen = (inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt;
+    expect(positionen).toEqual([{ artikelId: wasser.id, menge: 2, bemerkung: '' }]);
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, { ...frei, menge: 3 });
+    inhalt = freiePositionVerknuepfen(inhalt, e.id, kisteId, 1, wasser);
+    expect((inhalt.einheiten[0]!.inhalt[0] as { inhalt: unknown[] }).inhalt).toEqual([
+      { artikelId: wasser.id, menge: 5, bemerkung: '' },
+    ]);
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
+  it('benennt eine Kiste im Aufbau um, ohne Inhalt und Verweis zu ändern; leere Namen gelten nicht', () => {
+    const e = testEinheit();
+    let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, kiste, 2);
+    const id = inhalt.einheiten[0]!.inhalt[0]!.id;
+    inhalt = eintragAendern(inhalt, e.id, id, { name: '  Verband   groß ' });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({
+      name: 'Verband groß',
+      kisteId: kiste.id,
+      anzahl: 2,
+    });
+    inhalt = eintragAendern(inhalt, e.id, id, { name: '   ' });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ name: 'Verband groß' });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
   it('gleicht eine Kiste mit den Stammdaten ab', () => {
     const e = testEinheit();
     let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, kiste);
@@ -137,5 +264,150 @@ describe('Aufbau bearbeiten', () => {
     expect(kopie.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'kiste', kisteId: kiste.id });
     expect(istAufbauInhalt(kopie)).toBe(true);
     expect(testId(1)).toBe(lager.id);
+  });
+});
+
+describe('verschiebeImBaum', () => {
+  const kisteEintrag = (name: string) => ({
+    art: 'kiste' as const,
+    id: crypto.randomUUID(),
+    kisteId: null,
+    name,
+    lagerId: null,
+    anzahl: 1,
+    inhalt: [],
+    phase: null,
+  });
+  const ort = (
+    art: BaumOrt['art'],
+    id: string,
+    einheitId: string,
+    wurzelId: string,
+    tiefe: BaumOrt['tiefe'],
+  ): BaumOrt => ({
+    art,
+    id,
+    einheitId,
+    wurzelId,
+    tiefe,
+  });
+
+  function aufbau() {
+    const k1 = kisteEintrag('K1');
+    const k2 = kisteEintrag('K2');
+    const kw = kisteEintrag('KW');
+    const wagen1 = testEinheit({ name: 'Wagen 1', inhalt: [kw] });
+    const wagen2 = testEinheit({ name: 'Wagen 2' });
+    const f1 = testEinheit({
+      typ: 'fahrzeug',
+      name: 'F1',
+      inhalt: [k1, k2, { art: 'wagen', id: crypto.randomUUID(), einheit: wagen1 }],
+    });
+    const f2 = testEinheit({
+      typ: 'fahrzeug',
+      name: 'F2',
+      inhalt: [{ art: 'wagen', id: crypto.randomUUID(), einheit: wagen2 }],
+    });
+    const frei = testEinheit({ name: 'Frei' });
+    return { inhalt: testAufbauInhalt([f1, f2, frei]), k1, k2, kw, wagen1, wagen2, f1, f2, frei };
+  }
+  const namen = (e: AufbauEinheit) =>
+    e.inhalt.map((x) => (x.art === 'wagen' ? `W:${x.einheit.name}` : 'name' in x ? x.name : '?'));
+
+  it('verschiebt eine Kiste in einen Wagen und hinter eine andere Kiste', () => {
+    const a = aufbau();
+    // k1 in Wagen 2 (Anker: Zeile Wagen 2, also an den Anfang des Wagens)
+    let neu = verschiebeImBaum(
+      a.inhalt,
+      ort('kiste', a.k1.id, a.f1.id, a.f1.id, 1),
+      ort('einheit', a.wagen2.id, a.wagen2.id, a.f2.id, 1),
+    );
+    expect(namen(neu.einheiten[0]!)).toEqual(['K2', 'W:Wagen 1']);
+    expect(namen(alleEinheiten(neu).find((e) => e.id === a.wagen2.id)!)).toEqual(['K1']);
+    // k2 hinter die Kiste im Wagen 1 (Anker: Kiste KW)
+    neu = verschiebeImBaum(
+      a.inhalt,
+      ort('kiste', a.k2.id, a.f1.id, a.f1.id, 1),
+      ort('kiste', a.kw.id, a.wagen1.id, a.f1.id, 2),
+    );
+    expect(namen(alleEinheiten(neu).find((e) => e.id === a.wagen1.id)!)).toEqual(['KW', 'K2']);
+    expect(istAufbauInhalt(neu)).toBe(true);
+  });
+
+  it('ändert die Reihenfolge oberster Einheiten und nimmt den Inhalt mit', () => {
+    const a = aufbau();
+    const neu = verschiebeImBaum(
+      a.inhalt,
+      ort('einheit', a.frei.id, a.frei.id, a.frei.id, 0),
+      ort('einheit', a.f1.id, a.f1.id, a.f1.id, 0),
+    );
+    expect(neu.einheiten.map((e) => e.name)).toEqual(['F1', 'Frei', 'F2']);
+    const nachVorn = verschiebeImBaum(a.inhalt, ort('einheit', a.f2.id, a.f2.id, a.f2.id, 0), null);
+    expect(nachVorn.einheiten.map((e) => e.name)).toEqual(['F2', 'F1', 'Frei']);
+    expect(namen(nachVorn.einheiten[0]!)).toEqual(['W:Wagen 2']);
+    // Ablegen hinter einer eigenen Kiste ändert nichts.
+    expect(
+      verschiebeImBaum(
+        a.inhalt,
+        ort('einheit', a.f1.id, a.f1.id, a.f1.id, 0),
+        ort('kiste', a.k1.id, a.f1.id, a.f1.id, 1),
+      ),
+    ).toBe(a.inhalt);
+  });
+
+  it('setzt einen Wagen in ein anderes Fahrzeug, aber nie in einen freien Wagen', () => {
+    const a = aufbau();
+    const neu = verschiebeImBaum(
+      a.inhalt,
+      ort('einheit', a.wagen1.id, a.f1.id, a.f1.id, 1),
+      ort('einheit', a.f2.id, a.f2.id, a.f2.id, 0),
+    );
+    expect(namen(neu.einheiten[0]!)).toEqual(['K1', 'K2']);
+    expect(namen(neu.einheiten[1]!)).toEqual(['W:Wagen 1', 'W:Wagen 2']);
+    expect(
+      verschiebeImBaum(
+        a.inhalt,
+        ort('einheit', a.wagen1.id, a.f1.id, a.f1.id, 1),
+        ort('einheit', a.frei.id, a.frei.id, a.frei.id, 0),
+      ),
+    ).toBe(a.inhalt);
+    expect(istAufbauInhalt(neu)).toBe(true);
+  });
+
+  it('stellt einen freien Wagen samt Inhalt in ein Fahrzeug und holt einen Wagen wieder heraus', () => {
+    const kw = kisteEintrag('KF');
+    const frei = testEinheit({ name: 'Freier Wagen', inhalt: [kw] });
+    const a = aufbau();
+    const mitFrei = { ...a.inhalt, einheiten: [...a.inhalt.einheiten, frei] };
+    const nachF2 = ort('einheit', a.f2.id, a.f2.id, a.f2.id, 0);
+    const eingerueckt = verschiebeImBaum(
+      mitFrei,
+      ort('einheit', frei.id, frei.id, frei.id, 0),
+      nachF2,
+      'tiefer',
+    );
+    expect(eingerueckt.einheiten.map((e) => e.name)).toEqual(['F1', 'F2', 'Frei']);
+    expect(namen(eingerueckt.einheiten[1]!)).toEqual(['W:Freier Wagen', 'W:Wagen 2']);
+    expect(namen(alleEinheiten(eingerueckt).find((e) => e.id === frei.id)!)).toEqual(['KF']);
+    expect(istAufbauInhalt(eingerueckt)).toBe(true);
+    // Ohne Einrücken bleibt es ein Umsortieren; ein freier Wagen nimmt keinen freien Wagen auf.
+    expect(
+      verschiebeImBaum(
+        mitFrei,
+        ort('einheit', frei.id, frei.id, frei.id, 0),
+        ort('einheit', a.frei.id, a.frei.id, a.frei.id, 0),
+        'tiefer',
+      ),
+    ).toBe(mitFrei);
+    // Zurück auf oberste Ebene, hinter F2.
+    const heraus = verschiebeImBaum(
+      eingerueckt,
+      ort('einheit', frei.id, a.f2.id, a.f2.id, 1),
+      ort('einheit', a.f2.id, a.f2.id, a.f2.id, 0),
+      'hoeher',
+    );
+    expect(heraus.einheiten.map((e) => e.name)).toEqual(['F1', 'F2', 'Freier Wagen', 'Frei']);
+    expect(namen(heraus.einheiten[1]!)).toEqual(['W:Wagen 2']);
+    expect(istAufbauInhalt(heraus)).toBe(true);
   });
 });

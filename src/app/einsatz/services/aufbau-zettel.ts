@@ -41,7 +41,7 @@ export interface Zettel {
   einheitId: string;
   name: string;
   typ: AufbauEinheit['typ'];
-  /** Farbe des obersten Ziels; ein Wagen im Fahrzeug erbt die des Fahrzeugs. */
+  /** Eigene Farbe der Einheit; auch ein Wagen im Fahrzeug hat seine eigene. */
   farbe: AbschnittFarbe;
   /** Name des Fahrzeugs, wenn der Zettel zu einem Wagen im Fahrzeug gehört. */
   inFahrzeug: string | null;
@@ -154,6 +154,17 @@ function zettelFuer(
         zusatz: mengeZusatz(artikel?.einheit ?? '', eintrag.bemerkung),
         eintragId: eintrag.id,
       });
+    } else if (eintrag.art === 'frei') {
+      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push({
+        art: 'zeile',
+        quelle: 'artikel',
+        text: eintrag.name,
+        menge: mengeText(eintrag.menge, eintrag.einheit, eintrag.bemerkung),
+        bezeichnung: eintrag.name,
+        anzahl: zahlText(eintrag.menge),
+        zusatz: mengeZusatz(eintrag.einheit, eintrag.bemerkung),
+        eintragId: eintrag.id,
+      });
     } else {
       gruppe(null, null, true).zeilen.push({
         art: 'zeile',
@@ -203,7 +214,13 @@ export function leiteZettelAb(inhalt: AufbauInhalt, daten: ZettelStammdaten): Ze
     for (const eintrag of einheit.inhalt) {
       if (eintrag.art === 'wagen') {
         zettel.push(
-          zettelFuer(eintrag.einheit, zettel.length + 1, einheit.farbe, einheit.name, daten),
+          zettelFuer(
+            eintrag.einheit,
+            zettel.length + 1,
+            eintrag.einheit.farbe,
+            einheit.name,
+            daten,
+          ),
         );
       }
     }

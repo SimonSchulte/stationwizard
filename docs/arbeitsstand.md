@@ -3720,7 +3720,7 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
   `aufbau-bearbeiten.ts` (reine Änderungen), `aufbau-zettel.ts` (`leiteZettelAb()`, `sortiereAushang()`),
   `aufbau-abgleich.ts` (`pruefeAufbau()`, `kisteWeichtAb()`), `aufbau-editor-store.service.ts` (Entwurf,
   Rückgängig, Speichern mit Version), `AufbauVorlagenStoreService`, Adapter `ApiAufbauStorage` und
-  `ApiAufbauVorlagenStorage`. Bausteine `AufbauBaum`, `EinheitDetail`, `ZettelVorschau`,
+  `ApiAufbauVorlagenStorage`. Bausteine `AufbauBaum`, `EinheitDetail`, `ZettelVorschau` (später entfernt, siehe Nachtrag),
   `AufbauVorlagenReiter`; Seite `AufbauEditor` unter `einsatz/:id/aufbau` und `aufbau-vorlagen/:id`
   (mit `verlassenGuard`). Einstieg: dritte Kachel „Aufbau“ der Einsatzkarte, Reiter „Aufbau“ in
   _Verwaltung → Einsatz-Vorlagen_.
@@ -3746,6 +3746,85 @@ Worker-Attrappe auf Desktop und Handy-Breite; keine echten Daten, kein echtes Ge
 - **Nicht geprüft:** der echte Worker mit D1. Die Migration `0025` ist am 10.11.2026 eingespielt, der Worker
   danach per Merge automatisch deployt; ein Test gegen den laufenden Betrieb steht aus. Papierdruck und Zuschnitt;
   Foto im Schild mit echtem Bild; Handy-Nutzung der Bearbeitung (die Tabelle scrollt im Rahmen).
+
+### Nachtrag: Aufbau ohne Stammdaten, Kisteninhalt, Kistenschilder und -zettel
+
+Auf Wunsch des Betreibers ist der Aufbau von Lager- und Artikelfeature getrennt vollständig in der Maske
+erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981ji`):
+
+- **Freie Artikel und freie Kisten:** neuer Eintrag `art: 'frei'` (Name, Einheit, Menge, Bemerkung, Phase) und
+  eine Kiste ohne Stammdaten-Kiste. Worker (`pruefeEintrag()`) und Frontend (`istEintrag()`) prüfen sie streng;
+  Zettel führt sie unter „Weitere Artikel“.
+- **Kisteninhalt in der Maske:** „Inhalt bearbeiten“ je Kiste im `EinheitDetail`; Positionen sind
+  Katalogartikel oder frei (`artikelId: null` mit Name und Einheit). Bereits gespeicherte Aufbauten bleiben
+  gültig (Katalogposition unverändert in drei Feldern). Doppelte Katalogartikel in einer Kiste addieren die
+  Menge, freie Positionen dürfen doppelt vorkommen.
+- **Kistenschilder und Kistenzettel aus dem Aufbau:** Menü „Weitere Aktionen“, ein Exemplar je physischer
+  Kiste (`anzahl`), Inhalt aus der Momentaufnahme, Rahmen beziehungsweise Farbband in der Zielfarbe, „Auf / In“
+  beim Zettel die Zieleinheit. Neue Dateien `aufbau-kistenschilder.ts` (mit Test); `kisten-pdf-definition.ts`
+  wurde in wiederverwendbare Bausteine zerlegt, der Druck der Stammdaten-Kisten bleibt unverändert.
+- **Zettelvorschau entfernt:** Auf Wunsch des Betreibers („nicht hilfreich“) zeigt der Aufbau-Editor die
+  Zettelvorschau nicht mehr; der Baustein `ZettelVorschau` ist gelöscht. Prüfung, Reihenfolge am Aushang und
+  Anweisungen stehen unverändert unter der Packliste; die Zettel entstehen weiter über `leiteZettelAb()` für
+  Aushang, Prüfung und Druck.
+- **Druck „Drucken“ erweitert:** Packzettel je physischer Kiste (Abschnitt „Packzettel“) und ein Aushang je
+  Fahrzeug und je Wagen (auch Wagen im Fahrzeug) mit Soll-Inhalt statt der Zettelliste. **Packliste als Baum bis
+  zur Kistenebene**, **Prüfung in einklappbarer Seitenleiste**. Im Browser mit Attrappen-Server und einem echten
+  PDF (Fahrzeug mit Kiste, Wagen mit Kiste: zwei Packzettel, zwei Aushänge) geprüft; Desktop und 400 px ohne
+  waagerechtes Scrollen. Nicht geprüft: Papierdruck, sehr volle Aushänge (mehr als 28 Zeilen enden mit
+  „… und n weitere“, nur im Unit-Test von `schildSpalten()` nicht eigens abgesichert), Kistenzettel mit
+  Fortsetzungsstreifen.
+- **Quelllager für freie Artikel:** `lagerId` am freien Artikel (Worker und Frontend, nullbar, geprüft gegen die Lager,
+  Löschschutz für das Lager), Auswahl beim Anlegen und in der Tabelle (auch für Kisten), Zettelgruppe nach Lager, Fehler
+  „ohne Quelllager“ in der Prüfung, Übernahme in den Katalog nimmt es als Heimatlager. Die frühere Gruppe „Weitere
+  Artikel“ entfällt. Im Browser geprüft (Anlegen, Zuweisen, Hinweis verschwindet, Speichern). Alte Stände ohne `lagerId`
+  gibt es nicht (Änderung noch nicht gemergt).
+- **UI-Review, Nachbesserung:** Packliste per Tastatur bedienbar (Alt+Pfeile, Fokus bleibt, im Browser geprüft), Ziehen per
+  Touch mit echten Touch-Ereignissen (Chromium-CDP) geprüft, Kistenname als `mat-form-field`, „Neue Position“ mit Name
+  über die volle Breite. Offen: Touch am echten Gerät und mit Screenreader, die Snackbar über dem Inhalt (Material-Verhalten).
+- **UI-Review des Aufbau-Editors** (Desktop 1300 px, Handy 400 px, mit Fahrzeug, Wagen in anderer Farbe, Kisten mit und ohne
+  Inhalt, offener Seitenleiste): kein waagerechtes Scrollen, Tokens statt Literalen, Meldungen nur über den
+  `MeldungsDienst`. Behoben: Seitenleiste steht am Handy oben statt unten, Fokusrahmen an Mengen- und Kistennamenfeldern.
+  Offen: Ziehen per Tastatur und Touch (nicht geprüft), die Eingabezeile „Neue Position“ bricht in schmaler Spalte
+  auf zwei Zeilen um.
+- **Packzettel ohne Soll-Inhalt:** Eine Kiste ohne Inhalt druckt „Kein Soll-Inhalt hinterlegt“ (Hinweiszeile), der Editor
+  markiert sie („ohne Inhalt“) und die Prüfung meldet sie als Fehler. Im PDF geprüft. Offen bleibt, ob der Inhalt einer
+  Kiste mit Stammdatenbezug automatisch aus den Stammdaten kommen soll, wenn die Momentaufnahme leer ist (heute nicht).
+- **Laufende Nummern im Hauptdruck:** Die Packzettel setzen die Nummern der Laufzettel fort (Laufzettel 1–2, Packzettel
+  3–4, „Nr. n/4“ in beiden Abschnitten); vorher begannen beide bei 1. Im PDF geprüft.
+- **Farbcodierung je Wagen:** Farbe und Foto lassen sich für jede Einheit setzen, auch für einen Wagen im Fahrzeug
+  (zuvor erbte er die Fahrzeugfarbe). Laufzettel, Packzettel, Aushang und Kistenschild tragen die eigene Farbe; im
+  Browser und im PDF geprüft (Wagen magenta, Fahrzeug orange, Kistenschild magenta). **Hinweis:** bereits gespeicherte
+  Wagen im Fahrzeug haben irgendeine früher vergebene Farbe, die bisher nicht sichtbar war und jetzt gedruckt wird.
+- **Hauptdruck vollständig:** Anweisungen, Laufzettel je Fahrzeug und Wagen, Packzettel je Kiste, Aushang je Fahrzeug
+  und Wagen, zuletzt Kistenschilder je Kiste (ein PDF, im Browser mit Fahrzeug, Wagen und zwei Kisten geprüft: vier
+  Seiten in dieser Reihenfolge).
+- **Drag and drop, Nachtrag:** freier Wagen per seitlichem Ziehen in ein Fahrzeug einrücken und wieder herausnehmen;
+  im Browser alle vier Gesten (Wagen ein/aus, Kiste ins Fahrzeug, Kiste in den Wagen) mit der Maus geprüft.
+- **Drag and drop in der Packliste:** Kisten zwischen Fahrzeug und Wagen, Wagen zwischen Fahrzeugen, Fahrzeuge und
+  freie Wagen umsortieren (`verschiebeImBaum()` mit Unit-Tests, Komponententest für das Ablegen). Im Browser mit Maus
+  am Griff geprüft (Kiste vom Fahrzeug in den Wagen, Speichern). **Nicht geprüft:** Ziehen per Touch am echten
+  Gerät, Tastaturbedienung (gibt es nicht), Ziehen eines ganzen Fahrzeugs im Browser (nur Unit-Test; die Vorschau
+  zeigt nur die Zeile, nicht den Inhalt).
+- **Übernahme in den Katalog:** Knopf „In den Artikelkatalog übernehmen“ an freien Artikeln und freien
+  Kistenpositionen (Anlegen mit Rückfrage oder Verknüpfen mit gleichnamigem Katalogartikel). Im Browser mit
+  Attrappen-Server geprüft (Anlegen, Verknüpfen, gespeicherter JSON); freie Kistenposition nur im Unit-Test. Der
+  Katalog wird sofort geschrieben, der Aufbau erst beim Speichern.
+- Damit ist die oben genannte Grenze „Kistenschilder und Kistenzettel aus dem Aufbau gibt es noch nicht“
+  aufgehoben; ein Eintrag der Anweisung je Einheit im Druck fehlt weiterhin.
+- **Geprüft:** `npm test` (Frontend 209 Dateien, 1709 Tests), `npm run worker:test` (942 Tests), `npm run build`,
+  `npm run worker:check`, Prettier für die geänderten Dateien. **Sicht im Chromium** gegen den gebauten
+  Stand mit einem Attrappen-Server (statische App plus Test-API, außerhalb des Repositories) auf 1300 und
+  400 px: Fahrzeug anlegen, freien Artikel und freie Kiste anlegen, „Inhalt bearbeiten“ mit zwei freien
+  Positionen und einem Katalogartikel, Kiste aus Stammdaten, Speichern (gespeicherter JSON enthält `frei`,
+  `kisteId: null` und `artikelId: null` wie vorgesehen), kein waagerechtes Scrollen am Handy, aufgeklappte
+  Kiste ohne zusätzlichen Überlauf der Tabelle. **Echte PDFs** beider Druckarten (Download, mit pdftoppm
+  gerendert): Kistenschild mit Zielfarbrahmen, Inhaltsliste und Heimatlager (leer als „–“ bei freier Kiste),
+  Kistenzettel mit Zieleinheit bei „Auf / In“, Farbband, „<Kiste> packen“ und Positionen.
+- **Nicht geprüft:** der echte Worker mit D1 (die Attrappe prüft keine Verträge), Papierdruck und Zuschnitt,
+  der Druckdialog des Browsers (headless fällt auf den Download zurück), ein Wagen im Fahrzeug im Zettel
+  (nur im Unit-Test), Bedienung per Touch am echten Gerät. `format:check` meldet `aufbau.model.ts`; das war
+  schon vor diesen Änderungen so.
 
 ## Vorbereitung (VB) entfernt
 

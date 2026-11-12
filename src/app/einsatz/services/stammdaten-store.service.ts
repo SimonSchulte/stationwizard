@@ -161,7 +161,8 @@ export class StammdatenStoreService {
     return erfolg;
   }
 
-  async artikelAnlegen(eingabe: Omit<ArtikelEingabe, 'id'>): Promise<boolean> {
+  /** Legt einen Artikel an; mit `id` bleibt die Kennung dem Aufrufer bekannt (etwa zum Verknüpfen). */
+  async artikelAnlegen(eingabe: Omit<ArtikelEingabe, 'id'> & { id?: string }): Promise<boolean> {
     const name = eingabe.name.trim().replace(/\s+/g, ' ');
     if (name === '') return false;
     if (this.artikel().length >= STAMMDATEN_GRENZEN.artikel) {
@@ -171,7 +172,7 @@ export class StammdatenStoreService {
       return this.abgelehnt('Diesen Artikel gibt es schon.');
     return this.ausfuehren(null, async () => {
       const neu = await this.storage.speichereArtikel(
-        { ...eingabe, name, id: crypto.randomUUID() },
+        { ...eingabe, name, id: eingabe.id ?? crypto.randomUUID() },
         null,
       );
       this.artikel.update((liste) => nachName([...liste, neu]));
@@ -278,6 +279,12 @@ export class StammdatenStoreService {
   private lagerNameVergeben(name: string, ausser: string | null): boolean {
     const schluessel = lagerSchluessel(name);
     return this.lager().some((l) => l.id !== ausser && lagerSchluessel(l.name) === schluessel);
+  }
+
+  /** Der Katalogartikel mit diesem Namen (ohne Groß-/Kleinschreibung und überzählige Leerzeichen). */
+  artikelFinden(name: string): Artikel | undefined {
+    const schluessel = lagerSchluessel(name);
+    return this.artikel().find((a) => lagerSchluessel(a.name) === schluessel);
   }
 
   private artikelNameVergeben(name: string, ausser: string | null): boolean {

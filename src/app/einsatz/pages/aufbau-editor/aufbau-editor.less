@@ -28,15 +28,58 @@
   align-items: start;
 }
 
-.raster.unten {
-  margin-top: var(--space-md);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+@media (max-width: 780px) {
+  .raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mit-leiste {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.haupt {
+  min-width: 0;
+}
+
+.leiste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.leiste.offen {
+  width: 22em;
+  padding: var(--space-sm) var(--space-md) var(--space-base);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-compact);
+  background: var(--surface-primary);
+}
+
+.leiste-knopf {
+  align-self: flex-end;
+}
+
+.leiste-inhalt {
+  min-width: 0;
 }
 
 @media (max-width: 780px) {
-  .raster,
-  .raster.unten {
+  .mit-leiste {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Am Handy steht die Prüfung zuerst, damit Hinweise nicht ganz unten verborgen bleiben. */
+  .leiste {
+    order: -1;
+  }
+
+  .leiste.offen {
+    width: auto;
   }
 }
 
@@ -48,13 +91,15 @@
   background: var(--surface-primary);
 }
 
-.box h2 {
+.box h2,
+.leiste h2 {
   margin: 0 0 var(--space-sm);
   font-size: 1em;
   font-weight: 500;
 }
 
-.box h2.abstand {
+.box h2.abstand,
+.leiste h2.abstand {
   margin-top: var(--space-md);
 }
 

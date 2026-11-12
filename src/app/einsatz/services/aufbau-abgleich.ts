@@ -24,6 +24,7 @@ export interface AufbauProblem {
     | 'ohne-heimatlager'
     | 'kiste-weicht-ab'
     | 'kiste-entfallen'
+    | 'kiste-ohne-inhalt'
     | 'artikel-entfallen'
     | 'leere-einheit';
   text: string;
@@ -32,10 +33,10 @@ export interface AufbauProblem {
 }
 
 function gleicherInhalt(a: AufbauKistenEintrag['inhalt'], b: Kiste['inhalt']): boolean {
-  if (a.length !== b.length) return false;
+  if (a.length !== b.length || a.some((p) => p.artikelId === null)) return false;
   const nachArtikel = new Map(b.map((p) => [p.artikelId, p]));
   return a.every((p) => {
-    const gegen = nachArtikel.get(p.artikelId);
+    const gegen = p.artikelId === null ? undefined : nachArtikel.get(p.artikelId);
     return !!gegen && gegen.menge === p.menge && gegen.bemerkung.trim() === p.bemerkung.trim();
   });
 }
@@ -109,9 +110,30 @@ export function pruefeAufbau(inhalt: AufbauInhalt, daten: AufbauStammdaten): Auf
             eintragId: eintrag.id,
           });
         }
-      } else if (eintrag.art === 'kiste' && eintrag.kisteId) {
-        const stamm = kisten.get(eintrag.kisteId);
-        if (!stamm) {
+      } else if (eintrag.art === 'frei') {
+        if (eintrag.lagerId === null) {
+          probleme.push({
+            schwere: 'fehler',
+            art: 'ohne-heimatlager',
+            text: `Der freie Artikel ${eintrag.name} in ${e.name} hat kein Quelllager; er steht am Zettelende.`,
+            einheitId: e.id,
+            eintragId: eintrag.id,
+          });
+        }
+      } else if (eintrag.art === 'kiste') {
+        if (eintrag.inhalt.length === 0) {
+          probleme.push({
+            schwere: 'fehler',
+            art: 'kiste-ohne-inhalt',
+            text: `${eintrag.name} (${e.name}) hat keinen Inhalt; der Packzettel kann nichts kontrollieren.`,
+            einheitId: e.id,
+            eintragId: eintrag.id,
+          });
+        }
+        const stamm = eintrag.kisteId ? kisten.get(eintrag.kisteId) : undefined;
+        if (!eintrag.kisteId) {
+          // Freie Kiste ohne Stammdaten: nichts abzugleichen.
+        } else if (!stamm) {
           probleme.push({
             schwere: 'hinweis',
             art: 'kiste-entfallen',

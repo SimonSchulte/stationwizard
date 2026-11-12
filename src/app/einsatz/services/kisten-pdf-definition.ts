@@ -1,4 +1,4 @@
-import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { Content, ContentSection, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { PDF_FARBEN } from '../../kern/pdf/pdf-bibliothek';
 import { Artikel, Kiste, KistenPosition, Lager } from '../models/stammdaten.model';
 import { DruckInhalt, DruckLaufzettel } from '../models/druck.model';
@@ -43,13 +43,37 @@ function artikelName(position: KistenPosition, daten: KistenDruckDaten): string 
  * „1 Packung Salz“; eine Bemerkung steht in Klammern dahinter.
  */
 export function kistenZeile(position: KistenPosition, daten: KistenDruckDaten): string {
-  const einheit = daten.artikel.get(position.artikelId)?.einheit ?? 'Stück';
+  return schildZeile({
+    name: artikelName(position, daten),
+    einheit: daten.artikel.get(position.artikelId)?.einheit ?? 'Stück',
+    menge: position.menge,
+    bemerkung: position.bemerkung,
+  });
+}
+
+/** Zeile aus fertigen Angaben; „Stück“ und leere Einheit stehen als „3×“. */
+export function schildZeile(p: {
+  name: string;
+  einheit: string;
+  menge: number;
+  bemerkung: string;
+}): string {
+  const einheit = p.einheit.trim();
   const menge =
-    einheit === 'Stück'
-      ? `${mengeText(position.menge)}×`
-      : `${mengeText(position.menge)} ${einheit}`;
-  const bemerkung = position.bemerkung.trim();
-  return `${menge} ${artikelName(position, daten)}${bemerkung ? ` (${bemerkung})` : ''}`;
+    einheit === '' || einheit === 'Stück'
+      ? `${mengeText(p.menge)}×`
+      : `${mengeText(p.menge)} ${einheit}`;
+  const bemerkung = p.bemerkung.trim();
+  return `${menge} ${p.name}${bemerkung ? ` (${bemerkung})` : ''}`;
+}
+
+/** Was ein Kistenschild trägt; aus einer Stammdaten-Kiste oder aus dem Aufbau abgeleitet. */
+export interface Kistenschild {
+  titel: string;
+  heimatlager: string;
+  zeilen: string[];
+  /** Rahmenfarbe des Inhaltsfelds; ohne Angabe das neutrale Dunkelblau. */
+  rahmenFarbe?: string;
 }
 
 /** Spalten und Schrift der Inhaltsliste eines Kistenschilds; Überlanges endet mit „… und n weitere“. */
@@ -81,16 +105,12 @@ const INHALT_BREITE = SCHILD.breite - 2 * INHALT_X;
 const INHALT_HOEHE = 216;
 const RAHMEN_DICKE = 3;
 
-function kistenschild(
-  kiste: Kiste,
-  daten: KistenDruckDaten,
-  y0: number,
-  rahmenFarbe: string,
-): Content[] {
-  const titel = kiste.name.trim();
+function kistenschild(schild: Kistenschild, y0: number): Content[] {
+  const titel = schild.titel.trim();
+  const rahmenFarbe = schild.rahmenFarbe ?? PDF_FARBEN.dunkelblau;
   const textBreite = SCHILD.breite - 2 * SCHILD.rand;
-  const heimatlager = (kiste.lagerId && daten.lager.get(kiste.lagerId)?.name) || '';
-  const { spalten, schrift } = kistenschildSpalten(kiste.inhalt.map((p) => kistenZeile(p, daten)));
+  const heimatlager = schild.heimatlager;
+  const { spalten, schrift } = kistenschildSpalten(schild.zeilen);
   const spaltenBreite = (INHALT_BREITE - 2 * 8) / spalten.length;
 
   const feld = (
@@ -202,32 +222,63 @@ function kistenschild(
   ];
 }
 
+/** Seiten der Kistenschilder: je A4-Hochformatblatt zwei im A5-Querformat, dazwischen die Schnittlinie. */
+export function kistenschildSeiten(schilder: readonly Kistenschild[]): Content[] {
+  const seiten: Content[] = [];
+  for (let i = 0; i < schilder.length; i += 2) {
+    const paar = schilder.slice(i, i + 2);
+    seiten.push({
+      ...(i > 0 ? { pageBreak: 'before' as const } : {}),
+      stack: [
+        { text: ' ', fontSize: 1 },
+        ...paar.flatMap((schild, j) => kistenschild(schild, j * SCHILD.hoehe)),
+        ...(paar.length === 2 ? [schnittlinie()] : []),
+      ],
+    });
+  }
+  return seiten;
+}
+
+/** Eigener Abschnitt (A4 hochkant, ohne Rand) für Kistenschilder, etwa am Ende des Aufbau-Drucks. */
+export function kistenschildAbschnitt(schilder: readonly Kistenschild[]): ContentSection {
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'portrait',
+    pageMargins: [0, 0, 0, 0],
+    section: kistenschildSeiten(schilder),
+  };
+}
+
 /** Kistenschilder: je A4-Hochformatblatt zwei im A5-Querformat, dazwischen die Schnittlinie. */
+export function baueSchilderDefinition(
+  schilder: readonly Kistenschild[],
+  titel: string,
+): TDocumentDefinitions {
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'portrait',
+    pageMargins: [0, 0, 0, 0],
+    info: { title: titel },
+    defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
+    content: kistenschildSeiten(schilder),
+  };
+}
+
+/** Kistenschilder der Stammdaten-Kisten. */
 export function baueKistenschildDefinition(
   kisten: readonly Kiste[],
   daten: KistenDruckDaten,
   rahmenFarbe: string = PDF_FARBEN.dunkelblau,
 ): TDocumentDefinitions {
-  const seiten: Content[] = [];
-  for (let i = 0; i < kisten.length; i += 2) {
-    const paar = kisten.slice(i, i + 2);
-    seiten.push({
-      ...(i > 0 ? { pageBreak: 'before' as const } : {}),
-      stack: [
-        { text: ' ', fontSize: 1 },
-        ...paar.flatMap((kiste, j) => kistenschild(kiste, daten, j * SCHILD.hoehe, rahmenFarbe)),
-        ...(paar.length === 2 ? [schnittlinie()] : []),
-      ],
-    });
-  }
-  return {
-    pageSize: 'A4',
-    pageOrientation: 'portrait',
-    pageMargins: [0, 0, 0, 0],
-    info: { title: kisten.length === 1 ? `Kistenschild ${kisten[0].name}` : 'Kistenschilder' },
-    defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
-    content: seiten,
-  };
+  return baueSchilderDefinition(
+    kisten.map((kiste) => ({
+      titel: kiste.name,
+      heimatlager: (kiste.lagerId && daten.lager.get(kiste.lagerId)?.name) || '',
+      zeilen: kiste.inhalt.map((p) => kistenZeile(p, daten)),
+      rahmenFarbe,
+    })),
+    kisten.length === 1 ? `Kistenschild ${kisten[0].name}` : 'Kistenschilder',
+  );
 }
 
 /**
@@ -248,17 +299,28 @@ export function baueKistenzettelDefinition(
     transportMit: '',
     auftraggeber: '',
     fachgruppe: null,
-    positionen: kiste.inhalt.map((position) => {
-      const artikel = daten.artikel.get(position.artikelId);
-      const bemerkung = position.bemerkung.trim();
-      const einheit = artikel && artikel.einheit !== 'Stück' ? ` (${artikel.einheit})` : '';
-      return {
-        id: `${kiste.id}:${position.artikelId}`,
-        herkunftId: null,
-        anzahl: mengeText(position.menge),
-        material: `${artikelName(position, daten)}${einheit}${bemerkung ? ` – ${bemerkung}` : ''}`,
-      };
-    }),
+    positionen:
+      kiste.inhalt.length === 0
+        ? [
+            {
+              id: `${kiste.id}:leer`,
+              herkunftId: null,
+              anzahl: '',
+              material: 'Kein Soll-Inhalt hinterlegt',
+              hinweis: true as const,
+            },
+          ]
+        : kiste.inhalt.map((position) => {
+            const artikel = daten.artikel.get(position.artikelId);
+            const bemerkung = position.bemerkung.trim();
+            const einheit = artikel && artikel.einheit !== 'Stück' ? ` (${artikel.einheit})` : '';
+            return {
+              id: `${kiste.id}:${position.artikelId}`,
+              herkunftId: null,
+              anzahl: mengeText(position.menge),
+              material: `${artikelName(position, daten)}${einheit}${bemerkung ? ` – ${bemerkung}` : ''}`,
+            };
+          }),
   }));
   const inhalt: DruckInhalt = {
     anweisungen: '',
@@ -274,7 +336,22 @@ export function baueKistenzettelDefinition(
       },
     ],
   };
-  // Ohne Aufbau gibt es kein Schild: die Nummer des Schilds bleibt aus dem Fuß weg.
+  return baueKistenzettelAusInhalt(
+    inhalt,
+    kisten.length === 1 ? `Kistenzettel ${kisten[0].name}` : 'Kistenzettel',
+    streifenJeSeite,
+  );
+}
+
+/**
+ * Kistenzettel aus fertigem Druckinhalt (ein Abschnitt je Ziel, ein Laufzettel je Kiste). Das Schild
+ * des Abschnitts ist hier nicht das Abschnittsschild des Aufbaus; seine Nummer bleibt aus dem Fuß weg.
+ */
+export function baueKistenzettelAusInhalt(
+  inhalt: DruckInhalt,
+  titel: string,
+  streifenJeSeite: number = STREIFEN_STANDARD,
+): TDocumentDefinitions {
   const streifen = baueLaufzettelStreifen(inhalt, streifenJeSeite).map((s) => ({
     ...s,
     schild: 0,
@@ -284,7 +361,7 @@ export function baueKistenzettelDefinition(
   return {
     pageSize: 'A4',
     pageOrientation: 'landscape',
-    info: { title: kisten.length === 1 ? `Kistenzettel ${kisten[0].name}` : 'Kistenzettel' },
+    info: { title: titel },
     defaultStyle: { font: 'Roboto', fontSize: 9, color: PDF_FARBEN.text },
     content: abschnitt ? [abschnitt] : [],
   };

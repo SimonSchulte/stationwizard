@@ -13,7 +13,40 @@
   gap: var(--space-xs);
 }
 
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.griff {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.cdk-drag-preview {
+  box-shadow: var(--focus-shadow);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--space-xs);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}
+
 .eintrag {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -46,6 +79,24 @@
 .eingerueckt {
   margin-left: var(--space-lg);
   width: calc(100% - var(--space-lg));
+}
+
+.eingerueckt-tief {
+  margin-left: calc(2 * var(--space-lg));
+  width: calc(100% - 2 * var(--space-lg));
+}
+
+.kiste {
+  padding-block: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.9em;
+}
+
+.kisten-symbol {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  font-size: 1.1em;
 }
 
 .typ {
@@ -87,4 +138,13 @@
   margin-top: var(--space-md);
   padding-top: var(--space-md);
   border-top: 1px solid var(--border-light);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

@@ -157,6 +157,14 @@ describe('StammdatenStoreService', () => {
       expect(store.artikelJeLager().get(lager.id)).toBe(1);
     });
 
+    it('behält eine mitgegebene Id und findet Artikel über die Vergleichsform des Namens', async () => {
+      const id = crypto.randomUUID();
+      await store.artikelAnlegen({ id, name: 'Absperr  Band', einheit: 'Rolle', lagerId: null });
+      expect(store.artikelNachId().get(id)?.name).toBe('Absperr Band');
+      expect(store.artikelFinden(' absperr band ')?.id).toBe(id);
+      expect(store.artikelFinden('Hammer')).toBeUndefined();
+    });
+
     it('prüft einen doppelten Namen vorab und schreibt Unverändertes nicht', async () => {
       await store.artikelAnlegen({ name: 'Besen', einheit: 'Stück', lagerId: null });
       await store.artikelAnlegen({ name: 'Zucker', einheit: 'Packung', lagerId: null });
