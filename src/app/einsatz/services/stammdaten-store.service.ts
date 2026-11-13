@@ -171,6 +171,35 @@ export class StammdatenStoreService {
     });
   }
 
+  /**
+   * Stellt ein Lager samt Plätzen sicher (für die Packlisten-Übernahme): fehlende Lager und Plätze werden
+   * angelegt, vorhandene bleiben unberührt (Vergleich ohne Groß-/Kleinschreibung). Liefert das Lager im
+   * aktuellen Stand, bei Ablehnung oder Fehler `null`.
+   */
+  async lagerMitPlaetzenSicherstellen(
+    name: string,
+    platzNamen: readonly string[],
+  ): Promise<Lager | null> {
+    const finde = () => this.lager().find((l) => lagerSchluessel(l.name) === lagerSchluessel(name));
+    if (!finde() && !(await this.lagerAnlegen(name))) return null;
+    let lager = finde();
+    if (!lager) return null;
+    const vorhanden = new Set(lager.plaetze.map((p) => lagerSchluessel(p.name)));
+    const neu = platzNamen
+      .map((n) => n.trim().replace(/\s+/g, ' '))
+      .filter(
+        (n, i, alle) =>
+          n !== '' && alle.findIndex((x) => lagerSchluessel(x) === lagerSchluessel(n)) === i,
+      )
+      .filter((n) => !vorhanden.has(lagerSchluessel(n)))
+      .map((n) => ({ id: crypto.randomUUID(), name: n }));
+    if (neu.length > 0) {
+      if (!(await this.lagerPlaetzeSpeichern(lager, [...lager.plaetze, ...neu]))) return null;
+      lager = finde();
+    }
+    return lager ?? null;
+  }
+
   async lagerLoeschen(lager: Lager): Promise<boolean> {
     if (
       (this.artikelJeLager().get(lager.id) ?? 0) > 0 ||

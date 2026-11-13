@@ -90,6 +90,15 @@
       Lager mit Reihenfolge (Laufweg) und den Artikelkatalog mit Heimatlager pflegen. Grundlage für
       Kisten, Wagen und die Zettel der Einsatzplanung.
     </app-einstiegskarte>
+    <app-einstiegskarte
+      ziel="/verwaltung/packliste-import"
+      icon="upload_file"
+      titel="Packliste importieren"
+      aktion="Excel-Datei übernehmen"
+    >
+      Eine Excel-Packliste einmalig als Aufbau-Vorlage übernehmen: Fahrzeuge, Wagen, Kisten und
+      Artikel mit Lager und Platz.
+    </app-einstiegskarte>
     @if (darfFreigeben()) {
       <app-einstiegskarte
         icon="qr_code_2"

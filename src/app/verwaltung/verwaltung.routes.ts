@@ -76,6 +76,13 @@ export const verwaltungRouten: Routes = [
       ),
   },
   {
+    path: 'packliste-import',
+    loadComponent: () =>
+      import('../einsatz/pages/packliste-import/packliste-import').then(
+        (modul) => modul.PacklisteImport,
+      ),
+  },
+  {
     path: 'einsatz-stammdaten',
     canDeactivate: [verlassenGuard<Stammdaten>((seite) => seite.hatUngespeichertes())],
     loadComponent: () =>

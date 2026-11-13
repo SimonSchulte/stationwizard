@@ -1,0 +1,76 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.inhalt {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.beschreibung {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.auswahl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.verborgen {
+  display: none;
+}
+
+.dateiname {
+  color: var(--text-secondary);
+}
+
+.vorschau h2,
+.vorschau h3 {
+  margin: var(--space-lg) 0 var(--space-sm);
+}
+
+.zahlen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.warnungen {
+  margin: 0;
+  padding-left: var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.lager {
+  margin: 0;
+  padding-left: var(--space-lg);
+}
+
+.marke {
+  margin-left: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.85em;
+}
+
+.anlegen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.titel {
+  flex: 1 1 18rem;
+  max-width: 28rem;
+}

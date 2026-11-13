@@ -572,6 +572,8 @@ Wechselt das Lager, fällt der Platz weg (`mitLagerUndPlatz()`, `StammdatenStore
 (`stammdaten.model.ts`, `aufbau-pruefung.ts`) prüfen dieselben Formen und sind gemeinsam zu ändern. Die Zettel ordnen Zeilen
 innerhalb eines Lagers nach der Reihenfolge der Plätze und nennen den Platz an der Zeile.
 
+**Packlisten-Import** (einmalig, `/verwaltung/packliste-import`, `einsatz/pages/packliste-import/`, Konzept `docs/konzept-packeinheiten.md` Abschnitt 11): Eine Excel-Packliste (Anzahl, Material, Lagerort, Lagerplatz, Transport mit) wird im Browser gelesen (`PacklisteLeser`) und über `leitePacklisteAb()` zu einem Plan aus Fahrzeugen, Wagen, Kisten und freien Artikeln; `baueAufbauInhalt()` baut daraus eine **Aufbau-Vorlage** (nur freie Artikel/Positionen, Standard-Kisten für Kisten ohne Inhalt). Fehlende Lager und Plätze entstehen vorher über `StammdatenStoreService.lagerMitPlaetzenSicherstellen()`. Es gibt keinen Import-Endpunkt: die Seite nutzt die vorhandenen Stammdaten- und Vorlagen-Aufrufe. Unklares (kein Ziel, Kiste ohne Zeile, Kiste in Kiste, fehlende Menge) wird als Warnung gezeigt, nie verworfen.
+
 **Kisten (Stufe 2)** liegen in derselben Datenbank (`0024_kisten.sql`, Worker `einsatzplanung-kisten.ts`): eine
 Zeile je Kiste mit `name` (eindeutig in der Vergleichsform), Heimatlager (`lager_id`, leer möglich,
 Fremdschlüssel `ON DELETE RESTRICT`) und `inhalt` als vom Worker streng geprüftes JSON

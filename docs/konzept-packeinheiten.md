@@ -196,8 +196,8 @@ Jede Stufe ist eigenständig prüfbar, mit Worker-Tests (Prüfung, Konflikte, L�
 ## 8. Bestehende Daten
 
 Die vorhandenen VB-Daten werden **nicht** migriert. Der Betreiber legt Lager, Artikel, Kisten und den
-Aufbau neu an. Bis Stufe 3 bleiben VB-Editor und Endpunkte unverändert bestehen. Ein Import aus der
-Excel-Packliste ist nicht geplant.
+Aufbau neu an. Bis Stufe 3 bleiben VB-Editor und Endpunkte unverändert bestehen. Ein dauerhafter Import ist
+nicht geplant; die einmalige Übernahme einer Excel-Packliste als Aufbau-Vorlage beschreibt Abschnitt 11.
 
 ## 9. Entscheidungen des Betreibers zu den früher offenen Fragen
 
@@ -233,3 +233,27 @@ keine Gebäude mit Räumen (Entscheidung 4 oben gilt weiter: die Reihenfolge der
   je Eintrag im Aufbau. Der Aufbau übernimmt den Platz wie das Lager als Momentaufnahme.
 - **Zettel:** Innerhalb eines Lagers ordnet die Reihenfolge der Plätze die Zeilen (Kisten vor losen Artikeln bleibt);
   der Platzname steht an der Zeile („… · Regal“). Packzettel und Kistenschild nennen „Lager · Platz“.
+
+## 11. Nachtrag: Einmalige Übernahme einer Excel-Packliste
+
+Seite `/verwaltung/packliste-import` (Karte „Packliste importieren“ in der Verwaltung). Die Datei wird im Browser
+gelesen (`packliste-excel.ts`, `@e965/xlsx` dynamisch); `leitePacklisteAb()` (`packliste-import.ts`) macht aus den
+Zeilen einen Plan, `baueAufbauInhalt()` (`packliste-aufbau.ts`) daraus den Inhalt einer **Aufbau-Vorlage**. Die Seite
+zeigt vorab Zahlen, Warnungen sowie die neuen Lager und Plätze; erst „Als Aufbau-Vorlage anlegen“ schreibt.
+
+- **Spalten:** Anzahl, Material, Lagerort, Lagerplatz (optional), Transport mit. „Kaltlager (Spinde)“ wird Lager
+  „Kaltlager“ mit Platz „Spinde“, wenn kein Lagerplatz dasteht.
+- **Ebenen:** „Transport mit“ ist das Ziel. Ein Name, der nie als Material vorkommt, ist ein Fahrzeug (auch ein
+  Geräteanhänger); ein Behälter, dessen Name „wagen“ enthält, ein Wagen (nur in einem Fahrzeug, sonst ein freier
+  Wagen); jeder andere Behälter eine Kiste. Zeilen in der Schreibweise `Kiste "Name"` sind auch ohne Inhalt Kisten.
+  Eine Kiste und ein gleich benannter Artikel sind verschieden.
+- **Ergebnis:** nur freie Artikel und freie Kistenpositionen (Einheit leer), der Artikelkatalog bleibt unberührt.
+  Kisten ohne Positionen werden Standard-Kisten. Eine Kiste ohne eigenes Lager erbt das häufigste Lager ihrer
+  Positionen. Mengen wie „80-90“ werden die Mitte mit Bemerkung „80–90“; fehlende oder unklare Mengen werden 1 mit
+  Warnung. Jede oberste Einheit bekommt reihum eine Farbe.
+- **Nichts geht still verloren:** Zeilen ohne Ziel, Artikel in einer Kiste ohne eigene Zeile und Kisten in Kisten
+  (werden Position der äußeren) erscheinen als Warnung; Ungezieltes steht im Fahrzeug „Ohne Ziel (bitte prüfen)“.
+- **Stammdaten:** fehlende Lager und Plätze legt die Seite zuerst an (`lagerMitPlaetzenSicherstellen()`, vorhandene
+  bleiben unberührt, Vergleich ohne Groß-/Kleinschreibung), die Reihenfolge der Lager ist die des ersten
+  Vorkommens und danach in der Lagerliste änderbar. Schlägt später das Anlegen der Vorlage fehl, bleiben die Lager
+  bestehen (ein erneuter Lauf legt sie nicht doppelt an).
