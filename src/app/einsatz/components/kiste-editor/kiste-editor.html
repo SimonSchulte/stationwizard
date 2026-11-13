@@ -16,11 +16,25 @@
       placeholder="Kein Heimatlager"
       [value]="lagerId()"
       [disabled]="beschaeftigt()"
-      (selectionChange)="lagerId.set($event.value)"
+      (selectionChange)="lagerId.set($event.value); platzId.set(null)"
     >
       <mat-option [value]="null">Kein Heimatlager</mat-option>
       @for (eintrag of lager(); track eintrag.id) {
         <mat-option [value]="eintrag.id">{{ eintrag.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="lager">
+    <mat-label>Platz</mat-label>
+    <mat-select
+      placeholder="Kein Platz"
+      [value]="platzId()"
+      [disabled]="beschaeftigt() || plaetze().length === 0"
+      (selectionChange)="platzId.set($event.value)"
+    >
+      <mat-option [value]="null">Kein Platz</mat-option>
+      @for (platz of plaetze(); track platz.id) {
+        <mat-option [value]="platz.id">{{ platz.name }}</mat-option>
       }
     </mat-select>
   </mat-form-field>

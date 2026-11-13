@@ -72,6 +72,10 @@
         <mat-icon>refresh</mat-icon>
         <span>Gespeicherten Stand neu laden…</span>
       </button>
+      <button mat-menu-item type="button" (click)="loeschen()">
+        <mat-icon>delete</mat-icon>
+        <span>{{ modus === 'vorlage' ? 'Vorlage löschen…' : 'Aufbau löschen…' }}</span>
+      </button>
     }
   </mat-menu>
 </app-seitenkopf>

@@ -9,9 +9,12 @@ import {
 import { AufbauKistenEintrag } from '../models/aufbau.model';
 import {
   artikelHinzufuegen,
+  eintragAendern,
   freieKisteHinzufuegen,
   freienArtikelHinzufuegen,
   kisteHinzufuegen,
+  kistePositionEntfernen,
+  kistePositionHinzufuegen,
 } from './aufbau-bearbeiten';
 import { kisteWeichtAb, pruefeAufbau } from './aufbau-abgleich';
 
@@ -80,6 +83,28 @@ describe('pruefeAufbau', () => {
     expect(probleme).toHaveLength(1);
     expect(probleme[0]).toMatchObject({ schwere: 'fehler', einheitId: e.id });
     expect(probleme[0]!.text).toContain('TeSi Mat');
+  });
+
+  it('meldet eine Standard-Kiste nicht als Kiste ohne Inhalt, den ersten Inhalt hebt das Kennzeichen auf', () => {
+    const e = testEinheit({ name: 'GW' });
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Hygiene 1', 1);
+    const kisteId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    inhalt = eintragAendern(inhalt, e.id, kisteId, { standardInhalt: true });
+    expect(pruefeAufbau(inhalt, DATEN).filter((p) => p.art === 'kiste-ohne-inhalt')).toEqual([]);
+
+    inhalt = kistePositionHinzufuegen(inhalt, e.id, kisteId, {
+      artikelId: null,
+      name: 'Binde',
+      einheit: 'Stück',
+      menge: 1,
+      bemerkung: '',
+    });
+    const kiste = inhalt.einheiten[0]!.inhalt[0] as AufbauKistenEintrag;
+    expect(kiste.standardInhalt).toBeUndefined();
+    inhalt = kistePositionEntfernen(inhalt, e.id, kisteId, 0);
+    expect(pruefeAufbau(inhalt, DATEN).filter((p) => p.art === 'kiste-ohne-inhalt')).toHaveLength(
+      1,
+    );
   });
 
   it('meldet abweichende und entfallene Kisten', () => {

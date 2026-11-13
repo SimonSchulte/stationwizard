@@ -10,7 +10,13 @@ import {
 const VERWALTUNG = { version: 1, geaendertAm: '2026-11-09T10:00:00.000Z', geaendertVon: 'a@b.c' };
 
 describe('istLager', () => {
-  const lager = { id: 'x', name: 'Kaltlager', reihenfolge: 2, ...VERWALTUNG };
+  const lager = {
+    id: 'x',
+    name: 'Kaltlager',
+    plaetze: [{ id: 'p1', name: 'Regal' }],
+    reihenfolge: 2,
+    ...VERWALTUNG,
+  };
 
   it('nimmt eine vollständige Zeile an', () => {
     expect(istLager(lager)).toBe(true);
@@ -19,6 +25,8 @@ describe('istLager', () => {
   it.each([
     ['null', null],
     ['ohne Namen', { ...lager, name: '' }],
+    ['ohne Plätze', { ...lager, plaetze: undefined }],
+    ['Platz ohne Namen', { ...lager, plaetze: [{ id: 'p1', name: '' }] }],
     ['Reihenfolge keine ganze Zahl', { ...lager, reihenfolge: 1.5 }],
     ['Version null', { ...lager, version: 0 }],
     ['ohne Zeitpunkt', { ...lager, geaendertAm: undefined }],
@@ -34,18 +42,21 @@ describe('istArtikel', () => {
     name: 'Gasflasche',
     einheit: 'Stück',
     lagerId: null,
+    platzId: null,
     ...VERWALTUNG,
   };
 
   it('nimmt eine Zeile mit und ohne Heimatlager an', () => {
     expect(istArtikel(artikel)).toBe(true);
     expect(istArtikel({ ...artikel, lagerId: 'l1' })).toBe(true);
+    expect(istArtikel({ ...artikel, lagerId: 'l1', platzId: 'p1' })).toBe(true);
   });
 
   it.each([
     ['unbekannte Einheit', { ...artikel, einheit: 'Eimer' }],
     ['lagerId eine Zahl', { ...artikel, lagerId: 5 }],
     ['lagerId leer', { ...artikel, lagerId: '' }],
+    ['platzId leer', { ...artikel, platzId: '' }],
     ['ohne Version', { ...artikel, version: undefined }],
   ])('lehnt ab: %s', (_titel, wert) => {
     expect(istArtikel(wert)).toBe(false);
@@ -65,6 +76,7 @@ describe('istKiste', () => {
     id: 'x',
     name: 'Gewürzkiste',
     lagerId: null,
+    platzId: null,
     inhalt: [{ artikelId: 'a1', menge: 2.5, bemerkung: '' }],
     ...VERWALTUNG,
   };

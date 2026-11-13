@@ -6,6 +6,7 @@ import {
   Kiste,
   KisteEingabe,
   Lager,
+  Platz,
   STAMMDATEN_GRENZEN,
 } from '../models/stammdaten.model';
 import { ApiStammdatenStorage } from '../storage/api-stammdaten-storage';
@@ -107,7 +108,7 @@ export class StammdatenStoreService {
       return this.abgelehnt('Dieses Lager gibt es schon.');
     return this.ausfuehren(null, async () => {
       const neu = await this.storage.speichereLager(
-        { id: crypto.randomUUID(), name: bereinigt },
+        { id: crypto.randomUUID(), name: bereinigt, plaetze: [] },
         null,
       );
       this.lager.update((liste) => nachReihenfolge([...liste, neu]));
@@ -122,11 +123,81 @@ export class StammdatenStoreService {
     }
     return this.ausfuehren(lager.id, async () => {
       const neu = await this.storage.speichereLager(
-        { id: lager.id, name: bereinigt },
+        { id: lager.id, name: bereinigt, plaetze: lager.plaetze },
         lager.version,
       );
       this.lager.update((liste) => nachReihenfolge(liste.map((l) => (l.id === neu.id ? neu : l))));
     });
+  }
+
+  /** Zahl der Artikel und Kisten je Platz (Schlüssel: Platz-Id); der Aufbau zählt hier nicht mit. */
+  readonly verwendungJePlatz = computed(() => {
+    const zaehlung = new Map<string, number>();
+    for (const eintrag of [...this.artikel(), ...this.kisten()]) {
+      if (eintrag.platzId) zaehlung.set(eintrag.platzId, (zaehlung.get(eintrag.platzId) ?? 0) + 1);
+    }
+    return zaehlung;
+  });
+
+  /** Speichert die Plätze eines Lagers in einem Schreibvorgang (mit dem Lager, `If-Match`). */
+  async lagerPlaetzeSpeichern(lager: Lager, plaetze: readonly Platz[]): Promise<boolean> {
+    const bereinigt = plaetze.map((p) => ({ id: p.id, name: p.name.trim().replace(/\s+/g, ' ') }));
+    if (bereinigt.some((p) => p.name === ''))
+      return this.abgelehnt('Ein Platz braucht einen Namen.');
+    if (bereinigt.length > STAMMDATEN_GRENZEN.plaetze) {
+      return this.abgelehnt(
+        `Es sind höchstens ${STAMMDATEN_GRENZEN.plaetze} Plätze je Lager möglich.`,
+      );
+    }
+    const schluessel = bereinigt.map((p) => lagerSchluessel(p.name));
+    if (new Set(schluessel).size !== schluessel.length) {
+      return this.abgelehnt('Diesen Platz gibt es in diesem Lager schon.');
+    }
+    const bleiben = new Set(bereinigt.map((p) => p.id));
+    const belegt = lager.plaetze.find(
+      (p) => !bleiben.has(p.id) && (this.verwendungJePlatz().get(p.id) ?? 0) > 0,
+    );
+    if (belegt) {
+      return this.abgelehnt(
+        `Der Platz „${belegt.name}“ wird noch von Artikeln oder Kisten verwendet.`,
+      );
+    }
+    return this.ausfuehren(lager.id, async () => {
+      const neu = await this.storage.speichereLager(
+        { id: lager.id, name: lager.name, plaetze: bereinigt },
+        lager.version,
+      );
+      this.lager.update((liste) => nachReihenfolge(liste.map((l) => (l.id === neu.id ? neu : l))));
+    });
+  }
+
+  /**
+   * Stellt ein Lager samt Plätzen sicher (für die Packlisten-Übernahme): fehlende Lager und Plätze werden
+   * angelegt, vorhandene bleiben unberührt (Vergleich ohne Groß-/Kleinschreibung). Liefert das Lager im
+   * aktuellen Stand, bei Ablehnung oder Fehler `null`.
+   */
+  async lagerMitPlaetzenSicherstellen(
+    name: string,
+    platzNamen: readonly string[],
+  ): Promise<Lager | null> {
+    const finde = () => this.lager().find((l) => lagerSchluessel(l.name) === lagerSchluessel(name));
+    if (!finde() && !(await this.lagerAnlegen(name))) return null;
+    let lager = finde();
+    if (!lager) return null;
+    const vorhanden = new Set(lager.plaetze.map((p) => lagerSchluessel(p.name)));
+    const neu = platzNamen
+      .map((n) => n.trim().replace(/\s+/g, ' '))
+      .filter(
+        (n, i, alle) =>
+          n !== '' && alle.findIndex((x) => lagerSchluessel(x) === lagerSchluessel(n)) === i,
+      )
+      .filter((n) => !vorhanden.has(lagerSchluessel(n)))
+      .map((n) => ({ id: crypto.randomUUID(), name: n }));
+    if (neu.length > 0) {
+      if (!(await this.lagerPlaetzeSpeichern(lager, [...lager.plaetze, ...neu]))) return null;
+      lager = finde();
+    }
+    return lager ?? null;
   }
 
   async lagerLoeschen(lager: Lager): Promise<boolean> {
@@ -181,14 +252,29 @@ export class StammdatenStoreService {
 
   async artikelAendern(
     artikel: Artikel,
-    aenderung: Partial<{ name: string; einheit: ArtikelEinheit; lagerId: string | null }>,
+    aenderung: Partial<{
+      name: string;
+      einheit: ArtikelEinheit;
+      lagerId: string | null;
+      platzId: string | null;
+    }>,
   ): Promise<boolean> {
     const name = (aenderung.name ?? artikel.name).trim().replace(/\s+/g, ' ');
     const einheit = aenderung.einheit ?? artikel.einheit;
     const lagerId = aenderung.lagerId === undefined ? artikel.lagerId : aenderung.lagerId;
+    // Ein Platz gehört zu seinem Lager: mit dem Lager wechselt oder entfällt er.
+    const platzId =
+      aenderung.platzId !== undefined
+        ? aenderung.platzId
+        : lagerId === artikel.lagerId
+          ? (artikel.platzId ?? null)
+          : null;
     if (
       name === '' ||
-      (name === artikel.name && einheit === artikel.einheit && lagerId === artikel.lagerId)
+      (name === artikel.name &&
+        einheit === artikel.einheit &&
+        lagerId === artikel.lagerId &&
+        platzId === (artikel.platzId ?? null))
     ) {
       return false;
     }
@@ -197,7 +283,7 @@ export class StammdatenStoreService {
     }
     return this.ausfuehren(artikel.id, async () => {
       const neu = await this.storage.speichereArtikel(
-        { id: artikel.id, name, einheit, lagerId },
+        { id: artikel.id, name, einheit, lagerId, platzId },
         artikel.version,
       );
       this.artikel.update((liste) => nachName(liste.map((a) => (a.id === neu.id ? neu : a))));
@@ -229,7 +315,7 @@ export class StammdatenStoreService {
     let angelegt: Kiste | null = null;
     await this.ausfuehren(null, async () => {
       const neu = await this.storage.speichereKiste(
-        { id: crypto.randomUUID(), name: bereinigt, lagerId: null, inhalt: [] },
+        { id: crypto.randomUUID(), name: bereinigt, lagerId: null, platzId: null, inhalt: [] },
         null,
       );
       this.kisten.update((liste) => nachName([...liste, neu]));
@@ -241,7 +327,7 @@ export class StammdatenStoreService {
   /** Speichert Name, Heimatlager und Inhalt der Kiste in einem Schreibvorgang. */
   async kisteSpeichern(
     kiste: Kiste,
-    aenderung: Pick<KisteEingabe, 'name' | 'lagerId' | 'inhalt'>,
+    aenderung: Pick<KisteEingabe, 'name' | 'lagerId' | 'platzId' | 'inhalt'>,
   ): Promise<Kiste | null> {
     const name = aenderung.name.trim().replace(/\s+/g, ' ');
     if (name === '') {
@@ -255,7 +341,13 @@ export class StammdatenStoreService {
     let gespeichert: Kiste | null = null;
     await this.ausfuehren(kiste.id, async () => {
       const neu = await this.storage.speichereKiste(
-        { id: kiste.id, name, lagerId: aenderung.lagerId, inhalt: aenderung.inhalt },
+        {
+          id: kiste.id,
+          name,
+          lagerId: aenderung.lagerId,
+          platzId: aenderung.platzId ?? null,
+          inhalt: aenderung.inhalt,
+        },
         kiste.version,
       );
       this.kisten.update((liste) => nachName(liste.map((k) => (k.id === neu.id ? neu : k))));

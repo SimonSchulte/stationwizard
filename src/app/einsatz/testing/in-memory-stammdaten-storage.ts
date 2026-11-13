@@ -47,6 +47,7 @@ export class InMemoryStammdatenStorage implements StammdatenStorage {
     const gespeichert: Lager = {
       id: eingabe.id,
       name,
+      plaetze: eingabe.plaetze.map((p) => ({ ...p })),
       reihenfolge:
         bestehend?.reihenfolge ??
         [...this.lager.values()].reduce((h, l) => Math.max(h, l.reihenfolge), 0) + 1,
@@ -105,6 +106,7 @@ export class InMemoryStammdatenStorage implements StammdatenStorage {
     }
     const gespeichert: Artikel = {
       ...eingabe,
+      platzId: eingabe.platzId ?? null,
       name,
       version: (bestehend?.version ?? 0) + 1,
       geaendertAm: new Date().toISOString(),
@@ -146,6 +148,7 @@ export class InMemoryStammdatenStorage implements StammdatenStorage {
     }
     const gespeichert: Kiste = {
       ...eingabe,
+      platzId: eingabe.platzId ?? null,
       name,
       inhalt: eingabe.inhalt.map((p) => ({ ...p })),
       version: (bestehend?.version ?? 0) + 1,

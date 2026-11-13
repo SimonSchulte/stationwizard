@@ -7,12 +7,14 @@ import {
   testLager,
 } from '../testing/aufbau-testdaten';
 import {
+  eintragAendern,
   freieKisteHinzufuegen,
   kistePositionHinzufuegen,
   kisteHinzufuegen,
 } from './aufbau-bearbeiten';
 import {
   KEIN_SOLL_INHALT,
+  STANDARD_INHALT,
   kistenzettelAusAufbau,
   schilderAusAufbau,
 } from './aufbau-kistenschilder';
@@ -88,6 +90,16 @@ describe('kistenzettelAusAufbau', () => {
     const positionen = kistenzettelAusAufbau(inhalt, daten)[0]!.laufzettel[0]!.positionen;
     expect(positionen).toHaveLength(1);
     expect(positionen[0]).toMatchObject({ hinweis: true, material: KEIN_SOLL_INHALT });
+  });
+
+  it('nennt bei einer Standard-Kiste die Standardbestückung statt eines fehlenden Soll-Inhalts', () => {
+    const e = testEinheit();
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Hygiene 1', 1);
+    const kisteId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    inhalt = eintragAendern(inhalt, e.id, kisteId, { standardInhalt: true });
+    const positionen = kistenzettelAusAufbau(inhalt, daten)[0]!.laufzettel[0]!.positionen;
+    expect(positionen).toHaveLength(1);
+    expect(positionen[0]).toMatchObject({ hinweis: true, material: STANDARD_INHALT });
   });
 
   it('lässt Einheiten ohne Kiste aus', () => {

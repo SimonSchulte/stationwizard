@@ -33,6 +33,7 @@ interface Zeile {
 export interface KisteAenderung {
   name: string;
   lagerId: string | null;
+  platzId: string | null;
   inhalt: KistenPosition[];
 }
 
@@ -81,6 +82,12 @@ export class KisteEditor {
 
   protected readonly name = linkedSignal(() => this.kiste().name);
   protected readonly lagerId = linkedSignal<string | null>(() => this.kiste().lagerId);
+  protected readonly platzId = linkedSignal<string | null>(() => this.kiste().platzId ?? null);
+
+  /** Plätze des gewählten Heimatlagers. */
+  protected readonly plaetze = computed(
+    () => this.lager().find((l) => l.id === this.lagerId())?.plaetze ?? [],
+  );
   protected readonly zeilen = linkedSignal<Zeile[]>(() => zuZeilen(this.kiste()));
 
   private readonly artikelNachId = computed(() => new Map(this.artikel().map((a) => [a.id, a])));
@@ -108,7 +115,11 @@ export class KisteEditor {
 
   protected readonly schmutzig = computed(() => {
     const gespeichert = this.kiste();
-    if (this.name().trim() !== gespeichert.name || this.lagerId() !== gespeichert.lagerId) {
+    if (
+      this.name().trim() !== gespeichert.name ||
+      this.lagerId() !== gespeichert.lagerId ||
+      this.platzId() !== (gespeichert.platzId ?? null)
+    ) {
       return true;
     }
     const entwurf = this.zeilen();
@@ -169,6 +180,7 @@ export class KisteEditor {
   protected verwerfen(): void {
     this.name.set(this.kiste().name);
     this.lagerId.set(this.kiste().lagerId);
+    this.platzId.set(this.kiste().platzId ?? null);
     this.zeilen.set(zuZeilen(this.kiste()));
   }
 
@@ -177,6 +189,7 @@ export class KisteEditor {
     this.gespeichert.emit({
       name: this.name().trim(),
       lagerId: this.lagerId(),
+      platzId: this.platzId(),
       inhalt: this.zeilen().map((z) => ({
         artikelId: z.artikelId as string,
         menge: z.menge as number,

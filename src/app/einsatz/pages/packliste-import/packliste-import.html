@@ -1,0 +1,115 @@
+<app-seitenkopf titel="Packliste importieren" icon="upload_file" zurueck="/verwaltung" />
+
+<div class="inhalt">
+  <p class="beschreibung">
+    Übernimmt eine Excel-Packliste einmalig als Aufbau-Vorlage. Gelesen werden die Spalten Anzahl,
+    Material, Lagerort, Lagerplatz und „Transport mit“; das Ziel bestimmt die Ebene: ein Fahrzeug,
+    ein Wagen (Name enthält „wagen“) oder eine Kiste. Fehlende Lager und Plätze legt der Import in
+    den Stammdaten an; der Artikelkatalog bleibt unberührt, der Aufbau trägt freie Artikel.
+  </p>
+
+  <div class="auswahl">
+    <input
+      #dateifeld
+      class="verborgen"
+      type="file"
+      accept=".xlsx,.xlsm,.xls"
+      aria-label="Excel-Packliste wählen"
+      (change)="dateiGewaehlt($event)"
+    />
+    <button
+      matButton="outlined"
+      type="button"
+      [disabled]="liest() || arbeitet()"
+      (click)="dateifeld.click()"
+    >
+      <mat-icon>upload_file</mat-icon>
+      Excel-Datei wählen
+    </button>
+    @if (dateiname()) {
+      <span class="dateiname">{{ dateiname() }}</span>
+    }
+  </div>
+
+  @if (liest()) {
+    <app-ladeanzeige text="Datei wird gelesen …" />
+  }
+
+  @if (ergebnis(); as e) {
+    <section class="vorschau" aria-label="Vorschau">
+      <h2>Vorschau</h2>
+      <ul class="zahlen">
+        <li>
+          <strong>{{ e.zahlen.fahrzeuge }}</strong> Fahrzeuge
+        </li>
+        <li>
+          <strong>{{ e.zahlen.wagen }}</strong> Wagen
+        </li>
+        <li>
+          <strong>{{ e.zahlen.kisten }}</strong> Kisten
+        </li>
+        <li>
+          <strong>{{ e.zahlen.artikel }}</strong> lose Artikel
+        </li>
+        <li>
+          <strong>{{ e.zahlen.positionen }}</strong> Positionen in Kisten
+        </li>
+      </ul>
+
+      @if (e.warnungen.length > 0) {
+        <h3>Zu prüfen ({{ e.warnungen.length }})</h3>
+        <ul class="warnungen">
+          @for (w of e.warnungen; track $index) {
+            <li>{{ w }}</li>
+          }
+        </ul>
+      }
+
+      <h3>Lager und Plätze</h3>
+      <ul class="lager">
+        @for (l of lagerVorschau(); track l.name) {
+          <li>
+            {{ l.name }}
+            @if (l.neu) {
+              <span class="marke">neu</span>
+            }
+            @if (l.plaetze.length > 0) {
+              <span class="plaetze">
+                –
+                @for (p of l.plaetze; track p.name; let letzter = $last) {
+                  {{ p.name }}
+                  @if (p.neu) {
+                    <span class="marke">neu</span>
+                  }
+                  @if (!letzter) {
+                    ,
+                  }
+                }
+              </span>
+            }
+          </li>
+        }
+      </ul>
+
+      <form class="anlegen" (submit)="$event.preventDefault(); anlegen()">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="titel">
+          <mat-label>Name der Vorlage</mat-label>
+          <input
+            matInput
+            autocomplete="off"
+            [attr.maxlength]="maxTitel"
+            [value]="titel()"
+            (input)="titelGeaendert($event)"
+          />
+        </mat-form-field>
+        <button matButton="filled" type="submit" [disabled]="!kannAnlegen()">
+          <mat-icon>playlist_add</mat-icon>
+          Als Aufbau-Vorlage anlegen
+        </button>
+      </form>
+      @if (arbeitet()) {
+        <app-ladeanzeige text="Lager und Vorlage werden angelegt …" />
+      }
+    </section>
+  }
+</div>

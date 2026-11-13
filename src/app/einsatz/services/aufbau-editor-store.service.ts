@@ -235,6 +235,33 @@ export class AufbauEditorStoreService {
     }
   }
 
+  /**
+   * Löscht den gespeicherten Aufbau des Einsatzes beziehungsweise die gespeicherte Vorlage (`If-Match`) und
+   * setzt den Editor zurück. `true` bei Erfolg; bei veralteter Version bleibt der Entwurf (Konflikt).
+   */
+  async loeschen(): Promise<boolean> {
+    const stand = this.geladen();
+    if (!stand || this.speichertGerade()) return false;
+    this.speicherZustand.set('speichert');
+    this.speicherFehler.set('');
+    try {
+      if (this.modus() === 'vorlage') {
+        const id = this.vorlageId();
+        if (!id) return false;
+        await this.vorlagenStorage.loescheVorlage(id, stand.version);
+      } else {
+        const einsatzId = this.einsatzId();
+        if (!einsatzId) return false;
+        await this.aufbauten.loescheAufbau(einsatzId, stand.version);
+      }
+      this.zuruecksetzen();
+      return true;
+    } catch (ursache) {
+      this.fehlerMerken(ursache);
+      return false;
+    }
+  }
+
   /** Verwirft Entwurf und Rückgängig-Schritte, etwa beim Verlassen des Editors. */
   zuruecksetzen(): void {
     this.modus.set(null);

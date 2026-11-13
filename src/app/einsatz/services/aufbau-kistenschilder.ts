@@ -1,4 +1,9 @@
-import { AufbauEinheit, AufbauInhalt, AufbauKistenPosition } from '../models/aufbau.model';
+import {
+  AufbauEinheit,
+  AufbauInhalt,
+  AufbauKistenPosition,
+  istStandardKiste,
+} from '../models/aufbau.model';
 import { Artikel, Lager } from '../models/stammdaten.model';
 import { DruckAbschnitt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { Kistenschild, mengeText, schildZeile } from './kisten-pdf-definition';
@@ -11,6 +16,7 @@ import { abschnittFarbeHex } from './zettel-pdf-definition';
 
 /** Zeile auf einem Packzettel ohne Soll-Inhalt: die Kiste lässt sich so nicht kontrollieren. */
 export const KEIN_SOLL_INHALT = 'Kein Soll-Inhalt hinterlegt';
+export const STANDARD_INHALT = 'Standardbestückung – nach Kistenbeschriftung kontrollieren';
 
 export interface KistenschildStammdaten {
   lager: readonly Lager[];
@@ -28,11 +34,23 @@ function positionsZeile(p: AufbauKistenPosition, artikel: ReadonlyMap<string, Ar
   });
 }
 
+/** „Kaltlager · Regal“: Lager mit Platz, soweit der Platz im Lager noch geführt wird. */
+function lagerMitPlatz(
+  lager: ReadonlyMap<string, Lager>,
+  lagerId: string | null,
+  platzId: string | undefined,
+): string {
+  const eintrag = lagerId ? lager.get(lagerId) : undefined;
+  if (!eintrag) return '';
+  const platz = platzId ? eintrag.plaetze.find((p) => p.id === platzId) : undefined;
+  return platz ? `${eintrag.name} · ${platz.name}` : eintrag.name;
+}
+
 export function schilderAusAufbau(
   inhalt: AufbauInhalt,
   daten: KistenschildStammdaten,
 ): Kistenschild[] {
-  const lager = new Map(daten.lager.map((l) => [l.id, l.name]));
+  const lager = new Map(daten.lager.map((l) => [l.id, l]));
   const artikel = new Map(daten.artikel.map((a) => [a.id, a]));
   const schilder: Kistenschild[] = [];
   const sammle = (einheit: AufbauEinheit, rahmenFarbe: string): void => {
@@ -42,7 +60,7 @@ export function schilderAusAufbau(
       } else if (eintrag.art === 'kiste') {
         const schild: Kistenschild = {
           titel: eintrag.name,
-          heimatlager: (eintrag.lagerId && lager.get(eintrag.lagerId)) || '',
+          heimatlager: lagerMitPlatz(lager, eintrag.lagerId, eintrag.platzId),
           zeilen: eintrag.inhalt.map((p) => positionsZeile(p, artikel)),
           rahmenFarbe,
         };
@@ -59,7 +77,19 @@ function sollPositionen(
   inhalt: readonly AufbauKistenPosition[],
   idPrefix: string,
   artikel: ReadonlyMap<string, Artikel>,
+  standard = false,
 ): DruckPosition[] {
+  if (inhalt.length === 0 && standard) {
+    return [
+      {
+        id: `${idPrefix}:standard`,
+        herkunftId: null,
+        anzahl: '',
+        material: STANDARD_INHALT,
+        hinweis: true,
+      },
+    ];
+  }
   if (inhalt.length === 0) {
     return [
       {
@@ -95,7 +125,7 @@ export function kistenzettelAusAufbau(
   inhalt: AufbauInhalt,
   daten: KistenschildStammdaten,
 ): DruckAbschnitt[] {
-  const lager = new Map(daten.lager.map((l) => [l.id, l.name]));
+  const lager = new Map(daten.lager.map((l) => [l.id, l]));
   const artikel = new Map(daten.artikel.map((a) => [a.id, a]));
   const abschnitte: DruckAbschnitt[] = [];
   const einheitVerarbeiten = (einheit: AufbauEinheit, oberste: AufbauEinheit): void => {
@@ -109,11 +139,11 @@ export function kistenzettelAusAufbau(
           id,
           herkunftId: null,
           ueberschrift: `${eintrag.name} packen`,
-          lagerort: (eintrag.lagerId && lager.get(eintrag.lagerId)) || '',
+          lagerort: lagerMitPlatz(lager, eintrag.lagerId, eintrag.platzId),
           transportMit: ziel,
           auftraggeber: '',
           fachgruppe: null,
-          positionen: sollPositionen(eintrag.inhalt, id, artikel),
+          positionen: sollPositionen(eintrag.inhalt, id, artikel, istStandardKiste(eintrag)),
         });
       }
     }

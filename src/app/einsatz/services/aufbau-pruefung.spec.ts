@@ -74,4 +74,13 @@ describe('Prüfung des Aufbaus', () => {
     expect(istAufbauVorlageKopf({ ...kopf, kisten: -1 })).toBe(false);
     expect(istAufbauVorlageKopf({ ...kopf, extra: 1 })).toBe(false);
   });
+
+  it('nimmt einen Platz nur zusammen mit einem Lager an', () => {
+    const gueltig = (eintrag: AufbauEintrag) =>
+      istAufbauInhalt(testAufbauInhalt([testEinheit({}, [eintrag])]));
+    expect(gueltig(artikel({ lagerId: testId(1), platzId: testId(2) }))).toBe(true);
+    expect(gueltig(artikel({ lagerId: null, platzId: testId(2) }))).toBe(false);
+    expect(gueltig(artikel({ lagerId: testId(1), platzId: 'kein-uuid' }))).toBe(false);
+    expect(gueltig(artikel({ lagerId: testId(1) }))).toBe(true);
+  });
 });

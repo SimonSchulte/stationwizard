@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { AufbauEinheit, AufbauEintrag } from '../models/aufbau.model';
 import { Artikel, Lager } from '../models/stammdaten.model';
-import { leiteZettelAb, mengeText, sortiereAushang } from './aufbau-zettel';
+import { leiteZettelAb, mengeText, sortiereAushang, ZettelZeile } from './aufbau-zettel';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const lager = (n: number, name: string, reihenfolge: number): Lager => ({
   id: id(n),
   name,
+  plaetze: [],
   reihenfolge,
   version: 1,
   geaendertAm: '',
@@ -17,6 +18,7 @@ const artikel = (n: number, name: string, einheit: Artikel['einheit']): Artikel 
   name,
   einheit,
   lagerId: null,
+  platzId: null,
   version: 1,
   geaendertAm: '',
   geaendertVon: '',
@@ -201,5 +203,34 @@ describe('sortiereAushang', () => {
     );
     expect(sortiereAushang(z, 'lager', DATEN.lager).map((x) => x.nr)).toEqual([2, 3, 1, 4]);
     expect(sortiereAushang(z, 'nummer', DATEN.lager).map((x) => x.nr)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('ordnet Zeilen eines Lagers nach der Reihenfolge der Plätze und nennt den Platz an der Zeile', () => {
+    const regal = { id: id(40), name: 'Regal' };
+    const spinde = { id: id(41), name: 'Spinde' };
+    const daten = {
+      ...DATEN,
+      lager: [{ ...lager(1, 'Kaltlager', 1), plaetze: [regal, spinde] }, ...DATEN.lager.slice(1)],
+    };
+    const z = leiteZettelAb(
+      {
+        anweisungen: '',
+        einheiten: [
+          einheit(20, [
+            art(1, 11, 1, { platzId: spinde.id }),
+            art(2, 12, 1),
+            art(3, 11, 1, { platzId: regal.id }),
+            // Ein Platz, den das Lager nicht (mehr) führt, bleibt ohne Platzangabe.
+            art(4, 12, 1, { platzId: id(99) }),
+          ]),
+        ],
+      },
+      daten,
+    )[0]!;
+    const zeilen = z.posten.filter((p): p is ZettelZeile => p.art === 'zeile');
+    expect(zeilen.map((p) => p.eintragId)).toEqual([id(3), id(1), id(2), id(4)]);
+    expect(zeilen[0]!.zusatz).toContain('Regal');
+    expect(zeilen[1]!.zusatz).toContain('Spinde');
+    expect(zeilen[2]!.zusatz).not.toContain('Regal');
   });
 });

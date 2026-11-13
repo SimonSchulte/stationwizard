@@ -12,6 +12,7 @@ export function erzeugeTestLager(ueberschreibung: Partial<Lager> = {}): Lager {
   return {
     id: testKennung(),
     name: 'Küchenlager',
+    plaetze: [],
     reihenfolge: 1,
     version: 1,
     geaendertAm: '2026-11-09T10:00:00.000Z',
@@ -26,6 +27,7 @@ export function erzeugeTestArtikel(ueberschreibung: Partial<Artikel> = {}): Arti
     name: 'Gasflasche 5 kg',
     einheit: 'Stück',
     lagerId: null,
+    platzId: null,
     version: 1,
     geaendertAm: '2026-11-09T10:00:00.000Z',
     geaendertVon: 'test@example.invalid',
@@ -38,6 +40,7 @@ export function erzeugeTestKiste(ueberschreibung: Partial<Kiste> = {}): Kiste {
     id: testKennung(),
     name: 'Gewürzkiste',
     lagerId: null,
+    platzId: null,
     inhalt: [],
     version: 1,
     geaendertAm: '2026-11-09T10:00:00.000Z',

@@ -3842,3 +3842,24 @@ erstellbar (vier aufeinanderfolgende Änderungen, Branch `claude/great-bell-h981
 - Geprüft: Worker 941 Tests (neu: die alten VB-Pfade antworten mit JSON-404), Frontend 1704 Tests, Build,
   `worker:check`, Prettier. **Nicht geprüft:** der Betrieb gegen die echte Datenbank nach dem Deployment;
   Browser-Sichtprüfung der Einsatzübersicht mit der neuen Kachel steht aus.
+
+## Plätze je Lager
+
+Ein Lager führt eine feste Liste von Plätzen (`lager.plaetze`, Migration `0026_lager_plaetze.sql`); Artikel, Kisten und
+Aufbau-Einträge können einen Platz ihres Lagers wählen (`platz_id` beziehungsweise `platzId`). Der Worker prüft, dass der
+Platz zum Lager gehört, und sperrt das Entfernen eines verwendeten Platzes. Zettel ordnen Zeilen nach Platz und nennen ihn.
+
+Ausgeführte Prüfungen: `npm run worker:check`, `npm run worker:test` (950 Tests, darunter neue für Plätze an Lager, Artikel,
+Kiste und Aufbau), `npx ng test --no-watch` (1746 Tests). **Nicht ausgeführt:** Sichtprüfung im Browser auf Desktop und Mobil
+(Lagerliste mit Plätzen, Platzauswahl in Artikeltabelle, Kisteneditor und Aufbau) und das Einspielen der Migration `0026`
+gegen eine echte D1-Datenbank. Die Migration muss vor dem Deployment des Workers eingespielt sein, weil der Worker die neuen
+Spalten liest und schreibt.
+
+## Packlisten-Import
+
+Einmalige Übernahme einer Excel-Packliste als Aufbau-Vorlage (`/verwaltung/packliste-import`). Die Zuordnung nach „Transport mit“ ist
+gegen eine echte Packliste des Betreibers durchgespielt (2 Fahrzeuge, 5 Wagen, 9 Kisten, 36 lose Artikel, 26 Kistenpositionen, nach
+Korrektur dreier Tippfehler ohne Warnung), die Tests arbeiten mit erfundenen Zeilen. Ausgeführte Prüfungen: `npx ng test --no-watch`
+(1759 Tests, darunter Plan, Aufbau-Inhalt gegen `istAufbauInhalt()`, Store-Methode und die Seite mit ersetztem Dateileser).
+**Nicht ausgeführt:** die Seite im Browser mit einer echten Excel-Datei (der Dateileser `lesePackliste()` ist nur über den Dienst
+ersetzt getestet), das Anlegen gegen den echten Worker und die Sichtprüfung auf Desktop und Mobil.

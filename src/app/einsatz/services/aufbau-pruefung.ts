@@ -55,23 +55,49 @@ function istKistenPosition(wert: unknown): wert is AufbauKistenPosition {
   return nurFelder(wert, ['artikelId', 'menge', 'bemerkung']) && istUuid(wert['artikelId']);
 }
 
+/** Platz eines Eintrags: fehlt oder eine UUID, und dann nur zusammen mit einem Lager. */
+function istPlatzFeld(wert: Record<string, unknown>): boolean {
+  const platz = wert['platzId'];
+  return platz === undefined || (istUuid(platz) && istUuid(wert['lagerId']));
+}
+
 function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is AufbauEintrag {
   if (!istObjekt(wert)) return false;
   if (wert['art'] === 'artikel') {
     return (
-      nurFelder(wert, ['art', 'id', 'artikelId', 'menge', 'bemerkung', 'lagerId', 'phase']) &&
+      nurFelder(wert, [
+        'art',
+        'id',
+        'artikelId',
+        'menge',
+        'bemerkung',
+        'lagerId',
+        'platzId',
+        'phase',
+      ]) &&
       neueId(wert['id'], z) &&
       istUuid(wert['artikelId']) &&
       typeof wert['menge'] === 'number' &&
       istGueltigeMenge(wert['menge']) &&
       istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung) &&
       istUuidOderNull(wert['lagerId']) &&
+      istPlatzFeld(wert) &&
       istPhase(wert['phase'])
     );
   }
   if (wert['art'] === 'frei') {
     return (
-      nurFelder(wert, ['art', 'id', 'name', 'einheit', 'menge', 'bemerkung', 'lagerId', 'phase']) &&
+      nurFelder(wert, [
+        'art',
+        'id',
+        'name',
+        'einheit',
+        'menge',
+        'bemerkung',
+        'lagerId',
+        'platzId',
+        'phase',
+      ]) &&
       neueId(wert['id'], z) &&
       istTextBis(wert['name'], AUFBAU_GRENZEN.name, 1) &&
       istTextBis(wert['einheit'], AUFBAU_GRENZEN.einheit) &&
@@ -79,6 +105,7 @@ function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is Auf
       istGueltigeMenge(wert['menge']) &&
       istTextBis(wert['bemerkung'], AUFBAU_GRENZEN.bemerkung) &&
       istUuidOderNull(wert['lagerId']) &&
+      istPlatzFeld(wert) &&
       istPhase(wert['phase'])
     );
   }
@@ -86,11 +113,24 @@ function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is Auf
     const inhalt = wert['inhalt'];
     const positionen = Array.isArray(inhalt) ? inhalt : null;
     return (
-      nurFelder(wert, ['art', 'id', 'kisteId', 'name', 'lagerId', 'anzahl', 'inhalt', 'phase']) &&
+      nurFelder(wert, [
+        'art',
+        'id',
+        'kisteId',
+        'name',
+        'lagerId',
+        'platzId',
+        'anzahl',
+        'inhalt',
+        'standardInhalt',
+        'phase',
+      ]) &&
       neueId(wert['id'], z) &&
       istUuidOderNull(wert['kisteId']) &&
       istTextBis(wert['name'], AUFBAU_GRENZEN.name, 1) &&
       istUuidOderNull(wert['lagerId']) &&
+      istPlatzFeld(wert) &&
+      (wert['standardInhalt'] === undefined || typeof wert['standardInhalt'] === 'boolean') &&
       istGanzzahlAb(wert['anzahl'], 1) &&
       (wert['anzahl'] as number) <= AUFBAU_GRENZEN.kistenAnzahl &&
       positionen !== null &&

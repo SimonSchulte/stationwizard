@@ -192,6 +192,87 @@ describe('Aufbau eines Einsatzes', () => {
     expect(veraltet.status).toBe(412);
   });
 
+  it('speichert das Kennzeichen Standard-Kiste nur bei leerem Inhalt und nur als true', async () => {
+    const db = await vorbereiten();
+    const koerper = aufbau([
+      einheit(20, [
+        kiste(21, { standardInhalt: true, inhalt: [] }),
+        kiste(22, { standardInhalt: false, inhalt: [] }),
+        kiste(23, {
+          standardInhalt: true,
+          inhalt: [{ artikelId: null, name: 'Hammer', einheit: 'Stück', menge: 1, bemerkung: '' }],
+        }),
+      ]),
+    ]);
+    expect((await senden(db, 'PUT', AUFBAU, koerper, NEU)).status).toBe(201);
+    const gelesen = (await (await senden(db, 'GET', AUFBAU)).json()) as {
+      inhalt: { einheiten: { inhalt: Record<string, unknown>[] }[] };
+    };
+    const eintraege = gelesen.inhalt.einheiten[0]!.inhalt;
+    expect(eintraege[0]!['standardInhalt']).toBe(true);
+    expect(eintraege[1]).not.toHaveProperty('standardInhalt');
+    expect(eintraege[2]).not.toHaveProperty('standardInhalt');
+  });
+
+  it('speichert den Platz im Lager und lehnt fremde, unbekannte und lagerlose Plätze ab', async () => {
+    const db = await vorbereiten();
+    expect((await senden(db, 'POST', LAGER, { id: id(2), name: 'Kaltlager' }, NEU)).status).toBe(
+      201,
+    );
+    const lager = (n: number, plaetze: unknown[], version: number) =>
+      senden(
+        db,
+        'PUT',
+        `${LAGER}/${id(n)}`,
+        { id: id(n), name: n === 1 ? 'Medizinlager' : 'Kaltlager', plaetze },
+        {
+          'If-Match': `"${version}"`,
+        },
+      );
+    expect((await lager(1, [{ id: id(40), name: 'Regal' }], 1)).status).toBe(200);
+    const frei = {
+      art: 'frei',
+      id: id(51),
+      name: 'Absperrband',
+      einheit: 'Rollen',
+      menge: 4,
+      bemerkung: '',
+      lagerId: id(1),
+      platzId: id(40),
+      phase: null,
+    };
+    const mitPlatz = aufbau([
+      einheit(20, [
+        frei,
+        artikel(52, { platzId: id(40) }),
+        kiste(53, { platzId: id(40) }),
+        artikel(54),
+      ]),
+    ]);
+    expect((await senden(db, 'PUT', AUFBAU, mitPlatz, NEU)).status).toBe(201);
+    const gelesen = (await (await senden(db, 'GET', AUFBAU)).json()) as {
+      inhalt: { einheiten: { inhalt: Record<string, unknown>[] }[] };
+    };
+    const eintraege = gelesen.inhalt.einheiten[0]!.inhalt;
+    expect(eintraege.map((e) => e['platzId'])).toEqual([id(40), id(40), id(40), undefined]);
+
+    // Platz eines anderen Lagers, unbekannter Platz und Platz ohne Lager.
+    for (const eintrag of [
+      artikel(52, { lagerId: id(2), platzId: id(40) }),
+      artikel(52, { platzId: id(41) }),
+      artikel(52, { lagerId: null, platzId: id(40) }),
+      artikel(52, { platzId: 'keine-uuid' }),
+    ]) {
+      const abgelehnt = await senden(db, 'PUT', AUFBAU, aufbau([einheit(20, [eintrag])]), {
+        'If-Match': '"1"',
+      });
+      expect(abgelehnt.status).toBe(400);
+    }
+    // Ein Platz, auf den der Aufbau verweist, lässt sich im Lager nicht entfernen.
+    const gesperrt = await lager(1, [], 2);
+    expect(gesperrt.status).toBe(409);
+  });
+
   it('lehnt eine zweite Anlage, einen unbekannten Einsatz und fehlenden Aufbau ab', async () => {
     const db = await vorbereiten();
     expect((await senden(db, 'PUT', AUFBAU, aufbau([]), NEU)).status).toBe(201);
@@ -218,6 +299,10 @@ describe('Aufbau eines Einsatzes', () => {
     ['Menge null', aufbau([einheit(20, [artikel(21, { menge: 0 })])])],
     ['Menge mit vier Nachkommastellen', aufbau([einheit(20, [artikel(21, { menge: 1.0001 })])])],
     ['Anzahl null', aufbau([einheit(20, [kiste(21, { anzahl: 0 })])])],
+    [
+      'Standard-Kennzeichen kein Wahrheitswert',
+      aufbau([einheit(20, [kiste(21, { standardInhalt: 'ja' })])]),
+    ],
     ['Kiste ohne Namen', aufbau([einheit(20, [kiste(21, { name: ' ' })])])],
     ['unbekannte Phase', aufbau([einheit(20, [artikel(21, { phase: 'nachher' })])])],
     [

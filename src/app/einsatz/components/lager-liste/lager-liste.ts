@@ -1,12 +1,12 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
-import { Lager, STAMMDATEN_GRENZEN } from '../../models/stammdaten.model';
+import { Lager, Platz, STAMMDATEN_GRENZEN } from '../../models/stammdaten.model';
 
 /**
  * Liste der Lager in der Reihenfolge des Laufwegs. Rein darstellend: Anlegen, Umbenennen, Löschen
@@ -34,6 +34,8 @@ export class LagerListe {
   readonly lager = input.required<readonly Lager[]>();
   /** Zahl der Artikel je Lager-Id. */
   readonly artikelJeLager = input<ReadonlyMap<string, number>>(new Map());
+  /** Zahl der Artikel und Kisten je Platz-Id; ein verwendeter Platz lässt sich nicht entfernen. */
+  readonly verwendungJePlatz = input<ReadonlyMap<string, number>>(new Map());
   /** Id der Zeile, die gerade gespeichert wird; sperrt deren Eingaben. */
   readonly beschaeftigtId = input<string | null>(null);
 
@@ -41,8 +43,46 @@ export class LagerListe {
   readonly umbenannt = output<{ lager: Lager; name: string }>();
   readonly geloescht = output<Lager>();
   readonly verschoben = output<{ von: number; nach: number }>();
+  /** Neue vollständige Platzliste eines Lagers (anlegen, umbenennen, entfernen). */
+  readonly plaetzeGeaendert = output<{ lager: Lager; plaetze: Platz[] }>();
 
   protected readonly maxName = STAMMDATEN_GRENZEN.name;
+  protected readonly maxPlatz = STAMMDATEN_GRENZEN.platzName;
+  /** Lager, dessen Plätze gerade aufgeklappt sind. */
+  protected readonly offenesLager = signal<string | null>(null);
+
+  protected plaetzeUmschalten(lager: Lager): void {
+    this.offenesLager.update((id) => (id === lager.id ? null : lager.id));
+  }
+
+  protected platzVerwendung(platz: Platz): number {
+    return this.verwendungJePlatz().get(platz.id) ?? 0;
+  }
+
+  protected platzAnlegen(lager: Lager, feld: HTMLInputElement): void {
+    const name = feld.value.trim();
+    if (name === '') return;
+    this.plaetzeGeaendert.emit({
+      lager,
+      plaetze: [...lager.plaetze, { id: crypto.randomUUID(), name }],
+    });
+    feld.value = '';
+  }
+
+  protected platzUmbenennen(lager: Lager, platz: Platz, feld: HTMLInputElement): void {
+    const name = feld.value;
+    // Auf den alten Stand zurück; bei Erfolg setzt die Bindung den neuen Namen.
+    feld.value = platz.name;
+    if (name.trim() === '' || name.trim() === platz.name) return;
+    this.plaetzeGeaendert.emit({
+      lager,
+      plaetze: lager.plaetze.map((p) => (p.id === platz.id ? { ...p, name } : p)),
+    });
+  }
+
+  protected platzEntfernen(lager: Lager, platz: Platz): void {
+    this.plaetzeGeaendert.emit({ lager, plaetze: lager.plaetze.filter((p) => p.id !== platz.id) });
+  }
 
   protected anzahl(lager: Lager): number {
     return this.artikelJeLager().get(lager.id) ?? 0;

@@ -31,7 +31,8 @@ import {
   naechsteFarbe,
   zaehleAufbauInhalt,
 } from './aufbau-bearbeiten';
-import type { AufbauEinheit } from '../models/aufbau.model';
+import type { AufbauEinheit, AufbauKistenEintrag } from '../models/aufbau.model';
+import { kisteWeichtAb } from './aufbau-abgleich';
 import { istAufbauInhalt } from './aufbau-pruefung';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -264,6 +265,50 @@ describe('Aufbau bearbeiten', () => {
     expect(kopie.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'kiste', kisteId: kiste.id });
     expect(istAufbauInhalt(kopie)).toBe(true);
     expect(testId(1)).toBe(lager.id);
+  });
+});
+
+describe('Platz im Lager', () => {
+  const lager = testId(900);
+  const platz = testId(901);
+  const andererPlatz = testId(902);
+  const stammArtikel = { ...testArtikelStamm(910, 'Hammer', 'Stück', lager), platzId: platz };
+  const stammKiste = {
+    ...testKiste(920, 'Werkzeugkiste', lager, stammArtikel.id),
+    platzId: platz,
+  };
+
+  it('übernimmt den Platz von Artikel und Kiste und lässt ihn beim Lagerwechsel fallen', () => {
+    const e = testEinheit({ name: 'GW' });
+    let inhalt = artikelHinzufuegen(testAufbauInhalt([e]), e.id, stammArtikel, 2);
+    inhalt = kisteHinzufuegen(inhalt, e.id, stammKiste);
+    const [artikel, kiste] = inhalt.einheiten[0]!.inhalt;
+    expect(artikel).toMatchObject({ lagerId: lager, platzId: platz });
+    expect(kiste).toMatchObject({ lagerId: lager, platzId: platz });
+
+    // Anderer Platz im selben Lager bleibt, ein anderes Lager entfernt den Platz.
+    inhalt = eintragAendern(inhalt, e.id, artikel!.id, { platzId: andererPlatz });
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ platzId: andererPlatz });
+    inhalt = eintragAendern(inhalt, e.id, artikel!.id, { lagerId: testId(903) });
+    expect(inhalt.einheiten[0]!.inhalt[0]).not.toHaveProperty('platzId');
+    inhalt = eintragAendern(inhalt, e.id, kiste!.id, { lagerId: null });
+    expect(inhalt.einheiten[0]!.inhalt[1]).not.toHaveProperty('platzId');
+    // Ohne Lager gibt es keinen Platz, auch wenn einer verlangt wird.
+    inhalt = eintragAendern(inhalt, e.id, kiste!.id, { platzId: platz });
+    expect(inhalt.einheiten[0]!.inhalt[1]).not.toHaveProperty('platzId');
+  });
+
+  it('meldet einen abweichenden Platz der Kiste und gleicht ihn mit den Stammdaten ab', () => {
+    const e = testEinheit({ name: 'GW' });
+    let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, stammKiste);
+    const eintrag = inhalt.einheiten[0]!.inhalt[0]!;
+    inhalt = eintragAendern(inhalt, e.id, eintrag.id, { platzId: andererPlatz });
+    const geaendert = inhalt.einheiten[0]!.inhalt[0] as AufbauKistenEintrag;
+    expect(kisteWeichtAb(geaendert, stammKiste)).toBe(true);
+    inhalt = kisteAbgleichen(inhalt, e.id, eintrag.id, stammKiste);
+    const abgeglichen = inhalt.einheiten[0]!.inhalt[0] as AufbauKistenEintrag;
+    expect(abgeglichen.platzId).toBe(platz);
+    expect(kisteWeichtAb(abgeglichen, stammKiste)).toBe(false);
   });
 });
 

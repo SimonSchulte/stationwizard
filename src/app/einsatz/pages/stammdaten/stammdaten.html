@@ -30,9 +30,11 @@
           <app-lager-liste
             [lager]="store.lager()"
             [artikelJeLager]="store.artikelJeLager()"
+            [verwendungJePlatz]="store.verwendungJePlatz()"
             [beschaeftigtId]="store.beschaeftigtId()"
             (angelegt)="lagerAnlegen($event)"
             (umbenannt)="lagerUmbenennen($event)"
+            (plaetzeGeaendert)="lagerPlaetze($event)"
             (geloescht)="lagerLoeschen($event)"
             (verschoben)="lagerVerschieben($event)"
           />

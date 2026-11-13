@@ -1,4 +1,4 @@
-import { AufbauInhalt, AufbauKistenEintrag } from '../models/aufbau.model';
+import { AufbauInhalt, AufbauKistenEintrag, istStandardKiste } from '../models/aufbau.model';
 import { Artikel, Kiste, Lager } from '../models/stammdaten.model';
 import { leiteZettelAb } from './aufbau-zettel';
 
@@ -46,6 +46,7 @@ export function kisteWeichtAb(eintrag: AufbauKistenEintrag, kiste: Kiste): boole
   return (
     eintrag.name !== kiste.name ||
     eintrag.lagerId !== kiste.lagerId ||
+    (eintrag.platzId ?? null) !== (kiste.platzId ?? null) ||
     !gleicherInhalt(eintrag.inhalt, kiste.inhalt)
   );
 }
@@ -121,7 +122,7 @@ export function pruefeAufbau(inhalt: AufbauInhalt, daten: AufbauStammdaten): Auf
           });
         }
       } else if (eintrag.art === 'kiste') {
-        if (eintrag.inhalt.length === 0) {
+        if (eintrag.inhalt.length === 0 && !istStandardKiste(eintrag)) {
           probleme.push({
             schwere: 'fehler',
             art: 'kiste-ohne-inhalt',

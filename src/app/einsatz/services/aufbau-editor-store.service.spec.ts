@@ -102,6 +102,29 @@ describe('AufbauEditorStoreService', () => {
     expect(store.geaendert()).toBe(false);
   });
 
+  it('löscht den gespeicherten Aufbau mit Version und setzt den Editor zurück', async () => {
+    await store.anlegen(einsatzId, null);
+    expect(await store.loeschen()).toBe(true);
+    expect(store.inhalt()).toBeNull();
+    await store.ladeAufbau(einsatzId);
+    expect(store.nichtGefunden()).toBe(true);
+  });
+
+  it('löscht eine Vorlage und bewahrt den Entwurf bei veralteter Version', async () => {
+    const id = testId(910);
+    vorlagen._vorbelegen({ id, titel: 'Standard', inhalt: testAufbauInhalt([testEinheit()]) });
+    await store.ladeVorlage(id);
+    // Zwischenzeitlich von jemand anderem geändert.
+    const stand = await vorlagen.ladeVorlage(id);
+    await vorlagen.speichereVorlage(stand!.daten, stand!.version);
+    expect(await store.loeschen()).toBe(false);
+    expect(store.konflikt()).toBe(true);
+    expect(store.inhalt()).not.toBeNull();
+    await store.ladeVorlage(id);
+    expect(await store.loeschen()).toBe(true);
+    expect(await vorlagen.ladeVorlage(id)).toBeNull();
+  });
+
   it('setzt beim Zurücksetzen alles zurück', async () => {
     await store.anlegen(einsatzId, null);
     store.zuruecksetzen();

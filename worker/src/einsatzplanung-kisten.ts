@@ -15,6 +15,7 @@ import {
   KISTEN_KOERPER_GRENZE,
   MAX_KISTEN,
   namenVergleich,
+  platzGehoertZuLager,
   pruefeKisteEingabe,
   stammdatenGrenze,
   stammdatenNameVergeben,
@@ -33,6 +34,7 @@ interface KistenZeile {
   id: string;
   name: string;
   lager_id: string | null;
+  platz_id: string | null;
   inhalt: string;
   version: number;
   geaendert_am: string;
@@ -42,7 +44,7 @@ interface KistenZeile {
 function kisteJson(
   kopf: Pick<
     KistenZeile,
-    'id' | 'name' | 'lager_id' | 'version' | 'geaendert_am' | 'geaendert_von'
+    'id' | 'name' | 'lager_id' | 'platz_id' | 'version' | 'geaendert_am' | 'geaendert_von'
   >,
   inhalt: KistenPositionEingabe[],
 ) {
@@ -50,6 +52,7 @@ function kisteJson(
     id: kopf.id,
     name: kopf.name,
     lagerId: kopf.lager_id,
+    platzId: kopf.platz_id,
     inhalt,
     version: kopf.version,
     geaendertAm: kopf.geaendert_am,
@@ -70,6 +73,9 @@ async function pruefeVerweise(db: D1Database, eingabe: KisteEingabe): Promise<Re
       .first<{ id: string }>();
     if (!lager) return ungueltig('Das Heimatlager gibt es nicht.');
   }
+  if (!(await platzGehoertZuLager(db, eingabe.lagerId, eingabe.platzId))) {
+    return ungueltig('Der Platz gehört nicht zum Heimatlager.');
+  }
   const ids = eingabe.inhalt.map((position) => position.artikelId);
   if (ids.length === 0) return null;
   const treffer = await db
@@ -84,7 +90,7 @@ async function pruefeVerweise(db: D1Database, eingabe: KisteEingabe): Promise<Re
 export async function listeKisten(db: D1Database): Promise<Response> {
   const ergebnis = await db
     .prepare(
-      `SELECT id, name, lager_id, inhalt, version, geaendert_am, geaendert_von
+      `SELECT id, name, lager_id, platz_id, inhalt, version, geaendert_am, geaendert_von
        FROM kisten ORDER BY name`,
     )
     .all<KistenZeile>();
@@ -118,15 +124,16 @@ export async function legeKisteAn(
     await db
       .prepare(
         `INSERT INTO kisten
-           (id, name, name_vergleich, lager_id, inhalt, positionen, version, geaendert_am,
+           (id, name, name_vergleich, lager_id, platz_id, inhalt, positionen, version, geaendert_am,
             geaendert_von)
-         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       )
       .bind(
         eingabe.id,
         eingabe.name,
         namenVergleich(eingabe.name),
         eingabe.lagerId,
+        eingabe.platzId,
         JSON.stringify(eingabe.inhalt),
         eingabe.inhalt.length,
         jetzt,
@@ -147,6 +154,7 @@ export async function legeKisteAn(
         id: eingabe.id,
         name: eingabe.name,
         lager_id: eingabe.lagerId,
+        platz_id: eingabe.platzId,
         version: 1,
         geaendert_am: jetzt,
         geaendert_von: identitaet.email,
@@ -178,7 +186,7 @@ export async function aktualisiereKiste(
     ergebnis = await db
       .prepare(
         `UPDATE kisten
-         SET name = ?, name_vergleich = ?, lager_id = ?, inhalt = ?, positionen = ?,
+         SET name = ?, name_vergleich = ?, lager_id = ?, platz_id = ?, inhalt = ?, positionen = ?,
              geaendert_am = ?, geaendert_von = ?, version = version + 1
          WHERE id = ? AND version = ?`,
       )
@@ -186,6 +194,7 @@ export async function aktualisiereKiste(
         eingabe.name,
         namenVergleich(eingabe.name),
         eingabe.lagerId,
+        eingabe.platzId,
         JSON.stringify(eingabe.inhalt),
         eingabe.inhalt.length,
         jetzt,
@@ -206,6 +215,7 @@ export async function aktualisiereKiste(
         id: eingabe.id,
         name: eingabe.name,
         lager_id: eingabe.lagerId,
+        platz_id: eingabe.platzId,
         version: version + 1,
         geaendert_am: jetzt,
         geaendert_von: identitaet.email,

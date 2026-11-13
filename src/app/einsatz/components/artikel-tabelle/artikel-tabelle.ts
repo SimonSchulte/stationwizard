@@ -14,6 +14,7 @@ import {
   ArtikelEingabe,
   ArtikelEinheit,
   Lager,
+  Platz,
   STAMMDATEN_GRENZEN,
 } from '../../models/stammdaten.model';
 import { lagerSchluessel } from '../../services/lager';
@@ -50,7 +51,12 @@ export class ArtikelTabelle {
   readonly angelegt = output<Omit<ArtikelEingabe, 'id'>>();
   readonly geaendert = output<{
     artikel: Artikel;
-    aenderung: Partial<{ name: string; einheit: ArtikelEinheit; lagerId: string | null }>;
+    aenderung: Partial<{
+      name: string;
+      einheit: ArtikelEinheit;
+      lagerId: string | null;
+      platzId: string | null;
+    }>;
   }>();
   readonly geloescht = output<Artikel>();
 
@@ -110,6 +116,11 @@ export class ArtikelTabelle {
     if (name.trim() !== '' && name.trim() !== artikel.name) {
       this.geaendert.emit({ artikel, aenderung: { name } });
     }
+  }
+
+  /** Plätze des Heimatlagers eines Artikels (leer ohne Lager). */
+  protected plaetzeVon(lagerId: string | null): readonly Platz[] {
+    return this.lager().find((l) => l.id === lagerId)?.plaetze ?? [];
   }
 
   protected lagerName(lagerId: string | null): string {

@@ -144,6 +144,98 @@ describe('StammdatenStoreService', () => {
     });
   });
 
+  describe('Plätze', () => {
+    const regal = { id: 'p1', name: 'Regal' };
+    const spinde = { id: 'p2', name: 'Spinde' };
+
+    async function vorbereiten() {
+      const lager = erzeugeTestLager({ id: 'l1', name: 'Kaltlager', plaetze: [regal] });
+      storage._vorbelegen(
+        [lager],
+        [erzeugeTestArtikel({ name: 'Hammer', lagerId: 'l1', platzId: 'p1' })],
+      );
+      await store.laden();
+      return store.lager()[0]!;
+    }
+
+    it('speichert die Plätze eines Lagers in einem Schreibvorgang', async () => {
+      const lager = await vorbereiten();
+      expect(
+        await store.lagerPlaetzeSpeichern(lager, [regal, { ...spinde, name: ' Spinde ' }]),
+      ).toBe(true);
+      expect(store.lager()[0]!.plaetze.map((p) => p.name)).toEqual(['Regal', 'Spinde']);
+      expect(storage.schreibzugriffe).toBe(1);
+    });
+
+    it('lehnt doppelte und leere Plätze ab und schreibt dabei nichts', async () => {
+      const lager = await vorbereiten();
+      expect(await store.lagerPlaetzeSpeichern(lager, [regal, { id: 'p3', name: ' REGAL ' }])).toBe(
+        false,
+      );
+      expect(await store.lagerPlaetzeSpeichern(lager, [regal, { id: 'p3', name: ' ' }])).toBe(
+        false,
+      );
+      expect(storage.schreibzugriffe).toBe(0);
+    });
+
+    it('sperrt das Entfernen eines Platzes, den ein Artikel verwendet', async () => {
+      const lager = await vorbereiten();
+      expect(store.verwendungJePlatz().get('p1')).toBe(1);
+      expect(await store.lagerPlaetzeSpeichern(lager, [])).toBe(false);
+      expect(store.lager()[0]!.plaetze).toHaveLength(1);
+      expect(storage.schreibzugriffe).toBe(0);
+    });
+
+    it('setzt den Platz eines Artikels zurück, sobald sein Heimatlager wechselt', async () => {
+      const lager2 = erzeugeTestLager({ id: 'l2', name: 'Küchenlager', reihenfolge: 2 });
+      const lager1 = erzeugeTestLager({ id: 'l1', name: 'Kaltlager', plaetze: [regal] });
+      storage._vorbelegen(
+        [lager1, lager2],
+        [erzeugeTestArtikel({ id: 'a1', name: 'Hammer', lagerId: 'l1', platzId: 'p1' })],
+      );
+      await store.laden();
+      const hammer = store.artikel()[0]!;
+      await store.artikelAendern(hammer, { lagerId: 'l2' });
+      expect(store.artikel()[0]).toMatchObject({ lagerId: 'l2', platzId: null });
+    });
+  });
+
+  describe('lagerMitPlaetzenSicherstellen', () => {
+    it('legt fehlende Lager und Plätze an und lässt vorhandene unberührt', async () => {
+      const kaltlager = erzeugeTestLager({
+        id: 'l1',
+        name: 'Kaltlager',
+        plaetze: [{ id: 'p1', name: 'Regal' }],
+      });
+      storage._vorbelegen([kaltlager], []);
+      await store.laden();
+
+      const vorhanden = await store.lagerMitPlaetzenSicherstellen(' kaltlager ', [
+        'regal',
+        'Spinde',
+        'Spinde',
+      ]);
+      expect(vorhanden?.id).toBe('l1');
+      expect(vorhanden?.plaetze.map((p) => p.name)).toEqual(['Regal', 'Spinde']);
+      expect(vorhanden?.plaetze[0]!.id).toBe('p1');
+
+      const neu = await store.lagerMitPlaetzenSicherstellen('Küchenlager', ['Boden']);
+      expect(neu?.name).toBe('Küchenlager');
+      expect(neu?.plaetze.map((p) => p.name)).toEqual(['Boden']);
+      expect(store.lager().map((l) => l.name)).toEqual(['Kaltlager', 'Küchenlager']);
+    });
+
+    it('schreibt nichts, wenn Lager und Plätze schon da sind', async () => {
+      storage._vorbelegen(
+        [erzeugeTestLager({ id: 'l1', name: 'Kaltlager', plaetze: [{ id: 'p1', name: 'Regal' }] })],
+        [],
+      );
+      await store.laden();
+      await store.lagerMitPlaetzenSicherstellen('Kaltlager', ['Regal']);
+      expect(storage.schreibzugriffe).toBe(0);
+    });
+  });
+
   describe('Artikel', () => {
     it('legt an, sortiert alphabetisch und ändert Einheit und Heimatlager', async () => {
       await store.lagerAnlegen('Kaltlager');
