@@ -476,3 +476,127 @@ describe('Stammdaten: Verteiler', () => {
     expect(antwort.status).toBe(200);
   });
 });
+
+describe('Plätze je Lager', () => {
+  const platz = (n: number, name: string) => ({ id: id(n), name });
+  const lagerMitPlaetzen = (db: FakeEinsatzplanungDb, plaetze: unknown[], version = 1) =>
+    senden(
+      db,
+      'PUT',
+      `${LAGER}/${id(1)}`,
+      { id: id(1), name: 'Kaltlager', plaetze },
+      { 'If-Match': `"${version}"` },
+    );
+
+  async function vorbereiten() {
+    const db = new FakeEinsatzplanungDb();
+    await lagerAnlegen(db, 1, 'Kaltlager');
+    return db;
+  }
+
+  it('speichert die Plätze eines Lagers und liefert sie in der Liste', async () => {
+    const db = await vorbereiten();
+    const antwort = await lagerMitPlaetzen(db, [platz(10, 'Regal'), platz(11, ' Spinde ')]);
+    expect(antwort.status).toBe(200);
+    const liste = (await (await verarbeiten(db, LAGER)).json()) as {
+      lager: { plaetze: { id: string; name: string }[] }[];
+    };
+    expect(liste.lager[0]!.plaetze).toEqual([platz(10, 'Regal'), platz(11, 'Spinde')]);
+  });
+
+  it('legt ein Lager ohne Plätze an und lehnt doppelte oder ungültige Plätze ab', async () => {
+    const db = await vorbereiten();
+    const lager = (await (await verarbeiten(db, LAGER)).json()) as {
+      lager: { plaetze: unknown[] }[];
+    };
+    expect(lager.lager[0]!.plaetze).toEqual([]);
+    for (const plaetze of [
+      [platz(10, 'Regal'), platz(11, ' regal ')],
+      [platz(10, 'Regal'), platz(10, 'Spinde')],
+      [platz(10, ' ')],
+      [{ id: id(10), name: 'Regal', extra: 1 }],
+      [{ id: 'keine-uuid', name: 'Regal' }],
+      Array.from({ length: 41 }, (_, i) => platz(100 + i, `Platz ${i}`)),
+    ]) {
+      expect((await lagerMitPlaetzen(db, plaetze)).status).toBe(400);
+    }
+  });
+
+  it('vergibt den Platz an Artikel und Kiste nur im Heimatlager des Eintrags', async () => {
+    const db = await vorbereiten();
+    await lagerAnlegen(db, 2, 'Küchenlager');
+    expect((await lagerMitPlaetzen(db, [platz(10, 'Regal')])).status).toBe(200);
+    const artikel = (lagerId: string | null, platzId: string | null) => ({
+      id: id(20),
+      name: 'Hammer',
+      einheit: 'Stück',
+      lagerId,
+      platzId,
+    });
+    expect((await senden(db, 'POST', ARTIKEL, artikel(id(1), id(10)), NEU)).status).toBe(201);
+    expect(db.artikel.get(id(20))?.platz_id).toBe(id(10));
+    // Platz eines anderen Lagers, unbekannter Platz und Platz ohne Lager.
+    for (const [lager, platzId] of [
+      [id(2), id(10)],
+      [id(1), id(99)],
+      [null, id(10)],
+    ] as const) {
+      const abgelehnt = await senden(db, 'PUT', `${ARTIKEL}/${id(20)}`, artikel(lager, platzId), {
+        'If-Match': '"1"',
+      });
+      expect(abgelehnt.status).toBe(400);
+    }
+    const kiste = (lagerId: string | null, platzId: string | null) => ({
+      id: id(30),
+      name: 'Werkzeugkiste',
+      lagerId,
+      platzId,
+      inhalt: [],
+    });
+    expect(
+      (await senden(db, 'POST', '/api/einsatzplanung/kisten', kiste(id(1), id(10)), NEU)).status,
+    ).toBe(201);
+    expect(db.kisten.get(id(30))?.platz_id).toBe(id(10));
+    expect(
+      (
+        await senden(
+          db,
+          'POST',
+          '/api/einsatzplanung/kisten',
+          { ...kiste(id(2), id(10)), id: id(31), name: 'Andere' },
+          NEU,
+        )
+      ).status,
+    ).toBe(400);
+  });
+
+  it('sperrt das Entfernen eines Platzes, solange Artikel oder Kiste darauf verweisen', async () => {
+    const db = await vorbereiten();
+    await lagerMitPlaetzen(db, [platz(10, 'Regal'), platz(11, 'Spinde')]);
+    await senden(
+      db,
+      'POST',
+      ARTIKEL,
+      { id: id(20), name: 'Hammer', einheit: 'Stück', lagerId: id(1), platzId: id(10) },
+      NEU,
+    );
+    const gesperrt = await lagerMitPlaetzen(db, [platz(11, 'Spinde')], 2);
+    expect(gesperrt.status).toBe(409);
+    expect(await diagnose(gesperrt)).toBe('EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG');
+    // Ein unbenutzter Platz lässt sich entfernen, ein benutzter umbenennen.
+    expect((await lagerMitPlaetzen(db, [platz(10, 'Regal oben')], 2)).status).toBe(200);
+    db.artikel.get(id(20))!.platz_id = null;
+    expect((await lagerMitPlaetzen(db, [], 3)).status).toBe(200);
+  });
+
+  it('sperrt das Entfernen eines Platzes, auf den ein Aufbau verweist', async () => {
+    const db = await vorbereiten();
+    await lagerMitPlaetzen(db, [platz(10, 'Regal')]);
+    db.aufbauten.set(id(900), {
+      inhalt: `{"einheiten":[{"inhalt":[{"art":"frei","lagerId":"${id(1)}","platzId":"${id(10)}"}]}]}`,
+    } as never);
+    const gesperrt = await lagerMitPlaetzen(db, [], 2);
+    expect(gesperrt.status).toBe(409);
+    expect(await diagnose(gesperrt)).toBe('EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG');
+  });
+});

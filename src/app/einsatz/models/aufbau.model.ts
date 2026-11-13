@@ -31,6 +31,8 @@ export interface AufbauArtikelEintrag {
   bemerkung: string;
   /** Lager, aus dem der Artikel geholt wird; `null`: das Heimatlager fehlt. */
   lagerId: string | null;
+  /** Platz im Lager (`lagerId`); fehlt, wenn keiner gewählt ist. Nur zusammen mit einem Lager. */
+  platzId?: string;
   phase: AufbauPhase | null;
 }
 
@@ -44,6 +46,8 @@ export interface AufbauFreierEintrag {
   bemerkung: string;
   /** Quelllager, aus dem der freie Artikel geholt wird; `null`: noch keins gewählt. */
   lagerId: string | null;
+  /** Platz im Lager (`lagerId`); fehlt, wenn keiner gewählt ist. Nur zusammen mit einem Lager. */
+  platzId?: string;
   phase: AufbauPhase | null;
 }
 
@@ -60,6 +64,8 @@ export interface AufbauKistenEintrag {
   kisteId: string | null;
   name: string;
   lagerId: string | null;
+  /** Platz im Lager (`lagerId`); fehlt, wenn keiner gewählt ist. Nur zusammen mit einem Lager. */
+  platzId?: string;
   anzahl: number;
   inhalt: AufbauKistenPosition[];
   /**

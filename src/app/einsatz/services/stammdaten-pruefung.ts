@@ -5,6 +5,7 @@ import {
   Kiste,
   KistenPosition,
   Lager,
+  Platz,
 } from '../models/stammdaten.model';
 
 function istObjekt(wert: unknown): wert is Record<string, unknown> {
@@ -29,12 +30,18 @@ export function istArtikelEinheit(wert: unknown): wert is ArtikelEinheit {
   return typeof wert === 'string' && (ARTIKEL_EINHEITEN as readonly string[]).includes(wert);
 }
 
+function istPlatz(wert: unknown): wert is Platz {
+  return istObjekt(wert) && istText(wert['id']) && istText(wert['name']);
+}
+
 /** Prüft eine Lagerzeile aus der Worker-Antwort, bevor sie in ein Domänenmodell gelangt. */
 export function istLager(wert: unknown): wert is Lager {
   return (
     istObjekt(wert) &&
     istText(wert['id']) &&
     istText(wert['name']) &&
+    Array.isArray(wert['plaetze']) &&
+    wert['plaetze'].every(istPlatz) &&
     typeof wert['reihenfolge'] === 'number' &&
     Number.isInteger(wert['reihenfolge']) &&
     istVerwaltungsfeld(wert)
@@ -48,6 +55,7 @@ export function istArtikel(wert: unknown): wert is Artikel {
     istText(wert['name']) &&
     istArtikelEinheit(wert['einheit']) &&
     (wert['lagerId'] === null || istText(wert['lagerId'])) &&
+    (wert['platzId'] === null || istText(wert['platzId'])) &&
     istVerwaltungsfeld(wert)
   );
 }
@@ -69,6 +77,7 @@ export function istKiste(wert: unknown): wert is Kiste {
     istText(wert['id']) &&
     istText(wert['name']) &&
     (wert['lagerId'] === null || istText(wert['lagerId'])) &&
+    (wert['platzId'] === null || istText(wert['platzId'])) &&
     Array.isArray(wert['inhalt']) &&
     wert['inhalt'].every(istKistenPosition) &&
     istVerwaltungsfeld(wert)

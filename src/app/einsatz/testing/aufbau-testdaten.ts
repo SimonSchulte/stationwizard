@@ -9,6 +9,7 @@ export const testId = (n?: number): string =>
 export const testLager = (n: number, name: string, reihenfolge: number): Lager => ({
   id: testId(n),
   name,
+  plaetze: [],
   reihenfolge,
   version: 1,
   geaendertAm: '',
@@ -25,6 +26,7 @@ export const testArtikelStamm = (
   name,
   einheit,
   lagerId,
+  platzId: null,
   version: 1,
   geaendertAm: '',
   geaendertVon: '',
@@ -39,6 +41,7 @@ export const testKiste = (
   id: testId(n),
   name,
   lagerId,
+  platzId: null,
   inhalt: [{ artikelId, menge: 3, bemerkung: '' }],
   version: 1,
   geaendertAm: '',

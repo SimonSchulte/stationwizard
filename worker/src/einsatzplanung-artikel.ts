@@ -14,6 +14,7 @@ import {
   istNamensKollision,
   MAX_ARTIKEL,
   namenVergleich,
+  platzGehoertZuLager,
   pruefeArtikelEingabe,
   STAMMDATEN_KOERPER_GRENZE,
   stammdatenGrenze,
@@ -33,6 +34,7 @@ interface ArtikelZeile {
   name: string;
   einheit: string;
   lager_id: string | null;
+  platz_id: string | null;
   version: number;
   geaendert_am: string;
   geaendert_von: string;
@@ -44,6 +46,7 @@ function artikelJson(zeile: ArtikelZeile) {
     name: zeile.name,
     einheit: zeile.einheit,
     lagerId: zeile.lager_id,
+    platzId: zeile.platz_id,
     version: zeile.version,
     geaendertAm: zeile.geaendert_am,
     geaendertVon: zeile.geaendert_von,
@@ -58,6 +61,10 @@ function lagerUnbekannt(): Response {
   return ungueltig('Das Heimatlager gibt es nicht.');
 }
 
+function platzUnbekannt(): Response {
+  return ungueltig('Der Platz gehört nicht zum Heimatlager.');
+}
+
 async function lagerExistiert(db: D1Database, lagerId: string | null): Promise<boolean> {
   if (lagerId === null) return true;
   const treffer = await db
@@ -70,7 +77,7 @@ async function lagerExistiert(db: D1Database, lagerId: string | null): Promise<b
 export async function listeArtikel(db: D1Database): Promise<Response> {
   const ergebnis = await db
     .prepare(
-      `SELECT id, name, einheit, lager_id, version, geaendert_am, geaendert_von
+      `SELECT id, name, einheit, lager_id, platz_id, version, geaendert_am, geaendert_von
        FROM artikel ORDER BY name`,
     )
     .all<ArtikelZeile>();
@@ -89,6 +96,7 @@ export async function legeArtikelAn(
   const eingabe = pruefeArtikelEingabe(koerper.inhalt);
   if (!eingabe) return ungueltig('Ungültiger Artikel.');
   if (!(await lagerExistiert(db, eingabe.lagerId))) return lagerUnbekannt();
+  if (!(await platzGehoertZuLager(db, eingabe.lagerId, eingabe.platzId))) return platzUnbekannt();
   const bestand = await db.prepare('SELECT COUNT(*) AS n FROM artikel').first<{ n: number }>();
   if ((bestand?.n ?? 0) >= MAX_ARTIKEL) {
     return stammdatenGrenze(`Es sind höchstens ${MAX_ARTIKEL} Artikel möglich.`);
@@ -98,8 +106,8 @@ export async function legeArtikelAn(
     await db
       .prepare(
         `INSERT INTO artikel
-           (id, name, name_vergleich, einheit, lager_id, version, geaendert_am, geaendert_von)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+           (id, name, name_vergleich, einheit, lager_id, platz_id, version, geaendert_am, geaendert_von)
+         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       )
       .bind(
         eingabe.id,
@@ -107,6 +115,7 @@ export async function legeArtikelAn(
         namenVergleich(eingabe.name),
         eingabe.einheit,
         eingabe.lagerId,
+        eingabe.platzId,
         jetzt,
         identitaet.email,
       )
@@ -127,6 +136,7 @@ export async function legeArtikelAn(
       name: eingabe.name,
       einheit: eingabe.einheit,
       lager_id: eingabe.lagerId,
+      platz_id: eingabe.platzId,
       version: 1,
       geaendert_am: jetzt,
       geaendert_von: identitaet.email,
@@ -149,13 +159,14 @@ export async function aktualisiereArtikel(
   const eingabe = pruefeArtikelEingabe(koerper.inhalt);
   if (!eingabe || eingabe.id !== id) return ungueltig('Ungültiger Artikel.');
   if (!(await lagerExistiert(db, eingabe.lagerId))) return lagerUnbekannt();
+  if (!(await platzGehoertZuLager(db, eingabe.lagerId, eingabe.platzId))) return platzUnbekannt();
   const jetzt = new Date().toISOString();
   let ergebnis;
   try {
     ergebnis = await db
       .prepare(
         `UPDATE artikel
-         SET name = ?, name_vergleich = ?, einheit = ?, lager_id = ?, geaendert_am = ?,
+         SET name = ?, name_vergleich = ?, einheit = ?, lager_id = ?, platz_id = ?, geaendert_am = ?,
              geaendert_von = ?, version = version + 1
          WHERE id = ? AND version = ?`,
       )
@@ -164,6 +175,7 @@ export async function aktualisiereArtikel(
         namenVergleich(eingabe.name),
         eingabe.einheit,
         eingabe.lagerId,
+        eingabe.platzId,
         jetzt,
         identitaet.email,
         id,
@@ -184,6 +196,7 @@ export async function aktualisiereArtikel(
       name: eingabe.name,
       einheit: eingabe.einheit,
       lager_id: eingabe.lagerId,
+      platz_id: eingabe.platzId,
       version: version + 1,
       geaendert_am: jetzt,
       geaendert_von: identitaet.email,

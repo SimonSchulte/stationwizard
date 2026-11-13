@@ -48,6 +48,7 @@ interface LagerZeile {
   id: string;
   name: string;
   name_vergleich: string;
+  plaetze: string;
   reihenfolge: number;
   version: number;
   geaendert_am: string;
@@ -60,6 +61,7 @@ interface ArtikelZeile {
   name_vergleich: string;
   einheit: string;
   lager_id: string | null;
+  platz_id: string | null;
   version: number;
   geaendert_am: string;
   geaendert_von: string;
@@ -70,6 +72,7 @@ interface KisteZeile {
   name: string;
   name_vergleich: string;
   lager_id: string | null;
+  platz_id: string | null;
   inhalt: string;
   positionen: number;
   version: number;
@@ -162,7 +165,8 @@ class FakeStatement {
   async run(): Promise<Ergebnis> {
     const w = this.werte;
     if (this.query.startsWith('INSERT INTO lager')) {
-      const [id, name, vergleich, reihenfolge, am, von] = w as [
+      const [id, name, vergleich, plaetze, reihenfolge, am, von] = w as [
+        string,
         string,
         string,
         string,
@@ -178,6 +182,7 @@ class FakeStatement {
         id,
         name,
         name_vergleich: vergleich,
+        plaetze,
         reihenfolge,
         version: 1,
         geaendert_am: am,
@@ -186,7 +191,8 @@ class FakeStatement {
       return OK;
     }
     if (this.query.startsWith('UPDATE lager SET name = ?')) {
-      const [name, vergleich, am, von, id, version] = w as [
+      const [name, vergleich, plaetze, am, von, id, version] = w as [
+        string,
         string,
         string,
         string,
@@ -203,6 +209,7 @@ class FakeStatement {
         ...bestehend,
         name,
         name_vergleich: vergleich,
+        plaetze,
         geaendert_am: am,
         geaendert_von: von,
         version: bestehend.version + 1,
@@ -217,10 +224,11 @@ class FakeStatement {
       return OK;
     }
     if (this.query.startsWith('INSERT INTO kisten')) {
-      const [id, name, vergleich, lagerId, inhalt, positionen, am, von] = w as [
+      const [id, name, vergleich, lagerId, platzId, inhalt, positionen, am, von] = w as [
         string,
         string,
         string,
+        string | null,
         string | null,
         string,
         number,
@@ -239,6 +247,7 @@ class FakeStatement {
         name,
         name_vergleich: vergleich,
         lager_id: lagerId,
+        platz_id: platzId,
         inhalt,
         positionen,
         version: 1,
@@ -248,9 +257,10 @@ class FakeStatement {
       return OK;
     }
     if (this.query.startsWith('UPDATE kisten SET name = ?')) {
-      const [name, vergleich, lagerId, inhalt, positionen, am, von, id, version] = w as [
+      const [name, vergleich, lagerId, platzId, inhalt, positionen, am, von, id, version] = w as [
         string,
         string,
+        string | null,
         string | null,
         string,
         number,
@@ -272,6 +282,7 @@ class FakeStatement {
         name,
         name_vergleich: vergleich,
         lager_id: lagerId,
+        platz_id: platzId,
         inhalt,
         positionen,
         geaendert_am: am,
@@ -298,11 +309,12 @@ class FakeStatement {
       return OK;
     }
     if (this.query.startsWith('INSERT INTO artikel')) {
-      const [id, name, vergleich, einheit, lagerId, am, von] = w as [
+      const [id, name, vergleich, einheit, lagerId, platzId, am, von] = w as [
         string,
         string,
         string,
         string,
+        string | null,
         string | null,
         string,
         string,
@@ -320,6 +332,7 @@ class FakeStatement {
         name_vergleich: vergleich,
         einheit,
         lager_id: lagerId,
+        platz_id: platzId,
         version: 1,
         geaendert_am: am,
         geaendert_von: von,
@@ -327,10 +340,11 @@ class FakeStatement {
       return OK;
     }
     if (this.query.startsWith('UPDATE artikel SET name = ?')) {
-      const [name, vergleich, einheit, lagerId, am, von, id, version] = w as [
+      const [name, vergleich, einheit, lagerId, platzId, am, von, id, version] = w as [
         string,
         string,
         string,
+        string | null,
         string | null,
         string,
         string,
@@ -353,6 +367,7 @@ class FakeStatement {
         name_vergleich: vergleich,
         einheit,
         lager_id: lagerId,
+        platz_id: platzId,
         geaendert_am: am,
         geaendert_von: von,
         version: bestehend.version + 1,
@@ -768,6 +783,15 @@ class FakeStatement {
     if (this.query.startsWith('SELECT id FROM aufbau_vorlagen WHERE id = ?')) {
       return als(this.db.aufbauVorlagen.has(w[0] as string) ? { id: w[0] } : undefined);
     }
+    if (this.query.startsWith('SELECT plaetze FROM lager WHERE id = ?')) {
+      return als(this.db.lager.get(w[0] as string));
+    }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM artikel WHERE platz_id = ?')) {
+      return als({ n: [...this.db.artikel.values()].filter((z) => z.platz_id === w[0]).length });
+    }
+    if (this.query.startsWith('SELECT COUNT(*) AS n FROM kisten WHERE platz_id = ?')) {
+      return als({ n: [...this.db.kisten.values()].filter((z) => z.platz_id === w[0]).length });
+    }
     if (this.query.startsWith('SELECT COUNT(*) AS n FROM kisten WHERE lager_id = ?')) {
       return als({ n: [...this.db.kisten.values()].filter((z) => z.lager_id === w[0]).length });
     }
@@ -796,7 +820,7 @@ class FakeStatement {
     if (this.query.startsWith('SELECT id FROM artikel WHERE id = ?')) {
       return als(this.db.artikel.has(w[0] as string) ? { id: w[0] } : undefined);
     }
-    if (this.query.startsWith('SELECT id, name, reihenfolge, version')) {
+    if (this.query.startsWith('SELECT id, name, plaetze, reihenfolge, version')) {
       return als(this.db.lager.get(w[0] as string));
     }
     if (this.query.startsWith('SELECT id FROM einsaetze WHERE hiorg_veranstaltung_id = ?')) {
@@ -829,7 +853,7 @@ class FakeStatement {
   }
 
   async all<T = Record<string, unknown>>(): Promise<{ success: true; results: T[] }> {
-    if (this.query.startsWith('SELECT id, name, lager_id, inhalt, version')) {
+    if (this.query.startsWith('SELECT id, name, lager_id, platz_id, inhalt, version')) {
       const zeilen = [...this.db.kisten.values()].sort((a, b) => a.name.localeCompare(b.name));
       return { success: true, results: zeilen as unknown as T[] };
     }
@@ -839,13 +863,19 @@ class FakeStatement {
         .map((id) => ({ id }));
       return { success: true, results: zeilen as unknown as T[] };
     }
-    if (this.query.startsWith('SELECT id, name, reihenfolge, version')) {
+    if (this.query.startsWith('SELECT id, plaetze FROM lager WHERE id IN (')) {
+      const zeilen = (this.werte as string[])
+        .map((id) => this.db.lager.get(id))
+        .filter((z) => z !== undefined);
+      return { success: true, results: zeilen as unknown as T[] };
+    }
+    if (this.query.startsWith('SELECT id, name, plaetze, reihenfolge, version')) {
       const zeilen = [...this.db.lager.values()].sort(
         (a, b) => a.reihenfolge - b.reihenfolge || a.name.localeCompare(b.name),
       );
       return { success: true, results: zeilen as unknown as T[] };
     }
-    if (this.query.startsWith('SELECT id, name, einheit, lager_id, version')) {
+    if (this.query.startsWith('SELECT id, name, einheit, lager_id, platz_id, version')) {
       const zeilen = [...this.db.artikel.values()].sort((a, b) => a.name.localeCompare(b.name));
       return { success: true, results: zeilen as unknown as T[] };
     }

@@ -561,6 +561,17 @@ puffert sie über `kern/abruf-puffer.ts`. Die Oberfläche (`einsatz/pages/stammd
 (Suche, Filter „Ohne Heimatlager“, 50 je Seite) sind rein darstellend. Rollenvergabe fehlt auch hier –
 dieselbe Übergangslösung „Rechte vorerst alle, Rollen später“.
 
+**Plätze je Lager** (Migration `0026_lager_plaetze.sql`, Konzept `docs/konzept-packeinheiten.md` Abschnitt 10): Ein Lager führt in
+`lager.plaetze` eine feste Liste `[{ id, name }]` (höchstens 40, Name höchstens 60 Zeichen, je Lager eindeutig in der
+Vergleichsform; Worker `pruefePlaetze()`). Artikel und Kisten haben optional `platz_id`, ein Aufbau-Eintrag (Katalogartikel,
+freier Artikel, Kiste) optional `platzId` neben `lagerId` – kein Fremdschlüssel, der Worker prüft beim Schreiben
+(`platzGehoertZuLager()`, `pruefeAufbauVerweise()`), dass der Platz zum Lager desselben Eintrags gehört, und lehnt einen
+Platz ohne Lager ab (400). Ein Platz lässt sich aus der Liste nur entfernen, solange kein Artikel, keine Kiste und kein
+Aufbau oder keine Aufbau-Vorlage darauf verweist (409 `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`, Suche `"platzId":"<id>"`).
+Wechselt das Lager, fällt der Platz weg (`mitLagerUndPlatz()`, `StammdatenStoreService.artikelAendern()`). Worker und Frontend
+(`stammdaten.model.ts`, `aufbau-pruefung.ts`) prüfen dieselben Formen und sind gemeinsam zu ändern. Die Zettel ordnen Zeilen
+innerhalb eines Lagers nach der Reihenfolge der Plätze und nennen den Platz an der Zeile.
+
 **Kisten (Stufe 2)** liegen in derselben Datenbank (`0024_kisten.sql`, Worker `einsatzplanung-kisten.ts`): eine
 Zeile je Kiste mit `name` (eindeutig in der Vergleichsform), Heimatlager (`lager_id`, leer möglich,
 Fremdschlüssel `ON DELETE RESTRICT`) und `inhalt` als vom Worker streng geprüftes JSON

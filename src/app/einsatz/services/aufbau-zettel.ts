@@ -110,6 +110,28 @@ function zettelFuer(
   const lagerNachId = new Map(daten.lager.map((l) => [l.id, l]));
   const artikelNachId = new Map(daten.artikel.map((a) => [a.id, a]));
   const gruppen = new Map<string, Gruppe>();
+  // Platz im Lager: Reihenfolge der Pflege ordnet die Zeilen innerhalb eines Lagers, der Name steht an der Zeile.
+  const platzRang = new Map<ZettelZeile, number>();
+  const platzMarke = (
+    zeile: ZettelZeile,
+    eintrag: { lagerId: string | null; platzId?: string },
+  ): ZettelZeile => {
+    const plaetze = (eintrag.lagerId && lagerNachId.get(eintrag.lagerId)?.plaetze) || [];
+    const index = eintrag.platzId ? plaetze.findIndex((p) => p.id === eintrag.platzId) : -1;
+    if (index < 0) {
+      platzRang.set(zeile, Number.MAX_SAFE_INTEGER);
+      return zeile;
+    }
+    const name = plaetze[index]!.name;
+    const mitPlatz: ZettelZeile = {
+      ...zeile,
+      text: `${zeile.text} · ${name}`,
+      menge: [zeile.menge, name].filter(Boolean).join(' · '),
+      zusatz: [zeile.zusatz, name].filter(Boolean).join(' · '),
+    };
+    platzRang.set(mitPlatz, index);
+    return mitPlatz;
+  };
   const gruppe = (phase: AufbauPhase | null, lagerId: string | null, wagen = false): Gruppe => {
     const lager = lagerId ? lagerNachId.get(lagerId) : undefined;
     const schluessel = `${rang(phase)}|${wagen ? 'wagen' : (lager?.id ?? 'ohne')}`;
@@ -132,39 +154,54 @@ function zettelFuer(
 
   for (const eintrag of einheit.inhalt) {
     if (eintrag.art === 'kiste') {
-      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push({
-        art: 'zeile',
-        quelle: 'kiste',
-        text: `${eintrag.anzahl}× ${eintrag.name}`,
-        menge: `${eintrag.inhalt.length} Pos.`,
-        bezeichnung: eintrag.name,
-        anzahl: String(eintrag.anzahl),
-        zusatz: `${eintrag.inhalt.length} Pos.`,
-        eintragId: eintrag.id,
-      });
+      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push(
+        platzMarke(
+          {
+            art: 'zeile',
+            quelle: 'kiste',
+            text: `${eintrag.anzahl}× ${eintrag.name}`,
+            menge: `${eintrag.inhalt.length} Pos.`,
+            bezeichnung: eintrag.name,
+            anzahl: String(eintrag.anzahl),
+            zusatz: `${eintrag.inhalt.length} Pos.`,
+            eintragId: eintrag.id,
+          },
+          eintrag,
+        ),
+      );
     } else if (eintrag.art === 'artikel') {
       const artikel = artikelNachId.get(eintrag.artikelId);
-      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push({
-        art: 'zeile',
-        quelle: 'artikel',
-        text: artikel?.name ?? 'Unbekannter Artikel',
-        menge: mengeText(eintrag.menge, artikel?.einheit ?? '', eintrag.bemerkung),
-        bezeichnung: artikel?.name ?? 'Unbekannter Artikel',
-        anzahl: zahlText(eintrag.menge),
-        zusatz: mengeZusatz(artikel?.einheit ?? '', eintrag.bemerkung),
-        eintragId: eintrag.id,
-      });
+      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push(
+        platzMarke(
+          {
+            art: 'zeile',
+            quelle: 'artikel',
+            text: artikel?.name ?? 'Unbekannter Artikel',
+            menge: mengeText(eintrag.menge, artikel?.einheit ?? '', eintrag.bemerkung),
+            bezeichnung: artikel?.name ?? 'Unbekannter Artikel',
+            anzahl: zahlText(eintrag.menge),
+            zusatz: mengeZusatz(artikel?.einheit ?? '', eintrag.bemerkung),
+            eintragId: eintrag.id,
+          },
+          eintrag,
+        ),
+      );
     } else if (eintrag.art === 'frei') {
-      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push({
-        art: 'zeile',
-        quelle: 'artikel',
-        text: eintrag.name,
-        menge: mengeText(eintrag.menge, eintrag.einheit, eintrag.bemerkung),
-        bezeichnung: eintrag.name,
-        anzahl: zahlText(eintrag.menge),
-        zusatz: mengeZusatz(eintrag.einheit, eintrag.bemerkung),
-        eintragId: eintrag.id,
-      });
+      gruppe(eintrag.phase, eintrag.lagerId).zeilen.push(
+        platzMarke(
+          {
+            art: 'zeile',
+            quelle: 'artikel',
+            text: eintrag.name,
+            menge: mengeText(eintrag.menge, eintrag.einheit, eintrag.bemerkung),
+            bezeichnung: eintrag.name,
+            anzahl: zahlText(eintrag.menge),
+            zusatz: mengeZusatz(eintrag.einheit, eintrag.bemerkung),
+            eintragId: eintrag.id,
+          },
+          eintrag,
+        ),
+      );
     } else {
       gruppe(null, null, true).zeilen.push({
         art: 'zeile',
@@ -186,8 +223,11 @@ function zettelFuer(
   for (const g of geordnet) {
     posten.push({ art: 'trenner', lagerId: g.lagerId, text: g.titel + phasenZusatz(g.phase) });
     // Gepackte Einheiten (Kisten) vor losen Artikeln; sonst bleibt die Reihenfolge des Aufbaus.
-    posten.push(...g.zeilen.filter((z) => z.quelle === 'kiste'));
-    posten.push(...g.zeilen.filter((z) => z.quelle !== 'kiste'));
+    // Innerhalb dieser Gruppen ordnet der Platz (Reihenfolge der Pflege); ohne Platz bleibt der Aufbau maßgeblich.
+    const nachPlatz = (zeilen: ZettelZeile[]): ZettelZeile[] =>
+      [...zeilen].sort((a, b) => (platzRang.get(a) ?? 0) - (platzRang.get(b) ?? 0));
+    posten.push(...nachPlatz(g.zeilen.filter((z) => z.quelle === 'kiste')));
+    posten.push(...nachPlatz(g.zeilen.filter((z) => z.quelle !== 'kiste')));
   }
   const erstes = geordnet.find((g) => g.titel !== 'Wagen');
   const belegt = posten.length;

@@ -179,6 +179,26 @@
                     }
                   </mat-select>
                 </mat-form-field>
+                @if (plaetzeVon(zeile.eintrag.lagerId).length > 0) {
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="klein">
+                    <mat-select
+                      aria-label="Platz"
+                      placeholder="Kein Platz"
+                      [value]="zeile.eintrag.platzId ?? null"
+                      (selectionChange)="
+                        eintragGeaendert.emit({
+                          eintragId: zeile.eintrag.id,
+                          platzId: $event.value,
+                        })
+                      "
+                    >
+                      <mat-option [value]="null">Kein Platz</mat-option>
+                      @for (platz of plaetzeVon(zeile.eintrag.lagerId); track platz.id) {
+                        <mat-option [value]="platz.id">{{ platz.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
               } @else {
                 {{ zeile.lagerName }}
               }

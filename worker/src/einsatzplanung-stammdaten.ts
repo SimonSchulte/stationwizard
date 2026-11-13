@@ -8,6 +8,9 @@ import { istNichtleererText, istObjekt, istText, UUID_REGEX } from './json-lesen
 
 export const STAMMDATEN_KOERPER_GRENZE = 8 * 1024;
 export const MAX_LAGER = 100;
+/** Plätze je Lager: kurze Namen wie „Regal“ oder „Spinde“. */
+export const MAX_PLAETZE = 40;
+export const PLATZ_NAME_MAX = 60;
 export const MAX_ARTIKEL = 2000;
 export const NAME_MAX = 100;
 export const MAX_KISTEN = 300;
@@ -45,18 +48,81 @@ function nurFelder(wert: Record<string, unknown>, erlaubt: readonly string[]): b
   return Object.keys(wert).every((schluessel) => erlaubt.includes(schluessel));
 }
 
-export interface LagerEingabe {
+export interface Platz {
   id: string;
   name: string;
 }
 
+export interface LagerEingabe {
+  id: string;
+  name: string;
+  plaetze: Platz[];
+}
+
+/** Liest die Plätze eines Lagers aus der Spalte `plaetze`; ein unlesbarer Wert gilt als keine Plätze. */
+export function leseGespeichertePlaetze(roh: string | null | undefined): Platz[] {
+  if (!roh) return [];
+  try {
+    const wert: unknown = JSON.parse(roh);
+    return Array.isArray(wert) ? (pruefePlaetze(wert) ?? []) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Plätze eines Lagers: Ids und Namen (Vergleichsform) je Lager eindeutig, Reihenfolge bleibt. */
+export function pruefePlaetze(wert: unknown): Platz[] | null {
+  if (!Array.isArray(wert) || wert.length > MAX_PLAETZE) return null;
+  const ids = new Set<string>();
+  const namen = new Set<string>();
+  const plaetze: Platz[] = [];
+  for (const eintrag of wert) {
+    if (!istObjekt(eintrag) || !nurFelder(eintrag, ['id', 'name'])) return null;
+    const id = eintrag['id'];
+    if (!istNichtleererText(id) || !UUID_REGEX.test(id) || !istText(eintrag['name'])) return null;
+    const name = bereinigterName(eintrag['name']);
+    if (name === '' || name.length > PLATZ_NAME_MAX) return null;
+    const schluessel = id.toLowerCase();
+    if (ids.has(schluessel) || namen.has(namenVergleich(name))) return null;
+    ids.add(schluessel);
+    namen.add(namenVergleich(name));
+    // Kompakt und in fester Schlüsselfolge: der Löschschutz sucht im JSON.
+    plaetze.push({ id: schluessel, name });
+  }
+  return plaetze;
+}
+
 export function pruefeLagerEingabe(wert: unknown): LagerEingabe | null {
-  if (!istObjekt(wert) || !nurFelder(wert, ['id', 'name'])) return null;
+  if (!istObjekt(wert) || !nurFelder(wert, ['id', 'name', 'plaetze'])) return null;
   if (!istNichtleererText(wert['id']) || !UUID_REGEX.test(wert['id'])) return null;
   if (!istText(wert['name'])) return null;
   const name = bereinigterName(wert['name']);
   if (name === '' || name.length > NAME_MAX) return null;
-  return { id: wert['id'].toLowerCase(), name };
+  const plaetze = wert['plaetze'] === undefined ? [] : pruefePlaetze(wert['plaetze']);
+  if (!plaetze) return null;
+  return { id: wert['id'].toLowerCase(), name, plaetze };
+}
+
+/** Kennung eines Platzes (optional): UUID oder `null`. */
+function pruefePlatzId(wert: unknown): string | null | undefined {
+  if (wert === undefined || wert === null) return null;
+  if (!istNichtleererText(wert) || !UUID_REGEX.test(wert)) return undefined;
+  return wert.toLowerCase();
+}
+
+/** Ob ein Lager den Platz führt; ohne Platz stets wahr. */
+export async function platzGehoertZuLager(
+  db: D1Database,
+  lagerId: string | null,
+  platzId: string | null,
+): Promise<boolean> {
+  if (platzId === null) return true;
+  if (lagerId === null) return false;
+  const zeile = await db
+    .prepare('SELECT plaetze FROM lager WHERE id = ?')
+    .bind(lagerId)
+    .first<{ plaetze: string }>();
+  return !!zeile && leseGespeichertePlaetze(zeile.plaetze).some((p) => p.id === platzId);
 }
 
 export interface ArtikelEingabe {
@@ -64,10 +130,12 @@ export interface ArtikelEingabe {
   name: string;
   einheit: string;
   lagerId: string | null;
+  platzId: string | null;
 }
 
 export function pruefeArtikelEingabe(wert: unknown): ArtikelEingabe | null {
-  if (!istObjekt(wert) || !nurFelder(wert, ['id', 'name', 'einheit', 'lagerId'])) return null;
+  if (!istObjekt(wert) || !nurFelder(wert, ['id', 'name', 'einheit', 'lagerId', 'platzId']))
+    return null;
   if (!istNichtleererText(wert['id']) || !UUID_REGEX.test(wert['id'])) return null;
   if (!istText(wert['name'])) return null;
   const name = bereinigterName(wert['name']);
@@ -75,11 +143,15 @@ export function pruefeArtikelEingabe(wert: unknown): ArtikelEingabe | null {
   if (!istText(wert['einheit']) || !ARTIKEL_EINHEITEN.has(wert['einheit'])) return null;
   const lagerId = wert['lagerId'];
   if (lagerId !== null && (!istNichtleererText(lagerId) || !UUID_REGEX.test(lagerId))) return null;
+  const platzId = pruefePlatzId(wert['platzId']);
+  // Ein Platz gehört immer zu einem Lager.
+  if (platzId === undefined || (platzId !== null && lagerId === null)) return null;
   return {
     id: wert['id'].toLowerCase(),
     name,
     einheit: wert['einheit'],
     lagerId: lagerId === null ? null : lagerId.toLowerCase(),
+    platzId,
   };
 }
 
@@ -126,6 +198,7 @@ export interface KisteEingabe {
   id: string;
   name: string;
   lagerId: string | null;
+  platzId: string | null;
   inhalt: KistenPositionEingabe[];
 }
 
@@ -139,13 +212,16 @@ export function istMenge(wert: unknown): wert is number {
 }
 
 export function pruefeKisteEingabe(wert: unknown): KisteEingabe | null {
-  if (!istObjekt(wert) || !nurFelder(wert, ['id', 'name', 'lagerId', 'inhalt'])) return null;
+  if (!istObjekt(wert) || !nurFelder(wert, ['id', 'name', 'lagerId', 'platzId', 'inhalt']))
+    return null;
   if (!istNichtleererText(wert['id']) || !UUID_REGEX.test(wert['id'])) return null;
   if (!istText(wert['name'])) return null;
   const name = bereinigterName(wert['name']);
   if (name === '' || name.length > NAME_MAX) return null;
   const lagerId = wert['lagerId'];
   if (lagerId !== null && (!istNichtleererText(lagerId) || !UUID_REGEX.test(lagerId))) return null;
+  const platzId = pruefePlatzId(wert['platzId']);
+  if (platzId === undefined || (platzId !== null && lagerId === null)) return null;
   const inhalt = wert['inhalt'];
   if (!Array.isArray(inhalt) || inhalt.length > MAX_KISTEN_POSITIONEN) return null;
   const gesehen = new Set<string>();
@@ -171,6 +247,7 @@ export function pruefeKisteEingabe(wert: unknown): KisteEingabe | null {
     id: wert['id'].toLowerCase(),
     name,
     lagerId: lagerId === null ? null : lagerId.toLowerCase(),
+    platzId,
     inhalt: positionen,
   };
 }

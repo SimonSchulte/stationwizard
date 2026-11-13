@@ -46,6 +46,7 @@ export function kisteWeichtAb(eintrag: AufbauKistenEintrag, kiste: Kiste): boole
   return (
     eintrag.name !== kiste.name ||
     eintrag.lagerId !== kiste.lagerId ||
+    (eintrag.platzId ?? null) !== (kiste.platzId ?? null) ||
     !gleicherInhalt(eintrag.inhalt, kiste.inhalt)
   );
 }

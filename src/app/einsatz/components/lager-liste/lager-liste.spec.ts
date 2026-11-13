@@ -1,7 +1,7 @@
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { Lager } from '../../models/stammdaten.model';
+import { Lager, Platz } from '../../models/stammdaten.model';
 import { erzeugeTestLager } from '../../testing/stammdaten-testdaten';
 import { LagerListe } from './lager-liste';
 
@@ -16,11 +16,13 @@ function erzeuge(lager: Lager[], artikelJeLager: Record<string, number> = {}) {
     umbenannt: [] as { lager: Lager; name: string }[],
     geloescht: [] as Lager[],
     verschoben: [] as { von: number; nach: number }[],
+    plaetze: [] as { lager: Lager; plaetze: Platz[] }[],
   };
   fixture.componentInstance.angelegt.subscribe((w) => ereignisse.angelegt.push(w));
   fixture.componentInstance.umbenannt.subscribe((w) => ereignisse.umbenannt.push(w));
   fixture.componentInstance.geloescht.subscribe((w) => ereignisse.geloescht.push(w));
   fixture.componentInstance.verschoben.subscribe((w) => ereignisse.verschoben.push(w));
+  fixture.componentInstance.plaetzeGeaendert.subscribe((w) => ereignisse.plaetze.push(w));
   return { fixture, element, ereignisse };
 }
 
@@ -128,5 +130,67 @@ describe('LagerListe', () => {
     const [a, b] = zeilen(element);
     expect(a.querySelector<HTMLInputElement>('input')?.disabled).toBe(false);
     expect(b.querySelector<HTMLInputElement>('input')?.disabled).toBe(true);
+  });
+
+  describe('Plätze', () => {
+    const regal: Platz = { id: 'p1', name: 'Regal' };
+    const spinde: Platz = { id: 'p2', name: 'Spinde' };
+    const mitPlaetzen = erzeugeTestLager({
+      name: 'Kaltlager',
+      reihenfolge: 1,
+      plaetze: [regal, spinde],
+    });
+
+    function oeffnen(verwendung: Record<string, number> = {}) {
+      const ergebnis = erzeuge([mitPlaetzen]);
+      ergebnis.fixture.componentRef.setInput(
+        'verwendungJePlatz',
+        new Map(Object.entries(verwendung)),
+      );
+      zeilen(ergebnis.element)[0]
+        .querySelector<HTMLButtonElement>('button[aria-controls]')!
+        .click();
+      ergebnis.fixture.detectChanges();
+      return ergebnis;
+    }
+
+    it('zeigt die Zahl der Plätze und klappt sie auf', () => {
+      const { element } = erzeuge([mitPlaetzen]);
+      const umschalter =
+        zeilen(element)[0].querySelector<HTMLButtonElement>('button[aria-controls]')!;
+      expect(umschalter.textContent).toContain('2 Plätze');
+      expect(element.querySelector('.plaetze')).toBeNull();
+      const { element: offen } = oeffnen();
+      expect(offen.querySelectorAll('.platz')).toHaveLength(2);
+    });
+
+    it('legt einen Platz an, benennt um und entfernt einen unbenutzten', () => {
+      const { fixture, element, ereignisse } = oeffnen({ p1: 3 });
+      const neu = element.querySelector<HTMLInputElement>('form.platz-neu input')!;
+      neu.value = ' Boden ';
+      element.querySelector('form.platz-neu')!.dispatchEvent(new Event('submit'));
+      expect(ereignisse.plaetze.at(-1)!.plaetze.map((p) => p.name)).toEqual([
+        'Regal',
+        'Spinde',
+        'Boden',
+      ]);
+      expect(neu.value).toBe('');
+
+      const feld = element.querySelectorAll<HTMLInputElement>('.platz input')[1];
+      feld.value = 'Spinde links';
+      feld.dispatchEvent(new Event('change'));
+      expect(ereignisse.plaetze.at(-1)!.plaetze.map((p) => p.name)).toEqual([
+        'Regal',
+        'Spinde links',
+      ]);
+      expect(feld.value).toBe('Spinde');
+
+      const loeschen = [...element.querySelectorAll<HTMLButtonElement>('.platz button')];
+      expect(loeschen[0].disabled).toBe(true);
+      expect(loeschen[1].disabled).toBe(false);
+      loeschen[1].click();
+      fixture.detectChanges();
+      expect(ereignisse.plaetze.at(-1)!.plaetze).toEqual([regal]);
+    });
   });
 });

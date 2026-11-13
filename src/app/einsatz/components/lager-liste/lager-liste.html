@@ -53,6 +53,16 @@
         </mat-form-field>
         <span class="anzahl">{{ anzahl(eintrag) }} Artikel</span>
         <button
+          matButton
+          type="button"
+          [attr.aria-expanded]="offenesLager() === eintrag.id"
+          [attr.aria-controls]="'plaetze-' + eintrag.id"
+          (click)="plaetzeUmschalten(eintrag)"
+        >
+          <mat-icon>shelves</mat-icon>
+          {{ eintrag.plaetze.length }} {{ eintrag.plaetze.length === 1 ? 'Platz' : 'Plätze' }}
+        </button>
+        <button
           matIconButton
           type="button"
           [attr.aria-label]="eintrag.name + ' nach oben'"
@@ -81,6 +91,65 @@
             <mat-icon>delete</mat-icon>
           </button>
         </span>
+        @if (offenesLager() === eintrag.id) {
+          <div class="plaetze" [id]="'plaetze-' + eintrag.id">
+            <p class="hinweis">
+              Plätze im Lager, zum Beispiel Regal oder Spinde. Artikel, Kisten und Aufbau-Einträge
+              wählen einen Platz ihres Lagers; auf dem Zettel ordnet die Reihenfolge hier die
+              Zeilen.
+            </p>
+            @for (platz of eintrag.plaetze; track platz.id) {
+              <div class="platz">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="platz-name">
+                  <input
+                    #platzfeld
+                    matInput
+                    autocomplete="off"
+                    [attr.aria-label]="'Name des Platzes ' + platz.name + ' in ' + eintrag.name"
+                    [attr.maxlength]="maxPlatz"
+                    [value]="platz.name"
+                    [disabled]="beschaeftigtId() === eintrag.id"
+                    (change)="platzUmbenennen(eintrag, platz, platzfeld)"
+                  />
+                </mat-form-field>
+                <span class="anzahl">{{ platzVerwendung(platz) }} in Nutzung</span>
+                <span
+                  [matTooltip]="
+                    platzVerwendung(platz) > 0 ? 'Wird noch verwendet' : 'Platz entfernen'
+                  "
+                >
+                  <button
+                    matIconButton
+                    type="button"
+                    [attr.aria-label]="'Platz ' + platz.name + ' entfernen'"
+                    [disabled]="platzVerwendung(platz) > 0 || beschaeftigtId() === eintrag.id"
+                    (click)="platzEntfernen(eintrag, platz)"
+                  >
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </span>
+              </div>
+            }
+            <form
+              class="platz-neu"
+              (submit)="$event.preventDefault(); platzAnlegen(eintrag, neuerPlatz)"
+              [attr.aria-label]="'Neuen Platz in ' + eintrag.name + ' anlegen'"
+            >
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="platz-name">
+                <mat-label>Neuer Platz</mat-label>
+                <input #neuerPlatz matInput autocomplete="off" [attr.maxlength]="maxPlatz" />
+              </mat-form-field>
+              <button
+                matButton="outlined"
+                type="submit"
+                [disabled]="beschaeftigtId() === eintrag.id"
+              >
+                <mat-icon>add</mat-icon>
+                Platz hinzufügen
+              </button>
+            </form>
+          </div>
+        }
       </li>
     }
   </ol>

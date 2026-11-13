@@ -13,7 +13,7 @@ import {
   AufbauKistenPosition,
   AufbauPhase,
 } from '../../models/aufbau.model';
-import { Artikel, Kiste, Lager } from '../../models/stammdaten.model';
+import { Artikel, Kiste, Lager, Platz } from '../../models/stammdaten.model';
 import {
   ABSCHNITT_FARBEN,
   ABSCHNITT_FARBE_BEZEICHNUNG,
@@ -54,6 +54,8 @@ export interface EintragAenderung {
   menge?: number;
   anzahl?: number;
   lagerId?: string | null;
+  /** Platz im Lager; ein Lagerwechsel ohne Angabe entfernt den Platz. */
+  platzId?: string | null;
   phase?: AufbauPhase | null;
   /** Standard-Kiste an- oder abschalten (nur bei leerem Inhalt wirksam). */
   standardInhalt?: boolean;
@@ -235,6 +237,11 @@ export class EinheitDetail {
       return;
     }
     if (name !== aktuell.name) this.eintragGeaendert.emit({ eintragId, name });
+  }
+
+  /** Plätze des Lagers eines Eintrags (leer ohne Lager oder ohne gepflegte Plätze). */
+  protected plaetzeVon(lagerId: string | null): readonly Platz[] {
+    return this.lager().find((l) => l.id === lagerId)?.plaetze ?? [];
   }
 
   protected kisteUmschalten(eintragId: string): void {

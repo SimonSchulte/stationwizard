@@ -11,6 +11,7 @@ import {
 import {
   istKennungsKollision,
   istNamensKollision,
+  leseGespeichertePlaetze,
   MAX_LAGER,
   namenVergleich,
   pruefeLagerEingabe,
@@ -31,6 +32,7 @@ import { UUID_REGEX, istObjekt } from './json-lesen';
 interface LagerZeile {
   id: string;
   name: string;
+  plaetze: string;
   reihenfolge: number;
   version: number;
   geaendert_am: string;
@@ -41,6 +43,7 @@ function lagerJson(zeile: LagerZeile) {
   return {
     id: zeile.id,
     name: zeile.name,
+    plaetze: leseGespeichertePlaetze(zeile.plaetze),
     reihenfolge: zeile.reihenfolge,
     version: zeile.version,
     geaendertAm: zeile.geaendert_am,
@@ -55,7 +58,7 @@ function lagerNichtGefunden(): Response {
 async function alleLager(db: D1Database): Promise<LagerZeile[]> {
   const ergebnis = await db
     .prepare(
-      `SELECT id, name, reihenfolge, version, geaendert_am, geaendert_von
+      `SELECT id, name, plaetze, reihenfolge, version, geaendert_am, geaendert_von
        FROM lager ORDER BY reihenfolge, name`,
     )
     .all<LagerZeile>();
@@ -89,13 +92,14 @@ export async function legeLagerAn(
     await db
       .prepare(
         `INSERT INTO lager
-           (id, name, name_vergleich, reihenfolge, version, geaendert_am, geaendert_von)
-         VALUES (?, ?, ?, ?, 1, ?, ?)`,
+           (id, name, name_vergleich, plaetze, reihenfolge, version, geaendert_am, geaendert_von)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
       )
       .bind(
         eingabe.id,
         eingabe.name,
         namenVergleich(eingabe.name),
+        JSON.stringify(eingabe.plaetze),
         reihenfolge,
         jetzt,
         identitaet.email,
@@ -112,6 +116,7 @@ export async function legeLagerAn(
     lagerJson({
       id: eingabe.id,
       name: eingabe.name,
+      plaetze: JSON.stringify(eingabe.plaetze),
       reihenfolge,
       version: 1,
       geaendert_am: jetzt,
@@ -134,17 +139,27 @@ export async function aktualisiereLager(
   if (koerper instanceof Response) return koerper;
   const eingabe = pruefeLagerEingabe(koerper.inhalt);
   if (!eingabe || eingabe.id !== id.toLowerCase()) return ungueltig('Ungültiges Lager.');
+  const belegt = await belegterPlatz(db, id, eingabe.plaetze);
+  if (belegt) return stammdatenInNutzung(`Der Platz „${belegt}“ wird noch verwendet.`);
   const jetzt = new Date().toISOString();
   let ergebnis;
   try {
     ergebnis = await db
       .prepare(
         `UPDATE lager
-         SET name = ?, name_vergleich = ?, geaendert_am = ?, geaendert_von = ?,
+         SET name = ?, name_vergleich = ?, plaetze = ?, geaendert_am = ?, geaendert_von = ?,
              version = version + 1
          WHERE id = ? AND version = ?`,
       )
-      .bind(eingabe.name, namenVergleich(eingabe.name), jetzt, identitaet.email, id, version)
+      .bind(
+        eingabe.name,
+        namenVergleich(eingabe.name),
+        JSON.stringify(eingabe.plaetze),
+        jetzt,
+        identitaet.email,
+        id,
+        version,
+      )
       .run();
   } catch (ursache) {
     if (istNamensKollision(ursache)) return stammdatenNameVergeben('Dieses Lager gibt es schon.');
@@ -153,13 +168,49 @@ export async function aktualisiereLager(
   if (ergebnis.meta.changes === 0) return await ablehnungOhneTreffer(db, id);
   const aktuell = await db
     .prepare(
-      `SELECT id, name, reihenfolge, version, geaendert_am, geaendert_von
+      `SELECT id, name, plaetze, reihenfolge, version, geaendert_am, geaendert_von
        FROM lager WHERE id = ?`,
     )
     .bind(id)
     .first<LagerZeile>();
   if (!aktuell) return lagerNichtGefunden();
   return jsonAntwort(lagerJson(aktuell), 200, { ETag: starkesEtag(aktuell.version) });
+}
+
+/**
+ * Name des ersten Platzes, den die neue Fassung entfernt und auf den noch etwas verweist (Artikel,
+ * Kiste, Aufbau oder Aufbau-Vorlage); sonst `null`. Gelesen wird nur, wenn ein Platz wegfällt.
+ */
+async function belegterPlatz(
+  db: D1Database,
+  lagerId: string,
+  neu: readonly { id: string }[],
+): Promise<string | null> {
+  const zeile = await db
+    .prepare('SELECT plaetze FROM lager WHERE id = ?')
+    .bind(lagerId)
+    .first<{ plaetze: string }>();
+  if (!zeile) return null;
+  const bleiben = new Set(neu.map((platz) => platz.id));
+  for (const platz of leseGespeichertePlaetze(zeile.plaetze)) {
+    if (bleiben.has(platz.id)) continue;
+    const artikel = await db
+      .prepare('SELECT COUNT(*) AS n FROM artikel WHERE platz_id = ?')
+      .bind(platz.id)
+      .first<{ n: number }>();
+    const kisten = await db
+      .prepare('SELECT COUNT(*) AS n FROM kisten WHERE platz_id = ?')
+      .bind(platz.id)
+      .first<{ n: number }>();
+    if (
+      (artikel?.n ?? 0) > 0 ||
+      (kisten?.n ?? 0) > 0 ||
+      (await aufbauVerweistAuf(db, 'platzId', platz.id))
+    ) {
+      return platz.name;
+    }
+  }
+  return null;
 }
 
 export async function loescheLager(

@@ -83,6 +83,7 @@ describe('KisteEditor', () => {
       {
         name: 'Neu',
         lagerId: lager.id,
+        platzId: null,
         inhalt: [
           { artikelId: oel.id, menge: 1, bemerkung: 'voll' },
           { artikelId: salz.id, menge: 2.5, bemerkung: '' },

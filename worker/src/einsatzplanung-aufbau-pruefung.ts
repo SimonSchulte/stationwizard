@@ -36,6 +36,8 @@ export interface AufbauArtikelEintrag {
   menge: number;
   bemerkung: string;
   lagerId: string | null;
+  /** Platz im Lager (`lagerId`); fehlt, wenn keiner gewählt ist. Nur zusammen mit einem Lager. */
+  platzId?: string;
   phase: AufbauPhase | null;
 }
 /** Freier Artikel: Name und Einheit stehen im Aufbau selbst, ohne Artikelkatalog und Lager. */
@@ -48,6 +50,8 @@ export interface AufbauFreierEintrag {
   bemerkung: string;
   /** Quelllager des freien Artikels; `null`: noch keins gewählt. */
   lagerId: string | null;
+  /** Platz im Lager (`lagerId`); fehlt, wenn keiner gewählt ist. Nur zusammen mit einem Lager. */
+  platzId?: string;
   phase: AufbauPhase | null;
 }
 export const FREI_EINHEIT_MAX = 20;
@@ -62,6 +66,8 @@ export interface AufbauKistenEintrag {
   kisteId: string | null;
   name: string;
   lagerId: string | null;
+  /** Platz im Lager (`lagerId`); fehlt, wenn keiner gewählt ist. Nur zusammen mit einem Lager. */
+  platzId?: string;
   anzahl: number;
   inhalt: AufbauKistenPosition[];
   /**
@@ -112,6 +118,8 @@ export interface AufbauKennzahlen {
 export interface AufbauVerweise {
   artikelIds: Set<string>;
   lagerIds: Set<string>;
+  /** Platz-Id → Lager-Id des Eintrags, in dem der Platz steht. */
+  plaetze: Map<string, string>;
 }
 
 interface Zaehler {
@@ -173,16 +181,39 @@ function pruefeKistenPositionen(wert: unknown): AufbauKistenPosition[] | null {
   return ergebnis;
 }
 
+/**
+ * Platz eines Eintrags: fehlt oder `null` heißt keiner; sonst eine UUID, und nur zusammen mit einem Lager.
+ * Ob der Platz zu diesem Lager gehört, prüft der Aufrufer gegen die Datenbank (`sammleVerweise()`).
+ */
+function pruefeEintragsPlatz(wert: unknown, lagerId: unknown): string | null | undefined {
+  if (wert === undefined || wert === null) return null;
+  if (!istUuid(wert) || lagerId === null || lagerId === undefined) return undefined;
+  return wert.toLowerCase();
+}
+
 function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEintrag | null {
   if (!istObjekt(wert)) return null;
   if (wert['art'] === 'artikel') {
-    if (!hatNurFelder(wert, ['art', 'id', 'artikelId', 'menge', 'bemerkung', 'lagerId', 'phase'])) {
+    if (
+      !hatNurFelder(wert, [
+        'art',
+        'id',
+        'artikelId',
+        'menge',
+        'bemerkung',
+        'lagerId',
+        'platzId',
+        'phase',
+      ])
+    ) {
       return null;
     }
     const id = pruefeEindeutigeId(wert['id'], z);
     const phase = pruefePhase(wert['phase']);
+    const platzId = pruefeEintragsPlatz(wert['platzId'], wert['lagerId']);
     if (
       !id ||
+      platzId === undefined ||
       !istUuid(wert['artikelId']) ||
       !istMenge(wert['menge']) ||
       !istText0bis(wert['bemerkung'], BEMERKUNG_MAX) ||
@@ -198,6 +229,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       menge: wert['menge'],
       bemerkung: wert['bemerkung'].trim(),
       lagerId: kleinOderNull(wert['lagerId']),
+      ...(platzId !== null && { platzId }),
       phase,
     };
   }
@@ -211,6 +243,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
         'menge',
         'bemerkung',
         'lagerId',
+        'platzId',
         'phase',
       ])
     ) {
@@ -218,8 +251,10 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
     }
     const id = pruefeEindeutigeId(wert['id'], z);
     const phase = pruefePhase(wert['phase']);
+    const platzId = pruefeEintragsPlatz(wert['platzId'], wert['lagerId']);
     if (
       !id ||
+      platzId === undefined ||
       !istNichtleererText(wert['name']) ||
       wert['name'].trim().length > NAME_MAX ||
       !istText0bis(wert['einheit'], FREI_EINHEIT_MAX) ||
@@ -238,6 +273,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       menge: wert['menge'],
       bemerkung: wert['bemerkung'].trim(),
       lagerId: kleinOderNull(wert['lagerId']),
+      ...(platzId !== null && { platzId }),
       phase,
     };
   }
@@ -249,6 +285,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
         'kisteId',
         'name',
         'lagerId',
+        'platzId',
         'anzahl',
         'inhalt',
         'standardInhalt',
@@ -262,8 +299,10 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
     const anzahl = wert['anzahl'];
     const inhalt = pruefeKistenPositionen(wert['inhalt']);
     const standard = wert['standardInhalt'];
+    const platzId = pruefeEintragsPlatz(wert['platzId'], wert['lagerId']);
     if (
       !id ||
+      platzId === undefined ||
       (standard !== undefined && typeof standard !== 'boolean') ||
       !istUuidOderNull(wert['kisteId']) ||
       !istNichtleererText(wert['name']) ||
@@ -284,6 +323,7 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       kisteId: kleinOderNull(wert['kisteId']),
       name: wert['name'].trim().replace(/\s+/g, ' '),
       lagerId: kleinOderNull(wert['lagerId']),
+      ...(platzId !== null && { platzId }),
       anzahl,
       inhalt,
       // Nur bei leerem Inhalt und nur als `true` gespeichert; so bleibt Altbestand unverändert.
@@ -428,6 +468,7 @@ export function zaehleAufbau(inhalt: AufbauInhalt): AufbauKennzahlen {
 export function sammleVerweise(inhalt: AufbauInhalt): AufbauVerweise {
   const artikelIds = new Set<string>();
   const lagerIds = new Set<string>();
+  const plaetze = new Map<string, string>();
   for (const einheit of alleEinheiten(inhalt)) {
     for (const eintrag of einheit.inhalt) {
       if (eintrag.art === 'artikel') {
@@ -439,7 +480,10 @@ export function sammleVerweise(inhalt: AufbauInhalt): AufbauVerweise {
         for (const p of eintrag.inhalt) if (p.artikelId) artikelIds.add(p.artikelId);
         if (eintrag.lagerId) lagerIds.add(eintrag.lagerId);
       }
+      if (eintrag.art !== 'wagen' && eintrag.lagerId && eintrag.platzId) {
+        plaetze.set(`${eintrag.lagerId}/${eintrag.platzId}`, eintrag.lagerId);
+      }
     }
   }
-  return { artikelIds, lagerIds };
+  return { artikelIds, lagerIds, plaetze };
 }

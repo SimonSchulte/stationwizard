@@ -16,7 +16,7 @@ import { ArtikelTabelle } from '../../components/artikel-tabelle/artikel-tabelle
 import { LagerListe } from '../../components/lager-liste/lager-liste';
 import { KisteEditor, KisteAenderung } from '../../components/kiste-editor/kiste-editor';
 import { KisteListe } from '../../components/kiste-liste/kiste-liste';
-import { Artikel, Kiste, Lager } from '../../models/stammdaten.model';
+import { Artikel, Kiste, Lager, Platz } from '../../models/stammdaten.model';
 import { KistenDruckDienst } from '../../services/kisten-druck';
 import { StammdatenStoreService } from '../../services/stammdaten-store.service';
 
@@ -123,6 +123,10 @@ export class Stammdaten implements OnInit {
 
   protected lagerUmbenennen(ereignis: { lager: Lager; name: string }): void {
     void this.store.lagerUmbenennen(ereignis.lager, ereignis.name);
+  }
+
+  protected lagerPlaetze(ereignis: { lager: Lager; plaetze: Platz[] }): void {
+    void this.store.lagerPlaetzeSpeichern(ereignis.lager, ereignis.plaetze);
   }
 
   protected lagerVerschieben(ereignis: { von: number; nach: number }): void {

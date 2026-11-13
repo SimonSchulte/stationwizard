@@ -214,3 +214,22 @@ Alle sieben Fragen sind beantwortet, jeweils wie vorgeschlagen:
 7. **Rechte:** vorerst alle, Rollen später (Stammdaten ändern wäre der erste Fall für eine Rolle).
 
 Weiter offen: nichts Fachliches. Stufe 3 klärt die Bedienung des Aufbau-Editors (Abschnitt 5) im Mock.
+
+## 10. Nachtrag: Plätze je Lager
+
+Entscheidung des Betreibers: ein Lager führt eine **feste Liste von Plätzen** (z. B. „Regal“, „Spinde“, „unter der
+Treppe“). Das ersetzt die Klammerzusätze der Excel-Packliste („Kaltlager (Regal)“) und bleibt eine einfache Liste,
+keine Gebäude mit Räumen (Entscheidung 4 oben gilt weiter: die Reihenfolge der Lager ist der Laufweg).
+
+- **Speicherung:** Migration `0026_lager_plaetze.sql`. `lager.plaetze` ist ein vom Worker streng geprüftes
+  JSON-Array `[{ id, name }]` (höchstens 40 Plätze, Name höchstens 60 Zeichen, je Lager eindeutig in der
+  Vergleichsform). Artikel und Kisten tragen optional `platz_id`; im Aufbau steht `platzId` neben `lagerId`
+  (Katalogartikel, freier Artikel, Kiste). Kein Fremdschlüssel, weil der Platz im JSON steckt.
+- **Regeln:** Ein Platz gehört immer zu einem Lager. Der Worker lehnt einen Platz ohne Lager oder aus einem anderen
+  Lager ab (400). Wechselt das Lager, fällt der Platz weg. Ein Platz lässt sich nur aus der Liste entfernen, solange
+  kein Artikel, keine Kiste und kein Aufbau beziehungsweise keine Aufbau-Vorlage darauf verweist (409
+  `EINSATZPLANUNG_STAMMDATEN_IN_NUTZUNG`).
+- **Bedienung:** Pflege der Plätze in der Lagerliste (Knopf „n Plätze“ je Lager), Auswahl am Artikel, an der Kiste und
+  je Eintrag im Aufbau. Der Aufbau übernimmt den Platz wie das Lager als Momentaufnahme.
+- **Zettel:** Innerhalb eines Lagers ordnet die Reihenfolge der Plätze die Zeilen (Kisten vor losen Artikeln bleibt);
+  der Platzname steht an der Zeile („… · Regal“). Packzettel und Kistenschild nennen „Lager · Platz“.

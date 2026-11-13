@@ -64,6 +64,7 @@
           <th scope="col">Name</th>
           <th scope="col">Einheit</th>
           <th scope="col">Heimatlager</th>
+          <th scope="col">Platz</th>
           <th scope="col"><span class="sr-only">Aktionen</span></th>
         </tr>
       </thead>
@@ -114,6 +115,26 @@
                   <mat-option [value]="null">Kein Heimatlager</mat-option>
                   @for (eintragLager of lager(); track eintragLager.id) {
                     <mat-option [value]="eintragLager.id">{{ eintragLager.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </td>
+            <td data-label="Platz">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mittel">
+                <mat-select
+                  placeholder="Kein Platz"
+                  [attr.aria-label]="'Platz: ' + eintrag.name"
+                  [value]="eintrag.platzId ?? null"
+                  [disabled]="
+                    beschaeftigtId() === eintrag.id || plaetzeVon(eintrag.lagerId).length === 0
+                  "
+                  (selectionChange)="
+                    geaendert.emit({ artikel: eintrag, aenderung: { platzId: $event.value } })
+                  "
+                >
+                  <mat-option [value]="null">Kein Platz</mat-option>
+                  @for (platz of plaetzeVon(eintrag.lagerId); track platz.id) {
+                    <mat-option [value]="platz.id">{{ platz.name }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>

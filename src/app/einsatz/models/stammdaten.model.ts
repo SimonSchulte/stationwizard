@@ -23,6 +23,8 @@ export type ArtikelEinheit = (typeof ARTIKEL_EINHEITEN)[number];
 /** Grenzen laut Vertrag; der Worker prüft dieselben Werte. */
 export const STAMMDATEN_GRENZEN = {
   lager: 100,
+  plaetze: 40,
+  platzName: 60,
   artikel: 2000,
   kisten: 300,
   kistenPositionen: 100,
@@ -31,9 +33,17 @@ export const STAMMDATEN_GRENZEN = {
   mengeMax: 1_000_000,
 } as const;
 
+/** Ein Platz innerhalb eines Lagers, z. B. „Regal“ oder „Spinde“. */
+export interface Platz {
+  id: string;
+  name: string;
+}
+
 export interface Lager {
   id: string;
   name: string;
+  /** Feste Liste der Plätze dieses Lagers, in der Reihenfolge der Pflege. */
+  plaetze: Platz[];
   /** Position im Laufweg, ab 1. */
   reihenfolge: number;
   version: number;
@@ -47,6 +57,8 @@ export interface Artikel {
   einheit: ArtikelEinheit;
   /** Heimatlager; `null`, solange keines gewählt ist. */
   lagerId: string | null;
+  /** Platz im Heimatlager; nur zusammen mit einem Lager. */
+  platzId: string | null;
   version: number;
   geaendertAm: string;
   geaendertVon: string;
@@ -55,6 +67,7 @@ export interface Artikel {
 export interface LagerEingabe {
   id: string;
   name: string;
+  plaetze: Platz[];
 }
 
 export interface ArtikelEingabe {
@@ -62,6 +75,8 @@ export interface ArtikelEingabe {
   name: string;
   einheit: ArtikelEinheit;
   lagerId: string | null;
+  /** Fehlt: kein Platz. */
+  platzId?: string | null;
 }
 
 /** Eine Zeile im Inhalt einer Kiste: Artikel mit Menge (Einheit steht am Artikel) und Bemerkung. */
@@ -77,6 +92,7 @@ export interface Kiste {
   id: string;
   name: string;
   lagerId: string | null;
+  platzId: string | null;
   inhalt: KistenPosition[];
   version: number;
   geaendertAm: string;
@@ -87,5 +103,7 @@ export interface KisteEingabe {
   id: string;
   name: string;
   lagerId: string | null;
+  /** Fehlt: kein Platz. */
+  platzId?: string | null;
   inhalt: KistenPosition[];
 }

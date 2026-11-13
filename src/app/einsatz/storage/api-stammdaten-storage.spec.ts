@@ -48,7 +48,7 @@ describe('ApiStammdatenStorage', () => {
     expect(worker.json).toHaveBeenCalledOnce();
     const neu = erzeugeTestLager();
     worker.json.mockResolvedValue(neu);
-    await storage.speichereLager({ id: neu.id, name: neu.name }, null);
+    await storage.speichereLager({ id: neu.id, name: neu.name, plaetze: [] }, null);
     worker.json.mockResolvedValue({ lager: [neu] });
     await storage.ladeLager();
     expect(worker.json).toHaveBeenCalledTimes(3);
@@ -57,12 +57,12 @@ describe('ApiStammdatenStorage', () => {
   it('legt ein Lager mit If-None-Match: * an und aktualisiert mit If-Match', async () => {
     const lager = erzeugeTestLager({ version: 3 });
     worker.json.mockResolvedValue(lager);
-    await storage.speichereLager({ id: lager.id, name: lager.name }, null);
+    await storage.speichereLager({ id: lager.id, name: lager.name, plaetze: [] }, null);
     const [pfadNeu, neu] = worker.json.mock.calls[0];
     expect(pfadNeu).toBe('/api/einsatzplanung/lager');
     expect(neu.method).toBe('POST');
     expect(neu.headers.get('If-None-Match')).toBe('*');
-    await storage.speichereLager({ id: lager.id, name: lager.name }, 2);
+    await storage.speichereLager({ id: lager.id, name: lager.name, plaetze: [] }, 2);
     const [pfadAlt, alt] = worker.json.mock.calls[1];
     expect(pfadAlt).toBe(`/api/einsatzplanung/lager/${lager.id}`);
     expect(alt.method).toBe('PUT');
@@ -89,9 +89,9 @@ describe('ApiStammdatenStorage', () => {
 
   it('weist eine ungültige Antwort des Servers ab', async () => {
     worker.json.mockResolvedValue({ unsinn: true });
-    await expect(storage.speichereLager({ id: 'x', name: 'A' }, null)).rejects.toBeInstanceOf(
-      WorkerFehler,
-    );
+    await expect(
+      storage.speichereLager({ id: 'x', name: 'A', plaetze: [] }, null),
+    ).rejects.toBeInstanceOf(WorkerFehler);
     await expect(
       storage.speichereArtikel({ id: 'x', name: 'A', einheit: 'Stück', lagerId: null }, null),
     ).rejects.toBeInstanceOf(WorkerFehler);
@@ -99,16 +99,18 @@ describe('ApiStammdatenStorage', () => {
 
   it('übersetzt 412 in einen Konfliktfehler', async () => {
     worker.json.mockRejectedValue(new WorkerFehler('x', 412));
-    await expect(storage.speichereLager({ id: 'x', name: 'A' }, 1)).rejects.toBeInstanceOf(
-      StammdatenKonfliktFehler,
-    );
+    await expect(
+      storage.speichereLager({ id: 'x', name: 'A', plaetze: [] }, 1),
+    ).rejects.toBeInstanceOf(StammdatenKonfliktFehler);
     worker.anfragen.mockRejectedValue(new WorkerFehler('x', 412));
     await expect(storage.loescheArtikel('x', 1)).rejects.toBeInstanceOf(StammdatenKonfliktFehler);
   });
 
   it('übersetzt vergebene Namen und Nutzung an Hand des Diagnosecodes', async () => {
     worker.json.mockRejectedValue(new WorkerFehler('x', 409, 'EINSATZPLANUNG_NAME_VERGEBEN'));
-    await expect(storage.speichereLager({ id: 'x', name: 'A' }, null)).rejects.toMatchObject({
+    await expect(
+      storage.speichereLager({ id: 'x', name: 'A', plaetze: [] }, null),
+    ).rejects.toMatchObject({
       art: 'lager',
     });
     await expect(
@@ -123,7 +125,9 @@ describe('ApiStammdatenStorage', () => {
   it('lässt andere Fehler unverändert durch', async () => {
     const fehler = new WorkerFehler('Server nicht erreichbar', 0);
     worker.json.mockRejectedValue(fehler);
-    await expect(storage.speichereLager({ id: 'x', name: 'A' }, null)).rejects.toBe(fehler);
+    await expect(storage.speichereLager({ id: 'x', name: 'A', plaetze: [] }, null)).rejects.toBe(
+      fehler,
+    );
   });
 
   it('löscht mit If-Match und verwirft den Puffer', async () => {

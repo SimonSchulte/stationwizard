@@ -27,6 +27,7 @@
 
 .zeile {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
@@ -71,4 +72,23 @@
 
 .cdk-drag-animating {
   transition: transform 200ms ease;
+}
+
+.plaetze {
+  flex: 1 0 100%;
+  padding: var(--space-sm) var(--space-md) var(--space-md) var(--space-xl);
+}
+
+.platz,
+.platz-neu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.platz-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 20rem;
 }

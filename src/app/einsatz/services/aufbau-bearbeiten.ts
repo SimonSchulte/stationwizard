@@ -131,6 +131,7 @@ export function kisteHinzufuegen(
     kisteId: kiste.id,
     name: kiste.name,
     lagerId: kiste.lagerId,
+    ...(kiste.platzId && { platzId: kiste.platzId }),
     anzahl: Math.min(Math.max(1, Math.round(anzahl)), AUFBAU_GRENZEN.kistenAnzahl),
     inhalt: kiste.inhalt.map((p) => ({ ...p })),
     phase: null,
@@ -153,6 +154,7 @@ export function artikelHinzufuegen(
     menge,
     bemerkung,
     lagerId: artikel.lagerId,
+    ...(artikel.platzId && { platzId: artikel.platzId }),
     phase: null,
   };
   return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
@@ -219,6 +221,7 @@ export function freienArtikelVerknuepfen(
         bemerkung: x.bemerkung,
         // Das gewählte Quelllager bleibt; ohne eins gilt das Heimatlager des Katalogartikels.
         lagerId: x.lagerId ?? artikel.lagerId,
+        ...platzFuerVerknuepfung(x, artikel),
         phase: x.phase,
       };
     }),
@@ -390,6 +393,31 @@ function verschiebeWagen(
   });
 }
 
+/** Übernimmt Lager und Platz einer Änderung; der Platz fällt weg, wenn das Lager wechselt oder entfällt. */
+function mitLagerUndPlatz<T extends { lagerId: string | null; platzId?: string }>(
+  eintrag: T,
+  aenderung: { lagerId?: string | null; platzId?: string | null },
+): T {
+  const { platzId: _alt, ...rest } = eintrag;
+  const lagerId = aenderung.lagerId === undefined ? eintrag.lagerId : aenderung.lagerId;
+  const platzId =
+    aenderung.platzId !== undefined
+      ? aenderung.platzId
+      : lagerId === eintrag.lagerId
+        ? (_alt ?? null)
+        : null;
+  return { ...rest, lagerId, ...(lagerId && platzId && { platzId }) } as T;
+}
+
+/** Platz bei der Übernahme eines freien Artikels in den Katalog: bleibt, solange das Quelllager bleibt. */
+function platzFuerVerknuepfung(
+  frei: { lagerId: string | null; platzId?: string },
+  artikel: Artikel,
+): { platzId?: string } {
+  if (frei.lagerId) return frei.platzId ? { platzId: frei.platzId } : {};
+  return artikel.platzId ? { platzId: artikel.platzId } : {};
+}
+
 export function eintragAendern(
   inhalt: AufbauInhalt,
   einheitId: string,
@@ -400,6 +428,8 @@ export function eintragAendern(
     bemerkung?: string;
     anzahl?: number;
     lagerId?: string | null;
+    /** Platz im (neuen) Lager; ohne Angabe fällt der Platz weg, sobald das Lager wechselt. */
+    platzId?: string | null;
     phase?: AufbauPhase | null;
     /** Standard-Kiste an- oder abschalten; angeschaltet wird nur bei leerem Inhalt. */
     standardInhalt?: boolean;
@@ -411,30 +441,27 @@ export function eintragAendern(
       if (x.id !== eintragId || x.art === 'wagen') return x;
       if (x.art === 'frei') {
         return {
-          ...x,
+          ...mitLagerUndPlatz(x, aenderung),
           ...(aenderung.menge !== undefined && { menge: aenderung.menge }),
           ...(aenderung.bemerkung !== undefined && { bemerkung: aenderung.bemerkung }),
-          ...(aenderung.lagerId !== undefined && { lagerId: aenderung.lagerId }),
           ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
         };
       }
       if (x.art === 'artikel') {
         return {
-          ...x,
+          ...mitLagerUndPlatz(x, aenderung),
           ...(aenderung.menge !== undefined && { menge: aenderung.menge }),
           ...(aenderung.bemerkung !== undefined && { bemerkung: aenderung.bemerkung }),
-          ...(aenderung.lagerId !== undefined && { lagerId: aenderung.lagerId }),
           ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
         };
       }
       const { standardInhalt: _alt, ...ohneStandard } = x;
       const standard = aenderung.standardInhalt ?? _alt === true;
       return {
-        ...ohneStandard,
+        ...mitLagerUndPlatz(ohneStandard, aenderung),
         ...(standard && x.inhalt.length === 0 && { standardInhalt: true }),
         ...(aenderung.name !== undefined &&
           aenderung.name.trim() !== '' && { name: aenderung.name.trim().replace(/\s+/g, ' ') }),
-        ...(aenderung.lagerId !== undefined && { lagerId: aenderung.lagerId }),
         ...(aenderung.anzahl !== undefined && { anzahl: aenderung.anzahl }),
         ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
       };
@@ -526,9 +553,8 @@ export function kisteAbgleichen(
     inhalt: e.inhalt.map((x) =>
       x.id === eintragId && x.art === 'kiste'
         ? {
-            ...x,
+            ...mitLagerUndPlatz(x, { lagerId: kiste.lagerId, platzId: kiste.platzId ?? null }),
             name: kiste.name,
-            lagerId: kiste.lagerId,
             inhalt: kiste.inhalt.map((p) => ({ ...p })),
           }
         : x,
