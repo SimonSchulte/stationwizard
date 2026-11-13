@@ -393,6 +393,22 @@ export class AufbauEditor {
     }
   }
 
+  /** Löscht den gespeicherten Aufbau des Einsatzes beziehungsweise die Vorlage, nach Rückfrage. */
+  protected async loeschen(): Promise<void> {
+    const vorlage = this.modus === 'vorlage';
+    const bestaetigt = await this.dialogDienst.bestaetigen(
+      vorlage
+        ? `„${this.store.titel()}“ wird endgültig gelöscht. Bereits daraus angelegte Aufbauten bleiben unverändert.`
+        : `Der Aufbau von „${this.einsatz()?.titel ?? 'diesem Einsatz'}“ wird endgültig gelöscht, auch ungespeicherte Änderungen gehen verloren. Der Einsatz selbst bleibt bestehen und lässt sich neu planen.`,
+      vorlage ? 'Aufbau-Vorlage löschen' : 'Aufbau löschen',
+      'Endgültig löschen',
+    );
+    if (!bestaetigt) return;
+    if (!(await this.store.loeschen())) return;
+    this.meldungen.erfolg(vorlage ? 'Die Vorlage wurde gelöscht.' : 'Der Aufbau wurde gelöscht.');
+    await this.router.navigateByUrl(this.zurueckZiel());
+  }
+
   protected async neuLaden(): Promise<void> {
     if (
       this.store.geaendert() &&
