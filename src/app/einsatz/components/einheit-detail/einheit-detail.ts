@@ -19,6 +19,7 @@ import {
   ABSCHNITT_FARBE_BEZEICHNUNG,
   AbschnittFarbe,
 } from '../../models/druck.model';
+import { KistenZiel } from '../../services/aufbau-bearbeiten';
 import { AufbauProblem, kisteWeichtAb } from '../../services/aufbau-abgleich';
 import { mengeText } from '../../services/aufbau-zettel';
 import { fotoVerkleinern } from '../../services/foto-verkleinern';
@@ -96,10 +97,14 @@ export class EinheitDetail {
   readonly artikel = input.required<readonly Artikel[]>();
   readonly kisten = input.required<readonly Kiste[]>();
   readonly probleme = input<readonly AufbauProblem[]>([]);
+  /** Kisten des ganzen Aufbaus, in die sich ein loser Artikel legen lässt. */
+  readonly aufbauKisten = input<readonly KistenZiel[]>([]);
 
   readonly geaendert = output<EinheitAenderung>();
   readonly eintragGeaendert = output<EintragAenderung>();
   readonly eintragEntfernt = output<string>();
+  /** Ein loser Artikel (Eintrag-Id) soll als Position in eine Kiste des Aufbaus gelegt werden. */
+  readonly eintragInKiste = output<{ eintragId: string; ziel: KistenZiel }>();
   readonly kisteHinzugefuegt = output<string>();
   readonly artikelHinzugefuegt = output<{ artikelId: string; menge: number }>();
   readonly freierArtikelHinzugefuegt = output<{
@@ -242,6 +247,19 @@ export class EinheitDetail {
   /** Plätze des Lagers eines Eintrags (leer ohne Lager oder ohne gepflegte Plätze). */
   protected plaetzeVon(lagerId: string | null): readonly Platz[] {
     return this.lager().find((l) => l.id === lagerId)?.plaetze ?? [];
+  }
+
+  /** Benennt einen freien Artikel um; ein leerer Name gilt nicht, das Feld zeigt dann wieder den gespeicherten. */
+  protected artikelUmbenennen(eintragId: string, ereignis: Event): void {
+    const feld = ereignis.target as HTMLInputElement;
+    const name = feld.value.trim().replace(/\s+/g, ' ');
+    const aktuell = this.einheit().inhalt.find((x) => x.id === eintragId);
+    if (aktuell?.art !== 'frei') return;
+    if (name === '') {
+      feld.value = aktuell.name;
+      return;
+    }
+    if (name !== aktuell.name) this.eintragGeaendert.emit({ eintragId, name });
   }
 
   protected kisteUmschalten(eintragId: string): void {

@@ -21,6 +21,8 @@ import {
   freienArtikelVerknuepfen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
+  eintragInKisteLegen,
+  kistenZiele,
   verschiebeImBaum,
   type BaumOrt,
   kisteHinzufuegen,
@@ -265,6 +267,83 @@ describe('Aufbau bearbeiten', () => {
     expect(kopie.einheiten[0]!.inhalt[0]).toMatchObject({ art: 'kiste', kisteId: kiste.id });
     expect(istAufbauInhalt(kopie)).toBe(true);
     expect(testId(1)).toBe(lager.id);
+  });
+});
+
+describe('Eintrag in eine Kiste legen', () => {
+  function aufbauMitKiste() {
+    const fahrzeug = testEinheit({ name: 'Ohne Ziel' });
+    const wagen = testEinheit({ name: 'Gitterwagen', typ: 'wagen' });
+    let inhalt = testAufbauInhalt([fahrzeug, wagen]);
+    inhalt = freieKisteHinzufuegen(inhalt, wagen.id, 'Hockerkocher', 1);
+    inhalt = freienArtikelHinzufuegen(inhalt, fahrzeug.id, 'Hockerkoche', '', 2);
+    inhalt = artikelHinzufuegen(inhalt, fahrzeug.id, testArtikelStamm(950, 'Spray', 'Stück'), 1);
+    const kiste = inhalt.einheiten[1]!.inhalt[0]!;
+    return { inhalt, fahrzeug, wagen, kiste, ziel: { einheitId: wagen.id, eintragId: kiste.id } };
+  }
+
+  it('listet alle Kisten des Aufbaus als Ziele, auch in Wagen', () => {
+    const { inhalt, ziel } = aufbauMitKiste();
+    expect(kistenZiele(inhalt)).toEqual([{ ...ziel, bezeichnung: 'Gitterwagen › Hockerkocher' }]);
+  });
+
+  it('legt freie Artikel und Katalogartikel als Positionen in die Kiste und nimmt sie aus der Einheit', () => {
+    const { inhalt, fahrzeug, ziel } = aufbauMitKiste();
+    const [frei, katalog] = inhalt.einheiten[0]!.inhalt;
+    let neu = eintragInKisteLegen(inhalt, fahrzeug.id, frei!.id, ziel);
+    neu = eintragInKisteLegen(neu, fahrzeug.id, katalog!.id, ziel);
+    expect(neu.einheiten[0]!.inhalt).toEqual([]);
+    const kiste = neu.einheiten[1]!.inhalt[0] as AufbauKistenEintrag;
+    expect(kiste.inhalt).toEqual([
+      { artikelId: null, name: 'Hockerkoche', einheit: '', menge: 2, bemerkung: '' },
+      { artikelId: testId(950), menge: 1, bemerkung: '' },
+    ]);
+    expect(istAufbauInhalt(neu)).toBe(true);
+  });
+
+  it('zählt einen Katalogartikel hoch, der schon in der Kiste steckt, und hebt die Standard-Kiste auf', () => {
+    const { inhalt, fahrzeug, wagen, kiste, ziel } = aufbauMitKiste();
+    let neu = eintragAendern(inhalt, wagen.id, kiste.id, { standardInhalt: true });
+    const katalog = neu.einheiten[0]!.inhalt[1]!;
+    neu = eintragInKisteLegen(neu, fahrzeug.id, katalog.id, ziel);
+    neu = artikelHinzufuegen(neu, fahrzeug.id, testArtikelStamm(950, 'Spray', 'Stück'), 3);
+    const zweiter = neu.einheiten[0]!.inhalt.at(-1)!;
+    neu = eintragInKisteLegen(neu, fahrzeug.id, zweiter.id, ziel);
+    const ergebnis = neu.einheiten[1]!.inhalt[0] as AufbauKistenEintrag;
+    expect(ergebnis.inhalt).toContainEqual({ artikelId: testId(950), menge: 4, bemerkung: '' });
+    expect(ergebnis.standardInhalt).toBeUndefined();
+  });
+
+  it('ändert nichts bei unbekanntem Ziel, falschem Eintrag oder voller Kiste', () => {
+    const { inhalt, fahrzeug, wagen, kiste, ziel } = aufbauMitKiste();
+    const frei = inhalt.einheiten[0]!.inhalt[0]!;
+    expect(eintragInKisteLegen(inhalt, fahrzeug.id, frei.id, { ...ziel, eintragId: 'x' })).toBe(
+      inhalt,
+    );
+    expect(eintragInKisteLegen(inhalt, fahrzeug.id, kiste.id, ziel)).toBe(inhalt);
+    let voll = inhalt;
+    for (let i = 0; i < 100; i++) {
+      voll = kistePositionHinzufuegen(voll, wagen.id, kiste.id, {
+        artikelId: null,
+        name: `Teil ${i}`,
+        einheit: '',
+        menge: 1,
+        bemerkung: '',
+      });
+    }
+    expect(eintragInKisteLegen(voll, fahrzeug.id, frei.id, ziel)).toBe(voll);
+  });
+
+  it('benennt einen freien Artikel um, ein leerer Name bleibt wirkungslos', () => {
+    const { inhalt, fahrzeug } = aufbauMitKiste();
+    const frei = inhalt.einheiten[0]!.inhalt[0]!;
+    const neu = eintragAendern(inhalt, fahrzeug.id, frei.id, { name: ' Hockerkocher  ' });
+    expect(neu.einheiten[0]!.inhalt[0]).toMatchObject({ name: 'Hockerkocher' });
+    expect(
+      eintragAendern(neu, fahrzeug.id, frei.id, { name: ' ' }).einheiten[0]!.inhalt[0],
+    ).toMatchObject({
+      name: 'Hockerkocher',
+    });
   });
 });
 

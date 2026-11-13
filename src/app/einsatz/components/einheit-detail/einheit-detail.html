@@ -104,6 +104,18 @@
                     (change)="kisteUmbenennen(zeile.eintrag.id, $event)"
                   />
                 </mat-form-field>
+              } @else if (zeile.eintrag.art === 'frei') {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="kisten-name">
+                  <mat-label>Name des Artikels</mat-label>
+                  <input
+                    matInput
+                    type="text"
+                    autocomplete="off"
+                    [attr.maxlength]="maxName"
+                    [value]="zeile.eintrag.name"
+                    (change)="artikelUmbenennen(zeile.eintrag.id, $event)"
+                  />
+                </mat-form-field>
               } @else {
                 {{ zeile.titel }}
               }
@@ -243,6 +255,32 @@
                 >
                   <mat-icon>playlist_add</mat-icon>
                 </button>
+              }
+              @if (
+                (zeile.eintrag.art === 'artikel' || zeile.eintrag.art === 'frei') &&
+                aufbauKisten().length > 0
+              ) {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="In eine Kiste legen"
+                  matTooltip="In eine Kiste legen"
+                  [matMenuTriggerFor]="kistenMenue"
+                >
+                  <mat-icon>inventory_2</mat-icon>
+                </button>
+                <mat-menu #kistenMenue="matMenu">
+                  @for (ziel of aufbauKisten(); track ziel.eintragId) {
+                    <button
+                      mat-menu-item
+                      type="button"
+                      (click)="eintragInKiste.emit({ eintragId: zeile.eintrag.id, ziel })"
+                    >
+                      <mat-icon>inventory_2</mat-icon>
+                      <span>{{ ziel.bezeichnung }}</span>
+                    </button>
+                  }
+                </mat-menu>
               }
               @if (zeile.eintrag.art !== 'wagen') {
                 <button
