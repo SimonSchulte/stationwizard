@@ -401,6 +401,8 @@ export function eintragAendern(
     anzahl?: number;
     lagerId?: string | null;
     phase?: AufbauPhase | null;
+    /** Standard-Kiste an- oder abschalten; angeschaltet wird nur bei leerem Inhalt. */
+    standardInhalt?: boolean;
   },
 ): AufbauInhalt {
   return ersetzeEinheit(inhalt, einheitId, (e) => ({
@@ -425,8 +427,11 @@ export function eintragAendern(
           ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
         };
       }
+      const { standardInhalt: _alt, ...ohneStandard } = x;
+      const standard = aenderung.standardInhalt ?? _alt === true;
       return {
-        ...x,
+        ...ohneStandard,
+        ...(standard && x.inhalt.length === 0 && { standardInhalt: true }),
         ...(aenderung.name !== undefined &&
           aenderung.name.trim() !== '' && { name: aenderung.name.trim().replace(/\s+/g, ' ') }),
         ...(aenderung.lagerId !== undefined && { lagerId: aenderung.lagerId }),
@@ -445,9 +450,17 @@ function kistePositionen(
 ): AufbauInhalt {
   return ersetzeEinheit(inhalt, einheitId, (e) => ({
     ...e,
-    inhalt: e.inhalt.map((x) =>
-      x.id === eintragId && x.art === 'kiste' ? { ...x, inhalt: aendern(x.inhalt) } : x,
-    ),
+    inhalt: e.inhalt.map((x) => {
+      if (x.id !== eintragId || x.art !== 'kiste') return x;
+      const { standardInhalt: _standard, ...ohneStandard } = x;
+      const neu = aendern(x.inhalt);
+      // Das Kennzeichen „Standard-Kiste“ gilt nur für eine leere Kiste und fällt mit dem ersten Inhalt weg.
+      return {
+        ...ohneStandard,
+        ...(x.standardInhalt && neu.length === 0 && { standardInhalt: true }),
+        inhalt: neu,
+      };
+    }),
   }));
 }
 

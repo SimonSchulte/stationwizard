@@ -55,6 +55,8 @@ export interface EintragAenderung {
   anzahl?: number;
   lagerId?: string | null;
   phase?: AufbauPhase | null;
+  /** Standard-Kiste an- oder abschalten (nur bei leerem Inhalt wirksam). */
+  standardInhalt?: boolean;
 }
 
 interface Zeile {

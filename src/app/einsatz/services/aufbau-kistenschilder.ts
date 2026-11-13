@@ -1,4 +1,9 @@
-import { AufbauEinheit, AufbauInhalt, AufbauKistenPosition } from '../models/aufbau.model';
+import {
+  AufbauEinheit,
+  AufbauInhalt,
+  AufbauKistenPosition,
+  istStandardKiste,
+} from '../models/aufbau.model';
 import { Artikel, Lager } from '../models/stammdaten.model';
 import { DruckAbschnitt, DruckLaufzettel, DruckPosition } from '../models/druck.model';
 import { Kistenschild, mengeText, schildZeile } from './kisten-pdf-definition';
@@ -11,6 +16,7 @@ import { abschnittFarbeHex } from './zettel-pdf-definition';
 
 /** Zeile auf einem Packzettel ohne Soll-Inhalt: die Kiste lässt sich so nicht kontrollieren. */
 export const KEIN_SOLL_INHALT = 'Kein Soll-Inhalt hinterlegt';
+export const STANDARD_INHALT = 'Standardbestückung – nach Kistenbeschriftung kontrollieren';
 
 export interface KistenschildStammdaten {
   lager: readonly Lager[];
@@ -59,7 +65,19 @@ function sollPositionen(
   inhalt: readonly AufbauKistenPosition[],
   idPrefix: string,
   artikel: ReadonlyMap<string, Artikel>,
+  standard = false,
 ): DruckPosition[] {
+  if (inhalt.length === 0 && standard) {
+    return [
+      {
+        id: `${idPrefix}:standard`,
+        herkunftId: null,
+        anzahl: '',
+        material: STANDARD_INHALT,
+        hinweis: true,
+      },
+    ];
+  }
   if (inhalt.length === 0) {
     return [
       {
@@ -113,7 +131,7 @@ export function kistenzettelAusAufbau(
           transportMit: ziel,
           auftraggeber: '',
           fachgruppe: null,
-          positionen: sollPositionen(eintrag.inhalt, id, artikel),
+          positionen: sollPositionen(eintrag.inhalt, id, artikel, istStandardKiste(eintrag)),
         });
       }
     }

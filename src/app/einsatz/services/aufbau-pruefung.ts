@@ -86,11 +86,22 @@ function istEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): wert is Auf
     const inhalt = wert['inhalt'];
     const positionen = Array.isArray(inhalt) ? inhalt : null;
     return (
-      nurFelder(wert, ['art', 'id', 'kisteId', 'name', 'lagerId', 'anzahl', 'inhalt', 'phase']) &&
+      nurFelder(wert, [
+        'art',
+        'id',
+        'kisteId',
+        'name',
+        'lagerId',
+        'anzahl',
+        'inhalt',
+        'standardInhalt',
+        'phase',
+      ]) &&
       neueId(wert['id'], z) &&
       istUuidOderNull(wert['kisteId']) &&
       istTextBis(wert['name'], AUFBAU_GRENZEN.name, 1) &&
       istUuidOderNull(wert['lagerId']) &&
+      (wert['standardInhalt'] === undefined || typeof wert['standardInhalt'] === 'boolean') &&
       istGanzzahlAb(wert['anzahl'], 1) &&
       (wert['anzahl'] as number) <= AUFBAU_GRENZEN.kistenAnzahl &&
       positionen !== null &&

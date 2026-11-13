@@ -1,4 +1,4 @@
-import { AufbauInhalt, AufbauKistenEintrag } from '../models/aufbau.model';
+import { AufbauInhalt, AufbauKistenEintrag, istStandardKiste } from '../models/aufbau.model';
 import { Artikel, Kiste, Lager } from '../models/stammdaten.model';
 import { leiteZettelAb } from './aufbau-zettel';
 
@@ -121,7 +121,7 @@ export function pruefeAufbau(inhalt: AufbauInhalt, daten: AufbauStammdaten): Auf
           });
         }
       } else if (eintrag.art === 'kiste') {
-        if (eintrag.inhalt.length === 0) {
+        if (eintrag.inhalt.length === 0 && !istStandardKiste(eintrag)) {
           probleme.push({
             schwere: 'fehler',
             art: 'kiste-ohne-inhalt',

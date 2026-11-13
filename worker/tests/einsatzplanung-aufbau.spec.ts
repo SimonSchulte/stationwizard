@@ -192,6 +192,28 @@ describe('Aufbau eines Einsatzes', () => {
     expect(veraltet.status).toBe(412);
   });
 
+  it('speichert das Kennzeichen Standard-Kiste nur bei leerem Inhalt und nur als true', async () => {
+    const db = await vorbereiten();
+    const koerper = aufbau([
+      einheit(20, [
+        kiste(21, { standardInhalt: true, inhalt: [] }),
+        kiste(22, { standardInhalt: false, inhalt: [] }),
+        kiste(23, {
+          standardInhalt: true,
+          inhalt: [{ artikelId: null, name: 'Hammer', einheit: 'Stück', menge: 1, bemerkung: '' }],
+        }),
+      ]),
+    ]);
+    expect((await senden(db, 'PUT', AUFBAU, koerper, NEU)).status).toBe(201);
+    const gelesen = (await (await senden(db, 'GET', AUFBAU)).json()) as {
+      inhalt: { einheiten: { inhalt: Record<string, unknown>[] }[] };
+    };
+    const eintraege = gelesen.inhalt.einheiten[0]!.inhalt;
+    expect(eintraege[0]!['standardInhalt']).toBe(true);
+    expect(eintraege[1]).not.toHaveProperty('standardInhalt');
+    expect(eintraege[2]).not.toHaveProperty('standardInhalt');
+  });
+
   it('lehnt eine zweite Anlage, einen unbekannten Einsatz und fehlenden Aufbau ab', async () => {
     const db = await vorbereiten();
     expect((await senden(db, 'PUT', AUFBAU, aufbau([]), NEU)).status).toBe(201);
@@ -218,6 +240,10 @@ describe('Aufbau eines Einsatzes', () => {
     ['Menge null', aufbau([einheit(20, [artikel(21, { menge: 0 })])])],
     ['Menge mit vier Nachkommastellen', aufbau([einheit(20, [artikel(21, { menge: 1.0001 })])])],
     ['Anzahl null', aufbau([einheit(20, [kiste(21, { anzahl: 0 })])])],
+    [
+      'Standard-Kennzeichen kein Wahrheitswert',
+      aufbau([einheit(20, [kiste(21, { standardInhalt: 'ja' })])]),
+    ],
     ['Kiste ohne Namen', aufbau([einheit(20, [kiste(21, { name: ' ' })])])],
     ['unbekannte Phase', aufbau([einheit(20, [artikel(21, { phase: 'nachher' })])])],
     [

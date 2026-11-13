@@ -126,7 +126,29 @@
                 </button>
               }
               @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.inhalt.length === 0) {
-                <span class="marke fehler">ohne Inhalt</span>
+                @if (zeile.eintrag.standardInhalt) {
+                  <span class="marke">Standard-Kiste</span>
+                  <button
+                    matButton
+                    type="button"
+                    (click)="
+                      eintragGeaendert.emit({ eintragId: zeile.eintrag.id, standardInhalt: false })
+                    "
+                  >
+                    Kein Standard
+                  </button>
+                } @else {
+                  <span class="marke fehler">ohne Inhalt</span>
+                  <button
+                    matButton
+                    type="button"
+                    (click)="
+                      eintragGeaendert.emit({ eintragId: zeile.eintrag.id, standardInhalt: true })
+                    "
+                  >
+                    Standard-Kiste
+                  </button>
+                }
               }
               @if (
                 zeile.problem &&

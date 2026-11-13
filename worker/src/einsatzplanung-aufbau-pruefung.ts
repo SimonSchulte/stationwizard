@@ -64,6 +64,11 @@ export interface AufbauKistenEintrag {
   lagerId: string | null;
   anzahl: number;
   inhalt: AufbauKistenPosition[];
+  /**
+   * Standard-Kiste: gleichbleibende, bekannte Bestückung, die nicht aufgelistet wird. Gilt nur bei
+   * leerem Inhalt; fehlt das Feld, ist es `false`. Das Kennzeichen gibt es nur im Aufbau.
+   */
+  standardInhalt?: boolean;
   phase: AufbauPhase | null;
 }
 export interface AufbauWagenEintrag {
@@ -238,7 +243,17 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
   }
   if (wert['art'] === 'kiste') {
     if (
-      !hatNurFelder(wert, ['art', 'id', 'kisteId', 'name', 'lagerId', 'anzahl', 'inhalt', 'phase'])
+      !hatNurFelder(wert, [
+        'art',
+        'id',
+        'kisteId',
+        'name',
+        'lagerId',
+        'anzahl',
+        'inhalt',
+        'standardInhalt',
+        'phase',
+      ])
     ) {
       return null;
     }
@@ -246,8 +261,10 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
     const phase = pruefePhase(wert['phase']);
     const anzahl = wert['anzahl'];
     const inhalt = pruefeKistenPositionen(wert['inhalt']);
+    const standard = wert['standardInhalt'];
     if (
       !id ||
+      (standard !== undefined && typeof standard !== 'boolean') ||
       !istUuidOderNull(wert['kisteId']) ||
       !istNichtleererText(wert['name']) ||
       wert['name'].trim().length > NAME_MAX ||
@@ -269,6 +286,8 @@ function pruefeEintrag(wert: unknown, z: Zaehler, inFahrzeug: boolean): AufbauEi
       lagerId: kleinOderNull(wert['lagerId']),
       anzahl,
       inhalt,
+      // Nur bei leerem Inhalt und nur als `true` gespeichert; so bleibt Altbestand unverändert.
+      ...(standard === true && inhalt.length === 0 && { standardInhalt: true }),
       phase,
     };
   }

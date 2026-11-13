@@ -62,7 +62,17 @@ export interface AufbauKistenEintrag {
   lagerId: string | null;
   anzahl: number;
   inhalt: AufbauKistenPosition[];
+  /**
+   * Standard-Kiste: gleichbleibende, bekannte Bestückung, die nicht aufgelistet wird. Gilt nur bei
+   * leerem Inhalt; fehlt das Feld, ist es `false`. Das Kennzeichen gibt es nur im Aufbau.
+   */
+  standardInhalt?: boolean;
   phase: AufbauPhase | null;
+}
+
+/** Eine Kiste gilt als Standard-Kiste, wenn sie so gekennzeichnet und ohne aufgelisteten Inhalt ist. */
+export function istStandardKiste(kiste: AufbauKistenEintrag): boolean {
+  return kiste.standardInhalt === true && kiste.inhalt.length === 0;
 }
 
 export interface AufbauWagenEintrag {

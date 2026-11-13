@@ -643,7 +643,7 @@ liefern `false`, wenn der Aufbau keine Kiste enthält.
 **Packzettel enthalten immer den Soll-Inhalt der Kiste** (Abhakliste aus der Momentaufnahme im Aufbau, mit Menge, Einheit
 und Bemerkung), damit sich die Kiste kontrollieren lässt. Eine Kiste ohne Inhalt druckt die Hinweiszeile „Kein
 Soll-Inhalt hinterlegt“ (`KEIN_SOLL_INHALT`) statt eines leeren Streifens, im Editor steht „ohne Inhalt“ an der
-Kistenzeile und die Prüfung meldet `kiste-ohne-inhalt` als Fehler; der Kistenzettel der Stammdaten verhält sich genauso.
+Kistenzeile und die Prüfung meldet `kiste-ohne-inhalt` als Fehler; der Kistenzettel der Stammdaten verhält sich genauso. **Ausnahme Standard-Kiste:** Eine Kiste im Aufbau mit leerem Inhalt lässt sich im `EinheitDetail` als „Standard-Kiste“ kennzeichnen (`standardInhalt: true`, nur im Aufbau, nicht in den Stammdaten; `istStandardKiste()`). Sie gilt als gleichbleibend und bekannt bestückt: die Prüfung meldet kein `kiste-ohne-inhalt`, der Packzettel druckt `STANDARD_INHALT` statt `KEIN_SOLL_INHALT`, das Kistenschild bleibt unverändert. Das Feld ist optional (Altbestand gültig), der Worker speichert es nur als `true` und nur bei leerem Inhalt; der erste Inhalt hebt es auf. Worker (`einsatzplanung-aufbau-pruefung.ts`) und Frontend (`aufbau-pruefung.ts`) gemeinsam ändern. Eine Standard-Kiste kontrolliert auf dem Zettel nichts.
 
 **Farbcodierung:** Jede Einheit trägt ihre **eigene Farbe** – auch ein Wagen im Fahrzeug (Farbwahl und Foto im
 `EinheitDetail` für alle Einheiten; ein neuer Wagen im Fahrzeug startet in der Farbe des Fahrzeugs). Laufzettel,
