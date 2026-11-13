@@ -47,6 +47,7 @@ import {
   eintragEntfernen,
   einheitAendern,
   einheitEntfernen,
+  eintragInKisteLegen,
   einheitHinzufuegen,
   findeEinheit,
   freieKisteHinzufuegen,
@@ -60,6 +61,8 @@ import {
   kistePositionEntfernen,
   kistePositionHinzufuegen,
   kisteHinzufuegen,
+  type KistenZiel,
+  kistenZiele,
   mitNeuenIds,
 } from '../../services/aufbau-bearbeiten';
 import { AufbauEditorStoreService } from '../../services/aufbau-editor-store.service';
@@ -166,6 +169,12 @@ export class AufbauEditor {
   protected readonly aushang = computed(() =>
     sortiereAushang(this.zettel(), this.sortierung(), this.stammdaten.lager()),
   );
+  /** Alle Kisten des Aufbaus als Ziele für „In eine Kiste legen“. */
+  protected readonly aufbauKisten = computed(() => {
+    const inhalt = this.store.inhalt();
+    return inhalt ? kistenZiele(inhalt) : [];
+  });
+
   protected readonly probleme = computed(() => {
     const inhalt = this.store.inhalt();
     return inhalt ? pruefeAufbau(inhalt, this.daten()) : [];
@@ -471,6 +480,19 @@ export class AufbauEditor {
     if (!inhalt) return;
     const { eintragId, ...rest } = aenderung;
     this.store.aendern(eintragAendern(inhalt, einheitId, eintragId, rest));
+  }
+
+  protected eintragInKiste(einheitId: string, wahl: { eintragId: string; ziel: KistenZiel }): void {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const neu = eintragInKisteLegen(inhalt, einheitId, wahl.eintragId, wahl.ziel);
+    if (neu === inhalt) {
+      this.meldungen.warnung(
+        `Der Eintrag passt nicht in „${wahl.ziel.bezeichnung}“ (die Kiste hat höchstens ${AUFBAU_GRENZEN.kistenPositionen} Positionen).`,
+      );
+      return;
+    }
+    this.store.aendern(neu);
   }
 
   protected eintragEntfernt(einheitId: string, eintragId: string): void {

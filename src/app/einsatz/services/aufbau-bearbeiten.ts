@@ -423,6 +423,7 @@ export function eintragAendern(
   einheitId: string,
   eintragId: string,
   aenderung: {
+    /** Neuer Name einer Kiste oder eines freien Artikels (Katalogartikel tragen den Namen des Katalogs). */
     name?: string;
     menge?: number;
     bemerkung?: string;
@@ -442,6 +443,8 @@ export function eintragAendern(
       if (x.art === 'frei') {
         return {
           ...mitLagerUndPlatz(x, aenderung),
+          ...(aenderung.name !== undefined &&
+            aenderung.name.trim() !== '' && { name: aenderung.name.trim().replace(/\s+/g, ' ') }),
           ...(aenderung.menge !== undefined && { menge: aenderung.menge }),
           ...(aenderung.bemerkung !== undefined && { bemerkung: aenderung.bemerkung }),
           ...(aenderung.phase !== undefined && { phase: aenderung.phase }),
@@ -527,6 +530,61 @@ export function kistePositionEntfernen(
 ): AufbauInhalt {
   return kistePositionen(inhalt, einheitId, eintragId, (liste) =>
     liste.filter((_, i) => i !== index),
+  );
+}
+
+/** Kiste im Aufbau, in die sich ein Eintrag legen lässt. */
+export interface KistenZiel {
+  einheitId: string;
+  eintragId: string;
+  /** „Rollwagen 02 › Diverses“ */
+  bezeichnung: string;
+}
+
+/** Alle Kisten des Aufbaus (auch in Wagen) als mögliche Ziele, in der Reihenfolge des Aufbaus. */
+export function kistenZiele(inhalt: AufbauInhalt): KistenZiel[] {
+  return alleEinheiten(inhalt).flatMap((einheit) =>
+    einheit.inhalt.flatMap((x) =>
+      x.art === 'kiste'
+        ? [{ einheitId: einheit.id, eintragId: x.id, bezeichnung: `${einheit.name} › ${x.name}` }]
+        : [],
+    ),
+  );
+}
+
+/**
+ * Legt einen losen Artikel (Katalogartikel oder frei) als Position in eine Kiste des Aufbaus und nimmt ihn aus
+ * seiner Einheit. Ein Katalogartikel, der schon in der Kiste steckt, zählt hoch. Ist das Ziel keine Kiste,
+ * der Eintrag kein Artikel oder die Kiste mit 100 Positionen voll, bleibt alles unverändert.
+ */
+export function eintragInKisteLegen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  ziel: { einheitId: string; eintragId: string },
+): AufbauInhalt {
+  const quelle = findeEinheit(inhalt, einheitId)?.inhalt.find((x) => x.id === eintragId);
+  const kiste = findeEinheit(inhalt, ziel.einheitId)?.inhalt.find((x) => x.id === ziel.eintragId);
+  if (!quelle || (quelle.art !== 'artikel' && quelle.art !== 'frei') || kiste?.art !== 'kiste') {
+    return inhalt;
+  }
+  const position: AufbauKistenPosition =
+    quelle.art === 'artikel'
+      ? { artikelId: quelle.artikelId, menge: quelle.menge, bemerkung: quelle.bemerkung }
+      : {
+          artikelId: null,
+          name: quelle.name,
+          einheit: quelle.einheit,
+          menge: quelle.menge,
+          bemerkung: quelle.bemerkung,
+        };
+  const zaehltHoch =
+    position.artikelId !== null && kiste.inhalt.some((p) => p.artikelId === position.artikelId);
+  if (!zaehltHoch && kiste.inhalt.length >= AUFBAU_GRENZEN.kistenPositionen) return inhalt;
+  return eintragEntfernen(
+    kistePositionHinzufuegen(inhalt, ziel.einheitId, ziel.eintragId, position),
+    einheitId,
+    eintragId,
   );
 }
 
