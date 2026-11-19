@@ -55,6 +55,14 @@
       <mat-icon>picture_as_pdf</mat-icon>
       <span>Als PDF herunterladen</span>
     </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="excelExportieren()">
+      <mat-icon>table_view</mat-icon>
+      <span>Als Excel exportieren</span>
+    </button>
+    <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="excelfeld.click()">
+      <mat-icon>upload_file</mat-icon>
+      <span>Aus Excel einlesen…</span>
+    </button>
     <button mat-menu-item type="button" [disabled]="!store.inhalt()" (click)="kistenschilder()">
       <mat-icon>label</mat-icon>
       <span>Kistenschilder drucken</span>
@@ -79,6 +87,15 @@
     }
   </mat-menu>
 </app-seitenkopf>
+
+<input
+  #excelfeld
+  class="verborgen"
+  type="file"
+  accept=".xlsx,.xlsm,.xls"
+  aria-label="Bearbeitete Excel-Datei des Aufbaus wählen"
+  (change)="excelEinlesen($event)"
+/>
 
 @if (store.ladeFehler()) {
   <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>

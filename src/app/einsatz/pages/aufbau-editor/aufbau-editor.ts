@@ -21,6 +21,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
+import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { VerlassenSchutz } from '../../../kern/verlassen-schutz';
 import { Ladeanzeige } from '../../../kern/zustand/ladeanzeige';
@@ -68,6 +69,17 @@ import {
 import { AufbauEditorStoreService } from '../../services/aufbau-editor-store.service';
 import { AufbauVorlagenStoreService } from '../../services/aufbau-vorlagen-store.service';
 import { AufbauDruckDienst } from '../../services/aufbau-druck';
+import {
+  AUFBAU_EXCEL_MEDIENTYP,
+  aufbauExcelErzeugen,
+  aufbauExcelLesen,
+} from '../../services/aufbau-excel';
+import {
+  aufbauZuZeilen,
+  istGleicherAufbau,
+  vergleicheAufbau,
+  zeilenZuAufbau,
+} from '../../services/aufbau-tabelle';
 import { leiteZettelAb, sortiereAushang } from '../../services/aufbau-zettel';
 import { LaufzettelLayoutWahl } from '../../services/laufzettel-layout-wahl';
 import { STREIFEN_WAHL } from '../../services/laufzettel-platz';
@@ -398,6 +410,91 @@ export class AufbauEditor {
         ursache instanceof Error && ursache.message
           ? ursache.message
           : 'Die Kistenzettel konnten nicht erstellt werden.',
+      );
+    }
+  }
+
+  /** Dateiname ohne Sonderzeichen für den Excel-Download. */
+  private excelDateiname(): string {
+    const titel =
+      this.modus === 'vorlage'
+        ? this.store.titel() || 'Aufbau-Vorlage'
+        : (this.einsatz()?.titel ?? 'Aufbau');
+    const sauber = titel
+      .replace(/[^\p{L}\p{N}]+/gu, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+    return `Aufbau-${sauber || 'Packliste'}.xlsx`;
+  }
+
+  /** Lädt den Arbeitsstand (auch Ungespeichertes) als bearbeitbare Excel-Datei herunter. */
+  protected async excelExportieren(): Promise<void> {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    try {
+      await this.stammdaten.laden();
+      const mappe = await aufbauExcelErzeugen(aufbauZuZeilen(inhalt, this.daten()));
+      dateiHerunterladen(mappe, this.excelDateiname(), AUFBAU_EXCEL_MEDIENTYP);
+    } catch (ursache) {
+      this.meldungen.fehler(
+        ursache instanceof Error && ursache.message
+          ? ursache.message
+          : 'Die Excel-Datei konnte nicht erstellt werden.',
+      );
+    }
+  }
+
+  /**
+   * Liest eine bearbeitete Excel-Datei ein und übernimmt sie nach Rückfrage in den Entwurf. Es wird
+   * nichts gespeichert; „Rückgängig“ stellt den Stand davor wieder her.
+   */
+  protected async excelEinlesen(ereignis: Event): Promise<void> {
+    const feld = ereignis.target as HTMLInputElement;
+    const datei = feld.files?.[0];
+    feld.value = '';
+    const alt = this.store.inhalt();
+    if (!datei || !alt) return;
+    try {
+      await this.stammdaten.laden();
+      const zeilen = await aufbauExcelLesen(datei);
+      const { inhalt, warnungen } = zeilenZuAufbau(zeilen, alt, this.daten());
+      if (istGleicherAufbau(alt, inhalt)) {
+        this.meldungen.info(
+          warnungen.length > 0
+            ? `Die Datei enthält keine Änderungen (${warnungen.length} Hinweise zu Zeilen).`
+            : 'Die Datei enthält keine Änderungen gegenüber dem Editor.',
+        );
+        return;
+      }
+      const unterschied = vergleicheAufbau(alt, inhalt);
+      const zeilenText = [
+        `Neu: ${unterschied.neu}`,
+        `Geändert: ${unterschied.geaendert}`,
+        `Entfernt: ${unterschied.entfernt}`,
+      ].join(' · ');
+      const hinweise = warnungen.slice(0, 8);
+      const rest = warnungen.length - hinweise.length;
+      const nachricht = [
+        `${zeilenText} (Einheiten und Einträge).`,
+        'Übernommen wird nur in den Editor; gespeichert wird erst mit „Speichern“, „Rückgängig“ stellt den Stand davor wieder her.',
+        ...(hinweise.length > 0
+          ? ['', 'Hinweise:', ...hinweise, ...(rest > 0 ? [`… und ${rest} weitere`] : [])]
+          : []),
+      ].join('\n');
+      if (!(await this.dialogDienst.bestaetigen(nachricht, 'Aus Excel übernehmen', 'Übernehmen'))) {
+        return;
+      }
+      this.store.aendern(inhalt);
+      if (this.store.hinweis()) {
+        this.meldungen.fehler(this.store.hinweis());
+      } else {
+        this.meldungen.erfolg('Excel-Datei übernommen. Mit „Speichern“ sichern.');
+      }
+    } catch (ursache) {
+      this.meldungen.fehler(
+        ursache instanceof Error && ursache.message
+          ? ursache.message
+          : 'Die Datei konnte nicht gelesen werden.',
       );
     }
   }
