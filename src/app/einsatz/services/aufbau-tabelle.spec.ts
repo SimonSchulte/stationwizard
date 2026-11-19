@@ -4,7 +4,13 @@ import type {
   AufbauFreierEintrag,
   AufbauKistenEintrag,
 } from '../models/aufbau.model';
-import { testArtikelStamm, testEinheit, testId, testLager } from '../testing/aufbau-testdaten';
+import {
+  testArtikelStamm,
+  testEinheit,
+  testId,
+  testKiste,
+  testLager,
+} from '../testing/aufbau-testdaten';
 import { istAufbauInhalt } from './aufbau-pruefung';
 import {
   aufbauZuZeilen,
@@ -202,6 +208,23 @@ describe('Aufbau als Tabelle', () => {
       { artikelId: null, name: 'Tourniquet', einheit: 'Stück', menge: 1, bemerkung: '' },
     ]);
     expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
+  it('verlinkt eine Kiste ohne bekannte Verknüpfung über ihren Namen mit den Stammdaten', () => {
+    const stamm = testKiste(400, 'Kiste Rot', keller.id, verband.id);
+    const alt = aufbau();
+    const zeilen = kopie(aufbauZuZeilen(alt, daten)).map((z) =>
+      // eine Datei aus einem anderen Aufbau: die Zeilen-IDs sind hier unbekannt
+      z.ebene === 'Kiste' || z.ebene === 'Kistenposition' ? { ...z, id: '' } : z,
+    );
+    const { inhalt } = zeilenZuAufbau(zeilen, alt, { ...daten, kisten: [stamm] });
+    const eintrag = inhalt.einheiten[0]!.inhalt.find((x) => x.art === 'kiste');
+    expect(eintrag).toMatchObject({ name: 'Kiste Rot', kisteId: stamm.id });
+    // ohne Stammdaten-Kiste bleibt es unverknüpft
+    const ohne = zeilenZuAufbau(zeilen, alt, daten).inhalt.einheiten[0]!.inhalt.find(
+      (x) => x.art === 'kiste',
+    );
+    expect(ohne).toMatchObject({ kisteId: null });
   });
 
   it('meldet Fehlerhaftes mit Zeilennummer und behält den bisherigen Wert', () => {

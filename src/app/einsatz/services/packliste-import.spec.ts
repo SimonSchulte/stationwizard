@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AufbauKistenEintrag } from '../models/aufbau.model';
-import { baueAufbauInhalt } from './packliste-aufbau';
+import { baueAufbauInhalt, sammleArtikel } from './packliste-aufbau';
 import { istAufbauInhalt } from './aufbau-pruefung';
 import { liesMenge, leitePacklisteAb, PacklisteZeile } from './packliste-import';
 
@@ -118,7 +118,7 @@ describe('leitePacklisteAb', () => {
     const kiste = plan.einheiten[0]!.eintraege[0]!;
     expect(kiste).toMatchObject({ art: 'kiste', name: 'Kocher' });
     expect(kiste.art === 'kiste' && kiste.inhalt).toEqual([
-      { name: 'Kocher', menge: 2, bemerkung: '' },
+      { zeile: 3, name: 'Kocher', menge: 2, bemerkung: '' },
     ]);
     expect(warnungen).toEqual([]);
   });
@@ -166,6 +166,69 @@ describe('baueAufbauInhalt', () => {
     const trommel = wagen?.art === 'wagen' ? wagen.einheit.inhalt.at(-1) : undefined;
     expect(trommel).toMatchObject({ art: 'frei', name: 'Kabeltrommel' });
     expect(trommel && 'platzId' in trommel).toBe(true);
+  });
+
+  it('macht zugeordnete Artikel zu Katalogeinträgen und addiert gleiche Artikel je Kiste', () => {
+    const plan = leitePacklisteAb(beispiel()).plan;
+    const namen = sammleArtikel(plan);
+    expect(namen.length).toBeGreaterThan(0);
+    const erster = namen[0]!.name;
+    const artikel = {
+      id: '00000000-0000-4000-8000-0000000000aa',
+      name: erster,
+      einheit: 'Stück',
+      lagerId: null,
+      platzId: null,
+      version: 1,
+      geaendertAm: '',
+      geaendertVon: '',
+    } as never;
+    const inhalt = baueAufbauInhalt(plan, aufloesen, (_zeile, n) =>
+      n.toLowerCase() === erster.toLowerCase() ? artikel : undefined,
+    );
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    expect(JSON.stringify(inhalt)).toContain('00000000-0000-4000-8000-0000000000aa');
+    expect(JSON.stringify(inhalt)).not.toContain(`"name":"${erster}"`);
+  });
+
+  it('teilt „Kaltlager, Alu-Kiste“ in Lager und Kistenhinweis und legt den Artikel in die Kiste', () => {
+    const plan = leitePacklisteAb([
+      {
+        zeile: 2,
+        anzahl: 3,
+        material: 'Schlafsack',
+        lagerort: 'Kaltlager, Alu-Kiste',
+        lagerplatz: '',
+        transportMit: 'GW Test',
+      },
+    ]).plan;
+    expect(plan.lager.map((l) => l.name)).toEqual(['Kaltlager']);
+    const gefunden = sammleArtikel(plan);
+    expect(gefunden).toMatchObject([{ zeile: 2, name: 'Schlafsack', kisteHinweis: 'Alu-Kiste' }]);
+    const kiste = {
+      id: '00000000-0000-4000-8000-0000000000bb',
+      name: 'Alu-Kiste',
+      lagerId: null,
+      platzId: null,
+      inhalt: [],
+      version: 1,
+      geaendertAm: '',
+      geaendertVon: '',
+    } as never;
+    const inhalt = baueAufbauInhalt(
+      plan,
+      aufloesen,
+      () => undefined,
+      (zeile) => (zeile === 2 ? kiste : undefined),
+    );
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    const eintrag = inhalt.einheiten[0]!.inhalt[0]!;
+    expect(eintrag).toMatchObject({
+      art: 'kiste',
+      kisteId: '00000000-0000-4000-8000-0000000000bb',
+      name: 'Alu-Kiste',
+      inhalt: [{ artikelId: null, name: 'Schlafsack', menge: 3 }],
+    });
   });
 
   it('lässt den Platz weg, wenn es kein Lager gibt', () => {

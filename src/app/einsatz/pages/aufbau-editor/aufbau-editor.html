@@ -188,8 +188,10 @@
                 [kisten]="stammdaten.kisten()"
                 [probleme]="probleme()"
                 [aufbauKisten]="aufbauKisten()"
+                [einheitenZiele]="einheitenZiele()"
                 (geaendert)="einheitGeaendert(a.einheit.id, $event)"
                 (eintragInKiste)="eintragInKiste(a.einheit.id, $event)"
+                (eintragVerschoben)="eintragVerschoben(a.einheit.id, $event)"
                 (eintragGeaendert)="eintragGeaendert(a.einheit.id, $event)"
                 (eintragEntfernt)="eintragEntfernt(a.einheit.id, $event)"
                 (kisteHinzugefuegt)="kisteHinzugefuegt(a.einheit.id, $event)"
@@ -202,6 +204,7 @@
                 (freierArtikelUebernommen)="freienArtikelUebernehmen(a.einheit.id, $event)"
                 (freiePositionUebernommen)="freiePositionUebernehmen(a.einheit.id, $event)"
                 (kisteAbgeglichen)="kisteAbgeglichen(a.einheit.id, $event)"
+                (kisteUebernommen)="kisteUebernehmen(a.einheit.id, $event)"
                 (entfernt)="einheitEntfernen(a.einheit.id)"
                 (fotoFehler)="fotoFehler($event)"
               />

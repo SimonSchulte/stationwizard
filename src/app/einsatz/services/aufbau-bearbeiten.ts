@@ -118,7 +118,7 @@ export function einheitEntfernen(inhalt: AufbauInhalt, id: string): AufbauInhalt
   };
 }
 
-/** Kopiert den aktuellen Stand einer Stammdaten-Kiste als Momentaufnahme in die Einheit. */
+/** Kopiert den aktuellen Stand einer Stammdaten-Kiste als Momentaufnahme in die Einheit (leer: Standard-Kiste). */
 export function kisteHinzufuegen(
   inhalt: AufbauInhalt,
   einheitId: string,
@@ -134,6 +134,9 @@ export function kisteHinzufuegen(
     ...(kiste.platzId && { platzId: kiste.platzId }),
     anzahl: Math.min(Math.max(1, Math.round(anzahl)), AUFBAU_GRENZEN.kistenAnzahl),
     inhalt: kiste.inhalt.map((p) => ({ ...p })),
+    // Eine Stammdaten-Kiste ohne Inhalt ist gleichbleibend bestückt (Standard-Kiste), sonst meldete die Prüfung
+    // sofort „ohne Inhalt“.
+    ...(kiste.inhalt.length === 0 && { standardInhalt: true }),
     phase: null,
   };
   return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
@@ -250,6 +253,27 @@ export function freiePositionVerknuepfen(
       .map((p, i) => (i === vorhanden ? { ...p, menge: p.menge + verknuepft.menge } : p))
       .filter((_, i) => i !== index);
   });
+}
+
+/**
+ * Verknüpft eine freie Kiste des Aufbaus mit einer Stammdaten-Kiste (`kisteId`). Mit `positionen` ersetzt sie
+ * den Inhalt (nach der Übernahme in die Stammdaten sind alle Positionen Katalogartikel); ohne bleibt die
+ * Momentaufnahme unverändert, `kisteWeichtAb()` meldet dann Unterschiede.
+ */
+export function kisteMitStammdatenVerknuepfen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  kisteId: string,
+  positionen?: AufbauKistenPosition[],
+): AufbauInhalt {
+  return ersetzeEinheit(inhalt, einheitId, (e) => ({
+    ...e,
+    inhalt: e.inhalt.map((x): AufbauEintrag => {
+      if (x.id !== eintragId || x.art !== 'kiste') return x;
+      return { ...x, kisteId, ...(positionen ? { inhalt: positionen } : {}) };
+    }),
+  }));
 }
 
 /** Eine Stelle im Baum der Packliste (Zeile eines Fahrzeugs, Wagens oder einer Kiste). */
@@ -588,6 +612,51 @@ export function eintragInKisteLegen(
   );
 }
 
+/** Einheit (Fahrzeug oder Wagen), in die sich ein Eintrag verschieben lässt. */
+export interface EinheitenZiel {
+  einheitId: string;
+  /** „GW Technik“ bzw. „GW Technik › Rollwagen 02“ */
+  bezeichnung: string;
+}
+
+/** Alle Einheiten des Aufbaus (Fahrzeuge und Wagen, auch in Fahrzeugen) als Ziele, in der Reihenfolge des Aufbaus. */
+export function einheitenZiele(inhalt: AufbauInhalt): EinheitenZiel[] {
+  return inhalt.einheiten.flatMap((e) => [
+    { einheitId: e.id, bezeichnung: e.name },
+    ...e.inhalt.flatMap((x) =>
+      x.art === 'wagen'
+        ? [{ einheitId: x.einheit.id, bezeichnung: `${e.name} › ${x.einheit.name}` }]
+        : [],
+    ),
+  ]);
+}
+
+/**
+ * Verschiebt einen Artikel oder eine Kiste in eine andere Einheit (Fahrzeug oder Wagen); der Eintrag behält
+ * seine Id und alle Angaben und steht danach am Ende des Ziels. Ein Wagen, dasselbe Ziel, ein unbekanntes
+ * Ziel oder eine volle Einheit (200 Einträge) ändern nichts.
+ */
+export function eintragVerschieben(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  zielEinheitId: string,
+): AufbauInhalt {
+  if (einheitId === zielEinheitId) return inhalt;
+  const eintrag = findeEinheit(inhalt, einheitId)?.inhalt.find((x) => x.id === eintragId);
+  const ziel = findeEinheit(inhalt, zielEinheitId);
+  if (!eintrag || eintrag.art === 'wagen' || !ziel) return inhalt;
+  if (ziel.inhalt.length >= AUFBAU_GRENZEN.eintraegeJeEinheit) return inhalt;
+  return ersetzeEinheit(
+    ersetzeEinheit(inhalt, einheitId, (e) => ({
+      ...e,
+      inhalt: e.inhalt.filter((x) => x.id !== eintragId),
+    })),
+    zielEinheitId,
+    (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }),
+  );
+}
+
 export function eintragEntfernen(
   inhalt: AufbauInhalt,
   einheitId: string,
@@ -608,15 +677,18 @@ export function kisteAbgleichen(
 ): AufbauInhalt {
   return ersetzeEinheit(inhalt, einheitId, (e) => ({
     ...e,
-    inhalt: e.inhalt.map((x) =>
-      x.id === eintragId && x.art === 'kiste'
-        ? {
-            ...mitLagerUndPlatz(x, { lagerId: kiste.lagerId, platzId: kiste.platzId ?? null }),
-            name: kiste.name,
-            inhalt: kiste.inhalt.map((p) => ({ ...p })),
-          }
-        : x,
-    ),
+    inhalt: e.inhalt.map((x) => {
+      if (x.id !== eintragId || x.art !== 'kiste') return x;
+      const neu: AufbauKistenEintrag = {
+        ...mitLagerUndPlatz(x, { lagerId: kiste.lagerId, platzId: kiste.platzId ?? null }),
+        name: kiste.name,
+        inhalt: kiste.inhalt.map((p) => ({ ...p })),
+      };
+      // Mit Inhalt entfällt das Standard-Kennzeichen; eine leere Stammdaten-Kiste ist Standard.
+      if (kiste.inhalt.length > 0) delete neu.standardInhalt;
+      else neu.standardInhalt = true;
+      return neu;
+    }),
   }));
 }
 

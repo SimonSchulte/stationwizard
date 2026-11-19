@@ -137,6 +137,17 @@
                   Übernehmen
                 </button>
               }
+              @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.kisteId === null) {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="In die Kisten-Stammdaten übernehmen"
+                  matTooltip="In die Kisten-Stammdaten übernehmen"
+                  (click)="kisteUebernommen.emit(zeile.eintrag.id)"
+                >
+                  <mat-icon>playlist_add</mat-icon>
+                </button>
+              }
               @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.inhalt.length === 0) {
                 @if (zeile.eintrag.standardInhalt) {
                   <span class="marke">Standard-Kiste</span>
@@ -277,6 +288,34 @@
                       (click)="eintragInKiste.emit({ eintragId: zeile.eintrag.id, ziel })"
                     >
                       <mat-icon>inventory_2</mat-icon>
+                      <span>{{ ziel.bezeichnung }}</span>
+                    </button>
+                  }
+                </mat-menu>
+              }
+              @if (zeile.eintrag.art !== 'wagen' && andereEinheiten().length > 0) {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="In andere Einheit verschieben"
+                  matTooltip="In andere Einheit verschieben"
+                  [matMenuTriggerFor]="einheitenMenue"
+                >
+                  <mat-icon>move_down</mat-icon>
+                </button>
+                <mat-menu #einheitenMenue="matMenu">
+                  @for (ziel of andereEinheiten(); track ziel.einheitId) {
+                    <button
+                      mat-menu-item
+                      type="button"
+                      (click)="
+                        eintragVerschoben.emit({
+                          eintragId: zeile.eintrag.id,
+                          zielEinheitId: ziel.einheitId,
+                        })
+                      "
+                    >
+                      <mat-icon>local_shipping</mat-icon>
                       <span>{{ ziel.bezeichnung }}</span>
                     </button>
                   }

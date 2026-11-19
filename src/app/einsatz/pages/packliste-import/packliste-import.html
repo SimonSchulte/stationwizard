@@ -5,7 +5,8 @@
     Übernimmt eine Excel-Packliste einmalig als Aufbau-Vorlage. Gelesen werden die Spalten Anzahl,
     Material, Lagerort, Lagerplatz und „Transport mit“; das Ziel bestimmt die Ebene: ein Fahrzeug,
     ein Wagen (Name enthält „wagen“) oder eine Kiste. Fehlende Lager und Plätze legt der Import in
-    den Stammdaten an; der Artikelkatalog bleibt unberührt, der Aufbau trägt freie Artikel.
+    den Stammdaten an. Lagerorte und Artikel lassen sich vorher Lagern und Katalogartikeln des
+    Bestands zuordnen; was nicht zugeordnet ist, wird ein freier Artikel.
   </p>
 
   <div class="auswahl">
@@ -66,26 +67,87 @@
       }
 
       <h3>Lager und Plätze</h3>
-      <ul class="lager">
-        @for (l of lagerVorschau(); track l.name) {
+      <p class="hinweis">
+        Jedem gefundenen Lagerort lässt sich ein bestehendes Lager zuordnen; fehlende Plätze legt
+        der Import dort an.
+      </p>
+      <ul class="zuordnung">
+        @for (l of lagerVorschau(); track l.schluessel) {
           <li>
-            {{ l.name }}
-            @if (l.neu) {
-              <span class="marke">neu</span>
-            }
-            @if (l.plaetze.length > 0) {
-              <span class="plaetze">
-                –
-                @for (p of l.plaetze; track p.name; let letzter = $last) {
-                  {{ p.name }}
-                  @if (p.neu) {
-                    <span class="marke">neu</span>
+            <div class="gefunden">
+              <strong>{{ l.name }}</strong>
+              @if (l.neu) {
+                <span class="marke">neu</span>
+              }
+              @if (l.plaetze.length > 0) {
+                <span class="plaetze">
+                  Plätze:
+                  @for (p of l.plaetze; track p.name; let letzter = $last) {
+                    {{ p.name }}
+                    @if (p.neu) {
+                      <span class="marke">neu</span>
+                    }
+                    @if (!letzter) {
+                      ,
+                    }
                   }
-                  @if (!letzter) {
-                    ,
-                  }
+                </span>
+              }
+            </div>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="ziel">
+              <mat-label>Lager im Bestand</mat-label>
+              <mat-select
+                [value]="l.zielId"
+                (selectionChange)="lagerGewaehlt(l.schluessel, $event.value)"
+              >
+                <mat-option value="">Neu anlegen</mat-option>
+                @for (lager of lagerOptionen(); track lager.id) {
+                  <mat-option [value]="lager.id">{{ lager.name }}</mat-option>
                 }
-              </span>
+              </mat-select>
+            </mat-form-field>
+          </li>
+        }
+      </ul>
+
+      <h3>Artikel ({{ zugeordneteArtikel() }} von {{ artikelVorschau().length }} zugeordnet)</h3>
+      <p class="hinweis">
+        Jeder gefundene Artikel lässt sich einem Katalogartikel zuordnen; ohne Zuordnung bleibt er
+        ein freier Artikel. Steht im Lagerort eine Kiste („Kaltlager, Alu-Kiste“), ist das Lager
+        „Kaltlager“ und die gleichnamige Kiste aus dem Bestand vorbelegt; der Artikel liegt dann als
+        Position in dieser Kiste. Gleichnamige Katalogartikel sind ebenfalls vorbelegt.
+      </p>
+      <ul class="zuordnung artikelzeilen">
+        @for (a of artikelVorschau(); track a.zeile) {
+          <li>
+            <div class="gefunden">
+              <strong>{{ a.name }}</strong>
+              <span class="marke">{{ a.menge }}×</span>
+              @if (a.ort || a.kisteHinweis) {
+                <span class="plaetze">
+                  {{ a.inListenKiste ? 'In Kiste' : 'Lagerort' }}: {{ a.ort }}
+                  @if (a.kisteHinweis) {
+                    · Kiste: {{ a.kisteHinweis }}
+                  }
+                </span>
+              }
+            </div>
+            <app-artikel-zuordnung
+              [optionen]="artikelOptionen()"
+              [wert]="a.artikelId"
+              [vorschlagFuer]="a.name"
+              (gewaehlt)="artikelGewaehlt(a.zeile, $event)"
+            />
+            @if (!a.inListenKiste) {
+              <app-artikel-zuordnung
+                beschriftung="Kiste aus dem Bestand"
+                [optionen]="kistenOptionen()"
+                [wert]="a.kisteId"
+                [vorschlagFuer]="a.kisteHinweis ?? ''"
+                (gewaehlt)="kisteGewaehlt(a.zeile, $event)"
+              />
+            } @else {
+              <span></span>
             }
           </li>
         }

@@ -51,9 +51,47 @@
   color: var(--text-secondary);
 }
 
-.lager {
+.hinweis {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.zuordnung {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
   margin: 0;
-  padding-left: var(--space-lg);
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+    align-items: center;
+    gap: var(--space-md);
+  }
+
+  @media (max-width: 780px) {
+    li {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.artikelzeilen li {
+  grid-template-columns: minmax(0, 1.2fr) minmax(12rem, 1fr) minmax(12rem, 1fr);
+}
+
+@media (max-width: 780px) {
+  .artikelzeilen li {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plaetze {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.9em;
 }
 
 .marke {

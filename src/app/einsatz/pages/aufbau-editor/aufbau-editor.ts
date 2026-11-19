@@ -38,7 +38,12 @@ import {
   KistePositionNeu,
 } from '../../components/einheit-detail/einheit-detail';
 import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
-import { Artikel, ARTIKEL_EINHEITEN, ArtikelEinheit } from '../../models/stammdaten.model';
+import {
+  Artikel,
+  ARTIKEL_EINHEITEN,
+  ArtikelEinheit,
+  KistenPosition,
+} from '../../models/stammdaten.model';
 import { Einsatz } from '../../models/einsatz.model';
 import { pruefeAufbau } from '../../services/aufbau-abgleich';
 import {
@@ -49,11 +54,14 @@ import {
   einheitAendern,
   einheitEntfernen,
   eintragInKisteLegen,
+  eintragVerschieben,
+  einheitenZiele,
   einheitHinzufuegen,
   findeEinheit,
   freieKisteHinzufuegen,
   freiePositionVerknuepfen,
   freienArtikelVerknuepfen,
+  kisteMitStammdatenVerknuepfen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
   type BaumOrt,
@@ -185,6 +193,12 @@ export class AufbauEditor {
   protected readonly aufbauKisten = computed(() => {
     const inhalt = this.store.inhalt();
     return inhalt ? kistenZiele(inhalt) : [];
+  });
+
+  /** Alle Einheiten des Aufbaus als Ziele für „In andere Einheit verschieben“. */
+  protected readonly einheitenZiele = computed(() => {
+    const inhalt = this.store.inhalt();
+    return inhalt ? einheitenZiele(inhalt) : [];
   });
 
   protected readonly probleme = computed(() => {
@@ -579,6 +593,22 @@ export class AufbauEditor {
     this.store.aendern(eintragAendern(inhalt, einheitId, eintragId, rest));
   }
 
+  protected eintragVerschoben(
+    einheitId: string,
+    wahl: { eintragId: string; zielEinheitId: string },
+  ): void {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const neu = eintragVerschieben(inhalt, einheitId, wahl.eintragId, wahl.zielEinheitId);
+    if (neu === inhalt) {
+      this.meldungen.warnung(
+        `Der Eintrag lässt sich nicht verschieben (eine Einheit hat höchstens ${AUFBAU_GRENZEN.eintraegeJeEinheit} Einträge).`,
+      );
+      return;
+    }
+    this.store.aendern(neu);
+  }
+
   protected eintragInKiste(einheitId: string, wahl: { eintragId: string; ziel: KistenZiel }): void {
     const inhalt = this.store.inhalt();
     if (!inhalt) return;
@@ -735,6 +765,108 @@ export class AufbauEditor {
         freiePositionVerknuepfen(inhalt, einheitId, ziel.eintragId, ziel.index, artikel),
       );
     }
+  }
+
+  /**
+   * Nimmt eine freie Kiste in die Kisten-Stammdaten auf (oder verknüpft sie mit der gleichnamigen). Freie
+   * Positionen werden dabei Katalogartikel (gleichnamige werden verwendet, fehlende angelegt), weil eine
+   * Stammdaten-Kiste nur Katalogartikel führt. Alles wird sofort geschrieben, unabhängig vom „Speichern“.
+   */
+  protected async kisteUebernehmen(einheitId: string, eintragId: string): Promise<void> {
+    const eintrag = findeEinheit(
+      this.store.inhalt() ?? { anweisungen: '', einheiten: [] },
+      einheitId,
+    )?.inhalt.find((x) => x.id === eintragId);
+    if (eintrag?.art !== 'kiste' || eintrag.kisteId !== null) return;
+    const vorhanden = this.stammdaten.kisteFinden(eintrag.name);
+    if (vorhanden) {
+      const ok = await this.dialogDienst.bestaetigen(
+        `In den Kisten-Stammdaten gibt es „${vorhanden.name}“ schon. Die Kiste wird damit verknüpft; ihr Inhalt im Aufbau bleibt unverändert, Unterschiede werden angezeigt.`,
+        'Mit Stammdaten-Kiste verknüpfen',
+        'Verknüpfen',
+      );
+      const inhalt = this.store.inhalt();
+      if (ok && inhalt) {
+        this.store.aendern(
+          kisteMitStammdatenVerknuepfen(inhalt, einheitId, eintragId, vorhanden.id),
+        );
+      }
+      return;
+    }
+    const frei = eintrag.inhalt.filter((p) => p.artikelId === null);
+    const hinweis =
+      frei.length > 0
+        ? ` ${frei.length} freie Position${frei.length === 1 ? '' : 'en'} werden dabei Katalogartikel (gleichnamige werden verwendet, fehlende neu angelegt, Einheit Stück, wenn sie keiner festen Einheit entspricht).`
+        : '';
+    const ok = await this.dialogDienst.bestaetigen(
+      `„${eintrag.name}“ wird mit ${eintrag.inhalt.length} Positionen und ${eintrag.lagerId ? 'ihrem Lager als Heimatlager' : 'ohne Heimatlager'} in die Kisten-Stammdaten aufgenommen.${hinweis} Das wird sofort gespeichert, unabhängig vom „Speichern“ des Aufbaus.`,
+      'In die Kisten-Stammdaten übernehmen',
+      'Übernehmen',
+    );
+    if (!ok) return;
+
+    const positionen: KistenPosition[] = [];
+    for (const p of eintrag.inhalt) {
+      let artikelId: string;
+      if (p.artikelId !== null) {
+        artikelId = p.artikelId;
+      } else {
+        let artikel = this.stammdaten.artikelFinden(p.name);
+        if (!artikel) {
+          const gleiche = ARTIKEL_EINHEITEN.find(
+            (e) => e.toLowerCase() === p.einheit.trim().toLowerCase(),
+          );
+          const angelegt = await this.stammdaten.artikelAnlegen({
+            name: p.name,
+            einheit: gleiche ?? 'Stück',
+            lagerId: null,
+          });
+          artikel = angelegt ? this.stammdaten.artikelFinden(p.name) : undefined;
+        }
+        if (!artikel) {
+          this.meldungen.fehler(
+            this.stammdaten.fehler() || `Der Artikel „${p.name}“ konnte nicht angelegt werden.`,
+          );
+          return;
+        }
+        artikelId = artikel.id;
+      }
+      const bisher = positionen.findIndex((x) => x.artikelId === artikelId);
+      const vorher = positionen[bisher];
+      if (vorher) {
+        positionen[bisher] = {
+          artikelId,
+          menge: Math.round((vorher.menge + p.menge) * 1000) / 1000,
+          bemerkung: [vorher.bemerkung, p.bemerkung]
+            .filter((t) => t !== '')
+            .join('; ')
+            .slice(0, 200),
+        };
+      } else {
+        positionen.push({ artikelId, menge: p.menge, bemerkung: p.bemerkung });
+      }
+    }
+    const kiste = await this.stammdaten.kisteMitInhaltAnlegen({
+      name: eintrag.name,
+      lagerId: eintrag.lagerId,
+      platzId: eintrag.platzId ?? null,
+      inhalt: positionen.map((p) => ({
+        artikelId: p.artikelId,
+        menge: p.menge,
+        bemerkung: p.bemerkung,
+      })),
+    });
+    if (!kiste) {
+      this.meldungen.fehler(this.stammdaten.fehler() || 'Die Kiste konnte nicht angelegt werden.');
+      return;
+    }
+    const inhalt = this.store.inhalt();
+    if (inhalt) {
+      this.store.aendern(
+        kisteMitStammdatenVerknuepfen(inhalt, einheitId, eintragId, kiste.id, positionen),
+      );
+    }
+    this.meldungen.erfolg(`„${kiste.name}“ ist jetzt in den Kisten-Stammdaten.`);
   }
 
   protected kisteAbgeglichen(einheitId: string, eintragId: string): void {
