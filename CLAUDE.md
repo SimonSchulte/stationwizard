@@ -640,7 +640,7 @@ Sortierung. Alle Änderungen sind reine Funktionen in `services/aufbau-bearbeite
 nie gespeichert, sondern in `aufbau-zettel.ts` (`leiteZettelAb()`) und `aufbau-abgleich.ts` (`pruefeAufbau()`)
 abgeleitet. Die Zahl der Rasterzeilen (23) kommt aus `laufzettel-platz.ts`. Gedruckt wird über
 `aufbau-druck.ts`, das die Zettel in das Druckmodell (`druck.model.ts`) bringt und den vorhandenen `ZettelDruckDienst` (`zettel-druck.ts`, `zettel-pdf-definition.ts`) nutzt; ein
-Lagertrenner ist dabei eine Hinweiszeile. Eine Kiste im Aufbau wird beim Hinzufügen als Momentaufnahme kopiert;
+Lagertrenner ist dabei eine Hinweiszeile. Eine Kiste im Aufbau wird beim Hinzufügen als Momentaufnahme kopiert (eine Stammdaten-Kiste ohne Inhalt kommt als Standard-Kiste, mit Inhalt entfällt das Kennzeichen beim „Übernehmen“); beim Einlesen aus Excel und beim Packlisten-Import verlinkt der Name eine Kiste ohne bekannte `kisteId` mit der Stammdaten-Kiste (`besterTreffer()`);
 „Übernehmen“ gleicht sie mit den Stammdaten ab. Die Einsatzkarte zeigt die Kennzahlen des Aufbaus
 (`aufbau` der Einsatzliste, `istAufbauKennzahlen()` in `einsatz-pruefung.ts`).
 

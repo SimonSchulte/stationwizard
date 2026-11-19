@@ -85,6 +85,7 @@ export function baueAufbauInhalt(
   aufloesen: LagerAufloesung,
   artikelZuordnen: ArtikelZuordnung = () => undefined,
   kisteZuordnen: KistenZuordnung = () => undefined,
+  kisteNachName: (name: string) => Kiste | undefined = () => undefined,
 ): AufbauInhalt {
   const neueId = (): string => crypto.randomUUID();
   const ort = (lager: string | null, platz: string | null) => {
@@ -204,7 +205,7 @@ export function baueAufbauInhalt(
     return {
       art: 'kiste',
       id: neueId(),
-      kisteId: null,
+      kisteId: kisteNachName(e.name)?.id ?? null,
       name: kuerzen(e.name, AUFBAU_GRENZEN.name),
       ...ort(e.lager, e.platz),
       anzahl: e.anzahl,

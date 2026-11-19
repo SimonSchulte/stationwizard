@@ -232,6 +232,7 @@ export class PacklisteImport implements OnInit {
           aufloesen,
           (zeile) => artikelNachZeile.get(zeile),
           (zeile) => kisteNachZeile.get(zeile),
+          (name) => besterTreffer(name, this.stammdaten.kisten()),
         ),
       });
       if (version === null) {

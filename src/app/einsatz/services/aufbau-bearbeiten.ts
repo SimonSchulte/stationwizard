@@ -118,7 +118,7 @@ export function einheitEntfernen(inhalt: AufbauInhalt, id: string): AufbauInhalt
   };
 }
 
-/** Kopiert den aktuellen Stand einer Stammdaten-Kiste als Momentaufnahme in die Einheit. */
+/** Kopiert den aktuellen Stand einer Stammdaten-Kiste als Momentaufnahme in die Einheit (leer: Standard-Kiste). */
 export function kisteHinzufuegen(
   inhalt: AufbauInhalt,
   einheitId: string,
@@ -134,6 +134,9 @@ export function kisteHinzufuegen(
     ...(kiste.platzId && { platzId: kiste.platzId }),
     anzahl: Math.min(Math.max(1, Math.round(anzahl)), AUFBAU_GRENZEN.kistenAnzahl),
     inhalt: kiste.inhalt.map((p) => ({ ...p })),
+    // Eine Stammdaten-Kiste ohne Inhalt ist gleichbleibend bestückt (Standard-Kiste), sonst meldete die Prüfung
+    // sofort „ohne Inhalt“.
+    ...(kiste.inhalt.length === 0 && { standardInhalt: true }),
     phase: null,
   };
   return ersetzeEinheit(inhalt, einheitId, (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }));
@@ -674,15 +677,18 @@ export function kisteAbgleichen(
 ): AufbauInhalt {
   return ersetzeEinheit(inhalt, einheitId, (e) => ({
     ...e,
-    inhalt: e.inhalt.map((x) =>
-      x.id === eintragId && x.art === 'kiste'
-        ? {
-            ...mitLagerUndPlatz(x, { lagerId: kiste.lagerId, platzId: kiste.platzId ?? null }),
-            name: kiste.name,
-            inhalt: kiste.inhalt.map((p) => ({ ...p })),
-          }
-        : x,
-    ),
+    inhalt: e.inhalt.map((x) => {
+      if (x.id !== eintragId || x.art !== 'kiste') return x;
+      const neu: AufbauKistenEintrag = {
+        ...mitLagerUndPlatz(x, { lagerId: kiste.lagerId, platzId: kiste.platzId ?? null }),
+        name: kiste.name,
+        inhalt: kiste.inhalt.map((p) => ({ ...p })),
+      };
+      // Mit Inhalt entfällt das Standard-Kennzeichen; eine leere Stammdaten-Kiste ist Standard.
+      if (kiste.inhalt.length > 0) delete neu.standardInhalt;
+      else neu.standardInhalt = true;
+      return neu;
+    }),
   }));
 }
 

@@ -37,7 +37,7 @@ import {
   zaehleAufbauInhalt,
 } from './aufbau-bearbeiten';
 import type { AufbauEinheit, AufbauKistenEintrag } from '../models/aufbau.model';
-import { kisteWeichtAb } from './aufbau-abgleich';
+import { kisteWeichtAb, pruefeAufbau } from './aufbau-abgleich';
 import { istAufbauInhalt } from './aufbau-pruefung';
 
 const lager = testLager(1, 'Halle A', 1);
@@ -162,6 +162,23 @@ describe('Aufbau bearbeiten', () => {
     // dasselbe Ziel und ein unbekanntes Ziel ändern nichts
     expect(eintragVerschieben(inhalt, b.id, artikel!.id, b.id)).toBe(inhalt);
     expect(eintragVerschieben(inhalt, b.id, artikel!.id, testId(999))).toBe(inhalt);
+  });
+
+  it('übernimmt eine leere Stammdaten-Kiste als Standard-Kiste und hebt das beim Abgleich mit Inhalt auf', () => {
+    const e = testEinheit();
+    const leer = { ...testKiste(500, 'Marketing', lager.id, wasser.id), inhalt: [] };
+    let inhalt = kisteHinzufuegen(testAufbauInhalt([e]), e.id, leer);
+    const eintrag = inhalt.einheiten[0]!.inhalt[0]! as AufbauKistenEintrag;
+    expect(eintrag).toMatchObject({ kisteId: leer.id, standardInhalt: true, inhalt: [] });
+    expect(pruefeAufbau(inhalt, { lager: [lager], artikel: [wasser], kisten: [leer] })).toEqual(
+      expect.not.arrayContaining([expect.objectContaining({ art: 'kiste-ohne-inhalt' })]),
+    );
+    const gefuellt = testKiste(500, 'Marketing', lager.id, wasser.id);
+    inhalt = kisteAbgleichen(inhalt, e.id, eintrag.id, gefuellt);
+    const danach = inhalt.einheiten[0]!.inhalt[0]! as AufbauKistenEintrag;
+    expect(danach.inhalt).toHaveLength(1);
+    expect('standardInhalt' in danach).toBe(false);
+    expect(istAufbauInhalt(inhalt)).toBe(true);
   });
 
   it('befüllt eine freie Kiste mit freien und Katalog-Positionen', () => {

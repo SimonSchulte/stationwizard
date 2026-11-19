@@ -7,9 +7,10 @@ import {
   AufbauKistenPosition,
   AufbauPhase,
 } from '../models/aufbau.model';
-import { Artikel, Lager, STAMMDATEN_GRENZEN } from '../models/stammdaten.model';
+import { Artikel, Kiste, Lager, STAMMDATEN_GRENZEN } from '../models/stammdaten.model';
 import { lagerSchluessel } from './lager';
 import { naechsteFarbe } from './aufbau-bearbeiten';
+import { besterTreffer } from './name-abgleich';
 import { istGueltigeMenge } from './stammdaten-pruefung';
 
 /**
@@ -71,6 +72,8 @@ export interface AufbauTabellenZeile {
 export interface TabellenStammdaten {
   lager: readonly Lager[];
   artikel: readonly Artikel[];
+  /** Kisten der Stammdaten: eine Kiste ohne bekannte Verknüpfung wird über ihren Namen verlinkt. */
+  kisten?: readonly Kiste[];
 }
 
 export interface AufbauEinlesen {
@@ -522,7 +525,7 @@ export function zeilenZuAufbau(
       const eintrag: AufbauKistenEintrag = {
         art: 'kiste',
         id: idFuer(z, (e) => e.art === 'kiste'),
-        kisteId: bisher?.kisteId ?? null,
+        kisteId: bisher?.kisteId ?? besterTreffer(name, daten.kisten ?? [])?.id ?? null,
         name: kuerze(z, name, AUFBAU_GRENZEN.name, 'Name'),
         lagerId,
         ...(platz && lagerId && { platzId: platz }),
