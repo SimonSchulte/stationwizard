@@ -16,14 +16,10 @@ import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, MeldungsDienst } from '../../../kern/zustand/zustand';
 import { ArtikelZuordnung } from '../../components/artikel-zuordnung/artikel-zuordnung';
 import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
-import { Artikel, Lager } from '../../models/stammdaten.model';
+import { Artikel, Kiste, Lager } from '../../models/stammdaten.model';
 import { AufbauVorlagenStoreService } from '../../services/aufbau-vorlagen-store.service';
 import { lagerSchluessel } from '../../services/lager';
-import {
-  baueAufbauInhalt,
-  LagerAufloesung,
-  sammleArtikelNamen,
-} from '../../services/packliste-aufbau';
+import { baueAufbauInhalt, LagerAufloesung, sammleArtikel } from '../../services/packliste-aufbau';
 import { PacklisteLeser } from '../../services/packliste-excel';
 import { leitePacklisteAb, PacklisteErgebnis } from '../../services/packliste-import';
 import { StammdatenStoreService } from '../../services/stammdaten-store.service';
@@ -66,8 +62,10 @@ export class PacklisteImport implements OnInit {
 
   /** Gewähltes Lager je gefundenem Lager (Vergleichsform); `''` = neu anlegen. Fehlt der Eintrag, gilt das gleichnamige. */
   private readonly lagerWahl = signal<ReadonlyMap<string, string>>(new Map());
-  /** Gewählter Katalogartikel je gefundenem Namen; `null` = frei lassen. Fehlt der Eintrag, gilt der gleichnamige. */
-  private readonly artikelWahl = signal<ReadonlyMap<string, string | null>>(new Map());
+  /** Gewählter Katalogartikel je Zeile der Liste; `null` = frei lassen. Fehlt der Eintrag, gilt der gleichnamige. */
+  private readonly artikelWahl = signal<ReadonlyMap<number, string | null>>(new Map());
+  /** Gewählte Kiste aus dem Bestand je Zeile; `null` = lose lassen. Fehlt der Eintrag, gilt die Kiste des Lagerort-Hinweises. */
+  private readonly kistenWahl = signal<ReadonlyMap<number, string | null>>(new Map());
 
   /** Lager und Plätze der Liste, mit dem Ziel im Bestand und dem Hinweis, was neu angelegt wird. */
   protected readonly lagerVorschau = computed(() => {
@@ -101,16 +99,30 @@ export class PacklisteImport implements OnInit {
       .sort((a, b) => a.name.localeCompare(b.name, 'de')),
   );
 
-  /** Artikelnamen der Liste mit dem zugeordneten Katalogartikel. */
+  protected readonly kistenOptionen = computed(() =>
+    [...this.stammdaten.kisten()]
+      .map((k) => ({ id: k.id, name: k.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de')),
+  );
+
+  /** Jeder gefundene Artikel der Liste mit zugeordnetem Katalogartikel und Kiste. */
   protected readonly artikelVorschau = computed(() => {
     const plan = this.ergebnis()?.plan;
     if (!plan) return [];
-    const wahl = this.artikelWahl();
-    return sammleArtikelNamen(plan).map((a) => ({
+    const artikelWahl = this.artikelWahl();
+    const kistenWahl = this.kistenWahl();
+    return sammleArtikel(plan).map((a) => ({
       ...a,
-      artikelId: wahl.has(a.schluessel)
-        ? wahl.get(a.schluessel)!
+      artikelId: artikelWahl.has(a.zeile)
+        ? artikelWahl.get(a.zeile)!
         : (this.stammdaten.artikelFinden(a.name)?.id ?? null),
+      kisteId: a.inListenKiste
+        ? null
+        : kistenWahl.has(a.zeile)
+          ? kistenWahl.get(a.zeile)!
+          : a.kisteHinweis
+            ? (this.kisteFinden(a.kisteHinweis)?.id ?? null)
+            : null,
     }));
   });
 
@@ -138,8 +150,17 @@ export class PacklisteImport implements OnInit {
     this.lagerWahl.update((alt) => new Map(alt).set(schluessel, zielId));
   }
 
-  protected artikelGewaehlt(schluessel: string, artikelId: string | null): void {
-    this.artikelWahl.update((alt) => new Map(alt).set(schluessel, artikelId));
+  protected artikelGewaehlt(zeile: number, artikelId: string | null): void {
+    this.artikelWahl.update((alt) => new Map(alt).set(zeile, artikelId));
+  }
+
+  protected kisteGewaehlt(zeile: number, kisteId: string | null): void {
+    this.kistenWahl.update((alt) => new Map(alt).set(zeile, kisteId));
+  }
+
+  private kisteFinden(name: string): Kiste | undefined {
+    const schluessel = lagerSchluessel(name);
+    return this.stammdaten.kisten().find((k) => lagerSchluessel(k.name) === schluessel);
   }
 
   protected async dateiGewaehlt(ereignis: Event): Promise<void> {
@@ -152,6 +173,7 @@ export class PacklisteImport implements OnInit {
     try {
       this.lagerWahl.set(new Map());
       this.artikelWahl.set(new Map());
+      this.kistenWahl.set(new Map());
       this.ergebnis.set(leitePacklisteAb(await this.leser.lesen(datei)));
       this.dateiname.set(datei.name);
       this.titel.set(datei.name.replace(/\.[^.]+$/, '').slice(0, AUFBAU_GRENZEN.name));
@@ -195,17 +217,25 @@ export class PacklisteImport implements OnInit {
             : undefined;
         return { lagerId: lager?.id ?? null, platzId: platz?.id ?? null };
       };
-      const artikelNachName = new Map<string, Artikel>();
+      const artikelNachZeile = new Map<number, Artikel>();
+      const kisteNachZeile = new Map<number, Kiste>();
       for (const a of this.artikelVorschau()) {
         const artikel = a.artikelId ? this.stammdaten.artikelNachId().get(a.artikelId) : undefined;
-        if (artikel) artikelNachName.set(a.schluessel, artikel);
+        if (artikel) artikelNachZeile.set(a.zeile, artikel);
+        const kiste = a.kisteId
+          ? this.stammdaten.kisten().find((k) => k.id === a.kisteId)
+          : undefined;
+        if (kiste) kisteNachZeile.set(a.zeile, kiste);
       }
       const id = crypto.randomUUID();
       const version = await this.vorlagen.anlegen({
         id,
         titel: this.titel().trim(),
-        inhalt: baueAufbauInhalt(ergebnis.plan, aufloesen, (name) =>
-          artikelNachName.get(lagerSchluessel(name)),
+        inhalt: baueAufbauInhalt(
+          ergebnis.plan,
+          aufloesen,
+          (zeile) => artikelNachZeile.get(zeile),
+          (zeile) => kisteNachZeile.get(zeile),
         ),
       });
       if (version === null) {

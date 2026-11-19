@@ -112,24 +112,41 @@
 
       <h3>Artikel ({{ zugeordneteArtikel() }} von {{ artikelVorschau().length }} zugeordnet)</h3>
       <p class="hinweis">
-        Zugeordnete Artikel werden Katalogartikel im Aufbau (Einheit aus dem Katalog); alle anderen
-        bleiben freie Artikel. Gleichnamige Katalogartikel sind vorbelegt.
+        Jeder gefundene Artikel lässt sich einem Katalogartikel zuordnen; ohne Zuordnung bleibt er
+        ein freier Artikel. Steht im Lagerort eine Kiste („Kaltlager, Alu-Kiste“), ist das Lager
+        „Kaltlager“ und die gleichnamige Kiste aus dem Bestand vorbelegt; der Artikel liegt dann als
+        Position in dieser Kiste. Gleichnamige Katalogartikel sind ebenfalls vorbelegt.
       </p>
-      <ul class="zuordnung">
-        @for (a of artikelVorschau(); track a.schluessel) {
+      <ul class="zuordnung artikelzeilen">
+        @for (a of artikelVorschau(); track a.zeile) {
           <li>
             <div class="gefunden">
               <strong>{{ a.name }}</strong>
-              @if (a.vorkommen > 1) {
-                <span class="marke">{{ a.vorkommen }}×</span>
+              <span class="marke">{{ a.menge }}×</span>
+              @if (a.ort || a.kisteHinweis) {
+                <span class="plaetze">
+                  {{ a.inListenKiste ? 'In Kiste' : 'Lagerort' }}: {{ a.ort }}
+                  @if (a.kisteHinweis) {
+                    , {{ a.kisteHinweis }}
+                  }
+                </span>
               }
             </div>
             <app-artikel-zuordnung
-              class="ziel"
               [optionen]="artikelOptionen()"
               [wert]="a.artikelId"
-              (gewaehlt)="artikelGewaehlt(a.schluessel, $event)"
+              (gewaehlt)="artikelGewaehlt(a.zeile, $event)"
             />
+            @if (!a.inListenKiste) {
+              <app-artikel-zuordnung
+                beschriftung="Kiste aus dem Bestand"
+                [optionen]="kistenOptionen()"
+                [wert]="a.kisteId"
+                (gewaehlt)="kisteGewaehlt(a.zeile, $event)"
+              />
+            } @else {
+              <span></span>
+            }
           </li>
         }
       </ul>

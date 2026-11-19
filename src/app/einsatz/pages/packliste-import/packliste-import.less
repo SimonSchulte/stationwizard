@@ -78,6 +78,16 @@
   }
 }
 
+.artikelzeilen li {
+  grid-template-columns: minmax(0, 1.2fr) minmax(12rem, 1fr) minmax(12rem, 1fr);
+}
+
+@media (max-width: 780px) {
+  .artikelzeilen li {
+    grid-template-columns: 1fr;
+  }
+}
+
 .plaetze {
   display: block;
   color: var(--text-secondary);

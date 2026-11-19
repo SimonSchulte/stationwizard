@@ -116,10 +116,10 @@ describe('PacklisteImport', () => {
     const { fixture, element } = await dateiWaehlen();
     const komponente = fixture.componentInstance as unknown as {
       lagerGewaehlt(schluessel: string, id: string): void;
-      artikelGewaehlt(schluessel: string, id: string | null): void;
+      artikelGewaehlt(zeile: number, id: string | null): void;
     };
     komponente.lagerGewaehlt('technik', lagerId);
-    komponente.artikelGewaehlt('kabeltrommel', artikelId);
+    komponente.artikelGewaehlt(2, artikelId);
     fixture.detectChanges();
     element.querySelector('form.anlegen')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await fixture.whenStable();

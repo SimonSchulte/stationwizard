@@ -25,6 +25,10 @@ export interface PacklisteZeile {
 
 export interface PlanFrei {
   art: 'frei';
+  /** Zeile in der Excel-Datei; kennzeichnet den Artikel für die Zuordnung. */
+  zeile: number;
+  /** Teil des Lagerorts nach dem Komma („Kaltlager, Alu-Kiste“ → „Alu-Kiste“): Hinweis auf eine Kiste. */
+  kisteHinweis: string | null;
   name: string;
   menge: number;
   bemerkung: string;
@@ -33,6 +37,7 @@ export interface PlanFrei {
 }
 
 export interface PlanKistenPosition {
+  zeile: number;
   name: string;
   menge: number;
   bemerkung: string;
@@ -128,19 +133,25 @@ export function liesMenge(roh: unknown): Menge {
   };
 }
 
-/** „Kaltlager (Spinde)“ → Lager „Kaltlager“, Platz „Spinde“; ein eigener Lagerplatz geht vor. */
+/**
+ * „Kaltlager (Spinde)“ → Lager „Kaltlager“, Platz „Spinde“; ein eigener Lagerplatz geht vor. Nach einem Komma
+ * folgt ein Hinweis auf eine Kiste („Kaltlager, Alu-Kiste“ → Lager „Kaltlager“, Kiste „Alu-Kiste“).
+ */
 function lagerUndPlatz(
   lagerort: string,
   lagerplatz: string,
-): { lager: string | null; platz: string | null } {
-  const ort = bereinigt(lagerort);
+): { lager: string | null; platz: string | null; kiste: string | null } {
+  const gesamt = bereinigt(lagerort);
   const platz = bereinigt(lagerplatz);
-  if (ort === '') return { lager: null, platz: null };
+  const komma = gesamt.indexOf(',');
+  const ort = komma > 0 ? gesamt.slice(0, komma).trim() : gesamt;
+  const kiste = komma > 0 ? gesamt.slice(komma + 1).trim() || null : null;
+  if (ort === '') return { lager: null, platz: null, kiste: null };
   const klammer = /^(.*?)\s*\((.+)\)$/.exec(ort);
   if (klammer && klammer[1]) {
-    return { lager: klammer[1], platz: platz || klammer[2]!.trim() };
+    return { lager: klammer[1], platz: platz || klammer[2]!.trim(), kiste };
   }
-  return { lager: ort, platz: platz || null };
+  return { lager: ort, platz: platz || null, kiste };
 }
 
 type Art = 'fahrzeug' | 'wagen' | 'kiste';
@@ -152,6 +163,7 @@ interface Zeilenwert {
   menge: Menge;
   lager: string | null;
   platz: string | null;
+  kiste: string | null;
 }
 
 /**
@@ -170,8 +182,16 @@ export function leitePacklisteAb(zeilen: readonly PacklisteZeile[]): PacklisteEr
     if (material === '') continue;
     const menge = liesMenge(zeile.anzahl);
     if (menge.warnung) warne(zeile, menge.warnung);
-    const { lager, platz } = lagerUndPlatz(zeile.lagerort, zeile.lagerplatz);
-    werte.push({ zeile, material, ziel: bereinigt(zeile.transportMit), menge, lager, platz });
+    const { lager, platz, kiste } = lagerUndPlatz(zeile.lagerort, zeile.lagerplatz);
+    werte.push({
+      zeile,
+      material,
+      ziel: bereinigt(zeile.transportMit),
+      menge,
+      lager,
+      platz,
+      kiste,
+    });
   }
 
   // Wer ist ein Behälter? Jeder Name, der irgendwo als Ziel steht.
@@ -293,7 +313,12 @@ export function leitePacklisteAb(zeilen: readonly PacklisteZeile[]): PacklisteEr
         w.zeile,
         `Eine Kiste kann nicht in einer Kiste stehen („${w.ziel}“); sie wird Position davon.`,
       );
-      aussen?.inhalt.push({ name: kiste.name, menge: kiste.anzahl, bemerkung: '' });
+      aussen?.inhalt.push({
+        zeile: w.zeile.zeile,
+        name: kiste.name,
+        menge: kiste.anzahl,
+        bemerkung: '',
+      });
       kisteJeName.delete(schluessel);
       kisteAlias.set(schluessel, behaelterSchluessel(w.ziel));
     } else {
@@ -314,6 +339,8 @@ export function leitePacklisteAb(zeilen: readonly PacklisteZeile[]): PacklisteEr
       merkeLager(w.lager, w.platz);
       ohneZielEinheit().eintraege.push({
         art: 'frei',
+        zeile: w.zeile.zeile,
+        kisteHinweis: w.kiste,
         name: w.material,
         menge: w.menge.menge,
         bemerkung: zusatz,
@@ -335,6 +362,8 @@ export function leitePacklisteAb(zeilen: readonly PacklisteZeile[]): PacklisteEr
         merkeLager(w.lager, w.platz);
         ohneZielEinheit().eintraege.push({
           art: 'frei',
+          zeile: w.zeile.zeile,
+          kisteHinweis: w.kiste,
           name: w.material,
           menge: w.menge.menge,
           bemerkung: zusatz,
@@ -344,7 +373,12 @@ export function leitePacklisteAb(zeilen: readonly PacklisteZeile[]): PacklisteEr
         artikel += 1;
         continue;
       }
-      kiste.inhalt.push({ name: w.material, menge: w.menge.menge, bemerkung: zusatz });
+      kiste.inhalt.push({
+        zeile: w.zeile.zeile,
+        name: w.material,
+        menge: w.menge.menge,
+        bemerkung: zusatz,
+      });
       positionen += 1;
       continue;
     }
@@ -352,6 +386,8 @@ export function leitePacklisteAb(zeilen: readonly PacklisteZeile[]): PacklisteEr
     const ziel = einheitZiel(w.ziel) ?? fahrzeug(w.ziel);
     ziel.eintraege.push({
       art: 'frei',
+      zeile: w.zeile.zeile,
+      kisteHinweis: w.kiste,
       name: w.material,
       menge: w.menge.menge,
       bemerkung: zusatz,
