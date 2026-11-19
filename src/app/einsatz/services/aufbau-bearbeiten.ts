@@ -609,6 +609,51 @@ export function eintragInKisteLegen(
   );
 }
 
+/** Einheit (Fahrzeug oder Wagen), in die sich ein Eintrag verschieben lässt. */
+export interface EinheitenZiel {
+  einheitId: string;
+  /** „GW Technik“ bzw. „GW Technik › Rollwagen 02“ */
+  bezeichnung: string;
+}
+
+/** Alle Einheiten des Aufbaus (Fahrzeuge und Wagen, auch in Fahrzeugen) als Ziele, in der Reihenfolge des Aufbaus. */
+export function einheitenZiele(inhalt: AufbauInhalt): EinheitenZiel[] {
+  return inhalt.einheiten.flatMap((e) => [
+    { einheitId: e.id, bezeichnung: e.name },
+    ...e.inhalt.flatMap((x) =>
+      x.art === 'wagen'
+        ? [{ einheitId: x.einheit.id, bezeichnung: `${e.name} › ${x.einheit.name}` }]
+        : [],
+    ),
+  ]);
+}
+
+/**
+ * Verschiebt einen Artikel oder eine Kiste in eine andere Einheit (Fahrzeug oder Wagen); der Eintrag behält
+ * seine Id und alle Angaben und steht danach am Ende des Ziels. Ein Wagen, dasselbe Ziel, ein unbekanntes
+ * Ziel oder eine volle Einheit (200 Einträge) ändern nichts.
+ */
+export function eintragVerschieben(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  zielEinheitId: string,
+): AufbauInhalt {
+  if (einheitId === zielEinheitId) return inhalt;
+  const eintrag = findeEinheit(inhalt, einheitId)?.inhalt.find((x) => x.id === eintragId);
+  const ziel = findeEinheit(inhalt, zielEinheitId);
+  if (!eintrag || eintrag.art === 'wagen' || !ziel) return inhalt;
+  if (ziel.inhalt.length >= AUFBAU_GRENZEN.eintraegeJeEinheit) return inhalt;
+  return ersetzeEinheit(
+    ersetzeEinheit(inhalt, einheitId, (e) => ({
+      ...e,
+      inhalt: e.inhalt.filter((x) => x.id !== eintragId),
+    })),
+    zielEinheitId,
+    (e) => ({ ...e, inhalt: [...e.inhalt, eintrag] }),
+  );
+}
+
 export function eintragEntfernen(
   inhalt: AufbauInhalt,
   einheitId: string,

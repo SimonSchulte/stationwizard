@@ -54,6 +54,8 @@ import {
   einheitAendern,
   einheitEntfernen,
   eintragInKisteLegen,
+  eintragVerschieben,
+  einheitenZiele,
   einheitHinzufuegen,
   findeEinheit,
   freieKisteHinzufuegen,
@@ -191,6 +193,12 @@ export class AufbauEditor {
   protected readonly aufbauKisten = computed(() => {
     const inhalt = this.store.inhalt();
     return inhalt ? kistenZiele(inhalt) : [];
+  });
+
+  /** Alle Einheiten des Aufbaus als Ziele für „In andere Einheit verschieben“. */
+  protected readonly einheitenZiele = computed(() => {
+    const inhalt = this.store.inhalt();
+    return inhalt ? einheitenZiele(inhalt) : [];
   });
 
   protected readonly probleme = computed(() => {
@@ -583,6 +591,22 @@ export class AufbauEditor {
     if (!inhalt) return;
     const { eintragId, ...rest } = aenderung;
     this.store.aendern(eintragAendern(inhalt, einheitId, eintragId, rest));
+  }
+
+  protected eintragVerschoben(
+    einheitId: string,
+    wahl: { eintragId: string; zielEinheitId: string },
+  ): void {
+    const inhalt = this.store.inhalt();
+    if (!inhalt) return;
+    const neu = eintragVerschieben(inhalt, einheitId, wahl.eintragId, wahl.zielEinheitId);
+    if (neu === inhalt) {
+      this.meldungen.warnung(
+        `Der Eintrag lässt sich nicht verschieben (eine Einheit hat höchstens ${AUFBAU_GRENZEN.eintraegeJeEinheit} Einträge).`,
+      );
+      return;
+    }
+    this.store.aendern(neu);
   }
 
   protected eintragInKiste(einheitId: string, wahl: { eintragId: string; ziel: KistenZiel }): void {

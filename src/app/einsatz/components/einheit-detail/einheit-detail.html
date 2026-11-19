@@ -293,6 +293,34 @@
                   }
                 </mat-menu>
               }
+              @if (zeile.eintrag.art !== 'wagen' && andereEinheiten().length > 0) {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="In andere Einheit verschieben"
+                  matTooltip="In andere Einheit verschieben"
+                  [matMenuTriggerFor]="einheitenMenue"
+                >
+                  <mat-icon>move_down</mat-icon>
+                </button>
+                <mat-menu #einheitenMenue="matMenu">
+                  @for (ziel of andereEinheiten(); track ziel.einheitId) {
+                    <button
+                      mat-menu-item
+                      type="button"
+                      (click)="
+                        eintragVerschoben.emit({
+                          eintragId: zeile.eintrag.id,
+                          zielEinheitId: ziel.einheitId,
+                        })
+                      "
+                    >
+                      <mat-icon>local_shipping</mat-icon>
+                      <span>{{ ziel.bezeichnung }}</span>
+                    </button>
+                  }
+                </mat-menu>
+              }
               @if (zeile.eintrag.art !== 'wagen') {
                 <button
                   matIconButton

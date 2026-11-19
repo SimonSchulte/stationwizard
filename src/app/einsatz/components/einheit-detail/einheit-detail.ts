@@ -19,7 +19,7 @@ import {
   ABSCHNITT_FARBE_BEZEICHNUNG,
   AbschnittFarbe,
 } from '../../models/druck.model';
-import { KistenZiel } from '../../services/aufbau-bearbeiten';
+import { EinheitenZiel, KistenZiel } from '../../services/aufbau-bearbeiten';
 import { AufbauProblem, kisteWeichtAb } from '../../services/aufbau-abgleich';
 import { mengeText } from '../../services/aufbau-zettel';
 import { fotoVerkleinern } from '../../services/foto-verkleinern';
@@ -99,12 +99,19 @@ export class EinheitDetail {
   readonly probleme = input<readonly AufbauProblem[]>([]);
   /** Kisten des ganzen Aufbaus, in die sich ein loser Artikel legen lässt. */
   readonly aufbauKisten = input<readonly KistenZiel[]>([]);
+  /** Alle Einheiten des Aufbaus als Ziele für „In andere Einheit verschieben“. */
+  readonly einheitenZiele = input<readonly EinheitenZiel[]>([]);
+  /** Die anderen Einheiten (ohne diese) als Ziele. */
+  protected readonly andereEinheiten = computed(() =>
+    this.einheitenZiele().filter((z) => z.einheitId !== this.einheit().id),
+  );
 
   readonly geaendert = output<EinheitAenderung>();
   readonly eintragGeaendert = output<EintragAenderung>();
   readonly eintragEntfernt = output<string>();
   /** Ein loser Artikel (Eintrag-Id) soll als Position in eine Kiste des Aufbaus gelegt werden. */
   readonly eintragInKiste = output<{ eintragId: string; ziel: KistenZiel }>();
+  readonly eintragVerschoben = output<{ eintragId: string; zielEinheitId: string }>();
   readonly kisteHinzugefuegt = output<string>();
   readonly artikelHinzugefuegt = output<{ artikelId: string; menge: number }>();
   readonly freierArtikelHinzugefuegt = output<{

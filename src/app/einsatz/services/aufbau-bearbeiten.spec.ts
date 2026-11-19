@@ -23,6 +23,8 @@ import {
   kisteAbgleichen,
   kisteMitStammdatenVerknuepfen,
   eintragInKisteLegen,
+  eintragVerschieben,
+  einheitenZiele,
   kistenZiele,
   verschiebeImBaum,
   type BaumOrt,
@@ -140,6 +142,26 @@ describe('Aufbau bearbeiten', () => {
       inhalt: [{ artikelId: wasser.id, menge: 2 }],
     });
     expect(istAufbauInhalt(inhalt)).toBe(true);
+  });
+
+  it('verschiebt Artikel und Kisten zwischen Fahrzeug und Wagen, nicht aber Wagen', () => {
+    const a = testEinheit();
+    const b = testEinheit();
+    let inhalt = testAufbauInhalt([a, b]);
+    inhalt = freienArtikelHinzufuegen(inhalt, a.id, 'Leiter', 'Stück', 1);
+    inhalt = freieKisteHinzufuegen(inhalt, a.id, 'Werkzeug', 1);
+    const [artikel, kiste] = inhalt.einheiten[0]!.inhalt;
+    expect(einheitenZiele(inhalt).map((z) => z.einheitId)).toEqual([a.id, b.id]);
+
+    inhalt = eintragVerschieben(inhalt, a.id, artikel!.id, b.id);
+    inhalt = eintragVerschieben(inhalt, a.id, kiste!.id, b.id);
+    expect(inhalt.einheiten[0]!.inhalt).toEqual([]);
+    expect(inhalt.einheiten[1]!.inhalt.map((x) => x.id)).toEqual([artikel!.id, kiste!.id]);
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+
+    // dasselbe Ziel und ein unbekanntes Ziel ändern nichts
+    expect(eintragVerschieben(inhalt, b.id, artikel!.id, b.id)).toBe(inhalt);
+    expect(eintragVerschieben(inhalt, b.id, artikel!.id, testId(999))).toBe(inhalt);
   });
 
   it('befüllt eine freie Kiste mit freien und Katalog-Positionen', () => {
