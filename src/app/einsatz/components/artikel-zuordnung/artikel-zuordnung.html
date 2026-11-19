@@ -1,0 +1,32 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+  <mat-label>{{ beschriftung() }}</mat-label>
+  <input
+    matInput
+    autocomplete="off"
+    placeholder="Frei lassen"
+    [matAutocomplete]="auswahl"
+    [value]="anzeige()"
+    (input)="tippen($event)"
+    (blur)="verlassen()"
+  />
+  @if (wert()) {
+    <button
+      matIconButton
+      matSuffix
+      type="button"
+      aria-label="Zuordnung entfernen"
+      (click)="leeren()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  }
+  <mat-autocomplete
+    #auswahl="matAutocomplete"
+    [displayWith]="name"
+    (optionSelected)="waehlen($event.option.value)"
+  >
+    @for (option of treffer(); track option.id) {
+      <mat-option [value]="option.id">{{ option.name }}</mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>

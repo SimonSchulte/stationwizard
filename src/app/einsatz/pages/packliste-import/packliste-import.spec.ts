@@ -77,8 +77,8 @@ describe('PacklisteImport', () => {
     const { element } = await dateiWaehlen();
     expect(element.querySelector('.zahlen')?.textContent).toContain('1 Fahrzeuge');
     expect(element.querySelector('.zahlen')?.textContent).toContain('1 Wagen');
-    expect(element.querySelector('.lager')?.textContent).toContain('Technik');
-    expect(element.querySelector('.lager')?.textContent).toContain('Regal');
+    expect(element.querySelector('.zuordnung')?.textContent).toContain('Technik');
+    expect(element.querySelector('.zuordnung')?.textContent).toContain('Regal');
     expect(element.querySelector<HTMLInputElement>('.titel input')?.value).toBe('Packliste Test');
   });
 
@@ -101,5 +101,38 @@ describe('PacklisteImport', () => {
     expect(trommel).toContain(`"platzId":"${lager[0]!.plaetze[0]!.id}"`);
     expect(navigieren).toHaveBeenCalledWith(['/einsatzplanung/aufbau-vorlagen', liste[0]!.id]);
     expect(meldungen.fehler).not.toHaveBeenCalled();
+  });
+
+  it('ordnet Lagerort und Artikel dem Bestand zu', async () => {
+    const lagerId = '00000000-0000-4000-8000-000000000001';
+    const artikelId = '00000000-0000-4000-8000-000000000002';
+    await stammdaten.speichereLager({ id: lagerId, name: 'Werkstatt', plaetze: [] }, null);
+    await stammdaten.speichereArtikel(
+      { id: artikelId, name: 'Kabeltrommel 50 m', einheit: 'Stück', lagerId },
+      null,
+    );
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const { fixture, element } = await dateiWaehlen();
+    const komponente = fixture.componentInstance as unknown as {
+      lagerGewaehlt(schluessel: string, id: string): void;
+      artikelGewaehlt(schluessel: string, id: string | null): void;
+    };
+    komponente.lagerGewaehlt('technik', lagerId);
+    komponente.artikelGewaehlt('kabeltrommel', artikelId);
+    fixture.detectChanges();
+    element.querySelector('form.anlegen')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await fixture.whenStable();
+
+    const lager = await stammdaten.ladeLager();
+    expect(lager.map((l) => [l.name, l.plaetze.map((p) => p.name)])).toEqual([
+      ['Werkstatt', ['Regal']],
+    ]);
+    const liste = await vorlagen.ladeVorlagen();
+    const gespeichert = JSON.stringify((await vorlagen.ladeVorlage(liste[0]!.id))?.daten.inhalt);
+    expect(gespeichert).toContain(`"art":"artikel","id"`);
+    expect(gespeichert).toContain(`"artikelId":"${artikelId}"`);
+    expect(gespeichert).not.toContain('"name":"Kabeltrommel"');
+    expect(gespeichert).toContain(`"lagerId":"${lagerId}"`);
   });
 });

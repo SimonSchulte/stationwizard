@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AufbauKistenEintrag } from '../models/aufbau.model';
-import { baueAufbauInhalt } from './packliste-aufbau';
+import { baueAufbauInhalt, sammleArtikelNamen } from './packliste-aufbau';
 import { istAufbauInhalt } from './aufbau-pruefung';
 import { liesMenge, leitePacklisteAb, PacklisteZeile } from './packliste-import';
 
@@ -166,6 +166,29 @@ describe('baueAufbauInhalt', () => {
     const trommel = wagen?.art === 'wagen' ? wagen.einheit.inhalt.at(-1) : undefined;
     expect(trommel).toMatchObject({ art: 'frei', name: 'Kabeltrommel' });
     expect(trommel && 'platzId' in trommel).toBe(true);
+  });
+
+  it('macht zugeordnete Artikel zu Katalogeinträgen und addiert gleiche Artikel je Kiste', () => {
+    const plan = leitePacklisteAb(beispiel()).plan;
+    const namen = sammleArtikelNamen(plan);
+    expect(namen.length).toBeGreaterThan(0);
+    const erster = namen[0]!.name;
+    const artikel = {
+      id: '00000000-0000-4000-8000-0000000000aa',
+      name: erster,
+      einheit: 'Stück',
+      lagerId: null,
+      platzId: null,
+      version: 1,
+      geaendertAm: '',
+      geaendertVon: '',
+    } as never;
+    const inhalt = baueAufbauInhalt(plan, aufloesen, (n) =>
+      n.toLowerCase() === erster.toLowerCase() ? artikel : undefined,
+    );
+    expect(istAufbauInhalt(inhalt)).toBe(true);
+    expect(JSON.stringify(inhalt)).toContain('00000000-0000-4000-8000-0000000000aa');
+    expect(JSON.stringify(inhalt)).not.toContain(`"name":"${erster}"`);
   });
 
   it('lässt den Platz weg, wenn es kein Lager gibt', () => {
