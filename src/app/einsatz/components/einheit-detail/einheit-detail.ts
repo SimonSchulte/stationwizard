@@ -122,6 +122,8 @@ export class EinheitDetail {
   /** Eine freie Kistenposition soll in den Katalog übernommen werden. */
   readonly freiePositionUebernommen = output<KistePositionEntfernung>();
   readonly kisteAbgeglichen = output<string>();
+  /** Eine freie Kiste (Eintrag-Id) soll in die Kisten-Stammdaten übernommen werden. */
+  readonly kisteUebernommen = output<string>();
   readonly entfernt = output<void>();
   readonly fotoFehler = output<string>();
 

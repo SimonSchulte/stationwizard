@@ -252,6 +252,27 @@ export function freiePositionVerknuepfen(
   });
 }
 
+/**
+ * Verknüpft eine freie Kiste des Aufbaus mit einer Stammdaten-Kiste (`kisteId`). Mit `positionen` ersetzt sie
+ * den Inhalt (nach der Übernahme in die Stammdaten sind alle Positionen Katalogartikel); ohne bleibt die
+ * Momentaufnahme unverändert, `kisteWeichtAb()` meldet dann Unterschiede.
+ */
+export function kisteMitStammdatenVerknuepfen(
+  inhalt: AufbauInhalt,
+  einheitId: string,
+  eintragId: string,
+  kisteId: string,
+  positionen?: AufbauKistenPosition[],
+): AufbauInhalt {
+  return ersetzeEinheit(inhalt, einheitId, (e) => ({
+    ...e,
+    inhalt: e.inhalt.map((x): AufbauEintrag => {
+      if (x.id !== eintragId || x.art !== 'kiste') return x;
+      return { ...x, kisteId, ...(positionen ? { inhalt: positionen } : {}) };
+    }),
+  }));
+}
+
 /** Eine Stelle im Baum der Packliste (Zeile eines Fahrzeugs, Wagens oder einer Kiste). */
 export interface BaumOrt {
   art: 'einheit' | 'kiste';

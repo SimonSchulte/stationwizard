@@ -631,6 +631,7 @@ Knopf „In den Artikelkatalog übernehmen“ zum Katalogartikel machen (`Aufbau
 Artikel nach Rückfrage an – Einheit nur bei exakter Übereinstimmung mit `ARTIKEL_EINHEITEN`, sonst „Stück“, ohne
 Heimatlager (bei einem freien Artikel das Quelllager). Der Katalog wird **sofort** geschrieben, unabhängig vom „Speichern“ des Aufbaus; der Aufbau-Eintrag
 behält Id, Menge, Bemerkung und Phase und wird erst mit „Speichern“ umgestellt.
+**Übernahme einer freien Kiste in die Kisten-Stammdaten** (Knopf an der Kistenzeile im `EinheitDetail`, solange `kisteId` leer ist; `AufbauEditor.kisteUebernehmen()`, `kisteMitStammdatenVerknuepfen()`): Gibt es den Namen schon (`StammdatenStoreService.kisteFinden()`), wird nach Rückfrage nur `kisteId` gesetzt (Momentaufnahme bleibt, `kisteWeichtAb()` zeigt Unterschiede). Sonst legt die Seite die Kiste nach Rückfrage mit Heimatlager, Platz und Inhalt in **einem** Schreibvorgang an (`kisteMitInhaltAnlegen()`); freie Positionen werden dabei Katalogartikel (gleichnamige verwendet, fehlende neu angelegt, Einheit „Stück“ ohne exakte Entsprechung), gleiche Artikel addieren sich. Alles wird sofort geschrieben, unabhängig vom „Speichern“ des Aufbaus; der Aufbau-Eintrag erhält die neue `kisteId` und den aufgelösten Inhalt.
 
 **Aufbau-Editor (Stufe 3, Frontend)** (`einsatz/pages/aufbau-editor/`, Routen `einsatz/:id/aufbau` und
 `aufbau-vorlagen/:id|neu`): Der Zustand liegt im `AufbauEditorStoreService` (Entwurf, Basislinie, Rückgängig,

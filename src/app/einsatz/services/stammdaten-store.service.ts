@@ -300,6 +300,36 @@ export class StammdatenStoreService {
     });
   }
 
+  /** Die Kiste mit diesem Namen (ohne Groß-/Kleinschreibung und überzählige Leerzeichen). */
+  kisteFinden(name: string): Kiste | undefined {
+    const schluessel = lagerSchluessel(name);
+    return this.kisten().find((k) => lagerSchluessel(k.name) === schluessel);
+  }
+
+  /** Legt eine Kiste samt Heimatlager und Inhalt in einem Schreibvorgang an (`null` bei Ablehnung oder Fehler). */
+  async kisteMitInhaltAnlegen(eingabe: Omit<KisteEingabe, 'id'>): Promise<Kiste | null> {
+    const name = eingabe.name.trim().replace(/\s+/g, ' ');
+    if (name === '') return null;
+    if (this.kisten().length >= STAMMDATEN_GRENZEN.kisten) {
+      this.abgelehnt(`Es sind höchstens ${STAMMDATEN_GRENZEN.kisten} Kisten möglich.`);
+      return null;
+    }
+    if (this.kisteNameVergeben(name, null)) {
+      this.abgelehnt('Diese Kiste gibt es schon.');
+      return null;
+    }
+    let angelegt: Kiste | null = null;
+    await this.ausfuehren(null, async () => {
+      const neu = await this.storage.speichereKiste(
+        { ...eingabe, id: crypto.randomUUID(), name },
+        null,
+      );
+      this.kisten.update((liste) => nachName([...liste, neu]));
+      angelegt = neu;
+    });
+    return angelegt;
+  }
+
   /** Legt eine leere Kiste an und liefert sie zurück (`null` bei Ablehnung oder Fehler). */
   async kisteAnlegen(name: string): Promise<Kiste | null> {
     const bereinigt = name.trim().replace(/\s+/g, ' ');

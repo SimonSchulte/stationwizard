@@ -137,6 +137,17 @@
                   Übernehmen
                 </button>
               }
+              @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.kisteId === null) {
+                <button
+                  matIconButton
+                  type="button"
+                  aria-label="In die Kisten-Stammdaten übernehmen"
+                  matTooltip="In die Kisten-Stammdaten übernehmen"
+                  (click)="kisteUebernommen.emit(zeile.eintrag.id)"
+                >
+                  <mat-icon>playlist_add</mat-icon>
+                </button>
+              }
               @if (zeile.eintrag.art === 'kiste' && zeile.eintrag.inhalt.length === 0) {
                 @if (zeile.eintrag.standardInhalt) {
                   <span class="marke">Standard-Kiste</span>

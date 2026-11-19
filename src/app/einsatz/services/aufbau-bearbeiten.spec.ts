@@ -21,6 +21,7 @@ import {
   freienArtikelVerknuepfen,
   freienArtikelHinzufuegen,
   kisteAbgleichen,
+  kisteMitStammdatenVerknuepfen,
   eintragInKisteLegen,
   kistenZiele,
   verschiebeImBaum,
@@ -123,6 +124,22 @@ describe('Aufbau bearbeiten', () => {
     expect(inhalt.einheiten[0]!.inhalt[1]).toMatchObject({ lagerId: lager.id });
     expect(istAufbauInhalt(inhalt)).toBe(true);
     expect(zaehleAufbauInhalt(inhalt)).toMatchObject({ kisten: 2, positionen: 1 });
+  });
+
+  it('verknüpft eine freie Kiste mit einer Stammdaten-Kiste und ersetzt auf Wunsch den Inhalt', () => {
+    const e = testEinheit();
+    let inhalt = freieKisteHinzufuegen(testAufbauInhalt([e]), e.id, 'Werkzeug', 1);
+    const eintragId = inhalt.einheiten[0]!.inhalt[0]!.id;
+    const ziel = '00000000-0000-4000-8000-0000000000cc';
+    inhalt = kisteMitStammdatenVerknuepfen(inhalt, e.id, eintragId, ziel);
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({ kisteId: ziel, inhalt: [] });
+    inhalt = kisteMitStammdatenVerknuepfen(inhalt, e.id, eintragId, ziel, [
+      { artikelId: wasser.id, menge: 2, bemerkung: '' },
+    ]);
+    expect(inhalt.einheiten[0]!.inhalt[0]).toMatchObject({
+      inhalt: [{ artikelId: wasser.id, menge: 2 }],
+    });
+    expect(istAufbauInhalt(inhalt)).toBe(true);
   });
 
   it('befüllt eine freie Kiste mit freien und Katalog-Positionen', () => {
