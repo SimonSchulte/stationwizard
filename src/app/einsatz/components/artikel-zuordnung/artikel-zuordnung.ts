@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { lagerSchluessel } from '../../services/lager';
+import { aehnlichkeit } from '../../services/name-abgleich';
 
 export interface ZuordnungsOption {
   id: string;
@@ -34,6 +35,8 @@ export class ArtikelZuordnung {
   readonly optionen = input.required<readonly ZuordnungsOption[]>();
   readonly wert = input<string | null>(null);
   readonly beschriftung = input('Artikel aus dem Bestand');
+  /** Gefundener Name: ohne eigene Eingabe stehen die ähnlichsten Einträge oben. */
+  readonly vorschlagFuer = input('');
   readonly gewaehlt = output<string | null>();
 
   protected readonly eingabe = signal<string | null>(null);
@@ -43,14 +46,30 @@ export class ArtikelZuordnung {
   );
   protected readonly anzeige = computed(() => this.eingabe() ?? this.gewaehlterName());
   protected readonly treffer = computed(() => {
-    const suche = lagerSchluessel(this.eingabe() ?? '');
+    const eingabe = this.eingabe();
+    const suche = lagerSchluessel(eingabe ?? '');
     const alle = this.optionen();
-    const passend =
-      suche === '' || this.eingabe() === this.gewaehlterName()
-        ? alle
-        : alle.filter((o) => lagerSchluessel(o.name).includes(suche));
-    return passend.slice(0, MAX_TREFFER);
+    let passend: readonly ZuordnungsOption[];
+    if (eingabe !== null && suche !== '') {
+      passend = alle.filter((o) => lagerSchluessel(o.name).includes(suche));
+    } else if (this.vorschlagFuer() !== '') {
+      const name = this.vorschlagFuer();
+      passend = alle
+        .map((o) => ({ o, p: aehnlichkeit(name, o.name) }))
+        .sort((x, y) => y.p - x.p)
+        .map((x) => x.o);
+    } else {
+      passend = alle;
+    }
+    return {
+      liste: passend.slice(0, MAX_TREFFER),
+      mehr: Math.max(0, passend.length - MAX_TREFFER),
+    };
   });
+
+  protected fokus(ereignis: Event): void {
+    (ereignis.target as HTMLInputElement).select();
+  }
 
   protected readonly name = (id: string | null): string =>
     this.optionen().find((o) => o.id === id)?.name ?? '';

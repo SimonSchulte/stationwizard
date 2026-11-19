@@ -19,6 +19,7 @@ import { AUFBAU_GRENZEN } from '../../models/aufbau.model';
 import { Artikel, Kiste, Lager } from '../../models/stammdaten.model';
 import { AufbauVorlagenStoreService } from '../../services/aufbau-vorlagen-store.service';
 import { lagerSchluessel } from '../../services/lager';
+import { besterTreffer } from '../../services/name-abgleich';
 import { baueAufbauInhalt, LagerAufloesung, sammleArtikel } from '../../services/packliste-aufbau';
 import { PacklisteLeser } from '../../services/packliste-excel';
 import { leitePacklisteAb, PacklisteErgebnis } from '../../services/packliste-import';
@@ -71,13 +72,15 @@ export class PacklisteImport implements OnInit {
   protected readonly lagerVorschau = computed(() => {
     const plan = this.ergebnis()?.plan;
     if (!plan) return [];
-    const nachName = new Map(this.stammdaten.lager().map((l) => [lagerSchluessel(l.name), l]));
     const nachId = new Map(this.stammdaten.lager().map((l) => [l.id, l]));
     const wahl = this.lagerWahl();
     return plan.lager.map((l) => {
       const schluessel = lagerSchluessel(l.name);
       const gewaehlt = wahl.get(schluessel);
-      const ziel = gewaehlt === undefined ? nachName.get(schluessel) : nachId.get(gewaehlt);
+      const ziel =
+        gewaehlt === undefined
+          ? besterTreffer(l.name, this.stammdaten.lager())
+          : nachId.get(gewaehlt);
       const bekannt = new Set((ziel?.plaetze ?? []).map((p) => lagerSchluessel(p.name)));
       return {
         name: l.name,
@@ -115,13 +118,13 @@ export class PacklisteImport implements OnInit {
       ...a,
       artikelId: artikelWahl.has(a.zeile)
         ? artikelWahl.get(a.zeile)!
-        : (this.stammdaten.artikelFinden(a.name)?.id ?? null),
+        : (besterTreffer(a.name, this.stammdaten.artikel())?.id ?? null),
       kisteId: a.inListenKiste
         ? null
         : kistenWahl.has(a.zeile)
           ? kistenWahl.get(a.zeile)!
           : a.kisteHinweis
-            ? (this.kisteFinden(a.kisteHinweis)?.id ?? null)
+            ? (besterTreffer(a.kisteHinweis, this.stammdaten.kisten())?.id ?? null)
             : null,
     }));
   });
@@ -158,11 +161,6 @@ export class PacklisteImport implements OnInit {
     this.kistenWahl.update((alt) => new Map(alt).set(zeile, kisteId));
   }
 
-  private kisteFinden(name: string): Kiste | undefined {
-    const schluessel = lagerSchluessel(name);
-    return this.stammdaten.kisten().find((k) => lagerSchluessel(k.name) === schluessel);
-  }
-
   protected async dateiGewaehlt(ereignis: Event): Promise<void> {
     const feld = ereignis.target as HTMLInputElement;
     const datei = feld.files?.[0];
@@ -195,11 +193,9 @@ export class PacklisteImport implements OnInit {
       await this.stammdaten.laden();
       const lagerNachName = new Map<string, Lager>();
       for (const l of ergebnis.plan.lager) {
-        const gewaehlt = this.lagerWahl().get(lagerSchluessel(l.name));
-        // Ein gewähltes Lager bekommt fehlende Plätze; sonst gilt der Name (gleichnamiges Lager oder neu).
-        const zielName = gewaehlt
-          ? (this.stammdaten.lager().find((x) => x.id === gewaehlt)?.name ?? l.name)
-          : l.name;
+        // Das (vorbelegte oder gewählte) Lager bekommt fehlende Plätze; ohne Ziel entsteht ein neues.
+        const ziel = this.lagerVorschau().find((v) => v.schluessel === lagerSchluessel(l.name));
+        const zielName = this.stammdaten.lager().find((x) => x.id === ziel?.zielId)?.name ?? l.name;
         const lager = await this.stammdaten.lagerMitPlaetzenSicherstellen(zielName, l.plaetze);
         if (!lager) {
           this.meldungen.fehler(

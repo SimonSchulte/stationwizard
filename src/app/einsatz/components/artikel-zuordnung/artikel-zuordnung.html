@@ -3,12 +3,14 @@
   <input
     matInput
     autocomplete="off"
-    placeholder="Frei lassen"
+    placeholder="Suchen …"
     [matAutocomplete]="auswahl"
     [value]="anzeige()"
     (input)="tippen($event)"
+    (focus)="fokus($event)"
     (blur)="verlassen()"
   />
+  <mat-icon matPrefix aria-hidden="true">search</mat-icon>
   @if (wert()) {
     <button
       matIconButton
@@ -25,8 +27,11 @@
     [displayWith]="name"
     (optionSelected)="waehlen($event.option.value)"
   >
-    @for (option of treffer(); track option.id) {
+    @for (option of treffer().liste; track option.id) {
       <mat-option [value]="option.id">{{ option.name }}</mat-option>
+    }
+    @if (treffer().mehr > 0) {
+      <mat-option disabled>… {{ treffer().mehr }} weitere – Suche eingrenzen</mat-option>
     }
   </mat-autocomplete>
 </mat-form-field>

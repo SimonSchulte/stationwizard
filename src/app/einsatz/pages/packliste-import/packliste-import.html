@@ -127,7 +127,7 @@
                 <span class="plaetze">
                   {{ a.inListenKiste ? 'In Kiste' : 'Lagerort' }}: {{ a.ort }}
                   @if (a.kisteHinweis) {
-                    , {{ a.kisteHinweis }}
+                    · Kiste: {{ a.kisteHinweis }}
                   }
                 </span>
               }
@@ -135,6 +135,7 @@
             <app-artikel-zuordnung
               [optionen]="artikelOptionen()"
               [wert]="a.artikelId"
+              [vorschlagFuer]="a.name"
               (gewaehlt)="artikelGewaehlt(a.zeile, $event)"
             />
             @if (!a.inListenKiste) {
@@ -142,6 +143,7 @@
                 beschriftung="Kiste aus dem Bestand"
                 [optionen]="kistenOptionen()"
                 [wert]="a.kisteId"
+                [vorschlagFuer]="a.kisteHinweis ?? ''"
                 (gewaehlt)="kisteGewaehlt(a.zeile, $event)"
               />
             } @else {
