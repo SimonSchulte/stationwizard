@@ -37,7 +37,7 @@ Unterschriftsanfragen (nur Aufgabenbereich), ein richtiges Backend.
 | 9   | Eine eingefügte Bildunterschrift gilt als ausreichend („digital unterschrieben“). Der Ausdruck mit Handunterschrift bleibt zusätzlich möglich.                                                                                                                                                                                        |
 | 10  | Senden und Einreichen sind ein Schritt: „Einreichen per E-Mail“ versendet und setzt erst nach erfolgreichem Versand die Stufe „Eingereicht“. Zusätzlich gibt es reines Senden ohne Stufenwechsel.                                                                                                                                     |
 | 11  | Im Sendedialog wählt die Person, ob die Angebote mitgehen (Standard: an). Die Meldung als PDF geht immer mit. Ob das Free-Tier-CPU-Limit das trägt, zeigt Phase V0; bis dahin ist die Option ausgeblendet.                                                                                                                            |
-| 12  | Eingang über Cloudflare Email Routing mit Email Worker (kein Resend Inbound, kein neuer öffentlicher Pfad). Domain `fahrzeuge.hiorg-wache.com`, Sammelpostfach `angebote@fahrzeuge.hiorg-wache.com`. Wie Fahrzeugadressen dort funktionieren, steht in Abschnitt 7 und ist offen (E2).                                                |
+| 12  | Eingang über Cloudflare Email Routing mit Email Worker (kein Resend Inbound, kein neuer öffentlicher Pfad). **Variante A:** Catch-all auf der Hauptdomain, Fahrzeugadressen `<kürzel>@hiorg-wache.com`, Sammelpostfach `angebote@hiorg-wache.com`. Details in Abschnitt 7.                                                            |
 | 13  | Aufbewahrung: Nach der Zuordnung zu einem Vorgang wird die Rohmail gelöscht. Der Inhalt bleibt am Vorgang (gewählte Anhänge als Angebote, dazu Betreff, Absender, Datum und Text der Mail als Notiz am Angebot, höchstens 5.000 Zeichen). Offene Mails werden nach 30 Tagen gelöscht, verworfene sofort (Vorschlag, nicht bestätigt). |
 | 14  | Das Postfach sehen und bearbeiten Zugführung (alle Fahrzeuge) und Gruppenführungen für die Fahrzeuge ihrer Gruppe, mit der Prüfung aus `rollen.ts`. Mails ohne Fahrzeug (Sammelpostfach) sieht nur die Zugführung.                                                                                                                    |
 | 15  | Jeder Vorgang hängt an genau einem Fahrzeug. Gerätesatz und Material stehen als Text in der Bezeichnung.                                                                                                                                                                                                                              |
@@ -45,10 +45,9 @@ Unterschriftsanfragen (nur Aufgabenbereich), ein richtiges Backend.
 
 ## 3. Offene Entscheidungen
 
-| #   | Frage                                                                                                                                                                                  | Empfehlung                                                                                                                                                                                                                            |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| E2  | Wie sehen die Fahrzeugadressen aus? Auf einer Subdomain gibt es bei Cloudflare **keine Catch-all-Regel** (nur für die Hauptdomain, laut Doku), jede Adresse braucht eine eigene Regel. | Siehe Abschnitt 7, Varianten A bis C. Empfehlung: Variante C (eine Regel für `angebote@`, Fahrzeug per Plus-Adresse `angebote+gw-san@…`), wenn der Test in V0 zeigt, dass Plus-Adressen auf der Subdomain ankommen. Sonst Variante A. |
-| E7  | R2 ist im Konto nicht aktiviert (siehe Abschnitt 8).                                                                                                                                   | Du aktivierst R2 im Dashboard (Zahlungsmittel nötig, im Free-Kontingent kostenlos) oder bestätigst die Aktivierung, wenn ich sie anstoße.                                                                                             |
+| #   | Frage                                                | Empfehlung                                                                                                                                |
+| --- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| E7  | R2 ist im Konto nicht aktiviert (siehe Abschnitt 8). | Du aktivierst R2 im Dashboard (Zahlungsmittel nötig, im Free-Kontingent kostenlos) oder bestätigst die Aktivierung, wenn ich sie anstoße. |
 
 ## 4. Architektur
 
@@ -182,8 +181,8 @@ oder Stufen, sondern nur eine Liste zum Ansehen. Ein Angebot entsteht erst durch
 Zuordnung einer angemeldeten Person (`hochgeladen_von`). Vorschau-Inhalte nie als HTML
 rendern: Text aus der Mail als Klartext, Anhänge nur als Download oder PDF-Ansicht.
 
-**Adressen (E2, offen).** Gewünscht sind Fahrzeugadressen plus ein Sammelpostfach unter
-`fahrzeuge.hiorg-wache.com`. Cloudflare bietet Catch-all-Regeln nur für die Hauptdomain, auf
+**Adressen (entschieden: Variante A).** Gewünscht waren Fahrzeugadressen plus ein Sammelpostfach, zunächst unter
+`fahrzeuge.hiorg-wache.com`; dort geht es nicht gut. Cloudflare bietet Catch-all-Regeln nur für die Hauptdomain, auf
 Subdomains braucht jede Adresse eine eigene Regel (Doku „Configure subdomains“). Varianten:
 
 | Variante | Adressen                                                                                                                                           | Aufwand und Folgen                                                                                                                                                                                                                                                                                             |
@@ -191,6 +190,16 @@ Subdomains braucht jede Adresse eine eigene Regel (Doku „Configure subdomains�
 | A        | `<kürzel>@hiorg-wache.com` und `angebote@hiorg-wache.com`, **Catch-all auf der Hauptdomain**                                                       | Einfach und für beliebig viele Fahrzeuge. Email Routing setzt MX- und SPF-Einträge am Hauptnamen. Dort liegt heute **keine** MX-Regel, es gäbe also keinen Konflikt mit vorhandener Mail, aber später keine andere Mail am Hauptnamen ohne Umbau. Resend-Versand bleibt unberührt (DKIM und `send.`-Einträge). |
 | B        | `<kürzel>@fahrzeuge.hiorg-wache.com`, **eine Regel je Adresse**                                                                                    | Neue Fahrzeuge brauchen eine neue Regel (per API-Token im Worker oder per `addresses` in `wrangler.toml` und Deploy). Ein Token mit Berechtigung für Email Routing im Worker ist ein weiteres Geheimnis mit großer Reichweite. Nicht empfohlen.                                                                |
 | C        | **Eine** Regel für `angebote@fahrzeuge.hiorg-wache.com`, das Fahrzeug steht als Plus-Adresse im Namen: `angebote+gw-san@fahrzeuge.hiorg-wache.com` | Keine Regelpflege. Setzt voraus, dass Plus-Adressen auf der Subdomain ankommen (Zonen-Einstellung `support_subaddress`, derzeit aus, und ein Test in V0). Adresse etwas weniger hübsch.                                                                                                                        |
+
+Gewählt ist A. Folgen: Email Routing wird für die Zone am Hauptnamen eingerichtet (MX
+`route1..3.mx.cloudflare.net`, SPF-TXT, DKIM-TXT `cf2024-1._domainkey`), die Catch-all-Regel
+leitet an den Worker. Die vorhandenen Resend-Einträge (`send.`, `rsend.`,
+`resend._domainkey`) bleiben unberührt. Der Hauptname bekommt damit zum ersten Mal einen SPF-
+und MX-Eintrag, beide nur für Email Routing. Der Worker braucht dafür einen `email`-Handler
+und muss vor dem Anlegen der Regel deployt sein. Die Regel lässt sich per API oder im
+Dashboard setzen (`PUT /zones/<zone>/email/routing/rules/catch_all`, Aktion `worker`).
+Adressformat ohne Plus-Adresse. Reservierte Namen für Kürzel (zusätzlich zur Liste unten):
+`www`, `mail`, `send`, `rsend`, `noreply`, `info`.
 
 In allen Fällen gilt: `postfach_kuerzel` je Fahrzeug (kleingeschrieben, `a-z0-9-`, 2 bis 30
 Zeichen, eindeutig, reservierte Namen wie `angebote`, `postmaster`, `abuse` gesperrt),
