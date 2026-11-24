@@ -17,6 +17,14 @@ import {
   Versandweg,
 } from '../../models/systemkonfiguration.model';
 import { SystemkonfigurationStoreService } from '../../services/systemkonfiguration-store.service';
+import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
+import {
+  baueKontakte,
+  kontakteAlsCsv,
+  kontakteAlsVcard,
+} from '../../../vorgaenge/services/postfach-kontakte';
+import { PostfachStoreService } from '../../../vorgaenge/services/postfach-store.service';
+import { MeldungsDienst } from '../../../kern/zustand/meldungs-dienst';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
@@ -47,6 +55,8 @@ import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 export class Systemkonfiguration implements OnInit {
   private readonly store = inject(SystemkonfigurationStoreService);
   private readonly benutzerStore = inject(BenutzerverwaltungStoreService);
+  private readonly postfach = inject(PostfachStoreService);
+  private readonly meldungen = inject(MeldungsDienst);
 
   readonly versandwege = VERSANDWEGE;
   readonly versandwegLabel = VERSANDWEG_LABEL;
@@ -82,6 +92,33 @@ export class Systemkonfiguration implements OnInit {
   ngOnInit(): void {
     void this.store.laden();
     void this.benutzerStore.listeLaden();
+    void this.postfach.adressenLaden();
+  }
+
+  /** Erst anbietbar, wenn die Adressen geladen sind. */
+  readonly kontakteBereit = computed(() => this.postfach.adressen() !== null);
+
+  /** Alle Postfachadressen als Kontakte zum Import in Outlook & Co. */
+  kontakteHerunterladen(format: 'csv' | 'vcf'): void {
+    const adressen = this.postfach.adressen();
+    if (!adressen) {
+      this.meldungen.warnung('Die Adressen sind noch nicht geladen.');
+      return;
+    }
+    const kontakte = baueKontakte(adressen);
+    if (format === 'csv') {
+      dateiHerunterladen(
+        kontakteAlsCsv(kontakte),
+        'postfach-kontakte.csv',
+        'text/csv;charset=utf-8',
+      );
+    } else {
+      dateiHerunterladen(
+        kontakteAlsVcard(kontakte),
+        'postfach-kontakte.vcf',
+        'text/vcard;charset=utf-8',
+      );
+    }
   }
 
   organisationAendern(

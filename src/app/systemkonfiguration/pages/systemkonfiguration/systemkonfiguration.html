@@ -350,6 +350,33 @@
           </mat-form-field>
         </div>
       }
+
+      <div class="tab-inhalt">
+        <h3 class="gruppentitel">Postfach-Adressen als Kontakte</h3>
+        <p class="beschreibung">
+          Jedes Fahrzeug hat zwei Adressen für Angebote, abgeleitet aus Kennzeichen und Funkrufname
+          (ohne „72“); dazu das Sammelpostfach. Die Liste lässt sich in Outlook oder ein anderes
+          Adressbuch importieren.
+        </p>
+        <div class="aktionen">
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="!kontakteBereit()"
+            (click)="kontakteHerunterladen('csv')"
+          >
+            <mat-icon>download</mat-icon> Kontakte als CSV (Outlook)
+          </button>
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="!kontakteBereit()"
+            (click)="kontakteHerunterladen('vcf')"
+          >
+            <mat-icon>download</mat-icon> Kontakte als vCard (.vcf)
+          </button>
+        </div>
+      </div>
     </mat-tab>
   </mat-tab-group>
 </div>
