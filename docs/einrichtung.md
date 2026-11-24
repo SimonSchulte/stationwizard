@@ -177,7 +177,7 @@ Einrichtung läuft der Rest der Anwendung unverändert.
 1. **Migrationen vor dem Deployment einspielen** (der Worker liest die neuen Tabellen):
    `worker/migrations/benutzer/0028_benutzer_unterschriften.sql`, `0029_schadensmeldung_vorlage.sql` (`BENUTZER_DB`),
    `worker/migrations/fahrzeuge/0027_vorgaenge.sql`, `0030_postfach.sql` (`FAHRZEUGE_DB`).
-2. **R2 aktivieren** (Cloudflare-Dashboard → R2; der Tarif verlangt dafür eine Zahlungsmethode, das Kontingent des
+2. **R2 aktivieren (erledigt)** (Cloudflare-Dashboard → R2; der Tarif verlangt dafür eine Zahlungsmethode, das Kontingent des
    Free-Tarifs genügt) und den Bucket `stationwizard-vorgaenge` anlegen. Danach den `[[r2_buckets]]`-Block in
    `worker/wrangler.toml` aktivieren. Der Bucket bleibt privat; es gibt keinen öffentlichen Zugriff.
 3. **Email Routing** für die Zone `hiorg-wache.com` aktivieren und einen **Catch-all** mit der Aktion „Send to a

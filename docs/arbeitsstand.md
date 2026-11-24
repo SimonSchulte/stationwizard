@@ -3879,7 +3879,7 @@ Abweichungen vom Konzept: kein Endpunkt `GET /api/fahrzeuge/<id>/vorgaenge` (die
 Reiter filtert); die Adressen je Fahrzeug liegen in `postfach_adressen` mit Kürzel; die Notiz zu einem Angebot hat höchstens
 2000 statt 5000 Zeichen; die Beiblatt-Schwelle (550 Zeichen Sachverhalt) ist geschätzt.
 
-**Nicht ausgeführt / offen:** R2 ist im Konto nicht aktiviert, der Bucket und das `[[r2_buckets]]`-Binding fehlen; Email Routing
+**Nicht ausgeführt / offen:** R2 ist aktiviert, der private Bucket `stationwizard-vorgaenge` angelegt und das Binding in `wrangler.toml` aktiv (noch nicht deployt, Zugriff aus dem Worker nicht live erprobt); Email Routing
 und der Catch-all sind nicht eingerichtet (nichts in Cloudflare geändert, nur lesend geprüft); der `email()`-Handler und seine
 CPU-Zeit im Free-Tarif sind nicht gegen echte Mails gemessen; der Versand mit PDF-Anhang über Resend ist nicht live erprobt;
 die Migrationen 0027 bis 0030 sind nicht gegen die echte D1-Datenbank eingespielt; Sichtprüfung im Browser auf Desktop und
