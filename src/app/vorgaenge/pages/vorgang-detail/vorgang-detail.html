@@ -42,10 +42,22 @@
             Die erste Stufe ist erreicht, sobald die Schadensmeldung vollständig ausgefüllt ist.
           </span>
         } @else if (naechste() === STUFE_EINGEREICHT) {
-          <a matButton="filled" [routerLink]="['/vorgaenge', d.vorgang.id, 'meldung']">
-            Zur Meldung: unterschreiben und einreichen
-          </a>
-          <span class="hinweis"> Pflichtunterschriften {{ pflichtUnterschriften() }} von 2. </span>
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="pflichtUnterschriften() < 2 || d.angebote.length < 1 || store.arbeitet()"
+            (click)="einreichen()"
+          >
+            <mat-icon>mail</mat-icon> Einreichen per E-Mail
+          </button>
+          @if (pflichtUnterschriften() < 2) {
+            <span class="hinweis">
+              Beide Pflichtunterschriften fehlen noch ({{ pflichtUnterschriften() }} von 2).
+              <a [routerLink]="['/vorgaenge', d.vorgang.id, 'meldung']">Zur Meldung</a>
+            </span>
+          } @else if (d.angebote.length < 1) {
+            <span class="hinweis">Ohne Angebot kann nicht eingereicht werden.</span>
+          }
         } @else {
           <button
             matButton="filled"

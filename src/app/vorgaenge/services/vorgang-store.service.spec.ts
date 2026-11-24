@@ -16,6 +16,7 @@ describe('VorgangStoreService', () => {
     entferneUnterschrift: vi.fn(),
     entferneAlleUnterschriften: vi.fn(),
     wechsleStufe: vi.fn(),
+    sende: vi.fn(),
   };
   let store: VorgangStoreService;
 
@@ -124,6 +125,37 @@ describe('VorgangStoreService', () => {
     storage.wechsleStufe.mockResolvedValue(testStand(testDarstellung(), '"2"'));
     expect(await store.stufeWechseln(1)).toBe(true);
     expect(storage.wechsleStufe).toHaveBeenCalledWith('v-1', 1, '"1"');
+  });
+
+  it('sendet mit der Version des Vorgangs und übernimmt den neuen Stand', async () => {
+    await geladen();
+    const neu = testDarstellung();
+    neu.vorgang.stufe = 2;
+    storage.sende.mockResolvedValue(testStand(neu, '"6"'));
+    const eingabe = {
+      modus: 'einreichen' as const,
+      pdf: 'JVBERg==',
+      empfaenger: ['a@example.test'],
+      angebote: [],
+      nachricht: '',
+    };
+    expect(await store.senden(eingabe)).toBe(true);
+    expect(storage.sende).toHaveBeenCalledWith('v-1', '"1"', eingabe);
+    expect(store.aktuell()?.daten.vorgang.stufe).toBe(2);
+  });
+
+  it('nennt bei einem unklaren Versand, dass nicht erneut gesendet werden soll', async () => {
+    await geladen();
+    storage.sende.mockRejectedValue(new WorkerFehler('x', 504, 'MAIL_VERSAND_ZEITLIMIT'));
+    const eingabe = {
+      modus: 'senden' as const,
+      pdf: 'x',
+      empfaenger: [],
+      angebote: [],
+      nachricht: '',
+    };
+    expect(await store.senden(eingabe)).toBe(false);
+    expect(store.aktionFehler()).toContain('nicht erneut senden');
   });
 
   it('lädt die Liste über alle Fahrzeuge in einem Aufruf', async () => {

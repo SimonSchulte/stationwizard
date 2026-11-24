@@ -93,6 +93,28 @@ export class ApiVorgangStorage {
     );
   }
 
+  async sende(
+    id: string,
+    version: string,
+    eingabe: {
+      modus: 'einreichen' | 'senden';
+      pdf: string;
+      empfaenger: string[];
+      angebote: string[];
+      nachricht: string;
+    },
+  ): Promise<VorgangMitVersion> {
+    return this.mitVersion(
+      await this.worker.anfragen(`${PFAD}/${encodeURIComponent(id)}/einreichen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'If-Match': version },
+        body: JSON.stringify(eingabe),
+        // Ein großer Körper (PDF und Anhänge) darf länger brauchen als ein gewöhnlicher Aufruf.
+        signal: AbortSignal.timeout(60_000),
+      }),
+    );
+  }
+
   async aufgaben(): Promise<AufgabeUnterschrift[]> {
     const antwort = await this.worker.json<{ unterschriften?: unknown }>(`${PFAD}/aufgaben`);
     if (!Array.isArray(antwort.unterschriften)) throw ungueltigeAntwort();

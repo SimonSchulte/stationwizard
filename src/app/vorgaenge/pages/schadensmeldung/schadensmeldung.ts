@@ -49,6 +49,7 @@ import {
 import { SCHADENSMELDUNG_MEDIENTYP } from '../../services/schadensmeldung-pdf';
 import { SchadensmeldungPdfService } from '../../services/schadensmeldung-pdf.service';
 import { VorgangStoreService } from '../../services/vorgang-store.service';
+import { VorgangVersandService } from '../../services/vorgang-versand.service';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 
 /**
@@ -87,6 +88,7 @@ export class Schadensmeldung {
   private readonly unterschriftDialog = inject(UnterschriftDialogDienst);
   private readonly benutzer = inject(Benutzerkontext);
   private readonly pdfDienst = inject(SchadensmeldungPdfService);
+  readonly versand = inject(VorgangVersandService);
   readonly store = inject(VorgangStoreService);
 
   readonly GRENZEN = MELDUNG_GRENZEN;
@@ -179,6 +181,10 @@ export class Schadensmeldung {
     } finally {
       this.pdfLaeuft.set(false);
     }
+  }
+
+  async senden(): Promise<void> {
+    await this.versand.senden();
   }
 
   async nachKonfliktNeuLaden(): Promise<void> {

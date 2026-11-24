@@ -34,8 +34,18 @@ export interface MailVersandKonfiguration {
   MAIL_API_TOKEN?: Zugangsdatum;
 }
 
+/** Ein Dateianhang; der Inhalt steht bereits Base64-kodiert da (der Anbieter verlangt es so). */
+export interface MailAnhang {
+  dateiname: string;
+  inhaltBase64: string;
+}
+
 export interface MailNachricht {
   an: string;
+  /** Weitere Empfänger derselben Nachricht, etwa bei der Meldung an mehrere Stellen. */
+  weitereEmpfaenger?: string[];
+  /** Nur der HTTP-Anbieter unterstützt Anhänge; Email Routing lehnt sie mit festem Code ab. */
+  anhaenge?: MailAnhang[];
   betreff: string;
   /** Rückfallebene für Clients ohne HTML; beide Teile tragen denselben Inhalt. */
   text: string;
@@ -59,7 +69,9 @@ export type VersandFehlerGrund =
   | 'zugang-abgelehnt'
   | 'abgelehnt'
   /** Weg ohne HTTP-Antwort, bei dem sich die Ursache nicht eingrenzen lässt. */
-  | 'upstream';
+  | 'upstream'
+  /** Der gewählte Weg kann keine Anhänge senden. */
+  | 'anhang-nicht-unterstuetzt';
 
 export class VersandFehler extends Error {
   constructor(
@@ -188,14 +200,23 @@ class EmailRoutingVersand implements MailVersand {
   ) {}
 
   async sende(nachricht: MailNachricht): Promise<void> {
+    if (nachricht.anhaenge?.length) {
+      throw new VersandFehler(
+        'anhang-nicht-unterstuetzt',
+        'Der Versandweg Email Routing kann keine Anhänge senden.',
+      );
+    }
     try {
-      await this.binding.send({
-        from: this.name ? { name: this.name, email: this.von } : this.von,
-        to: nachricht.an,
-        subject: nachricht.betreff,
-        text: nachricht.text,
-        html: nachricht.html,
-      });
+      // Das Binding nimmt je Aufruf einen Empfänger; weitere folgen nacheinander.
+      for (const empfaenger of [nachricht.an, ...(nachricht.weitereEmpfaenger ?? [])]) {
+        await this.binding.send({
+          from: this.name ? { name: this.name, email: this.von } : this.von,
+          to: empfaenger,
+          subject: nachricht.betreff,
+          text: nachricht.text,
+          html: nachricht.html,
+        });
+      }
     } catch (ursache) {
       // Der Upstream-Text kann die Empfängeradresse enthalten und wird
       // deshalb weder zurückgegeben noch protokolliert.
@@ -231,10 +252,18 @@ class ResendVersand implements MailVersand {
           },
           body: JSON.stringify({
             from: this.name ? `${this.name} <${this.von}>` : this.von,
-            to: [nachricht.an],
+            to: [nachricht.an, ...(nachricht.weitereEmpfaenger ?? [])],
             subject: nachricht.betreff,
             text: nachricht.text,
             html: nachricht.html,
+            ...(nachricht.anhaenge?.length
+              ? {
+                  attachments: nachricht.anhaenge.map((a) => ({
+                    filename: a.dateiname,
+                    content: a.inhaltBase64,
+                  })),
+                }
+              : {}),
           }),
           // 'manual' folgt keiner Weiterleitung, macht sie aber als eigenen
           // Status sichtbar, statt sie als Transportfehler zu verschlucken.
@@ -308,4 +337,5 @@ export const VERSANDFEHLER_ANTWORTEN: Record<VersandFehlerGrund, { code: string;
     'zugang-abgelehnt': { code: 'MAIL_VERSAND_ZUGANG_ABGELEHNT', status: 502 },
     abgelehnt: { code: 'MAIL_VERSAND_ABGELEHNT', status: 502 },
     upstream: { code: 'MAIL_VERSAND_FEHLGESCHLAGEN', status: 502 },
+    'anhang-nicht-unterstuetzt': { code: 'MAIL_VERSAND_ANHANG_NICHT_UNTERSTUETZT', status: 422 },
   };

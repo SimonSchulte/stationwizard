@@ -27,6 +27,25 @@ const FEHLERTEXT: Record<string, string> = {
   VORGANG_GENEHMIGUNG_NICHT_ERLAUBT: 'Genehmigt setzt nur die Zugführung.',
   VORGANG_ZURUECK_NICHT_ERLAUBT: 'Ab „Eingereicht“ nimmt nur die Zugführung eine Stufe zurück.',
   VORGANG_NUR_UEBER_EINREICHEN: 'Eingereicht wird nur durch „Einreichen per E-Mail“.',
+  VORGANG_UNTERSCHRIFT_FEHLT_ZUM_SENDEN:
+    'Zum Senden müssen die Pflichtangaben ausgefüllt und beide Pflichtunterschriften gesetzt sein.',
+  VORGANG_BEREITS_EINGEREICHT: 'Der Vorgang ist schon eingereicht.',
+  VORGANG_STUFE_FEHLT: 'Zuerst die Stufe „Angebote eingeholt“ erreichen, dann einreichen.',
+  VORGANG_EMPFAENGER_FEHLT:
+    'Es sind keine Empfänger festgelegt. Die Zugführung legt sie in der Systemkonfiguration fest.',
+  VORGANG_ANHANG_ZU_GROSS: 'Die gewählten Angebote sind zusammen zu groß für eine Mail.',
+  VORGANG_DATEIEN_KONFIGURATION_FEHLT:
+    'Der Dateispeicher der Vorgänge ist noch nicht eingerichtet. Angebote lassen sich so noch nicht anhängen.',
+  MAIL_VERSANDWEG_NICHT_EINGERICHTET:
+    'Der Versandweg für E-Mails ist noch nicht eingerichtet (Systemkonfiguration, „Email Versand“ und Secrets am Worker).',
+  MAIL_VERSAND_ANHANG_NICHT_UNTERSTUETZT:
+    'Der gewählte Versandweg kann keine Anhänge senden. Die Zugführung stellt ihn in der Systemkonfiguration auf „Mail-API“.',
+  MAIL_VERSAND_ZUGANG_ABGELEHNT:
+    'Der Mailanbieter hat Token oder Absenderadresse nicht akzeptiert. Nichts wurde gesendet.',
+  MAIL_VERSAND_ABGELEHNT: 'Der Mailanbieter hat den Versand abgelehnt. Nichts wurde gesendet.',
+  MAIL_VERSAND_NICHT_ERREICHBAR: 'Der Mailanbieter war nicht erreichbar. Nichts wurde gesendet.',
+  MAIL_VERSAND_ZEITLIMIT:
+    'Der Mailanbieter hat nicht rechtzeitig geantwortet. Ob die Mail angekommen ist, ist unklar: nicht erneut senden, sondern erst beim Empfänger nachfragen.',
 };
 
 /** Verständliche Meldung zu einem Fehler; bekannte Diagnosecodes bekommen einen eigenen Text. */
@@ -165,6 +184,25 @@ export class VorgangStoreService {
 
   async alleUnterschriftenEntfernen(): Promise<boolean> {
     return await this.aktion((id) => this.storage.entferneAlleUnterschriften(id));
+  }
+
+  /** Sendet die unterschriebene Meldung (mit dem im Browser erzeugten PDF) und reicht sie bei Bedarf ein. */
+  async senden(eingabe: {
+    modus: 'einreichen' | 'senden';
+    pdf: string;
+    empfaenger: string[];
+    angebote: string[];
+    nachricht: string;
+  }): Promise<boolean> {
+    const stand = this.aktuell();
+    if (!stand) return false;
+    return (
+      (await this.ausfuehren(async () => {
+        this.uebernehmen(await this.storage.sende(stand.daten.vorgang.id, stand.version, eingabe));
+        void this.listeLaden();
+        return true;
+      })) === true
+    );
   }
 
   async stufeWechseln(nach: number): Promise<boolean> {

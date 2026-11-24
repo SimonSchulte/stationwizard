@@ -1,4 +1,5 @@
 import { fehlerAntwort } from './antwort';
+import type { MailVersandKonfiguration } from './mail-versand';
 import { versionAusEtag } from './etag';
 import { type RollenKonfiguration } from './rollen';
 
@@ -6,7 +7,7 @@ import { type RollenKonfiguration } from './rollen';
  * Gemeinsame Konfiguration, Grenzen und Fehlerantworten der Vorgänge
  * (`vorgaenge*.ts`; Konzept in `docs/konzept-vorgaenge.md`).
  */
-export interface VorgaengeKonfiguration extends RollenKonfiguration {
+export interface VorgaengeKonfiguration extends RollenKonfiguration, MailVersandKonfiguration {
   FAHRZEUGE_DB?: D1Database;
   /** Dateien der Angebote, der gesendeten Meldungen und der Rohmails; fehlt bis zur Einrichtung. */
   VORGAENGE_DATEIEN?: R2Bucket;

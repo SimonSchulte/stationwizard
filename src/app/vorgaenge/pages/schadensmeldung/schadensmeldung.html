@@ -5,6 +5,15 @@
   zurueckText="Zurück zum Vorgang"
 >
   <button
+    matButton="outlined"
+    type="button"
+    [disabled]="!kannDrucken() || store.arbeitet()"
+    (click)="senden()"
+  >
+    <mat-icon>mail</mat-icon>
+    {{ versand.einreichenMoeglich() ? 'Einreichen per E-Mail' : 'Per E-Mail senden' }}
+  </button>
+  <button
     matButton="filled"
     type="button"
     [disabled]="!kannDrucken() || pdfLaeuft()"

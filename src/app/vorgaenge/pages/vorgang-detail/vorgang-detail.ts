@@ -31,6 +31,7 @@ import {
   pflichtUnterschriftenAnzahl,
 } from '../../models/vorgang.model';
 import { VorgangStoreService } from '../../services/vorgang-store.service';
+import { VorgangVersandService } from '../../services/vorgang-versand.service';
 
 /** Ein Vorgang „Fahrzeug/Material defekt“: Stufen, Meldung, Angebote und Verlauf. */
 @Component({
@@ -55,6 +56,7 @@ export class VorgangDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly benutzerStore = inject(BenutzerverwaltungStoreService);
   private readonly meldungen = inject(MeldungsDienst);
+  private readonly versand = inject(VorgangVersandService);
   readonly store = inject(VorgangStoreService);
 
   readonly ART_LABEL = VORGANG_ART_LABEL;
@@ -114,6 +116,10 @@ export class VorgangDetail implements OnInit {
     } else {
       this.meldungen.fehler(this.store.aktionFehler());
     }
+  }
+
+  async einreichen(): Promise<void> {
+    await this.versand.senden();
   }
 
   async zurueck(): Promise<void> {

@@ -1,6 +1,7 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { UUID_MUSTER } from './json-lesen';
 import { leseAufgaben, leseVorgang, listeVorgaenge } from './vorgaenge-lesen';
+import { sendeMeldung } from './vorgaenge-einreichen';
 import { legeVorgangAn, speichereMeldung, wechsleStufe } from './vorgaenge-schreiben';
 import {
   entferneAlleUnterschriften,
@@ -14,6 +15,7 @@ export const VORGAENGE_PFAD = '/api/vorgaenge';
 const AUFGABEN_PFAD = '/api/vorgaenge/aufgaben';
 const VORGANG_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})$`, 'i');
 const MELDUNG_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/meldung$`, 'i');
+const EINREICHEN_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/einreichen$`, 'i');
 const STUFE_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/stufe$`, 'i');
 const UNTERSCHRIFTEN_PFAD = new RegExp(
   `^/api/vorgaenge/(${UUID_MUSTER})/meldung/unterschriften$`,
@@ -78,6 +80,12 @@ export async function verarbeiteVorgaenge(
     const stufe = STUFE_PFAD.exec(pfad)?.[1];
     if (stufe) {
       if (methode === 'POST') return await wechsleStufe(anfrage, db, umgebung, stufe, identitaet);
+      return methodeNichtErlaubt('POST');
+    }
+    const einreichen = EINREICHEN_PFAD.exec(pfad)?.[1];
+    if (einreichen) {
+      if (methode === 'POST')
+        return await sendeMeldung(anfrage, db, umgebung, einreichen, identitaet);
       return methodeNichtErlaubt('POST');
     }
     const alleUnterschriften = UNTERSCHRIFTEN_PFAD.exec(pfad)?.[1];

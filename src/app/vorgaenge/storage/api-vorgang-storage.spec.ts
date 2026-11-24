@@ -57,6 +57,22 @@ describe('ApiVorgangStorage', () => {
     expect(JSON.parse(optionen.body)).toEqual({ nach: 1 });
   });
 
+  it('sendet die Meldung mit PDF, Empfängern und der Version des Vorgangs', async () => {
+    worker.anfragen.mockResolvedValue(antwort(testDarstellung()));
+    await storage.sende('v-1', '"5"', {
+      modus: 'einreichen',
+      pdf: 'JVBERg==',
+      empfaenger: ['a@example.test'],
+      angebote: ['x'],
+      nachricht: '',
+    });
+    const [pfad, optionen] = worker.anfragen.mock.calls[0];
+    expect(pfad).toBe('/api/vorgaenge/v-1/einreichen');
+    expect(optionen.method).toBe('POST');
+    expect(optionen.headers['If-Match']).toBe('"5"');
+    expect(JSON.parse(optionen.body)).toMatchObject({ modus: 'einreichen', angebote: ['x'] });
+  });
+
   it('weist Antworten ohne ETag oder mit falscher Form ab', async () => {
     worker.anfragen.mockResolvedValueOnce(antwort(testDarstellung(), null));
     await expect(storage.lade('v-1')).rejects.toThrow();
