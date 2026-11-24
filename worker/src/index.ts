@@ -19,6 +19,8 @@ import type { EhrungenKonfiguration } from './ehrungen-gemeinsam';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import { EINREICHUNGEN_PFAD, verarbeiteEinreichungen } from './einreichungen';
 import { verarbeiteFahrzeuge } from './fahrzeuge';
+import { VORGAENGE_PFAD, verarbeiteVorgaenge } from './vorgaenge';
+import type { VorgaengeKonfiguration } from './vorgaenge-gemeinsam';
 import type { FahrzeugeKonfiguration } from './fahrzeuge-gemeinsam';
 import { kurzlinkWeiterleitung } from './fahrzeuge-kurzlink';
 import {
@@ -78,6 +80,7 @@ export interface Env
     HiorgKalenderKonfiguration,
     HiorgApiKonfiguration,
     FahrzeugeKonfiguration,
+    VorgaengeKonfiguration,
     BenutzerverwaltungKonfiguration,
     SystemkonfigurationKonfiguration,
     KmBerichtKonfiguration,
@@ -189,6 +192,10 @@ export default {
         }
       }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (url.pathname === VORGAENGE_PFAD || url.pathname.startsWith(`${VORGAENGE_PFAD}/`)) {
+      return verarbeiteVorgaenge(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === UNTERSCHRIFT_PFAD) {
