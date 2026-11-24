@@ -24,6 +24,34 @@
   </a>
   <div class="benutzer">
     @if (benutzer.email() && worker.zustand() !== 'sitzung-abgelaufen') {
+      <a
+        matIconButton
+        class="kopf-symbol"
+        routerLink="/aufgaben"
+        [attr.aria-label]="
+          aufgaben.anzahl() > 0 ? aufgaben.anzahl() + ' offene Aufgaben' : 'Offene Aufgaben'
+        "
+        title="Offene Aufgaben"
+      >
+        <mat-icon aria-hidden="true">task_alt</mat-icon>
+        @if (aufgaben.anzahl() > 0) {
+          <span class="aufgaben-marke" aria-hidden="true">{{ aufgaben.anzahl() }}</span>
+        }
+      </a>
+      <a
+        matIconButton
+        class="kopf-symbol"
+        routerLink="/vorgaenge/postfach"
+        [attr.aria-label]="
+          postfach.offen() > 0 ? postfach.offen() + ' Mails im Postfach' : 'Postfach'
+        "
+        title="Postfach"
+      >
+        <mat-icon aria-hidden="true">inbox</mat-icon>
+        @if (postfach.offen() > 0) {
+          <span class="aufgaben-marke" aria-hidden="true">{{ postfach.offen() }}</span>
+        }
+      </a>
       <button
         type="button"
         class="benutzer-schalter"
