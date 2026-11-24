@@ -3882,6 +3882,6 @@ Reiter filtert); die Adressen je Fahrzeug liegen in `postfach_adressen` mit Kür
 **Nicht ausgeführt / offen:** R2 ist aktiviert, der private Bucket `stationwizard-vorgaenge` angelegt und das Binding in `wrangler.toml` aktiv (noch nicht deployt, Zugriff aus dem Worker nicht live erprobt); Email Routing
 und der Catch-all sind nicht eingerichtet (nichts in Cloudflare geändert, nur lesend geprüft); der `email()`-Handler und seine
 CPU-Zeit im Free-Tarif sind nicht gegen echte Mails gemessen; der Versand mit PDF-Anhang über Resend ist nicht live erprobt;
-die Migrationen 0027 bis 0030 sind nicht gegen die echte D1-Datenbank eingespielt; Sichtprüfung im Browser auf Desktop und
+die Migrationen 0027 bis 0030 sind am 2026-11-24 über die D1-API in beide Datenbanken eingespielt und in `d1_migrations` eingetragen (Kommentarzeilen weggelassen, sonst unverändert); Sichtprüfung im Browser auf Desktop und
 Mobil steht aus; die serverseitige Durchsetzung der Rollen bleibt bei „Rechte vorerst alle, Rollen später“, soweit nicht in
 `rollen.ts` geregelt.
