@@ -1,0 +1,142 @@
+<app-seitenkopf
+  titel="Postfach"
+  icon="mail"
+  zurueck="/aufgaben"
+  zurueckText="Zurück zu den Aufgaben"
+/>
+
+<div class="seite">
+  @if (store.adressen(); as adressen) {
+    <section class="adresse">
+      <span>Angebote per Mail an</span>
+      <span class="mono">{{ adressen.sammelAdresse }}</span>
+      <button matButton="outlined" type="button" (click)="adresseKopieren(adressen.sammelAdresse)">
+        Adresse kopieren
+      </button>
+      <span class="klein">
+        Jedes Fahrzeug hat eine eigene Adresse (siehe Reiter „Vorgänge“ der Fahrzeugakte). Mails
+        ohne bekannte Adresse landen hier und sind nur für die Zugführung sichtbar. Offene Mails
+        werden nach {{ store.aufbewahrungTage() }} Tagen gelöscht.
+      </span>
+    </section>
+  }
+
+  @if (store.laedt()) {
+    <app-ladeanzeige text="Postfach wird geladen …" />
+  }
+  @if (store.fehler()) {
+    <app-meldung art="fehler">{{ store.fehler() }}</app-meldung>
+  }
+  @if (!store.laedt() && !store.fehler() && store.mails().length === 0) {
+    <app-leerzustand icon="mail" titel="Keine offenen Mails im Postfach." />
+  }
+
+  @if (store.mails().length > 0) {
+    <div class="geteilt">
+      <div class="liste karte" role="listbox" aria-label="Offene Mails">
+        @for (m of store.mails(); track m.id) {
+          <button
+            type="button"
+            class="zeile"
+            role="option"
+            [attr.aria-selected]="m.id === gewaehlt()?.id"
+            [class.gewaehlt]="m.id === gewaehlt()?.id"
+            (click)="gewaehltId.set(m.id)"
+          >
+            <strong>{{ m.betreff || '(ohne Betreff)' }}</strong>
+            <span class="klein">{{ m.absender }} · {{ m.empfangenAm | date: 'dd.MM.yyyy' }}</span>
+            <span class="klein">
+              {{ m.fahrzeugBezeichnung ? 'Für ' + m.fahrzeugBezeichnung : 'Sammelpostfach' }}
+            </span>
+          </button>
+        }
+      </div>
+
+      @if (gewaehlt(); as mail) {
+        <div class="vorschau karte">
+          <h2 class="betreff">{{ mail.betreff || '(ohne Betreff)' }}</h2>
+          <div class="klein">Von {{ mail.absender }} · an {{ mail.empfaenger }}</div>
+
+          @if (vorschauLaedt()) {
+            <app-ladeanzeige text="Mail wird gelesen …" />
+          }
+          @if (vorschauFehler()) {
+            <app-meldung art="fehler">{{ vorschauFehler() }}</app-meldung>
+          }
+
+          @if (vorschau(); as gelesen) {
+            <pre class="text">{{ gelesen.text || '(kein Text)' }}</pre>
+
+            <h3 class="titel">Anhänge ({{ gelesen.anhaenge.length }})</h3>
+            @if (gelesen.anhaenge.length === 0) {
+              <p class="klein">Kein Anhang. Diese Mail lässt sich nur verwerfen.</p>
+            }
+            @for (anhang of gelesen.anhaenge; track $index) {
+              <div class="anhang">
+                <mat-checkbox
+                  [checked]="angehakt().has($index)"
+                  [disabled]="!unterstuetzt(anhang)"
+                  (change)="umschalten($index, $event.checked)"
+                  [attr.aria-label]="anhang.name + ' übernehmen'"
+                />
+                <mat-icon aria-hidden="true">attach_file</mat-icon>
+                <div class="anhang-text">
+                  <strong>{{ anhang.name }}</strong>
+                  <span class="klein">
+                    {{ groesse(anhang.groesse) }}
+                    @if (grund(anhang); as g) {
+                      · {{ g }}
+                    }
+                  </span>
+                </div>
+                @if (unterstuetzt(anhang)) {
+                  <button matButton type="button" (click)="ansehen(anhang)">Ansehen</button>
+                }
+              </div>
+            }
+
+            <section class="zuordnung">
+              <h3 class="titel">Als Angebot zuordnen</h3>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+                <mat-label>Vorgang „Fahrzeug/Material defekt“</mat-label>
+                <mat-select
+                  [value]="zielVorgang()"
+                  (selectionChange)="zielVorgang.set($event.value)"
+                >
+                  @for (ziel of ziele(); track ziel.id) {
+                    <mat-option [value]="ziel.id">{{ ziel.text }}</mat-option>
+                  }
+                </mat-select>
+                @if (ziele().length === 0) {
+                  <mat-hint>Kein Vorgang offen, an den sich Angebote hängen lassen.</mat-hint>
+                }
+              </mat-form-field>
+              <div class="aktionen">
+                <button
+                  matButton="filled"
+                  type="button"
+                  [disabled]="!zielVorgang() || angehakt().size === 0 || arbeitet()"
+                  (click)="zuordnen()"
+                >
+                  {{ arbeitet() ? 'Übernimmt …' : 'Angekreuzte Anhänge als Angebot übernehmen' }}
+                </button>
+                <button
+                  matButton="outlined"
+                  type="button"
+                  [disabled]="arbeitet()"
+                  (click)="verwerfen()"
+                >
+                  Verwerfen
+                </button>
+              </div>
+              <p class="klein">
+                Nach der Übernahme wird die Mail gelöscht. Betreff, Absender und der Anfang des
+                Textes bleiben als Notiz am Angebot.
+              </p>
+            </section>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

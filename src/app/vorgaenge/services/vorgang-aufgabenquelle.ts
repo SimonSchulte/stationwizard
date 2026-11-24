@@ -16,8 +16,8 @@ export class VorgangAufgabenquelle implements Aufgabenquelle {
   private readonly storage = inject(ApiVorgangStorage);
 
   async ladeAufgaben(): Promise<Aufgabe[]> {
-    const offene = await this.storage.aufgaben();
-    return offene.map((a) => ({
+    const { unterschriften, postfachOffen } = await this.storage.aufgaben();
+    const aufgaben: Aufgabe[] = unterschriften.map((a) => ({
       id: `${this.kennung}:${a.vorgangId}:${a.slot}`,
       quelle: this.kennung,
       titel: 'Schadensmeldung unterschreiben',
@@ -28,5 +28,17 @@ export class VorgangAufgabenquelle implements Aufgabenquelle {
       routerLink: ['/vorgaenge', a.vorgangId, 'meldung'],
       dringlichkeit: 'normal',
     }));
+    if (postfachOffen > 0) {
+      aufgaben.push({
+        id: `${this.kennung}:postfach`,
+        quelle: this.kennung,
+        titel: `${postfachOffen} ${postfachOffen === 1 ? 'Mail' : 'Mails'} im Postfach zuordnen`,
+        beschreibung: 'Angebote, die per E-Mail eingegangen sind, einem Vorgang zuordnen.',
+        eingegangenAm: new Date().toISOString(),
+        routerLink: ['/vorgaenge', 'postfach'],
+        dringlichkeit: 'normal',
+      });
+    }
+    return aufgaben;
   }
 }

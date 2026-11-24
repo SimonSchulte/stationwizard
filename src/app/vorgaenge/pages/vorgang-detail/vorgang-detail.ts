@@ -12,6 +12,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { distinctUntilChanged, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { AmpelChip } from '../../../fahrzeuge/components/ampel-chip/ampel-chip';
 import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
@@ -30,6 +31,11 @@ import {
   VORGANG_STUFEN,
   pflichtUnterschriftenAnzahl,
 } from '../../models/vorgang.model';
+import {
+  ANGEBOT_GROESSE_MAX,
+  ANGEBOTE_JE_VORGANG_MAX,
+  istAngebotsdatei,
+} from '../../models/postfach.model';
 import { VorgangStoreService } from '../../services/vorgang-store.service';
 import { VorgangVersandService } from '../../services/vorgang-versand.service';
 
@@ -57,6 +63,7 @@ export class VorgangDetail implements OnInit {
   private readonly benutzerStore = inject(BenutzerverwaltungStoreService);
   private readonly meldungen = inject(MeldungsDienst);
   private readonly versand = inject(VorgangVersandService);
+  private readonly dialog = inject(DialogDienst);
   readonly store = inject(VorgangStoreService);
 
   readonly ART_LABEL = VORGANG_ART_LABEL;
@@ -72,6 +79,9 @@ export class VorgangDetail implements OnInit {
     ),
     { initialValue: this.route.snapshot.paramMap.get('id') ?? '' },
   );
+
+  readonly angebotEndungen = '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg';
+  readonly angebotMax = ANGEBOTE_JE_VORGANG_MAX;
 
   readonly daten = computed(() => this.store.aktuell()?.daten ?? null);
   readonly stufe = computed(() => this.daten()?.vorgang.stufe ?? -1);
@@ -116,6 +126,60 @@ export class VorgangDetail implements OnInit {
     } else {
       this.meldungen.fehler(this.store.aktionFehler());
     }
+  }
+
+  /** Angebote lassen sich bis zum Einreichen ändern; der Worker sperrt danach ebenfalls. */
+  readonly angeboteBearbeitbar = computed(() => this.stufe() < STUFE_EINGEREICHT);
+
+  async angeboteWaehlen(eingabe: HTMLInputElement): Promise<void> {
+    const dateien = Array.from(eingabe.files ?? []);
+    eingabe.value = '';
+    if (dateien.length === 0) return;
+    const frei = ANGEBOTE_JE_VORGANG_MAX - (this.daten()?.angebote.length ?? 0);
+    if (dateien.length > frei) {
+      this.meldungen.warnung(`Höchstens ${ANGEBOTE_JE_VORGANG_MAX} Angebote je Vorgang.`);
+      return;
+    }
+    const falsch = dateien.find(
+      (d) => !istAngebotsdatei(d.name, d.type) || d.size > ANGEBOT_GROESSE_MAX,
+    );
+    if (falsch) {
+      this.meldungen.warnung(`„${falsch.name}“: nur PDF, PNG oder JPEG bis 10 MB.`);
+      return;
+    }
+    if (await this.store.angeboteHochladen(dateien.map((datei) => ({ datei, name: datei.name })))) {
+      this.meldungen.erfolg(
+        dateien.length === 1 ? 'Angebot hochgeladen.' : 'Angebote hochgeladen.',
+      );
+    } else {
+      this.meldungen.fehler(this.store.aktionFehler());
+    }
+  }
+
+  async angebotHerunterladen(id: string, name: string): Promise<void> {
+    const datei = await this.store.angebotDatei(id);
+    if (!datei) {
+      this.meldungen.fehler(this.store.aktionFehler());
+      return;
+    }
+    const url = URL.createObjectURL(datei);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  async angebotEntfernen(id: string, name: string): Promise<void> {
+    if (
+      !(await this.dialog.bestaetigen(
+        `„${name}“ wird vom Vorgang entfernt.`,
+        'Angebot entfernen',
+        'Entfernen',
+      ))
+    )
+      return;
+    if (!(await this.store.angebotEntfernen(id))) this.meldungen.fehler(this.store.aktionFehler());
   }
 
   async einreichen(): Promise<void> {

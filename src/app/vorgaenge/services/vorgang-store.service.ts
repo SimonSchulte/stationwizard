@@ -30,6 +30,11 @@ const FEHLERTEXT: Record<string, string> = {
   VORGANG_UNTERSCHRIFT_FEHLT_ZUM_SENDEN:
     'Zum Senden müssen die Pflichtangaben ausgefüllt und beide Pflichtunterschriften gesetzt sein.',
   VORGANG_BEREITS_EINGEREICHT: 'Der Vorgang ist schon eingereicht.',
+  VORGANG_ANGEBOT_GESPERRT: 'Nach dem Einreichen lassen sich keine Angebote mehr ändern.',
+  VORGANG_ANGEBOTE_GRENZE: 'Höchstens 10 Angebote je Vorgang.',
+  VORGANG_ANGEBOT_TYP_UNGUELTIG:
+    'Angebote nehmen wir als PDF, PNG oder JPEG an; Dateiendung und Inhalt müssen übereinstimmen.',
+  VORGANG_DATEI_ZU_GROSS: 'Die Datei ist größer als 10 MB.',
   VORGANG_STUFE_FEHLT: 'Zuerst die Stufe „Angebote eingeholt“ erreichen, dann einreichen.',
   VORGANG_EMPFAENGER_FEHLT:
     'Es sind keine Empfänger festgelegt. Die Zugführung legt sie in der Systemkonfiguration fest.',
@@ -203,6 +208,40 @@ export class VorgangStoreService {
         return true;
       })) === true
     );
+  }
+
+  /** Legt Angebote ab; bei einem Fehler stehen die bis dahin abgelegten schon am Vorgang. */
+  async angeboteHochladen(
+    dateien: readonly {
+      datei: Blob;
+      name: string;
+      notiz?: { betreff: string; absender: string; datum: string; text: string };
+    }[],
+  ): Promise<boolean> {
+    return await this.aktion(async (id) => {
+      let stand: VorgangMitVersion | null = null;
+      for (const eintrag of dateien) {
+        stand = await this.storage.angebotHochladen(id, eintrag.datei, eintrag.name, eintrag.notiz);
+        this.aktuell.update(() => stand);
+      }
+      return stand ?? (await this.storage.lade(id));
+    });
+  }
+
+  async angebotEntfernen(angebotId: string): Promise<boolean> {
+    return await this.aktion((id) => this.storage.angebotEntfernen(id, angebotId));
+  }
+
+  /** Die Datei eines Angebots als Blob, zum Herunterladen. */
+  async angebotDatei(angebotId: string): Promise<Blob | null> {
+    const id = this.aktuell()?.daten.vorgang.id;
+    if (!id) return null;
+    try {
+      return await this.storage.angebotDatei(id, angebotId);
+    } catch (fehler) {
+      this.aktionFehler.set(vorgangFehlertext(fehler));
+      return null;
+    }
   }
 
   async stufeWechseln(nach: number): Promise<boolean> {

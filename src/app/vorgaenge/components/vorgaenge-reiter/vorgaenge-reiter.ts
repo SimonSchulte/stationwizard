@@ -8,6 +8,7 @@ import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
 import { LETZTE_STUFE, VORGANG_STUFEN } from '../../models/vorgang.model';
 import { FahrzeugKurz, VorgangAnlegenService } from '../../services/vorgang-anlegen.service';
+import { PostfachStoreService } from '../../services/postfach-store.service';
 import { VorgangStoreService } from '../../services/vorgang-store.service';
 
 /** Reiter „Vorgänge“ der Fahrzeugakte: die Vorgänge dieses Fahrzeugs, offene zuerst. */
@@ -30,6 +31,7 @@ import { VorgangStoreService } from '../../services/vorgang-store.service';
 export class VorgaengeReiter implements OnInit {
   private readonly store = inject(VorgangStoreService);
   private readonly anlegen = inject(VorgangAnlegenService);
+  private readonly postfach = inject(PostfachStoreService);
 
   readonly fahrzeug = input.required<FahrzeugKurz>();
 
@@ -46,7 +48,15 @@ export class VorgaengeReiter implements OnInit {
       ),
   );
 
+  /** Die Postfachadresse dieses Fahrzeugs, an die Angebote weitergeleitet werden können. */
+  readonly adresse = computed(
+    () =>
+      this.postfach.adressen()?.adressen.find((a) => a.fahrzeugId === this.fahrzeug().id)
+        ?.adresse ?? '',
+  );
+
   ngOnInit(): void {
+    void this.postfach.adressenLaden();
     void this.store.listeLaden();
   }
 

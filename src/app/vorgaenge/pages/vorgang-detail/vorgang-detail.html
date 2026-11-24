@@ -105,7 +105,36 @@
     }
 
     <section class="karte">
-      <h2 class="titel">Angebote ({{ d.angebote.length }})</h2>
+      <div class="kartenkopf">
+        <h2 class="titel">Angebote ({{ d.angebote.length }})</h2>
+        @if (angeboteBearbeitbar()) {
+          <div class="kartenaktionen">
+            <a
+              matButton="outlined"
+              routerLink="/vorgaenge/postfach"
+              [queryParams]="{ vorgang: d.vorgang.id }"
+            >
+              Aus Postfach übernehmen
+            </a>
+            <input
+              #datei
+              type="file"
+              hidden
+              multiple
+              [accept]="angebotEndungen"
+              (change)="angeboteWaehlen(datei)"
+            />
+            <button
+              matButton="filled"
+              type="button"
+              [disabled]="store.arbeitet()"
+              (click)="datei.click()"
+            >
+              <mat-icon>upload</mat-icon> Angebot hochladen
+            </button>
+          </div>
+        }
+      </div>
       @if (d.angebote.length === 0) {
         <app-leerzustand kompakt icon="request_quote" titel="Noch kein Angebot." />
       }
@@ -122,6 +151,24 @@
                 }
               </span>
             </div>
+            <button
+              matIconButton
+              type="button"
+              aria-label="Herunterladen"
+              (click)="angebotHerunterladen(angebot.id, angebot.dateiname)"
+            >
+              <mat-icon>download</mat-icon>
+            </button>
+            @if (angeboteBearbeitbar()) {
+              <button
+                matIconButton
+                type="button"
+                aria-label="Entfernen"
+                (click)="angebotEntfernen(angebot.id, angebot.dateiname)"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
           </li>
         }
       </ul>

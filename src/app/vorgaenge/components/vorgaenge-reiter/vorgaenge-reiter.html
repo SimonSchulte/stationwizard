@@ -5,6 +5,14 @@
   </button>
 </div>
 
+@if (adresse()) {
+  <p class="adresszeile">
+    Angebote für dieses Fahrzeug per Mail an <span class="mono">{{ adresse() }}</span
+    >. Sie erscheinen im <a routerLink="/vorgaenge/postfach">Postfach</a> und lassen sich einem
+    Vorgang zuordnen.
+  </p>
+}
+
 @if (laedt()) {
   <app-ladeanzeige text="Vorgänge werden geladen …" />
 }

@@ -10,6 +10,10 @@ const meldungVerlassen = verlassenGuard(() =>
 /** Vorgänge „Fahrzeug/Material defekt“ und ihre Schadens- und Verlustmeldung. */
 export const vorgaengeRouten: Routes = [
   {
+    path: 'postfach',
+    loadComponent: () => import('./pages/postfach/postfach').then((modul) => modul.Postfach),
+  },
+  {
     path: ':id',
     pathMatch: 'full',
     loadComponent: () =>

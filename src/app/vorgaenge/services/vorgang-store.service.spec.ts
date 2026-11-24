@@ -17,6 +17,9 @@ describe('VorgangStoreService', () => {
     entferneAlleUnterschriften: vi.fn(),
     wechsleStufe: vi.fn(),
     sende: vi.fn(),
+    angebotHochladen: vi.fn(),
+    angebotEntfernen: vi.fn(),
+    angebotDatei: vi.fn(),
   };
   let store: VorgangStoreService;
 
@@ -156,6 +159,57 @@ describe('VorgangStoreService', () => {
     };
     expect(await store.senden(eingabe)).toBe(false);
     expect(store.aktionFehler()).toContain('nicht erneut senden');
+  });
+
+  it('legt mehrere Angebote nacheinander ab und zeigt nach jedem den neuen Stand', async () => {
+    await geladen();
+    const mitEinem = testDarstellung();
+    mitEinem.angebote = [
+      {
+        id: 'a1',
+        dateiname: 'a.pdf',
+        groesse: 1,
+        quelle: 'upload',
+        mailBetreff: null,
+        mailAbsender: null,
+        mailDatum: null,
+        mailText: null,
+        hochgeladenAm: '2026-11-13',
+        hochgeladenVon: 'x',
+      },
+    ];
+    const mitZwei = testDarstellung();
+    mitZwei.angebote = [
+      ...mitEinem.angebote,
+      { ...mitEinem.angebote[0], id: 'a2', dateiname: 'b.pdf' },
+    ];
+    storage.angebotHochladen
+      .mockResolvedValueOnce(testStand(mitEinem, '"2"'))
+      .mockResolvedValueOnce(testStand(mitZwei, '"3"'));
+    expect(
+      await store.angeboteHochladen([
+        { datei: new Blob(['a']), name: 'a.pdf' },
+        { datei: new Blob(['b']), name: 'b.pdf' },
+      ]),
+    ).toBe(true);
+    expect(storage.angebotHochladen).toHaveBeenCalledTimes(2);
+    expect(store.aktuell()?.daten.angebote).toHaveLength(2);
+  });
+
+  it('meldet einen Uploadfehler mit verständlichem Text', async () => {
+    await geladen();
+    storage.angebotHochladen.mockRejectedValue(
+      new WorkerFehler('x', 415, 'VORGANG_ANGEBOT_TYP_UNGUELTIG'),
+    );
+    expect(await store.angeboteHochladen([{ datei: new Blob(['a']), name: 'a.txt' }])).toBe(false);
+    expect(store.aktionFehler()).toContain('PDF, PNG oder JPEG');
+  });
+
+  it('entfernt ein Angebot', async () => {
+    await geladen();
+    storage.angebotEntfernen.mockResolvedValue(testStand(testDarstellung(), '"4"'));
+    expect(await store.angebotEntfernen('a1')).toBe(true);
+    expect(storage.angebotEntfernen).toHaveBeenCalledWith('v-1', 'a1');
   });
 
   it('lädt die Liste über alle Fahrzeuge in einem Aufruf', async () => {

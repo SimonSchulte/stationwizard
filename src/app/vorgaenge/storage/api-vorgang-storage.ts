@@ -115,12 +115,58 @@ export class ApiVorgangStorage {
     );
   }
 
-  async aufgaben(): Promise<AufgabeUnterschrift[]> {
-    const antwort = await this.worker.json<{ unterschriften?: unknown }>(`${PFAD}/aufgaben`);
+  /** Angebot ablegen; die Id wählt der Client, damit sich ein Upload gefahrlos wiederholen lässt. */
+  async angebotHochladen(
+    vorgangId: string,
+    datei: Blob,
+    dateiname: string,
+    notiz?: { betreff: string; absender: string; datum: string; text: string },
+  ): Promise<VorgangMitVersion> {
+    const headers: Record<string, string> = {
+      'If-None-Match': '*',
+      'X-Stationwizard-Dateiname': encodeURIComponent(dateiname),
+      'Content-Type': datei.type || 'application/octet-stream',
+    };
+    if (notiz) {
+      const bytes = new TextEncoder().encode(JSON.stringify(notiz));
+      headers['X-Stationwizard-Notiz'] = btoa(String.fromCharCode(...bytes));
+    }
+    return this.mitVersion(
+      await this.worker.anfragen(
+        `${PFAD}/${encodeURIComponent(vorgangId)}/angebote/${crypto.randomUUID()}`,
+        { method: 'PUT', headers, body: datei, signal: AbortSignal.timeout(60_000) },
+      ),
+    );
+  }
+
+  async angebotDatei(vorgangId: string, angebotId: string): Promise<Blob> {
+    const antwort = await this.worker.anfragen(
+      `${PFAD}/${encodeURIComponent(vorgangId)}/angebote/${encodeURIComponent(angebotId)}`,
+      { cache: 'no-store' },
+    );
+    return await antwort.blob();
+  }
+
+  async angebotEntfernen(vorgangId: string, angebotId: string): Promise<VorgangMitVersion> {
+    return this.mitVersion(
+      await this.worker.anfragen(
+        `${PFAD}/${encodeURIComponent(vorgangId)}/angebote/${encodeURIComponent(angebotId)}`,
+        { method: 'DELETE' },
+      ),
+    );
+  }
+
+  async aufgaben(): Promise<{ unterschriften: AufgabeUnterschrift[]; postfachOffen: number }> {
+    const antwort = await this.worker.json<{ unterschriften?: unknown; postfachOffen?: unknown }>(
+      `${PFAD}/aufgaben`,
+    );
     if (!Array.isArray(antwort.unterschriften)) throw ungueltigeAntwort();
-    return antwort.unterschriften
-      .map(leseAufgabeUnterschrift)
-      .filter((a): a is AufgabeUnterschrift => a !== null);
+    return {
+      unterschriften: antwort.unterschriften
+        .map(leseAufgabeUnterschrift)
+        .filter((a): a is AufgabeUnterschrift => a !== null),
+      postfachOffen: typeof antwort.postfachOffen === 'number' ? antwort.postfachOffen : 0,
+    };
   }
 
   private async slotAnfrage(id: string, slot: Slot, koerper: unknown): Promise<VorgangMitVersion> {

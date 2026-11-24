@@ -10,16 +10,19 @@ describe('VorgangAufgabenquelle', () => {
         {
           provide: ApiVorgangStorage,
           useValue: {
-            aufgaben: vi.fn().mockResolvedValue([
-              {
-                vorgangId: 'v-1',
-                slot: 'verantw',
-                angefragtVon: 'tim.beispiel@example.test',
-                angefragtAm: '2026-11-12T10:00:00.000Z',
-                titel: 'Stromaggregat defekt',
-                fahrzeugBezeichnung: 'GW SAN',
-              },
-            ]),
+            aufgaben: vi.fn().mockResolvedValue({
+              postfachOffen: 0,
+              unterschriften: [
+                {
+                  vorgangId: 'v-1',
+                  slot: 'verantw',
+                  angefragtVon: 'tim.beispiel@example.test',
+                  angefragtAm: '2026-11-12T10:00:00.000Z',
+                  titel: 'Stromaggregat defekt',
+                  fahrzeugBezeichnung: 'GW SAN',
+                },
+              ],
+            }),
           },
         },
       ],
@@ -36,5 +39,24 @@ describe('VorgangAufgabenquelle', () => {
         dringlichkeit: 'normal',
       },
     ]);
+  });
+
+  it('meldet ungeordnete Mails als eigene Aufgabe mit Link zum Postfach', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: ApiVorgangStorage,
+          useValue: {
+            aufgaben: vi.fn().mockResolvedValue({ postfachOffen: 3, unterschriften: [] }),
+          },
+        },
+      ],
+    });
+    const aufgaben = await TestBed.inject(VorgangAufgabenquelle).ladeAufgaben();
+    expect(aufgaben).toHaveLength(1);
+    expect(aufgaben[0]).toMatchObject({
+      titel: '3 Mails im Postfach zuordnen',
+      routerLink: ['/vorgaenge', 'postfach'],
+    });
   });
 });
