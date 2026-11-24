@@ -1,0 +1,190 @@
+@if (daten(); as d) {
+  <app-seitenkopf
+    [titel]="d.vorgang.titel"
+    icon="build"
+    [zurueck]="'/fahrzeuge/' + d.vorgang.fahrzeugId"
+    zurueckText="Zurück zum Fahrzeug"
+  />
+} @else {
+  <app-seitenkopf
+    titel="Vorgang"
+    icon="build"
+    zurueck="/fahrzeuge"
+    zurueckText="Zurück zu den Fahrzeugen"
+  />
+}
+
+<div class="seite">
+  @if (store.laedt()) {
+    <app-ladeanzeige text="Vorgang wird geladen …" />
+  }
+  @if (store.ladeFehler()) {
+    <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>
+  }
+  @if (store.aktionFehler()) {
+    <app-meldung art="fehler">{{ store.aktionFehler() }}</app-meldung>
+  }
+
+  @if (daten(); as d) {
+    <p class="untertitel">{{ ART_LABEL }}</p>
+
+    <section class="karte">
+      <h2 class="titel">Stufen</h2>
+      <app-vorgang-stufen [stufe]="d.vorgang.stufe" />
+      <div class="stufenaktion">
+        @if (naechste() > 5) {
+          <span class="hinweis">Der Vorgang ist abgeschlossen.</span>
+        } @else if (naechste() === 0) {
+          <a matButton="filled" [routerLink]="['/vorgaenge', d.vorgang.id, 'meldung']">
+            Schadensmeldung ausfüllen
+          </a>
+          <span class="hinweis">
+            Die erste Stufe ist erreicht, sobald die Schadensmeldung vollständig ausgefüllt ist.
+          </span>
+        } @else if (naechste() === STUFE_EINGEREICHT) {
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="pflichtUnterschriften() < 2 || d.angebote.length < 1 || store.arbeitet()"
+            (click)="einreichen()"
+          >
+            <mat-icon>mail</mat-icon> Einreichen per E-Mail
+          </button>
+          @if (pflichtUnterschriften() < 2) {
+            <span class="hinweis">
+              Beide Pflichtunterschriften fehlen noch ({{ pflichtUnterschriften() }} von 2).
+              <a [routerLink]="['/vorgaenge', d.vorgang.id, 'meldung']">Zur Meldung</a>
+            </span>
+          } @else if (d.angebote.length < 1) {
+            <span class="hinweis">Ohne Angebot kann nicht eingereicht werden.</span>
+          }
+        } @else {
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="!!hinweis() || store.arbeitet()"
+            (click)="weiter()"
+          >
+            Weiter: {{ STUFEN[naechste()] }}
+          </button>
+          @if (hinweis()) {
+            <span class="hinweis">{{ hinweis() }}</span>
+          }
+        }
+        @if (kannZurueck()) {
+          <button matButton type="button" [disabled]="store.arbeitet()" (click)="zurueck()">
+            Eine Stufe zurück
+          </button>
+        }
+      </div>
+    </section>
+
+    @if (d.meldung; as m) {
+      <section class="karte zeile">
+        <mat-icon aria-hidden="true">description</mat-icon>
+        <div class="text">
+          <strong>Schadens- und Verlustmeldung</strong>
+          <span class="klein">{{ MELDUNG_ART[m.inhalt.art] }} · {{ m.inhalt.bezeichnung }}</span>
+        </div>
+        <app-ampel-chip
+          [farbe]="m.vollstaendig ? 'gruen' : 'gelb'"
+          [text]="m.vollstaendig ? 'Ausgefüllt' : 'Unvollständig'"
+        />
+        <app-ampel-chip
+          [farbe]="pflichtUnterschriften() === 2 ? 'gruen' : 'neutral'"
+          [text]="'Unterschriften ' + pflichtUnterschriften() + ' von 2'"
+        />
+        @if (m.versendetAm) {
+          <app-ampel-chip
+            farbe="gruen"
+            [text]="'Versendet ' + (m.versendetAm | date: 'dd.MM.yyyy')"
+          />
+        }
+        <a matButton="outlined" [routerLink]="['/vorgaenge', d.vorgang.id, 'meldung']">Öffnen</a>
+      </section>
+    }
+
+    <section class="karte">
+      <div class="kartenkopf">
+        <h2 class="titel">Angebote ({{ d.angebote.length }})</h2>
+        @if (angeboteBearbeitbar()) {
+          <div class="kartenaktionen">
+            <a
+              matButton="outlined"
+              routerLink="/vorgaenge/postfach"
+              [queryParams]="{ vorgang: d.vorgang.id }"
+            >
+              Aus Postfach übernehmen
+            </a>
+            <input
+              #datei
+              type="file"
+              hidden
+              multiple
+              [accept]="angebotEndungen"
+              (change)="angeboteWaehlen(datei)"
+            />
+            <button
+              matButton="filled"
+              type="button"
+              [disabled]="store.arbeitet()"
+              (click)="datei.click()"
+            >
+              <mat-icon>upload</mat-icon> Angebot hochladen
+            </button>
+          </div>
+        }
+      </div>
+      @if (d.angebote.length === 0) {
+        <app-leerzustand kompakt icon="request_quote" titel="Noch kein Angebot." />
+      }
+      <ul class="liste">
+        @for (angebot of d.angebote; track angebot.id) {
+          <li class="listenzeile">
+            <mat-icon aria-hidden="true">attach_file</mat-icon>
+            <div class="text">
+              <strong>{{ angebot.dateiname }}</strong>
+              <span class="klein">
+                {{ groesse(angebot.groesse) }} · {{ angebot.hochgeladenAm | date: 'dd.MM.yyyy' }}
+                @if (angebot.mailAbsender) {
+                  · aus Mail von {{ angebot.mailAbsender }}
+                }
+              </span>
+            </div>
+            <button
+              matIconButton
+              type="button"
+              aria-label="Herunterladen"
+              (click)="angebotHerunterladen(angebot.id, angebot.dateiname)"
+            >
+              <mat-icon>download</mat-icon>
+            </button>
+            @if (angeboteBearbeitbar()) {
+              <button
+                matIconButton
+                type="button"
+                aria-label="Entfernen"
+                (click)="angebotEntfernen(angebot.id, angebot.dateiname)"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="karte">
+      <h2 class="titel">Verlauf</h2>
+      <ul class="liste">
+        @for (ereignis of d.ereignisse; track ereignis.id) {
+          <li class="verlaufzeile">
+            <span class="zeitpunkt">{{ ereignis.zeitpunkt | date: 'dd.MM.yyyy, HH:mm' }}</span>
+            <span class="von">{{ anzeigename(ereignis.von) }}</span>
+            <span>{{ ereignis.beschreibung }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>

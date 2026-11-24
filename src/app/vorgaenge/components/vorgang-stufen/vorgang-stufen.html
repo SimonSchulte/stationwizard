@@ -1,0 +1,19 @@
+<ol class="stufen" aria-label="Stufen des Vorgangs">
+  @for (name of STUFEN; track name; let i = $index) {
+    <li
+      class="stufe"
+      [class.erreicht]="i <= stufe()"
+      [class.naechste]="i === stufe() + 1"
+      [attr.aria-current]="i === stufe() ? 'step' : null"
+    >
+      <span class="punkt">
+        @if (i <= stufe()) {
+          <mat-icon aria-hidden="true">check</mat-icon>
+        } @else {
+          {{ i + 1 }}
+        }
+      </span>
+      <span class="name">{{ name }}</span>
+    </li>
+  }
+</ol>

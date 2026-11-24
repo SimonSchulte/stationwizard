@@ -46,6 +46,10 @@
         <mat-icon aria-hidden="true">arrow_drop_down</mat-icon>
       </button>
       <mat-menu #benutzerMenu="matMenu">
+        <button mat-menu-item type="button" (click)="unterschriftBearbeiten()">
+          <mat-icon aria-hidden="true">draw</mat-icon>
+          <span>Unterschrift</span>
+        </button>
         <a mat-menu-item href="/cdn-cgi/access/logout">Abmelden</a>
       </mat-menu>
     } @else if (benutzer.laedt()) {

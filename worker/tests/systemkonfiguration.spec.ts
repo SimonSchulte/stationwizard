@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   leseEinstellungen,
+  pruefeEmpfaengerListe,
   verarbeiteSystemkonfiguration,
   type SystemkonfigurationKonfiguration,
 } from '../src/systemkonfiguration';
@@ -28,7 +29,20 @@ const MATERIAL_STANDARD = {
 
 const ORGANISATION_STANDARD = { organisationLandesverband: '', organisationRegionalverband: '' };
 
-const VOLLSTAENDIG = { ...KILOMETER, ...MATERIAL_STANDARD, ...ORGANISATION_STANDARD };
+/** Standardwerte der Vorgänge (Schadens- und Verlustmeldung). */
+const VORGANG_STANDARD = {
+  vorgangEinheit: 'BI EE 04',
+  vorgangEmpfaenger: '',
+  vorgangVersandweg: 'email-routing',
+  vorgangBetreff: 'Schadens- und Verlustmeldung',
+};
+
+const VOLLSTAENDIG = {
+  ...KILOMETER,
+  ...MATERIAL_STANDARD,
+  ...ORGANISATION_STANDARD,
+  ...VORGANG_STANDARD,
+};
 
 function anfrage(init?: RequestInit): Request {
   return new Request('https://stationwizard.example.test/api/systemkonfiguration', init);
@@ -386,5 +400,34 @@ describe('Methoden und Pfade', () => {
     );
 
     expect(antwort.status).toBe(404);
+  });
+});
+
+describe('Einstellungen der Vorgänge', () => {
+  it('liefert die Standardwerte inklusive der Einheit „BI EE 04“', async () => {
+    const db = new FakeBenutzerDb();
+    const antwort = await verarbeiteSystemkonfiguration(
+      anfrage(),
+      { BENUTZER_DB: db as never },
+      IDENTITAET,
+    );
+    const { einstellungen } = (await antwort.json()) as { einstellungen: Record<string, unknown> };
+    expect(einstellungen).toMatchObject(VORGANG_STANDARD);
+  });
+
+  it.each([
+    ['mehrere Adressen', 'a@example.test; b@example.test', 'a@example.test, b@example.test'],
+    ['doppelte Adressen', 'a@example.test, a@example.test', 'a@example.test'],
+    ['leer', '  ', ''],
+  ])('normalisiert die Empfänger: %s', (_name, eingabe, erwartet) => {
+    expect(pruefeEmpfaengerListe(eingabe)).toBe(erwartet);
+  });
+
+  it.each([
+    ['eine ungültige Adresse', 'a@example.test, kaputt'],
+    ['mehr als fünf Adressen', Array.from({ length: 6 }, (_, i) => `a${i}@example.test`).join(',')],
+    ['kein Text', 5],
+  ])('lehnt %s ab', (_name, eingabe) => {
+    expect(pruefeEmpfaengerListe(eingabe)).toBeNull();
   });
 });

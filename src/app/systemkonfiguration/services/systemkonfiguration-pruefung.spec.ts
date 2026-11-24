@@ -15,6 +15,10 @@ const GUELTIG = {
     materialBetreff: 'Materialmeldung',
     organisationLandesverband: '',
     organisationRegionalverband: '',
+    vorgangEinheit: 'BI EE 04',
+    vorgangEmpfaenger: '',
+    vorgangVersandweg: 'email-routing',
+    vorgangBetreff: 'Schadens- und Verlustmeldung',
   },
   versandwege: [
     { weg: 'email-routing', verfuegbar: true },

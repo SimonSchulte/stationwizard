@@ -1,0 +1,48 @@
+<section class="vorlage">
+  <mat-icon aria-hidden="true">description</mat-icon>
+  <div class="text">
+    <strong>Schadens- und Verlustmeldung</strong>
+    <span class="klein">
+      Anlage 5, Stand 23.11.2023. Startet den Vorgang „Fahrzeug/Material defekt“.
+    </span>
+  </div>
+  <button matButton="filled" type="button" (click)="neu()">
+    <mat-icon>add</mat-icon> Neue Meldung ausfüllen
+  </button>
+</section>
+
+@if (laedt()) {
+  <app-ladeanzeige text="Meldungen werden geladen …" />
+}
+@if (fehler()) {
+  <app-meldung art="fehler">{{ fehler() }}</app-meldung>
+}
+
+<h3 class="titel">Meldungen ({{ meldungen().length }})</h3>
+@if (!laedt() && !fehler() && meldungen().length === 0) {
+  <app-leerzustand kompakt icon="description" titel="Noch keine Meldung für dieses Fahrzeug." />
+}
+<ul class="liste">
+  @for (v of meldungen(); track v.id) {
+    <li class="zeile">
+      <div class="text">
+        <a class="link" [routerLink]="['/vorgaenge', v.id, 'meldung']">{{ v.titel }}</a>
+        <span class="klein">{{ v.angelegtAm | date: 'dd.MM.yyyy' }}</span>
+      </div>
+      <app-ampel-chip
+        [farbe]="v.meldungVollstaendig ? 'gruen' : 'gelb'"
+        [text]="v.meldungVollstaendig ? 'Ausgefüllt' : 'Unvollständig'"
+      />
+      <app-ampel-chip
+        [farbe]="v.pflichtUnterschriften === 2 ? 'gruen' : 'neutral'"
+        [text]="'Unterschriften ' + v.pflichtUnterschriften + ' von 2'"
+      />
+      @if (v.versendetAm) {
+        <app-ampel-chip
+          farbe="gruen"
+          [text]="'Versendet ' + (v.versendetAm | date: 'dd.MM.yyyy')"
+        />
+      }
+    </li>
+  }
+</ul>

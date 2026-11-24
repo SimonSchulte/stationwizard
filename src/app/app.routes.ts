@@ -33,6 +33,11 @@ export const routes: Routes = [
     title: 'Fahrzeuge · HiorgWache',
   },
   {
+    path: 'vorgaenge',
+    loadChildren: () => import('./vorgaenge/vorgaenge.routes').then((m) => m.vorgaengeRouten),
+    title: 'Vorgänge · HiorgWache',
+  },
+  {
     path: 'angebotswesen',
     loadChildren: () =>
       import('./angebotswesen/angebotswesen.routes').then((m) => m.angebotswesenRoutes),

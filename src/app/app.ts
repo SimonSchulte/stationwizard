@@ -18,6 +18,7 @@ import { MatTree, MatTreeModule } from '@angular/material/tree';
 import { AufgabenStoreService } from './kern/aufgaben/aufgaben-store.service';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
+import { UnterschriftDialogDienst } from './kern/unterschrift/unterschrift-dialog-dienst';
 import { VerlassenSchutz } from './kern/verlassen-schutz';
 import { Meldung } from './kern/zustand/zustand';
 
@@ -104,12 +105,17 @@ const NAVIGATION: NavKnoten[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
+  protected unterschriftBearbeiten(): void {
+    void this.unterschriftDialog.bearbeiten(this.benutzer.anzeigename());
+  }
+
   protected readonly benutzer = inject(Benutzerkontext);
   protected readonly worker = inject(WorkerClient);
   protected readonly aufgaben = inject(AufgabenStoreService);
   protected readonly aktuellesJahr = new Date().getFullYear();
   private readonly verlassenSchutz = inject(VerlassenSchutz);
   private readonly router = inject(Router);
+  private readonly unterschriftDialog = inject(UnterschriftDialogDienst);
 
   protected readonly navigation = NAVIGATION;
   protected readonly kinderVon = (knoten: NavKnoten): NavKnoten[] => knoten.kinder ?? [];

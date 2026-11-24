@@ -1,0 +1,67 @@
+<h2 mat-dialog-title>
+  {{ daten.einreichen ? 'Meldung einreichen' : 'Unterschriebene Meldung per E-Mail senden' }}
+</h2>
+<mat-dialog-content>
+  <fieldset class="gruppe">
+    <legend>Empfänger</legend>
+    @for (adresse of daten.empfaenger; track adresse) {
+      <mat-checkbox
+        [checked]="gewaehlt().includes(adresse)"
+        (change)="empfaengerUmschalten(adresse, $event.checked)"
+      >
+        {{ adresse }}
+      </mat-checkbox>
+    }
+    <p class="klein">
+      Die Empfänger legt die Zugführung in der Systemkonfiguration fest. Hier lässt sich nur daraus
+      auswählen.
+    </p>
+  </fieldset>
+
+  <fieldset class="gruppe">
+    <legend>Anhänge</legend>
+    <span class="datei">Schadensmeldung als PDF (immer)</span>
+    @if (daten.angebote.length > 0) {
+      <mat-checkbox
+        [checked]="mitAngeboten()"
+        [disabled]="!angebotePassen"
+        (change)="mitAngeboten.set($event.checked)"
+      >
+        {{ daten.angebote.length }}
+        {{ daten.angebote.length === 1 ? 'Angebot' : 'Angebote' }} anhängen ({{
+          megabyte(angebotGroesse)
+        }}
+        MB)
+      </mat-checkbox>
+      @if (!angebotePassen) {
+        <p class="klein">
+          Die Angebote sind zusammen größer als 3 MB und gehen nicht per Mail mit.
+        </p>
+      }
+    } @else {
+      <p class="klein">Noch kein Angebot am Vorgang.</p>
+    }
+  </fieldset>
+
+  <mat-form-field appearance="outline" class="nachricht">
+    <mat-label>Nachricht (optional)</mat-label>
+    <textarea
+      matInput
+      rows="3"
+      [attr.maxlength]="MAX"
+      [value]="nachricht()"
+      (input)="nachricht.set($any($event.target).value)"
+    ></textarea>
+    <mat-hint align="end">{{ nachricht().length }} / {{ MAX }}</mat-hint>
+  </mat-form-field>
+
+  @if (daten.einreichen) {
+    <p class="einreichen">Das Senden reicht den Vorgang ein (Stufe „Eingereicht“).</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton [mat-dialog-close]="null">Abbrechen</button>
+  <button matButton="filled" [disabled]="!gueltig()" (click)="senden()">
+    {{ daten.einreichen ? 'Einreichen und senden' : 'Senden' }}
+  </button>
+</mat-dialog-actions>

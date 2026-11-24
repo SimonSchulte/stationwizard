@@ -1,0 +1,72 @@
+<div class="zeile" [class.an-mich]="anMich()">
+  <div class="kopf">
+    <span class="titel">{{ pflicht() ? 'Pflichtfeld' : 'Optional' }}: {{ bezeichnung() }}</span>
+    @if (anMich()) {
+      <app-ampel-chip farbe="gelb" text="Du sollst hier unterschreiben" />
+    }
+  </div>
+
+  @switch (stand().status) {
+    @case ('unterschrieben') {
+      <div class="inhalt">
+        <div class="person">
+          <strong>{{ stand().name }}</strong>
+          <span class="datum">{{ stand().unterschriebenAm | date: 'dd.MM.yyyy' }}</span>
+        </div>
+        @if (stand().signatur; as signatur) {
+          <span class="unterschrift"
+            ><app-unterschrift-anzeige [unterschrift]="signatur" [hoehe]="40"
+          /></span>
+        }
+        @if (!eingereicht()) {
+          <button matButton type="button" [disabled]="arbeitet()" (click)="entfernen.emit()">
+            Entfernen
+          </button>
+        }
+      </div>
+    }
+    @case ('angefragt') {
+      <div class="inhalt">
+        <app-ampel-chip farbe="gelb" [text]="'Wartet auf ' + anName()" />
+        @if (anMich()) {
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="arbeitet() || !bereit()"
+            (click)="unterschreiben.emit()"
+          >
+            Mit meiner Unterschrift unterzeichnen
+          </button>
+        }
+        @if (!eingereicht()) {
+          <button matButton type="button" [disabled]="arbeitet()" (click)="entfernen.emit()">
+            Zurückziehen
+          </button>
+        }
+      </div>
+    }
+    @default {
+      <div class="inhalt">
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="arbeitet() || !bereit() || eingereicht()"
+          (click)="unterschreiben.emit()"
+        >
+          Selbst unterschreiben
+        </button>
+        <button
+          matButton="outlined"
+          type="button"
+          [disabled]="arbeitet() || !bereit() || eingereicht()"
+          (click)="anfordern.emit()"
+        >
+          Zur Unterschrift weitergeben
+        </button>
+        @if (!bereit() && !eingereicht()) {
+          <span class="hinweis">Zuerst die Pflichtangaben ausfüllen.</span>
+        }
+      </div>
+    }
+  }
+</div>

@@ -25,6 +25,10 @@ function einstellungen(ueberschreibung: Partial<Einstellungen> = {}): Einstellun
     materialBetreff: 'Materialmeldung',
     organisationLandesverband: '',
     organisationRegionalverband: '',
+    vorgangEinheit: 'BI EE 04',
+    vorgangEmpfaenger: '',
+    vorgangVersandweg: 'email-routing',
+    vorgangBetreff: 'Schadens- und Verlustmeldung',
     ...ueberschreibung,
   };
 }

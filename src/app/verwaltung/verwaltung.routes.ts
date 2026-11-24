@@ -69,6 +69,14 @@ export const verwaltungRouten: Routes = [
       ),
   },
   {
+    path: 'schadensmeldung-vorlage',
+    data: { vorlage: 'schadensmeldung' },
+    loadComponent: () =>
+      import('../personal/pages/fuehrerschein-vorlage-verwaltung/fuehrerschein-vorlage-verwaltung').then(
+        (modul) => modul.FuehrerscheinVorlageVerwaltung,
+      ),
+  },
+  {
     path: 'einsatz-vorlagen',
     loadComponent: () =>
       import('../einsatz/pages/einsatz-vorlagen/einsatz-vorlagen').then(

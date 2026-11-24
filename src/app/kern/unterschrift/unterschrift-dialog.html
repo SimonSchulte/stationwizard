@@ -1,0 +1,75 @@
+<h2 mat-dialog-title>Unterschrift</h2>
+<mat-dialog-content>
+  <p class="hinweis">
+    Diese Unterschrift wird gesetzt, wenn du ein Dokument selbst unterschreibst. Bereits
+    unterschriebene Dokumente ändern sich dadurch nicht.
+  </p>
+
+  <mat-button-toggle-group
+    hideSingleSelectionIndicator
+    aria-label="Art der Unterschrift"
+    [value]="modus()"
+    (change)="modus.set($event.value)"
+  >
+    <mat-button-toggle value="schrift">Schrift</mat-button-toggle>
+    <mat-button-toggle value="zeichnung">Zeichnen</mat-button-toggle>
+  </mat-button-toggle-group>
+
+  @if (modus() === 'schrift') {
+    <mat-form-field appearance="outline" class="eingabe">
+      <mat-label>Name</mat-label>
+      <input
+        matInput
+        [attr.maxlength]="TEXT_MAX"
+        [value]="text()"
+        (input)="textAendern($any($event.target).value)"
+      />
+    </mat-form-field>
+    <div class="schriften" role="radiogroup" aria-label="Schriftart">
+      @for (font of SCHRIFTEN; track font) {
+        <button
+          type="button"
+          class="schriftwahl"
+          role="radio"
+          [attr.aria-checked]="schrift() === font"
+          [class.gewaehlt]="schrift() === font"
+          [style.font-family]="'\'' + font + '\', cursive'"
+          (click)="schriftWaehlen(font)"
+        >
+          {{ text() || 'Name' }}
+        </button>
+      }
+    </div>
+  } @else {
+    <canvas
+      #zeichenflaeche
+      class="zeichenflaeche"
+      aria-label="Zeichenfläche für die Unterschrift"
+      [attr.width]="BREITE"
+      [attr.height]="HOEHE"
+      (pointerdown)="strichBeginnen($event)"
+      (pointermove)="strichFortsetzen($event)"
+      (pointerup)="strichBeenden()"
+      (pointercancel)="strichBeenden()"
+    ></canvas>
+    <button matButton type="button" (click)="zeichnungLoeschen()" [disabled]="!striche().length">
+      Zeichnung löschen
+    </button>
+  }
+
+  @if (ergebnis(); as vorschau) {
+    <div class="vorschau">
+      <span class="vorschau-titel">So erscheint sie im Dokument</span>
+      <app-unterschrift-anzeige [unterschrift]="vorschau" [hoehe]="48" />
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (daten.aktuell) {
+    <button matButton type="button" class="entfernen" [mat-dialog-close]="'entfernen'">
+      Entfernen
+    </button>
+  }
+  <button matButton [mat-dialog-close]="null">Abbrechen</button>
+  <button matButton="filled" [disabled]="!ergebnis()" (click)="speichern()">Speichern</button>
+</mat-dialog-actions>

@@ -10,6 +10,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, withHashLocation, withNavigationErrorHandler } from '@angular/router';
 import { provideAufgabenquelle } from './kern/aufgaben/aufgabenquelle';
 import { FahrzeugAufgabenquelle } from './fahrzeuge/services/fahrzeug-aufgabenquelle';
+import { VorgangAufgabenquelle } from './vorgaenge/services/vorgang-aufgabenquelle';
 import { CheckAufgabenquelle } from './material/services/check-aufgabenquelle';
 import { MatDatepickerIntl } from '@angular/material/datepicker';
 import { MatPaginatorIntl } from '@angular/material/paginator';
@@ -33,5 +34,6 @@ export const appConfig: ApplicationConfig = {
     // ist eine weitere Zeile hier, kein Umbau.
     provideAufgabenquelle(FahrzeugAufgabenquelle),
     provideAufgabenquelle(CheckAufgabenquelle),
+    provideAufgabenquelle(VorgangAufgabenquelle),
   ],
 };

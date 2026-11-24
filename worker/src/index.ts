@@ -9,11 +9,20 @@ import {
   verarbeiteBenutzerverwaltung,
   type BenutzerverwaltungKonfiguration,
 } from './benutzer';
+import {
+  UNTERSCHRIFT_PFAD,
+  verarbeiteBenutzerUnterschrift,
+  type BenutzerUnterschriftKonfiguration,
+} from './benutzer-unterschrift';
 import { EHRUNGEN_PFAD, verarbeiteEhrungen } from './ehrungen';
 import type { EhrungenKonfiguration } from './ehrungen-gemeinsam';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import { EINREICHUNGEN_PFAD, verarbeiteEinreichungen } from './einreichungen';
 import { verarbeiteFahrzeuge } from './fahrzeuge';
+import { POSTFACH_PFAD, verarbeitePostfach } from './postfach';
+import { verarbeiteEingehendeMail } from './postfach-eingang';
+import { VORGAENGE_PFAD, verarbeiteVorgaenge } from './vorgaenge';
+import type { VorgaengeKonfiguration } from './vorgaenge-gemeinsam';
 import type { FahrzeugeKonfiguration } from './fahrzeuge-gemeinsam';
 import { kurzlinkWeiterleitung } from './fahrzeuge-kurzlink';
 import {
@@ -27,6 +36,11 @@ import {
   verarbeiteFuehrerscheinVorlage,
   type FuehrerscheinVorlageKonfiguration,
 } from './fuehrerschein-vorlage';
+import {
+  SCHADENSMELDUNG_VORLAGE_DATEI_PFAD,
+  SCHADENSMELDUNG_VORLAGE_PFAD,
+  verarbeiteSchadensmeldungVorlage,
+} from './schadensmeldung-vorlage';
 import { verarbeiteHiorgApi } from './hiorg-api';
 import {
   HIORG_ANTRAGSDATEN_MUSTER,
@@ -68,10 +82,12 @@ import {
 export interface Env
   extends
     AccessKonfiguration,
+    BenutzerUnterschriftKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
     HiorgApiKonfiguration,
     FahrzeugeKonfiguration,
+    VorgaengeKonfiguration,
     BenutzerverwaltungKonfiguration,
     SystemkonfigurationKonfiguration,
     KmBerichtKonfiguration,
@@ -183,6 +199,25 @@ export default {
         }
       }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (url.pathname === POSTFACH_PFAD || url.pathname.startsWith(`${POSTFACH_PFAD}/`)) {
+      return verarbeitePostfach(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === VORGAENGE_PFAD || url.pathname.startsWith(`${VORGAENGE_PFAD}/`)) {
+      return verarbeiteVorgaenge(anfrage, umgebung, benutzer);
+    }
+
+    if (
+      url.pathname === SCHADENSMELDUNG_VORLAGE_PFAD ||
+      url.pathname === SCHADENSMELDUNG_VORLAGE_DATEI_PFAD
+    ) {
+      return verarbeiteSchadensmeldungVorlage(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === UNTERSCHRIFT_PFAD) {
+      return verarbeiteBenutzerUnterschrift(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === PROFILBILD_PFAD) {
@@ -308,5 +343,12 @@ export default {
     }
 
     return assetAntwort(anfrage, umgebung, url.pathname);
+  },
+  /**
+   * Eingehende Mail des Postfachs (Email Routing, Catch-all → Worker). Kein HTTP-Pfad und damit kein
+   * Eintrag in `OEFFENTLICHE_MUSTER`: der Zugriff ist die Einrichtung von Email Routing im Konto.
+   */
+  async email(nachricht: ForwardableEmailMessage, umgebung: Env): Promise<void> {
+    await verarbeiteEingehendeMail(nachricht, umgebung);
   },
 } satisfies ExportedHandler<Env>;

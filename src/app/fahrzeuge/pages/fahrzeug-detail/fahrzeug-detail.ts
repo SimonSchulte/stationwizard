@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { distinctUntilChanged, map } from 'rxjs';
@@ -13,7 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
 import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
-import { MatExpansionModule } from '@angular/material/expansion';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -27,6 +28,9 @@ import {
   jahrVon,
   lokalesDatumZuIso,
 } from '../../../kern/kalender/datum';
+import { AmpelChip } from '../../components/ampel-chip/ampel-chip';
+import { FormulareReiter } from '../../../vorgaenge/components/formulare-reiter/formulare-reiter';
+import { VorgaengeReiter } from '../../../vorgaenge/components/vorgaenge-reiter/vorgaenge-reiter';
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import {
   Aenderungseintrag,
@@ -36,6 +40,7 @@ import {
   Kilometerstand,
   Wartungstermin,
 } from '../../models/fahrzeug.model';
+import { ampelKlasse, ermittleLeitTermin } from '../../services/ampel-anzeige';
 import { AblesungStoreService } from '../../services/ablesung-store.service';
 import { AenderungsprotokollStoreService } from '../../services/aenderungsprotokoll-store.service';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
@@ -51,6 +56,21 @@ import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
+
+/** Die Reiter der Fahrzeugakte; der Name steht im Adressparameter `reiter`. */
+export type Reiter =
+  'stammdaten' | 'wartung' | 'kilometer' | 'formulare' | 'vorgaenge' | 'qr-codes' | 'verlauf';
+const REITER_BESTEHEND: readonly Reiter[] = [
+  'stammdaten',
+  'wartung',
+  'kilometer',
+  'formulare',
+  'vorgaenge',
+  'qr-codes',
+  'verlauf',
+];
+/** Ein noch ungespeichertes Fahrzeug hat weder Kilometerstände noch QR-Codes noch einen Verlauf. */
+const REITER_NEU: readonly Reiter[] = ['stammdaten', 'wartung'];
 
 function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   return {
@@ -76,7 +96,10 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     MatButtonModule,
     MatCheckboxModule,
     MatDatepickerModule,
-    MatExpansionModule,
+    MatTabsModule,
+    AmpelChip,
+    FormulareReiter,
+    VorgaengeReiter,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -103,6 +126,7 @@ export class FahrzeugDetail {
   readonly GRUPPEN = GRUPPEN;
   readonly GRUPPE_LABEL = GRUPPE_LABEL;
   readonly heute = heuteIso();
+  readonly ampelKlasse = ampelKlasse;
 
   /** Reagiert auf einen Wechsel des Routenparameters, falls die Detailseite wiederverwendet wird. */
   private readonly routenId = toSignal(
@@ -111,6 +135,39 @@ export class FahrzeugDetail {
       distinctUntilChanged(),
     ),
     { initialValue: this.route.snapshot.paramMap.get('id') },
+  );
+
+  private readonly reiterParameter = toSignal(
+    this.route.queryParamMap.pipe(
+      map((parameter) => parameter.get('reiter')),
+      distinctUntilChanged(),
+    ),
+    { initialValue: this.route.snapshot.queryParamMap.get('reiter') },
+  );
+
+  readonly reiterListe = computed(() => (this.store.istNeu() ? REITER_NEU : REITER_BESTEHEND));
+
+  /** Unbekannte oder für dieses Fahrzeug nicht verfügbare Reiter fallen auf Stammdaten zurück. */
+  readonly aktuellerReiter = computed<Reiter>(() => {
+    const liste = this.reiterListe();
+    return liste.find((reiter) => reiter === this.reiterParameter()) ?? liste[0];
+  });
+
+  readonly reiterIndex = computed(() => this.reiterListe().indexOf(this.aktuellerReiter()));
+
+  /** Die Angaben, die die Reiter „Formulare“ und „Vorgänge“ brauchen. */
+  readonly fahrzeugKurz = computed(() => {
+    const entwurf = this.store.entwurf();
+    return {
+      id: entwurf?.id ?? '',
+      bezeichnung: entwurf?.bezeichnung ?? '',
+      kennzeichen: entwurf?.kennzeichen ?? '',
+    };
+  });
+
+  /** Der nächste offene Termin steht im Kopf der Akte. */
+  readonly leitTermin = computed(() =>
+    ermittleLeitTermin(this.store.entwurf()?.wartungstermine ?? [], this.heute),
   );
 
   readonly istFin = computed(() => {
@@ -191,16 +248,33 @@ export class FahrzeugDetail {
       } else {
         void this.store.fahrzeugLaden(id);
         void this.ablesungStore.laden(id);
-        // Das Änderungsprotokoll steht in einem zugeklappten Bereich und wird
+        // Das Änderungsprotokoll steht in einem eigenen Reiter und wird
         // erst beim Öffnen geladen (siehe `protokollOeffnen()`); der alte
         // Stand darf bis dahin nicht stehen bleiben.
         this.aenderungsprotokollStore.zuruecksetzen();
       }
     });
+
+    // Das Protokoll wird erst geladen, wenn der Reiter „Verlauf“ offen ist (auch über einen Link).
+    effect(() => {
+      const id = this.routenId();
+      if (this.aktuellerReiter() === 'verlauf' && id) untracked(() => this.protokollOeffnen());
+    });
+  }
+
+  /** Wechselt den Reiter über die Adresse, damit er sich verlinken lässt und die Zurück-Taste nicht belastet. */
+  reiterWechseln(index: number): void {
+    const reiter = this.reiterListe()[index];
+    if (!reiter || reiter === this.aktuellerReiter()) return;
+    void this.router.navigate([], {
+      queryParams: { reiter: reiter === 'stammdaten' ? null : reiter },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   /**
-   * Lädt das Änderungsprotokoll beim Aufklappen statt beim Öffnen der Seite.
+   * Lädt das Änderungsprotokoll beim Öffnen des Reiters statt beim Öffnen der Seite.
    * Es wird selten angesehen, kostet aber sonst bei jedem Seitenaufruf eine
    * eigene Anfrage. Jedes Aufklappen lädt neu – so ist der angezeigte Stand
    * immer der aktuelle, auch nach eigenen Änderungen.

@@ -6,6 +6,8 @@ import { ActivatedRoute } from '@angular/router';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 import { fehlendeFelder } from '../../services/ehrungsantrag-pdf';
+import { fehlendeFelder as fehlendeFelderSchadensmeldung } from '../../../vorgaenge/services/schadensmeldung-pdf';
+import { SchadensmeldungVorlageService } from '../../../vorgaenge/services/schadensmeldung-vorlage.service';
 import {
   EhrungsantragVorlageService,
   FuehrerscheinVorlageService,
@@ -15,7 +17,7 @@ import {
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Leerzustand, Meldung } from '../../../kern/zustand/zustand';
 
-export type VorlagenSeite = 'fuehrerschein' | 'ehrungsantrag';
+export type VorlagenSeite = 'fuehrerschein' | 'ehrungsantrag' | 'schadensmeldung';
 
 interface SeitenArt {
   titel: string;
@@ -60,7 +62,31 @@ const ARTEN: Readonly<Record<VorlagenSeite, SeitenArt>> = {
       }
     },
   },
+  schadensmeldung: {
+    titel: 'Schadensmeldung-Vorlage',
+    beschreibung:
+      'Das PDF-Formular „Schadens- und Verlustmeldung“ (Anlage 5, Stand 23.11.2023), das die Meldung eines Vorgangs beim Drucken und Einreichen füllt: Angaben, Namen und Daten der Unterschriften und die Unterschriften selbst. Die Formularfelder müssen denen dieses Stands entsprechen.',
+    endung: /\.pdf$/i,
+    endungText: '.pdf',
+    accept: '.pdf,application/pdf',
+    standardDateiname: 'schadensmeldung-vorlage.pdf',
+    ersetzenFolge: 'Bereits gesendete und heruntergeladene Meldungen bleiben davon unberührt.',
+    pruefen: async (datei) => {
+      try {
+        const fehlend = await fehlendeFelderSchadensmeldung(await datei.arrayBuffer());
+        return fehlend.length === 0
+          ? null
+          : `Das PDF passt nicht zum erwarteten Formular. Es fehlen ${fehlend.length} Formularfelder, unter anderem „${fehlend[0]}“.`;
+      } catch (fehler) {
+        return fehler instanceof Error ? fehler.message : 'Das PDF ist nicht lesbar.';
+      }
+    },
+  },
 };
+
+function leseSeite(wert: unknown): VorlagenSeite {
+  return wert === 'ehrungsantrag' || wert === 'schadensmeldung' ? wert : 'fuehrerschein';
+}
 
 /**
  * Verwaltungsseite zum Hinterlegen/Ersetzen einer Dokumentvorlage: die Word-Vorlage der
@@ -83,15 +109,16 @@ const ARTEN: Readonly<Record<VorlagenSeite, SeitenArt>> = {
   styleUrl: './fuehrerschein-vorlage-verwaltung.less',
 })
 export class FuehrerscheinVorlageVerwaltung implements OnInit {
-  private readonly seite: VorlagenSeite =
-    inject(ActivatedRoute, { optional: true })?.snapshot.data['vorlage'] === 'ehrungsantrag'
-      ? 'ehrungsantrag'
-      : 'fuehrerschein';
+  private readonly seite: VorlagenSeite = leseSeite(
+    inject(ActivatedRoute, { optional: true })?.snapshot.data['vorlage'],
+  );
   readonly art = ARTEN[this.seite];
   private readonly vorlageDienst: DateiVorlageDienst =
     this.seite === 'ehrungsantrag'
       ? inject(EhrungsantragVorlageService)
-      : inject(FuehrerscheinVorlageService);
+      : this.seite === 'schadensmeldung'
+        ? inject(SchadensmeldungVorlageService)
+        : inject(FuehrerscheinVorlageService);
   private readonly dialogDienst = inject(DialogDienst);
 
   readonly vorlage = signal<DateiVorlageMetadaten | null>(null);

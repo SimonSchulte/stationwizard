@@ -17,7 +17,7 @@ export interface DateiVorlageKonfiguration {
 
 export interface VorlagenArt {
   /** Fester Tabellenname aus der Migration, nie aus einer Eingabe. */
-  tabelle: 'fuehrerschein_vorlage' | 'ehrungsantrag_vorlage';
+  tabelle: 'fuehrerschein_vorlage' | 'ehrungsantrag_vorlage' | 'schadensmeldung_vorlage';
   id: string;
   pfad: string;
   dateiPfad: string;

@@ -1,0 +1,89 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.seite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.kopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.vorgang-link {
+  font-weight: 700;
+}
+
+.karte,
+.sperre {
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  background: var(--surface-primary);
+}
+
+.sperre {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  border-color: var(--status-warn);
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+}
+
+.titel {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.beschreibung {
+  margin: 0 0 var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.felder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.art {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.art-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.aktionen {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}

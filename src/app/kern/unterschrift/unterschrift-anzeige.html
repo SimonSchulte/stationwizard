@@ -1,0 +1,20 @@
+@if (schrift(); as daten) {
+  <span
+    class="schrift"
+    [style.font-family]="'\'' + daten.font + '\', cursive'"
+    [style.font-size.px]="hoehe() * 0.85"
+    >{{ daten.text }}</span
+  >
+} @else {
+  <svg
+    class="zeichnung"
+    role="img"
+    aria-label="Unterschrift"
+    [attr.viewBox]="viewBox"
+    [style.height.px]="hoehe()"
+  >
+    @for (strich of punkte(); track $index) {
+      <polyline [attr.points]="strich" />
+    }
+  </svg>
+}

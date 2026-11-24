@@ -194,3 +194,46 @@ describe('resend: nicht headertaugliches Token', () => {
     await expect(versuch).rejects.toThrow(/HTTP-Header/);
   });
 });
+
+describe('Anhänge und mehrere Empfänger', () => {
+  it('schickt über den HTTP-Anbieter alle Empfänger und die Anhänge in einer Anfrage', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const versand = await waehleVersand('resend', umgebung());
+    await versand.sende({
+      ...NACHRICHT,
+      weitereEmpfaenger: ['zweite@example.test'],
+      anhaenge: [{ dateiname: 'a.pdf', inhaltBase64: 'QQ==' }],
+    });
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    );
+    expect(body.to).toEqual(['leitung@example.test', 'zweite@example.test']);
+    expect(body.attachments).toEqual([{ filename: 'a.pdf', content: 'QQ==' }]);
+  });
+
+  it('sendet ohne Anhänge kein leeres attachments-Feld', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await waehleVersand('resend', umgebung())).sende(NACHRICHT);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    );
+    expect(body).not.toHaveProperty('attachments');
+  });
+
+  it('sendet über Email Routing an jeden Empfänger einzeln und lehnt Anhänge ab', async () => {
+    const binding = { send: vi.fn(async () => undefined) };
+    const versand = await waehleVersand(
+      'email-routing',
+      umgebung({ MAIL_ROUTING: binding as never }),
+    );
+    await versand.sende({ ...NACHRICHT, weitereEmpfaenger: ['zweite@example.test'] });
+    expect(
+      binding.send.mock.calls.map((aufruf) => (aufruf as unknown as [{ to: string }])[0].to),
+    ).toEqual(['leitung@example.test', 'zweite@example.test']);
+    await expect(
+      versand.sende({ ...NACHRICHT, anhaenge: [{ dateiname: 'a.pdf', inhaltBase64: 'QQ==' }] }),
+    ).rejects.toMatchObject({ grund: 'anhang-nicht-unterstuetzt' });
+  });
+});

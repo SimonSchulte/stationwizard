@@ -158,3 +158,10 @@ secret_name = "MAIL_API_TOKEN"
 # [[send_email]]
 # name = "MAIL_ROUTING"
 # destination_address = "<BERICHTSADRESSE>"
+
+# Dateispeicher der Vorgänge (Rohmails des Postfachs, Angebote, Kopie der versendeten Meldung).
+# Der Bucket ist privat (kein öffentlicher Zugriff) und im Konto angelegt
+# (siehe docs/einrichtung.md, "Vorgänge und Postfach").
+[[r2_buckets]]
+binding = "VORGAENGE_DATEIEN"
+bucket_name = "stationwizard-vorgaenge"

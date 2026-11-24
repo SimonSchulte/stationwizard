@@ -3863,3 +3863,25 @@ Korrektur dreier Tippfehler ohne Warnung), die Tests arbeiten mit erfundenen Zei
 (1759 Tests, darunter Plan, Aufbau-Inhalt gegen `istAufbauInhalt()`, Store-Methode und die Seite mit ersetztem Dateileser).
 **Nicht ausgeführt:** die Seite im Browser mit einer echten Excel-Datei (der Dateileser `lesePackliste()` ist nur über den Dienst
 ersetzt getestet), das Anlegen gegen den echten Worker und die Sichtprüfung auf Desktop und Mobil.
+
+## Fahrzeugakte, Vorgänge, Schadensmeldung und Postfach
+
+Umgesetzt nach `docs/konzept-vorgaenge.md` in acht Arbeitspaketen: Fahrzeugakte mit Reitern und Ampelchips (V1), hinterlegte
+Unterschrift im Benutzerkonto (V2), Vorgang „Fahrzeug/Material defekt“ mit sechs Stufen und Schadens- und Verlustmeldung
+(V3), Unterschriftsanfragen über den Aufgabenbereich (V4), Befüllung des PDF-Formulars Anlage 5 im Browser (V5), Mailversand
+und Einreichen (V6), Postfach mit Mailempfang, Fahrzeugadressen und Zuordnung von Angeboten (V7).
+
+Ausgeführte Prüfungen: Worker-Tests (1042, darunter echte Migrationen gegen SQLite über `worker/tests/sqlite-d1.ts`),
+Frontend-Tests (1908), Produktionsbuild, Prettier, `tsc` für App, Spec und Worker. Das Befüllen wurde mit dem echten Formular
+Anlage 5 erzeugt und das Ergebnis als Bild geprüft (einschließlich Beiblatt).
+
+Abweichungen vom Konzept: kein Endpunkt `GET /api/fahrzeuge/<id>/vorgaenge` (die Liste kommt über `GET /api/vorgaenge`, der
+Reiter filtert); die Adressen je Fahrzeug liegen in `postfach_adressen` mit Kürzel; die Notiz zu einem Angebot hat höchstens
+2000 statt 5000 Zeichen; die Beiblatt-Schwelle (550 Zeichen Sachverhalt) ist geschätzt.
+
+**Nicht ausgeführt / offen:** R2 ist aktiviert, der private Bucket `stationwizard-vorgaenge` angelegt und das Binding in `wrangler.toml` aktiv (noch nicht deployt, Zugriff aus dem Worker nicht live erprobt); Email Routing
+und der Catch-all sind nicht eingerichtet (nichts in Cloudflare geändert, nur lesend geprüft); der `email()`-Handler und seine
+CPU-Zeit im Free-Tarif sind nicht gegen echte Mails gemessen; der Versand mit PDF-Anhang über Resend ist nicht live erprobt;
+die Migrationen 0027 bis 0030 sind am 2026-11-24 über die D1-API in beide Datenbanken eingespielt und in `d1_migrations` eingetragen (Kommentarzeilen weggelassen, sonst unverändert); Sichtprüfung im Browser auf Desktop und
+Mobil steht aus; die serverseitige Durchsetzung der Rollen bleibt bei „Rechte vorerst alle, Rollen später“, soweit nicht in
+`rollen.ts` geregelt.

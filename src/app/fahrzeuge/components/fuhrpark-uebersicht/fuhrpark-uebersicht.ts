@@ -7,101 +7,34 @@ import {
   inject,
   signal,
   untracked,
-  viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSelectionList } from '@angular/material/list';
-import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
-import { VERLASSEN_NACHRICHT } from '../../../kern/verlassen-guard';
-import { provideDeutschesDatum } from '../../../kern/kalender/deutsches-datum';
-import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatListModule } from '@angular/material/list';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import {
-  heuteIso,
-  isoZuLokalesDatum,
-  jahrVon,
-  lokalesDatumZuIso,
-} from '../../../kern/kalender/datum';
+import { heuteIso } from '../../../kern/kalender/datum';
+import { Leerzustand } from '../../../kern/zustand/leerzustand';
+import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
-import { KilometerBilanz } from '../kilometer-bilanz/kilometer-bilanz';
+import { EIGENTUEMER, Eigentuemer, Fahrzeugstamm } from '../../models/fahrzeug.model';
 import {
-  EIGENTUEMER,
-  Eigentuemer,
-  Fahrzeugstamm,
-  GRUPPEN,
-  Wartungstermin,
-} from '../../models/fahrzeug.model';
-import { AblesungStoreService } from '../../services/ablesung-store.service';
-import {
-  AblesungHinweis,
-  KILOMETERSTAND_MAX,
-  KilometerEingabeFehler,
-  leseKilometerEingabe,
-  pruefeAblesungPlausibilitaet,
-} from '../../services/ablesung-pruefung';
+  ampelKlasse,
+  ermittleLeitTermin,
+  LeitTermin,
+  tageBisFaelligText,
+} from '../../services/ampel-anzeige';
 import { EIGENTUEMER_LABEL } from '../../services/eigentuemer-label';
 import { FahrzeugStoreService } from '../../services/fahrzeug-store.service';
 import { GRUPPE_LABEL } from '../../services/gruppe-label';
-import { istGueltigeFin } from '../../services/fahrzeug-pruefung';
 import { KmBerichtStoreService } from '../../services/km-bericht-store.service';
 import {
-  berechneJahresbilanz,
   ermittleKilometerAmpel,
   KILOMETER_AMPEL_SCHWELLENWERTE_STANDARD,
   KilometerAmpel,
   restmonateImJahr,
 } from '../../services/kilometer-soll';
-import {
-  ermittleWartungsstatus,
-  sortiereOffeneWartungen,
-  WartungsAmpel,
-  Wartungsstatus,
-} from '../../services/wartungsstatus';
-import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
-import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { Leerzustand } from '../../../kern/zustand/leerzustand';
-
-/** Vereinheitlicht Kilometer- und Wartungsampel auf dieselbe Dreifarbdarstellung. */
-export function ampelKlasse(ampel: KilometerAmpel | WartungsAmpel | null): string {
-  switch (ampel) {
-    case 'rot':
-    case 'ueberfaellig':
-      return 'rot';
-    case 'gelb':
-    case 'warnung':
-      return 'gelb';
-    case 'gruen':
-    case 'ok':
-    case 'erledigt':
-      return 'gruen';
-    default:
-      return 'neutral';
-  }
-}
-
-function tageBisFaelligText(tage: number): string {
-  if (tage < 0) return `${Math.abs(tage)} Tage überfällig`;
-  if (tage === 0) return 'heute fällig';
-  return `in ${tage} Tagen fällig`;
-}
-
-const KM_FEHLERTEXT: Record<KilometerEingabeFehler, string> = {
-  'kein-zahlenwert': 'Bitte nur Ziffern eingeben.',
-  'keine-ganzzahl': 'Bitte ganze Kilometer ohne Nachkommastellen eingeben.',
-  'zu-gross': `Der Stand darf höchstens ${KILOMETERSTAND_MAX.toLocaleString('de-DE')} km betragen.`,
-};
-
-interface LeitTermin {
-  bezeichnung: string;
-  ampel: WartungsAmpel | null;
-  text: string;
-}
+import { sortiereOffeneWartungen } from '../../services/wartungsstatus';
+import { AmpelChip } from '../ampel-chip/ampel-chip';
 
 interface ListenEintrag {
   fahrzeug: Fahrzeugstamm;
@@ -110,80 +43,47 @@ interface ListenEintrag {
   leitTermin: LeitTermin;
 }
 
-interface TerminAnzeige {
-  status: Wartungsstatus;
-  text: string;
-}
+/** Wie viele offene Termine die Vorschau zeigt; alle weiteren stehen in der Akte. */
+const TERMINE_IN_VORSCHAU = 3;
 
 /**
- * Fuhrpark-Master/Detail: eine Liste aller Fahrzeuge (mit Suche und
- * Eigentümer-Filter) und ein Detailbereich für das gewählte Fahrzeug, ohne
- * Trennung zwischen Kilometer- und Wartungsdaten. Kilometerstände und
- * Wartungstermine lassen sich direkt hier erfassen bzw. als erledigt melden,
- * ohne vorher einen separaten Bearbeiten-Modus zu öffnen – jede Aktion
- * speichert sofort über `FahrzeugStoreService`/`AblesungStoreService`.
+ * Fuhrpark-Übersicht: eine Liste aller Fahrzeuge (mit Suche und Eigentümer-Filter) und rechts eine
+ * lesende Vorschau des gewählten Fahrzeugs. Bearbeitet wird ausschließlich in der Fahrzeugakte
+ * (`/fahrzeuge/:id`); die Vorschau hat deshalb keine eigenen Formulare mehr.
  *
- * Nutzt bewusst dieselben Stores wie die Fahrzeugdetailseite (Einzel-Entwurf
- * mit ETag-Konfliktbehandlung): ein Wechsel der Auswahl lädt das gewählte
- * Fahrzeug neu, genau wie ein Routenwechsel auf der Detailseite.
+ * Alles, was sie zeigt, kommt aus der Fahrzeugliste und dem Fuhrpark-Bericht (je ein Aufruf über
+ * alle Fahrzeuge). Ein Wechsel der Auswahl löst keine eigene Anfrage aus.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuhrpark-uebersicht',
   imports: [
+    AmpelChip,
     Leerzustand,
-    MatButtonToggleModule,
-    Suchfeld,
-    Meldung,
-    Ladeanzeige,
-    DatePipe,
     MatButtonModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatIconModule,
+    MatButtonToggleModule,
     MatListModule,
-    MatInputModule,
-    MatSelectModule,
-    KilometerBilanz,
+    RouterLink,
+    Suchfeld,
   ],
-  providers: [provideDeutschesDatum()],
   templateUrl: './fuhrpark-uebersicht.html',
   styleUrl: './fuhrpark-uebersicht.less',
 })
 export class FuhrparkUebersicht implements OnInit {
   private readonly fahrzeugeStore = inject(FahrzeugStoreService);
-  private readonly dialogDienst = inject(DialogDienst);
-  private readonly fahrzeugListe = viewChild(MatSelectionList);
   private readonly berichtStore = inject(KmBerichtStoreService);
   private readonly konfiguration = inject(SystemkonfigurationStoreService);
-  readonly ablesungStore = inject(AblesungStoreService);
 
   readonly EIGENTUEMER = EIGENTUEMER;
   readonly EIGENTUEMER_LABEL = EIGENTUEMER_LABEL;
-  readonly GRUPPEN = GRUPPEN;
   readonly GRUPPE_LABEL = GRUPPE_LABEL;
   readonly ampelKlasse = ampelKlasse;
-
-  readonly ladeLaeuft = this.fahrzeugeStore.ladeLaeuft;
-  readonly ladeFehler = this.fahrzeugeStore.ladeFehler;
-  readonly speicherFehler = this.fahrzeugeStore.speicherFehler;
-  readonly speicherKonflikt = this.fahrzeugeStore.speicherKonflikt;
-  readonly speichertGerade = this.fahrzeugeStore.speichertGerade;
 
   private readonly heute = heuteIso();
 
   readonly suche = signal('');
   readonly eigentuemerFilter = signal<Eigentuemer | 'alle'>('alle');
   readonly ausgewaehltId = signal<string | null>(null);
-
-  readonly kmDatum = signal(heuteIso());
-  readonly kmEingabe = signal('');
-  readonly kmBestaetigung = signal<{ wert: number; datum: string } | null>(null);
-
-  readonly neuerTerminBezeichnung = signal('');
-  readonly neuerTerminDatum = signal(heuteIso());
-
-  readonly bearbeitungModus = signal(false);
 
   private readonly ampelSchwellenwerte = computed(() => {
     const einstellungen = this.konfiguration.gespeicherteEinstellungen();
@@ -215,15 +115,7 @@ export class FuhrparkUebersicht implements OnInit {
             : (zeile.restKm ?? 0) <= 0
               ? 'Jahressoll erreicht'
               : `${zeile.restKm} km offen`;
-      const offene = sortiereOffeneWartungen(fahrzeug.wartungstermine, this.heute);
-      const leitTermin: LeitTermin =
-        offene.length > 0
-          ? {
-              bezeichnung: offene[0].termin.bezeichnung,
-              ampel: offene[0].ampel,
-              text: tageBisFaelligText(offene[0].tageBisFaellig),
-            }
-          : { bezeichnung: 'Keine offenen Termine', ampel: null, text: '' };
+      const leitTermin = ermittleLeitTermin(fahrzeug.wartungstermine, this.heute);
       return { fahrzeug, kmAmpel, kmText, leitTermin };
     });
   });
@@ -245,69 +137,19 @@ export class FuhrparkUebersicht implements OnInit {
       .sort((a, b) => a.fahrzeug.bezeichnung.localeCompare(b.fahrzeug.bezeichnung));
   });
 
-  readonly ausgewaehltesFahrzeug = computed(() => this.fahrzeugeStore.entwurf());
+  readonly ausgewaehlt = computed(
+    () => this.gefiltert().find((e) => e.fahrzeug.id === this.ausgewaehltId()) ?? null,
+  );
 
-  readonly istFin = computed(() => {
-    const fin = this.ausgewaehltesFahrzeug()?.fahrgestellnummer;
-    return !fin || istGueltigeFin(fin);
-  });
-
-  readonly kannStammdatenSpeichern = computed(() => {
-    const entwurf = this.ausgewaehltesFahrzeug();
-    return (
-      !!entwurf &&
-      entwurf.bezeichnung.trim().length > 0 &&
-      entwurf.kennzeichen.trim().length > 0 &&
-      this.istFin() &&
-      !this.speichertGerade()
-    );
-  });
-
-  readonly ausgewaehlteBilanz = computed(() => {
-    const entwurf = this.ausgewaehltesFahrzeug();
-    if (!entwurf) return null;
-    return berechneJahresbilanz(entwurf, this.ablesungStore.ablesungen(), jahrVon(this.heute));
-  });
-
-  readonly ausgewaehlteAmpel = computed<KilometerAmpel | null>(() => {
-    const bilanz = this.ausgewaehlteBilanz();
-    if (!bilanz) return null;
-    return ermittleKilometerAmpel(bilanz, this.restMonate(), this.ampelSchwellenwerte());
-  });
-
-  readonly ausgewaehlteTermine = computed<TerminAnzeige[]>(() => {
-    const entwurf = this.ausgewaehltesFahrzeug();
-    if (!entwurf) return [];
-    return [...entwurf.wartungstermine]
-      .map((termin) => {
-        const status = ermittleWartungsstatus(termin, this.heute);
-        return { status, text: tageBisFaelligText(status.tageBisFaellig) };
-      })
-      .sort((a, b) => a.status.tageBisFaellig - b.status.tageBisFaellig);
-  });
-
-  private readonly kmEingabeErgebnis = computed(() => leseKilometerEingabe(this.kmEingabe()));
-
-  readonly kmEingabeZahl = computed<number | null>(() => {
-    const ergebnis = this.kmEingabeErgebnis();
-    return ergebnis.art === 'gueltig' ? ergebnis.stand : null;
-  });
-
-  readonly kmEingabeFehler = computed<string | null>(() => {
-    const ergebnis = this.kmEingabeErgebnis();
-    return ergebnis.art === 'ungueltig' ? KM_FEHLERTEXT[ergebnis.fehler] : null;
-  });
-
-  readonly kmHinweis = computed<AblesungHinweis>(() => {
-    const wert = this.kmEingabeZahl();
-    if (wert === null) return null;
-    const letzte = this.ablesungStore.letzteAblesung();
-    return pruefeAblesungPlausibilitaet(wert, letzte ? { stand: letzte.stand } : null);
-  });
+  readonly naechsteTermine = computed(() =>
+    sortiereOffeneWartungen(this.ausgewaehlt()?.fahrzeug.wartungstermine ?? [], this.heute)
+      .slice(0, TERMINE_IN_VORSCHAU)
+      .map((status) => ({ status, text: tageBisFaelligText(status.tageBisFaellig) })),
+  );
 
   constructor() {
-    // Hält die Auswahl gültig, wenn Suche/Filter sie aus der Liste werfen –
-    // fällt dann auf das erste passende Fahrzeug zurück statt leerzulaufen.
+    // Hält die Auswahl gültig, wenn Suche/Filter sie aus der Liste werfen: fällt dann auf das
+    // erste passende Fahrzeug zurück statt leerzulaufen.
     effect(() => {
       const liste = this.gefiltert();
       const aktuelle = untracked(() => this.ausgewaehltId());
@@ -319,14 +161,6 @@ export class FuhrparkUebersicht implements OnInit {
         this.ausgewaehltId.set(liste[0].fahrzeug.id);
       }
     });
-
-    effect(() => {
-      const id = this.ausgewaehltId();
-      untracked(() => this.formularZuruecksetzen());
-      if (!id) return;
-      void this.fahrzeugeStore.fahrzeugLaden(id);
-      void this.ablesungStore.laden(id);
-    });
   }
 
   ngOnInit(): void {
@@ -334,125 +168,7 @@ export class FuhrparkUebersicht implements OnInit {
     void this.konfiguration.laden();
   }
 
-  /** Für die Datepicker-Bindung: ISO-Datum-Signale als `Date` darstellen. */
-  alsDatum(iso: string): Date | null {
-    return isoZuLokalesDatum(iso);
-  }
-
-  kmDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
-    if (event.value) this.kmDatum.set(lokalesDatumZuIso(event.value));
-  }
-
-  neuerTerminDatumAktualisieren(event: MatDatepickerInputEvent<Date>): void {
-    if (event.value) this.neuerTerminDatum.set(lokalesDatumZuIso(event.value));
-  }
-
-  /** Wechselt das Fahrzeug; ein ungespeicherter Bearbeitungsstand wird nicht stillschweigend verworfen. */
-  async auswaehlen(id: string): Promise<void> {
-    if (id === this.ausgewaehltId()) return;
-    if (this.fahrzeugeStore.hatUngesicherteAenderungen()) {
-      const verwerfen = await this.dialogDienst.bestaetigen(
-        VERLASSEN_NACHRICHT,
-        'Ungespeicherte Änderungen',
-        'Verwerfen und wechseln',
-      );
-      if (!verwerfen) {
-        // Die Auswahlliste hat den Wechsel schon gezeigt: auf das bearbeitete Fahrzeug zurück.
-        const aktuell = this.ausgewaehltId();
-        this.fahrzeugListe()?.options.forEach(
-          (option) => (option.selected = option.value === aktuell),
-        );
-        return;
-      }
-    }
+  auswaehlen(id: string): void {
     this.ausgewaehltId.set(id);
-  }
-
-  private formularZuruecksetzen(): void {
-    this.kmDatum.set(heuteIso());
-    this.kmEingabe.set('');
-    this.kmBestaetigung.set(null);
-    this.neuerTerminBezeichnung.set('');
-    this.neuerTerminDatum.set(heuteIso());
-    this.bearbeitungModus.set(false);
-  }
-
-  async kmErfassen(): Promise<void> {
-    const id = this.ausgewaehltId();
-    const stand = this.kmEingabeZahl();
-    if (!id || stand === null) return;
-    const datum = this.kmDatum();
-    const erfolg = await this.ablesungStore.erfassen({
-      fahrzeugId: id,
-      abgelesenAm: datum,
-      stand,
-      quelle: 'formular',
-      korrigiert: null,
-      bemerkung: '',
-    });
-    if (erfolg) {
-      this.kmBestaetigung.set({ wert: stand, datum });
-      this.kmEingabe.set('');
-      this.kmDatum.set(heuteIso());
-      // Der Ampelstand in der Liste kommt aus dem Fuhrpark-Bericht (ein
-      // Aufruf über alle Fahrzeuge) und muss nach der eigenen Schreibung neu
-      // geladen werden, sonst zeigt die Liste die gerade erfasste Ablesung nicht.
-      void this.berichtStore.berichtLaden();
-    }
-  }
-
-  async terminAlsErledigtMelden(terminId: string): Promise<void> {
-    const liste = this.fahrzeugeStore.entwurf()?.wartungstermine ?? [];
-    this.fahrzeugeStore.wartungstermineAktualisieren(
-      liste.map((termin) =>
-        termin.id === terminId ? { ...termin, erledigtAm: heuteIso() } : termin,
-      ),
-    );
-    await this.fahrzeugeStore.speichern();
-  }
-
-  async neuerTerminHinzufuegen(): Promise<void> {
-    const bezeichnung = this.neuerTerminBezeichnung().trim();
-    if (!bezeichnung) return;
-    const liste = this.fahrzeugeStore.entwurf()?.wartungstermine ?? [];
-    const termin: Wartungstermin = {
-      id: crypto.randomUUID(),
-      art: 'frei',
-      bezeichnung,
-      faelligAm: this.neuerTerminDatum(),
-      erinnerungTage: 30,
-      erledigtAm: null,
-    };
-    this.fahrzeugeStore.wartungstermineAktualisieren([...liste, termin]);
-    const erfolg = await this.fahrzeugeStore.speichern();
-    if (erfolg) {
-      this.neuerTerminBezeichnung.set('');
-      this.neuerTerminDatum.set(heuteIso());
-    }
-  }
-
-  async nachKonfliktNeuLaden(): Promise<void> {
-    const id = this.ausgewaehltId();
-    if (id) await this.fahrzeugeStore.neuLadenNachKonflikt(id);
-  }
-
-  bearbeitungBeginnen(): void {
-    this.bearbeitungModus.set(true);
-  }
-
-  stammdatenAktualisieren<K extends keyof Fahrzeugstamm>(feld: K, wert: Fahrzeugstamm[K]): void {
-    this.fahrzeugeStore.entwurfAktualisieren({ [feld]: wert } as Partial<Fahrzeugstamm>);
-  }
-
-  async stammdatenSpeichern(): Promise<void> {
-    const erfolg = await this.fahrzeugeStore.speichern();
-    if (erfolg) this.bearbeitungModus.set(false);
-  }
-
-  /** Verwirft lokale Änderungen: lädt den zuletzt gespeicherten Stand neu statt ihn zu behalten. */
-  async stammdatenAbbrechen(): Promise<void> {
-    const id = this.ausgewaehltId();
-    this.bearbeitungModus.set(false);
-    if (id) await this.fahrzeugeStore.fahrzeugLaden(id);
   }
 }

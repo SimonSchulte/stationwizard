@@ -1,0 +1,24 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+  <mat-label>{{ beschriftung() }}{{ pflicht() ? ' *' : '' }}</mat-label>
+  @if (zeilen(); as z) {
+    <textarea
+      matInput
+      [rows]="z"
+      [attr.maxlength]="max()"
+      [readonly]="gesperrt()"
+      [value]="wert()"
+      (input)="aendern($event)"
+    ></textarea>
+  } @else {
+    <input
+      matInput
+      autocomplete="off"
+      [attr.maxlength]="max()"
+      [readonly]="gesperrt()"
+      [value]="wert()"
+      (input)="aendern($event)"
+    />
+  }
+  <mat-hint>{{ hinweis() }}</mat-hint>
+  <mat-hint align="end">{{ laenge() }} / {{ max() }}</mat-hint>
+</mat-form-field>
