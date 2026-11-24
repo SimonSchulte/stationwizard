@@ -36,16 +36,14 @@ Unterschriftsanfragen (nur Aufgabenbereich), ein richtiges Backend.
 
 ## 3. Offene Entscheidungen
 
-| #   | Frage                                                                        | Empfehlung                                                                                                                                                                                                                                  |
-| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| E1  | Eingangsweg für `angebote@`: Cloudflare Email Worker oder Resend Inbound     | Email Worker, siehe 7.                                                                                                                                                                                                                      |
-| E2  | Gibt es bereits Mail auf `hiorg-wache.com`? Der Eingang braucht MX-Einträge. | Eigene Subdomain (zum Beispiel `postfach.`), dann bleibt der Bestand unberührt. Hostname vom Betreiber bestätigen lassen (CLAUDE.md: kein DNS-/Mail-Bestand überschreiben).                                                                 |
-| E3  | Wer darf Vorgänge anlegen, Stufen weiterschalten, Empfänger konfigurieren?   | Anlegen und Unterschreiben: jede Anmeldung. Stufe „Genehmigt“ und Empfänger: `zugfuehrung`. Bis zur Admin-Rolle gilt die bekannte Lücke der Rollenvergabe (siehe `rollen.ts`).                                                              |
-| E4  | Löst das Senden die Stufe „Eingereicht“ aus?                                 | Ja, ein Schritt („Einreichen per E-Mail“). Zusätzlich reines Senden ohne Stufenwechsel für spätere Stufen.                                                                                                                                  |
-| E5  | Reicht eine eingefügte Bildunterschrift als „digital unterschrieben“?        | Technisch ist das eine einfache elektronische Signatur ohne Nachweiswert wie eine qualifizierte. Ob die empfangende Stelle das akzeptiert, ist zu klären. Fallback bleibt der Ausdruck mit Handunterschrift (gewollt: Drucken ist möglich). |
-| E6  | Aufbewahrung und Datenschutz der Mails und Angebote                          | Verworfene Mails und nicht zugeordnete Mails nach 30 Tagen löschen (beim Listen, kein Cron). Zugeordnete Angebote bleiben beim Vorgang. Fristen vom Betreiber bestätigen.                                                                   |
-| E7  | R2-Bucket anlegen (Betreiber), siehe 8.                                      | Ja, vor dem Deployment des Workers.                                                                                                                                                                                                         |
-| E8  | Wie werden Angebote an die Einreichungsmail gehängt?                         | Zuerst nur die Meldung als PDF. Angebote nur, wenn die Messung (Phase 0) zeigt, dass das Free-Tier-CPU-Limit hält.                                                                                                                          |
+| #   | Frage                                                                                                          | Empfehlung                                                                                                                                                                                                                                                                                              |
+| --- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | Eingangsweg für `angebote@`: Cloudflare Email Worker oder Resend Inbound                                       | Email Worker, siehe 7.                                                                                                                                                                                                                                                                                  |
+| E2  | `hiorg-wache.com` versendet bereits über Resend. Gibt es dort **eingehende** Mail (MX-Einträge am Hauptnamen)? | Der Versand braucht nur SPF/DKIM-Einträge, der Eingang braucht MX. Für `angebote@` eine eigene Subdomain (zum Beispiel `postfach.`) nehmen, dann bleibt jeder Bestand unberührt. Hostname und vorhandene MX-Einträge vom Betreiber bestätigen lassen (CLAUDE.md: kein DNS-/Mail-Bestand überschreiben). |
+| E4  | Löst das Senden die Stufe „Eingereicht“ aus?                                                                   | Ja, ein Schritt („Einreichen per E-Mail“). Zusätzlich reines Senden ohne Stufenwechsel für spätere Stufen.                                                                                                                                                                                              |
+| E6  | Aufbewahrung und Datenschutz der Mails und Angebote                                                            | Verworfene Mails und nicht zugeordnete Mails nach 30 Tagen löschen (beim Listen, kein Cron). Zugeordnete Angebote bleiben beim Vorgang. Fristen vom Betreiber bestätigen.                                                                                                                               |
+| E7  | R2-Bucket anlegen (Betreiber), siehe 8.                                                                        | Ja, vor dem Deployment des Workers.                                                                                                                                                                                                                                                                     |
+| E8  | Wie werden Angebote an die Einreichungsmail gehängt?                                                           | Zuerst nur die Meldung als PDF. Angebote nur, wenn die Messung (Phase 0) zeigt, dass das Free-Tier-CPU-Limit hält.                                                                                                                                                                                      |
 
 ## 4. Architektur
 
@@ -130,7 +128,7 @@ Der Worker erlaubt nur den nächsten Schritt und prüft die Bedingung selbst.
 | 0 Schadensmeldung ausgefüllt | automatisch beim Speichern der Meldung | Pflichtangaben vollständig                                                         |
 | 1 Angebote eingeholt         | `POST …/stufe`                         | mindestens ein Angebot                                                             |
 | 2 Eingereicht                | `POST …/einreichen`                    | zwei Pflichtunterschriften und mindestens ein Angebot, Mail erfolgreich verschickt |
-| 3 Genehmigt                  | `POST …/stufe`                         | Rolle laut E3                                                                      |
+| 3 Genehmigt                  | `POST …/stufe`                         | Rolle `zugfuehrung` (Entscheidung 8)                                               |
 | 4 Geplant                    | `POST …/stufe`                         | optional Datum                                                                     |
 | 5 Erledigt                   | `POST …/stufe`                         |                                                                                    |
 
@@ -221,7 +219,7 @@ Nur der Resend-Adapter unterstützt es zunächst; der `email-routing`-Adapter le
 sie kann. Neue Systemkonfigurationsschlüssel (`EINSTELLUNGEN`):
 `schadensmeldung_empfaenger`, `schadensmeldung_betreff`; der Versandweg wird
 wiederverwendet (`material_versandweg` ist fachfremd, daher ein eigener Schlüssel
-`vorgang_versandweg`). Rollenschranke je Schlüssel laut E3. Neuer Reiter „Vorgänge“ in der
+`vorgang_versandweg`). Rollenschranke je Schlüssel: `zugfuehrung` (Entscheidung 8). Neuer Reiter „Vorgänge“ in der
 Systemkonfiguration.
 
 **Einreichen** (`POST /api/vorgaenge/<UUID>/einreichen`): Körper mit dem vom Browser
@@ -294,7 +292,7 @@ und festem Code.
 - Wer anfordern darf: jede Anmeldung. Gewählt wird aus `GET /api/benutzerverwaltung`
   (Personen, die sich schon angemeldet haben). Hat die Person keine hinterlegte
   Unterschrift, bekommt sie beim ersten Unterschreiben einen Dialog.
-- Die Postfach-Aufgabe sieht, wer die Rolle für Vorgänge laut E3 hat (ohne Rolle eine leere
+- Die Postfach-Aufgabe sieht, wer die Rolle `zugfuehrung` hat (ohne Rolle eine leere
   Liste, wie bei den Einreichungen).
 - Weiterhin ehrlich benennen: Die Rollenschranke ist nur so stark wie die Rollenvergabe.
 
@@ -353,7 +351,6 @@ Unterschriftsbilder), V6 braucht V5, V7 braucht V3.
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Email Worker scheitert auf dem Free-Tarif an großen Mails | V0 misst, Handler schreibt nur den Rohstrom, Resend Inbound als Rückfall                                                          |
 | Beiblatt-Schätzung (550 Zeichen) stimmt nicht             | V0 prüft am echten Feld, Grenze als Konstante                                                                                     |
-| Unterschrift gilt formal nicht als ausreichend (E5)       | Drucken mit Handunterschrift bleibt möglich                                                                                       |
 | Mail an erratbare Adresse bringt Spam oder Schadsoftware  | Nur Ansicht, nie Ausführung; Anhänge nur PDF/Bild; Größen- und Anzahlgrenzen; Verwerfen                                           |
 | Rollenvergabe offen für jede Anmeldung                    | Bekannte Lücke, nicht hier lösen, aber Server prüft die Rollen, die es gibt                                                       |
 | Mail an falsche oder falsch konfigurierte Empfänger       | Empfänger nur aus der Konfiguration, im Dialog sichtbar und abwählbar; Platzhalteradressen sperren den Versand, bis sie echt sind |
