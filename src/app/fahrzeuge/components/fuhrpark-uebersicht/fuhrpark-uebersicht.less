@@ -76,34 +76,6 @@
   margin-top: var(--space-2xs);
 }
 
-.chip {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  border-radius: var(--radius-chip);
-  padding: var(--space-2xs) var(--space-sm);
-  white-space: nowrap;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  &.chip--rot {
-    color: var(--status-error);
-    background: color-mix(in srgb, var(--status-error) 15%, white);
-  }
-  &.chip--gelb {
-    color: var(--status-warn);
-    background: color-mix(in srgb, var(--status-warn) 15%, white);
-  }
-  &.chip--gruen {
-    color: var(--status-ok);
-    background: color-mix(in srgb, var(--status-ok) 15%, white);
-  }
-  &.chip--neutral {
-    color: var(--text-secondary);
-    background: var(--surface-hover);
-  }
-}
-
 .detail {
   flex: 1;
   min-width: 0;

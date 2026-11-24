@@ -41,10 +41,11 @@
             {{ EIGENTUEMER_LABEL[eintrag.fahrzeug.eigentuemer] }}</span
           >
           <span matListItemLine class="zeile-chips">
-            <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.kmAmpel)">Kilometer</span>
-            <span class="chip" [class]="'chip--' + ampelKlasse(eintrag.leitTermin.ampel)">{{
-              eintrag.leitTermin.bezeichnung
-            }}</span>
+            <app-ampel-chip [farbe]="ampelKlasse(eintrag.kmAmpel)" text="Kilometer" />
+            <app-ampel-chip
+              [farbe]="ampelKlasse(eintrag.leitTermin.ampel)"
+              [text]="eintrag.leitTermin.bezeichnung"
+            />
           </span>
         </mat-list-option>
       }

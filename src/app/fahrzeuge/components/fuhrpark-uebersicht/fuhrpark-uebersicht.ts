@@ -28,6 +28,7 @@ import {
   lokalesDatumZuIso,
 } from '../../../kern/kalender/datum';
 import { SystemkonfigurationStoreService } from '../../../systemkonfiguration/services/systemkonfiguration-store.service';
+import { AmpelChip } from '../ampel-chip/ampel-chip';
 import { KilometerBilanz } from '../kilometer-bilanz/kilometer-bilanz';
 import {
   EIGENTUEMER,
@@ -56,52 +57,23 @@ import {
   KilometerAmpel,
   restmonateImJahr,
 } from '../../services/kilometer-soll';
-import {
-  ermittleWartungsstatus,
-  sortiereOffeneWartungen,
-  WartungsAmpel,
-  Wartungsstatus,
-} from '../../services/wartungsstatus';
+import { ermittleWartungsstatus, Wartungsstatus } from '../../services/wartungsstatus';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Suchfeld } from '../../../kern/suchfeld/suchfeld';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
-
-/** Vereinheitlicht Kilometer- und Wartungsampel auf dieselbe Dreifarbdarstellung. */
-export function ampelKlasse(ampel: KilometerAmpel | WartungsAmpel | null): string {
-  switch (ampel) {
-    case 'rot':
-    case 'ueberfaellig':
-      return 'rot';
-    case 'gelb':
-    case 'warnung':
-      return 'gelb';
-    case 'gruen':
-    case 'ok':
-    case 'erledigt':
-      return 'gruen';
-    default:
-      return 'neutral';
-  }
-}
-
-function tageBisFaelligText(tage: number): string {
-  if (tage < 0) return `${Math.abs(tage)} Tage überfällig`;
-  if (tage === 0) return 'heute fällig';
-  return `in ${tage} Tagen fällig`;
-}
+import {
+  ampelKlasse,
+  ermittleLeitTermin,
+  LeitTermin,
+  tageBisFaelligText,
+} from '../../services/ampel-anzeige';
 
 const KM_FEHLERTEXT: Record<KilometerEingabeFehler, string> = {
   'kein-zahlenwert': 'Bitte nur Ziffern eingeben.',
   'keine-ganzzahl': 'Bitte ganze Kilometer ohne Nachkommastellen eingeben.',
   'zu-gross': `Der Stand darf höchstens ${KILOMETERSTAND_MAX.toLocaleString('de-DE')} km betragen.`,
 };
-
-interface LeitTermin {
-  bezeichnung: string;
-  ampel: WartungsAmpel | null;
-  text: string;
-}
 
 interface ListenEintrag {
   fahrzeug: Fahrzeugstamm;
@@ -131,6 +103,7 @@ interface TerminAnzeige {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuhrpark-uebersicht',
   imports: [
+    AmpelChip,
     Leerzustand,
     MatButtonToggleModule,
     Suchfeld,
@@ -215,15 +188,7 @@ export class FuhrparkUebersicht implements OnInit {
             : (zeile.restKm ?? 0) <= 0
               ? 'Jahressoll erreicht'
               : `${zeile.restKm} km offen`;
-      const offene = sortiereOffeneWartungen(fahrzeug.wartungstermine, this.heute);
-      const leitTermin: LeitTermin =
-        offene.length > 0
-          ? {
-              bezeichnung: offene[0].termin.bezeichnung,
-              ampel: offene[0].ampel,
-              text: tageBisFaelligText(offene[0].tageBisFaellig),
-            }
-          : { bezeichnung: 'Keine offenen Termine', ampel: null, text: '' };
+      const leitTermin = ermittleLeitTermin(fahrzeug.wartungstermine, this.heute);
       return { fahrzeug, kmAmpel, kmText, leitTermin };
     });
   });

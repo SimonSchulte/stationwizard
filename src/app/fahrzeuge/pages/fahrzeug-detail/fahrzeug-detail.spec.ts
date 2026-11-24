@@ -16,9 +16,14 @@ import {
 } from '../../testing/fahrzeug-testdaten';
 import { FahrzeugDruckbogenService } from '../../services/fahrzeug-druckbogen.service';
 
-function route(id: string): ActivatedRoute {
+function route(id: string, reiter: string | null = null): ActivatedRoute {
   const paramMap = convertToParamMap({ id });
-  return { paramMap: of(paramMap), snapshot: { paramMap } } as unknown as ActivatedRoute;
+  const queryParamMap = convertToParamMap(reiter ? { reiter } : {});
+  return {
+    paramMap: of(paramMap),
+    queryParamMap: of(queryParamMap),
+    snapshot: { paramMap, queryParamMap },
+  } as unknown as ActivatedRoute;
 }
 
 function ablesungStoreMock(ueberschreibung: Record<string, unknown> = {}) {
@@ -246,6 +251,85 @@ describe('FahrzeugDetail', () => {
 
     detail.protokollOeffnen();
     expect(aenderungsprotokollStore.laden).toHaveBeenCalledWith(fahrzeug.id);
+  });
+
+  describe('Reiter', () => {
+    function detailMitReiter(id: string, reiter: string | null, istNeu = false) {
+      const fahrzeug = erzeugeTestfahrzeug({ id });
+      const aenderungsprotokollStore = aenderungsprotokollStoreMock();
+      const navigate = vi.fn(async () => true);
+      const detail = erzeugeDetail([
+        {
+          provide: FahrzeugStoreService,
+          useValue: {
+            neuesFahrzeugBeginnen: vi.fn(),
+            fahrzeugLaden: vi.fn(),
+            entwurf: () => fahrzeug,
+            speichertGerade: () => false,
+            istNeu: () => istNeu,
+          },
+        },
+        { provide: ActivatedRoute, useValue: route(istNeu ? 'neu' : id, reiter) },
+        { provide: Router, useValue: { navigate } },
+        { provide: AenderungsprotokollStoreService, useValue: aenderungsprotokollStore },
+      ]);
+      return { detail, navigate, aenderungsprotokollStore };
+    }
+
+    it('öffnet ohne Angabe die Stammdaten', () => {
+      const { detail } = detailMitReiter('f1', null);
+      expect(detail.aktuellerReiter()).toBe('stammdaten');
+      expect(detail.reiterIndex()).toBe(0);
+    });
+
+    it('öffnet den in der Adresse genannten Reiter', () => {
+      const { detail } = detailMitReiter('f1', 'kilometer');
+      expect(detail.aktuellerReiter()).toBe('kilometer');
+      expect(detail.reiterIndex()).toBe(2);
+    });
+
+    it('fällt bei einem unbekannten Reiter auf die Stammdaten zurück', () => {
+      const { detail } = detailMitReiter('f1', 'gibt-es-nicht');
+      expect(detail.aktuellerReiter()).toBe('stammdaten');
+    });
+
+    it('bietet einem neuen Fahrzeug nur Stammdaten und Wartung an', () => {
+      const { detail } = detailMitReiter('neu', 'verlauf', true);
+      expect(detail.reiterListe()).toEqual(['stammdaten', 'wartung']);
+      expect(detail.aktuellerReiter()).toBe('stammdaten');
+    });
+
+    it('wechselt den Reiter über die Adresse und lässt die Stammdaten ohne Parameter', () => {
+      const { detail, navigate } = detailMitReiter('f1', 'wartung');
+      detail.reiterWechseln(3);
+      expect(navigate).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          queryParams: { reiter: 'qr-codes' },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        }),
+      );
+      detail.reiterWechseln(0);
+      expect(navigate).toHaveBeenLastCalledWith(
+        [],
+        expect.objectContaining({ queryParams: { reiter: null } }),
+      );
+    });
+
+    it('navigiert nicht, wenn der Reiter schon offen ist', () => {
+      const { detail, navigate } = detailMitReiter('f1', 'wartung');
+      detail.reiterWechseln(1);
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('lädt das Änderungsprotokoll nur, wenn der Reiter Verlauf offen ist', () => {
+      const ohne = detailMitReiter('f1', 'wartung');
+      expect(ohne.aenderungsprotokollStore.laden).not.toHaveBeenCalled();
+      TestBed.resetTestingModule();
+      const mit = detailMitReiter('f2', 'verlauf');
+      expect(mit.aenderungsprotokollStore.laden).toHaveBeenCalledWith('f2');
+    });
   });
 
   it('teilt eine mehrzeilige Protokollbeschreibung in einzelne Zeilen auf', () => {

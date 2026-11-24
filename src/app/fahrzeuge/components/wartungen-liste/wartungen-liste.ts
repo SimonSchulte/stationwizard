@@ -5,16 +5,11 @@ import { heuteIso } from '../../../kern/kalender/datum';
 import { Fahrzeugstamm } from '../../models/fahrzeug.model';
 import { ermittleWartungsstatus, Wartungsstatus } from '../../services/wartungsstatus';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
+import { tageBisFaelligText } from '../../services/ampel-anzeige';
 
 interface WartungMitFahrzeug {
   fahrzeug: Fahrzeugstamm;
   status: Wartungsstatus;
-}
-
-function tageBisFaelligText(tage: number): string {
-  if (tage < 0) return `${Math.abs(tage)} Tage überfällig`;
-  if (tage === 0) return 'heute fällig';
-  return `in ${tage} Tagen fällig`;
 }
 
 /**
