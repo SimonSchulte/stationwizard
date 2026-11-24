@@ -402,3 +402,11 @@ Unterschriftsbilder), V6 braucht V5, V7 braucht V3.
 | Rollenvergabe offen für jede Anmeldung                    | Bekannte Lücke, nicht hier lösen, aber Server prüft die Rollen, die es gibt                                                       |
 | Mail an falsche oder falsch konfigurierte Empfänger       | Empfänger nur aus der Konfiguration, im Dialog sichtbar und abwählbar; Platzhalteradressen sperren den Versand, bis sie echt sind |
 | Personenbezogene Daten in Mails, Angeboten und Meldungen  | Löschfrist (E6), keine realen Daten in Fixtures, Screenshots, Logs                                                                |
+
+## Umsetzungsstand und Abweichungen
+
+Umgesetzt (V1–V8, siehe [Arbeitsstand](arbeitsstand.md)). Abweichungen vom Plan: Chips der Fahrzeugakte sind `AmpelChip`
+(Symbol plus Text) statt `StatusChip`; es gibt keinen Endpunkt `GET /api/fahrzeuge/<id>/vorgaenge`, der Reiter filtert die
+Liste von `GET /api/vorgaenge`; Adressen je Fahrzeug liegen in `postfach_adressen` (Kürzel, von der Zugführung änderbar);
+nach der Zuordnung wird die Mail gelöscht und nur das Angebot mit Notiz (≤ 2000 Zeichen) bleibt; Einrichtung von R2 und Email
+Routing steht in [Einrichtung](einrichtung.md) und ist im Konto noch nicht erfolgt.

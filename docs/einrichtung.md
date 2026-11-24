@@ -167,6 +167,37 @@ eingerichtet.
 Empfänger, Betreff und Versandweg werden anschließend in der Anwendung unter
 **Verwaltung → Systemkonfiguration** gesetzt, nicht im Dashboard.
 
+## Vorgänge und Postfach
+
+Der Vorgang „Fahrzeug/Material defekt“ (Schadensmeldung, Unterschriften, Angebote, Einreichen) und das
+gemeinsame Postfach für Angebote brauchen Migrationen, einen Dateispeicher und – für den Mailempfang –
+Cloudflare Email Routing. Alle Blöcke sind **auskommentiert beziehungsweise optional ausgeliefert**; ohne
+Einrichtung läuft der Rest der Anwendung unverändert.
+
+1. **Migrationen vor dem Deployment einspielen** (der Worker liest die neuen Tabellen):
+   `worker/migrations/benutzer/0028_benutzer_unterschriften.sql`, `0029_schadensmeldung_vorlage.sql` (`BENUTZER_DB`),
+   `worker/migrations/fahrzeuge/0027_vorgaenge.sql`, `0030_postfach.sql` (`FAHRZEUGE_DB`).
+2. **R2 aktivieren** (Cloudflare-Dashboard → R2; der Tarif verlangt dafür eine Zahlungsmethode, das Kontingent des
+   Free-Tarifs genügt) und den Bucket `stationwizard-vorgaenge` anlegen. Danach den `[[r2_buckets]]`-Block in
+   `worker/wrangler.toml` aktivieren. Der Bucket bleibt privat; es gibt keinen öffentlichen Zugriff.
+3. **Email Routing** für die Zone `hiorg-wache.com` aktivieren und einen **Catch-all** mit der Aktion „Send to a
+   Worker“ auf den Worker `stationwizard` setzen. Der Worker nimmt die Mail im `email()`-Handler an; es gibt
+   dafür **keinen HTTP-Pfad und keinen Eintrag in `OEFFENTLICHE_MUSTER`**, der Access-Bypass bleibt unverändert.
+   Cloudflare setzt die MX-Einträge der Zone; vorhandene Einträge des Mailversands über Resend
+   (`send.`, `rsend.`, `resend._domainkey`) bleiben unberührt. Vorher prüfen, dass an der Zone kein anderer
+   MX-Eintrag hängt, der Post für `@hiorg-wache.com` empfängt.
+4. Optional die Laufzeitvariable `POSTFACH_DOMAIN` setzen, wenn die Adressen nicht auf dem Hostnamen der
+   Anwendung enden sollen (Standard: Hostname der Anfrage).
+5. In der Anwendung: **Verwaltung → Schadensmeldung-Vorlage** das PDF „Anlage 5“ hochladen und unter
+   **Systemkonfiguration → Vorgänge** Einheit (Standard „BI EE 04“), Empfänger, Versandweg und Betreff setzen.
+   Der Versand mit Anhang läuft über die Mail-API (Resend); `email-routing` unterstützt keine Anhänge und
+   antwortet mit `MAIL_VERSAND_ANHANG_NICHT_UNTERSTUETZT`.
+
+Adressen: `angebote@<Domain>` ist das Sammelpostfach (nur Zugführung sieht es), `<kürzel>@<Domain>` gehört je einem
+Fahrzeug (Kürzel aus der Bezeichnung, von der Zugführung änderbar). Mails an unbekannte Adressen landen im
+Sammelpostfach. Offene Mails löscht der Worker nach 30 Tagen; nach der Zuordnung wird die Mail gelöscht und nur
+das Angebot samt Notiz bleibt am Vorgang.
+
 ## Zero Trust, Google-Anmeldung und Access
 
 1. In **Zero Trust → Settings → Team name and domain** die Teamdomain ablesen

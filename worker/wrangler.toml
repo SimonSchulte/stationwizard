@@ -158,3 +158,11 @@ secret_name = "MAIL_API_TOKEN"
 # [[send_email]]
 # name = "MAIL_ROUTING"
 # destination_address = "<BERICHTSADRESSE>"
+
+# Dateispeicher der Vorgänge (Rohmails des Postfachs, Angebote, Kopie der versendeten Meldung).
+# Auskommentiert ausgeliefert, weil R2 im Konto erst aktiviert und der Bucket angelegt sein muss
+# (siehe docs/einrichtung.md, "Vorgänge und Postfach"). Ohne Binding antworten die Endpunkte mit
+# festen 503-Codes, alles Übrige läuft unverändert.
+# [[r2_buckets]]
+# binding = "VORGAENGE_DATEIEN"
+# bucket_name = "stationwizard-vorgaenge"
