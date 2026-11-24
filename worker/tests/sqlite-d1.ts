@@ -54,7 +54,13 @@ export class SqliteStatement {
 
   bind(...werte: unknown[]): SqliteStatement {
     this.werte = werte.map((w) =>
-      w === undefined ? null : typeof w === 'boolean' ? Number(w) : (w as SQLInputValue),
+      w === undefined
+        ? null
+        : typeof w === 'boolean'
+          ? Number(w)
+          : w instanceof ArrayBuffer
+            ? new Uint8Array(w)
+            : (w as SQLInputValue),
     );
     return this;
   }

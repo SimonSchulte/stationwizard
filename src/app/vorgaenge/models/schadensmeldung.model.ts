@@ -15,8 +15,12 @@ export const MELDUNG_GRENZEN = {
 
 export type MeldungTextFeld = keyof typeof MELDUNG_GRENZEN;
 
-/** Bis etwa so viele Zeichen passen in das Sachverhaltsfeld des Formulars; darüber folgt ein Beiblatt. */
-export const SACHVERHALT_IM_FELD = 450;
+/**
+ * Bis etwa so viele Zeichen passen in das Sachverhaltsfeld des Formulars (465 × 77 pt, höchstens in
+ * 9 pt gesetzt); darüber folgt ein Beiblatt. Die Zahl ist vorsichtig geschätzt, maßgeblich ist das
+ * Setzen in `schadensmeldung-pdf.ts`.
+ */
+export const SACHVERHALT_IM_FELD = 550;
 
 export const STELLUNGNAHME_STANDARD = 'Der Sachverhalt wird wie oben beschrieben bestätigt.';
 

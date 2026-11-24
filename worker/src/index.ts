@@ -34,6 +34,11 @@ import {
   verarbeiteFuehrerscheinVorlage,
   type FuehrerscheinVorlageKonfiguration,
 } from './fuehrerschein-vorlage';
+import {
+  SCHADENSMELDUNG_VORLAGE_DATEI_PFAD,
+  SCHADENSMELDUNG_VORLAGE_PFAD,
+  verarbeiteSchadensmeldungVorlage,
+} from './schadensmeldung-vorlage';
 import { verarbeiteHiorgApi } from './hiorg-api';
 import {
   HIORG_ANTRAGSDATEN_MUSTER,
@@ -196,6 +201,13 @@ export default {
 
     if (url.pathname === VORGAENGE_PFAD || url.pathname.startsWith(`${VORGAENGE_PFAD}/`)) {
       return verarbeiteVorgaenge(anfrage, umgebung, benutzer);
+    }
+
+    if (
+      url.pathname === SCHADENSMELDUNG_VORLAGE_PFAD ||
+      url.pathname === SCHADENSMELDUNG_VORLAGE_DATEI_PFAD
+    ) {
+      return verarbeiteSchadensmeldungVorlage(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === UNTERSCHRIFT_PFAD) {

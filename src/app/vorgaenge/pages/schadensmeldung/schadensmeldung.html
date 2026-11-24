@@ -3,7 +3,17 @@
   icon="description"
   [zurueck]="'/vorgaenge/' + id()"
   zurueckText="Zurück zum Vorgang"
-/>
+>
+  <button
+    matButton="filled"
+    type="button"
+    [disabled]="!kannDrucken() || pdfLaeuft()"
+    (click)="drucken()"
+  >
+    <mat-icon>print</mat-icon>
+    {{ pdfLaeuft() ? 'Erzeugt …' : 'Drucken / PDF' }}
+  </button>
+</app-seitenkopf>
 
 <div class="seite">
   @if (store.laedt()) {

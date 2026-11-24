@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { distinctUntilChanged, map, firstValueFrom } from 'rxjs';
@@ -39,7 +46,10 @@ import {
   Slot,
   pflichtUnterschriftenAnzahl,
 } from '../../models/vorgang.model';
+import { SCHADENSMELDUNG_MEDIENTYP } from '../../services/schadensmeldung-pdf';
+import { SchadensmeldungPdfService } from '../../services/schadensmeldung-pdf.service';
 import { VorgangStoreService } from '../../services/vorgang-store.service';
+import { dateiHerunterladen } from '../../../kern/storage/datei-storage';
 
 /**
  * Die Schadens- und Verlustmeldung (Anlage 5): alle Felder des Formulars zum Ausfüllen, darunter
@@ -76,6 +86,7 @@ export class Schadensmeldung {
   private readonly unterschriftStore = inject(UnterschriftStoreService);
   private readonly unterschriftDialog = inject(UnterschriftDialogDienst);
   private readonly benutzer = inject(Benutzerkontext);
+  private readonly pdfDienst = inject(SchadensmeldungPdfService);
   readonly store = inject(VorgangStoreService);
 
   readonly GRENZEN = MELDUNG_GRENZEN;
@@ -114,6 +125,11 @@ export class Schadensmeldung {
     this.store.unterschriften().some((u) => u.status === 'unterschrieben'),
   );
   readonly pflichtGesamt = PFLICHT_SLOTS.length;
+  /** Drucken und Senden setzen beide Pflichtunterschriften und einen gespeicherten Stand voraus. */
+  readonly kannDrucken = computed(
+    () => this.bereit() && this.pflichtUnterschriften() === PFLICHT_SLOTS.length,
+  );
+  readonly pdfLaeuft = signal(false);
 
   constructor() {
     effect(() => {
@@ -142,6 +158,27 @@ export class Schadensmeldung {
 
   async speichern(): Promise<void> {
     if (await this.store.meldungSpeichern()) this.meldungen.erfolg('Meldung gespeichert.');
+  }
+
+  /** Erzeugt das PDF aus dem gespeicherten Stand und lädt es herunter; gedruckt wird aus dem PDF. */
+  async drucken(): Promise<void> {
+    const meldung = this.meldung();
+    if (!meldung || !this.kannDrucken()) return;
+    this.pdfLaeuft.set(true);
+    try {
+      const pdf = await this.pdfDienst.erzeuge(meldung.inhalt, this.store.unterschriften());
+      dateiHerunterladen(
+        pdf.slice(),
+        this.pdfDienst.dateiname(meldung.inhalt),
+        SCHADENSMELDUNG_MEDIENTYP,
+      );
+    } catch (fehler) {
+      this.meldungen.fehler(
+        fehler instanceof Error ? fehler.message : 'Das PDF konnte nicht erzeugt werden.',
+      );
+    } finally {
+      this.pdfLaeuft.set(false);
+    }
   }
 
   async nachKonfliktNeuLaden(): Promise<void> {
