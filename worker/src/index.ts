@@ -9,6 +9,11 @@ import {
   verarbeiteBenutzerverwaltung,
   type BenutzerverwaltungKonfiguration,
 } from './benutzer';
+import {
+  UNTERSCHRIFT_PFAD,
+  verarbeiteBenutzerUnterschrift,
+  type BenutzerUnterschriftKonfiguration,
+} from './benutzer-unterschrift';
 import { EHRUNGEN_PFAD, verarbeiteEhrungen } from './ehrungen';
 import type { EhrungenKonfiguration } from './ehrungen-gemeinsam';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
@@ -68,6 +73,7 @@ import {
 export interface Env
   extends
     AccessKonfiguration,
+    BenutzerUnterschriftKonfiguration,
     EfsKonfiguration,
     HiorgKalenderKonfiguration,
     HiorgApiKonfiguration,
@@ -183,6 +189,10 @@ export default {
         }
       }
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+    }
+
+    if (url.pathname === UNTERSCHRIFT_PFAD) {
+      return verarbeiteBenutzerUnterschrift(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === PROFILBILD_PFAD) {
