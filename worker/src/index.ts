@@ -19,6 +19,8 @@ import type { EhrungenKonfiguration } from './ehrungen-gemeinsam';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
 import { EINREICHUNGEN_PFAD, verarbeiteEinreichungen } from './einreichungen';
 import { verarbeiteFahrzeuge } from './fahrzeuge';
+import { POSTFACH_PFAD, verarbeitePostfach } from './postfach';
+import { verarbeiteEingehendeMail } from './postfach-eingang';
 import { VORGAENGE_PFAD, verarbeiteVorgaenge } from './vorgaenge';
 import type { VorgaengeKonfiguration } from './vorgaenge-gemeinsam';
 import type { FahrzeugeKonfiguration } from './fahrzeuge-gemeinsam';
@@ -199,6 +201,10 @@ export default {
       return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
     }
 
+    if (url.pathname === POSTFACH_PFAD || url.pathname.startsWith(`${POSTFACH_PFAD}/`)) {
+      return verarbeitePostfach(anfrage, umgebung, benutzer);
+    }
+
     if (url.pathname === VORGAENGE_PFAD || url.pathname.startsWith(`${VORGAENGE_PFAD}/`)) {
       return verarbeiteVorgaenge(anfrage, umgebung, benutzer);
     }
@@ -337,5 +343,12 @@ export default {
     }
 
     return assetAntwort(anfrage, umgebung, url.pathname);
+  },
+  /**
+   * Eingehende Mail des Postfachs (Email Routing, Catch-all → Worker). Kein HTTP-Pfad und damit kein
+   * Eintrag in `OEFFENTLICHE_MUSTER`: der Zugriff ist die Einrichtung von Email Routing im Konto.
+   */
+  async email(nachricht: ForwardableEmailMessage, umgebung: Env): Promise<void> {
+    await verarbeiteEingehendeMail(nachricht, umgebung);
   },
 } satisfies ExportedHandler<Env>;

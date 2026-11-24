@@ -1,5 +1,6 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { UUID_MUSTER } from './json-lesen';
+import { entferneAngebot, legeAngebotAn, liefereAngebot } from './vorgaenge-angebote';
 import { leseAufgaben, leseVorgang, listeVorgaenge } from './vorgaenge-lesen';
 import { sendeMeldung } from './vorgaenge-einreichen';
 import { legeVorgangAn, speichereMeldung, wechsleStufe } from './vorgaenge-schreiben';
@@ -16,6 +17,7 @@ const AUFGABEN_PFAD = '/api/vorgaenge/aufgaben';
 const VORGANG_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})$`, 'i');
 const MELDUNG_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/meldung$`, 'i');
 const EINREICHEN_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/einreichen$`, 'i');
+const ANGEBOT_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/angebote/(${UUID_MUSTER})$`, 'i');
 const STUFE_PFAD = new RegExp(`^/api/vorgaenge/(${UUID_MUSTER})/stufe$`, 'i');
 const UNTERSCHRIFTEN_PFAD = new RegExp(
   `^/api/vorgaenge/(${UUID_MUSTER})/meldung/unterschriften$`,
@@ -63,7 +65,7 @@ export async function verarbeiteVorgaenge(
     }
     if (pfad === AUFGABEN_PFAD) {
       if (methode !== 'GET') return methodeNichtErlaubt('GET');
-      const aufgaben = await leseAufgaben(db, identitaet.email);
+      const aufgaben = await leseAufgaben(db, umgebung, identitaet.email);
       return jsonAntwort(aufgaben);
     }
 
@@ -81,6 +83,16 @@ export async function verarbeiteVorgaenge(
     if (stufe) {
       if (methode === 'POST') return await wechsleStufe(anfrage, db, umgebung, stufe, identitaet);
       return methodeNichtErlaubt('POST');
+    }
+    const angebot = ANGEBOT_PFAD.exec(pfad);
+    if (angebot) {
+      const [vorgangId, angebotId] = [angebot[1] ?? '', angebot[2] ?? ''];
+      if (methode === 'PUT')
+        return await legeAngebotAn(anfrage, db, umgebung, vorgangId, angebotId, identitaet);
+      if (methode === 'GET') return await liefereAngebot(db, umgebung, vorgangId, angebotId);
+      if (methode === 'DELETE')
+        return await entferneAngebot(db, umgebung, vorgangId, angebotId, identitaet);
+      return methodeNichtErlaubt('GET, PUT, DELETE');
     }
     const einreichen = EINREICHEN_PFAD.exec(pfad)?.[1];
     if (einreichen) {

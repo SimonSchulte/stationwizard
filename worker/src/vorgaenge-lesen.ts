@@ -1,6 +1,12 @@
 import { jsonAntwort } from './antwort';
 import { starkesEtag } from './etag';
-import { nichtGefunden, SLOTS, type Slot } from './vorgaenge-gemeinsam';
+import { ermittlePostfachSicht, sichtBedingung } from './postfach-gemeinsam';
+import {
+  nichtGefunden,
+  SLOTS,
+  type Slot,
+  type VorgaengeKonfiguration,
+} from './vorgaenge-gemeinsam';
 
 interface VorgangZeile {
   id: string;
@@ -241,6 +247,7 @@ interface AufgabeZeile {
 /** Offene Unterschriftsanfragen an die aufrufende Person; ein Aufruf für den Aufgabenbereich. */
 export async function leseAufgaben(
   db: D1Database,
+  umgebung: VorgaengeKonfiguration,
   email: string,
 ): Promise<Record<string, unknown>> {
   const ergebnis = await db
@@ -256,7 +263,22 @@ export async function leseAufgaben(
     )
     .bind(email)
     .all<AufgabeZeile>();
+  // Ungeordnete Mails im Postfach: nur für Rollen, die es sehen dürfen (ohne Rolle null).
+  let postfachOffen = 0;
+  const sicht = await ermittlePostfachSicht(umgebung, email);
+  if (!(sicht instanceof Response)) {
+    const bedingung = sichtBedingung(sicht);
+    const zeile = await db
+      .prepare(
+        `SELECT COUNT(*) AS anzahl FROM postfach_mails m LEFT JOIN fahrzeuge f ON f.id = m.fahrzeug_id
+         WHERE m.status = 'offen' AND ${bedingung.sql}`,
+      )
+      .bind(...bedingung.werte)
+      .first<{ anzahl: number }>();
+    postfachOffen = zeile?.anzahl ?? 0;
+  }
   return {
+    postfachOffen,
     unterschriften: ergebnis.results.map((z) => ({
       vorgangId: z.vorgang_id,
       slot: z.slot,

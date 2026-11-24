@@ -11,6 +11,8 @@ export interface VorgaengeKonfiguration extends RollenKonfiguration, MailVersand
   FAHRZEUGE_DB?: D1Database;
   /** Dateien der Angebote, der gesendeten Meldungen und der Rohmails; fehlt bis zur Einrichtung. */
   VORGAENGE_DATEIEN?: R2Bucket;
+  /** Domain der Postfachadressen; ohne Angabe die Domain, unter der der Worker erreicht wird. */
+  POSTFACH_DOMAIN?: string;
 }
 
 export interface GeprueftesBenutzerkonto {
