@@ -301,11 +301,11 @@ describe('FahrzeugDetail', () => {
 
     it('wechselt den Reiter über die Adresse und lässt die Stammdaten ohne Parameter', () => {
       const { detail, navigate } = detailMitReiter('f1', 'wartung');
-      detail.reiterWechseln(3);
+      detail.reiterWechseln(4);
       expect(navigate).toHaveBeenCalledWith(
         [],
         expect.objectContaining({
-          queryParams: { reiter: 'qr-codes' },
+          queryParams: { reiter: 'vorgaenge' },
           queryParamsHandling: 'merge',
           replaceUrl: true,
         }),

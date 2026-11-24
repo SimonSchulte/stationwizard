@@ -1,0 +1,39 @@
+<div class="kopf">
+  <p class="beschreibung">Vorgänge „Fahrzeug/Material defekt“ mit ihren Stufen.</p>
+  <button matButton="filled" type="button" (click)="neu()">
+    <mat-icon>add</mat-icon> Neuer Vorgang
+  </button>
+</div>
+
+@if (laedt()) {
+  <app-ladeanzeige text="Vorgänge werden geladen …" />
+}
+@if (fehler()) {
+  <app-meldung art="fehler">{{ fehler() }}</app-meldung>
+}
+@if (!laedt() && !fehler() && vorgaenge().length === 0) {
+  <app-leerzustand kompakt icon="build" titel="Noch kein Vorgang für dieses Fahrzeug." />
+}
+
+<ul class="liste">
+  @for (v of vorgaenge(); track v.id) {
+    <li class="zeile">
+      <div class="text">
+        <a class="titel" [routerLink]="['/vorgaenge', v.id]">{{ v.titel }}</a>
+        <span class="klein">Zuletzt geändert {{ v.geaendertAm | date: 'dd.MM.yyyy' }}</span>
+      </div>
+      <app-ampel-chip
+        [farbe]="v.stufe >= 5 ? 'gruen' : v.stufe < 0 ? 'gelb' : 'neutral'"
+        [text]="stufeText(v.stufe)"
+      />
+      <app-ampel-chip
+        [farbe]="v.pflichtUnterschriften === 2 ? 'gruen' : 'neutral'"
+        [text]="'Unterschriften ' + v.pflichtUnterschriften + ' von 2'"
+      />
+      <app-ampel-chip
+        [farbe]="v.angebote > 0 ? 'gruen' : 'neutral'"
+        [text]="v.angebote + (v.angebote === 1 ? ' Angebot' : ' Angebote')"
+      />
+    </li>
+  }
+</ul>

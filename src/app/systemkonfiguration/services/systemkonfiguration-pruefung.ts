@@ -31,7 +31,11 @@ function istEinstellungen(wert: unknown): wert is Einstellungen {
     istVersandweg(wert['materialVersandweg']) &&
     istText(wert['materialBetreff']) &&
     istText(wert['organisationLandesverband']) &&
-    istText(wert['organisationRegionalverband'])
+    istText(wert['organisationRegionalverband']) &&
+    istText(wert['vorgangEinheit']) &&
+    istText(wert['vorgangEmpfaenger']) &&
+    istVersandweg(wert['vorgangVersandweg']) &&
+    istText(wert['vorgangBetreff'])
   );
 }
 

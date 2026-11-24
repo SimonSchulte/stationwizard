@@ -57,6 +57,12 @@ export interface Einstellungen {
    */
   organisationLandesverband: string;
   organisationRegionalverband: string;
+  /** Einheit, mit der die Schadens- und Verlustmeldung vorbelegt wird. */
+  vorgangEinheit: string;
+  /** Empfänger der gesendeten Meldung, mehrere durch Komma getrennt; leer heißt nicht festgelegt. */
+  vorgangEmpfaenger: string;
+  vorgangVersandweg: Versandweg;
+  vorgangBetreff: string;
 }
 
 /**
@@ -67,6 +73,9 @@ export const MATERIAL_ROLLEN: readonly string[] = ['zugfuehrung', 'gruppenfuehru
 
 /** Hauptrollen, die die Organisationsstammdaten ändern dürfen; Einblendregel wie oben. */
 export const ORGANISATION_ROLLEN: readonly string[] = ['zugfuehrung'];
+
+/** Hauptrollen, die die Einstellungen der Vorgänge ändern dürfen; Einblendregel wie oben. */
+export const VORGANG_ROLLEN: readonly string[] = ['zugfuehrung'];
 
 /** Ob ein Versandweg am Worker tatsächlich eingerichtet ist. */
 export interface VersandwegStatus {

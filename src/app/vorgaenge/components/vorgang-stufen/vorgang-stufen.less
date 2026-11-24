@@ -1,0 +1,75 @@
+.stufen {
+  display: flex;
+  margin: 0;
+  padding: var(--space-xs) 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.stufe {
+  position: relative;
+  display: flex;
+  flex: 1 0 104px;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-align: center;
+
+  // Verbindungslinie zur vorherigen Stufe.
+  &::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    right: 50%;
+    left: -50%;
+    height: 2px;
+    background: var(--border-medium);
+  }
+
+  &:first-child::before {
+    display: none;
+  }
+
+  &.erreicht::before,
+  &.naechste::before {
+    background: var(--ci-blue);
+  }
+
+  &.naechste {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+}
+
+.punkt {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid var(--border-medium);
+  border-radius: 50%;
+  background: var(--surface-primary);
+  font-weight: 700;
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+
+  .erreicht & {
+    border-color: var(--ci-blue);
+    background: var(--ci-blue);
+    color: var(--text-on-dark);
+  }
+
+  .naechste & {
+    border-color: var(--ci-blue);
+    color: var(--ci-blue);
+  }
+}

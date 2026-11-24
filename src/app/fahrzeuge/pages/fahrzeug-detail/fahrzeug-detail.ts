@@ -29,6 +29,8 @@ import {
   lokalesDatumZuIso,
 } from '../../../kern/kalender/datum';
 import { AmpelChip } from '../../components/ampel-chip/ampel-chip';
+import { FormulareReiter } from '../../../vorgaenge/components/formulare-reiter/formulare-reiter';
+import { VorgaengeReiter } from '../../../vorgaenge/components/vorgaenge-reiter/vorgaenge-reiter';
 import { KilometerBilanz } from '../../components/kilometer-bilanz/kilometer-bilanz';
 import {
   Aenderungseintrag,
@@ -56,11 +58,14 @@ import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
 
 /** Die Reiter der Fahrzeugakte; der Name steht im Adressparameter `reiter`. */
-export type Reiter = 'stammdaten' | 'wartung' | 'kilometer' | 'qr-codes' | 'verlauf';
+export type Reiter =
+  'stammdaten' | 'wartung' | 'kilometer' | 'formulare' | 'vorgaenge' | 'qr-codes' | 'verlauf';
 const REITER_BESTEHEND: readonly Reiter[] = [
   'stammdaten',
   'wartung',
   'kilometer',
+  'formulare',
+  'vorgaenge',
   'qr-codes',
   'verlauf',
 ];
@@ -93,6 +98,8 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
     MatDatepickerModule,
     MatTabsModule,
     AmpelChip,
+    FormulareReiter,
+    VorgaengeReiter,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -147,6 +154,16 @@ export class FahrzeugDetail {
   });
 
   readonly reiterIndex = computed(() => this.reiterListe().indexOf(this.aktuellerReiter()));
+
+  /** Die Angaben, die die Reiter „Formulare“ und „Vorgänge“ brauchen. */
+  readonly fahrzeugKurz = computed(() => {
+    const entwurf = this.store.entwurf();
+    return {
+      id: entwurf?.id ?? '',
+      bezeichnung: entwurf?.bezeichnung ?? '',
+      kennzeichen: entwurf?.kennzeichen ?? '',
+    };
+  });
 
   /** Der nächste offene Termin steht im Kopf der Akte. */
   readonly leitTermin = computed(() =>

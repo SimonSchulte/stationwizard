@@ -9,6 +9,7 @@ import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/serv
 import {
   Einstellungen,
   MATERIAL_ROLLEN,
+  VORGANG_ROLLEN,
   ORGANISATION_ROLLEN,
   VERSANDWEGE,
   VERSANDWEG_HINWEIS,
@@ -73,6 +74,11 @@ export class Systemkonfiguration implements OnInit {
     ORGANISATION_ROLLEN.includes(this.benutzerStore.eigeneRolle() ?? ''),
   );
 
+  /** Reine Einblendregel wie oben; gesperrt wird serverseitig. */
+  readonly darfVorgangAendern = computed(() =>
+    VORGANG_ROLLEN.includes(this.benutzerStore.eigeneRolle() ?? ''),
+  );
+
   ngOnInit(): void {
     void this.store.laden();
     void this.benutzerStore.listeLaden();
@@ -83,6 +89,17 @@ export class Systemkonfiguration implements OnInit {
     wert: string,
   ): void {
     this.store.entwurfAendern({ [feld]: wert });
+  }
+
+  vorgangAendern(
+    feld: 'vorgangEinheit' | 'vorgangEmpfaenger' | 'vorgangBetreff',
+    wert: string,
+  ): void {
+    this.store.entwurfAendern({ [feld]: wert });
+  }
+
+  vorgangVersandwegAendern(wert: Versandweg): void {
+    this.store.entwurfAendern({ vorgangVersandweg: wert });
   }
 
   materialAendern(feld: keyof Einstellungen, wert: string): void {

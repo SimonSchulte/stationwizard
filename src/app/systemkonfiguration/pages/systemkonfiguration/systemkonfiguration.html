@@ -275,5 +275,81 @@
         </div>
       }
     </mat-tab>
+    <mat-tab label="Vorgänge">
+      @if (entwurf(); as werte) {
+        <div class="tab-inhalt">
+          <p class="beschreibung">
+            Einstellungen der Schadens- und Verlustmeldung: die vorbelegte Einheit und die Empfänger
+            der unterschriebenen Meldung. Ändern darf sie nur die Zugführung; die Sperre setzt der
+            Worker durch, nicht diese Seite.
+          </p>
+
+          @if (!darfVorgangAendern()) {
+            <app-meldung art="info"
+              >Einstellungen der Vorgänge nur lesbar: dafür fehlt die Rolle
+              „Zugführung".</app-meldung
+            >
+          }
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Einheit auf der Meldung</mat-label>
+            <input
+              matInput
+              autocomplete="off"
+              maxlength="40"
+              [disabled]="!darfVorgangAendern()"
+              [value]="werte.vorgangEinheit"
+              (input)="vorgangAendern('vorgangEinheit', $any($event.target).value)"
+            />
+            <mat-hint>Vorbelegung des Feldes „Einheit“, auf der Meldung änderbar.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Empfänger der Meldung</mat-label>
+            <input
+              matInput
+              autocomplete="off"
+              [disabled]="!darfVorgangAendern()"
+              [value]="werte.vorgangEmpfaenger"
+              (input)="vorgangAendern('vorgangEmpfaenger', $any($event.target).value)"
+              placeholder="fahrzeugwesen@example.org, zugfuehrung@example.org"
+            />
+            <mat-hint
+              >Bis zu fünf Adressen, durch Komma getrennt. Leer: Einreichen ist gesperrt.</mat-hint
+            >
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Betreff</mat-label>
+            <input
+              matInput
+              [disabled]="!darfVorgangAendern()"
+              [value]="werte.vorgangBetreff"
+              (input)="vorgangAendern('vorgangBetreff', $any($event.target).value)"
+            />
+            <mat-hint>Fahrzeug und Kennzeichen werden automatisch angehängt.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Versandweg</mat-label>
+            <mat-select
+              [disabled]="!darfVorgangAendern()"
+              [value]="werte.vorgangVersandweg"
+              (selectionChange)="vorgangVersandwegAendern($event.value)"
+            >
+              @for (weg of versandwege; track weg) {
+                <mat-option [value]="weg">
+                  {{ versandwegLabel[weg] }}
+                  @if (!istVerfuegbar(weg)) {
+                    – nicht eingerichtet
+                  }
+                </mat-option>
+              }
+            </mat-select>
+            <mat-hint>{{ versandwegHinweis[werte.vorgangVersandweg] }}</mat-hint>
+          </mat-form-field>
+        </div>
+      }
+    </mat-tab>
   </mat-tab-group>
 </div>

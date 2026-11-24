@@ -1,0 +1,211 @@
+<app-seitenkopf
+  titel="Schadens- und Verlustmeldung"
+  icon="description"
+  [zurueck]="'/vorgaenge/' + id()"
+  zurueckText="Zurück zum Vorgang"
+/>
+
+<div class="seite">
+  @if (store.laedt()) {
+    <app-ladeanzeige text="Meldung wird geladen …" />
+  }
+  @if (store.ladeFehler()) {
+    <app-meldung art="fehler">{{ store.ladeFehler() }}</app-meldung>
+  }
+  @if (store.konflikt()) {
+    <app-meldung art="warnung">
+      {{ store.aktionFehler() }}
+      <button matButton="outlined" meldungAktion (click)="nachKonfliktNeuLaden()">
+        Aktuellen Stand laden
+      </button>
+    </app-meldung>
+  } @else if (store.aktionFehler()) {
+    <app-meldung art="fehler">{{ store.aktionFehler() }}</app-meldung>
+  }
+
+  @if (vorgang(); as v) {
+    @if (meldung(); as m) {
+      @if (entwurf(); as e) {
+        <div class="kopfzeile">
+          <a class="vorgang-link" [routerLink]="['/vorgaenge', v.id]">{{ v.titel }}</a>
+          @if (fehlend().length) {
+            <app-ampel-chip farbe="gelb" [text]="fehlend().length + ' Pflichtangaben fehlen'" />
+          } @else {
+            <app-ampel-chip farbe="gruen" text="Pflichtangaben ausgefüllt" />
+          }
+          <app-ampel-chip
+            [farbe]="pflichtUnterschriften() === pflichtGesamt ? 'gruen' : 'neutral'"
+            [text]="'Pflichtunterschriften ' + pflichtUnterschriften() + ' von ' + pflichtGesamt"
+          />
+          @if (beiblatt()) {
+            <app-ampel-chip
+              farbe="neutral"
+              text="Sachverhalt länger als das Feld: Beiblatt beim Druck"
+            />
+          }
+        </div>
+
+        @if (gesperrt()) {
+          <section class="sperre">
+            <strong>
+              {{
+                eingereicht()
+                  ? 'Die Meldung ist eingereicht und lässt sich nicht mehr ändern.'
+                  : 'Die Meldung ist unterschrieben und gesperrt.'
+              }}
+            </strong>
+            @if (!eingereicht()) {
+              <span>Änderungen würden die Unterschriften ungültig machen.</span>
+              <button matButton="outlined" type="button" (click)="alleEntfernen()">
+                Unterschriften entfernen und bearbeiten
+              </button>
+            }
+          </section>
+        }
+
+        <section class="karte">
+          <h2 class="titel">Angaben</h2>
+          <div class="felder">
+            <div class="art">
+              <span class="art-label" id="art-label">Art der Meldung</span>
+              <mat-button-toggle-group
+                hideSingleSelectionIndicator
+                aria-labelledby="art-label"
+                [value]="e.art"
+                [disabled]="gesperrt()"
+                (change)="artWaehlen($event.value)"
+              >
+                @for (art of ARTEN; track art) {
+                  <mat-button-toggle [value]="art">{{ ART_LABEL[art] }}</mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+            </div>
+
+            <div class="raster">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Datum der Feststellung *</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="datum"
+                  [disabled]="gesperrt()"
+                  [value]="alsDatum(e.datumFeststellung)"
+                  (dateChange)="datumAendern($event)"
+                  placeholder="TT.MM.JJJJ"
+                />
+                <mat-datepicker-toggle matSuffix [for]="datum" />
+                <mat-datepicker #datum />
+              </mat-form-field>
+              <app-zaehler-feld
+                beschriftung="Einheit"
+                pflicht
+                [gesperrt]="gesperrt()"
+                [max]="GRENZEN.einheit"
+                [wert]="e.einheit"
+                (wertChange)="feld('einheit', $event)"
+              />
+              <app-zaehler-feld
+                beschriftung="Bezeichnung (Fahrzeug / Gerätesatz)"
+                pflicht
+                [gesperrt]="gesperrt()"
+                [max]="GRENZEN.bezeichnung"
+                [wert]="e.bezeichnung"
+                (wertChange)="feld('bezeichnung', $event)"
+              />
+              <app-zaehler-feld
+                beschriftung="Kennzeichen Fahrzeug"
+                pflicht
+                [gesperrt]="gesperrt()"
+                [max]="GRENZEN.kennzeichen"
+                [wert]="e.kennzeichen"
+                (wertChange)="feld('kennzeichen', $event)"
+              />
+            </div>
+
+            <app-zaehler-feld
+              beschriftung="Ort, Datum, Uhrzeit der Beschädigung / des Verlustes (falls bekannt)"
+              [gesperrt]="gesperrt()"
+              [max]="GRENZEN.ort"
+              [wert]="e.ort"
+              (wertChange)="feld('ort', $event)"
+            />
+            <app-zaehler-feld
+              beschriftung="Darstellung des Sachverhaltes"
+              pflicht
+              [zeilen]="6"
+              [gesperrt]="gesperrt()"
+              [max]="GRENZEN.sachverhalt"
+              [wert]="e.sachverhalt"
+              [hinweis]="
+                'Bis etwa ' +
+                SACHVERHALT_IM_FELD +
+                ' Zeichen passt der Text in das Feld des Formulars, darüber hängt der Druck ein Beiblatt an.'
+              "
+              (wertChange)="feld('sachverhalt', $event)"
+            />
+            <app-zaehler-feld
+              beschriftung="Stellungnahme einer verantwortlichen Person"
+              [zeilen]="3"
+              [gesperrt]="gesperrt()"
+              [max]="GRENZEN.stellungnahme"
+              hinweis="Vorbelegt, kann geändert werden."
+              [wert]="e.stellungnahme"
+              (wertChange)="feld('stellungnahme', $event)"
+            />
+            <app-zaehler-feld
+              beschriftung="Empfehlung zur weiteren Verfahrensweise"
+              [zeilen]="3"
+              [gesperrt]="gesperrt()"
+              [max]="GRENZEN.empfehlung"
+              [wert]="e.empfehlung"
+              (wertChange)="feld('empfehlung', $event)"
+            />
+          </div>
+
+          @if (!gesperrt()) {
+            <div class="aktionen">
+              <button
+                matButton="filled"
+                type="button"
+                [disabled]="!store.ungespeichert() || store.arbeitet()"
+                (click)="speichern()"
+              >
+                {{ store.arbeitet() ? 'Speichert …' : 'Speichern' }}
+              </button>
+              <button
+                matButton
+                type="button"
+                [disabled]="!store.ungespeichert() || store.arbeitet()"
+                (click)="store.verwerfen()"
+              >
+                Änderungen verwerfen
+              </button>
+            </div>
+          }
+        </section>
+
+        <section class="karte">
+          <h2 class="titel">Unterschriften</h2>
+          <p class="beschreibung">
+            Die Reihenfolge ist egal. Gedruckt und gesendet werden kann nach den zwei
+            Pflichtunterschriften. Wer nicht selbst unterschreibt, bekommt eine Aufgabe.
+            @if (store.ungespeichert()) {
+              Zuerst die Angaben speichern.
+            }
+          </p>
+          @for (stand of store.unterschriften(); track stand.slot) {
+            <app-unterschrift-zeile
+              [stand]="stand"
+              [eigeneEmail]="eigeneEmail()"
+              [bereit]="bereit()"
+              [arbeitet]="store.arbeitet()"
+              [eingereicht]="eingereicht()"
+              (unterschreiben)="unterschreiben(stand.slot)"
+              (anfordern)="anfordern(stand.slot)"
+              (entfernen)="entfernen(stand.slot)"
+            />
+          }
+        </section>
+      }
+    }
+  }
+</div>

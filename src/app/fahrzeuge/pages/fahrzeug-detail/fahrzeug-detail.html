@@ -397,6 +397,22 @@
           </ng-template>
         </mat-tab>
 
+        <mat-tab label="Formulare">
+          <ng-template matTabContent>
+            <div class="reiter-inhalt">
+              <app-formulare-reiter [fahrzeug]="fahrzeugKurz()" />
+            </div>
+          </ng-template>
+        </mat-tab>
+
+        <mat-tab label="Vorgänge">
+          <ng-template matTabContent>
+            <div class="reiter-inhalt">
+              <app-vorgaenge-reiter [fahrzeug]="fahrzeugKurz()" />
+            </div>
+          </ng-template>
+        </mat-tab>
+
         <mat-tab label="QR-Codes">
           <ng-template matTabContent>
             <div class="reiter-inhalt">

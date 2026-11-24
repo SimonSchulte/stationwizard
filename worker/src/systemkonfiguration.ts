@@ -49,6 +49,12 @@ export interface Einstellungen {
   /** Organisationsstammdaten für Formulare (Ehrungsantrag): Landesverband und Regionalverband. */
   organisationLandesverband: string;
   organisationRegionalverband: string;
+  /** Einheit, mit der die Schadens- und Verlustmeldung vorbelegt wird (Vorgänge). */
+  vorgangEinheit: string;
+  /** Empfänger der gesendeten Meldung; mehrere Adressen durch Komma getrennt, leer = nicht festgelegt. */
+  vorgangEmpfaenger: string;
+  vorgangVersandweg: Versandweg;
+  vorgangBetreff: string;
 }
 
 /**
@@ -61,6 +67,37 @@ const MATERIAL_ROLLEN: readonly string[] = ['zugfuehrung', 'gruppenfuehrung-sani
 
 /** Organisationsstammdaten bestimmen, was auf jedem Antrag steht; das entscheidet die Zugführung. */
 const ORGANISATION_ROLLEN: readonly string[] = ['zugfuehrung'];
+
+/** Die Meldung an die empfangende Stelle zu verschicken und ihre Vorbelegung zu bestimmen, ist Führungssache. */
+const VORGANG_ROLLEN: readonly string[] = ['zugfuehrung'];
+
+const EINHEIT_GRENZE = 40;
+const EMPFAENGER_MAX = 5;
+
+/** Einheit der Meldung: passt in das einzeilige Feld des Formulars; leer ist erlaubt. */
+function pruefeEinheit(wert: unknown): string | null {
+  if (typeof wert !== 'string') return null;
+  const einheit = wert.trim();
+  if (einheit.length > EINHEIT_GRENZE || enthaeltSteuerzeichen(einheit)) return null;
+  return einheit;
+}
+
+/**
+ * Mehrere Empfänger, durch Komma oder Semikolon getrennt; jede Adresse wird einzeln geprüft,
+ * doppelte entfallen. Leer ist gültig (noch nicht festgelegt, der Versand ist dann gesperrt).
+ */
+export function pruefeEmpfaengerListe(wert: unknown): string | null {
+  if (typeof wert !== 'string') return null;
+  const teile = wert
+    .split(/[,;]/)
+    .map((t) => t.trim())
+    .filter((t) => t !== '');
+  if (teile.length === 0) return '';
+  const eindeutig = [...new Set(teile)];
+  if (eindeutig.length > EMPFAENGER_MAX) return null;
+  if (!eindeutig.every((a) => a.length <= 254 && EMAIL_MUSTER.test(a))) return null;
+  return eindeutig.join(', ');
+}
 
 const ORGANISATIONSNAME_GRENZE = 100;
 
@@ -203,6 +240,30 @@ const EINSTELLUNGEN: { [S in keyof Einstellungen]: Beschreibung<S> } = {
     standard: '',
     pruefe: pruefeOrganisationsname,
     erfordertRolle: ORGANISATION_ROLLEN,
+  },
+  vorgangEinheit: {
+    schluessel: 'vorgang_einheit',
+    standard: 'BI EE 04',
+    pruefe: pruefeEinheit,
+    erfordertRolle: VORGANG_ROLLEN,
+  },
+  vorgangEmpfaenger: {
+    schluessel: 'vorgang_empfaenger',
+    standard: '',
+    pruefe: pruefeEmpfaengerListe,
+    erfordertRolle: VORGANG_ROLLEN,
+  },
+  vorgangVersandweg: {
+    schluessel: 'vorgang_versandweg',
+    standard: 'email-routing',
+    pruefe: (wert) => (istVersandweg(wert) ? wert : null),
+    erfordertRolle: VORGANG_ROLLEN,
+  },
+  vorgangBetreff: {
+    schluessel: 'vorgang_betreff',
+    standard: 'Schadens- und Verlustmeldung',
+    pruefe: pruefeBetreff,
+    erfordertRolle: VORGANG_ROLLEN,
   },
 };
 

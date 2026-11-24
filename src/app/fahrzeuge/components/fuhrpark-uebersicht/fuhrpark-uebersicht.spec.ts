@@ -156,6 +156,10 @@ describe('FuhrparkUebersicht', () => {
       materialBetreff: '',
       organisationLandesverband: '',
       organisationRegionalverband: '',
+      vorgangEinheit: 'BI EE 04',
+      vorgangEmpfaenger: '',
+      vorgangVersandweg: 'email-routing',
+      vorgangBetreff: 'Schadens- und Verlustmeldung',
     });
     const mitSchwellen = liste.map((p) =>
       (p as { provide?: unknown }).provide === SystemkonfigurationStoreService

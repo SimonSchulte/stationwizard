@@ -1,0 +1,21 @@
+<h2 mat-dialog-title>{{ daten.titel }}</h2>
+<mat-dialog-content>
+  <p>{{ daten.nachricht }}</p>
+  <mat-form-field appearance="outline" class="feld">
+    <mat-label>Person</mat-label>
+    <mat-select [value]="gewaehlt()" (selectionChange)="gewaehlt.set($event.value)">
+      @for (person of personen(); track person.email) {
+        <mat-option [value]="person.email">{{ person.name }}</mat-option>
+      }
+    </mat-select>
+    @if (!laedt() && personen().length === 0) {
+      <mat-hint>Noch keine weitere Person hat sich angemeldet.</mat-hint>
+    }
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button matButton [mat-dialog-close]="null">Abbrechen</button>
+  <button matButton="filled" [disabled]="!gewaehlt()" [mat-dialog-close]="gewaehlt()">
+    Aufgabe erstellen
+  </button>
+</mat-dialog-actions>

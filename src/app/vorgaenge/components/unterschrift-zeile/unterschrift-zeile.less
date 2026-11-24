@@ -1,0 +1,58 @@
+:host {
+  display: block;
+}
+
+.zeile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-base) 0;
+  border-bottom: 1px solid var(--border-light);
+
+  &.an-mich {
+    border-radius: var(--radius-md);
+    background: var(--status-warn-bg);
+    padding-inline: var(--space-md);
+  }
+}
+
+:host:last-child .zeile {
+  border-bottom: 0;
+}
+
+.kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.titel {
+  font-weight: 700;
+}
+
+.inhalt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.person {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.datum,
+.hinweis {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.unterschrift {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-compact);
+  background: var(--surface-primary);
+}
