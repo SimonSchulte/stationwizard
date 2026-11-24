@@ -1,12 +1,14 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { PostfachAdressen, PostfachMail } from '../models/postfach.model';
 import { ApiPostfachStorage } from '../storage/api-postfach-storage';
+import { PostfachZaehler } from './postfach-zaehler';
 import { vorgangFehlertext } from './vorgang-store.service';
 
 /** Offene Mails des Postfachs (ein Aufruf) und die Adressen je Fahrzeug. */
 @Injectable({ providedIn: 'root' })
 export class PostfachStoreService {
   private readonly storage = inject(ApiPostfachStorage);
+  private readonly zaehler = inject(PostfachZaehler);
 
   readonly mails = signal<PostfachMail[]>([]);
   readonly aufbewahrungTage = signal(30);
@@ -21,6 +23,7 @@ export class PostfachStoreService {
     try {
       const antwort = await this.storage.mails();
       this.mails.set(antwort.mails);
+      this.zaehler.offen.set(antwort.mails.length);
       this.aufbewahrungTage.set(antwort.aufbewahrungTage);
     } catch (ursache) {
       this.fehler.set(vorgangFehlertext(ursache));
@@ -47,6 +50,7 @@ export class PostfachStoreService {
     try {
       await this.storage.verwerfen(id);
       this.mails.update((liste) => liste.filter((m) => m.id !== id));
+      this.zaehler.offen.set(this.mails().length);
       return true;
     } catch (ursache) {
       this.fehler.set(vorgangFehlertext(ursache));
@@ -58,6 +62,7 @@ export class PostfachStoreService {
     try {
       await this.storage.ordneZu(id, vorgangId);
       this.mails.update((liste) => liste.filter((m) => m.id !== id));
+      this.zaehler.offen.set(this.mails().length);
       return true;
     } catch (ursache) {
       this.fehler.set(vorgangFehlertext(ursache));

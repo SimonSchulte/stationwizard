@@ -3,9 +3,11 @@ import type { Aufgabe, Aufgabenquelle } from '../../kern/aufgaben/aufgabenquelle
 import { anzeigenameAusEmail } from '../../kern/text/anzeigename';
 import { SLOT_BEZEICHNUNG } from '../models/vorgang.model';
 import { ApiVorgangStorage } from '../storage/api-vorgang-storage';
+import { PostfachZaehler } from './postfach-zaehler';
 
 /**
- * Meldet Unterschriftsanfragen an die angemeldete Person als Aufgaben an. Bewusst schlank, weil die
+ * Meldet Unterschriftsanfragen an die angemeldete Person als Aufgaben an und liefert nebenbei die Zahl
+ * offener Postfachmails (derselbe Aufruf). Bewusst schlank, weil die
  * Quelle in `app.config.ts` im Initialbündel liegt: nur Speicher, Modell und eine Textfunktion.
  */
 @Injectable({ providedIn: 'root' })
@@ -14,6 +16,7 @@ export class VorgangAufgabenquelle implements Aufgabenquelle {
   readonly bezeichnung = 'Unterschriften';
 
   private readonly storage = inject(ApiVorgangStorage);
+  private readonly zaehler = inject(PostfachZaehler);
 
   async ladeAufgaben(): Promise<Aufgabe[]> {
     const { unterschriften, postfachOffen } = await this.storage.aufgaben();
@@ -28,17 +31,8 @@ export class VorgangAufgabenquelle implements Aufgabenquelle {
       routerLink: ['/vorgaenge', a.vorgangId, 'meldung'],
       dringlichkeit: 'normal',
     }));
-    if (postfachOffen > 0) {
-      aufgaben.push({
-        id: `${this.kennung}:postfach`,
-        quelle: this.kennung,
-        titel: `${postfachOffen} ${postfachOffen === 1 ? 'Mail' : 'Mails'} im Postfach zuordnen`,
-        beschreibung: 'Angebote, die per E-Mail eingegangen sind, einem Vorgang zuordnen.',
-        eingegangenAm: new Date().toISOString(),
-        routerLink: ['/vorgaenge', 'postfach'],
-        dringlichkeit: 'normal',
-      });
-    }
+    // Das Postfach ist keine Aufgabe in der Liste, sondern ein eigenes Symbol der Kopfleiste.
+    this.zaehler.offen.set(postfachOffen);
     return aufgaben;
   }
 }

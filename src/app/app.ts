@@ -15,6 +15,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTree, MatTreeModule } from '@angular/material/tree';
+import { PostfachZaehler } from './vorgaenge/services/postfach-zaehler';
 import { AufgabenStoreService } from './kern/aufgaben/aufgaben-store.service';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
@@ -112,6 +113,7 @@ export class App {
   protected readonly benutzer = inject(Benutzerkontext);
   protected readonly worker = inject(WorkerClient);
   protected readonly aufgaben = inject(AufgabenStoreService);
+  protected readonly postfach = inject(PostfachZaehler);
   protected readonly aktuellesJahr = new Date().getFullYear();
   private readonly verlassenSchutz = inject(VerlassenSchutz);
   private readonly router = inject(Router);

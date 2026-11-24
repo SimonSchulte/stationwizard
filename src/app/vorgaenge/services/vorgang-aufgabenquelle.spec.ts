@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiVorgangStorage } from '../storage/api-vorgang-storage';
+import { PostfachZaehler } from './postfach-zaehler';
 import { VorgangAufgabenquelle } from './vorgang-aufgabenquelle';
 
 describe('VorgangAufgabenquelle', () => {
@@ -41,7 +42,7 @@ describe('VorgangAufgabenquelle', () => {
     ]);
   });
 
-  it('meldet ungeordnete Mails als eigene Aufgabe mit Link zum Postfach', async () => {
+  it('liefert die Zahl offener Mails an den Zähler, nicht als Aufgabe', async () => {
     TestBed.configureTestingModule({
       providers: [
         {
@@ -53,10 +54,7 @@ describe('VorgangAufgabenquelle', () => {
       ],
     });
     const aufgaben = await TestBed.inject(VorgangAufgabenquelle).ladeAufgaben();
-    expect(aufgaben).toHaveLength(1);
-    expect(aufgaben[0]).toMatchObject({
-      titel: '3 Mails im Postfach zuordnen',
-      routerLink: ['/vorgaenge', 'postfach'],
-    });
+    expect(aufgaben).toEqual([]);
+    expect(TestBed.inject(PostfachZaehler).offen()).toBe(3);
   });
 });

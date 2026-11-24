@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { computed, signal } from '@angular/core';
+import { PostfachZaehler } from './vorgaenge/services/postfach-zaehler';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
 import { VerlassenSchutz } from './kern/verlassen-schutz';
@@ -49,6 +50,24 @@ describe('Gemeinsame Anwendung', () => {
     );
     expect(element.querySelector('.benutzer-avatar')?.textContent?.trim()).toBe('U');
   });
+  it('zeigt offene Aufgaben und Postfach als Symbole mit Zahl neben dem Benutzer', () => {
+    const ansicht = TestBed.createComponent(App);
+    TestBed.inject(PostfachZaehler).offen.set(4);
+    ansicht.detectChanges();
+    const symbole = Array.from(
+      (ansicht.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>(
+        '.benutzer .kopf-symbol',
+      ),
+    );
+    expect(symbole.map((a) => a.getAttribute('href'))).toEqual([
+      '/aufgaben',
+      '/vorgaenge/postfach',
+    ]);
+    expect(symbole[1].querySelector('.aufgaben-marke')?.textContent?.trim()).toBe('4');
+    expect(symbole[1].getAttribute('aria-label')).toBe('4 Mails im Postfach');
+    expect(symbole[0].querySelector('.aufgaben-marke')).toBeNull();
+  });
+
   it('öffnet über den Benutzer-Schalter ein Menü mit dem Abmelden-Eintrag', async () => {
     const ansicht = TestBed.createComponent(App);
     ansicht.detectChanges();
