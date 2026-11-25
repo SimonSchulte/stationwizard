@@ -42,7 +42,7 @@ const FEHLERTEXT: Record<string, string> = {
   VORGANG_DATEIEN_KONFIGURATION_FEHLT:
     'Der Dateispeicher der Vorgänge ist noch nicht eingerichtet. Angebote lassen sich so noch nicht anhängen.',
   MAIL_VERSANDWEG_NICHT_EINGERICHTET:
-    'Der Versandweg für E-Mails ist noch nicht eingerichtet (Systemkonfiguration, Reiter „Vorgänge“, und Secrets am Worker).',
+    'Der Versandweg für E-Mails ist noch nicht eingerichtet (Systemkonfiguration, Reiter „E-Mail“, und Secrets am Worker).',
   MAIL_VERSAND_ANHANG_NICHT_UNTERSTUETZT:
     'Der gewählte Versandweg kann keine Anhänge senden. Die Zugführung stellt ihn in der Systemkonfiguration auf „Mail-API“.',
   MAIL_VERSAND_ZUGANG_ABGELEHNT:

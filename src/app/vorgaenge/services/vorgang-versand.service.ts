@@ -57,7 +57,7 @@ export class VorgangVersandService {
       .filter((a) => a !== '');
     if (empfaenger.length === 0) {
       await this.hinweise.hinweis(
-        'Es sind noch keine Empfänger festgelegt. Die Zugführung legt sie in der Systemkonfiguration unter „Vorgänge“ fest.',
+        'Es sind noch keine Empfänger festgelegt. Die Zugführung legt sie in der Systemkonfiguration im Reiter „E-Mail“ fest.',
         'Keine Empfänger',
       );
       return false;

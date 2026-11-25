@@ -1,0 +1,14 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+  <mat-label>Versandweg</mat-label>
+  <mat-select [disabled]="gesperrt()" [value]="wert()" (selectionChange)="wert.set($event.value)">
+    @for (weg of versandwege; track weg) {
+      <mat-option [value]="weg">
+        {{ label[weg] }}
+        @if (!eingerichtet().includes(weg)) {
+          – nicht eingerichtet
+        }
+      </mat-option>
+    }
+  </mat-select>
+  <mat-hint>{{ hinweis[wert()] }}</mat-hint>
+</mat-form-field>

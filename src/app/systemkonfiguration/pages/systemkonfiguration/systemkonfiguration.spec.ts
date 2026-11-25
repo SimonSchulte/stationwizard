@@ -38,8 +38,7 @@ function aufbau(optionen: { gespeichert?: Einstellungen; versandwege?: Versandwe
     speichern: vi.fn(),
     entwurfAendern: vi.fn(),
     entwurfVerwerfen: vi.fn(),
-    istVerfuegbar: (weg: string) =>
-      versandwege.some((eintrag) => eintrag.weg === weg && eintrag.verfuegbar),
+    verfuegbareWege: signal(versandwege.filter((eintrag) => eintrag.verfuegbar)),
     gespeicherteEinstellungen: gespeichert,
     entwurf: signal<Einstellungen | null>(einstellungen()),
     laedt: signal(false),
@@ -94,9 +93,8 @@ describe('Systemkonfiguration', () => {
     expect(store.entwurfVerwerfen).toHaveBeenCalledOnce();
   });
 
-  it('meldet nicht eingerichtete Versandwege über den Store', () => {
+  it('nennt nur am Worker eingerichtete Versandwege als eingerichtet', () => {
     const { seite } = aufbau({});
-    expect(seite.istVerfuegbar('email-routing')).toBe(true);
-    expect(seite.istVerfuegbar('resend')).toBe(false);
+    expect(seite.eingerichteteWege()).toEqual(['email-routing']);
   });
 });

@@ -14,15 +14,20 @@
   }
 
   <mat-tab-group>
-    <mat-tab label="Kilometerbericht">
+    <mat-tab label="E-Mail">
       @if (entwurf(); as werte) {
         <div class="tab-inhalt">
           <p class="beschreibung">
-            Wohin und worüber der Kilometerstandsbericht versendet wird. Empfänger, Betreff und
-            Versandweg der Materialberichte und der Vorgänge stehen in deren eigenen Reitern.
-            Zugangsdaten stehen bewusst nicht hier: Absenderadresse und API-Token des Mailversands
-            bleiben Geheimnisse am Worker und lassen sich nur dort setzen. Vorschau und Versand
-            selbst stehen im Fahrzeugmodul unter „Kilometerübersicht".
+            Alle Einstellungen zum Mailversand an einer Stelle: wohin und worüber Berichte und
+            Meldungen gehen. Zugangsdaten stehen bewusst nicht hier: Absenderadresse und API-Token
+            des Mailversands bleiben Geheimnisse am Worker und lassen sich nur dort setzen. Ein
+            Versandweg, der am Worker nicht eingerichtet ist, lässt sich vorab speichern, ein
+            Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.
+          </p>
+
+          <h3 class="gruppentitel">Kilometerbericht</h3>
+          <p class="beschreibung">
+            Vorschau und Versand selbst stehen im Fahrzeugmodul unter „Kilometerübersicht“.
           </p>
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
@@ -48,83 +53,18 @@
             <mat-hint>Das Datum des Berichts wird automatisch angehängt.</mat-hint>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Versandweg</mat-label>
-            <mat-select
-              [value]="werte.kmBerichtVersandweg"
-              (valueChange)="versandwegAendern($event)"
-            >
-              @for (weg of versandwege; track weg) {
-                <mat-option [value]="weg">
-                  {{ versandwegLabel[weg] }}
-                  @if (!istVerfuegbar(weg)) {
-                    <span class="nicht-eingerichtet">– nicht eingerichtet</span>
-                  }
-                </mat-option>
-              }
-            </mat-select>
-            <mat-hint>{{ versandwegHinweis[werte.kmBerichtVersandweg] }}</mat-hint>
-          </mat-form-field>
+          <app-versandweg-auswahl
+            [wert]="werte.kmBerichtVersandweg"
+            (wertChange)="versandwegAendern($event)"
+            [eingerichtet]="eingerichteteWege()"
+          />
 
-          @if (!istVerfuegbar(werte.kmBerichtVersandweg)) {
-            <app-meldung art="warnung"
-              >Dieser Weg ist am Worker nicht eingerichtet. Die Einstellung lässt sich speichern,
-              ein Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.</app-meldung
-            >
-          }
-        </div>
-      }
-    </mat-tab>
-
-    <mat-tab label="Kilometerübersicht">
-      @if (entwurf(); as werte) {
-        <div class="tab-inhalt">
-          <p class="beschreibung">
-            Ab wann die Ampel je Fahrzeug in der Kilometerübersicht auf Gelb bzw. Rot springt. Grün
-            bleibt es, solange die Rest-km eines Fahrzeugs beim Mindesttempo seines Eigentümers in
-            den noch vollständig verbleibenden Monaten erreichbar sind (der laufende Monat zählt
-            dafür nicht mit, er ist ja noch nicht abgeschlossen). Die beiden Werte hier sind ein
-            zusätzlicher Puffer in Monaten darauf – ab wie vielen Monaten Rückstand es zunächst gelb
-            und dann rot wird.
-          </p>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Ampel Gelb ab (Monate Rückstand)</mat-label>
-            <input
-              matInput
-              type="number"
-              min="0"
-              max="36"
-              step="1"
-              [value]="werte.kmAmpelSchwellenwertGelbMonate"
-              (input)="ampelGelbAendern($any($event.target).valueAsNumber)"
-            />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Ampel Rot ab (Monate Rückstand)</mat-label>
-            <input
-              matInput
-              type="number"
-              min="0"
-              max="36"
-              step="1"
-              [value]="werte.kmAmpelSchwellenwertRotMonate"
-              (input)="ampelRotAendern($any($event.target).valueAsNumber)"
-            />
-          </mat-form-field>
-        </div>
-      }
-    </mat-tab>
-
-    <mat-tab label="Materialberichte">
-      @if (entwurf(); as werte) {
-        <div class="tab-inhalt">
+          <h3 class="gruppentitel">Materialberichte</h3>
           <p class="beschreibung">
             Standardempfänger der Belege zum Fahrzeugcheck. Sie sind im Sendedialog vorbelegt und
-            lassen sich dort für einen einzelnen Versand überschreiben. Diese Einstellungen dürfen
-            nur die Zugführung und die Gruppenführung Sanität ändern; die Sperre setzt der Worker
-            durch, nicht diese Seite.
+            lassen sich dort für einen einzelnen Versand überschreiben. Ändern dürfen sie nur die
+            Zugführung und die Gruppenführung Sanität; die Sperre setzt der Worker durch, nicht
+            diese Seite.
           </p>
 
           @if (!darfMaterialAendern()) {
@@ -185,23 +125,126 @@
             <mat-hint>Berichtsart, Behälter und Prüftag werden automatisch angehängt.</mat-hint>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Versandweg</mat-label>
-            <mat-select
-              [disabled]="!darfMaterialAendern()"
-              [value]="werte.materialVersandweg"
-              (selectionChange)="materialVersandwegAendern($event.value)"
+          <app-versandweg-auswahl
+            [gesperrt]="!darfMaterialAendern()"
+            [wert]="werte.materialVersandweg"
+            (wertChange)="materialVersandwegAendern($event)"
+            [eingerichtet]="eingerichteteWege()"
+          />
+
+          <h3 class="gruppentitel">Schadens- und Verlustmeldung</h3>
+          <p class="beschreibung">
+            Empfänger der unterschriebenen Meldung eines Vorgangs. Im Sendedialog lässt sich nur aus
+            diesen Adressen auswählen. Ändern darf sie nur die Zugführung; die Sperre setzt der
+            Worker durch, nicht diese Seite.
+          </p>
+
+          @if (!darfVorgangAendern()) {
+            <app-meldung art="info"
+              >Einstellungen der Vorgänge nur lesbar: dafür fehlt die Rolle
+              „Zugführung".</app-meldung
             >
-              @for (weg of versandwege; track weg) {
-                <mat-option [value]="weg">
-                  {{ versandwegLabel[weg] }}
-                  @if (!istVerfuegbar(weg)) {
-                    – nicht eingerichtet
-                  }
-                </mat-option>
-              }
-            </mat-select>
-            <mat-hint>{{ versandwegHinweis[werte.materialVersandweg] }}</mat-hint>
+          }
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Empfänger der Meldung</mat-label>
+            <input
+              matInput
+              autocomplete="off"
+              [disabled]="!darfVorgangAendern()"
+              [value]="werte.vorgangEmpfaenger"
+              (input)="vorgangAendern('vorgangEmpfaenger', $any($event.target).value)"
+              placeholder="fahrzeugwesen@example.org, zugfuehrung@example.org"
+            />
+            <mat-hint
+              >Bis zu fünf Adressen, durch Komma getrennt. Leer: Einreichen ist gesperrt.</mat-hint
+            >
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Betreff</mat-label>
+            <input
+              matInput
+              [disabled]="!darfVorgangAendern()"
+              [value]="werte.vorgangBetreff"
+              (input)="vorgangAendern('vorgangBetreff', $any($event.target).value)"
+            />
+            <mat-hint>Fahrzeug und Kennzeichen werden automatisch angehängt.</mat-hint>
+          </mat-form-field>
+
+          <app-versandweg-auswahl
+            [gesperrt]="!darfVorgangAendern()"
+            [wert]="werte.vorgangVersandweg"
+            (wertChange)="vorgangVersandwegAendern($event)"
+            [eingerichtet]="eingerichteteWege()"
+          />
+        </div>
+      }
+
+      <div class="tab-inhalt">
+        <h3 class="gruppentitel">Postfach-Adressen als Kontakte</h3>
+        <p class="beschreibung">
+          Jedes Fahrzeug hat zwei Adressen für Angebote, abgeleitet aus Kennzeichen und Funkrufname
+          (ohne „72“); dazu das Sammelpostfach. Die Liste lässt sich in Outlook oder ein anderes
+          Adressbuch importieren.
+        </p>
+        <div class="aktionen">
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="!kontakteBereit()"
+            (click)="kontakteHerunterladen('csv')"
+          >
+            <mat-icon>download</mat-icon> Kontakte als CSV (Outlook)
+          </button>
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="!kontakteBereit()"
+            (click)="kontakteHerunterladen('vcf')"
+          >
+            <mat-icon>download</mat-icon> Kontakte als vCard (.vcf)
+          </button>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Kilometerübersicht">
+      @if (entwurf(); as werte) {
+        <div class="tab-inhalt">
+          <p class="beschreibung">
+            Ab wann die Ampel je Fahrzeug in der Kilometerübersicht auf Gelb bzw. Rot springt. Grün
+            bleibt es, solange die Rest-km eines Fahrzeugs beim Mindesttempo seines Eigentümers in
+            den noch vollständig verbleibenden Monaten erreichbar sind (der laufende Monat zählt
+            dafür nicht mit, er ist ja noch nicht abgeschlossen). Die beiden Werte hier sind ein
+            zusätzlicher Puffer in Monaten darauf – ab wie vielen Monaten Rückstand es zunächst gelb
+            und dann rot wird.
+          </p>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Ampel Gelb ab (Monate Rückstand)</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="36"
+              step="1"
+              [value]="werte.kmAmpelSchwellenwertGelbMonate"
+              (input)="ampelGelbAendern($any($event.target).valueAsNumber)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
+            <mat-label>Ampel Rot ab (Monate Rückstand)</mat-label>
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="36"
+              step="1"
+              [value]="werte.kmAmpelSchwellenwertRotMonate"
+              (input)="ampelRotAendern($any($event.target).valueAsNumber)"
+            />
           </mat-form-field>
         </div>
       }
@@ -254,9 +297,9 @@
       @if (entwurf(); as werte) {
         <div class="tab-inhalt">
           <p class="beschreibung">
-            Einstellungen der Schadens- und Verlustmeldung: die vorbelegte Einheit und die Empfänger
-            der unterschriebenen Meldung. Ändern darf sie nur die Zugführung; die Sperre setzt der
-            Worker durch, nicht diese Seite.
+            Einstellungen der Schadens- und Verlustmeldung: die vorbelegte Einheit. Empfänger und
+            Versandweg stehen im Reiter „E-Mail“. Ändern darf sie nur die Zugführung; die Sperre
+            setzt der Worker durch, nicht diese Seite.
           </p>
 
           @if (!darfVorgangAendern()) {
@@ -278,80 +321,8 @@
             />
             <mat-hint>Vorbelegung des Feldes „Einheit“, auf der Meldung änderbar.</mat-hint>
           </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Empfänger der Meldung</mat-label>
-            <input
-              matInput
-              autocomplete="off"
-              [disabled]="!darfVorgangAendern()"
-              [value]="werte.vorgangEmpfaenger"
-              (input)="vorgangAendern('vorgangEmpfaenger', $any($event.target).value)"
-              placeholder="fahrzeugwesen@example.org, zugfuehrung@example.org"
-            />
-            <mat-hint
-              >Bis zu fünf Adressen, durch Komma getrennt. Leer: Einreichen ist gesperrt.</mat-hint
-            >
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Betreff</mat-label>
-            <input
-              matInput
-              [disabled]="!darfVorgangAendern()"
-              [value]="werte.vorgangBetreff"
-              (input)="vorgangAendern('vorgangBetreff', $any($event.target).value)"
-            />
-            <mat-hint>Fahrzeug und Kennzeichen werden automatisch angehängt.</mat-hint>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="feld">
-            <mat-label>Versandweg</mat-label>
-            <mat-select
-              [disabled]="!darfVorgangAendern()"
-              [value]="werte.vorgangVersandweg"
-              (selectionChange)="vorgangVersandwegAendern($event.value)"
-            >
-              @for (weg of versandwege; track weg) {
-                <mat-option [value]="weg">
-                  {{ versandwegLabel[weg] }}
-                  @if (!istVerfuegbar(weg)) {
-                    – nicht eingerichtet
-                  }
-                </mat-option>
-              }
-            </mat-select>
-            <mat-hint>{{ versandwegHinweis[werte.vorgangVersandweg] }}</mat-hint>
-          </mat-form-field>
         </div>
       }
-
-      <div class="tab-inhalt">
-        <h3 class="gruppentitel">Postfach-Adressen als Kontakte</h3>
-        <p class="beschreibung">
-          Jedes Fahrzeug hat zwei Adressen für Angebote, abgeleitet aus Kennzeichen und Funkrufname
-          (ohne „72“); dazu das Sammelpostfach. Die Liste lässt sich in Outlook oder ein anderes
-          Adressbuch importieren.
-        </p>
-        <div class="aktionen">
-          <button
-            matButton="outlined"
-            type="button"
-            [disabled]="!kontakteBereit()"
-            (click)="kontakteHerunterladen('csv')"
-          >
-            <mat-icon>download</mat-icon> Kontakte als CSV (Outlook)
-          </button>
-          <button
-            matButton="outlined"
-            type="button"
-            [disabled]="!kontakteBereit()"
-            (click)="kontakteHerunterladen('vcf')"
-          >
-            <mat-icon>download</mat-icon> Kontakte als vCard (.vcf)
-          </button>
-        </div>
-      </div>
     </mat-tab>
   </mat-tab-group>
 
