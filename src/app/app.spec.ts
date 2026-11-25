@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { App } from './app';
+import { App, NAVIGATION, type NavKnoten } from './app';
+import { VERWALTUNG_GRUPPEN } from './verwaltung/verwaltung-gruppen';
 import { computed, signal } from '@angular/core';
 import { PostfachZaehler } from './vorgaenge/services/postfach-zaehler';
 import { Benutzerkontext } from './kern/benutzerkontext';
@@ -63,9 +64,41 @@ describe('Gemeinsame Anwendung', () => {
       '/aufgaben',
       '/vorgaenge/postfach',
     ]);
-    expect(symbole[1].querySelector('.aufgaben-marke')?.textContent?.trim()).toBe('4');
+    expect(symbole[1].querySelector('app-zaehlmarke .marke')?.textContent?.trim()).toBe('4');
     expect(symbole[1].getAttribute('aria-label')).toBe('4 Mails im Postfach');
-    expect(symbole[0].querySelector('.aufgaben-marke')).toBeNull();
+    expect(symbole[0].querySelector('app-zaehlmarke .marke')).toBeNull();
+  });
+
+  it('zählt am Menüknopf Aufgaben und Postfach zusammen', () => {
+    const ansicht = TestBed.createComponent(App);
+    TestBed.inject(PostfachZaehler).offen.set(4);
+    ansicht.detectChanges();
+    const burger = (ansicht.nativeElement as HTMLElement).querySelector('.burger');
+    expect(burger?.querySelector('.marke')?.textContent?.trim()).toBe('4');
+    expect(burger?.getAttribute('aria-label')).toBe('Hauptnavigation öffnen, 4 offene Punkte');
+  });
+
+  it('führt im Seitenmenü zu allen Unterseiten der Module und der Verwaltung', () => {
+    // Zugeklappte Gruppen rendert mat-tree nicht, deshalb wird die Baumstruktur geprüft.
+    const links = (knoten: readonly NavKnoten[]): string[] =>
+      knoten.flatMap((k) => [...(k.link ? [k.link] : []), ...links(k.kinder ?? [])]);
+    const ziele = links(NAVIGATION);
+    for (const ziel of [
+      '/kalender/uebernahme',
+      '/fahrzeuge/liste',
+      '/material/vorlagen',
+      '/angebotswesen/preiskatalog',
+      '/aufgaben/kilometermeldungen',
+      '/vorgaenge/postfach',
+      '/verwaltung/benutzer',
+      '/verwaltung/packliste-import',
+    ]) {
+      expect(ziele).toContain(ziel);
+    }
+    // Jede Karte der Verwaltungs-Startseite ist auch im Menü erreichbar.
+    for (const gruppe of VERWALTUNG_GRUPPEN) {
+      for (const eintrag of gruppe.eintraege) expect(ziele).toContain(eintrag.ziel);
+    }
   });
 
   it('öffnet über den Benutzer-Schalter ein Menü mit dem Abmelden-Eintrag', async () => {

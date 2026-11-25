@@ -8,15 +8,13 @@
     [attr.aria-expanded]="seitenNav.opened"
     aria-controls="hauptnavigation"
     [attr.aria-label]="
-      aufgaben.anzahl() > 0
-        ? 'Hauptnavigation öffnen, ' + aufgaben.anzahl() + ' offene Aufgaben'
+      kopfZaehler() > 0
+        ? 'Hauptnavigation öffnen, ' + kopfZaehler() + ' offene Punkte'
         : 'Hauptnavigation öffnen'
     "
   >
     <mat-icon aria-hidden="true">menu</mat-icon>
-    @if (aufgaben.anzahl() > 0) {
-      <span class="aufgaben-marke" aria-hidden="true">{{ aufgaben.anzahl() }}</span>
-    }
+    <app-zaehlmarke [anzahl]="kopfZaehler()" />
   </button>
   <a class="marke" routerLink="/" aria-label="HiorgWache Startseite">
     <mat-icon aria-hidden="true">hub</mat-icon>
@@ -34,9 +32,7 @@
         title="Offene Aufgaben"
       >
         <mat-icon aria-hidden="true">task_alt</mat-icon>
-        @if (aufgaben.anzahl() > 0) {
-          <span class="aufgaben-marke" aria-hidden="true">{{ aufgaben.anzahl() }}</span>
-        }
+        <app-zaehlmarke [anzahl]="aufgaben.anzahl()" />
       </a>
       <a
         matIconButton
@@ -48,9 +44,7 @@
         title="Postfach"
       >
         <mat-icon aria-hidden="true">inbox</mat-icon>
-        @if (postfach.offen() > 0) {
-          <span class="aufgaben-marke" aria-hidden="true">{{ postfach.offen() }}</span>
-        }
+        <app-zaehlmarke [anzahl]="postfach.offen()" />
       </a>
       <button
         type="button"
@@ -112,7 +106,7 @@
         <mat-tree-node
           *matTreeNodeDef="let knoten"
           class="navknoten"
-          [class.unterpunkt]="knoten.ebene > 0"
+          [class]="'ebene-' + knoten.ebene"
         >
           <a
             [routerLink]="knoten.link"
@@ -122,12 +116,14 @@
             (click)="seitenNav.close()"
           >
             <mat-icon aria-hidden="true">{{ knoten.icon }}</mat-icon> {{ knoten.bezeichnung }}
-            @if (knoten.aufgabenMarke && aufgaben.anzahl() > 0) {
-              <span class="aufgaben-marke">{{ aufgaben.anzahl() }}</span>
-            }
+            <app-zaehlmarke class="nav-marke" [anzahl]="markenAnzahl(knoten)" />
           </a>
         </mat-tree-node>
-        <mat-tree-node *matTreeNodeDef="let knoten; when: hatKinder" class="navknoten gruppe">
+        <mat-tree-node
+          *matTreeNodeDef="let knoten; when: hatKinder"
+          class="navknoten gruppe"
+          [class]="'ebene-' + knoten.ebene"
+        >
           <button
             type="button"
             matTreeNodeToggle
@@ -138,6 +134,7 @@
           >
             <mat-icon aria-hidden="true">{{ knoten.icon }}</mat-icon>
             <span class="gruppenname">{{ knoten.bezeichnung }}</span>
+            <app-zaehlmarke class="nav-marke" [anzahl]="markenAnzahl(knoten)" />
             <mat-icon class="pfeil" aria-hidden="true">{{
               baum.isExpanded(knoten) ? 'expand_less' : 'expand_more'
             }}</mat-icon>

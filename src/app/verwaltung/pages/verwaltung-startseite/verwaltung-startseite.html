@@ -2,139 +2,70 @@
 
 <app-einstiegsseite>
   <p beschreibung>
-    Aufgaben, die Stammdaten ganzer Bereiche betreffen. Der Bereich kennt noch kein durchgesetztes
-    Rollenmodell: die meisten Aufgaben sieht und benutzt jede angemeldete Person. Einzelne
-    Funktionen sind zusätzlich nach der zugeordneten Rolle ein- oder ausgeblendet.
+    Aufgaben, die Stammdaten ganzer Bereiche betreffen, nach Themen gruppiert. Der Bereich kennt
+    noch kein durchgesetztes Rollenmodell: die meisten Aufgaben sieht und benutzt jede angemeldete
+    Person. Einzelne Funktionen sind zusätzlich nach der zugeordneten Rolle ein- oder ausgeblendet.
   </p>
-  <app-einstiegsraster>
-    <app-einstiegskarte
-      ziel="/verwaltung/fahrzeuge-import"
-      icon="upload_file"
-      titel="Fahrzeuge importieren"
-      aktion="Import öffnen"
-    >
-      Fahrzeugstammdaten aus einer CSV-Datei anlegen, mit Vorschau und Bericht. Jedes Kennzeichen
-      wird nur einmalig übernommen.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/kalender-migration"
-      icon="event_note"
-      titel="Kalender aus Excel übernehmen"
-      aktion="Übernahme öffnen"
-    >
-      Die bisherige Excel-Arbeitsmappe der Ausbildungsplanung einmalig in die Kalender-Datenbank
-      übernehmen. Nur möglich, solange die Datenbank leer ist.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/benutzer"
-      icon="manage_accounts"
-      titel="Benutzerverwaltung"
-      aktion="Benutzerverwaltung öffnen"
-    >
-      Wer sich bereits angemeldet hat einsehen und eine Rolle zuweisen. Wer sich anmelden darf,
-      entscheidet weiterhin die Zugriffsliste in Cloudflare Access.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/pruefvorlagen"
-      icon="checklist"
-      titel="Prüfvorlagen"
-      aktion="Prüfvorlagen öffnen"
-    >
-      Die Soll-Listen der Materialverwaltung pflegen: Fächer, Artikel, Sollmengen und Herkunft. Ein
-      bereits durchgeführter Fahrzeugcheck bleibt unverändert, weil er seine eigene Momentaufnahme
-      der Liste trägt.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/systemkonfiguration"
-      icon="tune"
-      titel="Systemkonfiguration"
-      aktion="Systemkonfiguration öffnen"
-    >
-      Betriebseinstellungen wie den Mailversand-Weg des Kilometerstandsberichts setzen. Zugangsdaten
-      bleiben davon unberührt; sie stehen ausschließlich am Worker. Vorschau und Versand selbst
-      stehen im Fahrzeugmodul unter „Kilometerübersicht".
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/fuehrerschein-vorlage"
-      icon="description"
-      titel="Führerschein-Vorlage"
-      aktion="Vorlage öffnen"
-    >
-      Die Word-Vorlage hinterlegen oder ersetzen, mit der die Führerscheinliste im Personalmodul
-      Name, Führerscheindatum und -nummer füllt.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/ehrungsantrag-vorlage"
-      icon="picture_as_pdf"
-      titel="Ehrungsantrag-Vorlage"
-      aktion="Vorlage öffnen"
-    >
-      Das PDF-Formular „Antrag auf Verleihung einer Auszeichnung“ hinterlegen oder ersetzen, das die
-      Seite „Offene Ehrungen“ je Antrag füllt.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/schadensmeldung-vorlage"
-      icon="picture_as_pdf"
-      titel="Schadensmeldung-Vorlage"
-      aktion="Vorlage öffnen"
-    >
-      Das PDF-Formular „Schadens- und Verlustmeldung“ (Anlage 5) hinterlegen oder ersetzen, das die
-      Meldung eines Vorgangs beim Drucken und Einreichen füllt.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/einsatz-vorlagen"
-      icon="library_books"
-      titel="Einsatz-Vorlagen"
-      aktion="Vorlagen öffnen"
-    >
-      PEP- und Aufbau-Vorlagen der Einsatzplanung verwalten: PEP-Vorlagen aus einer Einsatzplandatei
-      anlegen, Aufbau-Vorlagen im Aufbau-Editor bearbeiten, ansehen, umbenennen und löschen.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/einsatz-stammdaten"
-      icon="warehouse"
-      titel="Lager und Artikel"
-      aktion="Stammdaten öffnen"
-    >
-      Lager mit Reihenfolge (Laufweg) und den Artikelkatalog mit Heimatlager pflegen. Grundlage für
-      Kisten, Wagen und die Zettel der Einsatzplanung.
-    </app-einstiegskarte>
-    <app-einstiegskarte
-      ziel="/verwaltung/packliste-import"
-      icon="upload_file"
-      titel="Packliste importieren"
-      aktion="Excel-Datei übernehmen"
-    >
-      Eine Excel-Packliste einmalig als Aufbau-Vorlage übernehmen: Fahrzeuge, Wagen, Kisten und
-      Artikel mit Lager und Platz.
-    </app-einstiegskarte>
-    @if (darfFreigeben()) {
-      <app-einstiegskarte
-        icon="qr_code_2"
-        titel="QR-Übersichtsbogen – ohne Anmeldung"
-        aktion="Übersichtsbogen drucken"
-        [deaktiviert]="qrUebersichtLaedt()"
-        [laedt]="qrUebersichtLaedt()"
-        (aktiviert)="qrUebersichtErstellen('oeffentlich')"
-      >
-        Ein PDF mit dem öffentlichen Melde-QR-Code jedes Fahrzeugs zum Aushängen. Damit kann jede
-        Helferin und jeder Helfer den Kilometerstand melden; die Meldung wird von der Zug- oder
-        Gruppenführung freigegeben. Die Codes sind Zugangsmerkmale.
-        @if (qrUebersichtFehler()) {
-          <span einstiegsFehler class="fehler">{{ qrUebersichtFehler() }}</span>
+  @for (gruppe of gruppen; track gruppe.id) {
+    <section class="gruppe" [attr.aria-labelledby]="'gruppe-' + gruppe.id">
+      <header class="gruppenkopf">
+        <mat-icon aria-hidden="true">{{ gruppe.icon }}</mat-icon>
+        <div>
+          <h2 [id]="'gruppe-' + gruppe.id">{{ gruppe.titel }}</h2>
+          <p>{{ gruppe.beschreibung }}</p>
+        </div>
+      </header>
+      <app-einstiegsraster>
+        @for (eintrag of gruppe.eintraege; track eintrag.ziel) {
+          <app-einstiegskarte
+            [ziel]="eintrag.ziel"
+            [icon]="eintrag.icon"
+            [titel]="eintrag.titel"
+            [aktion]="eintrag.aktion"
+          >
+            {{ eintrag.beschreibung }}
+          </app-einstiegskarte>
         }
-      </app-einstiegskarte>
-      <app-einstiegskarte
-        icon="qr_code_scanner"
-        titel="QR-Übersichtsbogen – mit Anmeldung"
-        aktion="Übersichtsbogen drucken"
-        [deaktiviert]="qrUebersichtLaedt()"
-        [laedt]="qrUebersichtLaedt()"
-        (aktiviert)="qrUebersichtErstellen('intern')"
-      >
-        Derselbe Bogen mit den internen Erfassungscodes. Eine darüber eingetragene Ablesung gilt
-        sofort und braucht keine Freigabe, setzt aber eine Anmeldung voraus.
-      </app-einstiegskarte>
-    }
-  </app-einstiegsraster>
+      </app-einstiegsraster>
+    </section>
+  }
+  @if (darfFreigeben()) {
+    <section class="gruppe" aria-labelledby="gruppe-qr">
+      <header class="gruppenkopf">
+        <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+        <div>
+          <h2 id="gruppe-qr">QR-Übersichtsbögen</h2>
+          <p>Druckbögen mit den Erfassungscodes aller Fahrzeuge, für Zug- und Gruppenführung.</p>
+        </div>
+      </header>
+      <app-einstiegsraster>
+        <app-einstiegskarte
+          icon="qr_code_2"
+          titel="QR-Übersichtsbogen – ohne Anmeldung"
+          aktion="Übersichtsbogen drucken"
+          [deaktiviert]="qrUebersichtLaedt()"
+          [laedt]="qrUebersichtLaedt()"
+          (aktiviert)="qrUebersichtErstellen('oeffentlich')"
+        >
+          Ein PDF mit dem öffentlichen Melde-QR-Code jedes Fahrzeugs zum Aushängen. Damit kann jede
+          Helferin und jeder Helfer den Kilometerstand melden; die Meldung wird von der Zug- oder
+          Gruppenführung freigegeben. Die Codes sind Zugangsmerkmale.
+          @if (qrUebersichtFehler()) {
+            <span einstiegsFehler class="fehler">{{ qrUebersichtFehler() }}</span>
+          }
+        </app-einstiegskarte>
+        <app-einstiegskarte
+          icon="qr_code_scanner"
+          titel="QR-Übersichtsbogen – mit Anmeldung"
+          aktion="Übersichtsbogen drucken"
+          [deaktiviert]="qrUebersichtLaedt()"
+          [laedt]="qrUebersichtLaedt()"
+          (aktiviert)="qrUebersichtErstellen('intern')"
+        >
+          Derselbe Bogen mit den internen Erfassungscodes. Eine darüber eingetragene Ablesung gilt
+          sofort und braucht keine Freigabe, setzt aber eine Anmeldung voraus.
+        </app-einstiegskarte>
+      </app-einstiegsraster>
+    </section>
+  }
 </app-einstiegsseite>
