@@ -72,32 +72,6 @@
               ein Versand schlägt aber fehl, bis die Einrichtung nachgeholt ist.</app-meldung
             >
           }
-
-          @if (speicherFehler()) {
-            <app-meldung art="fehler">{{ speicherFehler() }}</app-meldung>
-          }
-          @if (gespeichert() && !ungespeichert()) {
-            <app-meldung art="erfolg">Einstellungen gespeichert.</app-meldung>
-          }
-
-          <div class="aktionen">
-            <button
-              matButton="filled"
-              type="button"
-              [disabled]="!ungespeichert() || speichert()"
-              (click)="speichern()"
-            >
-              {{ speichert() ? 'Speichern …' : 'Speichern' }}
-            </button>
-            <button
-              matButton
-              type="button"
-              [disabled]="!ungespeichert() || speichert()"
-              (click)="verwerfen()"
-            >
-              Verwerfen
-            </button>
-          </div>
         </div>
       }
     </mat-tab>
@@ -380,4 +354,34 @@
       </div>
     </mat-tab>
   </mat-tab-group>
+
+  @if (entwurf()) {
+    <div class="tab-inhalt">
+      @if (speicherFehler()) {
+        <app-meldung art="fehler">{{ speicherFehler() }}</app-meldung>
+      }
+      @if (gespeichert() && !ungespeichert()) {
+        <app-meldung art="erfolg">Einstellungen gespeichert.</app-meldung>
+      }
+
+      <div class="aktionen">
+        <button
+          matButton="filled"
+          type="button"
+          [disabled]="!ungespeichert() || speichert()"
+          (click)="speichern()"
+        >
+          {{ speichert() ? 'Speichern …' : 'Speichern' }}
+        </button>
+        <button
+          matButton
+          type="button"
+          [disabled]="!ungespeichert() || speichert()"
+          (click)="verwerfen()"
+        >
+          Verwerfen
+        </button>
+      </div>
+    </div>
+  }
 </div>
