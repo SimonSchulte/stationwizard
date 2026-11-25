@@ -135,7 +135,7 @@
               <p class="metadaten">
                 Zuletzt geändert {{ entwurf.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
                 @if (entwurf.geaendertVon) {
-                  von {{ entwurf.geaendertVon }}
+                  von {{ entwurf.geaendertVon | anzeigename }}
                 }
               </p>
             }
@@ -325,7 +325,7 @@
                     <span class="ablesung-datum">{{ ablesung.abgelesenAm }}</span>
                     <span class="ablesung-stand">{{ ablesung.stand }} km</span>
                     <span class="ablesung-quelle">{{ ablesung.quelle }}</span>
-                    <span class="ablesung-erfasser">{{ ablesung.erfasstVon }}</span>
+                    <span class="ablesung-erfasser">{{ ablesung.erfasstVon | anzeigename }}</span>
                     @if (ablesung.korrigiert) {
                       <span class="ablesung-korrektur-hinweis"
                         >korrigiert eine frühere Ablesung</span
@@ -518,7 +518,7 @@
                     <span class="protokoll-zeitpunkt">{{
                       eintrag.zeitpunkt | date: 'dd.MM.yyyy, HH:mm'
                     }}</span>
-                    <span class="protokoll-von">{{ eintrag.von }}</span>
+                    <span class="protokoll-von">{{ eintrag.von | anzeigename }}</span>
                     <ul class="protokoll-beschreibung">
                       @for (zeile of beschreibungZeilen(eintrag); track zeile) {
                         <li>{{ zeile }}</li>

@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { UnterschriftAnzeige } from '../../../kern/unterschrift/unterschrift-anzeige';
 import { AmpelChip } from '../../../fahrzeuge/components/ampel-chip/ampel-chip';
-import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
+import { Namensverzeichnis } from '../../../kern/namensverzeichnis';
 import { PFLICHT_SLOTS, SLOT_BEZEICHNUNG, UnterschriftStand } from '../../models/vorgang.model';
 
 /**
@@ -28,6 +28,8 @@ export class UnterschriftZeile {
   /** Nach dem Einreichen lässt sich nichts mehr ändern. */
   readonly eingereicht = input(false);
 
+  private readonly namen = inject(Namensverzeichnis);
+
   readonly unterschreiben = output<void>();
   readonly anfordern = output<void>();
   readonly entfernen = output<void>();
@@ -37,5 +39,5 @@ export class UnterschriftZeile {
   protected readonly anMich = computed(
     () => this.stand().status === 'angefragt' && this.stand().anEmail === this.eigeneEmail(),
   );
-  protected readonly anName = computed(() => anzeigenameAusEmail(this.stand().anEmail ?? ''));
+  protected readonly anName = computed(() => this.namen.anzeige(this.stand().anEmail));
 }

@@ -66,6 +66,8 @@ export const ZUGFUEHRUNG_INKLUDIERTE_SONDERROLLEN: readonly Sonderrolle[] = [
 
 export interface Benutzerkonto {
   email: string;
+  /** Selbst gewählter Anzeigename aus den Benutzereinstellungen; fehlt oder `null` ohne einen. */
+  anzeigename?: string | null;
   rolle: Hauptrolle | null;
   sonderrollen: Sonderrolle[];
   /** ISO-Zeitstempel der ersten geprüften Anmeldung. */

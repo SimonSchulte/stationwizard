@@ -71,7 +71,7 @@
         <p class="metadaten">
           Zuletzt geändert {{ entwurf.geaendertAm | date: 'dd.MM.yyyy, HH:mm' }} Uhr
           @if (entwurf.geaendertVon) {
-            von {{ entwurf.geaendertVon }}
+            von {{ entwurf.geaendertVon | anzeigename }}
           }
         </p>
       }

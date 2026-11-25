@@ -26,7 +26,7 @@
         <dd>{{ c.geprueftAm | date: 'dd.MM.yyyy' }}</dd>
         <dt>Erfasst von</dt>
         <dd>
-          {{ c.erfasstVon }}
+          {{ c.erfasstVon | anzeigename }}
           @if (c.gemeldetVonName) {
             <span class="quelle">gemeldet von {{ c.gemeldetVonName }} (Selbstauskunft)</span>
           }

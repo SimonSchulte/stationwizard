@@ -38,7 +38,7 @@ export class PersonWahlDialog implements OnInit {
     this.store
       .benutzer()
       .filter((b) => b.email !== this.daten.ausser)
-      .map((b) => ({ email: b.email, name: anzeigenameAusEmail(b.email) }))
+      .map((b) => ({ email: b.email, name: b.anzeigename ?? anzeigenameAusEmail(b.email) }))
       .sort((a, b) => a.name.localeCompare(b.name)),
   );
 

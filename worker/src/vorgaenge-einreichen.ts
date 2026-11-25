@@ -1,3 +1,4 @@
+import { ermittleAnzeigename } from './anzeigename';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { istPdf } from './ehrungsantrag-vorlage';
 import { starkesEtag } from './etag';
@@ -13,7 +14,6 @@ import { leseEinstellungen } from './systemkonfiguration';
 import { baueVorgangsdarstellung } from './vorgaenge-lesen';
 import { ereignis } from './vorgaenge-schreiben';
 import {
-  anzeigenameAusEmail,
   erwarteteVersion,
   konflikt,
   nichtGefunden,
@@ -246,7 +246,7 @@ export async function sendeMeldung(
   }
 
   const betreff = `${einstellungen.vorgangBetreff}: ${kontext.fahrzeug_bezeichnung} (${kontext.fahrzeug_kennzeichen})`;
-  const absender = anzeigenameAusEmail(identitaet.email);
+  const absender = await ermittleAnzeigename(benutzerDb, identitaet.email);
   const zeilen = [
     `Fahrzeug: ${kontext.fahrzeug_bezeichnung}, Kennzeichen ${kontext.fahrzeug_kennzeichen}`,
     `Vorgang: ${kontext.titel}`,

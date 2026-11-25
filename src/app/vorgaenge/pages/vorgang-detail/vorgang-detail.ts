@@ -15,7 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { DialogDienst } from '../../../kern/dialog/dialog-dienst';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { AmpelChip } from '../../../fahrzeuge/components/ampel-chip/ampel-chip';
-import { anzeigenameAusEmail } from '../../../kern/text/anzeigename';
+import { Namensverzeichnis } from '../../../kern/namensverzeichnis';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 import { Leerzustand } from '../../../kern/zustand/leerzustand';
@@ -70,7 +70,8 @@ export class VorgangDetail implements OnInit {
   readonly MELDUNG_ART = MELDUNG_ART_LABEL;
   readonly STUFEN = VORGANG_STUFEN;
   readonly STUFE_EINGEREICHT = STUFE_EINGEREICHT;
-  readonly anzeigename = anzeigenameAusEmail;
+  private readonly namen = inject(Namensverzeichnis);
+  readonly anzeigename = (email: string): string => this.namen.anzeige(email);
 
   readonly id = toSignal(
     this.route.paramMap.pipe(

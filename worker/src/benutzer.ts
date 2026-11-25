@@ -46,11 +46,13 @@ interface BenutzerZeile {
   letzter_zugriff_am: string;
   rolle_geaendert_am: string | null;
   rolle_geaendert_von: string | null;
+  anzeigename: string | null;
 }
 
 function zuBenutzerJson(zeile: BenutzerZeile): Record<string, unknown> {
   return {
     email: zeile.email,
+    anzeigename: zeile.anzeigename ?? null,
     rolle: zeile.rolle,
     // In der Spalte liegt bereits geprüftes JSON aus einem früheren Schreibvorgang.
     sonderrollen: JSON.parse(zeile.sonderrollen),

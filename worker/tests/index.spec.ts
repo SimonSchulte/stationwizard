@@ -179,7 +179,7 @@ describe('Access vor sämtlichen Assets und APIs außer der öffentlichen Kilome
   it('verifiziert echte Signaturen und liefert nur die bestätigte E-Mail-Adresse', async () => {
     const antwort = await anfragen('/api/benutzer', await tokenFuer());
     expect(antwort.status).toBe(200);
-    expect(await antwort.json()).toEqual({ email: EMAIL });
+    expect(await antwort.json()).toEqual({ email: EMAIL, anzeigename: null });
     expect(antwort.headers.get('Cache-Control')).toBe('no-store');
     expect(jwks.erzeugen).toHaveBeenCalledWith(
       new URL(`${TEAM_DOMAIN}/cdn-cgi/access/certs`),

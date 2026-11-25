@@ -59,8 +59,10 @@ export class BenutzerZeile {
   readonly konto = input.required<Benutzerkonto>();
   readonly speichert = input(false);
 
-  /** Kein echter Benutzername vorhanden – aus der E-Mail-Adresse abgeleitet, wie im übrigen Shell-Header. */
-  readonly anzeigename = computed(() => anzeigenameAusEmail(this.konto().email));
+  /** Der selbst gewählte Name, sonst aus der E-Mail-Adresse abgeleitet, wie im übrigen Shell-Header. */
+  readonly anzeigename = computed(
+    () => this.konto().anzeigename ?? anzeigenameAusEmail(this.konto().email),
+  );
 
   /** Nur ein Deep-Link – kein API-Zugriff; siehe `google-admin-link.ts`. */
   readonly googleAdminLink = computed(() => googleAdminKonsoleLink(this.konto().email));

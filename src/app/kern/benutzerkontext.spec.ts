@@ -20,6 +20,22 @@ describe('Benutzerkontext', () => {
     expect(kontext.initialen()).toBe('U');
   });
 
+  it('verwendet den eigenen Anzeigenamen und speichert eine Änderung über den Worker', async () => {
+    json.mockResolvedValueOnce({ email: 'uebung@example.invalid', anzeigename: 'Üb Ung' });
+    const kontext = TestBed.inject(Benutzerkontext);
+    await kontext.laden();
+    expect(kontext.anzeigename()).toBe('Üb Ung');
+    expect(kontext.initialen()).toBe('ÜU');
+
+    json.mockResolvedValueOnce({ anzeigename: null });
+    await kontext.anzeigenameSetzen(null);
+    expect(json).toHaveBeenLastCalledWith(
+      '/api/benutzer/anzeigename',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ anzeigename: null }) }),
+    );
+    expect(kontext.anzeigename()).toBe('Uebung');
+  });
+
   it('entfernt die bisherige Anzeige nach Ablauf der Sitzung', async () => {
     json.mockResolvedValueOnce({ email: 'uebung@example.invalid' });
     const kontext = TestBed.inject(Benutzerkontext);

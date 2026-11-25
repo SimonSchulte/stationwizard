@@ -1,3 +1,4 @@
+import { AnzeigenamePipe } from '../../../kern/text/anzeigename-pipe';
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { distinctUntilChanged, map } from 'rxjs';
@@ -33,6 +34,7 @@ function neueSchicht(): Schicht {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-angebot-detail',
   imports: [
+    AnzeigenamePipe,
     Leerzustand,
     Meldung,
     Ladeanzeige,

@@ -13,6 +13,7 @@ interface BenutzerZeile {
   letzter_zugriff_am: string;
   rolle_geaendert_am: string | null;
   rolle_geaendert_von: string | null;
+  anzeigename: string | null;
 }
 
 interface KonfigurationsZeile {
@@ -64,6 +65,36 @@ class FakeStatement {
     meta: { changes: number };
     results: T[];
   }> {
+    if (
+      this.query.startsWith(
+        'INSERT INTO benutzer (email, sonderrollen, erster_zugriff_am, letzter_zugriff_am, anzeigename)',
+      )
+    ) {
+      const [email, erster_zugriff_am, letzter_zugriff_am, anzeigename] = this.werte as [
+        string,
+        string,
+        string,
+        string | null,
+      ];
+      const bestehend = this.db.benutzer.get(email);
+      this.db.benutzer.set(
+        email,
+        bestehend
+          ? { ...bestehend, anzeigename }
+          : {
+              email,
+              rolle: null,
+              sonderrollen: '[]',
+              erster_zugriff_am,
+              letzter_zugriff_am,
+              rolle_geaendert_am: null,
+              rolle_geaendert_von: null,
+              anzeigename,
+            },
+      );
+      return { success: true, meta: { changes: 1 }, results: [] };
+    }
+
     if (this.query.startsWith('INSERT INTO benutzer')) {
       // `sonderrollen` steht als Literal `'[]'` in der Anweisung, nicht als
       // Platzhalter – dieselben drei Bindwerte wie `registriereZugriff()`.
@@ -86,6 +117,7 @@ class FakeStatement {
           letzter_zugriff_am,
           rolle_geaendert_am: null,
           rolle_geaendert_von: null,
+          anzeigename: null,
         });
       }
       return { success: true, meta: { changes: 1 }, results: [] };
@@ -134,6 +166,11 @@ class FakeStatement {
     if (this.query.startsWith('SELECT email FROM benutzer WHERE email = ?')) {
       const [email] = this.werte as [string];
       return this.db.benutzer.has(email) ? ({ email } as T) : null;
+    }
+    if (this.query.startsWith('SELECT anzeigename FROM benutzer WHERE email = ?')) {
+      const [email] = this.werte as [string];
+      const zeile = this.db.benutzer.get(email);
+      return zeile ? ({ anzeigename: zeile.anzeigename } as T) : null;
     }
     if (this.query.startsWith('SELECT rolle, sonderrollen FROM benutzer WHERE email = ?')) {
       const [email] = this.werte as [string];

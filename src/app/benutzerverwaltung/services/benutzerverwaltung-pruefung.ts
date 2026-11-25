@@ -25,6 +25,9 @@ export function istBenutzerkonto(wert: unknown): wert is Benutzerkonto {
   return (
     istObjekt(wert) &&
     istNichtleererText(wert['email']) &&
+    (wert['anzeigename'] === undefined ||
+      wert['anzeigename'] === null ||
+      istNichtleererText(wert['anzeigename'])) &&
     (wert['rolle'] === null || istHauptrolle(wert['rolle'])) &&
     Array.isArray(wert['sonderrollen']) &&
     wert['sonderrollen'].every(istSonderrolle) &&

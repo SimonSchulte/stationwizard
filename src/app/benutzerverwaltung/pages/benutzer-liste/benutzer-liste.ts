@@ -52,7 +52,9 @@ export class BenutzerListe implements OnInit {
     return this.benutzer().filter(
       (eintrag) =>
         eintrag.email.toLowerCase().includes(suchtext) ||
-        anzeigenameAusEmail(eintrag.email).toLowerCase().includes(suchtext),
+        (eintrag.anzeigename ?? anzeigenameAusEmail(eintrag.email))
+          .toLowerCase()
+          .includes(suchtext),
     );
   });
 

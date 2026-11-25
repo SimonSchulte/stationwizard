@@ -1,3 +1,4 @@
+import { AnzeigenamePipe } from '../../../kern/text/anzeigename-pipe';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -87,6 +88,7 @@ function neuerWartungstermin(art: 'hu' | 'frei'): Wartungstermin {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fahrzeug-detail',
   imports: [
+    AnzeigenamePipe,
     Leerzustand,
     Meldung,
     Ladeanzeige,
