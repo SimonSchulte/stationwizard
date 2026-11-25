@@ -48,11 +48,11 @@ export class VorgaengeReiter implements OnInit {
       ),
   );
 
-  /** Die Postfachadresse dieses Fahrzeugs, an die Angebote weitergeleitet werden können. */
-  readonly adresse = computed(
+  /** Die Postfachadressen dieses Fahrzeugs (Kennzeichen und Funkrufname), an die Angebote gehen können. */
+  readonly adressen = computed(
     () =>
-      this.postfach.adressen()?.adressen.find((a) => a.fahrzeugId === this.fahrzeug().id)
-        ?.adresse ?? '',
+      this.postfach.adressen()?.fahrzeuge.find((f) => f.fahrzeugId === this.fahrzeug().id)
+        ?.adressen ?? [],
   );
 
   ngOnInit(): void {

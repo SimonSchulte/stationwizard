@@ -193,8 +193,9 @@ Einrichtung läuft der Rest der Anwendung unverändert.
    Der Versand mit Anhang läuft über die Mail-API (Resend); `email-routing` unterstützt keine Anhänge und
    antwortet mit `MAIL_VERSAND_ANHANG_NICHT_UNTERSTUETZT`.
 
-Adressen: `angebote@<Domain>` ist das Sammelpostfach (nur Zugführung sieht es), `<kürzel>@<Domain>` gehört je einem
-Fahrzeug (Kürzel aus der Bezeichnung, von der Zugführung änderbar). Mails an unbekannte Adressen landen im
+Adressen: `angebote@<Domain>` ist das Sammelpostfach (nur Zugführung sieht es), je Fahrzeug gibt es zwei Adressen, abgeleitet aus
+Kennzeichen und Funkrufname ohne „72“ (zum Beispiel `bi-ju-7260@` und `gw-tech-01@`, nichts davon ist gespeichert, ein neues
+Kennzeichen ändert die Adresse). Die Liste lässt sich unter Systemkonfiguration → Vorgänge als Kontakte (Outlook-CSV, vCard) laden. Mails an unbekannte Adressen landen im
 Sammelpostfach. Offene Mails löscht der Worker nach 30 Tagen; nach der Zuordnung wird die Mail gelöscht und nur
 das Angebot samt Notiz bleibt am Vorgang.
 

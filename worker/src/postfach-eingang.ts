@@ -1,4 +1,9 @@
-import { dekodiereKopfzeile, MAIL_GROESSE_MAX, SAMMELPOSTFACH } from './postfach-gemeinsam';
+import {
+  dekodiereKopfzeile,
+  leiteAdressenAb,
+  MAIL_GROESSE_MAX,
+  SAMMELPOSTFACH,
+} from './postfach-gemeinsam';
 import type { VorgaengeKonfiguration } from './vorgaenge-gemeinsam';
 
 /**
@@ -37,11 +42,13 @@ export async function verarbeiteEingehendeMail(
   const lokal = (mail.to.split('@')[0] ?? '').trim().toLowerCase();
   let fahrzeugId: string | null = null;
   if (lokal && lokal !== SAMMELPOSTFACH) {
-    const treffer = await db
-      .prepare('SELECT fahrzeug_id FROM postfach_adressen WHERE kuerzel = ?')
-      .bind(lokal)
-      .first<{ fahrzeug_id: string }>();
-    fahrzeugId = treffer?.fahrzeug_id ?? null;
+    // Die Adressen stehen nirgends gespeichert, sondern folgen Kennzeichen und Funkrufname.
+    const fahrzeuge = await db
+      .prepare('SELECT id, bezeichnung, kennzeichen, funkrufname FROM fahrzeuge')
+      .all<{ id: string; bezeichnung: string; kennzeichen: string; funkrufname: string }>();
+    fahrzeugId =
+      leiteAdressenAb(fahrzeuge.results).find((f) => f.adressen.some((a) => a.lokal === lokal))
+        ?.fahrzeugId ?? null;
   }
 
   const roh = new Uint8Array(await new Response(mail.raw).arrayBuffer());

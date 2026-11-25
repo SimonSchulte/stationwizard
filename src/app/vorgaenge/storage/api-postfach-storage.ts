@@ -53,14 +53,6 @@ export class ApiPostfachStorage {
       body: JSON.stringify({ vorgangId }),
     });
   }
-
-  async setzeKuerzel(fahrzeugId: string, kuerzel: string): Promise<void> {
-    await this.worker.json<unknown>(`${PFAD}/adressen/${encodeURIComponent(fahrzeugId)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kuerzel }),
-    });
-  }
 }
 
 function ungueltig(): WorkerFehler {

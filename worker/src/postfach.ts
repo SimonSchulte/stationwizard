@@ -1,12 +1,9 @@
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { istObjekt, istText, leseJsonKoerper, UUID_MUSTER } from './json-lesen';
-import { pruefeRollenRecht } from './rollen';
 import {
   AUFBEWAHRUNG_TAGE,
   ermittlePostfachSicht,
-  istGueltigesKuerzel,
-  kuerzelAusBezeichnung,
-  RESERVIERTE_KUERZEL,
+  leiteAdressenAb,
   SAMMELPOSTFACH,
   sichtBedingung,
   type PostfachSicht,
@@ -25,7 +22,6 @@ const ADRESSEN_PFAD = '/api/postfach/adressen';
 const MAIL_PFAD = new RegExp(`^/api/postfach/mails/(${UUID_MUSTER})$`, 'i');
 const MAIL_DATEI_PFAD = new RegExp(`^/api/postfach/mails/(${UUID_MUSTER})/datei$`, 'i');
 const MAIL_ZUORDNUNG_PFAD = new RegExp(`^/api/postfach/mails/(${UUID_MUSTER})/zuordnung$`, 'i');
-const ADRESSE_PFAD = new RegExp(`^/api/postfach/adressen/(${UUID_MUSTER})$`, 'i');
 
 const TAG_MS = 24 * 60 * 60 * 1000;
 
@@ -143,135 +139,45 @@ async function listeMails(
   });
 }
 
-interface AdressZeile {
-  kuerzel: string;
-  fahrzeug_id: string;
-  bezeichnung: string;
-}
-
-/** Legt fehlende Kürzel aus der Bezeichnung an, eindeutig und ohne reservierte Namen. */
-async function ergaenzeAdressen(db: D1Database, email: string): Promise<void> {
-  const ohne = await db
-    .prepare(
-      `SELECT f.id, f.bezeichnung FROM fahrzeuge f
-       WHERE NOT EXISTS (SELECT 1 FROM postfach_adressen a WHERE a.fahrzeug_id = f.id)`,
-    )
-    .all<{ id: string; bezeichnung: string }>();
-  if (ohne.results.length === 0) return;
-  const belegt = new Set(
-    (
-      await db.prepare('SELECT kuerzel FROM postfach_adressen').all<{ kuerzel: string }>()
-    ).results.map((z) => z.kuerzel),
-  );
-  const jetzt = new Date().toISOString();
-  for (const fahrzeug of ohne.results) {
-    const basis = kuerzelAusBezeichnung(fahrzeug.bezeichnung);
-    let kuerzel = basis;
-    for (let n = 2; belegt.has(kuerzel) || RESERVIERTE_KUERZEL.has(kuerzel); n++) {
-      const zusatz = `-${n}`;
-      kuerzel = `${basis.slice(0, 30 - zusatz.length).replace(/-+$/, '')}${zusatz}`;
-    }
-    belegt.add(kuerzel);
-    await db
-      .prepare(
-        'INSERT INTO postfach_adressen (kuerzel, fahrzeug_id, geaendert_am, geaendert_von) VALUES (?, ?, ?, ?)',
-      )
-      .bind(kuerzel, fahrzeug.id, jetzt, email)
-      .run();
-  }
-}
-
 function domainVon(anfrage: Request, umgebung: VorgaengeKonfiguration): string {
   const eingestellt = umgebung.POSTFACH_DOMAIN?.trim().toLowerCase();
   if (eingestellt && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(eingestellt)) return eingestellt;
   return new URL(anfrage.url).hostname;
 }
 
+/**
+ * Alle Fahrzeugadressen in einem Aufruf: je Fahrzeug eine Adresse aus dem Kennzeichen und eine aus dem
+ * Funkrufnamen (ohne „72“), abgeleitet und nie gespeichert. Sichtbar für jede geprüfte Anmeldung,
+ * weil die Adressen selbst kein Geheimnis sind; die Mails dahinter schützt die Rollenprüfung.
+ */
 async function listeAdressen(
   anfrage: Request,
   db: D1Database,
   umgebung: VorgaengeKonfiguration,
-  email: string,
 ): Promise<Response> {
-  await ergaenzeAdressen(db, email);
   const domain = domainVon(anfrage, umgebung);
   const ergebnis = await db
     .prepare(
-      `SELECT a.kuerzel, a.fahrzeug_id, f.bezeichnung FROM postfach_adressen a
-       JOIN fahrzeuge f ON f.id = a.fahrzeug_id ORDER BY f.bezeichnung`,
+      'SELECT id, bezeichnung, kennzeichen, funkrufname FROM fahrzeuge ORDER BY bezeichnung COLLATE NOCASE',
     )
-    .all<AdressZeile>();
+    .all<{ id: string; bezeichnung: string; kennzeichen: string; funkrufname: string }>();
+  const nachId = new Map(ergebnis.results.map((f) => [f.id, f]));
   return jsonAntwort({
     sammelAdresse: `${SAMMELPOSTFACH}@${domain}`,
-    adressen: ergebnis.results.map((a) => ({
-      fahrzeugId: a.fahrzeug_id,
-      fahrzeugBezeichnung: a.bezeichnung,
-      kuerzel: a.kuerzel,
-      adresse: `${a.kuerzel}@${domain}`,
+    fahrzeuge: leiteAdressenAb(ergebnis.results).map((f) => ({
+      fahrzeugId: f.fahrzeugId,
+      fahrzeugBezeichnung: f.fahrzeugBezeichnung,
+      adressen: f.adressen.map((a) => ({
+        art: a.art,
+        adresse: `${a.lokal}@${domain}`,
+        // Der Text, aus dem die Adresse entstand (Kennzeichen beziehungsweise Funkrufname), für Kontakte.
+        quelle:
+          (a.art === 'kennzeichen'
+            ? nachId.get(f.fahrzeugId)?.kennzeichen
+            : nachId.get(f.fahrzeugId)?.funkrufname) ?? '',
+      })),
     })),
   });
-}
-
-async function setzeKuerzel(
-  anfrage: Request,
-  db: D1Database,
-  umgebung: VorgaengeKonfiguration,
-  fahrzeugId: string,
-  identitaet: GeprueftesBenutzerkonto,
-): Promise<Response> {
-  const verboten = await pruefeRollenRecht(
-    umgebung,
-    identitaet,
-    ['zugfuehrung'],
-    'Die Adresse eines Fahrzeugs ändert nur die Zugführung.',
-    'POSTFACH_KUERZEL_NICHT_ERLAUBT',
-  );
-  if (verboten) return verboten;
-  const koerper = await leseJsonKoerper(anfrage, 1024, {
-    inhaltstyp: 'POSTFACH_INHALTSTYP_UNGUELTIG',
-    zuGross: 'POSTFACH_DATEI_ZU_GROSS',
-    unlesbar: 'POSTFACH_DATEI_UNLESBAR',
-  });
-  if (koerper instanceof Response) return koerper;
-  const wert = koerper.inhalt;
-  if (!istObjekt(wert) || Object.keys(wert).join(',') !== 'kuerzel' || !istText(wert['kuerzel'])) {
-    return ungueltig('Ungültiges Kürzel.');
-  }
-  const kuerzel = wert['kuerzel'].trim().toLowerCase();
-  if (!istGueltigesKuerzel(kuerzel)) {
-    return fehlerAntwort(
-      'POSTFACH_KUERZEL_UNGUELTIG',
-      'Das Kürzel besteht aus 2 bis 30 Zeichen (a bis z, Ziffern, Bindestrich) und ist kein reservierter Name.',
-      400,
-    );
-  }
-  const fahrzeug = await db
-    .prepare('SELECT id FROM fahrzeuge WHERE id = ?')
-    .bind(fahrzeugId)
-    .first();
-  if (!fahrzeug) return nichtGefunden('Fahrzeug nicht gefunden.');
-  const jetzt = new Date().toISOString();
-  try {
-    await db
-      .prepare(
-        `INSERT INTO postfach_adressen (kuerzel, fahrzeug_id, geaendert_am, geaendert_von)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(fahrzeug_id) DO UPDATE SET
-           kuerzel = excluded.kuerzel, geaendert_am = excluded.geaendert_am, geaendert_von = excluded.geaendert_von`,
-      )
-      .bind(kuerzel, fahrzeugId, jetzt, identitaet.email)
-      .run();
-  } catch (ursache) {
-    if (ursache instanceof Error && ursache.message.includes('UNIQUE')) {
-      return fehlerAntwort(
-        'POSTFACH_KUERZEL_VERGEBEN',
-        'Dieses Kürzel gehört schon einem anderen Fahrzeug.',
-        409,
-      );
-    }
-    throw ursache;
-  }
-  return jsonAntwort({ fahrzeugId, kuerzel });
 }
 
 /** Feste Postfach-Endpunkte hinter der bereits geprüften Anmeldung. */
@@ -301,15 +207,9 @@ export async function verarbeitePostfach(
       return methodeNichtErlaubt('GET');
     }
     if (pfad === ADRESSEN_PFAD) {
-      if (methode === 'GET') return await listeAdressen(anfrage, db, umgebung, identitaet.email);
+      if (methode === 'GET') return await listeAdressen(anfrage, db, umgebung);
       return methodeNichtErlaubt('GET');
     }
-    const adresse = ADRESSE_PFAD.exec(pfad)?.[1];
-    if (adresse) {
-      if (methode === 'PUT') return await setzeKuerzel(anfrage, db, umgebung, adresse, identitaet);
-      return methodeNichtErlaubt('PUT');
-    }
-
     const datei = MAIL_DATEI_PFAD.exec(pfad)?.[1];
     const zuordnung = MAIL_ZUORDNUNG_PFAD.exec(pfad)?.[1];
     const mailId = MAIL_PFAD.exec(pfad)?.[1];

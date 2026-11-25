@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { verarbeitePostfach } from '../src/postfach';
 import { verarbeiteEingehendeMail, type EingehendeMail } from '../src/postfach-eingang';
-import { dekodiereKopfzeile, kuerzelAusBezeichnung } from '../src/postfach-gemeinsam';
+import {
+  adresseAusText,
+  dekodiereKopfzeile,
+  funkrufOhneKennzahl,
+  leiteAdressenAb,
+} from '../src/postfach-gemeinsam';
 import { verarbeiteVorgaenge } from '../src/vorgaenge';
 import { angebotTyp, bereinigeDateiname } from '../src/vorgaenge-angebote';
 import { SqliteD1 } from './sqlite-d1';
@@ -117,10 +122,10 @@ beforeEach(() => {
   };
   const f = fahrzeuge.db.prepare(
     `INSERT INTO fahrzeuge (id, bezeichnung, funkrufname, kennzeichen, eigentuemer, bemerkung, wartungstermine, geaendert_am, geaendert_von, gruppe)
-     VALUES (?, ?, 'x', ?, 'organisation', '', '[]', '2026-01-01', 'x', ?)`,
+     VALUES (?, ?, ?, ?, 'organisation', '', '[]', '2026-01-01', 'x', ?)`,
   );
-  f.run(F_SAN, 'GW SAN', 'XX-HS 110', 'sanitaet');
-  f.run(F_KTW, 'KTW-B 1', 'XX-HS 101', 'tesi');
+  f.run(F_SAN, 'GW SAN', '72 GW-SAN 01', 'XX-HS 110', 'sanitaet');
+  f.run(F_KTW, 'KTW-B 1', 'JUH BI 72 KTW-B 01', 'XX-HS 101', 'tesi');
   person(ZORA.email, 'zugfuehrung');
   person(TIM.email, 'gruppenfuehrung-sanitaet');
   person(MAX.email, null);
@@ -129,16 +134,45 @@ beforeEach(() => {
 async function adressen() {
   return (await rufe(ZORA, 'GET', '/api/postfach/adressen')).json as {
     sammelAdresse: string;
-    adressen: { kuerzel: string; fahrzeugId: string; adresse: string }[];
+    fahrzeuge: {
+      fahrzeugId: string;
+      fahrzeugBezeichnung: string;
+      adressen: { art: string; adresse: string; quelle: string }[];
+    }[];
   };
 }
 
 describe('Hilfsfunktionen', () => {
-  it('bildet Kürzel aus Bezeichnungen', () => {
-    expect(kuerzelAusBezeichnung('GW SAN')).toBe('gw-san');
-    expect(kuerzelAusBezeichnung('KTW-B 1')).toBe('ktw-b-1');
-    expect(kuerzelAusBezeichnung('Küchenwagen Ä')).toBe('kuechenwagen-ae');
-    expect(kuerzelAusBezeichnung('!')).toBe('fahrzeug');
+  it('bildet Adressen aus Kennzeichen und Funkrufnamen ohne die Kennzahl 72', () => {
+    expect(adresseAusText('NRW 8-2082')).toBe('nrw-8-2082');
+    expect(adresseAusText('72 GAH-Kühlen 01')).toBe('72-gah-kuehlen-01');
+    expect(adresseAusText('!')).toBe('');
+    expect(funkrufOhneKennzahl('72 BtKombi 01')).toBe('BtKombi 01');
+    expect(funkrufOhneKennzahl('JUH BI 72 KTW-B 01')).toBe('KTW-B 01');
+    expect(funkrufOhneKennzahl('7200 X')).toBe('7200 X');
+  });
+
+  it('lässt mehrdeutige, reservierte und zu kurze Adressen weg', () => {
+    const q = (id: string, kennzeichen: string, funkrufname: string) => ({
+      id,
+      bezeichnung: id,
+      kennzeichen,
+      funkrufname,
+    });
+    const ergebnis = leiteAdressenAb([
+      q('a', 'BI-JU 1', '72 Info'),
+      q('b', 'BI-JU 2', '72 Gleich 01'),
+      q('c', 'BI-JU 3', '72 Gleich 01'),
+      q('d', 'X', '72 bi-ju-3'),
+      q('e', 'BI-JU 5', '72 BI-JU 5'),
+    ]);
+    const lokal = (id: string) =>
+      ergebnis.find((f) => f.fahrzeugId === id)?.adressen.map((a) => `${a.art}:${a.lokal}`);
+    expect(lokal('a')).toEqual(['kennzeichen:bi-ju-1']);
+    expect(lokal('b')).toEqual(['kennzeichen:bi-ju-2']);
+    expect(lokal('c')).toEqual([]);
+    expect(lokal('d')).toEqual([]);
+    expect(lokal('e')).toEqual(['kennzeichen:bi-ju-5']);
   });
 
   it('entschlüsselt kodierte Kopfzeilen', () => {
@@ -163,72 +197,47 @@ describe('Hilfsfunktionen', () => {
 });
 
 describe('Adressen', () => {
-  it('legt Kürzel aus der Bezeichnung an und nennt Sammel- und Fahrzeugadressen', async () => {
+  it('nennt je Fahrzeug die Adressen aus Kennzeichen und Funkrufname und die Sammeladresse', async () => {
     const stand = await adressen();
     expect(stand.sammelAdresse).toBe('angebote@hiorg-wache.example.test');
-    expect(stand.adressen.map((a) => a.kuerzel)).toEqual(['gw-san', 'ktw-b-1']);
-    expect(stand.adressen[0]?.adresse).toBe('gw-san@hiorg-wache.example.test');
-  });
-
-  it('hält Kürzel eindeutig, wenn zwei Fahrzeuge gleich heißen', async () => {
-    fahrzeuge.db
-      .prepare(
-        `INSERT INTO fahrzeuge (id, bezeichnung, funkrufname, kennzeichen, eigentuemer, bemerkung, wartungstermine, geaendert_am, geaendert_von)
-         VALUES ('33333333-3333-4333-8333-333333333333', 'GW SAN', 'x', 'XX-1', 'organisation', '', '[]', '2026-01-01', 'x')`,
-      )
-      .run();
-    expect((await adressen()).adressen.map((a) => a.kuerzel).sort()).toEqual([
-      'gw-san',
-      'gw-san-2',
-      'ktw-b-1',
+    expect(stand.fahrzeuge.map((f) => f.fahrzeugBezeichnung)).toEqual(['GW SAN', 'KTW-B 1']);
+    expect(stand.fahrzeuge[0]?.adressen).toEqual([
+      { art: 'kennzeichen', adresse: 'xx-hs-110@hiorg-wache.example.test', quelle: 'XX-HS 110' },
+      { art: 'funkruf', adresse: 'gw-san-01@hiorg-wache.example.test', quelle: '72 GW-SAN 01' },
     ]);
+    expect(stand.fahrzeuge[1]?.adressen[1]).toEqual({
+      art: 'funkruf',
+      adresse: 'ktw-b-01@hiorg-wache.example.test',
+      quelle: 'JUH BI 72 KTW-B 01',
+    });
   });
 
-  it('lässt nur die Zugführung ein Kürzel ändern und prüft Form und Eindeutigkeit', async () => {
-    await adressen();
-    expect(
-      (await rufe(TIM, 'PUT', `/api/postfach/adressen/${F_SAN}`, { koerper: { kuerzel: 'neu' } }))
-        .status,
-    ).toBe(403);
-    expect(
-      (
-        await rufe(ZORA, 'PUT', `/api/postfach/adressen/${F_SAN}`, {
-          koerper: { kuerzel: 'Neu Name' },
-        })
-      ).diagnose,
-    ).toBe('POSTFACH_KUERZEL_UNGUELTIG');
-    expect(
-      (
-        await rufe(ZORA, 'PUT', `/api/postfach/adressen/${F_SAN}`, {
-          koerper: { kuerzel: 'angebote' },
-        })
-      ).diagnose,
-    ).toBe('POSTFACH_KUERZEL_UNGUELTIG');
-    expect(
-      (
-        await rufe(ZORA, 'PUT', `/api/postfach/adressen/${F_SAN}`, {
-          koerper: { kuerzel: 'ktw-b-1' },
-        })
-      ).diagnose,
-    ).toBe('POSTFACH_KUERZEL_VERGEBEN');
-    expect(
-      (
-        await rufe(ZORA, 'PUT', `/api/postfach/adressen/${F_SAN}`, {
-          koerper: { kuerzel: 'san-1' },
-        })
-      ).status,
-    ).toBe(200);
-    expect((await adressen()).adressen.find((a) => a.fahrzeugId === F_SAN)?.kuerzel).toBe('san-1');
+  it('folgt einem geänderten Kennzeichen sofort und kennt keinen Schreibweg mehr', async () => {
+    fahrzeuge.db.prepare("UPDATE fahrzeuge SET kennzeichen = 'YY-ZZ 7' WHERE id = ?").run(F_SAN);
+    expect((await adressen()).fahrzeuge[0]?.adressen[0]?.adresse).toBe(
+      'yy-zz-7@hiorg-wache.example.test',
+    );
+    const put = await rufe(ZORA, 'PUT', `/api/postfach/adressen/${F_SAN}`, {
+      koerper: { kuerzel: 'neu' },
+    });
+    expect(put.status).toBe(404);
   });
 });
 
 describe('Eingang', () => {
-  it('legt die Rohmail in R2 und ordnet sie über das Kürzel dem Fahrzeug zu', async () => {
-    await adressen();
+  it('legt die Rohmail in R2 und ordnet sie über Funkrufname oder Kennzeichen dem Fahrzeug zu', async () => {
     await verarbeiteEingehendeMail(
-      mail({ an: 'GW-San@hiorg-wache.example.test', betreff: '=?utf-8?B?QW5nZWJvdA==?=' }),
+      mail({ an: 'GW-San-01@hiorg-wache.example.test', betreff: '=?utf-8?B?QW5nZWJvdA==?=' }),
       umgebung(),
     );
+    await verarbeiteEingehendeMail(
+      mail({ an: 'xx-hs-110@hiorg-wache.example.test', id: '<zweite@example.test>' }),
+      umgebung(),
+    );
+    const alle = fahrzeuge.db.prepare('SELECT fahrzeug_id FROM postfach_mails').all() as {
+      fahrzeug_id: string;
+    }[];
+    expect(alle.map((z) => z.fahrzeug_id)).toEqual([F_SAN, F_SAN]);
     const zeile = fahrzeuge.db.prepare('SELECT * FROM postfach_mails').get() as Record<string, any>;
     expect(zeile['fahrzeug_id']).toBe(F_SAN);
     expect(zeile['betreff']).toBe('Angebot');
@@ -274,9 +283,8 @@ describe('Eingang', () => {
 
 describe('Postfach lesen und bearbeiten', () => {
   async function fuelle() {
-    await adressen();
-    await verarbeiteEingehendeMail(mail({ an: 'gw-san@x.test', betreff: 'SAN' }), umgebung());
-    await verarbeiteEingehendeMail(mail({ an: 'ktw-b-1@x.test', betreff: 'KTW' }), umgebung());
+    await verarbeiteEingehendeMail(mail({ an: 'gw-san-01@x.test', betreff: 'SAN' }), umgebung());
+    await verarbeiteEingehendeMail(mail({ an: 'ktw-b-01@x.test', betreff: 'KTW' }), umgebung());
     await verarbeiteEingehendeMail(mail({ an: 'angebote@x.test', betreff: 'Sammel' }), umgebung());
   }
   const betreffe = async (identitaet: { email: string }) =>
@@ -433,8 +441,10 @@ describe('Angebote und Zuordnung', () => {
   });
 
   it('übernimmt die Notiz zur Mail und ordnet die Mail danach zu (Rohmail wird gelöscht)', async () => {
-    await adressen();
-    await verarbeiteEingehendeMail(mail({ an: 'gw-san@x.test', betreff: 'Angebot' }), umgebung());
+    await verarbeiteEingehendeMail(
+      mail({ an: 'gw-san-01@x.test', betreff: 'Angebot' }),
+      umgebung(),
+    );
     const mailId = (fahrzeuge.db.prepare('SELECT id FROM postfach_mails').get() as { id: string })
       .id;
     const id = await vorgang();
@@ -484,8 +494,7 @@ describe('Angebote und Zuordnung', () => {
   });
 
   it('meldet ungeordnete Mails in den Aufgaben nur Berechtigten', async () => {
-    await adressen();
-    await verarbeiteEingehendeMail(mail({ an: 'gw-san@x.test' }), umgebung());
+    await verarbeiteEingehendeMail(mail({ an: 'gw-san-01@x.test' }), umgebung());
     expect((await rufe(TIM, 'GET', '/api/vorgaenge/aufgaben')).json?.['postfachOffen']).toBe(1);
     expect((await rufe(MAX, 'GET', '/api/vorgaenge/aufgaben')).json?.['postfachOffen']).toBe(0);
   });

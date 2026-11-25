@@ -3885,3 +3885,15 @@ CPU-Zeit im Free-Tarif sind nicht gegen echte Mails gemessen; der Versand mit PD
 die Migrationen 0027 bis 0030 sind am 2026-11-24 über die D1-API in beide Datenbanken eingespielt und in `d1_migrations` eingetragen (Kommentarzeilen weggelassen, sonst unverändert); Sichtprüfung im Browser auf Desktop und
 Mobil steht aus; die serverseitige Durchsetzung der Rollen bleibt bei „Rechte vorerst alle, Rollen später“, soweit nicht in
 `rollen.ts` geregelt.
+
+## Postfachadressen aus Kennzeichen und Funkrufname
+
+Je Fahrzeug gibt es zwei Adressen, abgeleitet statt gespeichert (`leiteAdressenAb()`): Kennzeichen (`NRW 8-2082` → `nrw-8-2082@`) und Funkrufname
+ohne führende „72“ beziehungsweise „JUH BI 72“ (`72 GW-TECH 01` → `gw-tech-01@`); Umlaute werden aufgelöst. Ungültige, reservierte und
+mehreren Fahrzeugen zustehende Adressen entfallen. Der Eingang schlägt die Adresse bei jeder Mail gegen die Fahrzeugliste nach (eine
+Abfrage, rund 25 Zeilen); `PUT /api/postfach/adressen/<UUID>` und die gespeicherten Kürzel entfallen, die Tabelle `postfach_adressen`
+bleibt ungenutzt bestehen (keine Migration). Die alten Kürzel (`gw-technik@` usw.) gelten nicht mehr, Mails dorthin landen im
+Sammelpostfach. Systemkonfiguration → Vorgänge lädt alle Adressen (mit Sammelpostfach) als Outlook-CSV oder vCard herunter.
+
+Geprüft: Worker-Tests, Frontend-Tests (1912), `tsc`, Prettier. **Nicht geprüft:** der Kontaktimport in echtem Outlook, eine Testmail an die
+neuen Adressen, Sichtprüfung im Browser.

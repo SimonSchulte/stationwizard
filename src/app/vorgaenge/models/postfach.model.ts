@@ -13,16 +13,25 @@ export interface PostfachMail {
   groesse: number;
 }
 
+export type PostfachAdressArt = 'kennzeichen' | 'funkruf';
+
+/** Eine Adresse eines Fahrzeugs, abgeleitet aus Kennzeichen beziehungsweise Funkrufname. */
 export interface PostfachAdresse {
+  art: PostfachAdressArt;
+  adresse: string;
+  /** Kennzeichen beziehungsweise Funkrufname, aus dem die Adresse entstand. */
+  quelle: string;
+}
+
+export interface PostfachFahrzeugAdressen {
   fahrzeugId: string;
   fahrzeugBezeichnung: string;
-  kuerzel: string;
-  adresse: string;
+  adressen: PostfachAdresse[];
 }
 
 export interface PostfachAdressen {
   sammelAdresse: string;
-  adressen: PostfachAdresse[];
+  fahrzeuge: PostfachFahrzeugAdressen[];
 }
 
 type Objekt = Record<string, unknown>;
@@ -46,27 +55,37 @@ export function istPostfachMail(wert: unknown): wert is PostfachMail {
 }
 
 export function lesePostfachAdressen(wert: unknown): PostfachAdressen | null {
-  if (!istObjekt(wert) || !istText(wert['sammelAdresse']) || !Array.isArray(wert['adressen']))
+  if (!istObjekt(wert) || !istText(wert['sammelAdresse']) || !Array.isArray(wert['fahrzeuge']))
     return null;
-  const adressen: PostfachAdresse[] = [];
-  for (const eintrag of wert['adressen'] as unknown[]) {
+  const fahrzeuge: PostfachFahrzeugAdressen[] = [];
+  for (const eintrag of wert['fahrzeuge'] as unknown[]) {
     if (
       !istObjekt(eintrag) ||
       !istText(eintrag['fahrzeugId']) ||
       !istText(eintrag['fahrzeugBezeichnung']) ||
-      !istText(eintrag['kuerzel']) ||
-      !istText(eintrag['adresse'])
+      !Array.isArray(eintrag['adressen'])
     ) {
       return null;
     }
-    adressen.push({
+    const adressen: PostfachAdresse[] = [];
+    for (const a of eintrag['adressen'] as unknown[]) {
+      if (
+        !istObjekt(a) ||
+        (a['art'] !== 'kennzeichen' && a['art'] !== 'funkruf') ||
+        !istText(a['adresse']) ||
+        !istText(a['quelle'])
+      ) {
+        return null;
+      }
+      adressen.push({ art: a['art'], adresse: a['adresse'], quelle: a['quelle'] });
+    }
+    fahrzeuge.push({
       fahrzeugId: eintrag['fahrzeugId'],
       fahrzeugBezeichnung: eintrag['fahrzeugBezeichnung'],
-      kuerzel: eintrag['kuerzel'],
-      adresse: eintrag['adresse'],
+      adressen,
     });
   }
-  return { sammelAdresse: wert['sammelAdresse'], adressen };
+  return { sammelAdresse: wert['sammelAdresse'], fahrzeuge };
 }
 
 /** Angebote nehmen wir als PDF, PNG oder JPEG an; Dateiendung und Medientyp müssen dazu passen. */

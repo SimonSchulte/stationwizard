@@ -5,10 +5,15 @@
   </button>
 </div>
 
-@if (adresse()) {
+@if (adressen().length > 0) {
   <p class="adresszeile">
-    Angebote für dieses Fahrzeug per Mail an <span class="mono">{{ adresse() }}</span
-    >. Sie erscheinen im <a routerLink="/vorgaenge/postfach">Postfach</a> und lassen sich einem
+    Angebote für dieses Fahrzeug per Mail an
+    @for (a of adressen(); track a.adresse; let letzte = $last) {
+      <span class="mono">{{ a.adresse }}</span>
+      <span>({{ a.art === 'kennzeichen' ? 'Kennzeichen' : 'Funkrufname' }})</span
+      >{{ letzte ? '' : ' oder ' }}
+    }
+    . Sie erscheinen im <a routerLink="/vorgaenge/postfach">Postfach</a> und lassen sich einem
     Vorgang zuordnen.
   </p>
 }

@@ -4,8 +4,8 @@ import type { VorgaengeKonfiguration } from './vorgaenge-gemeinsam';
 
 /** Name des Sammelpostfachs: Mails an unbekannte Adressen landen dort. */
 export const SAMMELPOSTFACH = 'angebote';
-/** Namen, die kein Fahrzeugkürzel sein dürfen (Mailkonventionen und der Sammelkorb). */
-export const RESERVIERTE_KUERZEL: ReadonlySet<string> = new Set([
+/** Namen, die keine Fahrzeugadresse sein dürfen (Mailkonventionen und der Sammelkorb). */
+export const RESERVIERTE_ADRESSEN: ReadonlySet<string> = new Set([
   SAMMELPOSTFACH,
   'postmaster',
   'abuse',
@@ -19,7 +19,8 @@ export const RESERVIERTE_KUERZEL: ReadonlySet<string> = new Set([
   'rsend',
 ]);
 
-export const KUERZEL_MUSTER = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])$/;
+/** Lokaler Teil einer Fahrzeugadresse: 2 bis 40 Zeichen aus `a-z0-9-`, Rand ohne Bindestrich. */
+export const ADRESSE_MUSTER = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])$/;
 
 /** Rohmails bleiben höchstens so lange liegen, wenn sie niemand bearbeitet. */
 export const AUFBEWAHRUNG_TAGE = 30;
@@ -28,9 +29,9 @@ export const ANGEBOT_GROESSE_MAX = 10 * 1024 * 1024;
 export const ANGEBOTE_JE_VORGANG_MAX = 10;
 export const NOTIZ_TEXT_MAX = 2000;
 
-/** Aus einer Bezeichnung ein Kürzel: kleingeschrieben, Umlaute aufgelöst, nur `a-z0-9-`. */
-export function kuerzelAusBezeichnung(bezeichnung: string): string {
-  const grund = bezeichnung
+/** Aus einem Text den lokalen Teil einer Adresse: kleingeschrieben, Umlaute aufgelöst, nur `a-z0-9-`. */
+export function adresseAusText(text: string): string {
+  return text
     .toLowerCase()
     .replaceAll('ä', 'ae')
     .replaceAll('ö', 'oe')
@@ -39,14 +40,62 @@ export function kuerzelAusBezeichnung(bezeichnung: string): string {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 28)
-    .replace(/-+$/g, '');
-  return grund.length >= 2 ? grund : 'fahrzeug';
+    .replace(/^-+|-+$/g, '');
 }
 
-export function istGueltigesKuerzel(wert: string): boolean {
-  return KUERZEL_MUSTER.test(wert) && !RESERVIERTE_KUERZEL.has(wert);
+/** Funkrufnamen beginnen mit der Ortskennzahl „72“ (auch „JUH BI 72“); sie gehört nicht in die Adresse. */
+export function funkrufOhneKennzahl(funkrufname: string): string {
+  return funkrufname.trim().replace(/^(?:juh\s+bi\s+)?72\s+/i, '');
+}
+
+export type AdressArt = 'kennzeichen' | 'funkruf';
+
+export interface FahrzeugAdressen {
+  fahrzeugId: string;
+  fahrzeugBezeichnung: string;
+  /** Nur gültige, eindeutige Adressen (lokaler Teil, ohne Domain). */
+  adressen: { art: AdressArt; lokal: string }[];
+}
+
+export interface AdressQuelle {
+  id: string;
+  bezeichnung: string;
+  kennzeichen: string;
+  funkrufname: string;
+}
+
+/**
+ * Leitet je Fahrzeug die Adressen aus Kennzeichen und Funkrufname ab. Nichts davon wird gespeichert:
+ * ändert sich ein Kennzeichen, ändert sich die Adresse mit. Eine Adresse, die ungültig oder reserviert
+ * ist oder mehreren Fahrzeugen zugleich zustünde, wird weggelassen, statt eine Mail falsch zuzuordnen.
+ */
+export function leiteAdressenAb(fahrzeuge: readonly AdressQuelle[]): FahrzeugAdressen[] {
+  const kandidaten = fahrzeuge.map((f) => ({
+    fahrzeug: f,
+    adressen: [
+      { art: 'kennzeichen' as const, lokal: adresseAusText(f.kennzeichen) },
+      { art: 'funkruf' as const, lokal: adresseAusText(funkrufOhneKennzahl(f.funkrufname)) },
+    ].filter((a) => ADRESSE_MUSTER.test(a.lokal) && !RESERVIERTE_ADRESSEN.has(a.lokal)),
+  }));
+  const besitzer = new Map<string, Set<string>>();
+  for (const k of kandidaten) {
+    for (const a of k.adressen) {
+      besitzer.set(a.lokal, (besitzer.get(a.lokal) ?? new Set()).add(k.fahrzeug.id));
+    }
+  }
+  return kandidaten.map((k) => {
+    const gesehen = new Set<string>();
+    return {
+      fahrzeugId: k.fahrzeug.id,
+      fahrzeugBezeichnung: k.fahrzeug.bezeichnung,
+      adressen: k.adressen.filter((a) => {
+        // Mehrere Fahrzeuge oder zweimal dieselbe Adresse am selben Fahrzeug (Kennzeichen = Funkruf).
+        if ((besitzer.get(a.lokal)?.size ?? 0) !== 1 || gesehen.has(a.lokal)) return false;
+        gesehen.add(a.lokal);
+        return true;
+      }),
+    };
+  });
 }
 
 export interface PostfachSicht {

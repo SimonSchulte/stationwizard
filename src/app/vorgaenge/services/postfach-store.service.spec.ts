@@ -70,7 +70,7 @@ describe('PostfachStoreService', () => {
   });
 
   it('lädt die Adressen nur einmal', async () => {
-    storage.adressen.mockResolvedValue({ sammelAdresse: 'angebote@example.org', adressen: [] });
+    storage.adressen.mockResolvedValue({ sammelAdresse: 'angebote@example.org', fahrzeuge: [] });
     await store.adressenLaden();
     await store.adressenLaden();
     expect(storage.adressen).toHaveBeenCalledTimes(1);
