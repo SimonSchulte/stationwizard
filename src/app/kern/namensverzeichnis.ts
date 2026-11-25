@@ -25,6 +25,12 @@ export class Namensverzeichnis {
     return this.eigene().get(email.toLowerCase()) ?? anzeigenameAusEmail(email);
   }
 
+  /** Der von der Person selbst gewählte Name; `null`, wenn keiner gesetzt (oder noch nicht geladen) ist. */
+  eigenerName(email: string | null | undefined): string | null {
+    if (!email) return null;
+    return this.eigene().get(email.toLowerCase()) ?? null;
+  }
+
   /** Lädt die Namen einmal nach; ein Fehler bleibt folgenlos. */
   async laden(): Promise<void> {
     try {

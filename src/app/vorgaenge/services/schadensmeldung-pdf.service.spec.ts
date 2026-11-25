@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import { WorkerFehler } from '../../kern/worker-client';
 import { testMeldung, testUnterschriften } from '../testing/vorgang-testdaten';
-import { SchadensmeldungPdfService } from './schadensmeldung-pdf.service';
+import { SchadensmeldungPdfService, unterschriftenFuerPdf } from './schadensmeldung-pdf.service';
 import { SchadensmeldungVorlageService } from './schadensmeldung-vorlage.service';
 
 describe('SchadensmeldungPdfService', () => {
@@ -48,5 +48,35 @@ describe('SchadensmeldungPdfService', () => {
     expect(dienst.dateiname(testMeldung({ kennzeichen: 'Ü/Ä!', datumFeststellung: '' }))).toBe(
       'schadensmeldung-u-a-ohne-datum.pdf',
     );
+  });
+
+  describe('unterschriftenFuerPdf', () => {
+    const gesetzt = () =>
+      testUnterschriften().map((u) => ({
+        ...u,
+        status: 'unterschrieben' as const,
+        anEmail: 'anna@example.test',
+        name: 'Anna Alt',
+        unterschriebenAm: '2026-11-12T10:00:00.000Z',
+        signatur: { art: 'zeichnung' as const, striche: [] },
+      }));
+
+    it('setzt den aktuellen Anzeigename der unterschreibenden Person ein', () => {
+      const ergebnis = unterschriftenFuerPdf(gesetzt(), (email) =>
+        email === 'anna@example.test' ? 'Anna Neu' : null,
+      );
+      expect(ergebnis.length).toBeGreaterThan(0);
+      expect(ergebnis.every((u) => u.name === 'Anna Neu')).toBe(true);
+    });
+
+    it('behält den festgehaltenen Namen, wenn kein Anzeigename gesetzt ist', () => {
+      const ergebnis = unterschriftenFuerPdf(gesetzt(), () => null);
+      expect(ergebnis.every((u) => u.name === 'Anna Alt')).toBe(true);
+    });
+
+    it('lässt nicht unterschriebene Felder aus', () => {
+      const offen = testUnterschriften().map((u) => ({ ...u, status: 'offen' as const }));
+      expect(unterschriftenFuerPdf(offen, () => 'X')).toEqual([]);
+    });
   });
 });

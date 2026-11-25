@@ -1,8 +1,8 @@
 <p class="beschreibung">
   Der Bericht listet Fahrzeuge mit letztem Stand, Ablesedatum, Jahresbilanz und Ampel. Er wird
   ausschließlich hier von Hand ausgelöst; einen Zeitplan gibt es noch nicht. Gesendet wird an die
-  <strong>gespeicherte</strong> Adresse aus Systemkonfiguration → Kilometerbericht, immer über den
-  gesamten Fuhrpark – unabhängig von der Anzeigefilterung unten.
+  <strong>gespeicherte</strong> Adresse aus Systemkonfiguration → E-Mail, immer über den gesamten
+  Fuhrpark – unabhängig von der Anzeigefilterung unten.
 </p>
 
 @if (berichtLaedt()) {
@@ -107,7 +107,7 @@
 
 @if (!empfaengerGesetzt()) {
   <app-meldung art="warnung"
-    >Es ist keine Empfängeradresse gespeichert. Unter Systemkonfiguration → Kilometerbericht
+    >Es ist keine Empfängeradresse gespeichert. Unter Systemkonfiguration → E-Mail
     einrichten.</app-meldung
   >
 } @else if (!gewaehlterWegVerfuegbar()) {

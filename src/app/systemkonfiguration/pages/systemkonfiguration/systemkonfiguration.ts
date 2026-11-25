@@ -3,7 +3,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import {
@@ -11,9 +10,6 @@ import {
   MATERIAL_ROLLEN,
   VORGANG_ROLLEN,
   ORGANISATION_ROLLEN,
-  VERSANDWEGE,
-  VERSANDWEG_HINWEIS,
-  VERSANDWEG_LABEL,
   Versandweg,
 } from '../../models/systemkonfiguration.model';
 import { SystemkonfigurationStoreService } from '../../services/systemkonfiguration-store.service';
@@ -25,13 +21,15 @@ import {
 } from '../../../vorgaenge/services/postfach-kontakte';
 import { PostfachStoreService } from '../../../vorgaenge/services/postfach-store.service';
 import { MeldungsDienst } from '../../../kern/zustand/meldungs-dienst';
+import { VersandwegAuswahl } from '../../components/versandweg-auswahl/versandweg-auswahl';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
 import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
 
 /**
  * Systemkonfiguration: einziger Ort, an dem Betriebseinstellungen gesetzt
- * werden, aufgeteilt in ein Menü je Themenbereich (aktuell nur „Email
- * Versand"). Vorschau und Versand des Kilometerstandsberichts selbst laufen
+ * werden, aufgeteilt in einen Reiter je Themenbereich. Alles zum Mailversand
+ * (Empfänger, Betreff, Versandweg von Kilometer-, Material- und Vorgangsmeldungen) steht im
+ * Reiter „E-Mail“. Vorschau und Versand des Kilometerstandsberichts selbst laufen
  * im Fahrzeugmodul, Reiter „Kilometerübersicht" – hier steht nur noch, wohin
  * und worüber gesendet wird.
  */
@@ -46,8 +44,8 @@ import { Ladeanzeige, Meldung } from '../../../kern/zustand/zustand';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatSelectModule,
     MatTabsModule,
+    VersandwegAuswahl,
   ],
   templateUrl: './systemkonfiguration.html',
   styleUrl: './systemkonfiguration.less',
@@ -58,9 +56,8 @@ export class Systemkonfiguration implements OnInit {
   private readonly postfach = inject(PostfachStoreService);
   private readonly meldungen = inject(MeldungsDienst);
 
-  readonly versandwege = VERSANDWEGE;
-  readonly versandwegLabel = VERSANDWEG_LABEL;
-  readonly versandwegHinweis = VERSANDWEG_HINWEIS;
+  /** Versandwege, die am Worker eingerichtet sind. */
+  readonly eingerichteteWege = computed(() => this.store.verfuegbareWege().map((e) => e.weg));
 
   readonly entwurf = this.store.entwurf;
   readonly laedt = this.store.laedt;
@@ -165,10 +162,6 @@ export class Systemkonfiguration implements OnInit {
 
   ampelRotAendern(wert: number): void {
     this.store.entwurfAendern({ kmAmpelSchwellenwertRotMonate: wert });
-  }
-
-  istVerfuegbar(weg: Versandweg): boolean {
-    return this.store.istVerfuegbar(weg);
   }
 
   speichern(): void {
