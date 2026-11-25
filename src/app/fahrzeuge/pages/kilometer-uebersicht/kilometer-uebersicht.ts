@@ -30,7 +30,7 @@ interface AnzeigeZeile {
 /**
  * Fuhrpark-weite Kilometerübersicht: Vorschau und Versand des
  * Kilometerstandsberichts. Empfänger, Betreff und Versandweg stehen in der
- * Systemkonfiguration unter „Email Versand" – hier wird nur noch gegen den
+ * Systemkonfiguration unter „Kilometerbericht" – hier wird nur noch gegen den
  * dort gespeicherten Stand gesendet, ohne ihn zu bearbeiten.
  */
 @Component({
