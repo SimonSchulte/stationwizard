@@ -1,3 +1,4 @@
+import { AnzeigenamePipe } from '../../../kern/text/anzeigename-pipe';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -97,6 +98,7 @@ function leseSeite(wert: unknown): VorlagenSeite {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-fuehrerschein-vorlage-verwaltung',
   imports: [
+    AnzeigenamePipe,
     Leerzustand,
     Meldung,
     Ladeanzeige,

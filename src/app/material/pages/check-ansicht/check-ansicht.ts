@@ -1,3 +1,4 @@
+import { AnzeigenamePipe } from '../../../kern/text/anzeigename-pipe';
 import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -36,6 +37,7 @@ interface FachAnsicht {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-check-ansicht',
   imports: [
+    AnzeigenamePipe,
     Leerzustand,
     Meldung,
     Ladeanzeige,

@@ -1,3 +1,4 @@
+import { ermittleAnzeigename } from './anzeigename';
 import { fehlerAntwort, jsonAntwort } from './antwort';
 import { starkesEtag } from './etag';
 import { istObjekt, istText } from './json-lesen';
@@ -5,7 +6,6 @@ import { pruefeUnterschrift } from './unterschrift-pruefung';
 import { baueVorgangsdarstellung } from './vorgaenge-lesen';
 import { ereignis, istZugfuehrung } from './vorgaenge-schreiben';
 import {
-  anzeigenameAusEmail,
   EMAIL_MUSTER,
   konflikt,
   nichtGefunden,
@@ -133,7 +133,7 @@ export async function setzeUnterschrift(
         'Zuerst im Benutzermenü eine Unterschrift hinterlegen.',
       );
     }
-    const name = anzeigenameAusEmail(identitaet.email);
+    const name = await ermittleAnzeigename(benutzerDb, identitaet.email);
     await db.batch([
       db
         .prepare(
@@ -196,7 +196,7 @@ export async function setzeUnterschrift(
         db,
         vorgangId,
         identitaet.email,
-        `Unterschrift angefragt (${SLOT_BEZEICHNUNG[slot]}) bei ${anzeigenameAusEmail(an)}.`,
+        `Unterschrift angefragt (${SLOT_BEZEICHNUNG[slot]}) bei ${await ermittleAnzeigename(benutzerDb, an)}.`,
       ),
     ]);
     return await antwortMitStand(db, vorgangId);

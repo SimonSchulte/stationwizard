@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import type { Aufgabe, Aufgabenquelle } from '../../kern/aufgaben/aufgabenquelle';
-import { anzeigenameAusEmail } from '../../kern/text/anzeigename';
+import { Namensverzeichnis } from '../../kern/namensverzeichnis';
 import { SLOT_BEZEICHNUNG } from '../models/vorgang.model';
 import { ApiVorgangStorage } from '../storage/api-vorgang-storage';
 import { PostfachZaehler } from './postfach-zaehler';
@@ -17,6 +17,7 @@ export class VorgangAufgabenquelle implements Aufgabenquelle {
 
   private readonly storage = inject(ApiVorgangStorage);
   private readonly zaehler = inject(PostfachZaehler);
+  private readonly namen = inject(Namensverzeichnis);
 
   async ladeAufgaben(): Promise<Aufgabe[]> {
     const { unterschriften, postfachOffen } = await this.storage.aufgaben();
@@ -26,7 +27,7 @@ export class VorgangAufgabenquelle implements Aufgabenquelle {
       titel: 'Schadensmeldung unterschreiben',
       beschreibung:
         `${a.fahrzeugBezeichnung} · ${SLOT_BEZEICHNUNG[a.slot]}` +
-        (a.angefragtVon ? ` · angefragt von ${anzeigenameAusEmail(a.angefragtVon)}` : ''),
+        (a.angefragtVon ? ` · angefragt von ${this.namen.anzeige(a.angefragtVon)}` : ''),
       eingegangenAm: a.angefragtAm ?? '',
       routerLink: ['/vorgaenge', a.vorgangId, 'meldung'],
       dringlichkeit: 'normal',

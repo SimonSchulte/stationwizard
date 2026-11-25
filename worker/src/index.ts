@@ -14,6 +14,7 @@ import {
   verarbeiteBenutzerUnterschrift,
   type BenutzerUnterschriftKonfiguration,
 } from './benutzer-unterschrift';
+import { ANZEIGENAME_PFAD, leseAnzeigename, verarbeiteAnzeigename } from './anzeigename';
 import { EHRUNGEN_PFAD, verarbeiteEhrungen } from './ehrungen';
 import type { EhrungenKonfiguration } from './ehrungen-gemeinsam';
 import { verarbeiteEfs, type EfsKonfiguration } from './efs';
@@ -188,17 +189,21 @@ export default {
           Allow: 'GET',
         });
       }
+      let anzeigename: string | null = null;
       if (url.pathname === '/api/benutzer' && umgebung.BENUTZER_DB) {
         // Die Shell ruft diesen Endpunkt einmal je Sitzungsstart ab; das
         // genügt, um "letzter Zugriff" aktuell zu halten. Ein Fehler hier
         // darf die eigentliche Antwort nicht verhindern.
         try {
           await registriereZugriff(umgebung.BENUTZER_DB, benutzer.email);
+          anzeigename = await leseAnzeigename(umgebung.BENUTZER_DB, benutzer.email);
         } catch (ursache) {
           console.error('BENUTZER_DB_FEHLER', ursache instanceof Error ? ursache.message : ursache);
         }
       }
-      return jsonAntwort(url.pathname === '/api/benutzer' ? benutzer : { status: 'erreichbar' });
+      return jsonAntwort(
+        url.pathname === '/api/benutzer' ? { ...benutzer, anzeigename } : { status: 'erreichbar' },
+      );
     }
 
     if (url.pathname === POSTFACH_PFAD || url.pathname.startsWith(`${POSTFACH_PFAD}/`)) {
@@ -214,6 +219,10 @@ export default {
       url.pathname === SCHADENSMELDUNG_VORLAGE_DATEI_PFAD
     ) {
       return verarbeiteSchadensmeldungVorlage(anfrage, umgebung, benutzer);
+    }
+
+    if (url.pathname === ANZEIGENAME_PFAD) {
+      return verarbeiteAnzeigename(anfrage, umgebung, benutzer);
     }
 
     if (url.pathname === UNTERSCHRIFT_PFAD) {

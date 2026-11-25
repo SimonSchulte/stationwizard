@@ -20,6 +20,8 @@ import { AufgabenStoreService } from './kern/aufgaben/aufgaben-store.service';
 import { Benutzerkontext } from './kern/benutzerkontext';
 import { WorkerClient } from './kern/worker-client';
 import { UnterschriftDialogDienst } from './kern/unterschrift/unterschrift-dialog-dienst';
+import { DialogDienst } from './kern/dialog/dialog-dienst';
+import { MeldungsDienst } from './kern/zustand/meldungs-dienst';
 import { VerlassenSchutz } from './kern/verlassen-schutz';
 import { Meldung } from './kern/zustand/zustand';
 
@@ -110,7 +112,30 @@ export class App {
     void this.unterschriftDialog.bearbeiten(this.benutzer.anzeigename());
   }
 
+  protected async anzeigenameBearbeiten(): Promise<void> {
+    const neu = await this.dialog.eingabe(
+      'Dieser Name überschreibt den Namen aus der Anmeldung. Er erscheint in Ausgaben (etwa Unterschriften und Versandtexten) und in Logeinträgen. Leer lassen, um wieder den Namen aus der Anmeldung zu verwenden.',
+      'Anzeigename',
+      'Anzeigename',
+      {
+        wert: this.benutzer.eigenerName() ?? '',
+        leerErlaubt: true,
+        maxLaenge: 60,
+        bestaetigenLabel: 'Speichern',
+      },
+    );
+    if (neu === null) return;
+    try {
+      await this.benutzer.anzeigenameSetzen(neu === '' ? null : neu);
+      this.meldungen.erfolg(neu === '' ? 'Anzeigename zurückgesetzt.' : 'Anzeigename gespeichert.');
+    } catch {
+      this.meldungen.fehler('Der Anzeigename konnte nicht gespeichert werden.');
+    }
+  }
+
   protected readonly benutzer = inject(Benutzerkontext);
+  private readonly dialog = inject(DialogDienst);
+  private readonly meldungen = inject(MeldungsDienst);
   protected readonly worker = inject(WorkerClient);
   protected readonly aufgaben = inject(AufgabenStoreService);
   protected readonly postfach = inject(PostfachZaehler);

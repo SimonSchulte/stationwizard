@@ -248,6 +248,7 @@ Prüfungen und offene Abnahmegrenzen.
 | `/api/status`                                       | GET                 | Worker-Status                                                                                          |
 | `/api/benutzer`                                     | GET                 | Verifizierte E-Mail-Adresse                                                                            |
 | `/api/benutzer/profilbild`                          | GET                 | Best-effort Google-Profilbild-URL oder `null`, siehe unten                                             |
+| `/api/benutzer/anzeigename`                         | GET / PUT           | Eigener Anzeigename der geprüften Person (`null` setzt zurück); nie der einer anderen                  |
 | `/api/efs/checkapikey`                              | POST                | JSON `{}`                                                                                              |
 | `/api/efs/getveranstaltungen`                       | POST                | JSON `{}`                                                                                              |
 | `/api/efs/getveranstaltung`                         | POST                | JSON mit ausschließlich `id`                                                                           |
@@ -431,6 +432,16 @@ dieselbe Übergangslösung wie beim Löschen einer Ablesung (siehe „Rechte vor
 später", `docs/konzept-fahrzeuge.md` Abschnitt 8); eine spätere Admin-Rolle soll dies
 einschränken. Eine tatsächliche serverseitige Durchsetzung dieser Sonderrollen auf den
 Verwaltungs- und Einsatzplanungs-Endpunkten steht noch aus (siehe Arbeitsstand).
+
+Der **Anzeigename** (Benutzermenü → „Anzeigename“, `worker/src/anzeigename.ts`, Spalte `benutzer.anzeigename`,
+Migration `0031`) überschreibt den aus der E-Mail-Adresse abgeleiteten Namen. Die Adresse bleibt der Schlüssel
+jeder Zuordnung (Rollen, Unterschriften, Freigaben, Spalten `…_von`); der Name ist reine Darstellung und wird nur
+von der Person selbst gesetzt (1–60 Zeichen, ohne Steuerzeichen). Der Worker setzt ihn in neu entstehende Ausgaben
+(`ermittleAnzeigename()`: Unterschriftsname, Versandtext, Verlaufstexte – Momentaufnahme beim Schreiben); die
+Oberfläche löst Adressen in Logeinträgen und Listen beim Anzeigen auf (`kern/namensverzeichnis.ts`, Pipe
+`anzeigename`, ein gepufferter Abruf von `/api/benutzerverwaltung`), spätere Änderungen wirken dort rückwirkend.
+Neue Anzeigen einer Person aus einer E-Mail-Adresse über diese Pipe beziehungsweise `Namensverzeichnis.anzeige()`
+führen, nicht über `anzeigenameAusEmail()`.
 
 Die Systemkonfiguration (`src/app/systemkonfiguration/`, `worker/src/systemkonfiguration.ts`)
 hält Betriebseinstellungen, die zur Laufzeit in der Oberfläche gesetzt werden. Die Tabelle
