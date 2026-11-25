@@ -1,20 +1,23 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
 import { Einstiegskarte } from '../../../kern/einstieg/einstiegskarte';
 import { Einstiegsraster } from '../../../kern/einstieg/einstiegsraster';
 import { Einstiegsseite } from '../../../kern/einstieg/einstiegsseite';
 import { Seitenkopf } from '../../../kern/seitenkopf/seitenkopf';
+import { VERWALTUNG_GRUPPEN } from '../../verwaltung-gruppen';
 import { BenutzerverwaltungStoreService } from '../../../benutzerverwaltung/services/benutzerverwaltung-store.service';
 import { FahrzeugDruckbogenService } from '../../../fahrzeuge/services/fahrzeug-druckbogen.service';
 import { ApiErfassungslinkStorage } from '../../../fahrzeuge/storage/api-erfassungslink-storage';
 
 @Component({
   selector: 'app-verwaltung-startseite',
-  imports: [Seitenkopf, Einstiegsseite, Einstiegsraster, Einstiegskarte],
+  imports: [MatIconModule, Seitenkopf, Einstiegsseite, Einstiegsraster, Einstiegskarte],
   templateUrl: './verwaltung-startseite.html',
   styleUrl: './verwaltung-startseite.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VerwaltungStartseite {
+  protected readonly gruppen = VERWALTUNG_GRUPPEN;
   private readonly benutzerverwaltungStore = inject(BenutzerverwaltungStoreService);
   private readonly linkStorage = inject(ApiErfassungslinkStorage);
   private readonly druckbogenService = inject(FahrzeugDruckbogenService);

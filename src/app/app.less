@@ -68,8 +68,547 @@ mat-sidenav nav .gruppenschalter:hover {
   background: transparent;
   color: inherit;
 }
-.navknoten.unterpunkt a {
+.navknoten.ebene-1 a,
+.navknoten.ebene-1 .gruppenschalter {
   padding-left: var(--space-xl);
+}
+.navknoten.ebene-2 a {
+  padding-left: calc(var(--space-xl) + var(--space-lg));
+}
+.nav-marke {
+  margin-left: auto;
+}
+mat-sidenav nav a,
+.gruppenschalter {
+  font-size: 0.95rem;
+}
+.gruppenschalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gruppenname {
+  flex: 1;
+}
+/* Feste Höhe, damit Seiten wie der Kalender ihren Inhalt selbst scrollen lassen und ihre
+   untere Navigation am Rand bleibt; längere Seiten scrollen weiter im Sidenav-Inhalt. */
+main {
+  height: 100%;
+  min-height: 0;
+}
+.benutzer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-left: auto;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.benutzer-schalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.benutzer-schalter:hover,
+.benutzer-schalter:focus-visible {
+  background: var(--ci-blue);
+}
+.benutzer-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ci-blue);
+  color: var(--text-on-dark);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  object-fit: cover;
+}
+.benutzer-name {
+  max-width: min(40vw, 24rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-fuss {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs) var(--space-lg);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-light);
+}
+.sprunglink {
+  position: fixed;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  transform: translateY(-200%);
+  padding: var(--space-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  z-index: 100;
+}
+.sprunglink:focus {
+  transform: none;
+}
+@media (max-width: 780px) {
+  .shell-kopf {
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+  }
+  .marke {
+    font-size: 1rem;
+  }
+  .benutzer-name {
+    max-width: 40vw;
+  }
+}
+
+/* Zählmarken (`app-zaehlmarke`) liegen in der Kopfleiste über dem Symbol. */
+.burger,
+.kopf-symbol {
+  color: inherit;
+}
+.marke {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.shell-koerper {
+  flex: 1;
+  min-height: 0;
+}
+mat-sidenav {
+  width: min(280px, 80vw);
+  background: var(--ci-dark-blue);
+  color: var(--text-on-dark);
+}
+mat-sidenav nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+}
+mat-sidenav nav a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+}
+mat-sidenav nav a.aktiv,
+mat-sidenav nav a:hover,
+mat-sidenav nav .gruppenschalter:hover {
+  background: var(--ci-blue);
+}
+/* Navigation als Baum: Gruppen klappen auf, Unterpunkte sind eingerückt. */
+.navbaum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: transparent;
+}
+.navknoten {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.navknoten.ebene-1 a,
+.navknoten.ebene-1 .gruppenschalter {
+  padding-left: var(--space-xl);
+}
+.navknoten.ebene-2 a {
+  padding-left: calc(var(--space-xl) + var(--space-lg));
+}
+.nav-marke {
+  margin-left: auto;
+}
+mat-sidenav nav a,
+.gruppenschalter {
+  font-size: 0.95rem;
+}
+.gruppenschalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gruppenname {
+  flex: 1;
+}
+/* Feste Höhe, damit Seiten wie der Kalender ihren Inhalt selbst scrollen lassen und ihre
+   untere Navigation am Rand bleibt; längere Seiten scrollen weiter im Sidenav-Inhalt. */
+main {
+  height: 100%;
+  min-height: 0;
+}
+.benutzer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-left: auto;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.benutzer-schalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.benutzer-schalter:hover,
+.benutzer-schalter:focus-visible {
+  background: var(--ci-blue);
+}
+.benutzer-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ci-blue);
+  color: var(--text-on-dark);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  object-fit: cover;
+}
+.benutzer-name {
+  max-width: min(40vw, 24rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-fuss {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs) var(--space-lg);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-light);
+}
+.sprunglink {
+  position: fixed;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  transform: translateY(-200%);
+  padding: var(--space-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  z-index: 100;
+}
+.sprunglink:focus {
+  transform: none;
+}
+@media (max-width: 780px) {
+  .shell-kopf {
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+  }
+  .marke {
+    font-size: 1rem;
+  }
+  .benutzer-name {
+    max-width: 40vw;
+  }
+}
+
+/* Zählmarken (`app-zaehlmarke`) liegen in der Kopfleiste über dem Symbol. */
+.burger,
+.kopf-symbol {
+  color: inherit;
+}
+.marke {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.shell-koerper {
+  flex: 1;
+  min-height: 0;
+}
+mat-sidenav {
+  width: min(280px, 80vw);
+  background: var(--ci-dark-blue);
+  color: var(--text-on-dark);
+}
+mat-sidenav nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+}
+mat-sidenav nav a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+}
+mat-sidenav nav a.aktiv,
+mat-sidenav nav a:hover,
+mat-sidenav nav .gruppenschalter:hover {
+  background: var(--ci-blue);
+}
+/* Navigation als Baum: Gruppen klappen auf, Unterpunkte sind eingerückt. */
+.navbaum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: transparent;
+}
+.navknoten {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.navknoten.ebene-1 a,
+.navknoten.ebene-1 .gruppenschalter {
+  padding-left: var(--space-xl);
+}
+.navknoten.ebene-2 a {
+  padding-left: calc(var(--space-xl) + var(--space-lg));
+}
+.nav-marke {
+  margin-left: auto;
+}
+mat-sidenav nav a,
+.gruppenschalter {
+  font-size: 0.95rem;
+}
+.gruppenschalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gruppenname {
+  flex: 1;
+}
+/* Feste Höhe, damit Seiten wie der Kalender ihren Inhalt selbst scrollen lassen und ihre
+   untere Navigation am Rand bleibt; längere Seiten scrollen weiter im Sidenav-Inhalt. */
+main {
+  height: 100%;
+  min-height: 0;
+}
+.benutzer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-left: auto;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.benutzer-schalter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.benutzer-schalter:hover,
+.benutzer-schalter:focus-visible {
+  background: var(--ci-blue);
+}
+.benutzer-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ci-blue);
+  color: var(--text-on-dark);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  object-fit: cover;
+}
+.benutzer-name {
+  max-width: min(40vw, 24rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-fuss {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs) var(--space-lg);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-light);
+}
+.sprunglink {
+  position: fixed;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  transform: translateY(-200%);
+  padding: var(--space-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  z-index: 100;
+}
+.sprunglink:focus {
+  transform: none;
+}
+@media (max-width: 780px) {
+  .shell-kopf {
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+  }
+  .marke {
+    font-size: 1rem;
+  }
+  .benutzer-name {
+    max-width: 40vw;
+  }
+}
+
+/* Zählmarken (`app-zaehlmarke`) liegen in der Kopfleiste über dem Symbol. */
+.burger,
+.kopf-symbol {
+  color: inherit;
+}
+.marke {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.shell-koerper {
+  flex: 1;
+  min-height: 0;
+}
+mat-sidenav {
+  width: min(280px, 80vw);
+  background: var(--ci-dark-blue);
+  color: var(--text-on-dark);
+}
+mat-sidenav nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+}
+mat-sidenav nav a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+}
+mat-sidenav nav a.aktiv,
+mat-sidenav nav a:hover,
+mat-sidenav nav .gruppenschalter:hover {
+  background: var(--ci-blue);
+}
+/* Navigation als Baum: Gruppen klappen auf, Unterpunkte sind eingerückt. */
+.navbaum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: transparent;
+}
+.navknoten {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.navknoten.ebene-1 a,
+.navknoten.ebene-1 .gruppenschalter {
+  padding-left: var(--space-xl);
+}
+.navknoten.ebene-2 a {
+  padding-left: calc(var(--space-xl) + var(--space-lg));
+}
+.nav-marke {
+  margin-left: auto;
+}
+mat-sidenav nav a,
+.gruppenschalter {
+  font-size: 0.95rem;
 }
 .gruppenschalter {
   display: flex;
@@ -203,8 +742,8 @@ main {
   position: relative;
 }
 
-.burger .aufgaben-marke,
-.kopf-symbol .aufgaben-marke {
+.burger app-zaehlmarke,
+.kopf-symbol app-zaehlmarke {
   position: absolute;
   top: 2px;
   right: 2px;
